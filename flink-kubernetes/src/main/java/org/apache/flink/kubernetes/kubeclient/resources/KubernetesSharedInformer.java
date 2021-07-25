@@ -42,10 +42,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -247,11 +248,9 @@ public abstract class KubernetesSharedInformer<
     }
 
     private static final class WatchCallback<T> {
-        /**
-         * A fair lock, that ensures events for a single {@link WatchCallbackHandler} are processed
-         * in the order they've arrived in.
-         */
-        private final ReentrantLock callbackLock = new ReentrantLock(true);
+        private final Object callbackLock = new Object();
+        private final BlockingQueue<Consumer<WatchCallbackHandler<T>>> callbackQueue =
+                new LinkedBlockingQueue<>();
 
         private final WatchCallbackHandler<T> handler;
         private final ExecutorService executorService;
@@ -263,19 +262,20 @@ public abstract class KubernetesSharedInformer<
         }
 
         private void run(Consumer<WatchCallbackHandler<T>> handlerConsumer) {
-            if (this.executorService == null) {
+            if (executorService == null) {
                 handlerConsumer.accept(handler);
-            } else {
-                this.executorService.execute(
-                        () -> {
-                            callbackLock.lock();
-                            try {
-                                handlerConsumer.accept(handler);
-                            } finally {
-                                callbackLock.unlock();
-                            }
-                        });
+                return;
             }
+            Preconditions.checkState(
+                    callbackQueue.add(handlerConsumer), "Unable to put callback into a queue.");
+            executorService.execute(
+                    () -> {
+                        synchronized (callbackLock) {
+                            Preconditions.checkNotNull(
+                                            callbackQueue.poll(), "Callback queue is empty")
+                                    .accept(handler);
+                        }
+                    });
         }
     }
 }
