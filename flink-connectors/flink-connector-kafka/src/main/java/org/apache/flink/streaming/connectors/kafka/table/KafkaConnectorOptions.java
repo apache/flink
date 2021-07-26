@@ -316,7 +316,7 @@ public class KafkaConnectorOptions {
             return value;
         }
 
-        public FlinkKafkaProducer.Semantic getSemantic() {
+        FlinkKafkaProducer.Semantic getSemantic() {
             return semantic;
         }
 
