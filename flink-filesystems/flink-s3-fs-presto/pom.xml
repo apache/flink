@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.187</presto.version>
+		<presto.version>0.257</presto.version>
 	</properties>
 
 	<dependencies>
@@ -67,6 +67,10 @@ under the License.
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
 				</exclusion>
 
 				<!-- lot's of unneeded stuff for the S3 file system -->
