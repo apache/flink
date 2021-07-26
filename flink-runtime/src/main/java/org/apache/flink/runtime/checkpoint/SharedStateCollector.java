@@ -53,7 +53,7 @@ import static java.util.stream.Stream.empty;
  * considered as shared.
  *
  * <p>Assuming each parallel operator <b>chain</b> instance is also safe because it can not be split
- * (without taking a savepoint). Therefore, each {@link ExecutionVertex} can be assumed a potential
+ * (without restarting the job). Therefore, each {@link ExecutionVertex} can be assumed a potential
  * state owner.
  */
 @Internal
