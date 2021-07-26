@@ -42,7 +42,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
+import org.apache.flink.shaded.guava30.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -322,7 +322,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     try {
                         final String logs = outContent.toString();
                         final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-                        final String host = hostAndPort.getHostText();
+                        final String host = hostAndPort.getHost();
                         final int port = hostAndPort.getPort();
                         LOG.info("Extracted hostname:port: {}:{}", host, port);
 

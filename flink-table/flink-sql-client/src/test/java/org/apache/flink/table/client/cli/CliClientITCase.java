@@ -28,7 +28,7 @@ import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;

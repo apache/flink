@@ -29,7 +29,7 @@ import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import org.codehaus.commons.nullanalysis.NotNull;
 import org.slf4j.Logger;

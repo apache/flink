@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration.description;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import java.util.Arrays;
 import java.util.Collections;

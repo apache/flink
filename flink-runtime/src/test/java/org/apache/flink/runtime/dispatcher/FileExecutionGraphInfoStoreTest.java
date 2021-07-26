@@ -51,8 +51,8 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
-import org.apache.flink.shaded.guava18.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
