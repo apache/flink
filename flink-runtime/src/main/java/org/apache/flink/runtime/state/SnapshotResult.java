@@ -121,6 +121,9 @@ public class SnapshotResult<T extends StateObject> implements StateObject {
         if (jobManagerOwnedSnapshot != null) {
             jobManagerOwnedSnapshot.accept(visitor);
         }
+        if (taskLocalSnapshot != null) {
+            taskLocalSnapshot.accept(visitor);
+        }
         visitor.visit(this);
     }
 
