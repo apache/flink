@@ -48,9 +48,7 @@ public abstract class Column {
     protected final @Nullable String comment;
 
     private Column(String name, DataType dataType) {
-        this.name = name;
-        this.dataType = dataType;
-        this.comment = null;
+        this(name, dataType, null);
     }
 
     private Column(String name, DataType dataType, @Nullable String comment) {

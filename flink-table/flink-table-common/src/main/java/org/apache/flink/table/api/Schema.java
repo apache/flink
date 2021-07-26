@@ -226,6 +226,8 @@ public final class Schema {
             if (columns.size() > 0) {
                 columns.set(
                         columns.size() - 1, columns.get(columns.size() - 1).withComment(comment));
+            } else {
+                throw new IllegalArgumentException("There is no preceding column defined.");
             }
             return this;
         }
@@ -744,8 +746,7 @@ public final class Schema {
         private final Expression expression;
 
         UnresolvedComputedColumn(String columnName, Expression expression) {
-            super(columnName);
-            this.expression = expression;
+            this(columnName, expression, null);
         }
 
         UnresolvedComputedColumn(String columnName, Expression expression, String comment) {
