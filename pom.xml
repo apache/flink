@@ -1655,6 +1655,24 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
+						<id>forbid-direct-akka-rpc-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.apache.flink:flink-rpc-akka</exclude>
+									</excludes>
+									<message>
+										Direct dependencies on flink-rpc-akka are not allowed. Depend on flink-rpc-akka-loader instead, and use RpcSystem#load or the TestingRpcService.
+									</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
 						<id>dependency-convergence</id>
 						<!-- disabled by default as it interacts badly with shade-plugin -->
 						<phase>none</phase>

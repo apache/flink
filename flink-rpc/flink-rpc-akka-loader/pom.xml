@@ -127,6 +127,17 @@ under the License.
 				</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>forbid-direct-akka-rpc-dependencies</id>
+						<!-- This module needs the dependency in order to bundle flink-rpc-akka. -->
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>
