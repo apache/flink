@@ -1291,7 +1291,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, resourceProfile);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2, 3).map(x -> x + 1);
+        env.fromElements(1, 2, 3).map(x -> x + 1).setParallelism(2);
 
         final StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResource);
