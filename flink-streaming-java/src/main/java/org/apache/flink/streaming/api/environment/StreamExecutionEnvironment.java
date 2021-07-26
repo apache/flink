@@ -61,6 +61,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -2185,6 +2186,22 @@ public class StreamExecutionEnvironment {
     public void addOperator(Transformation<?> transformation) {
         Preconditions.checkNotNull(transformation, "transformation must not be null.");
         this.transformations.add(transformation);
+    }
+
+    /**
+     * Gives read-only access to the underlying configuration of this environment.
+     *
+     * <p>Note that the returned configuration might not be complete. It only contains options that
+     * have initialized the environment via {@link #StreamExecutionEnvironment(Configuration)} or
+     * options that are not represented in dedicated configuration classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}.
+     *
+     * <p>Use {@link #configure(ReadableConfig, ClassLoader)} to set options that are specific to
+     * this environment.
+     */
+    @Internal
+    public ReadableConfig getConfiguration() {
+        return new UnmodifiableConfiguration(configuration);
     }
 
     // --------------------------------------------------------------------------------------------
