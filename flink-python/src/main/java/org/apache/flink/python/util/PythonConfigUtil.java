@@ -47,7 +47,6 @@ import org.apache.flink.table.api.TableException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -66,34 +65,34 @@ public class PythonConfigUtil {
      * python dependency management configurations.
      */
     public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         return PythonDependencyUtils.configurePythonDependencies(
                 env.getCachedFiles(), getEnvironmentConfig(env));
     }
 
     /**
-     * Get the private method {@link StreamExecutionEnvironment#getConfiguration()} by reflection
-     * recursively. Then access the method to get the configuration of the given
+     * Get the private field {@code StreamExecutionEnvironment#configuration} by reflection
+     * recursively. Then access the field to get the configuration of the given
      * StreamExecutionEnvironment.
      */
     public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        Method getConfigurationMethod = null;
+            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
+        Field configurationField = null;
         for (Class<?> clz = env.getClass(); clz != Object.class; clz = clz.getSuperclass()) {
             try {
-                getConfigurationMethod = clz.getDeclaredMethod("getConfiguration");
+                configurationField = clz.getDeclaredField("configuration");
                 break;
-            } catch (NoSuchMethodException e) {
+            } catch (NoSuchFieldException e) {
                 // ignore
             }
         }
 
-        if (getConfigurationMethod == null) {
-            throw new NoSuchMethodException("Method getConfigurationMethod not found.");
+        if (configurationField == null) {
+            throw new NoSuchFieldException("Field 'configuration' not found.");
         }
 
-        getConfigurationMethod.setAccessible(true);
-        return (Configuration) getConfigurationMethod.invoke(env);
+        configurationField.setAccessible(true);
+        return (Configuration) configurationField.get(env);
     }
 
     /**
@@ -105,8 +104,7 @@ public class PythonConfigUtil {
      */
     public static StreamGraph generateStreamGraphWithDependencies(
             StreamExecutionEnvironment env, boolean clearTransformations)
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         configPythonOperator(env);
 
         String jobName =
@@ -118,8 +116,7 @@ public class PythonConfigUtil {
 
     @SuppressWarnings("unchecked")
     public static void configPythonOperator(StreamExecutionEnvironment env)
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         Configuration mergedConfig = getEnvConfigWithDependencies(env);
 
         boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
@@ -166,7 +163,7 @@ public class PythonConfigUtil {
                     PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
             mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
             return mergedConfig;
-        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+        } catch (IllegalAccessException | NoSuchFieldException | InvocationTargetException e) {
             throw new TableException("Method getMergedConfig failed.", e);
         }
     }

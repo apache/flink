@@ -52,6 +52,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -190,7 +191,16 @@ public class StreamExecutionEnvironment {
 
     private final PipelineExecutorServiceLoader executorServiceLoader;
 
-    private final Configuration configuration;
+    /**
+     * Currently, configuration is split across multiple member variables and classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}. This architecture makes it quite difficult to
+     * handle/merge/enrich configuration or restrict access in other APIs.
+     *
+     * <p>In the long-term, this {@link Configuration} object should be the source of truth for
+     * newly added {@link ConfigOption}s that are relevant for DataStream API. Make sure to also
+     * update {@link #configure(ReadableConfig, ClassLoader)}.
+     */
+    protected final Configuration configuration;
 
     private final ClassLoader userClassloader;
 
@@ -260,10 +270,6 @@ public class StreamExecutionEnvironment {
         // other ways assume
         // that the env is already instantiated so they will overwrite the value passed here.
         this.configure(this.configuration, this.userClassloader);
-    }
-
-    protected Configuration getConfiguration() {
-        return this.configuration;
     }
 
     protected ClassLoader getUserClassloader() {
@@ -976,26 +982,25 @@ public class StreamExecutionEnvironment {
                 .getOptional(ExecutionOptions.SORT_INPUTS)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.SORT_INPUTS, sortInputs));
+                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
         configuration
                 .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
+                                this.configuration.set(
+                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
         configuration
                 .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
+                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
+
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
                 .ifPresent(
                         flag ->
-                                this.getConfiguration()
-                                        .set(
-                                                ExecutionCheckpointingOptions
-                                                        .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                flag));
+                                this.configuration.set(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                        flag));
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
@@ -2130,7 +2135,7 @@ public class StreamExecutionEnvironment {
 
         final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
 
-        return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
+        return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
