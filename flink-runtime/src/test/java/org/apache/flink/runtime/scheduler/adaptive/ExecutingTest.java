@@ -69,6 +69,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -926,6 +927,12 @@ public class ExecutingTest extends TestLogger {
         @Override
         public IntermediateResultPartition getResultPartitionOrThrow(
                 IntermediateResultPartitionID id) {
+            throw new UnsupportedOperationException(
+                    "This method is not supported by the MockInternalExecutionGraphAccessor.");
+        }
+
+        @Override
+        public void deleteBlobs(List<PermanentBlobKey> blobKeys) {
             throw new UnsupportedOperationException(
                     "This method is not supported by the MockInternalExecutionGraphAccessor.");
         }

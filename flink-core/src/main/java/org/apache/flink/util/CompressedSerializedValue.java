@@ -28,6 +28,10 @@ public class CompressedSerializedValue<T> extends SerializedValue<T> {
 
     private static final long serialVersionUID = -4358765382738374654L;
 
+    private CompressedSerializedValue(byte[] compressedSerializedData) {
+        super(compressedSerializedData);
+    }
+
     private CompressedSerializedValue(T value) throws IOException {
         super(InstantiationUtil.serializeObjectAndCompress(value));
     }
@@ -61,6 +65,20 @@ public class CompressedSerializedValue<T> extends SerializedValue<T> {
     public static <T> CompressedSerializedValue<T> fromObject(T object) throws IOException {
         Preconditions.checkNotNull(object, "Value must not be null");
         return new CompressedSerializedValue<>(object);
+    }
+
+    /**
+     * Construct a compressed serialized value with a serialized byte array.
+     *
+     * <p>The byte array must be the result of serialization and compression with {@link
+     * InstantiationUtil#serializeObjectAndCompress}.
+     *
+     * @param compressedSerializedData the compressed serialized byte array
+     * @param <T> type of the object
+     * @return {@link CompressedSerializedValue} that can be deserialized as the object
+     */
+    public static <T> CompressedSerializedValue<T> fromBytes(byte[] compressedSerializedData) {
+        return new CompressedSerializedValue<>(compressedSerializedData);
     }
 
     // --------------------------------------------------------------------------------------------

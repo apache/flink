@@ -22,6 +22,8 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -31,6 +33,7 @@ import static org.junit.Assert.assertNotNull;
 public class CompressedSerializedValueTest {
     @Test
     public void testSimpleValue() throws Exception {
+
         final String value = "teststring";
 
         CompressedSerializedValue<String> v = CompressedSerializedValue.fromObject(value);
@@ -47,10 +50,26 @@ public class CompressedSerializedValueTest {
 
         assertNotEquals(0, v.getSize());
         assertArrayEquals(v.getByteArray(), copy.getByteArray());
+
+        byte[] bytes = v.getByteArray();
+        CompressedSerializedValue<String> saved =
+                CompressedSerializedValue.fromBytes(Arrays.copyOf(bytes, bytes.length));
+        assertEquals(v, saved);
+        assertArrayEquals(v.getByteArray(), saved.getByteArray());
     }
 
     @Test(expected = NullPointerException.class)
     public void testNullValue() throws Exception {
         CompressedSerializedValue.fromObject(null);
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testFromNullBytes() {
+        CompressedSerializedValue.fromBytes(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testFromEmptyBytes() {
+        CompressedSerializedValue.fromBytes(new byte[0]);
     }
 }

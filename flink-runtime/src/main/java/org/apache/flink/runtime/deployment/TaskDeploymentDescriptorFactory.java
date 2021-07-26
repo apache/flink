@@ -20,6 +20,7 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -69,6 +70,7 @@ public class TaskDeploymentDescriptorFactory {
     private final List<ConsumedPartitionGroup> consumedPartitionGroups;
     private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
             resultPartitionRetriever;
+    private final BlobWriter blobWriter;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -80,7 +82,8 @@ public class TaskDeploymentDescriptorFactory {
             int subtaskIndex,
             List<ConsumedPartitionGroup> consumedPartitionGroups,
             Function<IntermediateResultPartitionID, IntermediateResultPartition>
-                    resultPartitionRetriever) {
+                    resultPartitionRetriever,
+            BlobWriter blobWriter) {
         this.executionId = executionId;
         this.attemptNumber = attemptNumber;
         this.serializedJobInformation = serializedJobInformation;
@@ -90,6 +93,7 @@ public class TaskDeploymentDescriptorFactory {
         this.subtaskIndex = subtaskIndex;
         this.consumedPartitionGroups = consumedPartitionGroups;
         this.resultPartitionRetriever = resultPartitionRetriever;
+        this.blobWriter = blobWriter;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
@@ -141,10 +145,10 @@ public class TaskDeploymentDescriptorFactory {
         return inputGates;
     }
 
-    private SerializedValue<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
+    private MaybeOffloaded<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
             IntermediateResult intermediateResult, ConsumedPartitionGroup consumedPartitionGroup)
             throws IOException {
-        SerializedValue<ShuffleDescriptor[]> serializedShuffleDescriptors =
+        MaybeOffloaded<ShuffleDescriptor[]> serializedShuffleDescriptors =
                 intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
         if (serializedShuffleDescriptors == null) {
             serializedShuffleDescriptors =
@@ -155,7 +159,7 @@ public class TaskDeploymentDescriptorFactory {
         return serializedShuffleDescriptors;
     }
 
-    private SerializedValue<ShuffleDescriptor[]> computeConsumedPartitionShuffleDescriptors(
+    private MaybeOffloaded<ShuffleDescriptor[]> computeConsumedPartitionShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
 
         ShuffleDescriptor[] shuffleDescriptors =
@@ -168,7 +172,24 @@ public class TaskDeploymentDescriptorFactory {
                             resultPartitionRetriever.apply(partitionId),
                             partitionDeploymentConstraint);
         }
-        return CompressedSerializedValue.fromObject(shuffleDescriptors);
+        return serializeAndTryOffloadShuffleDescriptors(shuffleDescriptors);
+    }
+
+    private MaybeOffloaded<ShuffleDescriptor[]> serializeAndTryOffloadShuffleDescriptors(
+            ShuffleDescriptor[] shuffleDescriptors) throws IOException {
+
+        final CompressedSerializedValue<ShuffleDescriptor[]> compressedSerializedValue =
+                CompressedSerializedValue.fromObject(shuffleDescriptors);
+
+        final Either<SerializedValue<ShuffleDescriptor[]>, PermanentBlobKey>
+                serializedValueOrBlobKey =
+                        BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
+
+        if (serializedValueOrBlobKey.isLeft()) {
+            return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
+        } else {
+            return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
+        }
     }
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
@@ -186,7 +207,8 @@ public class TaskDeploymentDescriptorFactory {
                 internalExecutionGraphAccessor.getPartitionLocationConstraint(),
                 executionVertex.getParallelSubtaskIndex(),
                 executionVertex.getAllConsumedPartitionGroups(),
-                internalExecutionGraphAccessor::getResultPartitionOrThrow);
+                internalExecutionGraphAccessor::getResultPartitionOrThrow,
+                internalExecutionGraphAccessor.getBlobWriter());
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(
