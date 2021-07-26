@@ -22,11 +22,14 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -76,6 +79,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toDataType;
+import static org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter.toLogicalType;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
@@ -250,6 +255,58 @@ public class LogicalTypeSerdeTest {
         }
         // ignore nullable for NullType
         newTypes.add(new NullType());
+        // RawType for MapView
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        toDataType(new IntType(false)),
+                                        toDataType(new BigIntType(false))),
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        toDataType(new IntType(true)), // key is nullable
+                                        toDataType(new BigIntType(false))),
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        toDataType(new IntType(false)),
+                                        toDataType(new BigIntType(true))), // value is nullable
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        toDataType(new IntType(true)), // key is nullable
+                                        toDataType(new BigIntType(true))), // value is nullable
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                MapView.newMapViewDataType(
+                                        toDataType(new IntType(true)),
+                                        toDataType(new BigIntType(true))),
+                                true)));
+        // RawType for ListView
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                ListView.newListViewDataType(toDataType(new BigIntType(false))),
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                ListView.newListViewDataType(toDataType(new BigIntType(true))),
+                                false)));
+        newTypes.add(
+                toLogicalType(
+                        DataViewUtils.adjustDataViews(
+                                ListView.newListViewDataType(toDataType(new BigIntType(true))),
+                                true)));
         return newTypes;
     }
 
