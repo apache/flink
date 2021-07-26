@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.ShareableStateHandle;
 import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -35,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link StreamStateHandle} for state that was written to a file stream. The written data is
  * identified by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
-public class FileStateHandle implements StreamStateHandle {
+public class FileStateHandle implements StreamStateHandle, ShareableStateHandle {
 
     private static final long serialVersionUID = 350284443258002355L;
 

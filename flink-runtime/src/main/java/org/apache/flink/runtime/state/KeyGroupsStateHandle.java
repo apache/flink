@@ -117,11 +117,6 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
-    public StateObjectID getID() {
-        return stateHandle.getID();
-    }
-
-    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;

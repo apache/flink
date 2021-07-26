@@ -29,7 +29,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -137,11 +136,6 @@ public class CheckpointMessagesTest {
         @Override
         public Optional<byte[]> asBytesIfInMemory() {
             return Optional.empty();
-        }
-
-        @Override
-        public StateObjectID getID() {
-            return StateObjectID.of("test");
         }
 
         @Override

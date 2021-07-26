@@ -193,4 +193,8 @@ public interface StateObjectVisitor<E extends Exception> {
     default void visit(TaskState stateObject) throws E {
         visit((StateObject) stateObject);
     }
+
+    default void visit(ShareableStateHandle stateObject) throws E {
+        visit((StateObject) stateObject);
+    }
 }

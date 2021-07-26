@@ -29,7 +29,7 @@ import java.util.Optional;
  * ByteStreamStateHandle}. This class is used in the referenced states of {@link
  * IncrementalRemoteKeyedStateHandle}.
  */
-public class PlaceholderStreamStateHandle implements StreamStateHandle {
+public class PlaceholderStreamStateHandle implements StreamStateHandle, ShareableStateHandle {
 
     private static final long serialVersionUID = 1L;
 

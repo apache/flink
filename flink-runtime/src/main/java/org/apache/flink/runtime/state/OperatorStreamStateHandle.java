@@ -72,11 +72,6 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     }
 
     @Override
-    public StateObjectID getID() {
-        return delegateStateHandle.getID();
-    }
-
-    @Override
     public StreamStateHandle getDelegateStateHandle() {
         return delegateStateHandle;
     }

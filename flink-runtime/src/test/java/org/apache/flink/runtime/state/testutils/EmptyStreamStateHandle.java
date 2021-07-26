@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.testutils;
 
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -77,11 +76,6 @@ public class EmptyStreamStateHandle implements StreamStateHandle {
     @Override
     public long getStateSize() {
         return 0;
-    }
-
-    @Override
-    public StateObjectID getID() {
-        return StateObjectID.of("test");
     }
 
     @Override

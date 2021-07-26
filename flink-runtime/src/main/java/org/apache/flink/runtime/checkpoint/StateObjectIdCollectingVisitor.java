@@ -17,9 +17,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.ShareableStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
-import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -28,8 +29,10 @@ class StateObjectIdCollectingVisitor implements StateObjectVisitor<RuntimeExcept
     private final Set<StateObjectID> stateObjectIDs = new HashSet<>();
 
     @Override
-    public void visit(StreamStateHandle stateObject) throws RuntimeException {
-        stateObjectIDs.add(stateObject.getID());
+    public void visit(StateObject stateObject) throws RuntimeException {
+        if (stateObject instanceof ShareableStateHandle) {
+            stateObjectIDs.add(((ShareableStateHandle) stateObject).getID());
+        }
     }
 
     public Set<StateObjectID> getStateObjectIDs() {

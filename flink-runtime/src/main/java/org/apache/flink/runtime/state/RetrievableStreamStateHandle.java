@@ -72,11 +72,6 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     }
 
     @Override
-    public StateObjectID getID() {
-        return wrappedStreamStateHandle.getID();
-    }
-
-    @Override
     public void discardState() throws Exception {
         wrappedStreamStateHandle.discardState();
     }
