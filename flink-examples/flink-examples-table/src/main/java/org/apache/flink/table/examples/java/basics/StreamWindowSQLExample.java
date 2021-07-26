@@ -40,6 +40,7 @@ public class StreamWindowSQLExample {
     public static void main(String[] args) throws Exception {
         // set up execution environment
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         // write source data into temporary file and get the absolute path
@@ -81,14 +82,23 @@ public class StreamWindowSQLExample {
                         + "GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
         Table result = tEnv.sqlQuery(query);
         tEnv.toAppendStream(result, Row.class).print();
+        // should output:
+        // +I[2019-12-12 00:00:00.000, 3, 10, 3]
+        // +I[2019-12-12 00:00:05.000, 3, 6, 2]
 
+        tEnv.executeSql(query).print();
+        // should output;
+        //+----+--------------------------------+----------------------+--------------+----------------------+
+        //| op |                   window_start |            order_num | total_amount |      unique_products |
+        //+----+--------------------------------+----------------------+--------------+----------------------+
+        //| +I |        2019-12-12 00:00:00.000 |                    3 |           10 |                    3 |
+        //| +I |        2019-12-12 00:00:05.000 |                    3 |            6 |                    2 |
+        // +----+--------------------------------+----------------------+--------------+----------------------+
         // after the table program is converted to DataStream program,
+
         // we must use `env.execute()` to submit the job.
         env.execute("Streaming Window SQL Job");
 
-        // should output:
-        // +I[2019-12-12 00:00:05.000, 3, 6, 2]
-        // +I[2019-12-12 00:00:00.000, 3, 10, 3]
     }
 
     /** Creates a temporary file with the contents and returns the absolute path. */
