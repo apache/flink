@@ -27,18 +27,14 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableBuilder;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.descriptors.FileSystem;
-import org.apache.flink.table.descriptors.FormatDescriptor;
-import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.types.AbstractDataType;
@@ -66,8 +62,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -157,37 +155,27 @@ public class HiveCatalogITCase {
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
 
-        TableSchema schema =
+        final TableSchema schema =
                 TableSchema.builder()
                         .field("name", DataTypes.STRING())
                         .field("age", DataTypes.INT())
                         .build();
 
-        FormatDescriptor format =
-                new OldCsv().field("name", Types.STRING()).field("age", Types.INT());
+        final Map<String, String> sourceOptions = new HashMap<>();
+        sourceOptions.put("connector.type", "filesystem");
+        sourceOptions.put("connector.path", getClass().getResource("/csv/test.csv").getPath());
+        sourceOptions.put("format.type", "csv");
 
-        CatalogTable source =
-                new CatalogTableBuilder(
-                                new FileSystem()
-                                        .path(
-                                                this.getClass()
-                                                        .getResource("/csv/test.csv")
-                                                        .getPath()),
-                                schema)
-                        .withFormat(format)
-                        .inAppendMode()
-                        .withComment("Comment.")
-                        .build();
+        CatalogTable source = new CatalogTableImpl(schema, sourceOptions, "Comment.");
 
         Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
 
-        CatalogTable sink =
-                new CatalogTableBuilder(
-                                new FileSystem().path(p.toAbsolutePath().toString()), schema)
-                        .withFormat(format)
-                        .inAppendMode()
-                        .withComment("Comment.")
-                        .build();
+        final Map<String, String> sinkOptions = new HashMap<>();
+        sinkOptions.put("connector.type", "filesystem");
+        sinkOptions.put("connector.path", p.toAbsolutePath().toString());
+        sinkOptions.put("format.type", "csv");
+
+        CatalogTable sink = new CatalogTableImpl(schema, sinkOptions, "Comment.");
 
         hiveCatalog.createTable(
                 new ObjectPath(HiveCatalog.DEFAULT_DB, sourceTableName), source, false);
