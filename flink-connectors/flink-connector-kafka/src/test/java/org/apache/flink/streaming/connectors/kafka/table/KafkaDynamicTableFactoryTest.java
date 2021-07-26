@@ -33,8 +33,8 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KafkaSinkSemantic;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -398,7 +398,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        KafkaSinkSemantic.EXACTLY_ONCE,
+                        SinkSemantic.EXACTLY_ONCE,
                         null);
         assertEquals(expectedSink, actualSink);
 
@@ -441,7 +441,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_FINAL_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        KafkaSinkSemantic.EXACTLY_ONCE,
+                        SinkSemantic.EXACTLY_ONCE,
                         null);
 
         assertEquals(expectedSink, actualSink);
@@ -468,7 +468,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        KafkaSinkSemantic.EXACTLY_ONCE,
+                        SinkSemantic.EXACTLY_ONCE,
                         100);
         assertEquals(expectedSink, actualSink);
 
@@ -851,7 +851,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             String topic,
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
-            KafkaSinkSemantic semantic,
+            SinkSemantic semantic,
             @Nullable Integer parallelism) {
         return new KafkaDynamicSink(
                 physicalDataType,
@@ -914,7 +914,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("properties.bootstrap.servers", "dummy");
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put("sink.semantic", KafkaSinkSemantic.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.semantic", SinkSemantic.EXACTLY_ONCE.toString());
         // Format options.
         tableOptions.put("format", TestFormatFactory.IDENTIFIER);
         final String formatDelimiterKey =
@@ -934,7 +934,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("scan.topic-partition-discovery.interval", DISCOVERY_INTERVAL);
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put("sink.semantic", KafkaSinkSemantic.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.semantic", SinkSemantic.EXACTLY_ONCE.toString());
         // Format options.
         tableOptions.put("key.format", TestFormatFactory.IDENTIFIER);
         tableOptions.put(

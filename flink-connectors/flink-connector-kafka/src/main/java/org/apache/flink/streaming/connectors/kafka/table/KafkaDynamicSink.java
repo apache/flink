@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -102,7 +103,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     protected final @Nullable FlinkKafkaPartitioner<RowData> partitioner;
 
     /** Sink commit semantic. */
-    protected final KafkaConnectorOptions.KafkaSinkSemantic sinkSemantic;
+    protected final SinkSemantic sinkSemantic;
 
     /**
      * Flag to determine sink mode. In upsert mode sink transforms the delete/update-before message
@@ -127,7 +128,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             String topic,
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
-            KafkaConnectorOptions.KafkaSinkSemantic sinkSemantic,
+            SinkSemantic sinkSemantic,
             boolean upsertMode,
             SinkBufferFlushMode flushMode,
             @Nullable Integer parallelism) {

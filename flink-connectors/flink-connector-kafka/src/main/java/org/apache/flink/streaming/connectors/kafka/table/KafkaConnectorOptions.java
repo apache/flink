@@ -195,10 +195,10 @@ public class KafkaConnectorOptions {
                                                     "custom class name (use custom FlinkKafkaPartitioner subclass)"))
                                     .build());
 
-    public static final ConfigOption<KafkaSinkSemantic> SINK_SEMANTIC =
+    public static final ConfigOption<SinkSemantic> SINK_SEMANTIC =
             ConfigOptions.key("sink.semantic")
-                    .enumType(KafkaSinkSemantic.class)
-                    .defaultValue(KafkaSinkSemantic.AT_LEAST_ONCE)
+                    .enumType(SinkSemantic.class)
+                    .defaultValue(SinkSemantic.AT_LEAST_ONCE)
                     .withDescription("Optional semantic when committing.");
 
     // Disable this feature by default
@@ -283,7 +283,7 @@ public class KafkaConnectorOptions {
     }
 
     /** Sink semantic, see {@link #SINK_SEMANTIC}. */
-    public enum KafkaSinkSemantic implements DescribedEnum {
+    public enum SinkSemantic implements DescribedEnum {
         EXACTLY_ONCE(
                 FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
                 "exactly-once",
@@ -304,7 +304,7 @@ public class KafkaConnectorOptions {
         private final String value;
         private final InlineElement description;
 
-        KafkaSinkSemantic(
+        SinkSemantic(
                 FlinkKafkaProducer.Semantic semantic, String value, InlineElement description) {
             this.semantic = semantic;
             this.value = value;
