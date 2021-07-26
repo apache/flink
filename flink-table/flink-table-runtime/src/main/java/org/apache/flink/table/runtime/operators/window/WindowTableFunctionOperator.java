@@ -28,12 +28,12 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
-import org.apache.flink.table.runtime.util.TimeWindowUtil;
 
 import java.time.ZoneId;
 import java.util.Collection;
-import java.util.function.LongUnaryOperator;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMills;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -65,7 +65,6 @@ public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
 
     private transient JoinedRowData outRow;
     private transient GenericRowData windowProperties;
-    private transient LongUnaryOperator getShiftEpochMillsFunc;
 
     public WindowTableFunctionOperator(
             WindowAssigner<TimeWindow> windowAssigner, int rowtimeIndex, ZoneId shiftTimeZone) {
@@ -83,12 +82,6 @@ public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
         this.collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
 
-        if (shiftTimeZone.getId().equals("UTC")) {
-            getShiftEpochMillsFunc = LongUnaryOperator.identity();
-        } else {
-            getShiftEpochMillsFunc = time -> TimeWindowUtil.toEpochMills(time, shiftTimeZone);
-        }
-
         outRow = new JoinedRowData();
         windowProperties = new GenericRowData(3);
     }
@@ -97,7 +90,7 @@ public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
     public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData inputRow = element.getValue();
         long timestamp = inputRow.getTimestamp(rowtimeIndex, 3).getMillisecond();
-        timestamp = TimeWindowUtil.toUtcTimestampMills(timestamp, shiftTimeZone);
+        timestamp = toUtcTimestampMills(timestamp, shiftTimeZone);
         Collection<TimeWindow> elementWindows = windowAssigner.assignWindows(inputRow, timestamp);
         for (TimeWindow window : elementWindows) {
             windowProperties.setField(0, TimestampData.fromEpochMillis(window.getStart()));
@@ -105,7 +98,7 @@ public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
             windowProperties.setField(
                     2,
                     TimestampData.fromEpochMillis(
-                            getShiftEpochMillsFunc.applyAsLong(window.getEnd() - 1)));
+                            toEpochMills(window.maxTimestamp(), shiftTimeZone)));
             collector.collect(outRow.replace(inputRow, windowProperties));
         }
     }
