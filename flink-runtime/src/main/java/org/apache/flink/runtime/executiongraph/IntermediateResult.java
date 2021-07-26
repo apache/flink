@@ -19,15 +19,19 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.util.SerializedValue;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,7 +60,7 @@ public class IntermediateResult {
 
     private final ResultPartitionType resultType;
 
-    private final Map<ConsumedPartitionGroup, SerializedValue<ShuffleDescriptor[]>>
+    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
             shuffleDescriptorCache;
 
     public IntermediateResult(
@@ -158,14 +162,14 @@ public class IntermediateResult {
         }
     }
 
-    public SerializedValue<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup) {
         return shuffleDescriptorCache.get(consumedPartitionGroup);
     }
 
     public void cacheShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
-            SerializedValue<ShuffleDescriptor[]> shuffleDescriptors) {
+            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
         this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
     }
 
@@ -175,6 +179,21 @@ public class IntermediateResult {
         // Currently there are two scenarios:
         // 1. The partitions are released
         // 2. The producer encounters a failover
+
+        // Get all the offloaded caches and notify blob write to delete them
+        final List<PermanentBlobKey> blobToDelete =
+                this.shuffleDescriptorCache.values().stream()
+                        .filter(maybeOffloaded -> maybeOffloaded instanceof Offloaded)
+                        .map(
+                                maybeOffloaded ->
+                                        ((Offloaded<ShuffleDescriptor[]>) maybeOffloaded)
+                                                .serializedValueKey)
+                        .collect(Collectors.toList());
+        if (blobToDelete.size() > 0) {
+            this.producer.getGraph().deleteBlobs(blobToDelete);
+        }
+
+        // Clear all the caches
         this.shuffleDescriptorCache.clear();
     }
 

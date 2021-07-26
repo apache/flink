@@ -21,9 +21,12 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -37,7 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -56,9 +59,17 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
     private static final int PARALLELISM = 4;
 
     @Test
-    public void testCacheShuffleDescriptor() throws Exception {
+    public void testCacheShuffleDescriptorAsNonOffloaded() throws Exception {
+        testCacheShuffleDescriptor(new TestingBlobWriter(Integer.MAX_VALUE));
+    }
+
+    @Test
+    public void testCacheShuffleDescriptorAsOffloaded() throws Exception {
+        testCacheShuffleDescriptor(new TestingBlobWriter(0));
+    }
+
+    private void testCacheShuffleDescriptor(TestingBlobWriter blobWriter) throws Exception {
         final JobID jobId = new JobID();
-        final BlobWriter blobWriter = new VoidBlobWriter();
 
         final ExecutionJobVertex ejv = setupExecutionGraphAndGetVertex(jobId, blobWriter);
 
@@ -67,11 +78,11 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
 
         // The ShuffleDescriptors should be cached
         final IntermediateResult consumedResult = ejv.getInputs().get(0);
-        final SerializedValue<ShuffleDescriptor[]> compressedSerializedValue =
+        final MaybeOffloaded<ShuffleDescriptor[]> maybeOffloaded =
                 consumedResult.getCachedShuffleDescriptors(ev21.getConsumedPartitionGroup(0));
 
         final ShuffleDescriptor[] cachedShuffleDescriptors =
-                deserializeShuffleDescriptors(compressedSerializedValue);
+                deserializeShuffleDescriptors(maybeOffloaded, jobId, blobWriter);
 
         // Check if the ShuffleDescriptors are cached correctly
         assertEquals(ev21.getConsumedPartitionGroup(0).size(), cachedShuffleDescriptors.length);
@@ -83,6 +94,21 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
                     consumedPartitionId,
                     cachedShuffleDescriptors[idx++].getResultPartitionID().getPartitionId());
         }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testGetOffloadedShuffleDescriptorBeforeLoading() throws Exception {
+        final TestingBlobWriter blobWriter = new TestingBlobWriter(0);
+
+        final JobID jobId = new JobID();
+
+        final ExecutionJobVertex ejv = setupExecutionGraphAndGetVertex(jobId, blobWriter);
+
+        final ExecutionVertex ev21 = ejv.getTaskVertices()[0];
+        final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(ev21);
+
+        // Exception should be thrown when trying to get offloaded shuffle descriptors
+        tdd.getInputGates().get(0).getShuffleDescriptors();
     }
 
     private ExecutionJobVertex setupExecutionGraphAndGetVertex(JobID jobId, BlobWriter blobWriter)
@@ -125,16 +151,30 @@ public class TaskDeploymentDescriptorFactoryTest extends TestLogger {
                 .build();
     }
 
-    private static void createTaskDeploymentDescriptor(ExecutionVertex ev) throws IOException {
+    private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(ExecutionVertex ev)
+            throws IOException {
 
-        TaskDeploymentDescriptorFactory.fromExecutionVertex(ev, 0)
+        return TaskDeploymentDescriptorFactory.fromExecutionVertex(ev, 0)
                 .createDeploymentDescriptor(new AllocationID(), null, Collections.emptyList());
     }
 
     public static ShuffleDescriptor[] deserializeShuffleDescriptors(
-            SerializedValue<ShuffleDescriptor[]> compressedSerializedValue)
+            MaybeOffloaded<ShuffleDescriptor[]> maybeOffloaded,
+            JobID jobId,
+            TestingBlobWriter blobWriter)
             throws IOException, ClassNotFoundException {
 
-        return compressedSerializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
+        if (maybeOffloaded instanceof NonOffloaded) {
+            return ((NonOffloaded<ShuffleDescriptor[]>) maybeOffloaded)
+                    .serializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
+        } else {
+            final CompressedSerializedValue<ShuffleDescriptor[]> compressedSerializedValue =
+                    CompressedSerializedValue.fromBytes(
+                            blobWriter.getBlob(
+                                    jobId,
+                                    ((Offloaded<ShuffleDescriptor[]>) maybeOffloaded)
+                                            .serializedValueKey));
+            return compressedSerializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
+        }
     }
 }

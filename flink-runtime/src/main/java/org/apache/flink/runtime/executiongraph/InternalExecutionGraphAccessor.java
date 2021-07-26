@@ -34,6 +34,7 @@ import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 
 /**
@@ -103,4 +104,6 @@ public interface InternalExecutionGraphAccessor {
     ExecutionVertex getExecutionVertexOrThrow(ExecutionVertexID id);
 
     IntermediateResultPartition getResultPartitionOrThrow(final IntermediateResultPartitionID id);
+
+    void deleteBlobs(List<PermanentBlobKey> blobKeys);
 }
