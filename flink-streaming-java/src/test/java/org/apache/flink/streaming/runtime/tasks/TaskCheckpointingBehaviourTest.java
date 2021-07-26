@@ -520,7 +520,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
             while (isRunning()) {
                 Thread.sleep(1L);
             }
-            controller.allActionsCompleted();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
 
         @Override

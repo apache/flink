@@ -30,6 +30,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
@@ -486,17 +487,44 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
+        createTemporaryTableInternal(getParser().parseIdentifier(path), descriptor);
+    }
+
+    private void createTemporaryTableInternal(
+            UnresolvedIdentifier path, TableDescriptor descriptor) {
+        final ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(path);
+        final CatalogTable catalogTable = convertTableDescriptor(descriptor);
+        catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
+    }
+
+    @Override
+    public void createTable(String path, TableDescriptor descriptor) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        final CatalogTable catalogTable = convertTableDescriptor(descriptor);
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
+    }
 
-        final CatalogTable catalogTable =
-                CatalogTable.of(
-                        descriptor.getSchema(),
-                        descriptor.getComment().orElse(null),
-                        descriptor.getPartitionKeys(),
-                        descriptor.getOptions());
+    private CatalogTable convertTableDescriptor(TableDescriptor descriptor) {
+        final Schema schema =
+                descriptor
+                        .getSchema()
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Missing schema in TableDescriptor. "
+                                                        + "A schema is typically required. "
+                                                        + "It can only be omitted at certain "
+                                                        + "documented locations."));
 
-        catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
+        return CatalogTable.of(
+                schema,
+                descriptor.getComment().orElse(null),
+                descriptor.getPartitionKeys(),
+                descriptor.getOptions());
     }
 
     @Override
@@ -549,6 +577,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 new ValidationException(
                                         String.format(
                                                 "Table %s was not found.", unresolvedIdentifier)));
+    }
+
+    @Override
+    public Table from(TableDescriptor descriptor) {
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        createTemporaryTableInternal(UnresolvedIdentifier.of(path), descriptor);
+        return from(path);
     }
 
     @Override
@@ -1251,9 +1288,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 throw new TableException(exMsg, e);
             }
         } else if (operation instanceof ExplainOperation) {
+            ExplainOperation explainOperation = (ExplainOperation) operation;
+            ExplainDetail[] explainDetails =
+                    explainOperation.getExplainDetails().stream()
+                            .map(ExplainDetail::valueOf)
+                            .toArray(ExplainDetail[]::new);
             String explanation =
                     explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()));
+                            Collections.singletonList(((ExplainOperation) operation).getChild()),
+                            explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))

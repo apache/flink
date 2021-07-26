@@ -53,8 +53,9 @@ import java.util.function.Supplier;
 /** Builder for a {@link TestingTaskExecutorGateway}. */
 public class TestingTaskExecutorGatewayBuilder {
 
-    private static final BiConsumer<ResourceID, AllocatedSlotReport>
-            NOOP_HEARTBEAT_JOBMANAGER_CONSUMER = (ignoredA, ignoredB) -> {};
+    private static final BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
+            NOOP_HEARTBEAT_JOBMANAGER_FUNCTION =
+                    (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
     private static final BiConsumer<JobID, Throwable> NOOP_DISCONNECT_JOBMANAGER_CONSUMER =
             (ignoredA, ignoredB) -> {};
     private static final BiFunction<
@@ -70,8 +71,8 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_FREE_SLOT_FUNCTION =
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
     private static final Consumer<JobID> NOOP_FREE_INACTIVE_SLOTS_CONSUMER = ignored -> {};
-    private static final Consumer<ResourceID> NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER =
-            ignored -> {};
+    private static final Function<ResourceID, CompletableFuture<Void>>
+            NOOP_HEARTBEAT_RESOURCE_MANAGER_FUNCTION = ignored -> FutureUtils.completedVoidFuture();
     private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER =
             ignored -> {};
     private static final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>>
@@ -95,8 +96,8 @@ public class TestingTaskExecutorGatewayBuilder {
 
     private String address = "foobar:1234";
     private String hostname = "foobar";
-    private BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer =
-            NOOP_HEARTBEAT_JOBMANAGER_CONSUMER;
+    private BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
+            heartbeatJobManagerFunction = NOOP_HEARTBEAT_JOBMANAGER_FUNCTION;
     private BiConsumer<JobID, Throwable> disconnectJobManagerConsumer =
             NOOP_DISCONNECT_JOBMANAGER_CONSUMER;
     private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
@@ -108,8 +109,8 @@ public class TestingTaskExecutorGatewayBuilder {
     private BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction =
             NOOP_FREE_SLOT_FUNCTION;
     private Consumer<JobID> freeInactiveSlotsConsumer = NOOP_FREE_INACTIVE_SLOTS_CONSUMER;
-    private Consumer<ResourceID> heartbeatResourceManagerConsumer =
-            NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER;
+    private Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction =
+            NOOP_HEARTBEAT_RESOURCE_MANAGER_FUNCTION;
     private Consumer<Exception> disconnectResourceManagerConsumer =
             NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER;
     private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction =
@@ -142,9 +143,10 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
-    public TestingTaskExecutorGatewayBuilder setHeartbeatJobManagerConsumer(
-            BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer) {
-        this.heartbeatJobManagerConsumer = heartbeatJobManagerConsumer;
+    public TestingTaskExecutorGatewayBuilder setHeartbeatJobManagerFunction(
+            BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
+                    heartbeatJobManagerFunction) {
+        this.heartbeatJobManagerFunction = heartbeatJobManagerFunction;
         return this;
     }
 
@@ -188,9 +190,9 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
-    public TestingTaskExecutorGatewayBuilder setHeartbeatResourceManagerConsumer(
-            Consumer<ResourceID> heartbeatResourceManagerConsumer) {
-        this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
+    public TestingTaskExecutorGatewayBuilder setHeartbeatResourceManagerFunction(
+            Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction) {
+        this.heartbeatResourceManagerFunction = heartbeatResourceManagerFunction;
         return this;
     }
 
@@ -251,13 +253,13 @@ public class TestingTaskExecutorGatewayBuilder {
         return new TestingTaskExecutorGateway(
                 address,
                 hostname,
-                heartbeatJobManagerConsumer,
+                heartbeatJobManagerFunction,
                 disconnectJobManagerConsumer,
                 submitTaskConsumer,
                 requestSlotFunction,
                 freeSlotFunction,
                 freeInactiveSlotsConsumer,
-                heartbeatResourceManagerConsumer,
+                heartbeatResourceManagerFunction,
                 disconnectResourceManagerConsumer,
                 cancelTaskFunction,
                 canBeReleasedSupplier,

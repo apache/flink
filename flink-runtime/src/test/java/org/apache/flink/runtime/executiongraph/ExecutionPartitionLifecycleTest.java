@@ -40,11 +40,11 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -216,7 +216,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                 ResultPartitionType.BLOCKING,
                 partitionTracker,
                 new SimpleAckingTaskManagerGateway(),
-                NettyShuffleMaster.INSTANCE);
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER);
 
         Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall =
                 partitionStartTrackingFuture.get();

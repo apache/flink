@@ -27,7 +27,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -154,15 +153,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
             int[] groupingSet,
             int[] udafInputOffsets,
             ZoneId shiftTimeZone) {
-        super(
-                config,
-                pandasAggFunctions,
-                inputType,
-                outputType,
-                groupingSet,
-                udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
+        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
         this.trigger = trigger;
@@ -173,13 +164,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(
-                                        groupingSet.length,
-                                        outputType.getFieldCount() - namedProperties.length));
+        super.open();
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
@@ -203,7 +188,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         WindowContext windowContext = new WindowContext();
         windowAssigner.open(windowContext);
-        super.open();
     }
 
     @Override
@@ -227,6 +211,16 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 windowRetractData.add(input);
             }
         }
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(
+                                groupingSet.length,
+                                outputType.getFieldCount() - namedProperties.length));
     }
 
     @Override

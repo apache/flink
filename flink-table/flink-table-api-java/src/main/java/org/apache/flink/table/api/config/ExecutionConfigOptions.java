@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
@@ -32,8 +33,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
- *
- * <p>This is only used for the Blink planner.
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
@@ -338,11 +337,13 @@ public class ExecutionConfigOptions {
                                     + "\"SortMergeJoin\", \"HashAgg\", \"SortAgg\".\n"
                                     + "By default no operator is disabled.");
 
+    /** @deprecated Use {@link ExecutionOptions#SHUFFLE_MODE} instead. */
+    @Deprecated
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
     public static final ConfigOption<String> TABLE_EXEC_SHUFFLE_MODE =
             key("table.exec.shuffle-mode")
                     .stringType()
-                    .defaultValue("ALL_EDGES_BLOCKING")
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text("Sets exec shuffle mode.")

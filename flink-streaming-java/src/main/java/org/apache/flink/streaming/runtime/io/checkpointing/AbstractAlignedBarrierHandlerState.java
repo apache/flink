@@ -29,7 +29,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Actions to be taken when processing aligned checkpoints. */
 abstract class AbstractAlignedBarrierHandlerState implements BarrierHandlerState {
 
-    private final ChannelState state;
+    protected final ChannelState state;
 
     protected AbstractAlignedBarrierHandlerState(ChannelState state) {
         this.state = state;
@@ -58,12 +58,17 @@ abstract class AbstractAlignedBarrierHandlerState implements BarrierHandlerState
         checkState(!checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint());
         state.blockChannel(channelInfo);
         if (controller.allBarriersReceived()) {
-            controller.triggerGlobalCheckpoint(checkpointBarrier);
-            state.unblockAllChannels();
-            return new WaitingForFirstBarrier(state.getInputs());
+            return triggerGlobalCheckpoint(controller, checkpointBarrier);
         }
 
         return convertAfterBarrierReceived(state);
+    }
+
+    protected WaitingForFirstBarrier triggerGlobalCheckpoint(
+            Controller controller, CheckpointBarrier checkpointBarrier) throws IOException {
+        controller.triggerGlobalCheckpoint(checkpointBarrier);
+        state.unblockAllChannels();
+        return new WaitingForFirstBarrier(state.getInputs());
     }
 
     protected abstract BarrierHandlerState convertAfterBarrierReceived(ChannelState state);

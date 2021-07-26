@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -452,7 +453,7 @@ public class CheckpointCoordinatorTestingUtils {
                 new HashMap<>();
 
         @Override
-        public void triggerCheckpoint(
+        public CompletableFuture<Acknowledge> triggerCheckpoint(
                 ExecutionAttemptID attemptId,
                 JobID jobId,
                 long checkpointId,
@@ -463,6 +464,7 @@ public class CheckpointCoordinatorTestingUtils {
                     .add(
                             new TriggeredCheckpoint(
                                     jobId, checkpointId, timestamp, checkpointOptions));
+            return CompletableFuture.completedFuture(Acknowledge.get());
         }
 
         @Override

@@ -109,6 +109,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -727,23 +728,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                                 // monitor the task manager as heartbeat target
                                 taskManagerHeartbeatManager.monitorTarget(
                                         taskManagerId,
-                                        new HeartbeatTarget<AllocatedSlotReport>() {
-                                            @Override
-                                            public void receiveHeartbeat(
-                                                    ResourceID resourceID,
-                                                    AllocatedSlotReport payload) {
-                                                // the task manager will not request heartbeat, so
-                                                // this method will never be called currently
-                                            }
-
-                                            @Override
-                                            public void requestHeartbeat(
-                                                    ResourceID resourceID,
-                                                    AllocatedSlotReport allocatedSlotReport) {
-                                                taskExecutorGateway.heartbeatFromJobManager(
-                                                        resourceID, allocatedSlotReport);
-                                            }
-                                        });
+                                        new TaskExecutorHeartbeatTarget(taskExecutorGateway));
 
                                 return new JMTMRegistrationSuccess(resourceId);
                             },
@@ -766,14 +751,14 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public void heartbeatFromTaskManager(
+    public CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
-        taskManagerHeartbeatManager.receiveHeartbeat(resourceID, payload);
+        return taskManagerHeartbeatManager.receiveHeartbeat(resourceID, payload);
     }
 
     @Override
-    public void heartbeatFromResourceManager(final ResourceID resourceID) {
-        resourceManagerHeartbeatManager.requestHeartbeat(resourceID, null);
+    public CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID) {
+        return resourceManagerHeartbeatManager.requestHeartbeat(resourceID, null);
     }
 
     @Override
@@ -977,18 +962,19 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private void jobStatusChanged(final JobStatus newJobStatus) {
         validateRunsInMainThread();
-
         if (newJobStatus.isGloballyTerminalState()) {
             runAsync(
-                    () ->
-                            registeredTaskManagers
-                                    .keySet()
-                                    .forEach(
-                                            newJobStatus == JobStatus.FINISHED
-                                                    ? partitionTracker
-                                                            ::stopTrackingAndReleaseOrPromotePartitionsFor
-                                                    : partitionTracker
-                                                            ::stopTrackingAndReleasePartitionsFor));
+                    () -> {
+                        Collection<ResultPartitionID> allTracked =
+                                partitionTracker.getAllTrackedPartitions().stream()
+                                        .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                        .collect(Collectors.toList());
+                        if (newJobStatus == JobStatus.FINISHED) {
+                            partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
+                        } else {
+                            partitionTracker.stopTrackingAndReleasePartitions(allTracked);
+                        }
+                    });
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
             scheduledExecutorService.execute(
@@ -1078,17 +1064,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,
-                    new HeartbeatTarget<Void>() {
-                        @Override
-                        public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-                            resourceManagerGateway.heartbeatFromJobManager(resourceID);
-                        }
-
-                        @Override
-                        public void requestHeartbeat(ResourceID resourceID, Void payload) {
-                            // request heartbeat will never be called on the job manager side
-                        }
-                    });
+                    new ResourceManagerHeartbeatTarget(resourceManagerGateway));
         } else {
             log.debug(
                     "Ignoring resource manager connection to {} because it's duplicated or outdated.",
@@ -1122,7 +1098,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                     cause);
         } else {
             log.info(
-                    "Close ResourceManager connection {}: {}.",
+                    "Close ResourceManager connection {}: {}",
                     resourceManagerResourceID.getStringWithMetadata(),
                     cause.getMessage());
         }
@@ -1148,6 +1124,48 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     // ----------------------------------------------------------------------------------------------
     // Utility classes
     // ----------------------------------------------------------------------------------------------
+
+    private static final class TaskExecutorHeartbeatTarget
+            implements HeartbeatTarget<AllocatedSlotReport> {
+        private final TaskExecutorGateway taskExecutorGateway;
+
+        private TaskExecutorHeartbeatTarget(TaskExecutorGateway taskExecutorGateway) {
+            this.taskExecutorGateway = taskExecutorGateway;
+        }
+
+        @Override
+        public CompletableFuture<Void> receiveHeartbeat(
+                ResourceID resourceID, AllocatedSlotReport payload) {
+            // the task manager will not request heartbeat, so
+            // this method will never be called currently
+            return FutureUtils.unsupportedOperationFuture();
+        }
+
+        @Override
+        public CompletableFuture<Void> requestHeartbeat(
+                ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
+            return taskExecutorGateway.heartbeatFromJobManager(resourceID, allocatedSlotReport);
+        }
+    }
+
+    private static final class ResourceManagerHeartbeatTarget implements HeartbeatTarget<Void> {
+        private final ResourceManagerGateway resourceManagerGateway;
+
+        private ResourceManagerHeartbeatTarget(ResourceManagerGateway resourceManagerGateway) {
+            this.resourceManagerGateway = resourceManagerGateway;
+        }
+
+        @Override
+        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
+            return resourceManagerGateway.heartbeatFromJobManager(resourceID);
+        }
+
+        @Override
+        public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
+            // request heartbeat will never be called on the job manager side
+            return FutureUtils.unsupportedOperationFuture();
+        }
+    }
 
     private class ResourceManagerLeaderListener implements LeaderRetrievalListener {
 
@@ -1291,13 +1309,29 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         public void notifyHeartbeatTimeout(ResourceID resourceID) {
+            final String message =
+                    String.format(
+                            "Heartbeat of TaskManager with id %s timed out.",
+                            resourceID.getStringWithMetadata());
+
+            log.info(message);
+            handleTaskManagerConnectionLoss(resourceID, new TimeoutException(message));
+        }
+
+        private void handleTaskManagerConnectionLoss(ResourceID resourceID, Exception cause) {
             validateRunsInMainThread();
-            disconnectTaskManager(
-                    resourceID,
-                    new TimeoutException(
-                            "Heartbeat of TaskManager with id "
-                                    + resourceID.getStringWithMetadata()
-                                    + " timed out."));
+            disconnectTaskManager(resourceID, cause);
+        }
+
+        @Override
+        public void notifyTargetUnreachable(ResourceID resourceID) {
+            final String message =
+                    String.format(
+                            "TaskManager with id %s is no longer reachable.",
+                            resourceID.getStringWithMetadata());
+
+            log.info(message);
+            handleTaskManagerConnectionLoss(resourceID, new JobMasterException(message));
         }
 
         @Override
@@ -1325,21 +1359,34 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
         @Override
         public void notifyHeartbeatTimeout(final ResourceID resourceId) {
-            validateRunsInMainThread();
-            log.info(
-                    "The heartbeat of ResourceManager with id {} timed out.",
-                    resourceId.getStringWithMetadata());
+            final String message =
+                    String.format(
+                            "The heartbeat of ResourceManager with id %s timed out.",
+                            resourceId.getStringWithMetadata());
+            log.info(message);
 
+            handleResourceManagerConnectionLoss(resourceId, new TimeoutException(message));
+        }
+
+        private void handleResourceManagerConnectionLoss(ResourceID resourceId, Exception cause) {
+            validateRunsInMainThread();
             if (establishedResourceManagerConnection != null
                     && establishedResourceManagerConnection
                             .getResourceManagerResourceID()
                             .equals(resourceId)) {
-                reconnectToResourceManager(
-                        new JobMasterException(
-                                String.format(
-                                        "The heartbeat of ResourceManager with id %s timed out.",
-                                        resourceId.getStringWithMetadata())));
+                reconnectToResourceManager(cause);
             }
+        }
+
+        @Override
+        public void notifyTargetUnreachable(ResourceID resourceID) {
+            final String message =
+                    String.format(
+                            "ResourceManager with id %s is no longer reachable.",
+                            resourceID.getStringWithMetadata());
+            log.info(message);
+
+            handleResourceManagerConnectionLoss(resourceID, new JobMasterException(message));
         }
 
         @Override

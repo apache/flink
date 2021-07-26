@@ -846,12 +846,12 @@ class DataTypeConvertTests(PyFlinkTestCase):
 
         # Legacy type tests
         Types = gateway.jvm.org.apache.flink.table.api.Types
-        BlinkBigDecimalTypeInfo = \
+        InternalBigDecimalTypeInfo = \
             gateway.jvm.org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 
         java_types = [Types.STRING(),
                       Types.DECIMAL(),
-                      BlinkBigDecimalTypeInfo(12, 5)]
+                      InternalBigDecimalTypeInfo(12, 5)]
 
         converted_python_types = [_from_java_type(item) for item in java_types]
 

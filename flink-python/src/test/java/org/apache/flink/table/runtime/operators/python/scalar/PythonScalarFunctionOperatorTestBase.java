@@ -239,7 +239,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
                                 new RowType.RowField("f1", new VarCharType()),
                                 new RowType.RowField("f2", new VarCharType()),
                                 new RowType.RowField("f3", new BigIntType())));
-        AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> operator =
+        AbstractPythonScalarFunctionOperator operator =
                 getTestOperator(
                         config,
                         new PythonFunctionInfo[] {
@@ -251,7 +251,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
                         new int[] {0, 1});
 
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                new OneInputStreamOperatorTestHarness<>(operator);
+                new OneInputStreamOperatorTestHarness(operator);
         testHarness
                 .getStreamConfig()
                 .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
@@ -259,7 +259,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
         return testHarness;
     }
 
-    public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> getTestOperator(
+    public abstract AbstractPythonScalarFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,

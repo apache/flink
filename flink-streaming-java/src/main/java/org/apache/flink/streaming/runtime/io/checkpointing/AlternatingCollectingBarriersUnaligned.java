@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInpu
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * We either timed out or started unaligned. We have seen at least one barrier and we are waiting
  * for the remaining barriers.
@@ -76,6 +78,21 @@ final class AlternatingCollectingBarriersUnaligned implements BarrierHandlerStat
     @Override
     public BarrierHandlerState abort(long cancelledId) throws IOException {
         return finishCheckpoint(cancelledId);
+    }
+
+    @Override
+    public BarrierHandlerState endOfPartitionReceived(
+            Controller controller, InputChannelInfo channelInfo)
+            throws IOException, CheckpointException {
+        channelState.channelFinished(channelInfo);
+
+        if (controller.allBarriersReceived()) {
+            checkState(
+                    controller.getPendingCheckpointBarrier() != null,
+                    "At least one barrier received in unaligned collecting barrier state.");
+            return finishCheckpoint(controller.getPendingCheckpointBarrier().getId());
+        }
+        return this;
     }
 
     private BarrierHandlerState finishCheckpoint(long cancelledId) throws IOException {

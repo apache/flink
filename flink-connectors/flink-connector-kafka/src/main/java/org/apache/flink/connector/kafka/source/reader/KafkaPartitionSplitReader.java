@@ -24,6 +24,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
+import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.util.Collector;
@@ -74,12 +75,15 @@ public class KafkaPartitionSplitReader<T>
     private final SimpleCollector<T> collector;
     private final String groupId;
     private final int subtaskId;
+    private final KafkaSourceReaderMetrics kafkaSourceReaderMetrics;
 
     public KafkaPartitionSplitReader(
             Properties props,
             KafkaRecordDeserializationSchema<T> deserializationSchema,
-            int subtaskId) {
+            int subtaskId,
+            KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
         this.subtaskId = subtaskId;
+        this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
         Properties consumerProps = new Properties();
         consumerProps.putAll(props);
         consumerProps.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, createConsumerClientId(props));
@@ -88,6 +92,7 @@ public class KafkaPartitionSplitReader<T>
         this.deserializationSchema = deserializationSchema;
         this.collector = new SimpleCollector<>();
         this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+        maybeRegisterKafkaConsumerMetrics(props, kafkaSourceReaderMetrics, consumer);
     }
 
     @Override
@@ -108,7 +113,9 @@ public class KafkaPartitionSplitReader<T>
             String splitId = tp.toString();
             Collection<Tuple3<T, Long, Long>> recordsForSplit =
                     recordsBySplits.recordsForSplit(splitId);
-            for (ConsumerRecord<byte[], byte[]> consumerRecord : consumerRecords.records(tp)) {
+            final List<ConsumerRecord<byte[], byte[]>> recordsFromPartition =
+                    consumerRecords.records(tp);
+            for (ConsumerRecord<byte[], byte[]> consumerRecord : recordsFromPartition) {
                 // Stop consuming from this partition if the offsets has reached the stopping
                 // offset.
                 // Note that there are two cases, either case finishes a split:
@@ -160,6 +167,12 @@ public class KafkaPartitionSplitReader<T>
                     collector.reset();
                 }
             }
+
+            // Use the last record for updating offset metrics
+            if (recordsFromPartition.size() > 0) {
+                kafkaSourceReaderMetrics.recordCurrentOffset(
+                        tp, recordsFromPartition.get(recordsFromPartition.size() - 1).offset());
+            }
         }
         // Unassign the partitions that has finished.
         if (!finishedPartitions.isEmpty()) {
@@ -202,6 +215,8 @@ public class KafkaPartitionSplitReader<T>
                                     partitionsStartingFromSpecifiedOffsets);
                             parseStoppingOffsets(
                                     s, partitionsStoppingAtLatest, partitionsStoppingAtCommitted);
+                            // Track the new topic partition in metrics
+                            kafkaSourceReaderMetrics.registerTopicPartition(s.getTopicPartition());
                         });
 
         // Assign new partitions.
@@ -383,6 +398,20 @@ public class KafkaPartitionSplitReader<T>
 
     private long getStoppingOffset(TopicPartition tp) {
         return stoppingOffsets.getOrDefault(tp, Long.MAX_VALUE);
+    }
+
+    private void maybeRegisterKafkaConsumerMetrics(
+            Properties props,
+            KafkaSourceReaderMetrics kafkaSourceReaderMetrics,
+            KafkaConsumer<?, ?> consumer) {
+        final Boolean needToRegister =
+                KafkaSourceOptions.getOption(
+                        props,
+                        KafkaSourceOptions.REGISTER_KAFKA_CONSUMER_METRICS,
+                        Boolean::parseBoolean);
+        if (needToRegister) {
+            kafkaSourceReaderMetrics.registerKafkaConsumerMetrics(consumer);
+        }
     }
 
     // ---------------- private helper class ------------------------

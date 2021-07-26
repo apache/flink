@@ -21,16 +21,19 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -60,6 +63,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,6 +84,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
@@ -605,7 +610,7 @@ public class CheckpointCoordinator {
 
                                         Preconditions.checkState(
                                                 checkpoint != null || throwable != null,
-                                                "Either the pending checkpoint needs to be created or an error must have been occurred.");
+                                                "Either the pending checkpoint needs to be created or an error must have occurred.");
 
                                         if (throwable != null) {
                                             // the initialization might not be finished yet
@@ -615,38 +620,8 @@ public class CheckpointCoordinator {
                                                 onTriggerFailure(checkpoint, throwable);
                                             }
                                         } else {
-                                            if (checkpoint.isDisposed()) {
-                                                onTriggerFailure(
-                                                        checkpoint,
-                                                        new CheckpointException(
-                                                                CheckpointFailureReason
-                                                                        .TRIGGER_CHECKPOINT_FAILURE,
-                                                                checkpoint.getFailureCause()));
-                                            } else {
-                                                // no exception, no discarding, everything is OK
-                                                final long checkpointId =
-                                                        checkpoint.getCheckpointId();
-                                                snapshotTaskState(
-                                                        timestamp,
-                                                        checkpointId,
-                                                        checkpoint.getCheckpointStorageLocation(),
-                                                        request.props,
-                                                        checkpoint
-                                                                .getCheckpointPlan()
-                                                                .getTasksToTrigger());
-
-                                                coordinatorsToCheckpoint.forEach(
-                                                        (ctx) ->
-                                                                ctx.afterSourceBarrierInjection(
-                                                                        checkpointId));
-                                                // It is possible that the tasks has finished
-                                                // checkpointing at this point.
-                                                // So we need to complete this pending checkpoint.
-                                                if (!maybeCompleteCheckpoint(checkpoint)) {
-                                                    return null;
-                                                }
-                                                onTriggerSuccess();
-                                            }
+                                            triggerCheckpointRequest(
+                                                    request, timestamp, checkpoint);
                                         }
                                         return null;
                                     },
@@ -667,6 +642,75 @@ public class CheckpointCoordinator {
         } catch (Throwable throwable) {
             onTriggerFailure(request, throwable);
         }
+    }
+
+    private void triggerCheckpointRequest(
+            CheckpointTriggerRequest request, long timestamp, PendingCheckpoint checkpoint) {
+        if (checkpoint.isDisposed()) {
+            onTriggerFailure(
+                    checkpoint,
+                    new CheckpointException(
+                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE,
+                            checkpoint.getFailureCause()));
+        } else {
+            triggerTasks(request, timestamp, checkpoint)
+                    .exceptionally(
+                            failure -> {
+                                final CheckpointException cause;
+                                if (failure instanceof CheckpointException) {
+                                    cause = (CheckpointException) failure;
+                                } else {
+                                    cause =
+                                            new CheckpointException(
+                                                    CheckpointFailureReason
+                                                            .TRIGGER_CHECKPOINT_FAILURE,
+                                                    failure);
+                                }
+                                timer.execute(
+                                        () -> {
+                                            synchronized (lock) {
+                                                abortPendingCheckpoint(checkpoint, cause);
+                                            }
+                                        });
+                                return null;
+                            });
+
+            coordinatorsToCheckpoint.forEach(
+                    (ctx) -> ctx.afterSourceBarrierInjection(checkpoint.getCheckpointID()));
+            // It is possible that the tasks has finished
+            // checkpointing at this point.
+            // So we need to complete this pending checkpoint.
+            if (maybeCompleteCheckpoint(checkpoint)) {
+                onTriggerSuccess();
+            }
+        }
+    }
+
+    private CompletableFuture<Void> triggerTasks(
+            CheckpointTriggerRequest request, long timestamp, PendingCheckpoint checkpoint) {
+        // no exception, no discarding, everything is OK
+        final long checkpointId = checkpoint.getCheckpointID();
+
+        final CheckpointOptions checkpointOptions =
+                CheckpointOptions.forConfig(
+                        request.props.getCheckpointType(),
+                        checkpoint.getCheckpointStorageLocation().getLocationReference(),
+                        isExactlyOnceMode,
+                        unalignedCheckpointsEnabled,
+                        alignedCheckpointTimeout);
+
+        // send messages to the tasks to trigger their checkpoints
+        List<CompletableFuture<Acknowledge>> acks = new ArrayList<>();
+        for (Execution execution : checkpoint.getCheckpointPlan().getTasksToTrigger()) {
+            if (request.props.isSynchronous()) {
+                acks.add(
+                        execution.triggerSynchronousSavepoint(
+                                checkpointId, timestamp, checkpointOptions));
+            } else {
+                acks.add(execution.triggerCheckpoint(checkpointId, timestamp, checkpointOptions));
+            }
+        }
+        return FutureUtils.waitForAll(acks);
     }
 
     /**
@@ -800,40 +844,6 @@ public class CheckpointCoordinator {
                             timer);
         }
         return masterStateCompletableFuture;
-    }
-
-    /**
-     * Snapshot task state.
-     *
-     * @param timestamp the timestamp of this checkpoint reques
-     * @param checkpointID the checkpoint id
-     * @param checkpointStorageLocation the checkpoint location
-     * @param props the checkpoint properties
-     * @param tasksToTrigger the executions which should be triggered
-     */
-    private void snapshotTaskState(
-            long timestamp,
-            long checkpointID,
-            CheckpointStorageLocation checkpointStorageLocation,
-            CheckpointProperties props,
-            List<Execution> tasksToTrigger) {
-
-        final CheckpointOptions checkpointOptions =
-                CheckpointOptions.forConfig(
-                        props.getCheckpointType(),
-                        checkpointStorageLocation.getLocationReference(),
-                        isExactlyOnceMode,
-                        unalignedCheckpointsEnabled,
-                        alignedCheckpointTimeout);
-
-        // send the messages to the tasks that trigger their checkpoint
-        for (Execution execution : tasksToTrigger) {
-            if (props.isSynchronous()) {
-                execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions);
-            } else {
-                execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
-            }
-        }
     }
 
     /** Trigger request is successful. NOTE, it must be invoked if trigger request is successful. */
@@ -1560,6 +1570,8 @@ public class CheckpointCoordinator {
             // re-assign the task states
             final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
+            validateFinishedOperators(tasks, operatorStates);
+
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
                             latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
@@ -1597,6 +1609,83 @@ public class CheckpointCoordinator {
             }
 
             return OptionalLong.of(latest.getCheckpointID());
+        }
+    }
+
+    private static class VerticesFinishedCache {
+
+        private final Map<JobVertexID, Boolean> finishedCache = new HashMap<>();
+        private final Map<OperatorID, OperatorState> operatorStates;
+
+        private VerticesFinishedCache(Map<OperatorID, OperatorState> operatorStates) {
+            this.operatorStates = operatorStates;
+        }
+
+        public boolean getOrUpdate(ExecutionJobVertex vertex) {
+            return finishedCache.computeIfAbsent(
+                    vertex.getJobVertexId(),
+                    ignored -> calculateIfFinished(vertex, operatorStates));
+        }
+
+        private boolean calculateIfFinished(
+                ExecutionJobVertex vertex, Map<OperatorID, OperatorState> operatorStates) {
+            List<Boolean> operatorFinishedStates =
+                    vertex.getOperatorIDs().stream()
+                            .map(idPair -> checkOperatorFinished(operatorStates, idPair))
+                            .collect(Collectors.toList());
+
+            boolean anyFinished = operatorFinishedStates.stream().anyMatch(f -> f);
+            if (!anyFinished) {
+                return false;
+            } else {
+                boolean allFinished = operatorFinishedStates.stream().allMatch(f -> f);
+                if (!allFinished) {
+                    throw new FlinkRuntimeException(
+                            "Can not restore vertex "
+                                    + vertex.getName()
+                                    + "("
+                                    + vertex.getJobVertexId()
+                                    + ")"
+                                    + " which contain both finished and unfinished operators");
+                }
+                return true;
+            }
+        }
+
+        private boolean checkOperatorFinished(
+                Map<OperatorID, OperatorState> operatorStates, OperatorIDPair idPair) {
+            OperatorID operatorId =
+                    idPair.getUserDefinedOperatorID().orElse(idPair.getGeneratedOperatorID());
+            return Optional.ofNullable(operatorStates.get(operatorId))
+                    .map(OperatorState::isFullyFinished)
+                    .orElse(false);
+        }
+    }
+
+    private void validateFinishedOperators(
+            Set<ExecutionJobVertex> tasks, Map<OperatorID, OperatorState> operatorStates) {
+
+        VerticesFinishedCache verticesFinishedCache = new VerticesFinishedCache(operatorStates);
+        for (ExecutionJobVertex task : tasks) {
+            boolean vertexFinished = verticesFinishedCache.getOrUpdate(task);
+
+            if (vertexFinished) {
+                boolean allPredecessorsFinished =
+                        task.getInputs().stream()
+                                .map(IntermediateResult::getProducer)
+                                .allMatch(verticesFinishedCache::getOrUpdate);
+
+                if (!allPredecessorsFinished) {
+                    throw new FlinkRuntimeException(
+                            "Illegal JobGraph modification. Cannot run a program with finished"
+                                    + " vertices predeceased with running ones. Task vertex "
+                                    + task.getName()
+                                    + "("
+                                    + task.getJobVertexId()
+                                    + ")"
+                                    + " has a running predecessor");
+                }
+            }
         }
     }
 

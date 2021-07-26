@@ -29,6 +29,8 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.Preconditions;
@@ -130,6 +132,16 @@ public class TestTaskStateManager implements TaskStateManager {
         reportedCheckpointId = checkpointMetaData.getCheckpointId();
     }
 
+    @Override
+    public boolean isFinishedOnRestore() {
+        TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
+        if (jmTaskStateSnapshot != null) {
+            return jmTaskStateSnapshot.isFinished();
+        }
+
+        return false;
+    }
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
@@ -176,6 +188,12 @@ public class TestTaskStateManager implements TaskStateManager {
     @Override
     public SequentialChannelStateReader getSequentialChannelStateReader() {
         return SequentialChannelStateReader.NO_OP;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        return new InMemoryStateChangelogStorage();
     }
 
     public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {

@@ -32,7 +32,6 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
-import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
@@ -40,7 +39,8 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
 
 /** The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
@@ -57,7 +57,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
     protected final int[] groupingSet;
 
-    protected transient ArrowSerializer<RowData> arrowSerializer;
+    protected transient ArrowSerializer arrowSerializer;
 
     /** The collector used to collect records. */
     protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
@@ -77,17 +77,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             RowType inputType,
             RowType outputType,
             int[] groupingSet,
-            int[] udafInputOffsets,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType) {
-        super(
-                config,
-                inputType,
-                outputType,
-                udafInputOffsets,
-                inputDataType,
-                outputDataType,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+            int[] udafInputOffsets) {
+        super(config, inputType, outputType, udafInputOffsets);
         this.pandasAggFunctions = Preconditions.checkNotNull(pandasAggFunctions);
         this.groupingSet = Preconditions.checkNotNull(groupingSet);
     }
@@ -100,15 +91,14 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
         udafInputProjection = createUdafInputProjection();
         arrowSerializer =
-                new RowDataArrowSerializer(
-                        userDefinedFunctionInputType, userDefinedFunctionOutputType);
+                new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
+    public void close() throws Exception {
+        super.close();
         if (arrowSerializer != null) {
             arrowSerializer.close();
             arrowSerializer = null;
@@ -139,6 +129,18 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     }
 
     @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+    }
+
+    @Override
     public RowData getFunctionInput(RowData element) {
         return udafInputProjection.apply(element);
     }
@@ -152,6 +154,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
         }
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         return builder.build();
     }
 

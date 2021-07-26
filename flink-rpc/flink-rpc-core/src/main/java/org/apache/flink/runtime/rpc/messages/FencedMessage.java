@@ -26,7 +26,7 @@ import java.io.Serializable;
  * @param <F> type of the fencing token
  * @param <P> type of the payload
  */
-public interface FencedMessage<F extends Serializable, P> {
+public interface FencedMessage<F extends Serializable, P> extends Message {
 
     F getFencingToken();
 

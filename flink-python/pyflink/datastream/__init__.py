@@ -73,6 +73,7 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           CoFlatMapFunction, ReduceFunction, RuntimeContext,
                                           KeySelector, FilterFunction, Partitioner, SourceFunction,
                                           SinkFunction)
+from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
@@ -127,5 +128,6 @@ __all__ = [
     'WindowAssigner',
     'MergingWindowAssigner',
     'TriggerResult',
-    'Trigger'
+    'Trigger',
+    'SlotSharingGroup'
 ]

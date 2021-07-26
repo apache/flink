@@ -28,10 +28,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -41,14 +43,18 @@ import org.mockito.Matchers;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -484,5 +490,41 @@ public class DefaultExecutionGraphConstructionTest {
             e.printStackTrace();
             fail(e.getMessage());
         }
+    }
+
+    @Test
+    public void testRegisterConsumedPartitionGroupToEdgeManager() throws Exception {
+        JobVertex v1 = new JobVertex("source");
+        JobVertex v2 = new JobVertex("sink");
+
+        v1.setParallelism(2);
+        v2.setParallelism(2);
+
+        v2.connectNewDataSetAsInput(
+                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+        List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
+        ExecutionGraph eg = createDefaultExecutionGraph(ordered);
+        eg.attachJobGraph(ordered);
+
+        IntermediateResult result =
+                Objects.requireNonNull(eg.getJobVertex(v1.getID())).getProducedDataSets()[0];
+
+        IntermediateResultPartition partition1 = result.getPartitions()[0];
+        IntermediateResultPartition partition2 = result.getPartitions()[1];
+
+        assertEquals(
+                partition1.getConsumedPartitionGroups().get(0),
+                partition2.getConsumedPartitionGroups().get(0));
+
+        ConsumedPartitionGroup consumedPartitionGroup =
+                partition1.getConsumedPartitionGroups().get(0);
+        Set<IntermediateResultPartitionID> partitionIds = new HashSet<>();
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            partitionIds.add(partitionId);
+        }
+        assertThat(
+                partitionIds,
+                containsInAnyOrder(partition1.getPartitionId(), partition2.getPartitionId()));
     }
 }

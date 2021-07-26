@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -81,8 +81,8 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
     }
 
     private JdbcRowDataLookupFunction buildRowDataLookupFunction() {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DB_URL)
                         .setTableName(LOOKUP_TABLE)

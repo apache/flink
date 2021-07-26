@@ -301,8 +301,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         try {
             if (isDuplicateJob(jobGraph.getJobID())) {
-                return FutureUtils.completedExceptionally(
-                        new DuplicateJobSubmissionException(jobGraph.getJobID()));
+                final DuplicateJobSubmissionException exception =
+                        isInGloballyTerminalState(jobGraph.getJobID())
+                                ? DuplicateJobSubmissionException.ofGloballyTerminated(
+                                        jobGraph.getJobID())
+                                : DuplicateJobSubmissionException.of(jobGraph.getJobID());
+                return FutureUtils.completedExceptionally(exception);
             } else if (isPartialResourceConfigured(jobGraph)) {
                 return FutureUtils.completedExceptionally(
                         new JobSubmissionException(
@@ -325,18 +329,26 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      * @throws FlinkException if the job scheduling status cannot be retrieved
      */
     private boolean isDuplicateJob(JobID jobId) throws FlinkException {
-        final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus;
+        return isInGloballyTerminalState(jobId) || runningJobs.containsKey(jobId);
+    }
 
+    /**
+     * Checks whether the given job has already been executed.
+     *
+     * @param jobId identifying the submitted job
+     * @return true if the job has already finished, either successfully or as a failure
+     * @throws FlinkException if the job scheduling status cannot be retrieved
+     */
+    private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
         try {
-            jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
+            final RunningJobsRegistry.JobSchedulingStatus schedulingStatus =
+                    runningJobsRegistry.getJobSchedulingStatus(jobId);
+            return schedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE;
         } catch (IOException e) {
             throw new FlinkException(
                     String.format("Failed to retrieve job scheduling status for job %s.", jobId),
                     e);
         }
-
-        return jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE
-                || runningJobs.containsKey(jobId);
     }
 
     private boolean isPartialResourceConfigured(JobGraph jobGraph) {

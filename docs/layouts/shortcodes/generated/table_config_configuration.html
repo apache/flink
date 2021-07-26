@@ -22,9 +22,9 @@
         </tr>
         <tr>
             <td><h5>table.generated-code.max-length</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">64000</td>
+            <td style="word-wrap: break-word;">4000</td>
             <td>Integer</td>
-            <td>Specifies a threshold where generated code will be split into sub-function calls. Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary.</td>
+            <td>Specifies a threshold where generated code will be split into sub-function calls. Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary. Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with more than 8K byte code.</td>
         </tr>
         <tr>
             <td><h5>table.local-time-zone</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

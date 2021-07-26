@@ -101,6 +101,8 @@ public class LocalRecoveryITCase extends TestLogger {
 
         public EventTimeWindowCheckpointingITCaseInstance(
                 StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
+            super(backendEnum, 2);
+
             this.backendEnum = backendEnum;
             this.localRecoveryEnabled = localRecoveryEnabled;
         }

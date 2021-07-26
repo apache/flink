@@ -212,7 +212,9 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                             new TestCheckpointResponder(),
                             new TestGlobalAggregateManager(),
                             new RpcResultPartitionConsumableNotifier(
-                                    jobMasterGateway, testingRpcService.getExecutor(), timeout),
+                                    jobMasterGateway,
+                                    testingRpcService.getScheduledExecutor(),
+                                    timeout),
                             TestingPartitionProducerStateChecker.newBuilder()
                                     .setPartitionProducerStateFunction(
                                             (jobID, intermediateDataSetID, resultPartitionID) ->

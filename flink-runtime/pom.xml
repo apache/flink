@@ -29,7 +29,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-runtime_${scala.binary.version}</artifactId>
+	<artifactId>flink-runtime</artifactId>
 	<name>Flink : Runtime</name>
 
 	<packaging>jar</packaging>
@@ -52,7 +52,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-rpc-akka_${scala.binary.version}</artifactId>
+			<artifactId>flink-rpc-akka-loader</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -175,7 +175,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-rpc-akka_${scala.binary.version}</artifactId>
+			<artifactId>flink-rpc-akka</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-rpc-akka</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -301,6 +308,33 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-rpc-akka-jars</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-rpc-akka</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+									<destFileName>flink-rpc-akka.jar</destFileName>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/classes</outputDirectory>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

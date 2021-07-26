@@ -39,8 +39,6 @@ Flink 与 Hive 的集成包含两个层面。
 `HiveCatalog`的设计提供了与 Hive 良好的兼容性，用户可以"开箱即用"的访问其已有的 Hive 数仓。
 您不需要修改现有的 Hive Metastore，也不需要更改表的数据位置或分区。
 
-* 我们强烈建议用户使用 [Blink planner]({{< ref "docs/dev/table/overview" >}}#dependency-structure) 与 Hive 集成。
-
 ## 支持的Hive版本
 
 Flink 支持一下的 Hive 版本。
@@ -278,15 +276,15 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -302,8 +300,6 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 ## 连接到Hive
 
 通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{< ref "docs/dev/table/catalogs" >}}) 和 [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}})连接到现有的 Hive 集群。
-
-请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
 
 以下是如何连接到 Hive 的示例：
 
@@ -367,7 +363,6 @@ tableEnv.use_catalog("myhive")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
     current-database: mydatabase

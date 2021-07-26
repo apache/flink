@@ -684,6 +684,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
+        private int buffersPerChannel = 1;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -734,6 +735,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setBuffersPerChannel(int buffersPerChannel) {
+            this.buffersPerChannel = buffersPerChannel;
+            return this;
+        }
+
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(Duration.ofMillis(alignmentTimeout));
@@ -770,8 +776,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         restoreCheckpoint.toURI().toString());
             }
 
-            conf.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
+            conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
             conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;

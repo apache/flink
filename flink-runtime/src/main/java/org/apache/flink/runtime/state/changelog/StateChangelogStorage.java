@@ -22,8 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 /**
- * A factory for {@link StateChangelogWriter} and {@link StateChangelogHandleReader}. Please use
- * {@link StateChangelogStorageLoader} to obtain an instance.
+ * A storage for changelog. Could produce {@link StateChangelogHandleReader} and {@link
+ * StateChangelogWriter} for read and write. Please use {@link StateChangelogStorageLoader} to
+ * obtain an instance.
  */
 @Internal
 public interface StateChangelogStorage<Handle extends ChangelogStateHandle> extends AutoCloseable {

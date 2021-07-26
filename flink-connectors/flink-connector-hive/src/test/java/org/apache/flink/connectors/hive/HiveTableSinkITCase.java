@@ -57,14 +57,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests {@link HiveTableSink}. */
 public class HiveTableSinkITCase {
@@ -86,8 +88,7 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testHiveTableSinkWithParallelismInBatch() {
-        final TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        final TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
                 tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out");
     }
@@ -96,7 +97,7 @@ public class HiveTableSinkITCase {
     public void testHiveTableSinkWithParallelismInStreaming() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
                 tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out");
     }
@@ -131,8 +132,7 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testBatchAppend() throws Exception {
-        TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.executeSql("create database db1");
@@ -202,8 +202,7 @@ public class HiveTableSinkITCase {
                     StreamExecutionEnvironment env =
                             StreamExecutionEnvironment.getExecutionEnvironment();
                     env.setParallelism(1);
-                    StreamTableEnvironment tEnv =
-                            HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+                    StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
                     tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
                     tEnv.useCatalog(hiveCatalog.getName());
 
@@ -237,7 +236,7 @@ public class HiveTableSinkITCase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
-        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
 
         tEnv.getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -378,6 +377,39 @@ public class HiveTableSinkITCase {
         }
     }
 
+    @Test
+    public void testStreamingSinkWithoutCommitPolicy() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+            tableEnv.executeSql("create table dest(x int) partitioned by (p string)");
+
+            tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+            tableEnv.executeSql(
+                    "create table src (i int, p string) with ("
+                            + "'connector'='datagen',"
+                            + "'number-of-rows'='5')");
+            tableEnv.executeSql("insert into dest select * from src").await();
+            fail("Streaming write partitioned table without commit policy should fail");
+        } catch (FlinkHiveException e) {
+            // expected
+            assertTrue(
+                    e.getMessage()
+                            .contains(
+                                    String.format(
+                                            "Streaming write to partitioned hive table `%s`.`%s`.`%s` without providing a commit policy",
+                                            hiveCatalog.getName(), "db1", "dest")));
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -405,7 +437,7 @@ public class HiveTableSinkITCase {
         env.setParallelism(1);
         env.enableCheckpointing(100);
 
-        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
@@ -498,7 +530,7 @@ public class HiveTableSinkITCase {
     private void assertBatch(String table, List<String> expected) {
         // using batch table env to query.
         List<String> results = new ArrayList<>();
-        TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment batchTEnv = HiveTestUtils.createTableEnvInBatchMode();
         batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchTEnv.useCatalog(hiveCatalog.getName());
         batchTEnv

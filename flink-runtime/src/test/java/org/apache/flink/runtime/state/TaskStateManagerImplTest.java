@@ -31,6 +31,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.TestLogger;
@@ -56,6 +58,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 
         TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
         TestTaskLocalStateStore testTaskLocalStateStore = new TestTaskLocalStateStore();
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
                 taskStateManager(
@@ -63,7 +66,8 @@ public class TaskStateManagerImplTest extends TestLogger {
                         executionAttemptID,
                         testCheckpointResponder,
                         null,
-                        testTaskLocalStateStore);
+                        testTaskLocalStateStore,
+                        changelogStorage);
 
         // ---------------------------------------- test reporting
         // -----------------------------------------
@@ -139,7 +143,8 @@ public class TaskStateManagerImplTest extends TestLogger {
                         executionAttemptID,
                         testCheckpointResponder,
                         taskRestore,
-                        testTaskLocalStateStore);
+                        testTaskLocalStateStore,
+                        changelogStorage);
 
         // this has remote AND local managed keyed state.
         PrioritizedOperatorSubtaskState prioritized_1 =
@@ -225,13 +230,16 @@ public class TaskStateManagerImplTest extends TestLogger {
                             localRecoveryConfig,
                             directExecutor);
 
+            InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
+
             TaskStateManager taskStateManager =
                     taskStateManager(
                             jobID,
                             executionAttemptID,
                             checkpointResponderMock,
                             null,
-                            taskLocalStateStore);
+                            taskLocalStateStore,
+                            changelogStorage);
 
             LocalRecoveryConfig localRecoveryConfFromTaskLocalStateStore =
                     taskLocalStateStore.getLocalRecoveryConfig();
@@ -260,17 +268,36 @@ public class TaskStateManagerImplTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateRetrievingWithFinishedOperator() {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+
+        JobManagerTaskRestore jobManagerTaskRestore =
+                new JobManagerTaskRestore(2, taskStateSnapshot);
+        TaskStateManagerImpl stateManager =
+                new TaskStateManagerImpl(
+                        new JobID(),
+                        new ExecutionAttemptID(),
+                        new TestTaskLocalStateStore(),
+                        null,
+                        jobManagerTaskRestore,
+                        new TestCheckpointResponder());
+        Assert.assertTrue(stateManager.isFinishedOnRestore());
+    }
+
     public static TaskStateManager taskStateManager(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponderMock,
             JobManagerTaskRestore jobManagerTaskRestore,
-            TaskLocalStateStore localStateStore) {
+            TaskLocalStateStore localStateStore,
+            StateChangelogStorage<?> stateChangelogStorage) {
 
         return new TaskStateManagerImpl(
                 jobID,
                 executionAttemptID,
                 localStateStore,
+                stateChangelogStorage,
                 jobManagerTaskRestore,
                 checkpointResponderMock);
     }

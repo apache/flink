@@ -42,8 +42,7 @@ import java.util.Map;
  * <p>If a mapping is provided, all fields must be explicitly mapped.
  *
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. See FLIP-95 for more
- *     information.
+ *     DynamicTableSource}. See FLIP-95 for more information.
  */
 @Deprecated
 @PublicEvolving

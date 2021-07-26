@@ -26,7 +26,7 @@ from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import TimeCharacteristic, RuntimeContext, WindowAssigner, Trigger, \
-    TriggerResult, CountWindow
+    TriggerResult, CountWindow, SlotSharingGroup
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction, \
     ReduceFunction, KeyedCoProcessFunction, WindowFunction, ProcessWindowFunction
@@ -214,9 +214,9 @@ class DataStreamTests(object):
 
             def open(self, runtime_context: RuntimeContext):
                 self.pre1 = runtime_context.get_state(
-                    ValueStateDescriptor("pre1", Types.PICKLED_BYTE_ARRAY()))
+                    ValueStateDescriptor("pre1", Types.STRING()))
                 self.pre2 = runtime_context.get_state(
-                    ValueStateDescriptor("pre2", Types.PICKLED_BYTE_ARRAY()))
+                    ValueStateDescriptor("pre2", Types.STRING()))
 
             def map1(self, value):
                 if value[0] == 'b':
@@ -395,7 +395,13 @@ class DataStreamTests(object):
             self.assertEqual(expected, actual)
 
     def test_key_by_map(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+        from pyflink.util.java_utils import get_j_env_configuration
+        from pyflink.common import Configuration
+        self.env.set_parallelism(1)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        config.set_integer("python.fn-execution.bundle.size", 1)
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 0), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
@@ -404,36 +410,44 @@ class DataStreamTests(object):
 
         class AssertKeyMapFunction(MapFunction):
             def __init__(self):
-                self.pre = None
                 self.state = None
 
             def open(self, runtime_context: RuntimeContext):
                 self.state = runtime_context.get_state(
-                    ValueStateDescriptor("test_state", Types.PICKLED_BYTE_ARRAY()))
+                    ValueStateDescriptor("test_state", Types.INT()))
 
             def map(self, value):
+                if value[0] == 'a':
+                    pass
+                elif value[0] == 'b':
+                    state_value = self._get_state_value()
+                    assert state_value == 1
+                    self.state.update(state_value)
+                elif value[0] == 'c':
+                    state_value = self._get_state_value()
+                    assert state_value == 1
+                    self.state.update(state_value)
+                elif value[0] == 'd':
+                    state_value = self._get_state_value()
+                    assert state_value == 2
+                    self.state.update(state_value)
+                else:
+                    pass
+                return value
+
+            def _get_state_value(self):
                 state_value = self.state.value()
                 if state_value is None:
                     state_value = 1
                 else:
                     state_value += 1
-                if value[0] == 'b':
-                    assert self.pre == 'a'
-                    assert state_value == 2
-                if value[0] == 'd':
-                    assert self.pre == 'c'
-                    assert state_value == 2
-                if value[0] == 'e':
-                    assert state_value == 1
-                self.pre = value[0]
-                self.state.update(state_value)
-                return value
+                return state_value
 
         keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)"]
+        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=1)",
+                    "Row(f0='c', f1=0)", "Row(f0='d', f1=1)"]
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
@@ -453,7 +467,7 @@ class DataStreamTests(object):
 
             def open(self, runtime_context: RuntimeContext):
                 self.state = runtime_context.get_state(
-                    ValueStateDescriptor("test_state", Types.PICKLED_BYTE_ARRAY()))
+                    ValueStateDescriptor("test_state", Types.INT()))
 
             def flat_map(self, value):
                 state_value = self.state.value()
@@ -497,7 +511,7 @@ class DataStreamTests(object):
 
             def open(self, runtime_context: RuntimeContext):
                 self.state = runtime_context.get_state(
-                    ValueStateDescriptor("test_state", Types.PICKLED_BYTE_ARRAY()))
+                    ValueStateDescriptor("test_state", Types.INT()))
 
             def filter(self, value):
                 state_value = self.state.value()
@@ -694,15 +708,11 @@ class DataStreamTests(object):
                 self.map_state = None
 
             def open(self, runtime_context: RuntimeContext):
-                value_state_descriptor = ValueStateDescriptor('value_state',
-                                                              Types.PICKLED_BYTE_ARRAY())
+                value_state_descriptor = ValueStateDescriptor('value_state', Types.INT())
                 self.value_state = runtime_context.get_state(value_state_descriptor)
-                list_state_descriptor = ListStateDescriptor('list_state',
-                                                            Types.PICKLED_BYTE_ARRAY())
+                list_state_descriptor = ListStateDescriptor('list_state', Types.INT())
                 self.list_state = runtime_context.get_list_state(list_state_descriptor)
-                map_state_descriptor = MapStateDescriptor('map_state',
-                                                          Types.PICKLED_BYTE_ARRAY(),
-                                                          Types.PICKLED_BYTE_ARRAY())
+                map_state_descriptor = MapStateDescriptor('map_state', Types.INT(), Types.STRING())
                 self.map_state = runtime_context.get_map_state(map_state_descriptor)
 
             def process_element(self, value, ctx):
@@ -770,7 +780,7 @@ class DataStreamTests(object):
             def open(self, runtime_context: RuntimeContext):
                 self.reducing_state = runtime_context.get_reducing_state(
                     ReducingStateDescriptor(
-                        'reducing_state', lambda i, i2: i + i2, Types.PICKLED_BYTE_ARRAY()))
+                        'reducing_state', lambda i, i2: i + i2, Types.INT()))
 
             def process_element(self, value, ctx):
                 self.reducing_state.add(value[0])
@@ -814,7 +824,7 @@ class DataStreamTests(object):
             def open(self, runtime_context: RuntimeContext):
                 self.aggregating_state = runtime_context.get_aggregating_state(
                     AggregatingStateDescriptor(
-                        'aggregating_state', MyAggregateFunction(), Types.PICKLED_BYTE_ARRAY()))
+                        'aggregating_state', MyAggregateFunction(), Types.INT()))
 
             def process_element(self, value, ctx):
                 self.aggregating_state.add(value[0])
@@ -1025,8 +1035,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         slot_sharing_group_1 = 'slot_sharing_group_1'
         slot_sharing_group_2 = 'slot_sharing_group_2'
         ds_1 = self.env.from_collection([1, 2, 3]).name(source_operator_name)
-        ds_1.slot_sharing_group(slot_sharing_group_1).map(lambda x: x + 1).set_parallelism(3)\
-            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2)\
+        ds_1.slot_sharing_group(SlotSharingGroup.builder(slot_sharing_group_1).build()) \
+            .map(lambda x: x + 1).set_parallelism(3) \
+            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2) \
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
@@ -1356,7 +1367,7 @@ class MyRichCoFlatMapFunction(CoFlatMapFunction):
 
     def open(self, runtime_context: RuntimeContext):
         self.map_state = runtime_context.get_map_state(
-            MapStateDescriptor("map", Types.PICKLED_BYTE_ARRAY(), Types.PICKLED_BYTE_ARRAY()))
+            MapStateDescriptor("map", Types.STRING(), Types.BOOLEAN()))
 
     def flat_map1(self, value):
         yield str(value[0] + 1)
@@ -1376,8 +1387,7 @@ class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
 
     def open(self, runtime_context: RuntimeContext):
         self.timer_registered = False
-        self.count_state = runtime_context.get_state(ValueStateDescriptor(
-            "count", Types.PICKLED_BYTE_ARRAY()))
+        self.count_state = runtime_context.get_state(ValueStateDescriptor("count", Types.INT()))
 
     def process_element1(self, value, ctx: 'KeyedCoProcessFunction.Context'):
         if not self.timer_registered:
@@ -1411,7 +1421,7 @@ class MyReduceFunction(ReduceFunction):
 
     def open(self, runtime_context: RuntimeContext):
         self.state = runtime_context.get_state(
-            ValueStateDescriptor("test_state", Types.PICKLED_BYTE_ARRAY()))
+            ValueStateDescriptor("test_state", Types.INT()))
 
     def reduce(self, value1, value2):
         state_value = self.state.value()
@@ -1439,7 +1449,7 @@ class SimpleCountWindowTrigger(Trigger[tuple, CountWindow]):
     def __init__(self):
         self._window_size = 3
         self._count_state_descriptor = ReducingStateDescriptor(
-            "trigger_counter", lambda a, b: a + b, Types.PICKLED_BYTE_ARRAY())
+            "trigger_counter", lambda a, b: a + b, Types.BIG_INT())
 
     def on_element(self,
                    element: tuple,
@@ -1479,7 +1489,7 @@ class SimpleCountWindowAssigner(WindowAssigner[tuple, CountWindow]):
         self._window_id = 0
         self._window_size = 3
         self._counter_state_descriptor = ReducingStateDescriptor(
-            "assigner_counter", lambda a, b: a + b, Types.PICKLED_BYTE_ARRAY())
+            "assigner_counter", lambda a, b: a + b, Types.BIG_INT())
 
     def assign_windows(self,
                        element: tuple,

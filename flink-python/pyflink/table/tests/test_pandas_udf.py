@@ -24,8 +24,8 @@ from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase, PyFlinkTestCase
 
 
 class PandasUDFTests(PyFlinkTestCase):
@@ -306,7 +306,7 @@ class PandasUDFITTests(object):
         with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
             t.select(result_type_not_series(t.a)).to_pandas()
 
-    def test_data_types_only_supported_in_blink_planner(self):
+    def test_data_types(self):
         import pandas as pd
 
         timezone = self.t_env.get_config().get_local_timezone()
@@ -338,13 +338,13 @@ class PandasUDFITTests(object):
         self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 
 
-class BlinkBatchPandasUDFITTests(PandasUDFITTests,
-                                 PyFlinkBlinkBatchTableTestCase):
+class BatchPandasUDFITTests(PandasUDFITTests,
+                            PyFlinkBatchTableTestCase):
     pass
 
 
-class BlinkStreamPandasUDFITTests(PandasUDFITTests,
-                                  PyFlinkBlinkStreamTableTestCase):
+class StreamPandasUDFITTests(PandasUDFITTests,
+                             PyFlinkStreamTableTestCase):
     pass
 
 

@@ -70,9 +70,23 @@ public class FutureUtils {
         return COMPLETED_VOID_FUTURE;
     }
 
+    private static final CompletableFuture<?> UNSUPPORTED_OPERATION_FUTURE =
+            completedExceptionally(
+                    new UnsupportedOperationException("This method is unsupported."));
+
+    /**
+     * Returns an exceptionally completed future with an {@link UnsupportedOperationException}.
+     *
+     * @param <T> type of the future
+     * @return exceptionally completed future
+     */
+    public static <T> CompletableFuture<T> unsupportedOperationFuture() {
+        return (CompletableFuture<T>) UNSUPPORTED_OPERATION_FUTURE;
+    }
+
     /**
      * Fakes asynchronous execution by immediately executing the operation and completing the
-     * supplied future either noramlly or exceptionally.
+     * supplied future either normally or exceptionally.
      *
      * @param operation to executed
      * @param <T> type of the result
@@ -1262,6 +1276,42 @@ public class FutureUtils {
     }
 
     /**
+     * Checks that the given {@link CompletableFuture} is not completed exceptionally with the
+     * specified class. If the future is completed exceptionally with the specific class, then try
+     * to recover using a given exception handler. If the exception does not match the specified
+     * class, just pass it through to later stages.
+     *
+     * @param completableFuture to assert for a given exception
+     * @param exceptionClass exception class to assert for
+     * @param exceptionHandler to call if the future is completed exceptionally with the specific
+     *     exception
+     * @return completable future, that can recover from a specified exception
+     */
+    public static <T, E extends Throwable> CompletableFuture<T> handleException(
+            CompletableFuture<? extends T> completableFuture,
+            Class<E> exceptionClass,
+            Function<? super E, ? extends T> exceptionHandler) {
+        final CompletableFuture<T> handledFuture = new CompletableFuture<>();
+        checkNotNull(completableFuture)
+                .whenComplete(
+                        (result, throwable) -> {
+                            if (throwable == null) {
+                                handledFuture.complete(result);
+                            } else if (exceptionClass.isAssignableFrom(throwable.getClass())) {
+                                final E exception = exceptionClass.cast(throwable);
+                                try {
+                                    handledFuture.complete(exceptionHandler.apply(exception));
+                                } catch (Throwable t) {
+                                    handledFuture.completeExceptionally(t);
+                                }
+                            } else {
+                                handledFuture.completeExceptionally(throwable);
+                            }
+                        });
+        return handledFuture;
+    }
+
+    /**
      * Checks that the given {@link CompletableFuture} is not completed exceptionally. If the future
      * is completed exceptionally, then it will call the given uncaught exception handler.
      *
@@ -1319,13 +1369,25 @@ public class FutureUtils {
     }
 
     private static <T> BiConsumer<T, Throwable> forwardTo(CompletableFuture<T> target) {
-        return (value, throwable) -> {
-            if (throwable != null) {
-                target.completeExceptionally(throwable);
-            } else {
-                target.complete(value);
-            }
-        };
+        return (value, throwable) -> doForward(value, throwable, target);
+    }
+
+    /**
+     * Completes the given future with either the given value or throwable, depending on which
+     * parameter is not null.
+     *
+     * @param value value with which the future should be completed
+     * @param throwable throwable with which the future should be completed exceptionally
+     * @param target future to complete
+     * @param <T> completed future
+     */
+    public static <T> void doForward(
+            @Nullable T value, @Nullable Throwable throwable, CompletableFuture<T> target) {
+        if (throwable != null) {
+            target.completeExceptionally(throwable);
+        } else {
+            target.complete(value);
+        }
     }
 
     /**

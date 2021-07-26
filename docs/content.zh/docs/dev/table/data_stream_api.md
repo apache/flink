@@ -1680,6 +1680,49 @@ watermarks in a subsequent `ProcessFunction` in DataStream API.
 
 {{< top >}}
 
+Implicit Conversions in Scala
+-----------------------------
+
+Users of the Scala API can use all the conversion methods above in a more fluent way by leveraging
+Scala's *implicit* feature.
+
+Those implicits are available in the API when importing the package object via `org.apache.flink.table.api.bridge.scala._`.
+
+If enabled, methods such as `toTable` or `toChangelogTable` can be called directly on a `DataStream`
+object. Similarly, `toDataStream` and `toChangelogStream` are available on `Table` objects. Furthermore,
+`Table` objects will be converted to a changelog stream when requesting a DataStream API specific
+method for `DataStream[Row]`.
+
+{{< hint warning >}}
+The use of an implicit conversion should always be a conscious decision. One should pay attention whether
+the IDE proposes an actual Table API method, or a DataStream API method via implicits.
+
+For example, a `table.execute().collect()` stays in Table API whereas `table.executeAndCollect()` implicitly
+uses the DataStream API's `executeAndCollect()` method and therefore forces an API conversion.
+{{< /hint >}}
+
+```scala
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.types.Row
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env)
+
+val dataStream: DataStream[(Int, String)] = env.fromElements((42, "hello"))
+
+// call toChangelogTable() implicitly on the DataStream object
+val table: Table = dataStream.toChangelogTable(tableEnv)
+
+// force implicit conversion
+val dataStreamAgain1: DataStream[Row] = table
+
+// call toChangelogStream() implicitly on the Table object
+val dataStreamAgain2: DataStream[Row] = table.toChangelogStream
+```
+
+{{< top >}}
+
 Mapping between TypeInformation and DataType
 --------------------------------------------
 

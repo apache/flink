@@ -51,15 +51,19 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
@@ -271,6 +275,33 @@ public class DeclarativeSlotPoolServiceTest extends TestLogger {
                     emptyTaskManager.orElseThrow(
                             () -> new Exception("Expected empty task manager")),
                     is(taskManagerId));
+        }
+    }
+
+    @Test
+    public void testCloseReleasesAllSlotsForAllRegisteredTaskManagers() throws Exception {
+        final Queue<ResourceID> releasedSlotsFor = new ArrayDeque<>(2);
+        try (DeclarativeSlotPoolService declarativeSlotPoolService =
+                createDeclarativeSlotPoolService(
+                        new TestingDeclarativeSlotPoolFactory(
+                                new TestingDeclarativeSlotPoolBuilder()
+                                        .setReleaseSlotsFunction(
+                                                (resourceID, e) -> {
+                                                    releasedSlotsFor.offer(resourceID);
+                                                    return ResourceCounter.empty();
+                                                })))) {
+
+            final List<ResourceID> taskManagerResourceIds =
+                    Arrays.asList(
+                            ResourceID.generate(), ResourceID.generate(), ResourceID.generate());
+
+            for (ResourceID taskManagerResourceId : taskManagerResourceIds) {
+                declarativeSlotPoolService.registerTaskManager(taskManagerResourceId);
+            }
+
+            declarativeSlotPoolService.close();
+
+            assertThat(releasedSlotsFor, containsInAnyOrder(taskManagerResourceIds.toArray()));
         }
     }
 

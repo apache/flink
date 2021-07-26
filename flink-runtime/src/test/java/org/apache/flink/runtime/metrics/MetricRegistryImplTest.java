@@ -193,7 +193,7 @@ public class MetricRegistryImplTest extends TestLogger {
                         manuallyTriggeredScheduledExecutorService);
         try {
             Collection<ScheduledFuture<?>> scheduledTasks =
-                    manuallyTriggeredScheduledExecutorService.getScheduledTasks();
+                    manuallyTriggeredScheduledExecutorService.getActiveScheduledTasks();
             ScheduledFuture<?> reportTask = Iterators.getOnlyElement(scheduledTasks.iterator());
             Assert.assertEquals(
                     MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds(),

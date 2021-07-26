@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
 
@@ -32,8 +37,12 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -89,6 +98,44 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         channel.runPendingTasks();
 
         assertTrue(testViewReader.consumptionResumed);
+    }
+
+    @Test
+    public void testAcknowledgeAllRecordsProcessed() throws IOException {
+        InputChannelID inputChannelID = new InputChannelID();
+
+        ResultPartition resultPartition =
+                PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+        ResultPartitionProvider partitionProvider =
+                (partitionId, index, availabilityListener) ->
+                        resultPartition.createSubpartitionView(index, availabilityListener);
+
+        // Creates the netty network handler stack.
+        PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler, partitionRequestQueue);
+
+        // Creates and registers the view to netty.
+        NetworkSequenceViewReader viewReader =
+                new CreditBasedSequenceNumberingViewReader(
+                        inputChannelID, 2, partitionRequestQueue);
+        viewReader.requestSubpartitionView(partitionProvider, resultPartition.getPartitionId(), 0);
+        partitionRequestQueue.notifyReaderCreated(viewReader);
+
+        // Write the message to acknowledge all records are processed to server
+        resultPartition.notifyEndOfUserRecords();
+        CompletableFuture<Void> allRecordsProcessedFuture =
+                resultPartition.getAllRecordsProcessedFuture();
+        assertFalse(allRecordsProcessedFuture.isDone());
+        channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
+        channel.runPendingTasks();
+
+        assertTrue(allRecordsProcessedFuture.isDone());
+        assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
     }
 
     private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {

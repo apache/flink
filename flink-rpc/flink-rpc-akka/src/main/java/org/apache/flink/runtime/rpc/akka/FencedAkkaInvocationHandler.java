@@ -64,7 +64,8 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
             long maximumFramesize,
             @Nullable CompletableFuture<Void> terminationFuture,
             Supplier<F> fencingTokenSupplier,
-            boolean captureAskCallStacks) {
+            boolean captureAskCallStacks,
+            ClassLoader flinkClassLoader) {
         super(
                 address,
                 hostname,
@@ -72,7 +73,8 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
                 timeout,
                 maximumFramesize,
                 terminationFuture,
-                captureAskCallStacks);
+                captureAskCallStacks,
+                flinkClassLoader);
 
         this.fencingTokenSupplier = Preconditions.checkNotNull(fencingTokenSupplier);
     }

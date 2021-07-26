@@ -376,7 +376,18 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         // Ensure the split assignment is done by the the coordinator executor.
         if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
             try {
-                return coordinatorExecutor.submit(callable).get();
+                final Callable<V> guardedCallable =
+                        () -> {
+                            try {
+                                return callable.call();
+                            } catch (Throwable t) {
+                                LOG.error("Uncaught Exception in Source Coordinator Executor", t);
+                                ExceptionUtils.rethrowException(t);
+                                return null;
+                            }
+                        };
+
+                return coordinatorExecutor.submit(guardedCallable).get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new FlinkRuntimeException(errorMessage, e);
             }
@@ -384,8 +395,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
         try {
             return callable.call();
-        } catch (Exception e) {
-            throw new FlinkRuntimeException(errorMessage, e);
+        } catch (Throwable t) {
+            LOG.error("Uncaught Exception in Source Coordinator Executor", t);
+            throw new FlinkRuntimeException(errorMessage, t);
         }
     }
 }

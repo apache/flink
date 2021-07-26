@@ -42,14 +42,12 @@ public interface JobMasterPartitionTracker
     void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds);
 
     /**
-     * Releases all partitions for the given task executor ID, and stop the tracking of partitions
-     * that were released.
+     * Releases the job partitions and promotes the cluster partitions, and stops the tracking of
+     * partitions that were released/promoted.
      */
-    void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
+    void stopTrackingAndReleaseOrPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds);
 
-    /**
-     * Releases all job partitions and promotes all cluster partitions for the given task executor
-     * ID, and stops the tracking of partitions that were released/promoted.
-     */
-    void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId);
+    /** Get all the partitions under tracking. */
+    Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions();
 }

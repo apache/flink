@@ -24,11 +24,13 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -42,6 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -1052,15 +1055,23 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     /** Configuration settings for the closure cleaner. */
-    public enum ClosureCleanerLevel {
-        /** Disable the closure cleaner completely. */
-        NONE,
+    public enum ClosureCleanerLevel implements DescribedEnum {
+        NONE(text("Disables the closure cleaner completely.")),
 
-        /** Clean only the top-level class without recursing into fields. */
-        TOP_LEVEL,
+        TOP_LEVEL(text("Cleans only the top-level class without recursing into fields.")),
 
-        /** Clean all the fields recursively. */
-        RECURSIVE
+        RECURSIVE(text("Cleans all fields recursively."));
+
+        private final InlineElement description;
+
+        ClosureCleanerLevel(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     /**

@@ -49,6 +49,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -247,6 +248,9 @@ public class FlinkKafkaProducer<IN>
 
     /** Flag controlling whether we are writing the Flink record's timestamp into Kafka. */
     protected boolean writeTimestampToKafka = false;
+
+    /** The transactional.id prefix to be used by the producers when communicating with Kafka. */
+    @Nullable private String transactionalIdPrefix = null;
 
     /** Flag indicating whether to accept failures (and log them), or to fail on failures. */
     private boolean logFailuresOnly;
@@ -775,6 +779,23 @@ public class FlinkKafkaProducer<IN>
     }
 
     /**
+     * Specifies the prefix of the transactional.id property to be used by the producers when
+     * communicating with Kafka. If not set, the transactional.id will be prefixed with {@code
+     * taskName + "-" + operatorUid}.
+     *
+     * <p>Note that, if we change the prefix when the Flink application previously failed before
+     * first checkpoint completed or we are starting new batch of {@link FlinkKafkaProducer} from
+     * scratch without clean shutdown of the previous one, since we don't know what was the
+     * previously used transactional.id prefix, there will be some lingering transactions left.
+     *
+     * @param transactionalIdPrefix the transactional.id prefix
+     * @throws NullPointerException Thrown, if the transactionalIdPrefix was null.
+     */
+    public void setTransactionalIdPrefix(String transactionalIdPrefix) {
+        this.transactionalIdPrefix = Preconditions.checkNotNull(transactionalIdPrefix);
+    }
+
+    /**
      * Disables the propagation of exceptions thrown when committing presumably timed out Kafka
      * transactions during recovery of the job. If a Kafka transaction is timed out, a commit will
      * never be successful. Hence, use this feature to avoid recovery loops of the Job. Exceptions
@@ -1149,22 +1170,28 @@ public class FlinkKafkaProducer<IN>
             migrateNextTransactionalIdHindState(context);
         }
 
-        String taskName = getRuntimeContext().getTaskName();
-        // Kafka transactional IDs are limited in length to be less than the max value of a short,
-        // so we truncate here if necessary to a more reasonable length string.
-        if (taskName.length() > maxTaskNameSize) {
-            taskName = taskName.substring(0, maxTaskNameSize);
-            LOG.warn(
-                    "Truncated task name for Kafka TransactionalId from {} to {}.",
-                    getRuntimeContext().getTaskName(),
-                    taskName);
+        String actualTransactionalIdPrefix;
+        if (this.transactionalIdPrefix != null) {
+            actualTransactionalIdPrefix = this.transactionalIdPrefix;
+        } else {
+            String taskName = getRuntimeContext().getTaskName();
+            // Kafka transactional IDs are limited in length to be less than the max value of
+            // a short, so we truncate here if necessary to a more reasonable length string.
+            if (taskName.length() > maxTaskNameSize) {
+                taskName = taskName.substring(0, maxTaskNameSize);
+                LOG.warn(
+                        "Truncated task name for Kafka TransactionalId from {} to {}.",
+                        getRuntimeContext().getTaskName(),
+                        taskName);
+            }
+            actualTransactionalIdPrefix =
+                    taskName
+                            + "-"
+                            + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID();
         }
         transactionalIdsGenerator =
                 new TransactionalIdsGenerator(
-                        taskName
-                                + "-"
-                                + ((StreamingRuntimeContext) getRuntimeContext())
-                                        .getOperatorUniqueID(),
+                        actualTransactionalIdPrefix,
                         getRuntimeContext().getIndexOfThisSubtask(),
                         getRuntimeContext().getNumberOfParallelSubtasks(),
                         kafkaProducersPoolSize,
@@ -1298,6 +1325,15 @@ public class FlinkKafkaProducer<IN>
             throw new IllegalArgumentException();
         }
         return currentTransaction.producer.getTransactionCoordinatorId();
+    }
+
+    @VisibleForTesting
+    String getTransactionalId() {
+        final FlinkKafkaProducer.KafkaTransactionState currentTransaction = currentTransaction();
+        if (currentTransaction == null || currentTransaction.producer == null) {
+            throw new IllegalArgumentException();
+        }
+        return currentTransaction.producer.getTransactionalId();
     }
 
     /**

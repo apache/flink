@@ -25,8 +25,8 @@ import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -76,7 +76,7 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
     private transient Cache<RowData, List<RowData>> cache;
 
     public JdbcRowDataLookupFunction(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcLookupOptions lookupOptions,
             String[] fieldNames,
             DataType[] fieldTypes,

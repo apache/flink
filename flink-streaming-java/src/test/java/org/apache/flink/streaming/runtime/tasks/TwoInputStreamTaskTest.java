@@ -710,9 +710,11 @@ public class TwoInputStreamTaskTest {
                 new StreamRecord<>("[Operator0-1]: End of input"),
                 new StreamRecord<>("[Operator0-2]: Hello-2"),
                 new StreamRecord<>("[Operator0-2]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Operator0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -738,7 +740,7 @@ public class TwoInputStreamTaskTest {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 

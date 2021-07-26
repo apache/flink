@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -28,9 +29,15 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Terminated;
 import akka.japi.pf.ReceiveBuilder;
+import akka.pattern.Patterns;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link akka.actor.ActorSystem} instantiated through {@link
@@ -53,6 +60,32 @@ public class AkkaActorSystemTest extends TestLogger {
 
             // make sure that the ActorSystem shuts down
             terminationFuture.join();
+        } finally {
+            AkkaUtils.terminateActorSystem(actorSystem).join();
+        }
+    }
+
+    @Test
+    public void askTerminatedActorFailsWithRecipientTerminatedException() {
+        final ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
+        final Duration timeout = Duration.ofSeconds(10L);
+
+        try {
+            final ActorRef actorRef = actorSystem.actorOf(Props.create(SimpleActor.class));
+
+            // wait for the actor's termination
+            Patterns.gracefulStop(actorRef, timeout).toCompletableFuture().join();
+
+            final CompletionStage<Object> result = Patterns.ask(actorRef, new Object(), timeout);
+
+            try {
+                result.toCompletableFuture().get();
+                fail("Expected a recipient terminated exception.");
+            } catch (Exception e) {
+                assertTrue(
+                        AkkaRpcServiceUtils.isRecipientTerminatedException(
+                                ExceptionUtils.stripExecutionException(e)));
+            }
         } finally {
             AkkaUtils.terminateActorSystem(actorSystem).join();
         }

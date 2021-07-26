@@ -37,7 +37,6 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
     public static final int EXIT_CODE = -17;
 
     @Override
-    @SuppressWarnings("finally")
     public void uncaughtException(Thread t, Throwable e) {
         try {
             LOG.error(

@@ -238,6 +238,24 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this(operator, SimpleOperatorFactory.of(operator), env, false, new OperatorID());
     }
 
+    public AbstractStreamOperatorTestHarness(
+            StreamOperator<OUT> operator, String taskName, OperatorID operatorID) throws Exception {
+        this(
+                operator,
+                SimpleOperatorFactory.of(operator),
+                new MockEnvironmentBuilder()
+                        .setTaskName(taskName)
+                        .setManagedMemorySize(3 * 1024 * 1024)
+                        .setInputSplitProvider(new MockInputSplitProvider())
+                        .setBufferSize(1024)
+                        .setMaxParallelism(1)
+                        .setParallelism(1)
+                        .setSubtaskIndex(0)
+                        .build(),
+                false,
+                operatorID);
+    }
+
     private AbstractStreamOperatorTestHarness(
             StreamOperator<OUT> operator,
             StreamOperatorFactory<OUT> factory,
@@ -686,14 +704,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         operator.notifyCheckpointComplete(checkpointId);
     }
 
-    /** Calls close and dispose on the operator. */
+    /** Calls finish and close on the operator. */
     public void close() throws Exception {
-        operator.close();
-        operator.dispose();
         if (processingTimeService != null) {
             processingTimeService.shutdownService();
         }
         setupCalled = false;
+        operator.finish();
+        operator.close();
 
         if (internalEnvironment.isPresent()) {
             internalEnvironment.get().close();

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -34,6 +35,8 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
 /** Configuration object for the {@link MiniCluster}. */
 public class MiniClusterConfiguration {
+
+    static final int DEFAULT_IO_POOL_SIZE = 4;
 
     private final UnmodifiableConfiguration configuration;
 
@@ -66,6 +69,11 @@ public class MiniClusterConfiguration {
         final Configuration modifiedConfig = new Configuration(configuration);
 
         TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
+
+        // set default io pool size.
+        if (!modifiedConfig.contains(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE)) {
+            modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
+        }
 
         return new UnmodifiableConfiguration(modifiedConfig);
     }

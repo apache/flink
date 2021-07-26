@@ -31,8 +31,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 
 /**
- * We create the DecimalSerializer instead of using the DecimalSerializer of
- * flink-table-runtime-blink for performance reasons in Python deserialization.
+ * We create the DecimalSerializer instead of using the DecimalSerializer of flink-table-runtime for
+ * performance reasons in Python deserialization.
  */
 @Internal
 public class DecimalDataSerializer extends TypeSerializer<DecimalData> {

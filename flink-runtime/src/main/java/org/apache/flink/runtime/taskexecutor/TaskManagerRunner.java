@@ -30,9 +30,11 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
@@ -41,7 +43,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -56,6 +57,7 @@ import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -126,6 +128,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final CompletableFuture<Result> terminationFuture;
 
+    private final RpcSystem rpcSystem;
+
     private boolean shutdown;
 
     public TaskManagerRunner(
@@ -135,7 +139,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
-        final RpcSystem rpcSystem = RpcSystem.load();
+        rpcSystem = RpcSystem.load(configuration);
 
         timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
@@ -250,7 +254,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         FutureUtils.composeAfterwards(
                                 taskManagerTerminationFuture, this::shutDownServices);
 
-                serviceTerminationFuture.whenComplete(
+                final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
+                        FutureUtils.runAfterwards(serviceTerminationFuture, rpcSystem::close);
+
+                rpcSystemClassLoaderCloseFuture.whenComplete(
                         (Void ignored, Throwable throwable) -> {
                             if (throwable != null) {
                                 terminationFuture.completeExceptionally(throwable);
@@ -411,9 +418,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 PluginUtils.createPluginManagerFromRootFolder(configuration);
         FileSystem.initialize(configuration, pluginManager);
 
+        StateChangelogStorageLoader.initialize(pluginManager);
+
         int exitCode;
         Throwable throwable = null;
 
+        ClusterEntrypointUtils.configureUncaughtExceptionHandler(configuration);
         try {
             SecurityUtils.install(new SecurityConfiguration(configuration));
 

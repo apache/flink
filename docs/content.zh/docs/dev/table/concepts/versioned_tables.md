@@ -115,7 +115,6 @@ Yen       1
 
 时态表
 -----
-<span class="label label-danger">注意</span> 仅 Blink planner 支持此功能。
 
 Flink 使用主键约束和事件时间来定义一张版本表和版本视图。
 

@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -48,10 +50,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -359,6 +361,30 @@ public class AkkaRpcServiceTest extends TestLogger {
         }
 
         assertThat(akkaRpcService.getActorSystem().whenTerminated().isCompleted(), is(true));
+    }
+
+    @Test
+    public void failsRpcResultImmediatelyIfEndpointIsStopped() throws Exception {
+        try (final AkkaRpcActorTest.SerializedValueRespondingEndpoint endpoint =
+                new AkkaRpcActorTest.SerializedValueRespondingEndpoint(akkaRpcService)) {
+            endpoint.start();
+
+            final AkkaRpcActorTest.SerializedValueRespondingGateway gateway =
+                    akkaRpcService
+                            .connect(
+                                    endpoint.getAddress(),
+                                    AkkaRpcActorTest.SerializedValueRespondingGateway.class)
+                            .join();
+
+            endpoint.close();
+
+            try {
+                gateway.getSerializedValue().join();
+                fail("The endpoint should have been stopped.");
+            } catch (Exception e) {
+                assertThat(e, FlinkMatchers.containsCause(RecipientUnreachableException.class));
+            }
+        }
     }
 
     private Collection<CompletableFuture<Void>> startStopNCountingAsynchronousOnStopEndpoints(

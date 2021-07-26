@@ -22,9 +22,8 @@
 from libc.stdlib cimport free, malloc
 from typing import List, Dict
 
-from apache_beam.coders import PickleCoder, Coder
-
 from pyflink.common import Row
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -197,13 +196,13 @@ cdef class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
-                            PickleCoder())
+                            data_view_spec.element_coder)
                 elif isinstance(data_view_spec, MapViewSpec):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
-                            PickleCoder(),
-                            PickleCoder())
+                            data_view_spec.key_coder,
+                            data_view_spec.value_coder)
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
@@ -437,7 +436,7 @@ cdef class GroupAggFunctionBase:
                  aggs_handle: AggsHandleFunctionBase,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -481,7 +480,7 @@ cdef class GroupAggFunction(GroupAggFunctionBase):
                  aggs_handle,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):
@@ -588,7 +587,7 @@ cdef class GroupTableAggFunction(GroupAggFunctionBase):
                  aggs_handle,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
                  index_of_count_star: int):

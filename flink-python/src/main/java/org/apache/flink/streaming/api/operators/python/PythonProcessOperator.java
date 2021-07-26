@@ -31,6 +31,9 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+
 /**
  * {@link PythonProcessOperator} is responsible for launching beam runner which will start a python
  * harness to execute user defined python ProcessFunction.
@@ -40,8 +43,6 @@ public class PythonProcessOperator<IN, OUT>
         extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String PROCESS_FUNCTION_URN = "flink:transform:process_function:v1";
 
     /** Reusable row for normal data runner inputs. */
     private transient Row reusableInput;
@@ -58,9 +59,6 @@ public class PythonProcessOperator<IN, OUT>
                 config,
                 Types.ROW(Types.LONG, Types.LONG, inputTypeInfo),
                 outputTypeInfo,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END,
                 pythonFunctionInfo);
     }
 
@@ -102,6 +100,20 @@ public class PythonProcessOperator<IN, OUT>
 
     @Override
     public String getFunctionUrn() {
-        return PROCESS_FUNCTION_URN;
+        return STATELESS_FUNCTION_URN;
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 }

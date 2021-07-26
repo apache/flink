@@ -42,6 +42,9 @@ public class TestingPartitionRequestClient implements PartitionRequestClient {
     public void resumeConsumption(RemoteInputChannel inputChannel) {}
 
     @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {}
+
+    @Override
     public void sendTaskEvent(
             ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel) {}
 

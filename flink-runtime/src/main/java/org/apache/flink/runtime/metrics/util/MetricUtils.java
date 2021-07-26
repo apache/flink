@@ -31,7 +31,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -100,12 +99,9 @@ public class MetricUtils {
         return processMetricGroup;
     }
 
-    public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
-            final MetricRegistry metricRegistry, final String hostname) {
-        final JobManagerMetricGroup jobManagerMetricGroup =
-                new JobManagerMetricGroup(metricRegistry, hostname);
-
-        return jobManagerMetricGroup;
+    public static TaskManagerMetricGroup createTaskManagerMetricGroup(
+            MetricRegistry metricRegistry, String hostName, ResourceID resourceID) {
+        return new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
     }
 
     public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
@@ -114,7 +110,7 @@ public class MetricUtils {
             ResourceID resourceID,
             Optional<Time> systemResourceProbeInterval) {
         final TaskManagerMetricGroup taskManagerMetricGroup =
-                new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
+                createTaskManagerMetricGroup(metricRegistry, hostName, resourceID);
 
         MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 

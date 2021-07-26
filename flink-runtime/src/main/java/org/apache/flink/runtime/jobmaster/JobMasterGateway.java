@@ -184,16 +184,18 @@ public interface JobMasterGateway
      *
      * @param resourceID unique id of the task manager
      * @param payload report payload
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromTaskManager(
+    CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID resourceID, final TaskExecutorToJobManagerHeartbeatPayload payload);
 
     /**
      * Sends heartbeat request from the resource manager.
      *
      * @param resourceID unique id of the resource manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromResourceManager(final ResourceID resourceID);
+    CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID);
 
     /**
      * Request the details of the executed job.

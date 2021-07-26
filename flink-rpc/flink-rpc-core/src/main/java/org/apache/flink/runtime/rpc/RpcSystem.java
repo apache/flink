@@ -27,7 +27,7 @@ import java.util.ServiceLoader;
  * This interface serves as a factory interface for RPC services, with some additional utilities
  * that are reliant on implementation details of the RPC service.
  */
-public interface RpcSystem extends RpcSystemUtils {
+public interface RpcSystem extends RpcSystemUtils, AutoCloseable {
 
     /**
      * Returns a builder for an {@link RpcService} that is only reachable from the local machine.
@@ -50,6 +50,10 @@ public interface RpcSystem extends RpcSystemUtils {
             Configuration configuration,
             @Nullable String externalAddress,
             String externalPortRange);
+
+    /** Hook to cleanup resources, like common thread pools or classloaders. */
+    @Override
+    default void close() {}
 
     /** Builder for {@link RpcService}. */
     interface RpcServiceBuilder {
@@ -74,8 +78,17 @@ public interface RpcSystem extends RpcSystemUtils {
      * @return loaded RpcSystem
      */
     static RpcSystem load() {
-        final ClassLoader classLoader = RpcSystem.class.getClassLoader();
-        return ServiceLoader.load(RpcSystem.class, classLoader).iterator().next();
+        return load(new Configuration());
+    }
+
+    /**
+     * Loads the RpcSystem.
+     *
+     * @param config Flink configuration
+     * @return loaded RpcSystem
+     */
+    static RpcSystem load(Configuration config) {
+        return ServiceLoader.load(RpcSystemLoader.class).iterator().next().loadRpcSystem(config);
     }
 
     /** Descriptor for creating a fork-join thread-pool. */

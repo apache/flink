@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -75,6 +76,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -123,6 +125,13 @@ public class ChangelogKeyedStateBackend<K>
      * the underlying delegated keyedStateBackend. InternalKvState is a delegated state.
      */
     private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
+
+    /**
+     * Unwrapped changelog states used for recovery (not wrapped into e.g. TTL).
+     *
+     * <p>WARN: cleared upon recovery completion.
+     */
+    private final HashMap<String, ChangelogState> changelogStates;
 
     private final HashMap<String, ChangelogKeyGroupedPriorityQueue<?>> priorityQueueStatesByName;
 
@@ -177,12 +186,18 @@ public class ChangelogKeyedStateBackend<K>
      */
     private final SequenceNumber materializedTo;
 
+    private final MailboxExecutor mainMailboxExecutor;
+
+    private final ExecutorService asyncOperationsThreadPool;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
-            Collection<ChangelogStateBackendHandle> initialState) {
+            Collection<ChangelogStateBackendHandle> initialState,
+            MailboxExecutor mainMailboxExecutor,
+            ExecutorService asyncOperationsThreadPool) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
@@ -190,6 +205,9 @@ public class ChangelogKeyedStateBackend<K>
         this.priorityQueueStatesByName = new HashMap<>();
         this.stateChangelogWriter = stateChangelogWriter;
         this.materializedTo = stateChangelogWriter.initialSequenceNumber();
+        this.changelogStates = new HashMap<>();
+        this.mainMailboxExecutor = checkNotNull(mainMailboxExecutor);
+        this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.completeRestore(initialState);
     }
 
@@ -284,6 +302,7 @@ public class ChangelogKeyedStateBackend<K>
             lastState = previous;
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
+            functionDelegationHelper.addOrUpdate(stateDescriptor);
             return (S) previous;
         }
 
@@ -485,11 +504,15 @@ public class ChangelogKeyedStateBackend<K>
                         state.getValueSerializer(),
                         keyedStateBackend.getKeyContext(),
                         stateChangelogWriter,
-                        meta);
-        return stateFactory.create(
-                state,
-                kvStateChangeLogger,
-                keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+                        meta,
+                        stateDesc.getTtlConfig());
+        IS is =
+                stateFactory.create(
+                        state,
+                        kvStateChangeLogger,
+                        keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+        changelogStates.put(stateDesc.getName(), (ChangelogState) is);
+        return is;
     }
 
     private void completeRestore(Collection<ChangelogStateBackendHandle> stateHandles) {
@@ -503,6 +526,7 @@ public class ChangelogKeyedStateBackend<K>
                 }
             }
         }
+        changelogStates.clear();
     }
 
     @Override
@@ -524,16 +548,19 @@ public class ChangelogKeyedStateBackend<K>
      * @param type state type (the only supported type currently are: {@link
      *     BackendStateType#KEY_VALUE key value}, {@link BackendStateType#PRIORITY_QUEUE priority
      *     queue})
-     * @return an existing state, i.e. the one that was already created
+     * @return an existing state, i.e. the one that was already created. The returned state will not
+     *     apply TTL to the passed values, regardless of the TTL settings. This prevents double
+     *     applying of TTL (recovered values are TTL values if TTL was enabled). The state will,
+     *     however, use TTL serializer if TTL is enabled. WARN: only valid during the recovery.
      * @throws NoSuchElementException if the state wasn't created
      * @throws UnsupportedOperationException if state type is not supported
      */
-    public ChangelogState getExistingState(String name, BackendStateType type)
+    public ChangelogState getExistingStateForRecovery(String name, BackendStateType type)
             throws NoSuchElementException, UnsupportedOperationException {
         ChangelogState state;
         switch (type) {
             case KEY_VALUE:
-                state = (ChangelogState) keyValueStatesByName.get(name);
+                state = changelogStates.get(name);
                 break;
             case PRIORITY_QUEUE:
                 state = priorityQueueStatesByName.get(name);

@@ -1006,7 +1006,7 @@ from pyflink.table.expressions import col
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
   
-joined_table = left.join(right).where(left.a == right.d & left.rowtime1 >= right.rowtime2 - lit(1).second & left.rowtime1 <= right.rowtime2 + lit(2).seconds)
+joined_table = left.join(right).where((left.a == right.d) & (left.rowtime1 >= right.rowtime2 - lit(1).second) & (left.rowtime1 <= right.rowtime2 + lit(2).seconds))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
 ```
 {{< /tab >}}

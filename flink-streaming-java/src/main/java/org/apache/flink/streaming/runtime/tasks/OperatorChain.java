@@ -72,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -96,6 +97,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private final RecordWriterOutput<?>[] streamOutputs;
 
     private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
+
+    private final boolean finishedOnRestore;
 
     /**
      * For iteration, {@link StreamIterationHead} and {@link StreamIterationTail} used for executing
@@ -136,7 +139,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     public OperatorChain(
             StreamTask<OUT, OP> containingTask,
-            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate,
+            boolean finishedOnRestore) {
 
         this.operatorEventDispatcher =
                 new OperatorEventDispatcherImpl(
@@ -159,6 +163,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap =
                 new HashMap<>(outEdgesInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
+        this.finishedOnRestore = finishedOnRestore;
 
         // from here on, we need to make sure that the output writers are shut down again on failure
         boolean success = false;
@@ -260,6 +265,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         this.chainedSources = Collections.emptyMap();
 
         firstOperatorWrapper = linkOperatorWrappers(allOperatorWrappers);
+        finishedOnRestore = false;
     }
 
     private void createChainOutputs(
@@ -339,8 +345,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     sourceInput,
                     new ChainedSource(
                             chainedSourceOutput,
-                            new StreamTaskSourceInput<>(
-                                    sourceOperator, sourceInputGateIndex++, inputId)));
+                            finishedOnRestore
+                                    ? new StreamTaskFinishedOnRestoreSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)
+                                    : new StreamTaskSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)));
         }
         return chainedSourceInputs;
     }
@@ -360,6 +369,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
         return closer.register(new ChainingOutput(input, metricGroup, outputTag));
+    }
+
+    public boolean isFinishedOnRestore() {
+        return finishedOnRestore;
     }
 
     public OperatorEventDispatcher getOperatorEventDispatcher() {
@@ -382,6 +395,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         // go forward through the operator chain and tell each operator
         // to prepare the checkpoint
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
@@ -406,10 +423,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     /**
      * Initialize state and open all operators in the chain from <b>tail to heads</b>, contrary to
      * {@link StreamOperator#close()} which happens <b>heads to tail</b> (see {@link
-     * #closeOperators(StreamTaskActionExecutor)}).
+     * #finishOperators(StreamTaskActionExecutor)}).
      */
     protected void initializeStateAndOpenOperators(
             StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
             operator.initializeState(streamTaskStateInitializer);
@@ -422,9 +443,35 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * operator in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to
      * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
      */
-    protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+    protected void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         if (firstOperatorWrapper != null) {
-            firstOperatorWrapper.close(actionExecutor, ignoreEndOfInput);
+            firstOperatorWrapper.finish(actionExecutor, ignoreEndOfInput);
+        }
+    }
+
+    /**
+     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
+     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
+     */
+    protected void closeAllOperators() throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
+        Exception closingException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.close();
+            } catch (Exception e) {
+                closingException = firstOrSuppressed(e, closingException);
+            }
+        }
+        if (closingException != null) {
+            throw closingException;
         }
     }
 

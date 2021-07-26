@@ -164,7 +164,7 @@ public class JsonFormatFactoryTest extends TestLogger {
                 new JsonRowDataSerializationSchema(
                         PHYSICAL_TYPE,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 

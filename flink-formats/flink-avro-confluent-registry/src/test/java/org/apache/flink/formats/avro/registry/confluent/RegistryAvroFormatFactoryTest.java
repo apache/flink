@@ -217,15 +217,15 @@ public class RegistryAvroFormatFactoryTest {
         final Map<String, String> properties = new HashMap<>();
         // defined via Flink maintained options
         properties.put(
-                RegistryAvroOptions.SSL_KEYSTORE_LOCATION.key(),
+                AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION.key(),
                 getAbsolutePath("/test-keystore.jks"));
-        properties.put(RegistryAvroOptions.SSL_KEYSTORE_PASSWORD.key(), "123456");
+        properties.put(AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD.key(), "123456");
         properties.put(
-                RegistryAvroOptions.SSL_TRUSTSTORE_LOCATION.key(),
+                AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
                 getAbsolutePath("/test-keystore.jks"));
-        properties.put(RegistryAvroOptions.SSL_TRUSTSTORE_PASSWORD.key(), "123456");
-        properties.put(RegistryAvroOptions.BASIC_AUTH_CREDENTIALS_SOURCE.key(), "USER_INFO");
-        properties.put(RegistryAvroOptions.BASIC_AUTH_USER_INFO.key(), "user:pwd");
+        properties.put(AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(), "123456");
+        properties.put(AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE.key(), "USER_INFO");
+        properties.put(AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO.key(), "user:pwd");
         // defined via general property map
         properties.put("properties.bearer.auth.token", "CUSTOM");
 

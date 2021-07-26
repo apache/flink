@@ -118,7 +118,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
         readLongs(
                 reader,
                 numLongs,
-                subpartition.getBuffersInBacklog(),
+                subpartition.getBuffersInBacklogUnsafe(),
                 compressionEnabled,
                 decompressor);
 
@@ -140,7 +140,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
             readLongs(
                     reader,
                     numLongs,
-                    subpartition.getBuffersInBacklog(),
+                    subpartition.getBuffersInBacklogUnsafe(),
                     compressionEnabled,
                     decompressor);
             reader.releaseAllResources();
@@ -163,7 +163,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
                         subpartition,
                         10,
                         numLongs,
-                        subpartition.getBuffersInBacklog(),
+                        subpartition.getBuffersInBacklogUnsafe(),
                         compressionEnabled);
         for (CheckedThread t : readerThreads) {
             t.start();

@@ -28,7 +28,7 @@ under the License.
 <a name="Command-Line Interface"> </a>
 # 命令行界面
 
-Flink提供了命令行界面（CLI）`bin/flink` 来运行 JAR 格式的程序，同时控制其执行。该 CLI 作为 Flink 安装配置的一部分，在单节点或分布式安装的方式中都可以使用。命令行程序与运行中的 JobManager 建立连接来通信，JobManager 的连接信息可以通过`conf/flink-config.yaml`指定。
+Flink提供了命令行界面（CLI）`bin/flink` 来运行 JAR 格式的程序，同时控制其执行。该 CLI 作为 Flink 安装配置的一部分，在单节点或分布式安装的方式中都可以使用。命令行程序与运行中的 JobManager 建立连接来通信，JobManager 的连接信息可以通过`conf/flink-conf.yaml`指定。
 
 <a name="job-lifecycle-management"> </a>
 
@@ -275,7 +275,7 @@ $ ./bin/flink run \
         <tr>
             <td><code class="highlighter-rouge">savepoint</code></td>
             <td>
-                该操作用于为指定的作业创建或废弃 savepoint。如果在 <code class="highlighter-rouge">conf/flink-config.yaml</code> 中没有指定 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 参数，那么除了指定 JobID 之外还需要指定 savepoint 目录。
+                该操作用于为指定的作业创建或废弃 savepoint。如果在 <code class="highlighter-rouge">conf/flink-conf.yaml</code> 中没有指定 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 参数，那么除了指定 JobID 之外还需要指定 savepoint 目录。
             </td>
         </tr>
         <tr>
@@ -331,7 +331,7 @@ Flink 兼容多种集群管理框架，例如 [Kubernetes]({{< ref "docs/deploym
   * `./bin/flink run --target local`: 将作业以 `Session` 模式提交到最小集群模式部署的本地 Flink。
   * `./bin/flink run --target remote`: 将作业提交到运行中的 Flink 集群。
 
-使用  `--target` 参数可以覆盖配置文件 `config/flink-config.yaml` 中的  [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 配置。
+使用  `--target` 参数可以覆盖配置文件 `conf/flink-conf.yaml` 中的  [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 配置。
 
 关于命令和相关选项的更多细节，请参考文档中关于Resource Provider的指南。
 

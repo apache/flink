@@ -58,6 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -131,6 +132,7 @@ public class RemoteInputChannel extends InputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
+        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
@@ -357,9 +359,37 @@ public class RemoteInputChannel extends InputChannel {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
+        if (initialCredit == 0) {
+            // this unannounced credit can be a positive value because credit assignment and the
+            // increase of this value is not an atomic operation and as a result, this unannounced
+            // credit value can be get increased even after this channel has been blocked and all
+            // floating credits are released, it is important to clear this unannounced credit and
+            // at the same time reset the sender's available credits to keep consistency
+            unannouncedCredit.set(0);
+        }
+
         // notifies the producer that this channel is ready to
         // unblock from checkpoint and resume data consumption
         partitionRequestClient.resumeConsumption(this);
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.acknowledgeAllRecordsProcessed(this);
+    }
+
+    private void onBlockingUpstream() {
+        if (initialCredit == 0) {
+            // release the allocated floating buffers so that they can be used by other channels if
+            // no exclusive buffer is configured, it is important because a blocked channel can not
+            // transmit any data so the allocated floating buffers can not be recycled, as a result,
+            // other channels may can't allocate new buffers for data transmission (an extreme case
+            // is that we only have 1 floating buffer and 0 exclusive buffer)
+            bufferManager.releaseFloatingBuffers();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -443,11 +473,8 @@ public class RemoteInputChannel extends InputChannel {
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
-    void onSenderBacklog(int backlog) throws IOException {
-        int numRequestedBuffers = bufferManager.requestFloatingBuffers(backlog + initialCredit);
-        if (numRequestedBuffers > 0 && unannouncedCredit.getAndAdd(numRequestedBuffers) == 0) {
-            notifyCreditAvailable();
-        }
+    public void onSenderBacklog(int backlog) throws IOException {
+        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
     }
 
     /**
@@ -461,6 +488,11 @@ public class RemoteInputChannel extends InputChannel {
             if (expectedSequenceNumber != sequenceNumber) {
                 onError(new BufferReorderingException(expectedSequenceNumber, sequenceNumber));
                 return;
+            }
+
+            if (buffer.getDataType().isBlockingUpstream()) {
+                onBlockingUpstream();
+                checkArgument(backlog == 0, "Illegal number of backlog: %s, should be 0.", backlog);
             }
 
             final boolean wasEmpty;

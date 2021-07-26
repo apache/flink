@@ -31,6 +31,9 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -53,6 +56,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
@@ -64,6 +68,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -110,8 +115,10 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -188,6 +195,9 @@ public class StreamExecutionEnvironment {
     private final ClassLoader userClassloader;
 
     private final List<JobListener> jobListeners = new ArrayList<>();
+
+    // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
     // Constructor and Properties
@@ -333,6 +343,30 @@ public class StreamExecutionEnvironment {
                         + maxParallelism);
 
         config.setMaxParallelism(maxParallelism);
+        return this;
+    }
+
+    /**
+     * Register a slot sharing group with its resource spec.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment registerSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        final ResourceSpec resourceSpec =
+                SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup);
+        if (!resourceSpec.equals(ResourceSpec.UNKNOWN)) {
+            this.slotSharingGroupResources.put(
+                    slotSharingGroup.getName(),
+                    ResourceProfile.fromResourceSpec(
+                            SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup),
+                            MemorySize.ZERO));
+        }
         return this;
     }
 
@@ -931,6 +965,13 @@ public class StreamExecutionEnvironment {
                 .ifPresent(
                         runtimeMode ->
                                 this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
+
+        configuration
+                .getOptional(ExecutionOptions.SHUFFLE_MODE)
+                .ifPresent(
+                        shuffleMode ->
+                                this.configuration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode));
+
         configuration
                 .getOptional(ExecutionOptions.SORT_INPUTS)
                 .ifPresent(
@@ -2087,7 +2128,8 @@ public class StreamExecutionEnvironment {
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout);
+                .setDefaultBufferTimeout(bufferTimeout)
+                .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
     /**

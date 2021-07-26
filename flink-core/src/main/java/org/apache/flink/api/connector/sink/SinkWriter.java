@@ -20,6 +20,7 @@
 package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +46,16 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      * @throws IOException if fail to add an element.
      */
     void write(InputT element, Context context) throws IOException;
+
+    /**
+     * Add a watermark to the writer.
+     *
+     * <p>This method is intended for advanced sinks that propagate watermarks.
+     *
+     * @param watermark The watermark.
+     * @throws IOException if fail to add a watermark.
+     */
+    default void writeWatermark(Watermark watermark) throws IOException {}
 
     /**
      * Prepare for a commit.

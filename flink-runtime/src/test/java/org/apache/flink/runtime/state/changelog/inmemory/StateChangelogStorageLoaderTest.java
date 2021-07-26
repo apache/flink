@@ -17,9 +17,16 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
 import org.junit.Test;
 
@@ -27,39 +34,77 @@ import java.util.Iterator;
 
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableList.copyOf;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+/** Tests for {@link StateChangelogStorageLoader}. */
 public class StateChangelogStorageLoaderTest {
 
     @Test
     public void testLoadSpiImplementation() {
-        assertTrue(
-                new StateChangelogStorageLoader(getPluginManager(emptyIterator()))
-                        .load()
-                        .hasNext());
+        StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
+        assertNotNull(StateChangelogStorageLoader.load(new Configuration()));
+    }
+
+    @Test
+    public void testLoadNotExist() {
+        StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
+        assertNull(
+                StateChangelogStorageLoader.load(
+                        new Configuration()
+                                .set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "not_exist")));
     }
 
     @Test
     @SuppressWarnings("rawtypes")
     public void testLoadPluginImplementation() {
-        StateChangelogStorage<?> impl = new InMemoryStateChangelogStorage();
-        PluginManager pluginManager = getPluginManager(singletonList(impl).iterator());
-        Iterator<StateChangelogStorage> loaded =
-                new StateChangelogStorageLoader(pluginManager).load();
-        assertTrue(copyOf(loaded).contains(impl));
+        StateChangelogStorageFactory factory = new TestStateChangelogStorageFactory();
+        PluginManager pluginManager = getPluginManager(singletonList(factory).iterator());
+        StateChangelogStorageLoader.initialize(pluginManager);
+        StateChangelogStorage loaded = StateChangelogStorageLoader.load(new Configuration());
+        assertTrue(loaded instanceof TestStateChangelogStorage);
     }
 
-    private PluginManager getPluginManager(Iterator<? extends StateChangelogStorage<?>> iterator) {
+    private PluginManager getPluginManager(
+            Iterator<? extends StateChangelogStorageFactory> iterator) {
         return new PluginManager() {
 
             @Override
             public <P> Iterator<P> load(Class<P> service) {
-                checkArgument(service.equals(StateChangelogStorage.class));
+                checkArgument(service.equals(StateChangelogStorageFactory.class));
                 //noinspection unchecked
                 return (Iterator<P>) iterator;
             }
         };
+    }
+
+    private static class TestStateChangelogStorage
+            implements StateChangelogStorage<ChangelogStateHandle> {
+        @Override
+        public StateChangelogWriter<ChangelogStateHandle> createWriter(
+                String operatorID, KeyGroupRange keyGroupRange) {
+            return null;
+        }
+
+        @Override
+        public StateChangelogHandleReader<ChangelogStateHandle> createReader() {
+            return null;
+        }
+    }
+
+    private static class TestStateChangelogStorageFactory implements StateChangelogStorageFactory {
+
+        @Override
+        public String getIdentifier() {
+            // same identifier for overlapping test.
+            return InMemoryStateChangelogStorageFactory.identifier;
+        }
+
+        @Override
+        public StateChangelogStorage<?> createStorage(Configuration configuration) {
+            return new TestStateChangelogStorage();
+        }
     }
 }

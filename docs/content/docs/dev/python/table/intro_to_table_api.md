@@ -89,11 +89,11 @@ The `TableEnvironment` is a central concept of the Table API and SQL integration
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
+# create a streaming TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# or create a blink batch TableEnvironment
+# or create a batch TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
@@ -109,11 +109,6 @@ The `TableEnvironment` is responsible for:
 * Configuring the job, see [Python Configuration]({{< ref "docs/dev/python/python_config" >}}) for more details
 * Managing Python dependencies, see [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}) for more details
 * Submitting the jobs for execution
-
-Currently there are 2 planners available: flink planner and blink planner.
-
-You should explicitly set which planner to use in the current program.
-We recommend using the blink planner as much as possible. 
 
 {{< top >}}
 
@@ -131,7 +126,7 @@ You can create a Table from a list object:
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink batch TableEnvironment
+# create a batch TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
@@ -195,7 +190,7 @@ You can create a Table using connector DDL:
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink stream TableEnvironment
+# create a stream TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 

@@ -133,6 +133,9 @@ public abstract class InputGate
 
     public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
+    public abstract void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)
+            throws IOException;
+
     /** Returns the channel of this gate. */
     public abstract InputChannel getChannel(int channelIndex);
 

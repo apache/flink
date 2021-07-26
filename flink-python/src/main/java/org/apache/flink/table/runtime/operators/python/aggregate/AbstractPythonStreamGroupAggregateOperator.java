@@ -94,10 +94,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                generateUpdateBefore);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;
@@ -158,7 +155,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> fields = new ArrayList<>();
         fields.add(new RowType.RowField("record_type", new TinyIntType()));
         fields.add(new RowType.RowField("row", inputType));
@@ -168,7 +165,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         return outputType;
     }
 

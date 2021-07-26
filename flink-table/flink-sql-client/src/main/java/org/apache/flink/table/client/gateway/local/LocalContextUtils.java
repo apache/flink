@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.context.SessionContext;
 import org.apache.flink.util.JarUtils;
@@ -37,7 +38,9 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -188,6 +191,28 @@ public class LocalContextUtils {
             }
         } catch (Exception e) {
             throw new SqlClientException("Could not load all required JAR files.", e);
+        }
+
+        // add python dependencies by default
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                dependencies.add(location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            // TODO: Introduce user jar analyzer to determine user jar whether contains the python
+            // function or not. If user jar contains python function, manually add the python
+            // dependencies
+            throw new SqlExecutionException(
+                    "Don't find python dependencies. Please add the flink-python jar via `--jar` command option manually.",
+                    e);
         }
 
         if (LOG.isDebugEnabled()) {

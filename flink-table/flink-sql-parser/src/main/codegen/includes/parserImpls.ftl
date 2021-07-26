@@ -1659,16 +1659,48 @@ SqlEndStatementSet SqlEndStatementSet() :
 SqlNode SqlRichExplain() :
 {
     SqlNode stmt;
+    Set<String> explainDetails = new HashSet<String>();
 }
 {
-    <EXPLAIN> [ <PLAN> <FOR> ]
+    <EXPLAIN> 
+    [
+        <PLAN> <FOR> 
+        |
+            ParseExplainDetail(explainDetails)
+        (
+            <COMMA>
+            ParseExplainDetail(explainDetails)
+        )*
+    ]
     (
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
     )
     {
-        return new SqlRichExplain(getPos(), stmt);
+        return new SqlRichExplain(getPos(), stmt, explainDetails);
+    }
+}
+
+void ParseExplainDetail(Set<String> explainDetails):
+{
+}
+{
+    (
+        <ESTIMATED_COST> 
+        | 
+        <CHANGELOG_MODE> 
+        | 
+        <JSON_EXECUTION_PLAN>
+    ) 
+    {
+        if (explainDetails.contains(token.image.toUpperCase())) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainDetailIsDuplicate());
+        } else {
+            explainDetails.add(token.image.toUpperCase());
+        }
     }
 }
 

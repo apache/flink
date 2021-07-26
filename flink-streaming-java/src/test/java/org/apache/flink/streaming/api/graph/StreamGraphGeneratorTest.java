@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -747,6 +748,62 @@ public class StreamGraphGeneratorTest extends TestLogger {
         assertThat(
                 savepointRestoreSettings,
                 equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint1")));
+    }
+
+    @Test
+    public void testConfigureSlotSharingGroupResource() {
+        final SlotSharingGroup ssg1 =
+                SlotSharingGroup.newBuilder("ssg1").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssg2 =
+                SlotSharingGroup.newBuilder("ssg2").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final SlotSharingGroup ssg3 =
+                SlotSharingGroup.newBuilder(StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .setCpuCores(3)
+                        .setTaskHeapMemoryMB(300)
+                        .build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        source.map(value -> value)
+                .slotSharingGroup(ssg2)
+                .map(value -> value * 2)
+                .map(value -> value * 3)
+                .slotSharingGroup(SlotSharingGroup.newBuilder("ssg4").build())
+                .map(value -> value * 4)
+                .slotSharingGroup(ssg3)
+                .addSink(new DiscardingSink<>())
+                .slotSharingGroup(ssg1);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg1").get(),
+                is(ResourceProfile.fromResources(1, 100)));
+        assertThat(
+                streamGraph.getSlotSharingGroupResource("ssg2").get(),
+                is(ResourceProfile.fromResources(2, 200)));
+        assertThat(
+                streamGraph
+                        .getSlotSharingGroupResource(
+                                StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
+                        .get(),
+                is(ResourceProfile.fromResources(3, 300)));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testConflictSlotSharingGroup() {
+        final SlotSharingGroup ssg =
+                SlotSharingGroup.newBuilder("ssg").setCpuCores(1).setTaskHeapMemoryMB(100).build();
+        final SlotSharingGroup ssgConflict =
+                SlotSharingGroup.newBuilder("ssg").setCpuCores(2).setTaskHeapMemoryMB(200).build();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup(ssg);
+        source.map(value -> value)
+                .slotSharingGroup(ssgConflict)
+                .addSink(new DiscardingSink<>())
+                .slotSharingGroup(ssgConflict);
+
+        env.getStreamGraph();
     }
 
     private static class OutputTypeConfigurableFunction<T>

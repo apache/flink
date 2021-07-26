@@ -38,15 +38,26 @@ public class HeartbeatServices {
     /** Heartbeat timeout for the created services. */
     protected final long heartbeatTimeout;
 
+    protected final int failedRpcRequestsUntilUnreachable;
+
     public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
+        this(heartbeatInterval, heartbeatTimeout, -1);
+    }
+
+    public HeartbeatServices(
+            long heartbeatInterval, long heartbeatTimeout, int failedRpcRequestsUntilUnreachable) {
         Preconditions.checkArgument(
                 0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
         Preconditions.checkArgument(
                 heartbeatInterval <= heartbeatTimeout,
                 "The heartbeat timeout should be larger or equal than the heartbeat interval.");
+        Preconditions.checkArgument(
+                failedRpcRequestsUntilUnreachable > 0 || failedRpcRequestsUntilUnreachable == -1,
+                "The number of failed heartbeat RPC requests has to be larger than 0 or -1 (deactivated).");
 
         this.heartbeatInterval = heartbeatInterval;
         this.heartbeatTimeout = heartbeatTimeout;
+        this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
     }
 
     /**
@@ -68,7 +79,12 @@ public class HeartbeatServices {
             Logger log) {
 
         return new HeartbeatManagerImpl<>(
-                heartbeatTimeout, resourceId, heartbeatListener, mainThreadExecutor, log);
+                heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
+                resourceId,
+                heartbeatListener,
+                mainThreadExecutor,
+                log);
     }
 
     /**
@@ -93,6 +109,7 @@ public class HeartbeatServices {
         return new HeartbeatManagerSenderImpl<>(
                 heartbeatInterval,
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 resourceId,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -110,6 +127,10 @@ public class HeartbeatServices {
 
         long heartbeatTimeout = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
 
-        return new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+        int failedRpcRequestsUntilUnreachable =
+                configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);
+
+        return new HeartbeatServices(
+                heartbeatInterval, heartbeatTimeout, failedRpcRequestsUntilUnreachable);
     }
 }

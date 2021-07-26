@@ -24,7 +24,9 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TableDescriptor}. */
 public class TableDescriptorTest {
@@ -54,7 +56,8 @@ public class TableDescriptorTest {
                         .comment("Test Comment")
                         .build();
 
-        assertEquals(schema, descriptor.getSchema());
+        assertTrue(descriptor.getSchema().isPresent());
+        assertEquals(schema, descriptor.getSchema().get());
 
         assertEquals(1, descriptor.getPartitionKeys().size());
         assertEquals("f0", descriptor.getPartitionKeys().get(0));
@@ -63,6 +66,12 @@ public class TableDescriptorTest {
         assertEquals("test-connector", descriptor.getOptions().get("connector"));
 
         assertEquals("Test Comment", descriptor.getComment().orElse(null));
+    }
+
+    @Test
+    public void testNoSchema() {
+        final TableDescriptor descriptor = TableDescriptor.forConnector("test-connector").build();
+        assertFalse(descriptor.getSchema().isPresent());
     }
 
     @Test

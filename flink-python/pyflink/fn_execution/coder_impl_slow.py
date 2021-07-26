@@ -17,6 +17,7 @@
 ################################################################################
 import datetime
 import decimal
+import pickle
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -26,7 +27,6 @@ import pyarrow as pa
 from pyflink.common import Row, RowKind
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -42,10 +42,6 @@ class LengthPrefixBaseCoderImpl(ABC):
     def __init__(self, field_coder: 'FieldCoderImpl'):
         self._field_coder = field_coder
         self._data_out_stream = OutputStream()
-
-    def decode_from_stream(self, in_stream: InputStream):
-        while in_stream.size() > 0:
-            yield self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
     def _write_data_to_output_stream(self, out_stream: OutputStream):
         out_stream.write_var_int64(self._data_out_stream.size())
@@ -91,19 +87,23 @@ class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     message 0x00 to output stream after encoding data.
     """
 
-    def __init__(self, field_coder: 'FieldCoderImpl', output_mode):
+    def __init__(self, field_coder: 'FieldCoderImpl', separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
-        self._output_mode = output_mode
+        self._separated_with_end_message = separated_with_end_message
 
-    def encode_to_stream(self, value: List, out_stream):
+    def encode_to_stream(self, value: List, out_stream: OutputStream):
         for item in value:
             self._field_coder.encode_to_stream(item, self._data_out_stream)
             self._write_data_to_output_stream(out_stream)
 
         # write end message
-        if self._output_mode == CoderParam.MULTIPLE_WITH_END:
+        if self._separated_with_end_message:
             out_stream.write_var_int64(1)
             out_stream.write_byte(0x00)
+
+    def decode_from_stream(self, in_stream: InputStream):
+        while in_stream.size() > 0:
+            yield self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
 
 class ValueCoderImpl(LengthPrefixBaseCoderImpl):
@@ -114,9 +114,12 @@ class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     def __init__(self, field_coder: 'FieldCoderImpl'):
         super(ValueCoderImpl, self).__init__(field_coder)
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream):
+        return self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
 
 class MaskUtils:
@@ -149,7 +152,7 @@ class MaskUtils:
 
         return tuple(null_mask)
 
-    def write_mask(self, value, row_kind_value, out_stream):
+    def write_mask(self, value, row_kind_value, out_stream: OutputStream):
         field_pos = 0
         null_byte_search_table = self.null_byte_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -177,7 +180,7 @@ class MaskUtils:
                     b |= null_byte_search_table[i]
             out_stream.write_byte(b)
 
-    def read_mask(self, in_stream):
+    def read_mask(self, in_stream: InputStream):
         mask = []
         mask_search_table = self.null_mask_search_table
         remaining_bits_num = self._remaining_bits_num
@@ -201,7 +204,7 @@ class FlattenRowCoderImpl(FieldCoderImpl):
         self._field_count = len(field_coders)
         self._mask_utils = MaskUtils(self._field_count)
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         # encode mask value
         self._mask_utils.write_mask(value, 0, out_stream)
 
@@ -211,7 +214,7 @@ class FlattenRowCoderImpl(FieldCoderImpl):
             if item is not None:
                 self._field_coders[i].encode_to_stream(item, out_stream)
 
-    def decode_from_stream(self, in_stream, length: int = 0):
+    def decode_from_stream(self, in_stream: InputStream, length: int = 0):
         row_kind_and_null_mask = self._mask_utils.read_mask(in_stream)
         return [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
                 self._field_coders[idx].decode_from_stream(in_stream)
@@ -232,7 +235,7 @@ class RowCoderImpl(FieldCoderImpl):
         self._field_names = field_names
         self._mask_utils = MaskUtils(self._field_count)
 
-    def encode_to_stream(self, value: Row, out_stream):
+    def encode_to_stream(self, value: Row, out_stream: OutputStream):
         # encode mask value
         self._mask_utils.write_mask(value._values, value.get_row_kind().value, out_stream)
 
@@ -242,7 +245,7 @@ class RowCoderImpl(FieldCoderImpl):
             if item is not None:
                 self._field_coders[i].encode_to_stream(item, out_stream)
 
-    def decode_from_stream(self, in_stream, length=0) -> Row:
+    def decode_from_stream(self, in_stream: InputStream, length=0) -> Row:
         row_kind_and_null_mask = self._mask_utils.read_mask(in_stream)
         fields = [None if row_kind_and_null_mask[idx + ROW_KIND_BIT_SIZE] else
                   self._field_coders[idx].decode_from_stream(in_stream)
@@ -275,13 +278,13 @@ class ArrowCoderImpl(FieldCoderImpl):
         self._resettable_io = ResettableIO()
         self._batch_reader = ArrowCoderImpl._load_from_stream(self._resettable_io)
 
-    def encode_to_stream(self, cols, out_stream):
+    def encode_to_stream(self, cols, out_stream: OutputStream):
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         batch_writer.write_batch(
             pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return self.decode_one_batch_from_stream(in_stream, length)
 
     @staticmethod
@@ -309,10 +312,10 @@ class OverWindowArrowCoderImpl(FieldCoderImpl):
         self._arrow_coder = arrow_coder_impl
         self._int_coder = IntCoderImpl()
 
-    def encode_to_stream(self, cols, out_stream):
+    def encode_to_stream(self, cols, out_stream: OutputStream):
         self._arrow_coder.encode_to_stream(cols, out_stream)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         window_num = self._int_coder.decode_from_stream(in_stream)
         length -= 4
         window_boundaries_and_arrow_data = []
@@ -336,10 +339,10 @@ class TinyIntCoderImpl(FieldCoderImpl):
     A coder for tiny int value (from -128 to 127).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int8(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_int8()
 
 
@@ -348,10 +351,10 @@ class SmallIntCoderImpl(FieldCoderImpl):
     A coder for small int value (from -32,768 to 32,767).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int16(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_int16()
 
 
@@ -360,10 +363,10 @@ class IntCoderImpl(FieldCoderImpl):
     A coder for int value (from -2,147,483,648 to 2,147,483,647).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int32(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_int32()
 
 
@@ -372,10 +375,10 @@ class BigIntCoderImpl(FieldCoderImpl):
     A coder for big int value (from -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int64(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_int64()
 
 
@@ -384,10 +387,10 @@ class BooleanCoderImpl(FieldCoderImpl):
     A coder for a boolean value.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_byte(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return not not in_stream.read_byte()
 
 
@@ -396,10 +399,10 @@ class FloatCoderImpl(FieldCoderImpl):
     A coder for a float value (4-byte single precision floating point number).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_float(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_float()
 
 
@@ -408,10 +411,10 @@ class DoubleCoderImpl(FieldCoderImpl):
     A coder for a double value (8-byte double precision floating point number).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_double(value)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_double()
 
 
@@ -420,10 +423,10 @@ class BinaryCoderImpl(FieldCoderImpl):
     A coder for a bytes value.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_bytes(value, len(value))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_bytes()
 
 
@@ -432,11 +435,11 @@ class CharCoderImpl(FieldCoderImpl):
     A coder for a str value.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         bytes_value = value.encode("utf-8")
         out_stream.write_bytes(bytes_value, len(bytes_value))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return in_stream.read_bytes().decode("utf-8")
 
 
@@ -449,7 +452,7 @@ class DecimalCoderImpl(FieldCoderImpl):
         self.context = decimal.Context(prec=precision)
         self.scale_format = decimal.Decimal(10) ** -scale
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         user_context = decimal.getcontext()
         decimal.setcontext(self.context)
         value = value.quantize(self.scale_format)
@@ -457,7 +460,7 @@ class DecimalCoderImpl(FieldCoderImpl):
         out_stream.write_bytes(bytes_value, len(bytes_value))
         decimal.setcontext(user_context)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         user_context = decimal.getcontext()
         decimal.setcontext(self.context)
         value = decimal.Decimal(in_stream.read_bytes().decode("utf-8")).quantize(self.scale_format)
@@ -470,11 +473,11 @@ class BigDecimalCoderImpl(FieldCoderImpl):
     A coder for a big decimal value (without fixed precision and scale).
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         bytes_value = str(value).encode("utf-8")
         out_stream.write_bytes(bytes_value, len(bytes_value))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return decimal.Decimal(in_stream.read_bytes().decode("utf-8"))
 
 
@@ -485,10 +488,10 @@ class DateCoderImpl(FieldCoderImpl):
 
     EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int32(self.date_to_internal(value))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         value = in_stream.read_int32()
         return self.internal_to_date(value)
 
@@ -504,10 +507,10 @@ class TimeCoderImpl(FieldCoderImpl):
     A coder for a datetime.time value.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int32(self.time_to_internal(value))
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         value = in_stream.read_int32()
         return self.internal_to_time(value)
 
@@ -538,7 +541,7 @@ class TimestampCoderImpl(FieldCoderImpl):
     def is_compact(self):
         return self.precision <= 3
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         milliseconds, nanoseconds = self.timestamp_to_internal(value)
         if self.is_compact():
             assert nanoseconds == 0
@@ -547,7 +550,7 @@ class TimestampCoderImpl(FieldCoderImpl):
             out_stream.write_int64(milliseconds)
             out_stream.write_int32(nanoseconds)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         if self.is_compact():
             milliseconds = in_stream.read_int64()
             nanoseconds = 0
@@ -585,19 +588,19 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
                 milliseconds, nanoseconds))
 
 
-class PickledBytesCoderImpl(FieldCoderImpl):
+class CloudPickleCoderImpl(FieldCoderImpl):
     """
-    A coder for all kinds of python object.
+    A coder used with cloudpickle for all kinds of python object.
     """
 
     def __init__(self):
         self.field_coder = BinaryCoderImpl()
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         coded_data = cloudpickle.dumps(value)
         self.field_coder.encode_to_stream(coded_data, out_stream)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return self._decode_one_value_from_stream(in_stream)
 
     def _decode_one_value_from_stream(self, in_stream: InputStream):
@@ -606,7 +609,28 @@ class PickledBytesCoderImpl(FieldCoderImpl):
         return value
 
     def __repr__(self) -> str:
-        return 'PickledBytesCoderImpl[%s]' % str(self.field_coder)
+        return 'CloudPickleCoderImpl[%s]' % str(self.field_coder)
+
+
+class PickleCoderImpl(FieldCoderImpl):
+    """
+    A coder used with pickle for all kinds of python object.
+    """
+
+    def __init__(self):
+        self.field_coder = BinaryCoderImpl()
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        coded_data = pickle.dumps(value)
+        self.field_coder.encode_to_stream(coded_data, out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream, length=0):
+        real_data = self.field_coder.decode_from_stream(in_stream)
+        value = pickle.loads(real_data)
+        return value
+
+    def __repr__(self) -> str:
+        return 'PickleCoderImpl[%s]' % str(self.field_coder)
 
 
 class TupleCoderImpl(FieldCoderImpl):
@@ -618,12 +642,12 @@ class TupleCoderImpl(FieldCoderImpl):
         self._field_coders = field_coders
         self._field_count = len(field_coders)
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         field_coders = self._field_coders
         for i in range(self._field_count):
             field_coders[i].encode_to_stream(value[i], out_stream)
 
-    def decode_from_stream(self, stream, length=0):
+    def decode_from_stream(self, stream: InputStream, length=0):
         decoded_list = [field_coder.decode_from_stream(stream)
                         for field_coder in self._field_coders]
         return (*decoded_list,)
@@ -640,7 +664,7 @@ class GenericArrayCoderImpl(FieldCoderImpl):
     def __init__(self, elem_coder: FieldCoderImpl):
         self._elem_coder = elem_coder
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int32(len(value))
         for elem in value:
             if elem is None:
@@ -649,7 +673,7 @@ class GenericArrayCoderImpl(FieldCoderImpl):
                 out_stream.write_byte(True)
                 self._elem_coder.encode_to_stream(elem, out_stream)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         size = in_stream.read_int32()
         elements = [self._elem_coder.decode_from_stream(in_stream)
                     if in_stream.read_byte() else None for _ in range(size)]
@@ -667,12 +691,12 @@ class PrimitiveArrayCoderImpl(FieldCoderImpl):
     def __init__(self, elem_coder: FieldCoderImpl):
         self._elem_coder = elem_coder
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int32(len(value))
         for elem in value:
             self._elem_coder.encode_to_stream(elem, out_stream)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         size = in_stream.read_int32()
         elements = [self._elem_coder.decode_from_stream(in_stream) for _ in range(size)]
         return elements
@@ -690,7 +714,7 @@ class MapCoderImpl(FieldCoderImpl):
         self._key_coder = key_coder
         self._value_coder = value_coder
 
-    def encode_to_stream(self, map_value, out_stream):
+    def encode_to_stream(self, map_value, out_stream: OutputStream):
         out_stream.write_int32(len(map_value))
         for key in map_value:
             self._key_coder.encode_to_stream(key, out_stream)
@@ -701,7 +725,7 @@ class MapCoderImpl(FieldCoderImpl):
                 out_stream.write_byte(False)
                 self._value_coder.encode_to_stream(map_value[key], out_stream)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         size = in_stream.read_int32()
         map_value = {}
         for _ in range(size):
@@ -723,11 +747,11 @@ class TimeWindowCoderImpl(FieldCoderImpl):
     A coder for TimeWindow.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int64(value.start)
         out_stream.write_int64(value.end)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         start = in_stream.read_int64()
         end = in_stream.read_int64()
         return TimeWindow(start, end)
@@ -738,8 +762,31 @@ class CountWindowCoderImpl(FieldCoderImpl):
     A coder for CountWindow.
     """
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         out_stream.write_int64(value.id)
 
-    def decode_from_stream(self, in_stream, length=0):
+    def decode_from_stream(self, in_stream: InputStream, length=0):
         return CountWindow(in_stream.read_int64())
+
+
+class DataViewFilterCoderImpl(FieldCoderImpl):
+    """
+    A coder for data view filter.
+    """
+    def __init__(self, udf_data_view_specs):
+        self._udf_data_view_specs = udf_data_view_specs
+        self._pickle_coder = PickleCoderImpl()
+
+    def encode_to_stream(self, value, out_stream: OutputStream):
+        self._pickle_coder.encode_to_stream(self._filter_data_views(value), out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream, length=0):
+        return self._pickle_coder.decode_from_stream(in_stream)
+
+    def _filter_data_views(self, row):
+        i = 0
+        for specs in self._udf_data_view_specs:
+            for spec in specs:
+                row[i][spec.field_index] = None
+            i += 1
+        return row

@@ -216,6 +216,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
 
         BufferAndBacklog next = subpartitionView.getNextBuffer();
+        // ignore the empty buffer directly
+        while (next != null && next.buffer().readableBytes() == 0) {
+            next.buffer().recycleBuffer();
+            next = subpartitionView.getNextBuffer();
+            numBuffersIn.inc();
+        }
 
         if (next == null) {
             if (subpartitionView.isReleased()) {
@@ -273,11 +279,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     public void resumeConsumption() {
         checkState(!isReleased, "Channel released.");
 
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
         subpartitionView.resumeConsumption();
 
-        if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
+        if (subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
             notifyChannelNonEmpty();
         }
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased, "Channel released.");
+
+        subpartitionView.acknowledgeAllRecordsProcessed();
     }
 
     // ------------------------------------------------------------------------

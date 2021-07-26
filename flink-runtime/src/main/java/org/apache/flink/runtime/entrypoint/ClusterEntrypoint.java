@@ -36,6 +36,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
@@ -46,7 +47,6 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
@@ -150,6 +150,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final Thread shutDownHook;
+    private RpcSystem rpcSystem;
 
     protected ClusterEntrypoint(Configuration configuration) {
         this.configuration = generateClusterConfiguration(configuration);
@@ -185,6 +186,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             SecurityContext securityContext = installSecurityContext(configuration);
 
+            ClusterEntrypointUtils.configureUncaughtExceptionHandler(configuration);
             securityContext.runSecured(
                     (Callable<Void>)
                             () -> {
@@ -292,7 +294,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
-            final RpcSystem rpcSystem = RpcSystem.load();
+            rpcSystem = RpcSystem.load(configuration);
 
             commonRpcService =
                     RpcUtils.createRemoteRpcService(
@@ -498,8 +500,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     FutureUtils.composeAfterwards(
                             shutDownApplicationFuture, () -> stopClusterServices(cleanupHaData));
 
+            final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
+                    FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close);
+
             final CompletableFuture<Void> cleanupDirectoriesFuture =
-                    FutureUtils.runAfterwards(serviceShutdownFuture, this::cleanupDirectories);
+                    FutureUtils.runAfterwards(
+                            rpcSystemClassLoaderCloseFuture, this::cleanupDirectories);
 
             cleanupDirectoriesFuture.whenComplete(
                     (Void ignored2, Throwable serviceThrowable) -> {

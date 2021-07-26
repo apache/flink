@@ -36,7 +36,8 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
@@ -49,7 +50,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 /**
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
@@ -200,8 +205,11 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             Collection<KeyedStateHandle> stateHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
-        // todo: FLINK-21804 get from Environment.getTaskStateManager
-        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
+        StateChangelogStorage<?> changelogStorage =
+                Preconditions.checkNotNull(
+                        env.getTaskStateManager().getStateChangelogStorage(),
+                        "Changelog storage is null when creating and restoring"
+                                + " the ChangelogKeyedStateBackend.");
         return ChangelogBackendRestoreOperation.restore(
                 changelogStorage.createReader(),
                 env.getUserCodeClassLoader().asClassLoader(),
@@ -213,13 +221,28 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 env.getExecutionConfig(),
                                 ttlTimeProvider,
                                 changelogStorage.createWriter(operatorIdentifier, keyGroupRange),
-                                baseState));
+                                baseState,
+                                env.getMainMailboxExecutor(),
+                                env.getAsyncOperationsThreadPool()));
     }
 
     private Collection<ChangelogStateBackendHandle> castHandles(
             Collection<KeyedStateHandle> stateHandles) {
+        if (stateHandles.stream().anyMatch(h -> !(h instanceof ChangelogStateBackendHandle))) {
+            LOG.warn(
+                    "Some state handles do not contain changelog: {} (ok if recovery from a savepoint)",
+                    stateHandles);
+        }
         return stateHandles.stream()
-                .map(keyedStateHandle -> (ChangelogStateBackendHandle) keyedStateHandle)
+                .filter(Objects::nonNull)
+                .map(
+                        keyedStateHandle ->
+                                keyedStateHandle instanceof ChangelogStateBackendHandle
+                                        ? (ChangelogStateBackendHandle) keyedStateHandle
+                                        : new ChangelogStateBackendHandleImpl(
+                                                singletonList(keyedStateHandle),
+                                                emptyList(),
+                                                keyedStateHandle.getKeyGroupRange()))
                 .collect(Collectors.toList());
     }
 }

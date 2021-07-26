@@ -24,13 +24,13 @@ from libc.stdlib cimport free, malloc
 
 import datetime
 import decimal
+import pickle
 from typing import List, Union
 
 from cloudpickle import cloudpickle
 
 from pyflink.common import Row, RowKind
 from pyflink.datastream.window import CountWindow, TimeWindow
-from pyflink.fn_execution import flink_fn_execution_pb2
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -174,26 +174,14 @@ cdef class LengthPrefixBaseCoderImpl:
     """
 
     def __init__(self, field_coder: FieldCoderImpl):
-        self._field_coder = field_coder  # type: FieldCoderImpl
+        self._field_coder = field_coder
         self._data_out_stream = OutputStream()
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         pass
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
-        cdef char*input_data
-        cdef char*temp
-        cdef size_t size
-        cdef long long addr
-        cdef InputStream data_input_stream
-        # set input_data pointer to the input data
-        size = input_stream.read(&input_data)
-
-        # create InputStream
-        data_input_stream = InputStream()
-        data_input_stream._input_data = input_data
-
-        return self._field_coder.decode_from_stream(data_input_stream, size)
+        pass
 
     cdef void _write_data_to_output_stream(self, LengthPrefixOutputStream output_stream):
         cdef OutputStream data_out_stream
@@ -246,6 +234,17 @@ cdef class FieldCoderImpl:
         input_stream._input_data = <char*> encoded
         return self.decode_from_stream(input_stream, len(encoded))
 
+cdef class InputStreamWrapper:
+    def __cinit__(self, value_coder: ValueCoderImpl, input_stream: LengthPrefixInputStream):
+        self._value_coder = value_coder
+        self._input_stream = input_stream
+
+    cpdef bint has_next(self):
+        return self._input_stream.available()
+
+    cpdef next(self):
+        return self._value_coder.decode_from_stream(self._input_stream)
+
 cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     """
     Encodes iterable data to output stream. The output mode will decide whether write a special end
@@ -258,12 +257,9 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             raise MemoryError()
         self._end_message[0] = 0x00
 
-    def __init__(self, field_coder: FieldCoderImpl, output_mode):
+    def __init__(self, field_coder: FieldCoderImpl, separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
-        if output_mode == flink_fn_execution_pb2.CoderParam.MULTIPLE:
-            self._writes_end_message = False
-        else:
-            self._writes_end_message = True
+        self._separated_with_end_message = separated_with_end_message
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         for item in value:
@@ -271,8 +267,11 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             self._write_data_to_output_stream(output_stream)
 
         # write end message
-        if self._writes_end_message:
+        if self._separated_with_end_message:
             output_stream.write(self._end_message, 1)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        return InputStreamWrapper(ValueCoderImpl(self._field_coder), input_stream)
 
     def __dealloc__(self):
         if self._end_message != NULL:
@@ -289,6 +288,21 @@ cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(output_stream)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        cdef char*input_data
+        cdef char*temp
+        cdef size_t size
+        cdef long long addr
+        cdef InputStream data_input_stream
+        # set input_data pointer to the input data
+        size = input_stream.read(&input_data)
+
+        # create InputStream
+        data_input_stream = InputStream()
+        data_input_stream._input_data = input_data
+
+        return self._field_coder.decode_from_stream(data_input_stream, size)
 
 cdef class FlattenRowCoderImpl(FieldCoderImpl):
     """
@@ -631,9 +645,9 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
 
-cdef class PickledBytesCoderImpl(FieldCoderImpl):
+cdef class CloudPickleCoderImpl(FieldCoderImpl):
     """
-    A coder for all kinds of python object.
+    A coder used with cloudpickle for all kinds of python object.
     """
 
     cpdef encode_to_stream(self, value, OutputStream out_stream):
@@ -645,6 +659,22 @@ cdef class PickledBytesCoderImpl(FieldCoderImpl):
         cdef bytes pickled_bytes
         pickled_bytes = in_stream.read_bytes()
         return cloudpickle.loads(pickled_bytes)
+
+
+cdef class PickleCoderImpl(FieldCoderImpl):
+    """
+    A coder used with pickle for all kinds of python object.
+    """
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        cdef bytes pickled_bytes
+        pickled_bytes = pickle.dumps(value)
+        out_stream.write_bytes(pickled_bytes, len(pickled_bytes))
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        cdef bytes pickled_bytes
+        pickled_bytes = in_stream.read_bytes()
+        return pickle.loads(pickled_bytes)
 
 cdef class GenericArrayCoderImpl(FieldCoderImpl):
     """
@@ -775,3 +805,27 @@ cdef class CountWindowCoderImpl(FieldCoderImpl):
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return CountWindow(in_stream.read_int64())
+
+cdef class DataViewFilterCoderImpl(FieldCoderImpl):
+    """
+    A coder for CountWindow.
+    """
+    def __init__(self, udf_data_view_specs):
+        self._udf_data_view_specs = udf_data_view_specs
+        self._pickle_coder = PickleCoderImpl()
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        self._pickle_coder.encode_to_stream(self._filter_data_views(value), out_stream)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        return self._pickle_coder.decode_from_stream(in_stream, size)
+
+    def _filter_data_views(self, row):
+        i = 0
+        for specs in self._udf_data_view_specs:
+            for spec in specs:
+                row[i][spec.field_index] = None
+            i += 1
+        return row
+
+

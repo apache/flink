@@ -143,7 +143,9 @@ def to_j_explain_detail_arr(p_extra_details):
     gateway = get_gateway()
 
     def to_j_explain_detail(p_extra_detail):
-        if p_extra_detail == ExplainDetail.CHANGELOG_MODE:
+        if p_extra_detail == ExplainDetail.JSON_EXECUTION_PLAN:
+            return gateway.jvm.org.apache.flink.table.api.ExplainDetail.JSON_EXECUTION_PLAN
+        elif p_extra_detail == ExplainDetail.CHANGELOG_MODE:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.CHANGELOG_MODE
         else:
             return gateway.jvm.org.apache.flink.table.api.ExplainDetail.ESTIMATED_COST

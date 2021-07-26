@@ -28,7 +28,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -36,8 +36,8 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.util.Set;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
 
 /** A dynamic table factory implementation for Hive catalog. */
 public class HiveDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
@@ -71,7 +71,7 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
         if (isHiveTable && !context.isTemporary()) {
             Integer configuredParallelism =
                     Configuration.fromMap(context.getCatalogTable().getOptions())
-                            .get(FileSystemOptions.SINK_PARALLELISM);
+                            .get(FileSystemConnectorOptions.SINK_PARALLELISM);
             JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
             return new HiveTableSink(
                     context.getConfiguration(),

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -45,7 +46,10 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -91,6 +95,10 @@ public class RuntimeEnvironment implements Environment {
     private final TaskMetricGroup metrics;
 
     private final Task containingTask;
+
+    @Nullable private MailboxExecutor mainMailboxExecutor;
+
+    @Nullable private ExecutorService asyncOperationsThreadPool;
 
     // ------------------------------------------------------------------------
 
@@ -306,5 +314,28 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public void failExternally(Throwable cause) {
         this.containingTask.failExternally(cause);
+    }
+
+    @Override
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return checkNotNull(
+                mainMailboxExecutor, "mainMailboxExecutor has not been initialized yet!");
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return checkNotNull(
+                asyncOperationsThreadPool,
+                "asyncOperationsThreadPool has not been initialized yet!");
     }
 }

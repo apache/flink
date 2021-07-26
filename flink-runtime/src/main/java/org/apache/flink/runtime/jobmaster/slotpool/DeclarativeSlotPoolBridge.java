@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -299,12 +298,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     @Override
-    public Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause) {
-        throw new UnsupportedOperationException(
-                "Please call failAllocation(ResourceID, AllocationID, Exception)");
-    }
-
-    @Override
     protected void onFailAllocation(ResourceCounter previouslyFulfilledRequirements) {
         getDeclarativeSlotPool().decreaseResourceRequirementsBy(previouslyFulfilledRequirements);
     }
@@ -348,18 +341,21 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Collection<ResourceRequirement> acquiredResources) {
         assertRunningInMainThread();
 
-        failPendingRequests();
+        failPendingRequests(acquiredResources);
     }
 
-    private void failPendingRequests() {
-        if (!pendingRequests.isEmpty()) {
-            final NoResourceAvailableException cause =
-                    new NoResourceAvailableException(
-                            "Could not acquire the minimum required resources.");
-
+    private void failPendingRequests(Collection<ResourceRequirement> acquiredResources) {
+        Predicate<PendingRequest> predicate =
+                request -> !isBatchSlotRequestTimeoutCheckDisabled || !request.isBatchRequest();
+        if (pendingRequests.values().stream().anyMatch(predicate)) {
+            log.warn(
+                    "Could not acquire the minimum required resources, failing slot requests. Acquired: {}. Current slot pool status: {}",
+                    acquiredResources,
+                    getSlotServiceStatus());
             cancelPendingRequests(
-                    request -> !isBatchSlotRequestTimeoutCheckDisabled || !request.isBatchRequest(),
-                    cause);
+                    predicate,
+                    new NoResourceAvailableException(
+                            "Could not acquire the minimum required resources."));
         }
     }
 
@@ -411,7 +407,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
     }
 
-    private void checkBatchSlotTimeout() {
+    void checkBatchSlotTimeout() {
+        assertRunningInMainThread();
+
         if (isBatchSlotRequestTimeoutCheckDisabled) {
             return;
         }
@@ -483,6 +481,21 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         };
     }
 
+    @VisibleForTesting
+    public int getNumPendingRequests() {
+        return pendingRequests.size();
+    }
+
+    @VisibleForTesting
+    void increaseResourceRequirementsBy(ResourceCounter increment) {
+        getDeclarativeSlotPool().increaseResourceRequirementsBy(increment);
+    }
+
+    @VisibleForTesting
+    boolean isBatchSlotRequestTimeoutCheckEnabled() {
+        return !isBatchSlotRequestTimeoutCheckDisabled;
+    }
+
     private static final class PendingRequest {
 
         private final SlotRequestId slotRequestId;
@@ -541,7 +554,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
 
         public void markUnfulfillable(long currentTimestamp) {
-            this.unfulfillableSince = currentTimestamp;
+            if (isFulfillable()) {
+                this.unfulfillableSince = currentTimestamp;
+            }
+        }
+
+        private boolean isFulfillable() {
+            return this.unfulfillableSince == Long.MAX_VALUE;
         }
 
         public long getUnfulfillableSince() {
