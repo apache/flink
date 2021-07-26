@@ -35,8 +35,6 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, TableSink
 from pyflink.table.catalog import Catalog
-from pyflink.table.descriptors import StreamTableDescriptor, \
-    ConnectorDescriptor, ConnectTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
@@ -512,7 +510,7 @@ class TableEnvironment(object):
 
         .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
         """
-        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
+        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
         self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
 
     def register_table_sink(self, name: str, table_sink: TableSink):
@@ -535,7 +533,7 @@ class TableEnvironment(object):
 
         .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
         """
-        warnings.warn("Deprecated in 1.10. Use connect instead.", DeprecationWarning)
+        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
         self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
 
     def scan(self, *table_path: str) -> Table:
@@ -1092,40 +1090,6 @@ class TableEnvironment(object):
             table_config._j_table_config = self._j_tenv.getConfig()
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
-
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> ConnectTableDescriptor:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.ConnectTableDescriptor` used to build the
-                 temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        return StreamTableDescriptor(
-            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     def register_java_function(self, name: str, function_class_name: str):
         """

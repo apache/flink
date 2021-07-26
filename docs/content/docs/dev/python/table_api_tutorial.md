@@ -71,31 +71,36 @@ The table config allows setting Table API specific configurations.
 ```python
 settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
-```
 
-The table environment created, you can declare source and sink tables.
-
-```python
 # write all the data to one file
 t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
-
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
 ```
+
+You can now create source and sink tables:
+
+```python
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
+```
+
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
+
 ```python
 my_source_ddl = """
     create table mySource (
@@ -152,22 +157,25 @@ t_env = TableEnvironment.create(settings)
 
 # write all the data to one file
 t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \

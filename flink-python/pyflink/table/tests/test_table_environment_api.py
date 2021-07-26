@@ -17,7 +17,6 @@
 ################################################################################
 import datetime
 import decimal
-import os
 import sys
 from py4j.protocol import Py4JJavaError
 
@@ -28,7 +27,6 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
     Module, ResultKind, ModuleEntry
 from pyflink.table.catalog import ObjectPath, CatalogBaseTable
-from pyflink.table.descriptors import FileSystem, OldCsv
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col
 from pyflink.table.table_descriptor import TableDescriptor
@@ -163,39 +161,6 @@ class TableEnvironmentTest(object):
         t_env.drop_function("agg_func")
         t_env.drop_temporary_function("table_func")
         self.assert_equals(t_env.list_user_defined_functions(), [])
-
-    def test_temporary_tables(self):
-        from pyflink.table.descriptors import Schema
-
-        t_env = self.t_env
-        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_1.csv'))) \
-            .with_format(OldCsv()
-                         .field_delimiter(',')
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .with_schema(Schema()
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .create_temporary_table("temporary_table_1")
-
-        t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_2.csv'))) \
-            .with_format(OldCsv()
-                         .field_delimiter(',')
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .with_schema(Schema()
-                         .field("a", DataTypes.INT())
-                         .field("b", DataTypes.STRING())) \
-            .create_temporary_table("temporary_table_2")
-
-        actual = t_env.list_temporary_tables()
-        expected = ['temporary_table_1', 'temporary_table_2']
-        self.assert_equals(actual, expected)
-
-        t_env.drop_temporary_table("temporary_table_1")
-        actual = t_env.list_temporary_tables()
-        expected = ['temporary_table_2']
-        self.assert_equals(actual, expected)
 
     def test_create_temporary_table_from_descriptor(self):
         from pyflink.table.schema import Schema
