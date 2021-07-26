@@ -83,7 +83,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -2611,11 +2610,6 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public Optional<byte[]> asBytesIfInMemory() {
             return Optional.empty();
-        }
-
-        @Override
-        public StateObjectID getID() {
-            return StateObjectID.of("test");
         }
 
         @Override
