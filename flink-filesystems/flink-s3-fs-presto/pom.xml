@@ -33,7 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.187</presto.version>
+		<presto.version>0.257</presto.version>
 	</properties>
 
 	<dependencies>
@@ -59,7 +59,7 @@ under the License.
 			<artifactId>presto-hive</artifactId>
 			<version>${presto.version}</version>
 			<exclusions>
-				<!-- use our AWS dependencies instead -->
+				<!-- Exclude AWS dependencies which we provide ourselves (and in more recent versions). -->
 				<exclusion>
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-core</artifactId>
@@ -68,12 +68,26 @@ under the License.
 					<groupId>com.amazonaws</groupId>
 					<artifactId>aws-java-sdk-s3</artifactId>
 				</exclusion>
-
-				<!-- lot's of unneeded stuff for the S3 file system -->
 				<exclusion>
-					<groupId>com.facebook.hive</groupId>
-					<artifactId>hive-dwrf</artifactId>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
 				</exclusion>
+
+				<!-- Unfortunately, presto-hive has a lot of dependencies, many of which we don't need.
+				     To try and keep our footprint small, we're excluding dependencies on a best-effort
+				     basis here.
+				     The best way to do this is looking at
+				         https://github.com/prestodb/presto/tree/${presto.version}/presto-hive/src/main/java/com/facebook/presto/hive/s3
+				     and checking which dependencies are actually used. When there is doubt, it is
+				     probably easier to just bundle it. -->
+
+				<!-- AWS -->
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-glue</artifactId>
+				</exclusion>
+
+				<!-- Presto -->
 				<exclusion>
 					<groupId>com.facebook.presto.hive</groupId>
 					<artifactId>hive-apache</artifactId>
@@ -95,6 +109,150 @@ under the License.
 					<artifactId>presto-rcfile</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-parquet</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-expressions</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-cache</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.presto</groupId>
+					<artifactId>presto-memory-context</artifactId>
+				</exclusion>
+
+				<!-- Airlift -->
+				<exclusion>
+					<groupId>io.airlift</groupId>
+					<artifactId>aircompressor</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>bootstrap</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>concurrent</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>event</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>http-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.airlift</groupId>
+					<artifactId>log-manager</artifactId>
+				</exclusion>
+
+				<!-- Other -->
+				<exclusion>
+					<groupId>cglib</groupId>
+					<artifactId>cglib-nodep</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.drift</groupId>
+					<artifactId>drift-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.facebook.hive</groupId>
+					<artifactId>hive-dwrf</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.github.luben</groupId>
+					<artifactId>zstd-jni</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>gcsio</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>util-hadoop</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.cloud.bigdataoss</groupId>
+					<artifactId>gcs-connector</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.j2objc</groupId>
+					<artifactId>j2objc-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.code.findbugs</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.inject.extensions</groupId>
+					<artifactId>guice-multibindings</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>it.unimi.dsi</groupId>
+					<artifactId>fastutil</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.annotation</groupId>
+					<artifactId>javax.annotation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.inject</groupId>
+					<artifactId>javax.inject</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.validation</groupId>
+					<artifactId>validation-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.bval</groupId>
+					<artifactId>bval-jsr</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hudi</groupId>
+					<artifactId>hudi-hadoop-mr</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.thrift</groupId>
+					<artifactId>libthrift</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>animal-sniffer-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openjdk.jol</groupId>
+					<artifactId>jol-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.roaringbitmap</groupId>
+					<artifactId>RoaringBitmap</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.roaringbitmap</groupId>
+					<artifactId>shims</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-jdk14</artifactId>
 				</exclusion>
@@ -107,76 +265,8 @@ under the License.
 					<artifactId>jcl-over-slf4j</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.thrift</groupId>
-					<artifactId>libthrift</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>bootstrap</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>concurrent</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>event</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>http-client</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>aircompressor</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>io.airlift</groupId>
-					<artifactId>log-manager</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.inject</groupId>
-					<artifactId>javax.inject</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.inject</groupId>
-					<artifactId>guice</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.inject.extensions</groupId>
-					<artifactId>guice-multibindings</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>it.unimi.dsi</groupId>
-					<artifactId>fastutil</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.xerial.snappy</groupId>
 					<artifactId>snappy-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.bval</groupId>
-					<artifactId>bval-jsr</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.validation</groupId>
-					<artifactId>validation-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openjdk.jol</groupId>
-					<artifactId>jol-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>cglib</groupId>
-					<artifactId>cglib-nodep</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

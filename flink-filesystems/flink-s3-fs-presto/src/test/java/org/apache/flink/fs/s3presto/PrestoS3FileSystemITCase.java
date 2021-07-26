@@ -34,7 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import static com.facebook.presto.hive.s3.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
+import static com.facebook.presto.hive.s3.S3ConfigurationUpdater.S3_USE_INSTANCE_CREDENTIALS;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
