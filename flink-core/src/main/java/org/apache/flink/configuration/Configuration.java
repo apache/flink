@@ -767,10 +767,6 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
     // --------------------------------------------------------------------------------------------
 
-    <T> void setValueInternal(String key, T value) {
-        setValueInternal(key, value, false);
-    }
-
     <T> void setValueInternal(String key, T value, boolean canBePrefixMap) {
         if (key == null) {
             throw new NullPointerException("Key must not be null.");
@@ -785,6 +781,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
             this.confData.put(key, value);
         }
+    }
+
+    private <T> void setValueInternal(String key, T value) {
+        setValueInternal(key, value, false);
     }
 
     private Optional<Object> getRawValue(String key) {
