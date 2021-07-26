@@ -634,8 +634,7 @@ public final class Schema {
         final @Nullable String comment;
 
         UnresolvedColumn(String columnName) {
-            this.columnName = columnName;
-            this.comment = null;
+            this(columnName, null);
         }
 
         UnresolvedColumn(String columnName, @Nullable String comment) {
@@ -685,8 +684,7 @@ public final class Schema {
         private final AbstractDataType<?> dataType;
 
         UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType) {
-            super(columnName);
-            this.dataType = dataType;
+            this(columnName, dataType, null);
         }
 
         UnresolvedPhysicalColumn(String columnName, AbstractDataType<?> dataType, String comment) {
@@ -812,10 +810,7 @@ public final class Schema {
                 AbstractDataType<?> dataType,
                 @Nullable String metadataKey,
                 boolean isVirtual) {
-            super(columnName);
-            this.dataType = dataType;
-            this.metadataKey = metadataKey;
-            this.isVirtual = isVirtual;
+            this(columnName, dataType, metadataKey, isVirtual, null);
         }
 
         UnresolvedMetadataColumn(

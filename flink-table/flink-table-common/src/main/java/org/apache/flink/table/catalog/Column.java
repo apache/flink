@@ -171,7 +171,7 @@ public abstract class Column {
     public static final class PhysicalColumn extends Column {
 
         private PhysicalColumn(String name, DataType dataType) {
-            super(name, dataType);
+            this(name, dataType, null);
         }
 
         private PhysicalColumn(String name, DataType dataType, String comment) {
@@ -213,8 +213,7 @@ public abstract class Column {
         private final ResolvedExpression expression;
 
         private ComputedColumn(String name, DataType dataType, ResolvedExpression expression) {
-            super(name, dataType);
-            this.expression = expression;
+            this(name, dataType, expression, null);
         }
 
         private ComputedColumn(
@@ -285,9 +284,7 @@ public abstract class Column {
 
         private MetadataColumn(
                 String name, DataType dataType, @Nullable String metadataKey, boolean isVirtual) {
-            super(name, dataType);
-            this.metadataKey = metadataKey;
-            this.isVirtual = isVirtual;
+            this(name, dataType, metadataKey, isVirtual, null);
         }
 
         private MetadataColumn(
