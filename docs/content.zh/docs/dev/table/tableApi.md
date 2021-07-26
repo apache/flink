@@ -59,7 +59,7 @@ EnvironmentSettings settings = EnvironmentSettings
 
 TableEnvironment tEnv = TableEnvironment.create(env);
 
-// 在表环境中注册Orders表
+// 在表环境中注册 Orders 表
 // ...
 
 // 指定表程序
@@ -93,7 +93,7 @@ val settings = EnvironmentSettings
 
 val tEnv = TableEnvironment.create(settings);
 
-// 在表环境中注册Orders表
+// 在表环境中注册 Orders 表
 // ...
 
 // 指定表程序
@@ -118,7 +118,7 @@ from pyflink.table import *
 t_env = TableEnvironment.create(
     environment_settings=EnvironmentSettings.in_batch_mode())
 
-# 在表环境中注册Orders表和结果sink表
+# 在表环境中注册 Orders 表和结果 sink 表
 source_data_path = "/path/to/source/directory/"
 result_data_path = "/path/to/result/directory/"
 source_ddl = f"""
@@ -1965,7 +1965,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 ### Over Windows
 
-Over window 聚合是在标准 SQL（`OVER` 子句）中被知晓，并在 `SELECT` 查询子句中定义的。与在“GROUP BY”子句中指定的 group window 不同， over window 不会折叠行。相反，over window 聚合为每个输入行在其相邻行的范围内计算聚合。
+Over window 聚合聚合来自在标准的 SQL（`OVER` 子句），可以在 `SELECT` 查询子句中定义。与在“GROUP BY”子句中指定的 group window 不同， over window 不会折叠行。相反，over window 聚合为每个输入行在其相邻行的范围内计算聚合。
 
 Over windows 使用 `window(w: OverWindow*)` 子句（在 Python API 中使用 `over_window(*OverWindow)`）定义，并通过 `select()` 方法中的别名引用。以下示例显示如何在表上定义 over window 聚合。
 
@@ -2313,7 +2313,7 @@ input.flat_map(split)
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate`，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```java
 public class MyMinMaxAcc {
@@ -2363,7 +2363,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate`，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
@@ -2531,7 +2531,7 @@ t.select(t.b, t.rowtime) \
 
 ```java
 /**
- * Top2 聚合器。
+ * Top2 Accumulator。
  */
 public class Top2Accum {
     public Integer first;
@@ -2569,7 +2569,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 
     public void emitValue(Top2Accum acc, Collector<Tuple2<Integer, Integer>> out) {
-        // 下发原值与等级值
+        // 下发 value 与 rank
         if (acc.first != Integer.MIN_VALUE) {
             out.collect(Tuple2.of(acc.first, 1));
         }
@@ -2599,7 +2599,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableAggregateFunction
 
 /**
- * Top2 聚合器。
+ * Top2 Accumulator。
  */
 class Top2Accum {
   var first: JInteger = _
@@ -2637,7 +2637,7 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
   }
 
   def emitValue(acc: Top2Accum, out: Collector[JTuple2[JInteger, JInteger]]): Unit = {
-    // 下发原值与等级值
+    // 下发 value 与 rank
     if (acc.first != Int.MinValue) {
       out.collect(JTuple2.of(acc.first, 1))
     }
@@ -2723,7 +2723,7 @@ result = t.select(t.a, t.c) \
 
 任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
 
-[用户定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将一般类型当作黑匣子一样来传输和处理。
+[用户定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将泛型当作黑匣子一样传输和处理。
 
 {{< top >}}
 
