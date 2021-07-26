@@ -16,13 +16,11 @@
 # limitations under the License.
 ################################################################################
 import collections
-import os
 import sys
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
-                                       Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
-                                       CustomFormatDescriptor)
+                                       Elasticsearch, Csv, Avro, Json, CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
@@ -373,22 +371,6 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
     def tearDownClass(cls):
         if cls._cxt_clz_loader is not None:
             get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
-
-
-class CustomConnectorDescriptorTests(PyFlinkTestCase):
-
-    def test_custom_connector(self):
-        custom_connector = CustomConnectorDescriptor('kafka', 1, True) \
-            .property('connector.topic', 'topic1')\
-            .properties({'connector.version': '0.11', 'connector.startup-mode': 'earliest-offset'})
-
-        properties = custom_connector.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.property-version': '1',
-                    'connector.topic': 'topic1',
-                    'connector.version': '0.11',
-                    'connector.startup-mode': 'earliest-offset'}
-        self.assertEqual(expected, properties)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):
@@ -1003,78 +985,6 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.1.name': 'b',
                     'schema.1.data-type': 'VARCHAR(2147483647)'}
         self.assertEqual(expected, properties)
-
-
-class AbstractTableDescriptorTests(object):
-
-    def test_with_format(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor.with_format(OldCsv().field("a", "INT"))
-
-        properties = descriptor.to_properties()
-
-        expected = {'format.type': 'csv',
-                    'format.property-version': '1',
-                    'format.fields.0.name': 'a',
-                    'format.fields.0.data-type': 'INT',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_with_schema(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor.with_format(OldCsv()).with_schema(Schema().field("a", "INT"))
-
-        properties = descriptor.to_properties()
-        expected = {'schema.0.name': 'a',
-                    'schema.0.data-type': 'INT',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.type': 'filesystem',
-                    'connector.property-version': '1'}
-        assert properties == expected
-
-    def test_register_temporary_table(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-        source_path = os.path.join(self.tempdir + '/streaming.csv')
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        data = [(1, "Hi", "Hello"), (2, "Hello", "Hello")]
-        self.prepare_csv_source(source_path, data, field_types, field_names)
-        sink_path = os.path.join(self.tempdir + '/streaming2.csv')
-        if os.path.isfile(sink_path):
-            os.remove(sink_path)
-        t_env = self.t_env
-
-        t_env.connect(FileSystem().path(source_path))\
-             .with_format(OldCsv()
-                          .field_delimiter(',')
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .with_schema(Schema()
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .create_temporary_table("source")
-        t_env.connect(FileSystem().path(sink_path))\
-             .with_format(OldCsv()
-                          .field_delimiter(',')
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .with_schema(Schema()
-                          .field("a", DataTypes.INT())
-                          .field("b", DataTypes.STRING())
-                          .field("c", DataTypes.STRING()))\
-             .create_temporary_table("sink")
-        t_env.from_path("source").select("a + 1, b, c").execute_insert("sink").wait()
-
-        with open(sink_path, 'r') as f:
-            lines = f.read()
-            assert lines == '2,Hi,Hello\n' + "3,Hello,Hello\n"
 
 
 if __name__ == '__main__':

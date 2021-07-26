@@ -261,18 +261,6 @@ TableEnvironment API
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_update" name="链接">}}
       </td>
     </tr>
-    <tr>
-      <td>
-        <strong>connect(connector_descriptor)</strong>
-      </td>
-      <td>
-        根据描述符创建临时表。 
-        目前推荐的方式是使用 <strong>execute_sql</strong> 来注册临时表。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.connect" name="链接">}}
-      </td>
-    </tr>
   </tbody>
 </table>
 
