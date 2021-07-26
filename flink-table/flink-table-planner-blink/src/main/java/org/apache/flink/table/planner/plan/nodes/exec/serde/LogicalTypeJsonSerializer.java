@@ -18,7 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -28,6 +35,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.SymbolType;
@@ -37,6 +45,8 @@ import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -85,6 +95,9 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     public static final String FIELD_NAME_VALUE_TYPE = "valueType";
     // ArrayType/MultiSetType
     public static final String FIELD_NAME_ELEMENT_TYPE = "elementType";
+    // RawType for DataView
+    public static final String FIELD_NAME_DATA_VIEW_CLASS = "dataViewClass";
+    public static final String FIELD_NAME_IS_INTERNAL_TYPE = "isInternal";
 
     public LogicalTypeJsonSerializer() {
         super(LogicalType.class);
@@ -98,37 +111,37 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             throws IOException {
         if (logicalType instanceof CharType) {
             // Zero-length character strings have no serializable string representation.
-            serialize((CharType) logicalType, jsonGenerator);
+            serializeRowType((CharType) logicalType, jsonGenerator);
         } else if (logicalType instanceof VarCharType) {
             // Zero-length character strings have no serializable string representation.
-            serialize((VarCharType) logicalType, jsonGenerator);
+            serializeVarCharType((VarCharType) logicalType, jsonGenerator);
         } else if (logicalType instanceof BinaryType) {
             // Zero-length binary strings have no serializable string representation.
-            serialize((BinaryType) logicalType, jsonGenerator);
+            serializeBinaryType((BinaryType) logicalType, jsonGenerator);
         } else if (logicalType instanceof VarBinaryType) {
             // Zero-length binary strings have no serializable string representation.
-            serialize((VarBinaryType) logicalType, jsonGenerator);
+            serializeVarBinaryType((VarBinaryType) logicalType, jsonGenerator);
         } else if (logicalType instanceof SymbolType) {
             // SymbolType does not support `asSerializableString`
-            serialize((SymbolType<?>) logicalType, jsonGenerator);
+            serializeSymbolType((SymbolType<?>) logicalType, jsonGenerator);
         } else if (logicalType instanceof TypeInformationRawType) {
             // TypeInformationRawType does not support `asSerializableString`
-            serialize((TypeInformationRawType<?>) logicalType, jsonGenerator);
+            serializeTypeInformationRawType((TypeInformationRawType<?>) logicalType, jsonGenerator);
         } else if (logicalType instanceof StructuredType) {
             //  StructuredType does not full support `asSerializableString`
-            serialize((StructuredType) logicalType, jsonGenerator);
+            serializeStructuredType((StructuredType) logicalType, jsonGenerator);
         } else if (logicalType instanceof DistinctType) {
             //  DistinctType does not full support `asSerializableString`
-            serialize((DistinctType) logicalType, jsonGenerator);
+            serializeDistinctType((DistinctType) logicalType, jsonGenerator);
         } else if (logicalType instanceof TimestampType) {
             // TimestampType does not consider `TimestampKind`
-            serialize((TimestampType) logicalType, jsonGenerator);
+            serializeTimestampType((TimestampType) logicalType, jsonGenerator);
         } else if (logicalType instanceof ZonedTimestampType) {
             // ZonedTimestampType does not consider `TimestampKind`
-            serialize((ZonedTimestampType) logicalType, jsonGenerator);
+            serializeZonedTimestampType((ZonedTimestampType) logicalType, jsonGenerator);
         } else if (logicalType instanceof LocalZonedTimestampType) {
             // LocalZonedTimestampType does not consider `TimestampKind`
-            serialize((LocalZonedTimestampType) logicalType, jsonGenerator);
+            serializeLocalZonedTimestampType((LocalZonedTimestampType) logicalType, jsonGenerator);
         } else if (logicalType instanceof RowType) {
             serializeRowType((RowType) logicalType, jsonGenerator, serializerProvider);
         } else if (logicalType instanceof MapType) {
@@ -137,6 +150,8 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             serializeArrayType((ArrayType) logicalType, jsonGenerator, serializerProvider);
         } else if (logicalType instanceof MultisetType) {
             serializeMultisetType((MultisetType) logicalType, jsonGenerator, serializerProvider);
+        } else if (logicalType instanceof RawType) {
+            serializeRawType((RawType<?>) logicalType, jsonGenerator, serializerProvider);
         } else if (logicalType instanceof UnresolvedUserDefinedType) {
             throw new TableException(
                     "Can not serialize an UnresolvedUserDefinedType instance. \n"
@@ -205,47 +220,49 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(CharType charType, JsonGenerator jsonGenerator) throws IOException {
+    private void serializeRowType(CharType charType, JsonGenerator jsonGenerator)
+            throws IOException {
         // Zero-length character strings have no serializable string representation.
         if (charType.getLength() == CharType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, charType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, charType.isNullable());
-            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, charType.getLength());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, 0);
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(charType.asSerializableString());
         }
     }
 
-    private void serialize(VarCharType varCharType, JsonGenerator jsonGenerator)
+    private void serializeVarCharType(VarCharType varCharType, JsonGenerator jsonGenerator)
             throws IOException {
         // Zero-length character strings have no serializable string representation.
         if (varCharType.getLength() == VarCharType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, varCharType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varCharType.isNullable());
-            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varCharType.getLength());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, 0);
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(varCharType.asSerializableString());
         }
     }
 
-    private void serialize(BinaryType binaryType, JsonGenerator jsonGenerator) throws IOException {
+    private void serializeBinaryType(BinaryType binaryType, JsonGenerator jsonGenerator)
+            throws IOException {
         // Zero-length binary strings have no serializable string representation.
         if (binaryType.getLength() == BinaryType.EMPTY_LITERAL_LENGTH) {
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, binaryType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, binaryType.isNullable());
-            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, binaryType.getLength());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, 0);
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(binaryType.asSerializableString());
         }
     }
 
-    private void serialize(VarBinaryType varBinaryType, JsonGenerator jsonGenerator)
+    private void serializeVarBinaryType(VarBinaryType varBinaryType, JsonGenerator jsonGenerator)
             throws IOException {
         // Zero-length binary strings have no serializable string representation.
         if (varBinaryType.getLength() == VarBinaryType.EMPTY_LITERAL_LENGTH) {
@@ -253,14 +270,14 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
             jsonGenerator.writeStringField(
                     FIELD_NAME_TYPE_NAME, varBinaryType.getTypeRoot().name());
             jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, varBinaryType.isNullable());
-            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, varBinaryType.getLength());
+            jsonGenerator.writeNumberField(FIELD_NAME_LENGTH, 0);
             jsonGenerator.writeEndObject();
         } else {
             jsonGenerator.writeObject(varBinaryType.asSerializableString());
         }
     }
 
-    private void serialize(SymbolType<?> symbolType, JsonGenerator jsonGenerator)
+    private void serializeSymbolType(SymbolType<?> symbolType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, symbolType.isNullable());
@@ -269,8 +286,8 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(TypeInformationRawType<?> rawType, JsonGenerator jsonGenerator)
-            throws IOException {
+    private void serializeTypeInformationRawType(
+            TypeInformationRawType<?> rawType, JsonGenerator jsonGenerator) throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, rawType.isNullable());
         jsonGenerator.writeStringField(
@@ -279,7 +296,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(StructuredType structuredType, JsonGenerator jsonGenerator)
+    private void serializeStructuredType(StructuredType structuredType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(
@@ -322,7 +339,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(DistinctType distinctType, JsonGenerator jsonGenerator)
+    private void serializeDistinctType(DistinctType distinctType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, LogicalTypeRoot.DISTINCT_TYPE.name());
@@ -337,7 +354,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(TimestampType timestampType, JsonGenerator jsonGenerator)
+    private void serializeTimestampType(TimestampType timestampType, JsonGenerator jsonGenerator)
             throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
@@ -347,8 +364,8 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(ZonedTimestampType timestampType, JsonGenerator jsonGenerator)
-            throws IOException {
+    private void serializeZonedTimestampType(
+            ZonedTimestampType timestampType, JsonGenerator jsonGenerator) throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, timestampType.isNullable());
@@ -357,13 +374,84 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeEndObject();
     }
 
-    private void serialize(LocalZonedTimestampType timestampType, JsonGenerator jsonGenerator)
-            throws IOException {
+    private void serializeLocalZonedTimestampType(
+            LocalZonedTimestampType timestampType, JsonGenerator jsonGenerator) throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, timestampType.getTypeRoot().name());
         jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, timestampType.isNullable());
         jsonGenerator.writeNumberField(FIELD_NAME_PRECISION, timestampType.getPrecision());
         jsonGenerator.writeObjectField(FIELD_NAME_TIMESTAMP_KIND, timestampType.getKind());
+        jsonGenerator.writeEndObject();
+    }
+
+    @SuppressWarnings("rawtypes")
+    private void serializeRawType(
+            RawType<?> rawType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
+            throws IOException {
+        TypeSerializer<?> typeSer = rawType.getTypeSerializer();
+        if (typeSer instanceof ExternalSerializer) {
+            ExternalSerializer externalSer = (ExternalSerializer) typeSer;
+            // Currently, ExternalSerializer with `isInternalInput=false` will be serialized,
+            // Once `isInternalInput=true` needs to be serialized, we can add individual field in
+            // the json to support it, and the new json plan is compatible with the previous one.
+            if (externalSer.isInternalInput()) {
+                throw new TableException(
+                        "ExternalSerializer with `isInternalInput=true` is not supported.");
+            }
+            DataType dataType = externalSer.getDataType();
+            boolean isMapView = DataViewUtils.isMapViewDataType(dataType);
+            boolean isListView = DataViewUtils.isListViewDataType(dataType);
+            if (isMapView || isListView) {
+                jsonGenerator.writeStartObject();
+                jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, LogicalTypeRoot.RAW.name());
+                jsonGenerator.writeBooleanField(FIELD_NAME_NULLABLE, rawType.isNullable());
+                if (isMapView) {
+                    jsonGenerator.writeStringField(
+                            FIELD_NAME_DATA_VIEW_CLASS, MapView.class.getName());
+                    KeyValueDataType keyValueDataType =
+                            DataViewUtils.extractKeyValueDataTypeForMapView(dataType);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_KEY_TYPE,
+                            keyValueDataType.getKeyDataType(),
+                            jsonGenerator,
+                            serializerProvider);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_VALUE_TYPE,
+                            keyValueDataType.getValueDataType(),
+                            jsonGenerator,
+                            serializerProvider);
+                } else {
+                    jsonGenerator.writeStringField(
+                            FIELD_NAME_DATA_VIEW_CLASS, ListView.class.getName());
+                    DataType elementType =
+                            DataViewUtils.extractElementDataTypeForListView(dataType);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_ELEMENT_TYPE,
+                            elementType,
+                            jsonGenerator,
+                            serializerProvider);
+                }
+                jsonGenerator.writeEndObject();
+                return;
+            }
+        }
+
+        jsonGenerator.writeObject(rawType.asSerializableString());
+    }
+
+    private void serializeDataTypeForDataView(
+            String key,
+            DataType dataType,
+            JsonGenerator jsonGenerator,
+            SerializerProvider serializerProvider)
+            throws IOException {
+        jsonGenerator.writeFieldName(key);
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeBooleanField(
+                FIELD_NAME_IS_INTERNAL_TYPE, DataTypeUtils.isInternal(dataType));
+        jsonGenerator.writeFieldName(FIELD_NAME_TYPE_NAME);
+        LogicalType logicalType = LogicalTypeDataTypeConverter.toLogicalType(dataType);
+        serialize(logicalType, jsonGenerator, serializerProvider);
         jsonGenerator.writeEndObject();
     }
 }
