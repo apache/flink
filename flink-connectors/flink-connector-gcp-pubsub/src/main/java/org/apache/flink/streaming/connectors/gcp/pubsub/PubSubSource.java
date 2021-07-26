@@ -65,6 +65,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
     protected final PubSubDeserializationSchema<OUT> deserializationSchema;
     protected final PubSubSubscriberFactory pubSubSubscriberFactory;
     protected final Credentials credentials;
+    protected final boolean withoutCheckpoint;
     protected final AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
     protected final FlinkConnectorRateLimiter rateLimiter;
     protected final int messagePerSecondRateLimit;
@@ -78,12 +79,14 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
             PubSubDeserializationSchema<OUT> deserializationSchema,
             PubSubSubscriberFactory pubSubSubscriberFactory,
             Credentials credentials,
+            boolean withoutCheckpoint,
             AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory,
             FlinkConnectorRateLimiter rateLimiter,
             int messagePerSecondRateLimit) {
         this.deserializationSchema = deserializationSchema;
         this.pubSubSubscriberFactory = pubSubSubscriberFactory;
         this.credentials = credentials;
+        this.withoutCheckpoint = withoutCheckpoint;
         this.acknowledgeOnCheckpointFactory = acknowledgeOnCheckpointFactory;
         this.rateLimiter = rateLimiter;
         this.messagePerSecondRateLimit = messagePerSecondRateLimit;
@@ -116,8 +119,9 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
     }
 
     private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
-        return !(runtimeContext instanceof StreamingRuntimeContext
-                && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled());
+        return !withoutCheckpoint
+                && !(runtimeContext instanceof StreamingRuntimeContext
+                        && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled());
     }
 
     @Override
@@ -242,6 +246,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
         private final PubSubDeserializationSchema<OUT> deserializationSchema;
         private String projectName;
         private String subscriptionName;
+        private boolean withoutCheckpoint;
 
         private PubSubSubscriberFactory pubSubSubscriberFactory;
         private Credentials credentials;
@@ -268,6 +273,11 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
         public PubSubSourceBuilder<OUT> withSubscriptionName(String subscriptionName) {
             Preconditions.checkNotNull(subscriptionName);
             this.subscriptionName = subscriptionName;
+            return this;
+        }
+
+        public PubSubSourceBuilder<OUT> withoutCheckpoint(boolean withoutCheckpoint) {
+            this.withoutCheckpoint = withoutCheckpoint;
             return this;
         }
 
@@ -353,6 +363,7 @@ public class PubSubSource<OUT> extends RichSourceFunction<OUT>
                     deserializationSchema,
                     pubSubSubscriberFactory,
                     credentials,
+                    withoutCheckpoint,
                     new AcknowledgeOnCheckpointFactory(),
                     new GuavaFlinkConnectorRateLimiter(),
                     messagePerSecondRateLimit);

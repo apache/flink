@@ -79,6 +79,7 @@ public class PubSubSourceTest {
                         deserializationSchema,
                         pubSubSubscriberFactory,
                         credentials,
+                        false,
                         acknowledgeOnCheckpointFactory,
                         rateLimiter,
                         1024);
