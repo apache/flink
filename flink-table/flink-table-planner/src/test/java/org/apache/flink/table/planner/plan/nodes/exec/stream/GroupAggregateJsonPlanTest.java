@@ -134,25 +134,27 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
     public void testDistinctAggCalls() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
-                        + "  c varchar,\n"
+                        + "  d bigint,\n"
                         + "  cnt_a1 bigint,\n"
                         + "  cnt_a2 bigint,\n"
                         + "  sum_a bigint,\n"
                         + "  sum_b int,\n"
-                        + "  avg_b double\n"
+                        + "  avg_b double,\n"
+                        + "  cnt_c bigint\n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'sink-insert-only' = 'false',\n"
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan(
-                "insert into MySink select c, "
+                "insert into MySink select d, "
                         + "count(distinct a) filter (where b > 10) as cnt_a1, "
                         + "count(distinct a) as cnt_a2, "
                         + "sum(distinct a) as sum_a, "
                         + "sum(distinct b) as sum_b, "
-                        + "avg(b) as avg_b "
-                        + "from MyTable group by c");
+                        + "avg(b) as avg_b, "
+                        + "count(distinct c) as cnt_d "
+                        + "from MyTable group by d");
     }
 
     @Test
