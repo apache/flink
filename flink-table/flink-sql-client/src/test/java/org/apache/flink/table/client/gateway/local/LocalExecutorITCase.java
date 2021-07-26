@@ -418,11 +418,7 @@ public class LocalExecutorITCase extends TestLogger {
 
     private void initSession(Executor executor, String sessionId, Map<String, String> replaceVars) {
         for (String sql : getInitSQL(replaceVars)) {
-            sql = sql.trim();
-            if (sql.endsWith(";")) {
-                sql = sql.substring(0, sql.trim().length() - 1).trim();
-            }
-            executor.executeOperation(sessionId, executor.parseStatement(sessionId, sql.trim()));
+            executor.executeOperation(sessionId, executor.parseStatement(sessionId, sql));
         }
     }
 
@@ -552,8 +548,8 @@ public class LocalExecutorITCase extends TestLogger {
                                 + "  'format' = 'csv',\n"
                                 + "  'csv.ignore-parse-errors' = 'true',\n"
                                 + "  'csv.allow-comments' = 'true'\n"
-                                + ");\n",
-                        "CREATE VIEW TestView1 AS SELECT scalarUDF(IntegerField1, 5) FROM TableNumber1;\n",
+                                + ")\n",
+                        "CREATE VIEW TestView1 AS SELECT scalarUDF(IntegerField1, 5) FROM TableNumber1\n",
                         "CREATE TABLE TableSourceSink (\n"
                                 + "  BooleanField BOOLEAN,\n"
                                 + "  StringField2 STRING,\n"
@@ -564,8 +560,8 @@ public class LocalExecutorITCase extends TestLogger {
                                 + "  'format' = 'csv',\n"
                                 + "  'csv.ignore-parse-errors' = 'true',\n"
                                 + "  'csv.allow-comments' = 'true'\n"
-                                + ");\n",
-                        "CREATE VIEW TestView2 AS SELECT * FROM TestView1;\n")
+                                + ")\n",
+                        "CREATE VIEW TestView2 AS SELECT * FROM TestView1\n")
                 .map(
                         sql -> {
                             for (Map.Entry<String, String> replaceVar : replaceVars.entrySet()) {
