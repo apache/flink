@@ -88,7 +88,7 @@ public class RetrievableStreamStateHandle<T extends Serializable>
 
     @Override
     public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
-        wrappedStreamStateHandle.accept(visitor);
+        // only visit this handle to avoid double visits
         visitor.visit(this);
     }
 }

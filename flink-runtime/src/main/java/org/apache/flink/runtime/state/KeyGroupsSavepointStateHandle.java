@@ -72,7 +72,7 @@ public class KeyGroupsSavepointStateHandle extends KeyGroupsStateHandle
 
     @Override
     public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
-        super.accept(visitor);
+        stateHandle.accept(visitor);
         visitor.visit(this);
     }
 }

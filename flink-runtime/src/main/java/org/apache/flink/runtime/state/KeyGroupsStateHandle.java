@@ -37,7 +37,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     private final KeyGroupRangeOffsets groupRangeOffsets;
 
     /** Inner stream handle to the actual states of the key-groups in the range */
-    private final StreamStateHandle stateHandle;
+    protected final StreamStateHandle stateHandle;
 
     /**
      * @param groupRangeOffsets range of key-group ids that in the state of this handle
