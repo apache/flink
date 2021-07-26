@@ -21,7 +21,6 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
@@ -143,7 +142,6 @@ public class CliClientITCase extends AbstractTestBase {
         final String sqlContent = String.join("\n", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Environment(),
                         Collections.emptyList(),
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));

@@ -43,13 +43,11 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactory;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
-import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
-import org.apache.flink.table.client.gateway.utils.TestTableSinkFactoryBase;
-import org.apache.flink.table.client.gateway.utils.TestTableSourceFactoryBase;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.CatalogFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
@@ -83,20 +81,36 @@ public class DependencyTest {
 
     public static final String CONNECTOR_TYPE_VALUE = "test-connector";
     public static final String TEST_PROPERTY = "test-property";
+    private static final String TEST_PROPERTY_VALUE = "test-value";
 
     public static final String CATALOG_TYPE_TEST = "DependencyTest";
     public static final String MODULE_TYPE_TEST = "ModuleDependencyTest";
 
-    private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
     private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
+    private static final List<String> INIT_SQL =
+            Arrays.asList(
+                    String.format(
+                            "CREATE TABLE TableNumber1 (\n"
+                                    + "  IntegerField1 INT,\n"
+                                    + "  StringField1 STRING,\n"
+                                    + "  rowtimeField TIMESTAMP(3),\n"
+                                    + "  WATERMARK FOR rowtimeField AS rowtimeField\n"
+                                    + ") WITH (\n"
+                                    + "  'connector' = '%s',\n"
+                                    + "  '%s' = '%s'\n"
+                                    + ")",
+                            CONNECTOR_TYPE_VALUE, TEST_PROPERTY, TEST_PROPERTY_VALUE),
+                    String.format(
+                            "CREATE CATALOG TestCatalog WITH ('type' = '%s')", CATALOG_TYPE_TEST));
+
+    private static final String SESSION_ID = "test-session";
 
     @Test
     public void testTableFactoryDiscovery() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
-        String sessionId = executor.openSession("test-session");
         try {
             final TableResult tableResult =
-                    executeSql(executor, sessionId, "DESCRIBE TableNumber1");
+                    executeSql(executor, SESSION_ID, "DESCRIBE TableNumber1");
             assertEquals(
                     tableResult.getResolvedSchema(),
                     ResolvedSchema.physical(
@@ -119,47 +133,42 @@ public class DependencyTest {
                                     true,
                                     null,
                                     null,
-                                    null));
+                                    "`rowtimeField`"));
             assertEquals(schemaData, CollectionUtil.iteratorToList(tableResult.collect()));
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession(SESSION_ID);
         }
     }
 
     @Test
     public void testSqlParseWithUserClassLoader() throws Exception {
         final LocalExecutor executor = createLocalExecutor();
-        String sessionId = executor.openSession("test-session");
         try {
             Operation operation =
                     executor.parseStatement(
-                            sessionId, "SELECT IntegerField1, StringField1 FROM TableNumber1");
+                            SESSION_ID, "SELECT IntegerField1, StringField1 FROM TableNumber1");
 
             assertTrue(operation instanceof QueryOperation);
         } finally {
-            executor.closeSession(sessionId);
+            executor.closeSession(SESSION_ID);
         }
     }
 
     private LocalExecutor createLocalExecutor() throws Exception {
-        // create environment
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_CONNECTOR_TYPE", CONNECTOR_TYPE_VALUE);
-        replaceVars.put("$VAR_CONNECTOR_PROPERTY", TEST_PROPERTY);
-        replaceVars.put("$VAR_CONNECTOR_PROPERTY_VALUE", "test-value");
-        final Environment env =
-                EnvironmentFileUtil.parseModified(FACTORY_ENVIRONMENT_FILE, replaceVars);
-
         // create executor with dependencies
         final URL dependency = Paths.get("target", TABLE_FACTORY_JAR_FILE).toUri().toURL();
         // create default context
         DefaultContext defaultContext =
                 new DefaultContext(
-                        env,
                         Collections.singletonList(dependency),
                         new Configuration(),
                         Collections.singletonList(new DefaultCLI()));
-        return new LocalExecutor(defaultContext);
+        LocalExecutor executor = new LocalExecutor(defaultContext);
+        executor.openSession(SESSION_ID);
+        for (String line : INIT_SQL) {
+            executor.executeOperation(SESSION_ID, executor.parseStatement(SESSION_ID, line));
+        }
+        return executor;
     }
 
     private TableResult executeSql(Executor executor, String sessionId, String sql) {
@@ -170,18 +179,27 @@ public class DependencyTest {
     // --------------------------------------------------------------------------------------------
 
     /** Table source that can be discovered if classloading is correct. */
-    public static class TestTableSourceFactory extends TestTableSourceFactoryBase {
+    public static class TestTableSourceFactory implements DynamicTableSourceFactory {
 
-        public TestTableSourceFactory() {
-            super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+        @Override
+        public String factoryIdentifier() {
+            return CONNECTOR_TYPE_VALUE;
         }
-    }
 
-    /** Table sink that can be discovered if classloading is correct. */
-    public static class TestTableSinkFactory extends TestTableSinkFactoryBase {
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.singleton(
+                    ConfigOptions.key(CONNECTOR_TYPE_VALUE).stringType().noDefaultValue());
+        }
 
-        public TestTableSinkFactory() {
-            super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public DynamicTableSource createDynamicTableSource(Context context) {
+            return null;
         }
     }
 
