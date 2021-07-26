@@ -67,6 +67,7 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 <div class="alert alert-warning">
   <strong>注意:</strong> Checkpoint 目录不是公共 API 的一部分，因此可能在未来的 Release 中进行改变。
 </div>
+
 #### 通过配置文件全局配置
 
 ```yaml
