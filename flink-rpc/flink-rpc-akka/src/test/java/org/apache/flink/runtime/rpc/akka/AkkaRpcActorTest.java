@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -87,7 +87,10 @@ public class AkkaRpcActorTest extends TestLogger {
 
     @BeforeClass
     public static void setup() {
-        akkaRpcService = new TestingRpcService();
+        akkaRpcService =
+                new AkkaRpcService(
+                        AkkaUtils.createLocalActorSystem(new Configuration()),
+                        AkkaRpcServiceConfiguration.defaultConfiguration());
     }
 
     @AfterClass
