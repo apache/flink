@@ -26,7 +26,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.After;
