@@ -262,9 +262,10 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
         self._separated_with_end_message = separated_with_end_message
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
-        for item in value:
-            self._field_coder.encode_to_stream(item, self._data_out_stream)
-            self._write_data_to_output_stream(output_stream)
+        if value:
+            for item in value:
+                self._field_coder.encode_to_stream(item, self._data_out_stream)
+                self._write_data_to_output_stream(output_stream)
 
         # write end message
         if self._separated_with_end_message:

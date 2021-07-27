@@ -92,9 +92,10 @@ class IterableCoderImpl(LengthPrefixBaseCoderImpl):
         self._separated_with_end_message = separated_with_end_message
 
     def encode_to_stream(self, value: List, out_stream: OutputStream):
-        for item in value:
-            self._field_coder.encode_to_stream(item, self._data_out_stream)
-            self._write_data_to_output_stream(out_stream)
+        if value:
+            for item in value:
+                self._field_coder.encode_to_stream(item, self._data_out_stream)
+                self._write_data_to_output_stream(out_stream)
 
         # write end message
         if self._separated_with_end_message:
