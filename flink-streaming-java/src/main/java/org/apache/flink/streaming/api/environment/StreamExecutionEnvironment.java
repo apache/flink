@@ -939,6 +939,21 @@ public class StreamExecutionEnvironment {
      * configuration}. If a key is not present, the current value of a field will remain untouched.
      *
      * @param configuration a configuration to read the values from
+     */
+    @PublicEvolving
+    public void configure(ReadableConfig configuration) {
+        configure(configuration, userClassloader);
+    }
+
+    /**
+     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
+     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+     *
+     * <p>It will change the value of a setting only if a corresponding option was set in the {@code
+     * configuration}. If a key is not present, the current value of a field will remain untouched.
+     *
+     * @param configuration a configuration to read the values from
      * @param classLoader a class loader to use when loading classes
      */
     @PublicEvolving
