@@ -157,6 +157,12 @@ class Row(object):
     def _is_accumulate_msg(self):
         return self._row_kind == RowKind.UPDATE_AFTER or self._row_kind == RowKind.INSERT
 
+    @staticmethod
+    def of_kind(row_kind: RowKind, *args, **kwargs):
+        row = Row(*args, **kwargs)
+        row.set_row_kind(row_kind)
+        return row
+
     def __contains__(self, item):
         return item in self._values
 
