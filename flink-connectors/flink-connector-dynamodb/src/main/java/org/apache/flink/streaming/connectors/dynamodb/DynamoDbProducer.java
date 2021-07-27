@@ -31,10 +31,11 @@ public interface DynamoDbProducer {
     /** A listener for the execution. */
     interface Listener {
         /** Callback before the a write request is executed. */
-        void beforeWrite(long executionId, WriteRequest request);
+        void beforeWrite(String executionId, ProducerWriteRequest request);
 
         /** Callback after a successful execution of a write request. */
-        void afterWrite(long executionId, WriteRequest request, WriteResponse response);
+        void afterWrite(
+                String executionId, ProducerWriteRequest request, ProducerWriteResponse response);
 
         /**
          * Callback after a failed execution of a write request. Note that in case an instance of
@@ -42,7 +43,7 @@ public interface DynamoDbProducer {
          * cancelled externally, the thread's interruption status has been restored prior to calling
          * this method.
          */
-        void afterWrite(long executionId, WriteRequest request, Throwable failure);
+        void afterWrite(String executionId, ProducerWriteRequest request, Throwable failure);
     }
 
     /** Tear-down the producer. */

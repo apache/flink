@@ -18,16 +18,26 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-import org.apache.flink.streaming.connectors.dynamodb.WriteResponse;
+import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.DynamoDbExceptionUtils;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutRequest;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -36,19 +46,22 @@ import java.util.concurrent.TimeUnit;
  * A callable that writes batch items to DynamoDB with retries until all items are processed. Every
  * new retry is attempted after backoff time that grows exponentially between retries.
  */
-public class DynamoDbBatchWriter implements Callable<WriteResponse> {
+public class DynamoDbBatchWriter implements Callable<ProducerWriteResponse> {
 
     private final DynamoDbClient client;
-    private final BatchWriteItemRequest writeRequest;
+    private final ProducerWriteRequest<DynamoDbRequest> producerWriteRequest;
     private final BatchWriterRetryPolicy retryPolicy;
+    private final DynamoDbProducer.Listener listener;
 
     public DynamoDbBatchWriter(
             DynamoDbClient client,
             BatchWriterRetryPolicy retryPolicy,
-            BatchWriteItemRequest request) {
+            DynamoDbProducer.Listener listener,
+            ProducerWriteRequest<DynamoDbRequest> request) {
         this.client = client;
+        this.listener = listener;
         this.retryPolicy = retryPolicy;
-        this.writeRequest = request;
+        this.producerWriteRequest = request;
     }
 
     protected BatchWriteItemRequest createRequest(
@@ -62,17 +75,58 @@ public class DynamoDbBatchWriter implements Callable<WriteResponse> {
      * @return unique id of the batch
      */
     @Override
-    public WriteResponse call() {
+    public ProducerWriteResponse call() {
+        BatchWriteItemRequest request = mapToBatchRequest(producerWriteRequest);
+        String requestId = producerWriteRequest.getId();
+
+        listener.beforeWrite(requestId, producerWriteRequest);
         long start = System.nanoTime();
-        BatchWriterAttemptResult result = write(writeRequest);
+        BatchWriterAttemptResult result = write(request);
         long stop = System.nanoTime();
         long elapsedTimeMs = TimeUnit.NANOSECONDS.toMillis(stop - start);
 
-        return new WriteResponse(
-                result.isFinallySuccessful(),
-                result.getAttemptNumber(),
-                result.getException(),
-                elapsedTimeMs);
+        ProducerWriteResponse response =
+                new ProducerWriteResponse(
+                        requestId,
+                        result.isFinallySuccessful(),
+                        result.getAttemptNumber(),
+                        result.getException(),
+                        elapsedTimeMs);
+
+        if (response.getException() != null) {
+            listener.afterWrite(
+                    producerWriteRequest.getId(), producerWriteRequest, response.getException());
+        } else {
+            listener.afterWrite(requestId, producerWriteRequest, response);
+        }
+
+        return response;
+    }
+
+    /**
+     * DynamoDB batch client does not use request classes that extend from DynamoDbRequest. It uses
+     * own classes like PutRequest, DeleteRequest, so we have to convert the request here.
+     */
+    private BatchWriteItemRequest mapToBatchRequest(ProducerWriteRequest<DynamoDbRequest> request) {
+        List<WriteRequest> writeRequests = new ArrayList<>();
+
+        for (DynamoDbRequest req : request.getRequests()) {
+            if (req instanceof PutItemRequest) {
+                PutRequest putRequest =
+                        PutRequest.builder().item(((PutItemRequest) req).item()).build();
+                writeRequests.add(WriteRequest.builder().putRequest(putRequest).build());
+            } else if (req instanceof DeleteItemRequest) {
+                DeleteRequest deleteRequest =
+                        DeleteRequest.builder().key(((DeleteItemRequest) req).key()).build();
+                writeRequests.add(WriteRequest.builder().deleteRequest(deleteRequest).build());
+            } else {
+                throw new InvalidRequestException(
+                        "Not supported request type for request: " + request.toString());
+            }
+        }
+        return BatchWriteItemRequest.builder()
+                .requestItems(Collections.singletonMap(request.getTableName(), writeRequests))
+                .build();
     }
 
     /**

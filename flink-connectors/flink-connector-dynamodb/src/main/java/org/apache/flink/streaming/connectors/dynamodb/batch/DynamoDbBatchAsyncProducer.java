@@ -19,21 +19,43 @@
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.WriteRequestFailureHandler;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
 
 /** Asynchronous batch producer. */
 public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
 
     private final DynamoDbClient client;
     private final BatchCollector batchCollector;
+    private final WriteRequestFailureHandler failureHandler;
+    private final ExecutorService taskExecutor;
 
-    public DynamoDbBatchAsyncProducer(DynamoDbClient client, BatchCollector batchCollector) {
+    private static final Logger LOG = LoggerFactory.getLogger(DynamoDbBatchAsyncProducer.class);
+
+    private BlockingQueue<ProducerWriteRequest<DynamoDbRequest>> outgoingMessages;
+
+    public DynamoDbBatchAsyncProducer(
+            DynamoDbClient client,
+            BatchCollector batchCollector,
+            WriteRequestFailureHandler failureHandler,
+            BlockingQueue outgoingMessages,
+            ExecutorService taskExecutor) {
         this.client = client;
         this.batchCollector = batchCollector;
+        this.failureHandler = failureHandler;
+        this.outgoingMessages = outgoingMessages;
+        this.taskExecutor = taskExecutor;
     }
 
     @Override
@@ -45,17 +67,27 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
     }
 
     @Override
-    public void flush() throws Exception {}
+    public void flush() throws Exception {
+        batchCollector.flush();
+    }
 
     @Override
-    public void produce(PutItemRequest request) {}
+    public void produce(PutItemRequest request) {
+        writeRequest(request);
+    }
 
     @Override
-    public void produce(DeleteItemRequest request) {}
+    public void produce(DeleteItemRequest request) {
+        writeRequest(request);
+    }
 
     @Override
     public void produce(UpdateItemRequest request) {
         throw new UnsupportedOperationException(
                 "UpdateItemRequest is not supported in the batch mode. Use another type of DynamoDb producer.");
+    }
+
+    private void writeRequest(DynamoDbRequest request) {
+        batchCollector.accumulateAndPromote(request);
     }
 }

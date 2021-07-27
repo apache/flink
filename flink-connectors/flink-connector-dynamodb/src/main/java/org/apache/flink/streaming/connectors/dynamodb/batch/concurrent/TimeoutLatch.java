@@ -16,31 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.batch.concurrent;
 
-import org.apache.flink.util.Preconditions;
+public class TimeoutLatch {
+    private final Object lock = new Object();
+    private volatile boolean waiting;
 
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
-
-import java.util.List;
-
-/** Wrapper class for DynamoDB batch request. */
-public class WriteRequest<T extends DynamoDbRequest> {
-    private final String id;
-    private final List<T> requests;
-
-    public WriteRequest(String id, List<T> requests) {
-        Preconditions.checkNotNull(id);
-        Preconditions.checkNotNull(requests);
-        this.id = id;
-        this.requests = requests;
+    public void await(long timeout) throws InterruptedException {
+        synchronized (lock) {
+            waiting = true;
+            lock.wait(timeout);
+        }
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public List<T> getRequests() {
-        return requests;
+    public void trigger() {
+        if (waiting) {
+            synchronized (lock) {
+                waiting = false;
+                lock.notifyAll();
+            }
+        }
     }
 }

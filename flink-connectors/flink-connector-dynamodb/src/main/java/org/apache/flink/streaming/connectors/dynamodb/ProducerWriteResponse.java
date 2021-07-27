@@ -19,22 +19,31 @@
 package org.apache.flink.streaming.connectors.dynamodb;
 
 /** DynamoDB batch writer response. */
-public class WriteResponse {
+public class ProducerWriteResponse {
+
+    private final String id;
     private final boolean successful;
     private final long elapsedTimeMs;
     public final int numberOfAttempts;
 
     public final Exception exception;
 
-    public WriteResponse(
+    public ProducerWriteResponse(
+            String id,
             boolean successful,
             int numberOfAttempts,
             Exception attemptException,
             long elapsedTimeMs) {
+        this.id = id;
         this.successful = successful;
         this.numberOfAttempts = numberOfAttempts;
         this.elapsedTimeMs = elapsedTimeMs;
         this.exception = attemptException;
+    }
+
+    /** Unique request id. */
+    public String getId() {
+        return id;
     }
 
     /** Is the write was successful in the end. */

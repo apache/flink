@@ -23,12 +23,20 @@ import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchWriter;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.DefaultBatchWriterRetryPolicy;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
@@ -39,23 +47,29 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Tests for validation in {@link DynamoDbBatchWriter}. */
+@RunWith(MockitoJUnitRunner.class)
 public class DynamoDBBatchWriterTest {
 
-    private BatchWriteItemRequest getRequest() {
-        return BatchWriteItemRequest.builder()
-                .requestItems(
-                        Collections.singletonMap(
-                                "testTable",
-                                Arrays.asList(
-                                        WriteRequest.builder().build(),
-                                        WriteRequest.builder().build())))
-                .build();
+    @Mock DynamoDbProducer.Listener listener;
+
+    @Mock DynamoDbClient client;
+
+    @Before
+    public void init() {
+        MockitoAnnotations.initMocks(this);
+    }
+
+    private ProducerWriteRequest<DynamoDbRequest> getRequest(String requestId) {
+        return new ProducerWriteRequest<>(
+                requestId,
+                "testTable",
+                Arrays.asList(
+                        PutItemRequest.builder().build(), DeleteItemRequest.builder().build()));
     }
 
     private BatchWriteItemResponse getResponse() {
@@ -64,7 +78,12 @@ public class DynamoDBBatchWriterTest {
 
     private BatchWriteItemResponse getResponseWithUnprocessedItems() {
         return BatchWriteItemResponse.builder()
-                .unprocessedItems(getRequest().requestItems())
+                .unprocessedItems(
+                        Collections.singletonMap(
+                                "testTable",
+                                Arrays.asList(
+                                        WriteRequest.builder().build(),
+                                        WriteRequest.builder().build())))
                 .build();
     }
 
@@ -90,80 +109,115 @@ public class DynamoDBBatchWriterTest {
 
     @Test
     public void testRetriesUnprocessedItems() {
-        DynamoDbClient client = mock(DynamoDbClient.class);
         BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
+        ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
                 .thenReturn(getResponseWithUnprocessedItems())
                 .thenReturn(getResponse());
 
-        DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        WriteResponse response = writer.call();
+        DynamoDbBatchWriter writer =
+                new DynamoDbBatchWriter(client, retryPolicy, listener, request);
+        ProducerWriteResponse response = writer.call();
 
+        assertEquals(
+                "request id of the request and response is equal",
+                request.getId(),
+                response.getId());
         assertTrue("write was successful", response.isSuccessful());
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
         verify(client, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
+        verify(listener, times(1)).beforeWrite(request.getId(), request);
+        verify(listener, times(1)).afterWrite(request.getId(), request, response);
     }
 
     @Test
     public void testRetriesAfterThrottlingError() {
-        DynamoDbClient client = mock(DynamoDbClient.class);
         BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
+        ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
                 .thenThrow(getThrottlingException())
                 .thenReturn(getResponse());
 
-        DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        WriteResponse response = writer.call();
+        DynamoDbBatchWriter writer =
+                new DynamoDbBatchWriter(client, retryPolicy, listener, request);
+        ProducerWriteResponse response = writer.call();
 
+        assertEquals(
+                "request id of the request and response is equal",
+                request.getId(),
+                response.getId());
         assertTrue("write was successful", response.isSuccessful());
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
         verify(client, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
+        verify(listener, times(1)).beforeWrite(request.getId(), request);
+        verify(listener, times(1)).afterWrite(request.getId(), request, response);
     }
 
     @Test
     public void testNotSuccessfulWhenShouldNotRetryAndUnprocessedItems() {
-        DynamoDbClient client = mock(DynamoDbClient.class);
-
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
                 .thenReturn(getResponseWithUnprocessedItems())
                 .thenReturn(getResponseWithUnprocessedItems());
 
-        DynamoDbBatchWriter writer =
-                new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), getRequest());
-        WriteResponse response = writer.call();
+        ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
+        DynamoDbBatchWriter writer =
+                new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), listener, request);
+        ProducerWriteResponse response = writer.call();
+
+        assertEquals(
+                "request id of the request and response is equal",
+                request.getId(),
+                response.getId());
         assertFalse("write was not successful", response.isSuccessful());
+        verify(listener, times(1)).beforeWrite(request.getId(), request);
+        verify(listener, times(1)).afterWrite(request.getId(), request, response);
     }
 
     @Test
     public void testSuccessfulWhenShouldNotRetryAndAllItemsProcessed() {
-        DynamoDbClient client = mock(DynamoDbClient.class);
-
         when(client.batchWriteItem(any(BatchWriteItemRequest.class))).thenReturn(getResponse());
 
-        DynamoDbBatchWriter writer =
-                new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), getRequest());
-        WriteResponse response = writer.call();
+        ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
+        DynamoDbBatchWriter writer =
+                new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), listener, request);
+        ProducerWriteResponse response = writer.call();
+
+        assertEquals(
+                "request id of the request and response is equal",
+                request.getId(),
+                response.getId());
         assertTrue("write was successful", response.isSuccessful());
+        verify(listener, times(1)).beforeWrite(request.getId(), request);
+        verify(listener, times(1)).afterWrite(request.getId(), request, response);
     }
 
     @Test
     public void testDoesNotRetryWhenResourceNotFoundException() {
-        DynamoDbClient client = mock(DynamoDbClient.class);
         BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
 
+        ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
+        Exception exception = ResourceNotFoundException.builder().build();
+
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
-                .thenThrow(ResourceNotFoundException.builder().build())
+                .thenThrow(exception)
                 .thenReturn(getResponse());
 
-        DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        WriteResponse response = writer.call();
+        DynamoDbBatchWriter writer =
+                new DynamoDbBatchWriter(client, retryPolicy, listener, request);
+        ProducerWriteResponse response = writer.call();
 
+        assertEquals(
+                "request id of the request and response is equal",
+                request.getId(),
+                response.getId());
         assertFalse("write was not successful", response.isSuccessful());
         assertEquals("attempted once", 1, response.getNumberOfAttempts());
         verify(client, times(1)).batchWriteItem(any(BatchWriteItemRequest.class));
+        verify(listener, times(1)).beforeWrite(request.getId(), request);
+        verify(listener, times(1)).afterWrite(request.getId(), request, exception);
     }
 }

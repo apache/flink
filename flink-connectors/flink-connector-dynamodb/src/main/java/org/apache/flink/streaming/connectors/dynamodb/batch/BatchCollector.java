@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-import org.apache.flink.streaming.connectors.dynamodb.WriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.batch.key.PrimaryKey;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
@@ -45,12 +45,14 @@ import static java.util.Objects.requireNonNull;
 public class BatchCollector {
 
     private final int batchSize;
-    private final Consumer<WriteRequest> batchConsumer;
+    private final Consumer<ProducerWriteRequest<DynamoDbRequest>> batchConsumer;
     private final DynamoDbTablesConfig tableConfig;
     private final TableRequestsContainer container;
 
     public BatchCollector(
-            int batchSize, Consumer<WriteRequest> batchConsumer, DynamoDbTablesConfig tableConfig) {
+            int batchSize,
+            Consumer<ProducerWriteRequest<DynamoDbRequest>> batchConsumer,
+            DynamoDbTablesConfig tableConfig) {
         this.batchSize = batchSize;
         requireNonNull(batchConsumer);
         this.batchConsumer = batchConsumer;
@@ -73,7 +75,8 @@ public class BatchCollector {
 
     private void promote(String tableName) {
         List<DynamoDbRequest> requests = ImmutableList.copyOf(container.get(tableName).values());
-        batchConsumer.accept(new WriteRequest<>(UUID.randomUUID().toString(), requests));
+        batchConsumer.accept(
+                new ProducerWriteRequest<>(UUID.randomUUID().toString(), tableName, requests));
     }
 
     public void flush() {
