@@ -227,7 +227,8 @@ public final class Schema {
                 columns.set(
                         columns.size() - 1, columns.get(columns.size() - 1).withComment(comment));
             } else {
-                throw new IllegalArgumentException("There is no preceding column defined.");
+                throw new IllegalArgumentException(
+                        "Method \"withComment\" must be followed by a column definition, but there is no preceding column defined.");
             }
             return this;
         }
@@ -632,10 +633,6 @@ public final class Schema {
     public abstract static class UnresolvedColumn {
         final String columnName;
         final @Nullable String comment;
-
-        UnresolvedColumn(String columnName) {
-            this(columnName, null);
-        }
 
         UnresolvedColumn(String columnName, @Nullable String comment) {
             this.columnName = columnName;

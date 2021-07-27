@@ -47,10 +47,6 @@ public abstract class Column {
 
     protected final @Nullable String comment;
 
-    private Column(String name, DataType dataType) {
-        this(name, dataType, null);
-    }
-
     private Column(String name, DataType dataType, @Nullable String comment) {
         this.name = name;
         this.dataType = dataType;
