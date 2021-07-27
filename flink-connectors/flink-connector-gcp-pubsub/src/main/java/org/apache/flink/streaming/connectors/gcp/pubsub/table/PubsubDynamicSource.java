@@ -16,14 +16,20 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-/** */
+/** PubSub-backed {@link ScanTableSource}. */
 @Internal
 public class PubsubDynamicSource implements ScanTableSource {
-    private final String project;
-    private final String topic;
-    private final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
-    private final DataType producedDataType;
+
     private static Logger logger = LoggerFactory.getLogger(PubsubDynamicSource.class);
+
+    /** Name of the PubSub project backing this table. */
+    private final String project;
+    /** Name of the PubSub topic backing this table. */
+    private final String topic;
+    /** Scan format for decoding records from PubSub. */
+    private final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
+    /** Data type that describes the final output of the source. */
+    private final DataType producedDataType;
 
     public PubsubDynamicSource(
             String project,
@@ -50,7 +56,6 @@ public class PubsubDynamicSource implements ScanTableSource {
                 decodingFormat.createRuntimeDecoder(runtimeProviderContext, producedDataType);
 
         try {
-            logger.info("create pubsub source");
             PubSubSource<RowData> source =
                     PubSubSource.newBuilder()
                             .withDeserializationSchema(deserializer)

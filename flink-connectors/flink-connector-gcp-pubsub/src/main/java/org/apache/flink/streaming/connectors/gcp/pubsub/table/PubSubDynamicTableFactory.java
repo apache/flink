@@ -3,7 +3,6 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -16,30 +15,23 @@ import org.apache.flink.table.types.DataType;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.streaming.connectors.gcp.pubsub.table.PubSubConnectorConfigOptions.NON_VALIDATED_PREFIXES;
+
+/** Factory for creating {@link PubsubDynamicSource}. */
 @Internal
-public class PubSubTableSourceFactory implements DynamicTableSourceFactory {
-
-    // define all options statically
-    public static final ConfigOption<String> PROJECT_NAME =
-            ConfigOptions.key("projectName").stringType().noDefaultValue();
-
-    public static final ConfigOption<String> TOPIC =
-            ConfigOptions.key("topic").stringType().noDefaultValue();
-
-    public static final ConfigOption<String> FORMAT =
-            ConfigOptions.key("format").stringType().noDefaultValue();
+public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
 
     @Override
     public String factoryIdentifier() {
-        return "pubsub";
+        return PubSubConnectorConfigOptions.IDENTIFIER;
     }
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(PROJECT_NAME);
-        options.add(TOPIC);
-        options.add(FORMAT);
+        options.add(PubSubConnectorConfigOptions.PROJECT_NAME);
+        options.add(PubSubConnectorConfigOptions.TOPIC);
+        options.add(FactoryUtil.FORMAT);
         return options;
     }
 
@@ -50,18 +42,17 @@ public class PubSubTableSourceFactory implements DynamicTableSourceFactory {
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
-        // either implement your custom validation logic here ...
-        // or use the provided helper utility
+
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(this, context);
 
         // validate all options
-        helper.validateExcept("json.");
+        helper.validateExcept(NON_VALIDATED_PREFIXES);
 
         // get the validated options
         final ReadableConfig options = helper.getOptions();
-        final String project = options.get(PROJECT_NAME);
-        final String topic = options.get(TOPIC);
+        final String project = options.get(PubSubConnectorConfigOptions.PROJECT_NAME);
+        final String topic = options.get(PubSubConnectorConfigOptions.TOPIC);
 
         // discover a suitable decoding format
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =

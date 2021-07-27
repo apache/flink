@@ -1,1 +1,1 @@
-org.apache.flink.streaming.connectors.gcp.pubsub.table.PubSubTableSourceFactory
+org.apache.flink.streaming.connectors.gcp.pubsub.table.PubSubDynamicTableFactory
