@@ -74,4 +74,12 @@ public class ConfigurationUtilsTest extends TestLogger {
 		assertThat(hiddenSensitiveValues, is(equalTo(expectedKeyValuePairs)));
 	}
 
+	@Test
+	public void testSplitPaths() {
+		final String file =
+			"file:///home/user/file/:file:///dir,s3://dir/a:hdfs://nameservice/dir1/file1,/hello:/world";
+
+		assertThat(ConfigurationUtils.splitPaths(file).length, is(equalTo(6)));
+	}
+
 }
