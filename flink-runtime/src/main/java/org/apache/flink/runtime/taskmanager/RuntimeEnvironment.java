@@ -44,6 +44,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import javax.annotation.Nullable;
@@ -100,6 +101,8 @@ public class RuntimeEnvironment implements Environment {
 
     @Nullable private ExecutorService asyncOperationsThreadPool;
 
+    private final ThroughputCalculator throughputCalculator;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -128,7 +131,8 @@ public class RuntimeEnvironment implements Environment {
             TaskManagerRuntimeInfo taskManagerInfo,
             TaskMetricGroup metrics,
             Task containingTask,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ThroughputCalculator throughputCalculator) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -156,6 +160,7 @@ public class RuntimeEnvironment implements Environment {
         this.containingTask = containingTask;
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
+        this.throughputCalculator = throughputCalculator;
     }
 
     // ------------------------------------------------------------------------
@@ -337,5 +342,10 @@ public class RuntimeEnvironment implements Environment {
         return checkNotNull(
                 asyncOperationsThreadPool,
                 "asyncOperationsThreadPool has not been initialized yet!");
+    }
+
+    @Override
+    public ThroughputCalculator getThroughputMeter() {
+        return throughputCalculator;
     }
 }

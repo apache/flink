@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
@@ -130,6 +131,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private ExecutorService asyncOperationsThreadPool;
 
+    private final ThroughputCalculator throughputCalculator;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -152,10 +155,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
             TaskMetricGroup taskMetricGroup,
             TaskManagerRuntimeInfo taskManagerRuntimeInfo,
             MemoryManager memManager,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ThroughputCalculator throughputCalculator) {
 
         this.jobID = jobID;
         this.jobVertexID = jobVertexID;
+        this.throughputCalculator = throughputCalculator;
 
         this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
         this.jobConfiguration = new Configuration();
@@ -310,6 +315,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         return taskEventDispatcher;
+    }
+
+    @Override
+    public ThroughputCalculator getThroughputMeter() {
+        return throughputCalculator;
     }
 
     @Override
