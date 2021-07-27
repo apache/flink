@@ -36,8 +36,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static java.net.HttpURLConnection.HTTP_GONE;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link KubernetesPodsWatcher}. */
 public class KubernetesPodsWatcherTest extends TestLogger {
