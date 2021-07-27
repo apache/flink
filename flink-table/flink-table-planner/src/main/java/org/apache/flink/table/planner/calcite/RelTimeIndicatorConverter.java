@@ -21,16 +21,38 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
+import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.plan.logical.LogicalWindow;
+import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
+import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
+import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalRank;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalTableAggregate;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate;
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowTableAggregate;
-import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDistribution;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntersect;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMinus;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableAggregate;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalUnion;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowTableAggregate;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
@@ -38,47 +60,35 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Collect;
 import org.apache.calcite.rel.core.SetOp;
-import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.core.Uncollect;
-import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalExchange;
-import org.apache.calcite.rel.logical.LogicalFilter;
-import org.apache.calcite.rel.logical.LogicalIntersect;
-import org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.calcite.rel.logical.LogicalMatch;
-import org.apache.calcite.rel.logical.LogicalMinus;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.rel.logical.LogicalSnapshot;
-import org.apache.calcite.rel.logical.LogicalSort;
-import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableModify;
-import org.apache.calcite.rel.logical.LogicalUnion;
-import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexPatternFieldRef;
+import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Pair;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,19 +102,23 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
+
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isProctimeIndicatorType;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.isTimeIndicatorType;
 import static org.apache.flink.table.planner.plan.utils.MatchUtil.isFinalOnRowTimeIndicator;
 import static org.apache.flink.table.planner.plan.utils.MatchUtil.isMatchRowTimeIndicator;
 import static org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd;
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
 /**
  * Traverses a {@link RelNode} tree and converts fields with {@link TimeIndicatorRelDataType} type.
  * If a time attribute is accessed for a calculation, it will be materialized. Forwarding is allowed
  * in some cases, but not all.
  */
-public final class RelTimeIndicatorConverter implements RelShuttle {
+public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
     private final RexBuilder rexBuilder;
 
@@ -117,9 +131,9 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
         RelTimeIndicatorConverter converter = new RelTimeIndicatorConverter(rexBuilder);
         RelNode convertedRoot = rootRel.accept(converter);
 
-        // LogicalLegacySink and LogicalSink are already converted
-        if (rootRel instanceof LogicalLegacySink
-                || rootRel instanceof LogicalSink
+        // FlinkLogicalLegacySink and FlinkLogicalSink are already converted
+        if (rootRel instanceof FlinkLogicalLegacySink
+                || rootRel instanceof FlinkLogicalSink
                 || !needFinalTimeIndicatorConversion) {
             return convertedRoot;
         }
@@ -128,32 +142,58 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
     }
 
     @Override
-    public RelNode visit(LogicalIntersect intersect) {
-        return visitSetOp(intersect);
+    public RelNode visit(RelNode node) {
+        if (node instanceof FlinkLogicalValues || node instanceof TableScan) {
+            return node;
+        } else if (node instanceof FlinkLogicalIntersect
+                || node instanceof FlinkLogicalUnion
+                || node instanceof FlinkLogicalMinus) {
+            return visitSetOp((SetOp) node);
+        } else if (node instanceof FlinkLogicalTableFunctionScan
+                || node instanceof FlinkLogicalSnapshot
+                || node instanceof FlinkLogicalRank
+                || node instanceof FlinkLogicalDistribution
+                || node instanceof FlinkLogicalWatermarkAssigner
+                || node instanceof FlinkLogicalSort
+                || node instanceof FlinkLogicalOverAggregate
+                || node instanceof FlinkLogicalExpand) {
+            return visitSimpleRel(node);
+        } else if (node instanceof FlinkLogicalWindowAggregate) {
+            return visitWindowAggregate((FlinkLogicalWindowAggregate) node);
+        } else if (node instanceof FlinkLogicalWindowTableAggregate) {
+            return visitWindowTableAggregate((FlinkLogicalWindowTableAggregate) node);
+        } else if (node instanceof FlinkLogicalAggregate) {
+            return visitAggregate((FlinkLogicalAggregate) node);
+        } else if (node instanceof FlinkLogicalTableAggregate) {
+            return visitTableAggregate((FlinkLogicalTableAggregate) node);
+        } else if (node instanceof FlinkLogicalMatch) {
+            return visitMatch((FlinkLogicalMatch) node);
+        } else if (node instanceof FlinkLogicalCalc) {
+            return visitCalc((FlinkLogicalCalc) node);
+        } else if (node instanceof FlinkLogicalCorrelate) {
+            return visitCorrelate((FlinkLogicalCorrelate) node);
+        } else if (node instanceof FlinkLogicalJoin) {
+            return visitJoin((FlinkLogicalJoin) node);
+        } else if (node instanceof FlinkLogicalSink) {
+            return visitSink((FlinkLogicalSink) node);
+        } else if (node instanceof FlinkLogicalLegacySink) {
+            return visitSink((FlinkLogicalLegacySink) node);
+        } else {
+            return visitInvalidRel(node);
+        }
     }
 
     @Override
-    public RelNode visit(LogicalUnion union) {
-        return visitSetOp(union);
+    public RelNode visit(LogicalCalc calc) {
+        return visitInvalidRel(calc);
     }
 
     @Override
-    public RelNode visit(LogicalMinus minus) {
-        return visitSetOp(minus);
+    public RelNode visit(LogicalTableModify modify) {
+        return visitInvalidRel(modify);
     }
 
-    @Override
-    public RelNode visit(LogicalAggregate aggregate) {
-        return visitAggregate(aggregate);
-    }
-
-    @Override
-    public RelNode visit(LogicalSort sort) {
-        return visitSimpleRel(sort);
-    }
-
-    @Override
-    public RelNode visit(LogicalMatch match) {
+    private RelNode visitMatch(FlinkLogicalMatch match) {
         RelNode newInput = match.getInput().accept(this);
         RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newInput);
 
@@ -193,7 +233,7 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
         RelDataType newOutputType =
                 getRowTypeWithoutTimeIndicator(
                         match.getRowType(), isTimestampLtz, isNoLongerTimeIndicator);
-        return new LogicalMatch(
+        return new FlinkLogicalMatch(
                 match.getCluster(),
                 match.getTraitSet(),
                 newInput,
@@ -211,133 +251,35 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                 newInterval);
     }
 
-    @Override
-    public RelNode visit(RelNode node) {
-        if (node instanceof Collect) {
-            return node;
-        } else if (node instanceof Uncollect
-                || node instanceof LogicalTableFunctionScan
-                || node instanceof LogicalSnapshot
-                || node instanceof LogicalRank
-                || node instanceof LogicalDistribution
-                || node instanceof LogicalWatermarkAssigner) {
-            return visitSimpleRel(node);
-        } else if (node instanceof LogicalWindowAggregate) {
-            return visitAggregate((LogicalWindowAggregate) node);
-        } else if (node instanceof LogicalWindowTableAggregate) {
-            LogicalWindowTableAggregate tableAgg = (LogicalWindowTableAggregate) node;
-            LogicalWindowAggregate correspondingAgg =
-                    new LogicalWindowAggregate(
-                            tableAgg.getCluster(),
-                            tableAgg.getTraitSet(),
-                            tableAgg.getInput(),
-                            tableAgg.getGroupSet(),
-                            tableAgg.getAggCallList(),
-                            tableAgg.getWindow(),
-                            tableAgg.getNamedProperties());
-            LogicalWindowAggregate convertedAgg =
-                    (LogicalWindowAggregate) visitAggregate(correspondingAgg);
-            return new LogicalWindowTableAggregate(
-                    tableAgg.getCluster(),
-                    tableAgg.getTraitSet(),
-                    convertedAgg.getInput(),
-                    tableAgg.getGroupSet(),
-                    tableAgg.getGroupSets(),
-                    convertedAgg.getAggCallList(),
-                    tableAgg.getWindow(),
-                    tableAgg.getNamedProperties());
-        } else if (node instanceof LogicalTableAggregate) {
-            LogicalTableAggregate tableAgg = (LogicalTableAggregate) node;
-            LogicalAggregate correspondingAgg =
-                    LogicalAggregate.create(
-                            tableAgg.getInput(),
-                            tableAgg.getGroupSet(),
-                            tableAgg.getGroupSets(),
-                            tableAgg.getAggCallList());
-            LogicalAggregate convertedAgg = (LogicalAggregate) visitAggregate(correspondingAgg);
-            return new LogicalTableAggregate(
-                    tableAgg.getCluster(),
-                    tableAgg.getTraitSet(),
-                    convertedAgg.getInput(),
-                    convertedAgg.getGroupSet(),
-                    convertedAgg.getGroupSets(),
-                    convertedAgg.getAggCallList());
-        } else if (node instanceof LogicalSink) {
-            return visitSink((LogicalSink) node);
-        } else if (node instanceof LogicalLegacySink) {
-            return visitSink((LogicalLegacySink) node);
-        } else {
-            throw new TableException(
-                    "Unsupported logical operator: " + node.getClass().getSimpleName());
-        }
-    }
-
-    @Override
-    public RelNode visit(LogicalExchange exchange) {
-        throw new TableException("Logical exchange in a stream environment is not supported yet.");
-    }
-
-    @Override
-    public RelNode visit(TableScan scan) {
-        return scan;
-    }
-
-    @Override
-    public RelNode visit(TableFunctionScan scan) {
-        throw new TableException(
-                "Table function scan in a stream environment is not supported yet.");
-    }
-
-    @Override
-    public RelNode visit(LogicalValues values) {
-        return values;
-    }
-
-    @Override
-    public RelNode visit(LogicalFilter filter) {
+    private RelNode visitCalc(FlinkLogicalCalc calc) {
         // visit children and update inputs
-        RelNode newInput = filter.getInput().accept(this);
-
-        // check if input field contains time indicator type
-        // materialize field if no time indicator is present anymore
-        // if input field is already materialized, change to timestamp type
-        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newInput);
-        // materialize condition due to filter will validate condition type
-        RexNode newCondition = null;
-        if (filter.getCondition() != null) {
-            newCondition = filter.getCondition().accept(materializer);
-        }
-        return LogicalFilter.create(newInput, newCondition);
-    }
-
-    @Override
-    public RelNode visit(LogicalProject project) {
-        // visit children and update inputs
-        RelNode newInput = project.getInput().accept(this);
+        RelNode newInput = calc.getInput().accept(this);
+        RexProgram program = calc.getProgram();
 
         // check if input field contains time indicator type
         // materialize field if no time indicator is present anymore
         // if input field is already materialized, change to timestamp type
         RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(newInput);
         List<RexNode> newProjects =
-                project.getProjects().stream()
-                        .map(p -> p.accept(materializer))
+                program.getProjectList().stream()
+                        .map(project -> program.expandLocalRef(project).accept(materializer))
                         .collect(Collectors.toList());
-        return LogicalProject.create(
-                newInput,
-                Collections.emptyList(),
-                newProjects,
-                project.getRowType().getFieldNames());
+        // materialize condition due to filter will validate condition type
+        RexNode newCondition = null;
+        if (program.getCondition() != null) {
+            newCondition = program.expandLocalRef(program.getCondition()).accept(materializer);
+        }
+        RexProgram newProgram =
+                RexProgram.create(
+                        newInput.getRowType(),
+                        newProjects,
+                        newCondition,
+                        program.getOutputRowType().getFieldNames(),
+                        rexBuilder);
+        return calc.copy(calc.getTraitSet(), newInput, newProgram);
     }
 
-    @Override
-    public RelNode visit(LogicalCalc calc) {
-        // Do nothing for Calc now.
-        return calc;
-    }
-
-    @Override
-    public RelNode visit(LogicalJoin join) {
+    private RelNode visitJoin(FlinkLogicalJoin join) {
         RelNode newLeft = join.getLeft().accept(this);
         RelNode newRight = join.getRight().accept(this);
         int leftFieldCount = newLeft.getRowType().getFieldCount();
@@ -358,7 +300,7 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                     IntStream.range(0, newRight.getRowType().getFieldCount())
                             .mapToObj(startIdx -> leftFieldCount + startIdx)
                             .collect(Collectors.toSet());
-            return createProjectToMaterializeTimeIndicators(rewrittenTemporalJoin, rightIndices);
+            return createCalcToMaterializeTimeIndicators(rewrittenTemporalJoin, rightIndices);
         } else {
             List<RelDataTypeField> leftRightFields = new ArrayList<>();
             leftRightFields.addAll(newLeft.getRowType().getFieldList());
@@ -378,23 +320,16 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                                             }
                                         }
                                     });
-            return LogicalJoin.create(
-                    newLeft,
-                    newRight,
-                    Collections.emptyList(),
-                    newCondition,
-                    join.getVariablesSet(),
-                    join.getJoinType());
+            return FlinkLogicalJoin.create(newLeft, newRight, newCondition, join.getJoinType());
         }
     }
 
-    @Override
-    public RelNode visit(LogicalCorrelate correlate) {
+    private RelNode visitCorrelate(FlinkLogicalCorrelate correlate) {
         // visit children and update inputs
         RelNode newLeft = correlate.getLeft().accept(this);
         RelNode newRight = correlate.getRight().accept(this);
-        if (newRight instanceof LogicalTableFunctionScan) {
-            LogicalTableFunctionScan newScan = (LogicalTableFunctionScan) newRight;
+        if (newRight instanceof FlinkLogicalTableFunctionScan) {
+            FlinkLogicalTableFunctionScan newScan = (FlinkLogicalTableFunctionScan) newRight;
             List<RelNode> newScanInputs =
                     newScan.getInputs().stream()
                             .map(input -> input.accept(this))
@@ -414,17 +349,12 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                             newScan.getRowType(),
                             newScan.getColumnMappings());
         }
-        return LogicalCorrelate.create(
+        return FlinkLogicalCorrelate.create(
                 newLeft,
                 newRight,
                 correlate.getCorrelationId(),
                 correlate.getRequiredColumns(),
                 correlate.getJoinType());
-    }
-
-    @Override
-    public RelNode visit(LogicalTableModify modify) {
-        return visitSimpleRel(modify);
     }
 
     private RelNode visitSimpleRel(RelNode node) {
@@ -456,21 +386,22 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
 
     private RelNode visitSink(SingleRel sink) {
         Preconditions.checkArgument(
-                sink instanceof LogicalLegacySink || sink instanceof LogicalSink);
+                sink instanceof FlinkLogicalLegacySink || sink instanceof FlinkLogicalSink);
         RelNode newInput = sink.getInput().accept(this);
         newInput = materializeProcTime(newInput);
         return sink.copy(sink.getTraitSet(), Collections.singletonList(newInput));
     }
 
-    private RelNode visitAggregate(Aggregate agg) {
+    private FlinkLogicalAggregate visitAggregate(FlinkLogicalAggregate agg) {
         RelNode newInput = convertAggInput(agg);
         List<AggregateCall> updatedAggCalls = convertAggregateCalls(agg);
-        return agg.copy(
-                agg.getTraitSet(),
-                newInput,
-                agg.getGroupSet(),
-                agg.getGroupSets(),
-                updatedAggCalls);
+        return (FlinkLogicalAggregate)
+                agg.copy(
+                        agg.getTraitSet(),
+                        newInput,
+                        agg.getGroupSet(),
+                        agg.getGroupSets(),
+                        updatedAggCalls);
     }
 
     private RelNode convertAggInput(Aggregate agg) {
@@ -544,11 +475,153 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                 .collect(Collectors.toList());
     }
 
+    private RelNode visitTableAggregate(FlinkLogicalTableAggregate node) {
+        FlinkLogicalTableAggregate tableAgg = node;
+        FlinkLogicalAggregate correspondingAgg =
+                FlinkLogicalAggregate.create(
+                        tableAgg.getInput(),
+                        tableAgg.getGroupSet(),
+                        tableAgg.getGroupSets(),
+                        tableAgg.getAggCallList());
+        FlinkLogicalAggregate convertedAgg = visitAggregate(correspondingAgg);
+        return new FlinkLogicalTableAggregate(
+                tableAgg.getCluster(),
+                tableAgg.getTraitSet(),
+                convertedAgg.getInput(),
+                convertedAgg.getGroupSet(),
+                convertedAgg.getGroupSets(),
+                convertedAgg.getAggCallList());
+    }
+
+    private FlinkLogicalWindowAggregate visitWindowAggregate(FlinkLogicalWindowAggregate agg) {
+        RelNode newInput = convertAggInput(agg);
+        List<AggregateCall> updatedAggCalls = convertAggregateCalls(agg);
+        LogicalWindow oldWindow = agg.getWindow();
+        Seq<PlannerNamedWindowProperty> oldNamedProperties = agg.getNamedProperties();
+        FieldReferenceExpression oldTimeAttribute = agg.getWindow().timeAttribute();
+        LogicalType oldTimeAttributeType = oldTimeAttribute.getOutputDataType().getLogicalType();
+        boolean isRowtimeIndicator = LogicalTypeChecks.isRowtimeAttribute(oldTimeAttributeType);
+        boolean convertedToRowtimeTimestampLtz;
+        if (!isRowtimeIndicator) {
+            convertedToRowtimeTimestampLtz = false;
+        } else {
+            int timeIndicatorIdx = oldTimeAttribute.getFieldIndex();
+            RelDataType oldType =
+                    agg.getInput().getRowType().getFieldList().get(timeIndicatorIdx).getType();
+            RelDataType newType =
+                    newInput.getRowType().getFieldList().get(timeIndicatorIdx).getType();
+            convertedToRowtimeTimestampLtz =
+                    isTimestampLtzType(newType) && !isTimestampLtzType(oldType);
+        }
+        LogicalWindow newWindow;
+        Seq<PlannerNamedWindowProperty> newNamedProperties;
+        if (convertedToRowtimeTimestampLtz) {
+            // MATCH_ROWTIME may be converted from rowtime attribute to timestamp_ltz rowtime
+            // attribute, if time indicator of current window aggregate depends on input
+            // MATCH_ROWTIME, we should rewrite logicalWindow and namedProperties.
+            LogicalType newTimestampLtzType =
+                    new LocalZonedTimestampType(
+                            oldTimeAttributeType.isNullable(), TimestampKind.ROWTIME, 3);
+            FieldReferenceExpression newFieldRef =
+                    new FieldReferenceExpression(
+                            oldTimeAttribute.getName(),
+                            fromLogicalTypeToDataType(newTimestampLtzType),
+                            oldTimeAttribute.getInputIndex(),
+                            oldTimeAttribute.getFieldIndex());
+            PlannerWindowReference newAlias =
+                    new PlannerWindowReference(
+                            oldWindow.aliasAttribute().getName(), newTimestampLtzType);
+            if (oldWindow instanceof TumblingGroupWindow) {
+                TumblingGroupWindow window = (TumblingGroupWindow) oldWindow;
+                newWindow = new TumblingGroupWindow(newAlias, newFieldRef, window.size());
+            } else if (oldWindow instanceof SlidingGroupWindow) {
+                SlidingGroupWindow window = (SlidingGroupWindow) oldWindow;
+                newWindow =
+                        new SlidingGroupWindow(
+                                newAlias, newFieldRef, window.size(), window.slide());
+            } else if (oldWindow instanceof SessionGroupWindow) {
+                SessionGroupWindow window = (SessionGroupWindow) oldWindow;
+                newWindow = new SessionGroupWindow(newAlias, newFieldRef, window.gap());
+            } else {
+                throw new TableException(
+                        String.format(
+                                "This is a bug and should not happen. Please file an issue. Invalid window %s.",
+                                oldWindow.getClass().getSimpleName()));
+            }
+            List<PlannerNamedWindowProperty> newNamedPropertiesList =
+                    JavaConverters.seqAsJavaListConverter(oldNamedProperties).asJava().stream()
+                            .map(
+                                    namedProperty -> {
+                                        if (namedProperty.getProperty()
+                                                instanceof PlannerRowtimeAttribute) {
+                                            return new PlannerNamedWindowProperty(
+                                                    namedProperty.getName(),
+                                                    new PlannerRowtimeAttribute(newAlias));
+                                        } else {
+                                            return namedProperty;
+                                        }
+                                    })
+                            .collect(Collectors.toList());
+            newNamedProperties =
+                    JavaConverters.iterableAsScalaIterableConverter(newNamedPropertiesList)
+                            .asScala()
+                            .toSeq();
+        } else {
+            newWindow = oldWindow;
+            newNamedProperties = oldNamedProperties;
+        }
+        return new FlinkLogicalWindowAggregate(
+                agg.getCluster(),
+                agg.getTraitSet(),
+                newInput,
+                agg.getGroupSet(),
+                updatedAggCalls,
+                newWindow,
+                newNamedProperties);
+    }
+
+    private RelNode visitWindowTableAggregate(FlinkLogicalWindowTableAggregate node) {
+        FlinkLogicalWindowTableAggregate tableAgg = node;
+        FlinkLogicalWindowAggregate correspondingAgg =
+                new FlinkLogicalWindowAggregate(
+                        tableAgg.getCluster(),
+                        tableAgg.getTraitSet(),
+                        tableAgg.getInput(),
+                        tableAgg.getGroupSet(),
+                        tableAgg.getAggCallList(),
+                        tableAgg.getWindow(),
+                        tableAgg.getNamedProperties());
+        FlinkLogicalWindowAggregate convertedWindowAgg = visitWindowAggregate(correspondingAgg);
+        return new FlinkLogicalWindowTableAggregate(
+                tableAgg.getCluster(),
+                tableAgg.getTraitSet(),
+                convertedWindowAgg.getInput(),
+                tableAgg.getGroupSet(),
+                tableAgg.getGroupSets(),
+                convertedWindowAgg.getAggCallList(),
+                tableAgg.getWindow(),
+                tableAgg.getNamedProperties());
+    }
+
+    private RelNode visitInvalidRel(RelNode node) {
+        throw new TableException(
+                String.format(
+                        "This is a bug and should not happen. Please file an issue. Unknown node %s.",
+                        node.getRelTypeName()));
+    }
+
     // ----------------------------------------------------------------------------------------
     //                                       Utility
     // ----------------------------------------------------------------------------------------
 
     private RelNode materializeProcTime(RelNode node) {
+        // there is no need to add a redundant calc to materialize proc-time if input is empty
+        // values. Otherwise we need add a PruneEmptyRules after the RelTimeIndicatorConverter to
+        // remove the redundant calc.
+        if (node instanceof FlinkLogicalValues
+                && FlinkLogicalValues.isEmpty((FlinkLogicalValues) node)) {
+            return node;
+        }
         Set<Integer> procTimeFieldIndices = gatherProcTimeIndices(node);
         return materializeTimeIndicators(node, procTimeFieldIndices);
     }
@@ -557,42 +630,39 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
         if (timeIndicatorIndices.isEmpty()) {
             return node;
         }
-        // insert or merge with input project if
+        // insert or merge with input calc if
         // a time attribute is accessed and needs to be materialized
-        if (node instanceof LogicalProject) {
+        if (node instanceof FlinkLogicalCalc) {
             // merge original calc
-            return mergeProjectToMaterializeTimeIndicators(
-                    (LogicalProject) node, timeIndicatorIndices);
+            return mergeCalcToMaterializeTimeIndicators(
+                    (FlinkLogicalCalc) node, timeIndicatorIndices);
         } else {
-            return createProjectToMaterializeTimeIndicators(node, timeIndicatorIndices);
+            return createCalcToMaterializeTimeIndicators(node, timeIndicatorIndices);
         }
     }
 
-    private RelNode mergeProjectToMaterializeTimeIndicators(
-            LogicalProject project, Set<Integer> refIndices) {
-        List<RexNode> oldProjects = project.getProjects();
-        List<RexNode> newProjects =
-                IntStream.range(0, oldProjects.size())
-                        .mapToObj(
-                                idx -> {
-                                    RexNode oldProject = oldProjects.get(idx);
-                                    if (refIndices.contains(idx)) {
-                                        return materializeTimeIndicators(oldProject);
-                                    } else {
-                                        return oldProject;
-                                    }
-                                })
-                        .collect(Collectors.toList());
-        return LogicalProject.create(
-                project.getInput(),
-                Collections.emptyList(),
-                newProjects,
-                project.getRowType().getFieldNames());
+    private RelNode mergeCalcToMaterializeTimeIndicators(
+            FlinkLogicalCalc calc, Set<Integer> refIndices) {
+        RexProgram program = calc.getProgram();
+        RexProgramBuilder newProgramBuilder =
+                new RexProgramBuilder(program.getInputRowType(), rexBuilder);
+        for (int idx = 0; idx < program.getNamedProjects().size(); idx++) {
+            Pair<RexLocalRef, String> pair = program.getNamedProjects().get(idx);
+            RexNode project = program.expandLocalRef(pair.left);
+            if (refIndices.contains(idx)) {
+                project = materializeTimeIndicators(project);
+            }
+            newProgramBuilder.addProject(project, pair.right);
+        }
+        if (program.getCondition() != null) {
+            newProgramBuilder.addCondition(program.expandLocalRef(program.getCondition()));
+        }
+        RexProgram newProgram = newProgramBuilder.getProgram();
+        return FlinkLogicalCalc.create(calc.getInput(), newProgram);
     }
 
-    private RelNode createProjectToMaterializeTimeIndicators(
-            RelNode input, Set<Integer> refIndices) {
-        // create new project
+    private RelNode createCalcToMaterializeTimeIndicators(RelNode input, Set<Integer> refIndices) {
+        // create new calc
         List<RexNode> projects =
                 input.getRowType().getFieldList().stream()
                         .map(
@@ -605,8 +675,14 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                                     return project;
                                 })
                         .collect(Collectors.toList());
-        return LogicalProject.create(
-                input, Collections.emptyList(), projects, input.getRowType().getFieldNames());
+        RexProgram newProgram =
+                RexProgram.create(
+                        input.getRowType(),
+                        projects,
+                        null,
+                        input.getRowType().getFieldNames(),
+                        rexBuilder);
+        return FlinkLogicalCalc.create(input, newProgram);
     }
 
     private RexNode materializeTimeIndicators(RexNode expr) {
@@ -768,7 +844,9 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                         || updatedCallOp == FlinkSqlOperatorTable.SESSION_PROCTIME
                         || updatedCallOp == FlinkSqlOperatorTable.MATCH_PROCTIME
                         || updatedCallOp == FlinkSqlOperatorTable.PROCTIME
-                        || updatedCallOp == SqlStdOperatorTable.AS) {
+                        || updatedCallOp == SqlStdOperatorTable.AS
+                        || updatedCallOp == SqlStdOperatorTable.CAST
+                        || updatedCallOp == FlinkSqlOperatorTable.REINTERPRET) {
                     return updatedCall;
                 } else {
                     // materialize function's result and operands

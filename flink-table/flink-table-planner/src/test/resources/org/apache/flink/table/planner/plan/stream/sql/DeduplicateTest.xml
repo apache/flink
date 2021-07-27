@@ -207,7 +207,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS rowNum])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS $5])
 +- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
@@ -237,7 +237,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS rowNum])
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS $5])
 +- Deduplicate(keep=[LastRow], key=[], order=[PROCTIME])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
