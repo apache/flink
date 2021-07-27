@@ -25,6 +25,7 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
@@ -44,6 +45,7 @@ import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
@@ -93,8 +95,9 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     public static final String FIELD_NAME_VALUE_TYPE = "valueType";
     // ArrayType/MultiSetType
     public static final String FIELD_NAME_ELEMENT_TYPE = "elementType";
-    // data view class
+    // RawType for DataView
     public static final String FIELD_NAME_DATA_VIEW_CLASS = "dataViewClass";
+    public static final String FIELD_NAME_IS_INTERNAL_TYPE = "isInternal";
 
     public LogicalTypeJsonSerializer() {
         super(LogicalType.class);
@@ -396,9 +399,8 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                         "ExternalSerializer with `isInternalInput=true` is not supported.");
             }
             DataType dataType = externalSer.getDataType();
-            LogicalType logicalType = LogicalTypeDataTypeConverter.toLogicalType(dataType);
-            boolean isMapView = DataViewUtils.isDataView(logicalType, MapView.class);
-            boolean isListView = DataViewUtils.isDataView(logicalType, ListView.class);
+            boolean isMapView = DataViewUtils.isMapViewDataType(dataType);
+            boolean isListView = DataViewUtils.isListViewDataType(dataType);
             if (isMapView || isListView) {
                 jsonGenerator.writeStartObject();
                 jsonGenerator.writeStringField(FIELD_NAME_TYPE_NAME, LogicalTypeRoot.RAW.name());
@@ -406,17 +408,28 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
                 if (isMapView) {
                     jsonGenerator.writeStringField(
                             FIELD_NAME_DATA_VIEW_CLASS, MapView.class.getName());
-                    MapType mapType = DataViewUtils.extractKeyValueTypeForMapView(dataType);
-                    jsonGenerator.writeFieldName(FIELD_NAME_KEY_TYPE);
-                    serialize(mapType.getKeyType(), jsonGenerator, serializerProvider);
-                    jsonGenerator.writeFieldName(FIELD_NAME_VALUE_TYPE);
-                    serialize(mapType.getValueType(), jsonGenerator, serializerProvider);
+                    KeyValueDataType keyValueDataType =
+                            DataViewUtils.extractKeyValueDataTypeForMapView(dataType);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_KEY_TYPE,
+                            keyValueDataType.getKeyDataType(),
+                            jsonGenerator,
+                            serializerProvider);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_VALUE_TYPE,
+                            keyValueDataType.getValueDataType(),
+                            jsonGenerator,
+                            serializerProvider);
                 } else {
                     jsonGenerator.writeStringField(
                             FIELD_NAME_DATA_VIEW_CLASS, ListView.class.getName());
-                    LogicalType elementType = DataViewUtils.extractElementTypeForListView(dataType);
-                    jsonGenerator.writeFieldName(FIELD_NAME_ELEMENT_TYPE);
-                    serialize(elementType, jsonGenerator, serializerProvider);
+                    DataType elementType =
+                            DataViewUtils.extractElementDataTypeForListView(dataType);
+                    serializeDataTypeForDataView(
+                            FIELD_NAME_ELEMENT_TYPE,
+                            elementType,
+                            jsonGenerator,
+                            serializerProvider);
                 }
                 jsonGenerator.writeEndObject();
                 return;
@@ -424,5 +437,21 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         }
 
         jsonGenerator.writeObject(rawType.asSerializableString());
+    }
+
+    private void serializeDataTypeForDataView(
+            String key,
+            DataType dataType,
+            JsonGenerator jsonGenerator,
+            SerializerProvider serializerProvider)
+            throws IOException {
+        jsonGenerator.writeFieldName(key);
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeBooleanField(
+                FIELD_NAME_IS_INTERNAL_TYPE, DataTypeUtils.isInternal(dataType));
+        jsonGenerator.writeFieldName(FIELD_NAME_TYPE_NAME);
+        LogicalType logicalType = LogicalTypeDataTypeConverter.toLogicalType(dataType);
+        serialize(logicalType, jsonGenerator, serializerProvider);
+        jsonGenerator.writeEndObject();
     }
 }

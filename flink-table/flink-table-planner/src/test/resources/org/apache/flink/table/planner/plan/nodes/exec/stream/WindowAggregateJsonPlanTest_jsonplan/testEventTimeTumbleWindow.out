@@ -381,7 +381,10 @@
               "type" : "RAW",
               "nullable" : true,
               "dataViewClass" : "org.apache.flink.table.api.dataview.ListView",
-              "elementType" : "VARCHAR(2147483647)"
+              "elementType" : {
+                "isInternal" : false,
+                "type" : "VARCHAR(2147483647)"
+              }
             }
           }, {
             "name" : "map",
@@ -389,8 +392,14 @@
               "type" : "RAW",
               "nullable" : true,
               "dataViewClass" : "org.apache.flink.table.api.dataview.MapView",
-              "keyType" : "VARCHAR(2147483647)",
-              "valueType" : "BOOLEAN"
+              "keyType" : {
+                "isInternal" : false,
+                "type" : "VARCHAR(2147483647)"
+              },
+              "valueType" : {
+                "isInternal" : true,
+                "type" : "BOOLEAN"
+              }
             }
           } ],
           "final" : true,
@@ -402,8 +411,14 @@
           "type" : "RAW",
           "nullable" : true,
           "dataViewClass" : "org.apache.flink.table.api.dataview.MapView",
-          "keyType" : "VARCHAR(2147483647)",
-          "valueType" : "BIGINT NOT NULL"
+          "keyType" : {
+            "isInternal" : true,
+            "type" : "VARCHAR(2147483647)"
+          },
+          "valueType" : {
+            "isInternal" : true,
+            "type" : "BIGINT NOT NULL"
+          }
         }
       }, {
         "$slice_end" : "BIGINT"
@@ -443,7 +458,10 @@
               "type" : "RAW",
               "nullable" : true,
               "dataViewClass" : "org.apache.flink.table.api.dataview.ListView",
-              "elementType" : "VARCHAR(2147483647)"
+              "elementType" : {
+                "isInternal" : false,
+                "type" : "VARCHAR(2147483647)"
+              }
             }
           }, {
             "name" : "map",
@@ -451,8 +469,14 @@
               "type" : "RAW",
               "nullable" : true,
               "dataViewClass" : "org.apache.flink.table.api.dataview.MapView",
-              "keyType" : "VARCHAR(2147483647)",
-              "valueType" : "BOOLEAN"
+              "keyType" : {
+                "isInternal" : false,
+                "type" : "VARCHAR(2147483647)"
+              },
+              "valueType" : {
+                "isInternal" : true,
+                "type" : "BOOLEAN"
+              }
             }
           } ],
           "final" : true,
@@ -464,8 +488,14 @@
           "type" : "RAW",
           "nullable" : true,
           "dataViewClass" : "org.apache.flink.table.api.dataview.MapView",
-          "keyType" : "VARCHAR(2147483647)",
-          "valueType" : "BIGINT NOT NULL"
+          "keyType" : {
+            "isInternal" : true,
+            "type" : "VARCHAR(2147483647)"
+          },
+          "valueType" : {
+            "isInternal" : true,
+            "type" : "BIGINT NOT NULL"
+          }
         }
       }, {
         "$slice_end" : "BIGINT"

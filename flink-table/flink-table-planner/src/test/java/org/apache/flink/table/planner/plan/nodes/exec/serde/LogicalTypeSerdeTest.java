@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -63,6 +64,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -247,67 +249,78 @@ public class LogicalTypeSerdeTest {
                         new RawType<>(
                                 PojoClass.class,
                                 new KryoSerializer<>(PojoClass.class, new ExecutionConfig())));
-        List<LogicalType> newTypes = new ArrayList<>();
+        List<LogicalType> mutableTypes = new ArrayList<>(types);
+        // RawType for MapView
+        addRawTypesForMapView(mutableTypes, new VarCharType(100), new VarCharType(100));
+        addRawTypesForMapView(mutableTypes, new VarCharType(100), new BigIntType());
+        addRawTypesForMapView(mutableTypes, new BigIntType(), new VarCharType(100));
+        addRawTypesForMapView(mutableTypes, new BigIntType(), new BigIntType());
+        // RawType for ListView
+        addRawTypesForListView(mutableTypes, new VarCharType(100));
+        addRawTypesForListView(mutableTypes, new BigIntType());
+
+        List<LogicalType> finalTypes = new ArrayList<>();
         // consider nullable
-        for (LogicalType type : types) {
-            newTypes.add(type.copy(true));
-            newTypes.add(type.copy(false));
+        for (LogicalType type : mutableTypes) {
+            finalTypes.add(type.copy(true));
+            finalTypes.add(type.copy(false));
         }
         // ignore nullable for NullType
-        newTypes.add(new NullType());
-        // RawType for MapView
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                MapView.newMapViewDataType(
-                                        toDataType(new IntType(false)),
-                                        toDataType(new BigIntType(false))),
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                MapView.newMapViewDataType(
-                                        toDataType(new IntType(true)), // key is nullable
-                                        toDataType(new BigIntType(false))),
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                MapView.newMapViewDataType(
-                                        toDataType(new IntType(false)),
-                                        toDataType(new BigIntType(true))), // value is nullable
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                MapView.newMapViewDataType(
-                                        toDataType(new IntType(true)), // key is nullable
-                                        toDataType(new BigIntType(true))), // value is nullable
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                MapView.newMapViewDataType(
-                                        toDataType(new IntType(true)),
-                                        toDataType(new BigIntType(true))),
-                                true)));
-        // RawType for ListView
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                ListView.newListViewDataType(toDataType(new BigIntType(false))),
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                ListView.newListViewDataType(toDataType(new BigIntType(true))),
-                                false)));
-        newTypes.add(
-                toLogicalType(
-                        DataViewUtils.adjustDataViews(
-                                ListView.newListViewDataType(toDataType(new BigIntType(true))),
-                                true)));
-        return newTypes;
+        finalTypes.add(new NullType());
+        return finalTypes;
+    }
+
+    private static void addRawTypesForMapView(
+            List<LogicalType> types, LogicalType keyType, LogicalType valueType) {
+        for (boolean hasStateBackedDataViews : Arrays.asList(true, false)) {
+            for (boolean keyNullable : Arrays.asList(true, false)) {
+                for (boolean isInternalKeyType : Arrays.asList(true, false)) {
+                    for (boolean valueNullable : Arrays.asList(true, false)) {
+                        for (boolean isInternalValueType : Arrays.asList(true, false)) {
+                            types.add(
+                                    toLogicalType(
+                                            DataViewUtils.adjustDataViews(
+                                                    MapView.newMapViewDataType(
+                                                            convertToInternalTypeIfNeeded(
+                                                                    toDataType(
+                                                                            keyType.copy(
+                                                                                    keyNullable)),
+                                                                    isInternalKeyType),
+                                                            convertToInternalTypeIfNeeded(
+                                                                    toDataType(
+                                                                            valueType.copy(
+                                                                                    valueNullable)),
+                                                                    isInternalValueType)),
+                                                    hasStateBackedDataViews)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void addRawTypesForListView(List<LogicalType> types, LogicalType elementType) {
+        for (boolean hasStateBackedDataViews : Arrays.asList(true, false)) {
+            for (boolean elementNullable : Arrays.asList(true, false)) {
+                for (boolean isInternalType : Arrays.asList(true, false)) {
+                    types.add(
+                            toLogicalType(
+                                    DataViewUtils.adjustDataViews(
+                                            ListView.newListViewDataType(
+                                                    convertToInternalTypeIfNeeded(
+                                                            toDataType(
+                                                                    elementType.copy(
+                                                                            elementNullable)),
+                                                            isInternalType)),
+                                            hasStateBackedDataViews)));
+                }
+            }
+        }
+    }
+
+    private static DataType convertToInternalTypeIfNeeded(
+            DataType dataType, boolean isInternalType) {
+        return isInternalType ? DataTypeUtils.toInternalDataType(dataType) : dataType;
     }
 
     /** Testing class. */

@@ -45,6 +45,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -69,6 +70,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJs
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IMPLEMENTATION_CLASS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_INSTANTIABLE;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_IS_INTERNAL_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_KEY_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LENGTH;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_LOGICAL_TYPE;
@@ -376,16 +378,16 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         String dataViewClass = logicalTypeNode.get(FIELD_NAME_DATA_VIEW_CLASS).asText();
         final DataType dataViewDataType;
         if (MapView.class.getName().equals(dataViewClass)) {
-            LogicalType keyType = deserialize(logicalTypeNode.get(FIELD_NAME_KEY_TYPE), serdeCtx);
-            LogicalType valueType =
-                    deserialize(logicalTypeNode.get(FIELD_NAME_VALUE_TYPE), serdeCtx);
-            DataType keyDataType = LogicalTypeDataTypeConverter.toDataType(keyType);
-            DataType valueDataType = LogicalTypeDataTypeConverter.toDataType(valueType);
+            DataType keyDataType =
+                    deserializeDataTypeForDataView(logicalTypeNode, FIELD_NAME_KEY_TYPE, serdeCtx);
+            DataType valueDataType =
+                    deserializeDataTypeForDataView(
+                            logicalTypeNode, FIELD_NAME_VALUE_TYPE, serdeCtx);
             dataViewDataType = MapView.newMapViewDataType(keyDataType, valueDataType);
         } else if (ListView.class.getName().equals(dataViewClass)) {
-            LogicalType elementType =
-                    deserialize(logicalTypeNode.get(FIELD_NAME_ELEMENT_TYPE), serdeCtx);
-            DataType elementDataType = LogicalTypeDataTypeConverter.toDataType(elementType);
+            DataType elementDataType =
+                    deserializeDataTypeForDataView(
+                            logicalTypeNode, FIELD_NAME_ELEMENT_TYPE, serdeCtx);
             dataViewDataType = ListView.newListViewDataType(elementDataType);
         } else {
             throw new TableException("Only MapView and ListView are supported now");
@@ -395,5 +397,17 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         DataType dataType = DataViewUtils.adjustDataViews(dataViewDataType, false);
         RawType<?> rawType = (RawType<?>) LogicalTypeDataTypeConverter.toLogicalType(dataType);
         return (RawType<?>) rawType.copy(nullable);
+    }
+
+    private DataType deserializeDataTypeForDataView(
+            JsonNode logicalTypeNode, String key, SerdeContext serdeCtx) {
+        JsonNode jsonNode = logicalTypeNode.get(key);
+        LogicalType logicalType = deserialize(jsonNode.get(FIELD_NAME_TYPE_NAME), serdeCtx);
+        DataType dataType = LogicalTypeDataTypeConverter.toDataType(logicalType);
+        boolean isInternalType = jsonNode.get(FIELD_NAME_IS_INTERNAL_TYPE).asBoolean();
+        if (isInternalType) {
+            dataType = DataTypeUtils.toInternalDataType(dataType);
+        }
+        return dataType;
     }
 }

@@ -30,12 +30,11 @@ import org.apache.flink.table.dataview.NullSerializer;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
-import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -148,45 +147,43 @@ public final class DataViewUtils {
                         .orElse(false);
     }
 
-    public static LogicalType extractElementTypeForListView(DataType dataType) {
-        LogicalType t = dataType.getLogicalType();
-        if (!isDataView(t, ListView.class)) {
-            throw new TableException(
-                    "The given type: " + t + " is not the expected type for ListView.");
-        }
-        StructuredType structuredType = (StructuredType) t;
-        if (structuredType.getAttributes().size() != 1) {
-            throw new TableException(
-                    "The given type: " + t + " is not the expected type for ListView.");
-        }
-        LogicalType innerType = structuredType.getAttributes().get(0).getType();
-        if (innerType instanceof ArrayType) {
-            ArrayType arrayType = (ArrayType) innerType;
-            return arrayType.getElementType();
-        } else {
-            throw new TableException(
-                    "The given type: " + t + " is not the expected type for ListView.");
-        }
+    /**
+     * Check if the given data type represents a {@link ListView}. This method must be in sync with
+     * {@link ListView#newListViewDataType(DataType)}.
+     */
+    public static boolean isListViewDataType(DataType dataType) {
+        return dataType.getConversionClass().equals(ListView.class)
+                && dataType instanceof FieldsDataType
+                && dataType.getChildren().size() == 1
+                && dataType.getChildren().get(0) instanceof CollectionDataType;
     }
 
-    public static MapType extractKeyValueTypeForMapView(DataType dataType) {
-        LogicalType t = dataType.getLogicalType();
-        if (!isDataView(t, MapView.class)) {
+    public static DataType extractElementDataTypeForListView(DataType dataType) {
+        if (!isListViewDataType(dataType)) {
             throw new TableException(
-                    "The given type: " + t + " is not the expected type for MapView.");
+                    "The given type: " + dataType + " is not the expected type for ListView.");
         }
-        StructuredType structuredType = (StructuredType) t;
-        LogicalType innerType = structuredType.getAttributes().get(0).getType();
-        if (structuredType.getAttributes().size() != 1) {
+        CollectionDataType collectionDataType = (CollectionDataType) dataType.getChildren().get(0);
+        return collectionDataType.getElementDataType();
+    }
+
+    /**
+     * Check if the given data type represents a {@link MapView}. This method must be in sync with
+     * {@link MapView#newMapViewDataType(DataType, DataType)}.
+     */
+    public static boolean isMapViewDataType(DataType dataType) {
+        return dataType.getConversionClass().equals(MapView.class)
+                && dataType instanceof FieldsDataType
+                && dataType.getChildren().size() == 1
+                && dataType.getChildren().get(0) instanceof KeyValueDataType;
+    }
+
+    public static KeyValueDataType extractKeyValueDataTypeForMapView(DataType dataType) {
+        if (!isMapViewDataType(dataType)) {
             throw new TableException(
-                    "The given type: " + t + " is not the expected type for MapView.");
+                    "The given type: " + dataType + " is not the expected type for MapView.");
         }
-        if (innerType instanceof MapType) {
-            return (MapType) innerType;
-        } else {
-            throw new TableException(
-                    "The given type: " + t + " is not the expected type for MapView.");
-        }
+        return (KeyValueDataType) dataType.getChildren().get(0);
     }
 
     private static String createStateId(int fieldIndex, String fieldName) {
