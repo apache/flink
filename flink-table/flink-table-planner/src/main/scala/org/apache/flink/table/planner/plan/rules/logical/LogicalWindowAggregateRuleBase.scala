@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isTimeIndicatorType
 import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerWindowReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
@@ -327,9 +328,17 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       windowExpression: RexCall): RexNode
 
   /** Returns the expression that replaces the window expression after the aggregation. */
-  private[table] def getOutAggregateGroupExpression(
+  private def getOutAggregateGroupExpression(
       rexBuilder: RexBuilder,
-      windowExpression: RexCall): RexNode
+      windowExpression: RexCall): RexNode = {
+    val zeroLiteral = rexBuilder.makeZeroLiteral(windowExpression.getType)
+    if (isTimeIndicatorType(windowExpression.getType)) {
+      // cast zero literal to time indicator field
+      rexBuilder.makeAbstractCast(windowExpression.getType, zeroLiteral)
+    } else {
+      zeroLiteral
+    }
+  }
 
   /** translate the group window expression in to a Flink Table window. */
   private[table] def translateWindow(
