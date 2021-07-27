@@ -19,9 +19,7 @@
 package org.apache.flink.table.examples.java.basics;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
 import java.io.File;
@@ -83,12 +81,15 @@ public class StreamWindowSQLExample {
 
         tEnv.executeSql(query).print();
         // should output;
-        //+----+--------------------------------+----------------------+--------------+----------------------+
-        //| op |                   window_start |            order_num | total_amount |      unique_products |
-        //+----+--------------------------------+----------------------+--------------+----------------------+
-        //| +I |        2019-12-12 00:00:00.000 |                    3 |           10 |                    3 |
-        //| +I |        2019-12-12 00:00:05.000 |                    3 |            6 |                    2 |
-        // +----+--------------------------------+----------------------+--------------+----------------------+
+        // +----+--------------------------------+------------------+--------------+-----------------+
+        // | op |                   window_start |        order_num | total_amount | unique_products
+        // |
+        // +----+--------------------------------+------------------+--------------+-----------------+
+        // | +I |        2019-12-12 00:00:00.000 |                3 |           10 |               3
+        // |
+        // | +I |        2019-12-12 00:00:05.000 |                3 |            6 |               2
+        // |
+        // +----+--------------------------------+------------------+--------------+-----------------+
 
     }
 
