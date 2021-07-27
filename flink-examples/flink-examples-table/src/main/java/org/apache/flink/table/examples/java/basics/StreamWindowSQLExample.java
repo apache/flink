@@ -38,7 +38,6 @@ public class StreamWindowSQLExample {
     public static void main(String[] args) throws Exception {
         // set up execution environment
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         // write source data into temporary file and get the absolute path
