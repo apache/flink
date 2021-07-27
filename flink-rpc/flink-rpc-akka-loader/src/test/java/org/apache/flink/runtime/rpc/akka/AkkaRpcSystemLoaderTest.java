@@ -41,7 +41,10 @@ public class AkkaRpcSystemLoaderTest extends TestLogger {
 
     @Test
     public void testServiceLoadingWithDefaultConfig() {
-        assertThat(LOADER.loadRpcSystem(new Configuration()), not(nullValue()));
+        final Configuration config = new Configuration();
+        try (final RpcSystem rpcSystem = LOADER.loadRpcSystem(config)) {
+            assertThat(rpcSystem, not(nullValue()));
+        }
     }
 
     @Test
