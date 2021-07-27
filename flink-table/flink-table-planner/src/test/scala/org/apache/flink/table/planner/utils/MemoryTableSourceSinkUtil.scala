@@ -18,22 +18,24 @@
 
 package org.apache.flink.table.planner.utils
 
+import java.util
+
 import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{TableEnvironment, TableSchema}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{TableDescriptor, TableEnvironment, TableSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.StreamTableSinkFactory
-import org.apache.flink.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink, TableSink, TableSinkBase}
+import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
-import java.util
 
 import scala.collection.mutable
 
@@ -54,27 +56,25 @@ object MemoryTableSourceSinkUtil {
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(new CustomConnectorDescriptor("DataTypeOutputFormatTable", 1, false))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val sink = new DataTypeOutputFormatTableSink(schema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
   }
 
   def createLegacyUnsafeMemoryAppendTable(
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(new CustomConnectorDescriptor("LegacyUnsafeMemoryAppendTable", 1, false))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val sink = new UnsafeMemoryAppendTableSink
+    sink.configure(schema.getFieldNames, schema.getFieldTypes)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
   }
 
   def createDataTypeAppendStreamTable(
       tEnv: TableEnvironment,
       schema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(new CustomConnectorDescriptor("DataTypeAppendStreamTable", 1, false))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val sink = new DataTypeAppendStreamTableSink(schema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
   }
 
   final class UnsafeMemoryAppendTableSink

@@ -25,8 +25,6 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.descriptors.ConnectTableDescriptor;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -802,40 +800,6 @@ public interface TableEnvironment {
      */
     @Deprecated
     void insertInto(String targetPath, Table table);
-
-    /**
-     * Creates a temporary table from a descriptor.
-     *
-     * <p>Descriptors allow for declaring the communication to external systems in an
-     * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-     * the desired configuration.
-     *
-     * <p>The following example shows how to read from a connector using a JSON format and register
-     * a temporary table as "MyTable":
-     *
-     * <pre>{@code
-     * tableEnv
-     *   .connect(
-     *     new ExternalSystemXYZ()
-     *       .version("0.11"))
-     *   .withFormat(
-     *     new Json()
-     *       .jsonSchema("{...}")
-     *       .failOnMissingField(false))
-     *   .withSchema(
-     *     new Schema()
-     *       .field("user-name", "VARCHAR").from("u_name")
-     *       .field("count", "DECIMAL")
-     *   .createTemporaryTable("MyTable");
-     * }</pre>
-     *
-     * @param connectorDescriptor connector descriptor describing the external system
-     * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
-     *     might be refactored in the next versions. Please use {@link #executeSql(String)
-     *     executeSql(ddl)} to register a table instead.
-     */
-    @Deprecated
-    ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
     /**
      * Gets the names of all catalogs registered in this environment.

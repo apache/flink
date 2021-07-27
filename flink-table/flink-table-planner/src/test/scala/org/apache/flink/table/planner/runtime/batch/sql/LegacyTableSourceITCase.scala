@@ -170,7 +170,7 @@ class LegacyTableSourceITCase extends BatchTestBase {
       TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable",
       isBounded = true,
-      filterableFields = List("amount", "name"))
+      filterableFields = Set("amount", "name"))
     checkResult(
       "SELECT id, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",

@@ -1441,7 +1441,7 @@ class CalcITCase extends BatchTestBase {
       "myTable",
       isBounded = true,
       data,
-      List("a", "b"))
+      Set("a", "b"))
 
     checkResult(
       "SELECT * FROM myTable WHERE TIMESTAMPADD(HOUR, 5, a) >= b",
