@@ -43,8 +43,10 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -271,7 +273,10 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
                         SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
                         InputChannelTestUtils.newUnregisteredInputChannelMetrics());
 
-        return new InputGateWithMetrics(singleGate, new SimpleCounter());
+        return new InputGateWithMetrics(
+                singleGate,
+                new SimpleCounter(),
+                new ThroughputCalculator(SystemClock.getInstance(), 10));
     }
 
     private static ShuffleDescriptor createShuffleDescriptor(
