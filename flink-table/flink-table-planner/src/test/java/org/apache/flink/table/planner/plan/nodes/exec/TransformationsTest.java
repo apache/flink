@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
+import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.api.DataTypes;
@@ -30,10 +34,12 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -77,6 +83,26 @@ public class TransformationsTest extends TableTestBase {
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
         assertTrue(sourceTransform.getOperator().emitsProgressiveWatermarks());
+    }
+
+    @Ignore // will be enabled in FLINK-20897
+    @Test
+    public void testUnsupportedShuffleMode() {
+        final JavaStreamTableTestUtil util = javaStreamTestUtil();
+        final StreamExecutionEnvironment env = util.env();
+        final StreamTableEnvironment tableEnv = util.tableEnv();
+
+        final Configuration configuration = new Configuration();
+        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_BLOCKING);
+        env.configure(configuration);
+
+        final IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> tableEnv.executeSql("SELECT COUNT(*) FROM (VALUES 1, 2, 3)"));
+        assertEquals(
+                exception.getMessage(),
+                "Unsupported shuffle mode 'ALL_EXCHANGES_BLOCKING' in STREAMING runtime mode.");
     }
 
     // --------------------------------------------------------------------------------------------

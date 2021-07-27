@@ -44,7 +44,7 @@ public class DeadlockBreakupProcessor implements ExecNodeGraphProcessor {
                         execGraph.getRootNodes(),
                         InputProperty.DamBehavior.END_INPUT,
                         StreamExchangeMode.BATCH,
-                        context.getPlanner().getTableConfig().getConfiguration());
+                        context.getPlanner().getConfiguration());
         resolver.detectAndResolve();
         return execGraph;
     }
