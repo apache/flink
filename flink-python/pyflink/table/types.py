@@ -1245,27 +1245,40 @@ class RowType(DataType):
         if self._need_serialize_any_field:
             # Only calling to_sql_type function for fields that need conversion
             if isinstance(obj, dict):
-                return tuple(f.to_sql_type(obj.get(n)) if c else obj.get(n)
-                             for n, f, c in zip(self.names, self.fields, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value, ) + tuple(
+                    f.to_sql_type(v) if c else v
+                    for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif isinstance(obj, (tuple, list, Row)):
-                return tuple(f.to_sql_type(v) if c else v
-                             for f, v, c in zip(self.fields, obj, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(v) if c else v
+                    for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(f.to_sql_type(d.get(n)) if c else d.get(n)
-                             for n, f, c in zip(self.names, self.fields, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(d.get(n)) if c else d.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
             else:
                 raise ValueError("Unexpected tuple %r with RowType" % obj)
         else:
             if isinstance(obj, dict):
-                return tuple(obj.get(n) for n in self.names)
+                return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.names)
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
-                return tuple(obj[n] for n in self.names)
-            elif isinstance(obj, (list, tuple, Row)):
-                return tuple(obj)
+                return (obj.get_row_kind().value,) + tuple(obj[n] for n in self.names)
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(obj)
+            elif isinstance(obj, (list, tuple)):
+                return (RowKind.INSERT.value,) + tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(d.get(n) for n in self.names)
+                return (RowKind.INSERT.value,) + tuple(d.get(n) for n in self.names)
             else:
                 raise ValueError("Unexpected tuple %r with RowType" % obj)
 

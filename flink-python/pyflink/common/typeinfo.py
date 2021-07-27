@@ -429,31 +429,48 @@ class RowTypeInfo(TypeInformation):
     def to_internal_type(self, obj):
         if obj is None:
             return
-
+        from pyflink.common import Row, RowKind
         if self._need_serialize_any_field:
             # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, dict):
-                return tuple(f.to_internal_type(obj.get(n)) if c else obj.get(n)
-                             for n, f, c in zip(self.get_field_names(), self._field_types,
-                                                self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_internal_type(v) if c else v
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
             elif isinstance(obj, (tuple, list)):
-                return tuple(f.to_internal_type(v) if c else v
-                             for f, v, c in zip(self._field_types, obj, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(v) if c else v
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(f.to_internal_type(d.get(n)) if c else d.get(n)
-                             for n, f, c in zip(self.get_field_names(), self._field_types,
-                                                self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(d.get(n)) if c else d.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
         else:
             if isinstance(obj, dict):
-                return tuple(obj.get(n) for n in self.get_field_names())
+                return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    obj.get(n) for n in self.get_field_names())
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
-                return tuple(obj)
+                return (RowKind.INSERT.value,) + tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(d.get(n) for n in self.get_field_names())
+                return (RowKind.INSERT.value,) + tuple(d.get(n) for n in self.get_field_names())
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
 
