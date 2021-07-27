@@ -17,11 +17,22 @@
  */
 package org.apache.flink.table.planner.utils
 
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util
+import java.io.{File, IOException}
+import java.nio.file.{Files, Paths}
+import java.time.Duration
+
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.flink.api.common.ShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
@@ -37,8 +48,8 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
@@ -64,22 +75,9 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Rule
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
-
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util
-import java.io.{File, IOException}
-import java.nio.file.{Files, Paths}
-import java.time.Duration
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -1352,12 +1350,8 @@ object TestTableSource {
       isBounded: Boolean,
       tableSchema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestTableSource", 1, false)
-        .property("is-bounded", if (isBounded) "true" else "false"))
-      .withSchema(new Schema().schema(tableSchema))
-      .createTemporaryTable(tableName)
-
+    val source = new TestTableSource(isBounded, tableSchema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 

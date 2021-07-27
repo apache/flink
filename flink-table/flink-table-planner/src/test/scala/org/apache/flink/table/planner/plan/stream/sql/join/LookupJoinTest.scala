@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.sql.Timestamp
+import _root_.java.util
+import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.plan.utils._
@@ -34,16 +40,10 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
-
 import org.junit.Assert.{assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assume, Before, Test}
-
-import _root_.java.lang.{Boolean => JBoolean}
-import _root_.java.sql.Timestamp
-import _root_.java.util
-import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConversions._
 
@@ -620,13 +620,8 @@ object TestTemporalTable {
       tEnv: TableEnvironment,
       tableName: String,
       isBounded: Boolean = false): Unit = {
-    val desc = new CustomConnectorDescriptor("TestTemporalTable", 1, false)
-    if (isBounded) {
-      desc.property("is-bounded", "true")
-    }
-    tEnv.connect(desc)
-      .withSchema(new Schema().schema(TestTemporalTable.tableSchema))
-      .createTemporaryTable(tableName)
+    val source = new TestTemporalTable(isBounded)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -701,30 +696,24 @@ object TestInvalidTemporalTable {
     tEnv: TableEnvironment,
     tableName: String,
     fetcher: TableFunction[_]): Unit = {
-    tEnv
-      .connect(
-        new CustomConnectorDescriptor("TestInvalidTemporalTable", 1, false)
-          .property("is-async", "false")
-          .property(
-            "fetcher",
-            EncodingUtils.encodeObjectToString(fetcher)))
-      .withSchema(new Schema().schema(TestInvalidTemporalTable.tableScheam))
-      .createTemporaryTable(tableName)
+
+    tEnv.createTemporaryTable(tableName, TableDescriptor.forConnector("TestInvalidTemporalTable")
+      .schema(TestInvalidTemporalTable.tableScheam.toSchema)
+      .option("is-async", "false")
+      .option("fetcher", EncodingUtils.encodeObjectToString(fetcher))
+      .build())
   }
 
   def createTemporaryTable(
     tEnv: TableEnvironment,
     tableName: String,
     asyncFetcher: AsyncTableFunction[_]): Unit = {
-    tEnv
-      .connect(
-        new CustomConnectorDescriptor("TestInvalidTemporalTable", 1, false)
-          .property("is-async", "true")
-          .property(
-            "async-fetcher",
-            EncodingUtils.encodeObjectToString(asyncFetcher)))
-      .withSchema(new Schema().schema(TestInvalidTemporalTable.tableScheam))
-      .createTemporaryTable(tableName)
+
+    tEnv.createTemporaryTable(tableName, TableDescriptor.forConnector("TestInvalidTemporalTable")
+      .schema(TestInvalidTemporalTable.tableScheam.toSchema)
+      .option("is-async", "true")
+      .option("async-fetcher", EncodingUtils.encodeObjectToString(asyncFetcher))
+      .build())
   }
 }
 

@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api
 import org.apache.flink.table.api._
-import org.apache.flink.table.descriptors.{FileSystem, OldCsv, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.TableTestBase
-
 import org.junit.{Before, Test}
 
 class TableScanTest extends TableTestBase {
@@ -210,10 +209,13 @@ class TableScanTest extends TableTestBase {
 
   @Test
   def testTableApiScanWithTemporaryTable(): Unit = {
-    util.tableEnv.connect(new FileSystem().path(tempFolder.newFile.getPath))
-        .withFormat(new OldCsv())
-        .withSchema(new Schema().field("word", DataTypes.STRING()))
-        .createTemporaryTable("t1")
+    util.tableEnv.createTemporaryTable("t1", TableDescriptor.forConnector("datagen")
+      .schema(Schema.newBuilder()
+        .column("word", DataTypes.STRING)
+        .build())
+      .option("number-of-rows", "1")
+      .build())
+
     util.verifyExecPlan(util.tableEnv.from("t1"))
   }
 }

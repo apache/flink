@@ -22,7 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, Rowtime, Schema}
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
@@ -118,19 +117,23 @@ class LegacyTableSourceTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-
   @Test
   def testLegacyRowTimeTableGroupWindow(): Unit = {
-    util.tableEnv.connect(
-      new CustomConnectorDescriptor("TestTableSourceWithTime", 1, false)
-    ).withSchema(
-      new Schema()
-        .field("id", DataTypes.INT())
-        .field("val", DataTypes.BIGINT())
-        .field("name", DataTypes.STRING())
-        .field("rowtime", DataTypes.TIMESTAMP(3))
-        .rowtime(new Rowtime().timestampsFromField("rowtime").watermarksPeriodicBounded(1000))
-    ).createTemporaryTable("rowTimeT")
+    util.tableEnv.executeSql(
+      """
+        |CREATE TEMPORARY TABLE rowTimeT (
+        |  id INT,
+        |  val BIGINT,
+        |  name STRING,
+        |  rowtime TIMESTAMP(3)
+        |) WITH (
+        |  'connector.type' = 'TestTableSourceWithTime',
+        |  'schema.3.rowtime.timestamps.type' = 'from-field',
+        |  'schema.3.rowtime.timestamps.from' = 'rowtime',
+        |  'schema.3.rowtime.watermarks.type' = 'periodic-bounded',
+        |  'schema.3.rowtime.watermarks.delay' = '1000'
+        |)
+        |""".stripMargin)
 
     val sql =
       """
@@ -146,15 +149,18 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testLegacyProcTimeTableGroupWindow(): Unit = {
-    util.tableEnv.connect(
-      new CustomConnectorDescriptor("TestTableSourceWithTime", 1, false)
-    ).withSchema(
-      new Schema()
-        .field("id", DataTypes.INT())
-        .field("val", DataTypes.BIGINT())
-        .field("name", DataTypes.STRING())
-        .field("proctime", DataTypes.TIMESTAMP_LTZ(3)).proctime()
-    ).createTemporaryTable("procTimeT")
+    util.tableEnv.executeSql(
+      """
+        |CREATE TEMPORARY TABLE procTimeT (
+        |  id INT,
+        |  val BIGINT,
+        |  name STRING,
+        |  `proctime` TIMESTAMP_LTZ(3)
+        |) WITH (
+        |  'connector.type' = 'TestTableSourceWithTime',
+        |  'schema.3.proctime' = 'true'
+        |)
+        |""".stripMargin)
 
     val sql =
       """
@@ -421,7 +427,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "FilterableTable1",
       isBounded = false,
       List(row),
-      List("dv", "tv", "tsv"))
+      Set("dv", "tv", "tsv"))
 
     val sqlQuery =
       s"""

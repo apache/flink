@@ -21,14 +21,10 @@ package org.apache.flink.table.api;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.operations.CatalogQueryOperation;
-import org.apache.flink.table.utils.ConnectorDescriptorMock;
-import org.apache.flink.table.utils.FormatDescriptorMock;
 import org.apache.flink.table.utils.TableEnvironmentMock;
-import org.apache.flink.table.utils.TableSourceFactoryMock;
 
 import org.junit.Test;
 
@@ -45,42 +41,6 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TableEnvironment}. */
 public class TableEnvironmentTest {
-
-    @Test
-    public void testConnect() {
-        final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
-
-        tableEnv.connect(
-                        new ConnectorDescriptorMock(
-                                TableSourceFactoryMock.CONNECTOR_TYPE_VALUE, 1, true))
-                .withFormat(new FormatDescriptorMock("my_format", 1))
-                .withSchema(
-                        new org.apache.flink.table.descriptors.Schema()
-                                .field("my_field_0", "INT")
-                                .field("my_field_1", "BOOLEAN")
-                                .field("my_part_1", "BIGINT")
-                                .field("my_part_2", "STRING"))
-                .withPartitionKeys(Arrays.asList("my_part_1", "my_part_2"))
-                .inAppendMode()
-                .createTemporaryTable("my_table");
-
-        CatalogManager.TableLookupResult lookupResult =
-                tableEnv.catalogManager
-                        .getTable(
-                                ObjectIdentifier.of(
-                                        EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-                                        EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
-                                        "my_table"))
-                        .orElseThrow(AssertionError::new);
-
-        assertThat(lookupResult.isTemporary(), equalTo(true));
-
-        CatalogBaseTable catalogBaseTable = lookupResult.getTable();
-        assertTrue(catalogBaseTable instanceof CatalogTable);
-        CatalogTable table = (CatalogTable) catalogBaseTable;
-        assertCatalogTable(table);
-        assertCatalogTable(CatalogTableImpl.fromProperties(table.toProperties()));
-    }
 
     @Test
     public void testCreateTemporaryTableFromDescriptor() {

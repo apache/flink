@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema}
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
@@ -36,12 +37,12 @@ import org.apache.flink.table.expressions.{CallExpression, Expression, FieldRefe
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
+import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.planner._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
+import org.apache.flink.table.sinks.{CsvAppendTableSinkFactory, CsvBatchTableSinkFactory, StreamTableSink, TableSink}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
@@ -49,11 +50,12 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
-
 import _root_.java.io.{File, FileOutputStream, OutputStreamWriter}
 import _root_.java.util
 import _root_.java.util.Collections
 import _root_.java.util.function.BiConsumer
+
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -61,47 +63,56 @@ import _root_.scala.collection.mutable
 
 object TestTableSourceSinks {
   def createPersonCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
-    tEnv.connect(new FileSystem().path(getPersonCsvPath))
-      .withFormat(
-        new OldCsv()
-          .fieldDelimiter("#")
-          .lineDelimiter("$")
-          .ignoreFirstLine()
-          .commentPrefix("%"))
-      .withSchema(
-        new Schema()
-          .field("first", DataTypes.STRING)
-          .field("id", DataTypes.INT)
-          .field("score", DataTypes.DOUBLE)
-          .field("last", DataTypes.STRING))
-      .createTemporaryTable(tableName)
+    tEnv.executeSql(
+      s"""
+         |CREATE TEMPORARY TABLE $tableName (
+         |  first STRING,
+         |  id INT,
+         |  score DOUBLE,
+         |  last STRING
+         |) WITH (
+         |  'connector.type' = 'filesystem',
+         |  'connector.path' = '$getPersonCsvPath',
+         |  'format.type' = 'csv',
+         |  'format.field-delimiter' = '#',
+         |  'format.line-delimiter' = '$$',
+         |  'format.ignore-first-line' = 'true',
+         |  'format.comment-prefix' = '%'
+         |)
+         |""".stripMargin)
   }
 
   def createOrdersCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
-    tEnv.connect(new FileSystem().path(getOrdersCsvPath))
-      .withFormat(
-        new OldCsv()
-          .fieldDelimiter(",")
-          .lineDelimiter("$"))
-      .withSchema(
-        new Schema()
-          .field("amount", DataTypes.BIGINT)
-          .field("currency", DataTypes.STRING)
-          .field("ts", DataTypes.BIGINT))
-      .createTemporaryTable(tableName)
+    tEnv.executeSql(
+      s"""
+        |CREATE TEMPORARY TABLE $tableName (
+        |  amount BIGINT,
+        |  currency STRING,
+        |  ts BIGINT
+        |) WITH (
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '$getOrdersCsvPath',
+        |  'format.type' = 'csv',
+        |  'format.field-delimiter' = ',',
+        |  'format.line-delimiter' = '$$'
+        |)
+        |""".stripMargin)
   }
 
   def createRatesCsvTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
-    tEnv.connect(new FileSystem().path(getRatesCsvPath))
-      .withFormat(
-        new OldCsv()
-          .fieldDelimiter(",")
-          .lineDelimiter("$"))
-      .withSchema(
-        new Schema()
-          .field("currency", DataTypes.STRING)
-          .field("rate", DataTypes.BIGINT))
-      .createTemporaryTable(tableName)
+    tEnv.executeSql(
+      s"""
+        |CREATE TEMPORARY TABLE $tableName (
+        |  currency STRING,
+        |  rate BIGINT
+        |) WITH (
+        |  'connector.type' = 'filesystem',
+        |  'connector.path' = '$getRatesCsvPath',
+        |  'format.type' = 'csv',
+        |  'format.field-delimiter' = ',',
+        |  'format.line-delimiter' = '$$'
+        |)
+        |""".stripMargin)
   }
 
   def createCsvTemporarySinkTable(
@@ -112,14 +123,19 @@ object TestTableSourceSinks {
     val tempFile = File.createTempFile("csv-test", null)
     tempFile.deleteOnExit()
     val path = tempFile.getAbsolutePath
-    tEnv.connect(new FileSystem().path(path))
-      .withFormat(
-        new OldCsv()
-          .writeMode("OVERWRITE")
-          .numFiles(numFiles))
-      .withSchema(
-        new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+
+    val sinkOptions = collection.mutable.Map(
+      "connector.type" -> "filesystem",
+      "connector.path" -> path,
+      "format.type" -> "csv",
+      "format.write-mode" -> "OVERWRITE",
+      "format.num-files" -> numFiles.toString
+    )
+    sinkOptions.putAll(new Schema().schema(schema).toProperties)
+
+    val sink = new CsvBatchTableSinkFactory().createStreamTableSink(sinkOptions);
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
+
     path
   }
 
@@ -186,8 +202,6 @@ object TestTableSourceSinks {
   }
 }
 
-// TODO: TableEnvironment.connect() doesn't support proctime and rowtime in Schema
-//  https://issues.apache.org/jira/browse/FLINK-16160
 class TestTableSourceWithTime[T](
     override val isBounded: Boolean,
     tableSchema: TableSchema,
@@ -662,23 +676,11 @@ object TestLegacyFilterableTableSource {
       schema: TableSchema,
       tableName: String,
       isBounded: Boolean = false,
-      data: List[Row] = null,
-      filterableFields: List[String] = null): Unit = {
-
-    val desc = new CustomConnectorDescriptor("TestFilterableSource", 1, false)
-    if (isBounded) {
-      desc.property("is-bounded", "true")
-    }
-    if (data != null && data.nonEmpty) {
-      desc.property("data", EncodingUtils.encodeObjectToString(data))
-    }
-    if (filterableFields != null && filterableFields.nonEmpty) {
-      desc.property("filterable-fields", EncodingUtils.encodeObjectToString(filterableFields))
-    }
-
-    tEnv.connect(desc)
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+      data: List[Row] = TestLegacyFilterableTableSource.defaultRows.toList,
+      filterableFields: Set[String] = TestLegacyFilterableTableSource.defaultFilterableFields)
+  : Unit = {
+    val source = new TestLegacyFilterableTableSource(isBounded, schema, data, filterableFields)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -749,11 +751,8 @@ object TestInputFormatTableSource {
       schema: TableSchema,
       data: Seq[_],
       tableName: String): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestInputFormatTableSource", 1, false)
-        .property("data", EncodingUtils.encodeObjectToString(data.toList)))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestInputFormatTableSource(schema, data)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -840,11 +839,8 @@ object TestDataTypeTableSource {
       schema: TableSchema,
       tableName: String,
       data: Seq[Row]): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestDataTypeTableSource", 1, false)
-        .property("data", EncodingUtils.encodeObjectToString(data.toList)))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestDataTypeTableSource(schema, data)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -922,12 +918,8 @@ object TestDataTypeTableSourceWithTime {
       tableName: String,
       data: Seq[Row],
       rowTime: String): Unit = {
-    tEnv.connect(
-        new CustomConnectorDescriptor("TestDataTypeTableSourceWithTime", 1, false)
-          .property("data", EncodingUtils.encodeObjectToString(data.toList))
-          .property("rowtime", rowTime))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestDataTypeTableSourceWithTime(schema, data, rowTime)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -950,13 +942,8 @@ object TestStreamTableSource {
       schema: TableSchema,
       tableName: String,
       data: Seq[Row] = null): Unit = {
-    val desc = new CustomConnectorDescriptor("TestStreamTableSource", 1, false)
-    if (data != null) {
-      desc.property("data", EncodingUtils.encodeObjectToString(data.toList))
-    }
-    tEnv.connect(desc)
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestStreamTableSource(schema, data)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -1008,11 +995,8 @@ object TestFileInputFormatTableSource {
       schema: TableSchema,
       tableName: String,
       path: Array[String]): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestFileInputFormatTableSource", 1, false)
-        .property("path", EncodingUtils.encodeObjectToString(path)))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestFileInputFormatTableSource(path, schema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -1256,11 +1240,8 @@ object WithoutTimeAttributesTableSource {
   def createTemporaryTable(
       tEnv: TableEnvironment,
       tableName: String): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("WithoutTimeAttributesTableSource", 1, false)
-        .property("is-bounded", "true"))
-      .withSchema(new Schema().schema(WithoutTimeAttributesTableSource.tableSchema))
-      .createTemporaryTable(tableName)
+    val source = new WithoutTimeAttributesTableSource(true)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 

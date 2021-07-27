@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
-
 import org.junit.{Before, Test}
 
 class LegacyTableSourceTest extends TableTestBase {
@@ -67,7 +66,7 @@ class LegacyTableSourceTest extends TableTestBase {
   def testUnboundedStreamTableSource(): Unit = {
     TestTableSource.createTemporaryTable(util.tableEnv, isBounded = false, tableSchema, "MyTable")
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Cannot query on an unbounded source in batch mode")
+    thrown.expectMessage("Only bounded StreamTableSource can be used in batch mode.")
     util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
@@ -202,7 +201,7 @@ class LegacyTableSourceTest extends TableTestBase {
       "FilterableTable1",
       isBounded = true,
       List(row),
-      List("dv", "tv", "tsv"))
+      Set("dv", "tv", "tsv"))
 
     val sqlQuery =
       s"""

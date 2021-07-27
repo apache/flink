@@ -50,8 +50,6 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
@@ -534,11 +532,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
         return toStreamInternal(table, modifyOperation);
-    }
-
-    @Override
-    public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-        return (StreamTableDescriptor) super.connect(connectorDescriptor);
     }
 
     /**
