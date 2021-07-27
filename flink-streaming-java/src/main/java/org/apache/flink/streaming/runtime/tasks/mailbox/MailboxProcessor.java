@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.mailbox.MailboxExecutor;
-import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
@@ -381,7 +380,7 @@ public class MailboxProcessor implements Closeable {
      * default action, e.g. because there is currently no input available.
      */
     private MailboxDefaultAction.Suspension suspendDefaultAction(
-            @Nullable TimerGauge suspensionTimer) {
+            @Nullable PeriodTimer suspensionTimer) {
 
         checkState(
                 mailbox.isMailboxThread(),
@@ -434,8 +433,8 @@ public class MailboxProcessor implements Closeable {
 
         @Override
         public MailboxDefaultAction.Suspension suspendDefaultAction(
-                TimerGauge suspensionIdleTimer) {
-            return mailboxProcessor.suspendDefaultAction(suspensionIdleTimer);
+                PeriodTimer suspensionPeriodTimer) {
+            return mailboxProcessor.suspendDefaultAction(suspensionPeriodTimer);
         }
 
         @Override
@@ -449,9 +448,9 @@ public class MailboxProcessor implements Closeable {
      * resume execution.
      */
     private final class DefaultActionSuspension implements MailboxDefaultAction.Suspension {
-        @Nullable private final TimerGauge suspensionTimer;
+        @Nullable private final PeriodTimer suspensionTimer;
 
-        public DefaultActionSuspension(@Nullable TimerGauge suspensionTimer) {
+        public DefaultActionSuspension(@Nullable PeriodTimer suspensionTimer) {
             this.suspensionTimer = suspensionTimer;
         }
 
