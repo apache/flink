@@ -512,6 +512,25 @@ public class TaskManagerOptions {
                                     + " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
                                     + " explicitly specified by setting the min/max size to the same value.");
 
+    /** The period between recalculation the relevant size of the buffer. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD =
+            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.period")
+                    .intType()
+                    .defaultValue(500)
+                    .withDescription(
+                            "The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. "
+                                    + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
+
+    /** The number of samples requires for the buffer size adjustment. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_SAMPLES =
+            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.samples")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "The number of the last buffer size values that will be taken for the correct calculation of the new one.");
+
     /**
      * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
      * sort-merge shuffle).

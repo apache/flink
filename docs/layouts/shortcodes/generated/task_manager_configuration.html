@@ -64,6 +64,18 @@
 <ul><li>"name" - uses hostname as binding address</li><li>"ip" - uses host's ip address as binding address</li></ul></td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.memory.automatic-buffer-adjustment.period</h5></td>
+            <td style="word-wrap: break-word;">500</td>
+            <td>Integer</td>
+            <td>The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. The low value provides a fast reaction to the load fluctuation but can influence the performance.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.automatic-buffer-adjustment.samples</h5></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The number of the last buffer size values that will be taken for the correct calculation of the new one.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.numberOfTaskSlots</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
