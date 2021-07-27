@@ -47,11 +47,11 @@ public class AkkaRpcSystemLoader implements RpcSystemLoader {
         try {
             final ClassLoader flinkClassLoader = RpcSystem.class.getClassLoader();
 
-            final String tmpDirectory = ConfigurationUtils.parseTempDirectories(config)[0];
+            final Path tmpDirectory = Paths.get(ConfigurationUtils.parseTempDirectories(config)[0]);
+            Files.createDirectories(tmpDirectory);
             final Path tempFile =
                     Files.createFile(
-                            Paths.get(
-                                    tmpDirectory, "_flink-rpc-akka_" + UUID.randomUUID() + ".jar"));
+                            tmpDirectory.resolve("flink-rpc-akka_" + UUID.randomUUID() + ".jar"));
 
             final InputStream resourceStream =
                     flinkClassLoader.getResourceAsStream("flink-rpc-akka.jar");
