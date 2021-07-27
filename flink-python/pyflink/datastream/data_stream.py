@@ -762,6 +762,13 @@ class DataStream(object):
         """
         Transform the pickled python object into String if the output type is PickledByteArrayInfo.
         """
+        from py4j.java_gateway import get_java_class
+
+        gateway = get_gateway()
+        ExternalTypeInfo_CLASS = get_java_class(
+            gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo)
+        RowTypeInfo_CLASS = get_java_class(
+            gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo)
         output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
         if output_type_info_class.isAssignableFrom(
                 Types.PICKLED_BYTE_ARRAY().get_java_type_info()
@@ -771,6 +778,16 @@ class DataStream(object):
                     value = str(value)
                 return value
 
+            transformed_data_stream = DataStream(
+                self.map(python_obj_to_str_map_func,
+                         output_type=Types.STRING())._j_data_stream)
+            return transformed_data_stream
+        elif (output_type_info_class.isAssignableFrom(ExternalTypeInfo_CLASS) or
+              output_type_info_class.isAssignableFrom(RowTypeInfo_CLASS)):
+            def python_obj_to_str_map_func(value):
+                assert isinstance(value, Row)
+                return '{}[{}]'.format(value.get_row_kind(),
+                                       ','.join([str(item) for item in value._values]))
             transformed_data_stream = DataStream(
                 self.map(python_obj_to_str_map_func,
                          output_type=Types.STRING())._j_data_stream)

@@ -561,7 +561,7 @@ class DataStreamTests(object):
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         ds.print()
         plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][1]['type'])
+        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
 
     def test_print_with_align_output(self):
         # need to align output type before print, therefore the plan will contain three nodes
