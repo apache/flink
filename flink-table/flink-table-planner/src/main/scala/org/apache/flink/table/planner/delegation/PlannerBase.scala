@@ -103,8 +103,6 @@ abstract class PlannerBase(
       getTraitDefs.toList
     )
 
-  private val sqlExprToRexConverterFactory = plannerContext.getSqlExprToRexConverterFactory
-
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
     val currentCatalogName = catalogManager.getCurrentCatalog
