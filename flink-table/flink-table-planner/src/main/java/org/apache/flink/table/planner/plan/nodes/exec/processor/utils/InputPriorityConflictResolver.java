@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -43,7 +43,7 @@ import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBa
 public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
     private final StreamExchangeMode exchangeMode;
-    private final Configuration configuration;
+    private final ReadableConfig configuration;
 
     /**
      * Create a {@link InputPriorityConflictResolver} for the given {@link ExecNode} graph.
@@ -58,7 +58,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
             List<ExecNode<?>> roots,
             InputProperty.DamBehavior safeDamBehavior,
             StreamExchangeMode exchangeMode,
-            Configuration configuration) {
+            ReadableConfig configuration) {
         super(roots, Collections.emptySet(), safeDamBehavior);
         this.exchangeMode = exchangeMode;
         this.configuration = configuration;

@@ -292,15 +292,16 @@ class StreamTableEnvironmentImpl (
       table: Table,
       modifyOperation: ModifyOperation)
     : DataStream[T] = {
-    val transformations = planner
-      .translate(Collections.singletonList(modifyOperation))
-    val streamTransformation: Transformation[T] = getTransformation(
-      table,
-      transformations)
-    scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
-    new DataStream[T](new JDataStream[T](
-      scalaExecutionEnvironment
-        .getWrappedStreamExecutionEnvironment, streamTransformation))
+    val javaExecutionEnvironment = scalaExecutionEnvironment.getJavaEnv
+
+    val transformations = planner.translate(Collections.singletonList(modifyOperation))
+    val streamTransformation: Transformation[T] = getTransformation(table, transformations)
+    javaExecutionEnvironment.addOperator(streamTransformation)
+
+    // reconfigure whenever planner transformations are added
+    javaExecutionEnvironment.configure(tableConfig.getConfiguration)
+
+    new DataStream[T](new JDataStream[T](javaExecutionEnvironment, streamTransformation))
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {

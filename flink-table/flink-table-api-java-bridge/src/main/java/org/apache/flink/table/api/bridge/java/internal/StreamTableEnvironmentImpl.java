@@ -445,8 +445,11 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                 planner.translate(Collections.singletonList(modifyOperation));
 
         final Transformation<T> transformation = getTransformation(table, transformations);
-
         executionEnvironment.addOperator(transformation);
+
+        // reconfigure whenever planner transformations are added
+        executionEnvironment.configure(tableConfig.getConfiguration());
+
         return new DataStream<>(executionEnvironment, transformation);
     }
 

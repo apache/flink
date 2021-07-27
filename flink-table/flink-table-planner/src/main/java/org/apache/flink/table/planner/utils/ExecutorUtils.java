@@ -22,8 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
@@ -68,7 +68,7 @@ public class ExecutorUtils {
     }
 
     /** Sets batch properties for {@link StreamGraph}. */
-    public static void setBatchProperties(StreamGraph streamGraph, Configuration configuration) {
+    public static void setBatchProperties(StreamGraph streamGraph, ReadableConfig configuration) {
         streamGraph
                 .getStreamNodes()
                 .forEach(sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));

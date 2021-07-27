@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableEnvironment;
 
@@ -33,10 +33,17 @@ import java.util.List;
  *
  * <p>This uncouples the {@link TableEnvironment} from any given runtime.
  *
+ * <p>Note that not every table program calls {@link #createPipeline(List, ReadableConfig, String)}
+ * or {@link #execute(Pipeline)}. When bridging to DataStream API, this interface serves as a
+ * communication layer to the final pipeline executor via {@code StreamExecutionEnvironment}.
+ *
  * @see ExecutorFactory
  */
 @Internal
 public interface Executor {
+
+    /** Gives read-only access to the configuration of the executor. */
+    ReadableConfig getConfiguration();
 
     /**
      * Translates the given transformations to a {@link Pipeline}.
@@ -47,7 +54,7 @@ public interface Executor {
      * @return The pipeline representing the transformations.
      */
     Pipeline createPipeline(
-            List<Transformation<?>> transformations, Configuration configuration, String jobName);
+            List<Transformation<?>> transformations, ReadableConfig configuration, String jobName);
 
     /**
      * Executes the given pipeline.

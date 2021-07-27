@@ -167,9 +167,9 @@ class BatchPlanner(
   }
 
   override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration();
-    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
-      .equals(RuntimeExecutionMode.BATCH)) {
+    super.validateAndOverrideConfiguration()
+    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
