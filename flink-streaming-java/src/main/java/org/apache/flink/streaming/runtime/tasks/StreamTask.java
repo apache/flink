@@ -78,10 +78,12 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.ExceptionUtils;
@@ -449,13 +451,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         }
 
         TaskIOMetricGroup ioMetrics = getEnvironment().getMetricGroup().getIOMetricGroup();
-        TimerGauge timer;
+        PeriodTimer timer;
         CompletableFuture<?> resumeFuture;
         if (!recordWriter.isAvailable()) {
-            timer = ioMetrics.getBackPressuredTimePerSecond();
+            timer = new GaugePeriodTimer(ioMetrics.getBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
         } else {
-            timer = ioMetrics.getIdleTimeMsPerSecond();
+            timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
         }
         assertNoException(
