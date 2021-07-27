@@ -709,6 +709,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         getCompletionFuture().exceptionally(unused -> null).join();
 
         final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> systemTimersFinishedFuture = new CompletableFuture<>();
 
         // close all operators in a chain effect way
         operatorChain.finishOperators(actionExecutor);
@@ -743,6 +744,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
                     // make sure no new timers can come
                     FutureUtils.forward(timerService.quiesce(), timersFinishedFuture);
+                    FutureUtils.forward(systemTimerService.quiesce(), systemTimersFinishedFuture);
 
                     // let mailbox execution reject all new letters from this point
                     mailboxProcessor.prepareClose();
@@ -762,6 +764,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // make sure all timers finish
         timersFinishedFuture.get();
+        systemTimersFinishedFuture.get();
 
         LOG.debug("Closed operators for task {}", getName());
 
