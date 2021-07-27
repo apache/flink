@@ -32,7 +32,7 @@ import _d3Tip from 'd3-tip';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FlameGraphComponent {
-  @ViewChild('flameGraphContainer') flameGraphContainer: ElementRef<Element>;
+  @ViewChild('flameGraphContainer', { static: true }) flameGraphContainer: ElementRef<Element>;
   @Input() data: JobFlameGraphNodeInterface;
   @Input() graphType: String;
 

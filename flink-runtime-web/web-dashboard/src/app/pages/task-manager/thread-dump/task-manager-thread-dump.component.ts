@@ -29,7 +29,7 @@ import { TaskManagerDetailInterface } from 'interfaces';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerThreadDumpComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   dump = '';
   taskManagerDetail: TaskManagerDetailInterface;
 

@@ -46,7 +46,7 @@ import { JobChartService } from 'share/customize/job-chart/job-chart.service';
 export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Input() title: string;
   @Output() closed = new EventEmitter();
-  @ViewChild('chart') chart: ElementRef;
+  @ViewChild('chart', { static: true }) chart: ElementRef;
   size = 'small';
   displayMode: 'chart' | 'numeric' = 'chart';
   chartInstance: Chart;
