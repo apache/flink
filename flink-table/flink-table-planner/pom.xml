@@ -215,6 +215,12 @@ under the License.
 			<version>67.1</version>
 		</dependency>
 
+		<!-- For legacy string expressions in Table API -->
+		<dependency>
+			<groupId>org.scala-lang.modules</groupId>
+			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+		</dependency>
+
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
