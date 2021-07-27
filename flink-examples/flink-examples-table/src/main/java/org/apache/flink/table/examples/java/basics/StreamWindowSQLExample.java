@@ -80,11 +80,6 @@ public class StreamWindowSQLExample {
                         + "  COUNT(DISTINCT product) unique_products\n"
                         + "FROM orders\n"
                         + "GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
-        Table result = tEnv.sqlQuery(query);
-        tEnv.toAppendStream(result, Row.class).print();
-        // should output:
-        // +I[2019-12-12 00:00:00.000, 3, 10, 3]
-        // +I[2019-12-12 00:00:05.000, 3, 6, 2]
 
         tEnv.executeSql(query).print();
         // should output;
@@ -94,10 +89,6 @@ public class StreamWindowSQLExample {
         //| +I |        2019-12-12 00:00:00.000 |                    3 |           10 |                    3 |
         //| +I |        2019-12-12 00:00:05.000 |                    3 |            6 |                    2 |
         // +----+--------------------------------+----------------------+--------------+----------------------+
-        // after the table program is converted to DataStream program,
-
-        // we must use `env.execute()` to submit the job.
-        env.execute("Streaming Window SQL Job");
 
     }
 
