@@ -79,7 +79,7 @@ public class StreamWindowSQLExample {
                         + "GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
 
         tEnv.executeSql(query).print();
-        // should output;
+        // should output:
         // +----+--------------------------------+--------------+--------------+-----------------+
         // | op |                   window_start |    order_num | total_amount | unique_products |
         // +----+--------------------------------+--------------+--------------+-----------------+
