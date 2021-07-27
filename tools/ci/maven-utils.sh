@@ -96,15 +96,15 @@ set_mirror_config
 
 export MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR=""
 # see https://developercommunity.visualstudio.com/content/problem/851041/microsoft-hosted-agents-run-into-maven-central-tim.html
-MVN_GLOBAL_OPTIONS+="-Dmaven.wagon.http.pool=false "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dmaven.wagon.http.pool=false "
 # logging 
-MVN_GLOBAL_OPTIONS+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn "
 # suppress snapshot updates
-MVN_GLOBAL_OPTIONS+="--no-snapshot-updates "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="--no-snapshot-updates "
 # enable non-interactive batch mode
-MVN_GLOBAL_OPTIONS+="-B "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="-B "
 # globally control the build profile details
-MVN_GLOBAL_OPTIONS+="$PROFILE "
+MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
 
 # use google mirror everywhere
 export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} --settings $MAVEN_MIRROR_CONFIG_FILE "
