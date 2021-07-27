@@ -23,36 +23,36 @@
     </div>
     <ul nz-menu [nzTheme]="'dark'" [nzMode]="'inline'" [nzInlineCollapsed]="collapsed" class="menu">
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/overview']">
-        <span><i nz-icon type="dashboard"></i><span>Overview</span></span>
+        <span><i nz-icon nzType="dashboard"></i><span>Overview</span></span>
       </li>
       <li nz-submenu [nzOpen]="true">
           <span title>
-            <i nz-icon type="bars"></i>
+            <i nz-icon nzType="bars"></i>
             <span>Jobs</span>
           </span>
         <ul>
           <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/running']">
-            <span><i nz-icon type="play-circle"></i><span>Running Jobs</span></span>
+            <span><i nz-icon nzType="play-circle"></i><span>Running Jobs</span></span>
           </li>
           <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/completed']">
-            <span><i nz-icon type="check-circle"></i><span>Completed Jobs</span></span>
+            <span><i nz-icon nzType="check-circle"></i><span>Completed Jobs</span></span>
           </li>
         </ul>
       </li>
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/task-manager']">
-        <span><i nz-icon type="schedule"></i><span>Task Managers</span></span>
+        <span><i nz-icon nzType="schedule"></i><span>Task Managers</span></span>
       </li>
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
-        <span><i nz-icon type="build"></i><span>Job Manager</span></span>
+        <span><i nz-icon nzType="build"></i><span>Job Manager</span></span>
       </li>
       <li *ngIf="webSubmitEnabled" nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
-        <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
+        <span><i nz-icon nzType="upload"></i><span>Submit New Job</span></span>
       </li>
     </ul>
   </nz-sider>
   <nz-layout>
     <nz-header>
-      <i class="trigger" nz-icon [type]="collapsed?'menu-unfold':'menu-fold'" (click)="toggleCollapse()">
+      <i class="trigger" nz-icon [nzType]="collapsed?'menu-unfold':'menu-fold'" (click)="toggleCollapse()">
       </i>
       <div class="right">
         <span>

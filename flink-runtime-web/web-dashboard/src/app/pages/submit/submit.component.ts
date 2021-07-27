@@ -33,7 +33,7 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmitComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: true }) dagreComponent: DagreComponent;
   expandedMap = new Map();
   isLoading = true;
   destroy$ = new Subject();

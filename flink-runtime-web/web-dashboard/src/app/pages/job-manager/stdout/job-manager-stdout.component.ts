@@ -27,7 +27,7 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   stdout = '';
 
   reload() {

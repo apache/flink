@@ -57,7 +57,7 @@
                     <nz-input-group [nzPrefix]="apiTemplate">
                       <input formControlName="entryClass" nz-input placeholder="Entry Class">
                     </nz-input-group>
-                    <ng-template #apiTemplate><i nz-icon type="deployment-unit" theme="outline"></i></ng-template>
+                    <ng-template #apiTemplate><i nz-icon nzType="deployment-unit" nzTheme="outline"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
@@ -65,7 +65,7 @@
                     <nz-input-group [nzPrefix]="loginTemplate">
                       <input formControlName="parallelism" nz-input placeholder="Parallelism">
                     </nz-input-group>
-                    <ng-template #loginTemplate><i nz-icon type="login"></i></ng-template>
+                    <ng-template #loginTemplate><i nz-icon nzType="login"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
@@ -73,7 +73,7 @@
                     <nz-input-group [nzPrefix]="settingTemplate">
                       <input formControlName="programArgs" nz-input placeholder="Program Arguments">
                     </nz-input-group>
-                    <ng-template #settingTemplate><i nz-icon type="setting"></i></ng-template>
+                    <ng-template #settingTemplate><i nz-icon nzType="setting"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
@@ -81,7 +81,7 @@
                     <nz-input-group [nzPrefix]="folderTemplate">
                       <input formControlName="savepointPath" nz-input placeholder="Savepoint Path">
                     </nz-input-group>
-                    <ng-template #folderTemplate><i nz-icon type="folder"></i></ng-template>
+                    <ng-template #folderTemplate><i nz-icon nzType="folder"></i></ng-template>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
@@ -112,7 +112,7 @@
     <ng-container *ngIf="!isUploading">
       <input flinkFileRead type="file" class="input-file" id="upload-file" (fileRead)="uploadJar($event)">
       <label for="upload-file" class="upload ant-btn-primary ant-btn ant-btn-sm">
-        <span><i nz-icon type="plus"></i>Add New</span>
+        <span><i nz-icon nzType="plus"></i>Add New</span>
       </label>
     </ng-container>
     <nz-progress *ngIf="isUploading" [nzPercent]="progress" nzSize="small" [nzShowInfo]="false"></nz-progress>

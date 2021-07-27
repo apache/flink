@@ -45,8 +45,8 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
   containerTransform = { x: 0, y: 0, k: 1 };
   svgSelect: Selection<any, any, any, any>;
   zoomController: ZoomBehavior<any, any>;
-  @ViewChild('svgContainer') svgContainer: ElementRef<SVGAElement>;
-  @ViewChild('svgInner') svgInner: ElementRef<SVGAElement>;
+  @ViewChild('svgContainer', { static: true }) svgContainer: ElementRef<SVGAElement>;
+  @ViewChild('svgInner', { static: true }) svgInner: ElementRef<SVGAElement>;
   @Input() nzMaxZoom = 5;
   @Input() nzMinZoom = 0.1;
   @Output() clickBgEvent: EventEmitter<MouseEvent> = new EventEmitter();

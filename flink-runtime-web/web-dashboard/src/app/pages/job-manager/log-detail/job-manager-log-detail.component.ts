@@ -37,7 +37,7 @@ export class JobManagerLogDetailComponent implements OnInit {
   downloadUrl = '';
   isLoading = false;
   isFullScreen = false;
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   constructor(
     private jobManagerService: JobManagerService,
     private cdr: ChangeDetectorRef,

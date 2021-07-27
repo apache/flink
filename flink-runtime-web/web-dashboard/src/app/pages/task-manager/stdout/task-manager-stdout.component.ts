@@ -29,7 +29,7 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   stdout = '';
   taskManagerDetail: TaskManagerDetailInterface;
 
