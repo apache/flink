@@ -395,6 +395,9 @@ under the License.
 									<!-- Tools to unify display format for different languages -->
 									<include>com.ibm.icu:icu4j</include>
 
+									<!-- For legacy string expressions in Table API -->
+									<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
+
 									<include>org.reflections:reflections</include>
 								</includes>
 							</artifactSet>
