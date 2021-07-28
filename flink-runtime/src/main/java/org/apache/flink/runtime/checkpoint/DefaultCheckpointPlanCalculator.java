@@ -170,7 +170,8 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(allTasks),
                 Collections.emptyList(),
-                Collections.emptyList());
+                Collections.emptyList(),
+                allowCheckpointsAfterTasksFinished);
     }
 
     /**
@@ -237,7 +238,8 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(tasksToCommitTo),
                 Collections.unmodifiableList(finishedTasks),
-                Collections.unmodifiableList(fullyFinishedJobVertex));
+                Collections.unmodifiableList(fullyFinishedJobVertex),
+                allowCheckpointsAfterTasksFinished);
     }
 
     private boolean someTasksMustBeTriggered(
