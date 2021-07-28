@@ -48,6 +48,8 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.mailbox.MailboxExecutor;
@@ -146,6 +148,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -169,19 +172,21 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.configuration.TaskManagerOptions.AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -1874,6 +1879,60 @@ public class StreamTaskTest extends TestLogger {
                             (AbstractStreamOperator<?>) testHarness.streamTask.getMainOperator();
             assertEquals(Arrays.asList(3L, 8L), operator.getNotifiedCheckpoint());
         }
+    }
+
+    @Test
+    public void testBufferSizeRecalculationStartSuccessfully() throws Exception {
+        CountDownLatch secondCalculationLatch = new CountDownLatch(2);
+        int expectedThroughput = 13333;
+        int inputChannels = 3;
+        Consumer<StreamConfig> configuration =
+                (config) -> {
+                    config.getConfiguration().set(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD, 10);
+                    config.getConfiguration().set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1));
+                    config.getConfiguration().set(BUFFER_DEBLOAT_ENABLED, true);
+                };
+        SupplierWithException<StreamTask<?, ?>, Exception> testTaskFactory =
+                () -> {
+                    // given: Configured StreamTask with one input channel.
+                    StreamTaskMailboxTestHarnessBuilder<String> builder =
+                            new StreamTaskMailboxTestHarnessBuilder<>(
+                                            OneInputStreamTask::new, STRING_TYPE_INFO)
+                                    .modifyStreamConfig(configuration)
+                                    .addInput(STRING_TYPE_INFO, inputChannels)
+                                    .setupOutputForSingletonOperatorChain(
+                                            new TestBoundedOneInputStreamOperator());
+                    // and: The throughput meter with predictable calculation result.
+                    StreamTaskMailboxTestHarness<String> harness =
+                            builder.setThroughputMeter(
+                                            new ThroughputCalculator(
+                                                    SystemClock.getInstance(), 10) {
+                                                @Override
+                                                public long calculateThroughput() {
+                                                    secondCalculationLatch.countDown();
+                                                    return expectedThroughput;
+                                                }
+                                            })
+                                    .build();
+                    return harness.streamTask;
+                };
+
+        RunningTask<StreamTask<?, ?>> task = runTask(testTaskFactory);
+
+        // when: The second throughput calculation happens
+        secondCalculationLatch.await();
+
+        // then: We can be sure the after the first throughput calculation the buffer size was
+        // changed.
+        for (InputGate inputGate : task.streamTask.getEnvironment().getAllInputGates()) {
+            for (int i = 0; i < inputGate.getNumberOfInputChannels(); i++) {
+                assertThat(
+                        ((TestInputChannel) inputGate.getChannel(i)).getCurrentBufferSize(),
+                        is(expectedThroughput / inputChannels));
+            }
+        }
+
+        task.streamTask.cancel();
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {

@@ -193,6 +193,10 @@ public class TestInputChannel extends InputChannel {
         currentBufferSize = newBufferSize;
     }
 
+    public int getCurrentBufferSize() {
+        return currentBufferSize;
+    }
+
     @Override
     int getBuffersInUseCount() {
         return buffers.size();

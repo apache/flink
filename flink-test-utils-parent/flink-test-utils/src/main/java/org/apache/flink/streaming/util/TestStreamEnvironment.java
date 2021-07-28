@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -42,6 +43,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
+    private static final boolean RANDOMIZE_BUFFER_DEBLOAT_CONFIG =
+            Boolean.parseBoolean(System.getProperty("buffer-debloat.randomization", "false"));
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -96,6 +99,9 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
                             STATE_CHANGE_LOG_CONFIG_RAND)) {
                         randomize(conf, CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+                    }
+                    if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG) {
+                        randomize(conf, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
                     }
                     env.configure(conf, env.getUserClassloader());
                     return env;
