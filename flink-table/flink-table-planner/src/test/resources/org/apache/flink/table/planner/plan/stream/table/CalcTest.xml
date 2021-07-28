@@ -68,7 +68,7 @@ LogicalProject(_c0=[org$apache$flink$table$planner$expressions$utils$Func23$$79c
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Func23$(a, b, c).f0 AS _c0, Func23$(a, b, c).f1 AS _c1, Func23$(a, b, c).f2 AS _c2, Func23$(a, b, c).f3 AS _c3])
+Calc(select=[org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f0 AS _c0, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f1 AS _c1, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f2 AS _c2, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f3 AS _c3])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -99,7 +99,7 @@ LogicalProject(_c0=[org$apache$flink$table$planner$expressions$utils$Func24$$2da
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, Func23$(a, b, c).f2, Func23$(a, b, c).f3).f0 AS _c0, Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, Func23$(a, b, c).f2, Func23$(a, b, c).f3).f1 AS _c1, Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, Func23$(a, b, c).f2, Func23$(a, b, c).f3).f2 AS _c2, Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, Func23$(a, b, c).f2, Func23$(a, b, c).f3).f3 AS _c3])
+Calc(select=[org$apache$flink$table$planner$expressions$utils$Func24$$2da7dcb3c9bedfd621ee539995571a90(org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f0, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f1, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f2, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f3).f0 AS _c0, org$apache$flink$table$planner$expressions$utils$Func24$$2da7dcb3c9bedfd621ee539995571a90(org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f0, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f1, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f2, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f3).f1 AS _c1, org$apache$flink$table$planner$expressions$utils$Func24$$2da7dcb3c9bedfd621ee539995571a90(org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f0, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f1, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f2, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f3).f2 AS _c2, org$apache$flink$table$planner$expressions$utils$Func24$$2da7dcb3c9bedfd621ee539995571a90(org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f0, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f1, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f2, org$apache$flink$table$planner$expressions$utils$Func23$$79c21fb5a52b78edece166661f30bbd0(a, b, c).f3).f3 AS _c3])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -128,7 +128,7 @@ LogicalProject(_c0=[org$apache$flink$table$planner$expressions$utils$Func1$$879c
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Func1$(a) AS _c0])
+Calc(select=[org$apache$flink$table$planner$expressions$utils$Func1$$879c8537562dbe74f3349fa0e6502755(a) AS _c0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

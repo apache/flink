@@ -55,16 +55,16 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, Int, (Int, Int))]("MyTable", 'a, 'b, 'c, 'd)
-    util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
-    util.addFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
-    util.addFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
-    util.addFunction("pyFunc4", new BooleanPythonScalarFunction("pyFunc4"))
-    util.addFunction("pyFunc5", new RowPythonScalarFunction("pyFunc5"))
-    util.addFunction("RowJavaFunc", new RowJavaScalarFunction("RowJavaFunc"))
-    util.addFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
-    util.addFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
-    util.addFunction("pandasFunc3", new PandasScalarFunction("pandasFunc3"))
-    util.addFunction("pandasFunc4", new BooleanPandasScalarFunction("pandasFunc4"))
+    util.addTemporarySystemFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+    util.addTemporarySystemFunction("pyFunc2", new PythonScalarFunction("pyFunc2"))
+    util.addTemporarySystemFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
+    util.addTemporarySystemFunction("pyFunc4", new BooleanPythonScalarFunction("pyFunc4"))
+    util.addTemporarySystemFunction("pyFunc5", new RowPythonScalarFunction("pyFunc5"))
+    util.addTemporarySystemFunction("RowJavaFunc", new RowJavaScalarFunction("RowJavaFunc"))
+    util.addTemporarySystemFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
+    util.addTemporarySystemFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
+    util.addTemporarySystemFunction("pandasFunc3", new PandasScalarFunction("pandasFunc3"))
+    util.addTemporarySystemFunction("pandasFunc4", new BooleanPandasScalarFunction("pandasFunc4"))
   }
 
   @Test

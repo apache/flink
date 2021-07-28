@@ -141,7 +141,7 @@ LogicalProject(c=[$2], name=[$3], len=[$4])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, name, len])
-+- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247(org$apache$flink$table$planner$expressions$utils$Func13$aceadf1af6c698a4705a8fbd3984d0a3($2))], correlate=[table(TableFunc2(Func13(c)))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER])
++- Correlate(invocation=[org$apache$flink$table$planner$utils$TableFunc2$e9d8fd0c1a1f8cddfbbd46c86e136247(org$apache$flink$table$planner$expressions$utils$Func13$aceadf1af6c698a4705a8fbd3984d0a3($2))], correlate=[table(TableFunc2(org$apache$flink$table$planner$expressions$utils$Func13$aceadf1af6c698a4705a8fbd3984d0a3(c)))], select=[a,b,c,name,len], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER len)], joinType=[INNER])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
