@@ -76,7 +76,7 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
     }
 
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -85,8 +85,10 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
             throwAlreadyShutdownException(shutdownStatus.get());
         }
         checkpoints.addLast(checkpoint);
-        CheckpointSubsumeHelper.subsume(
-                checkpoints, maxRetainedCheckpoints, CompletedCheckpoint::discardOnSubsume);
+
+        return CheckpointSubsumeHelper.subsume(
+                        checkpoints, maxRetainedCheckpoints, CompletedCheckpoint::discardOnSubsume)
+                .orElse(null);
     }
 
     @VisibleForTesting

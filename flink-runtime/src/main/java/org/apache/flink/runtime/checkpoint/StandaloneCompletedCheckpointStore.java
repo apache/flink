@@ -28,6 +28,8 @@ import org.apache.flink.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,8 +87,9 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
         this.checkpoints = checkpoints;
     }
 
+    @Nullable
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -94,8 +97,11 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
 
         checkpoints.addLast(checkpoint);
 
-        CheckpointSubsumeHelper.subsume(
-                checkpoints, maxNumberOfCheckpointsToRetain, CompletedCheckpoint::discardOnSubsume);
+        return CheckpointSubsumeHelper.subsume(
+                        checkpoints,
+                        maxNumberOfCheckpointsToRetain,
+                        CompletedCheckpoint::discardOnSubsume)
+                .orElse(null);
     }
 
     @Override
