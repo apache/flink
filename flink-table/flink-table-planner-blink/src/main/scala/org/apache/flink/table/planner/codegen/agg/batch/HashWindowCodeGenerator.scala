@@ -23,8 +23,9 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.runtime.operators.sort.QuickSort
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, newName}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -609,6 +610,14 @@ class HashWindowCodeGenerator(
        |  $endCode
        | }
        """.stripMargin
+  }
+
+  private def getOutputRowClass: Class[_ <: RowData] = {
+    if (namedProperties.isEmpty && grouping.isEmpty && isFinal) {
+      classOf[GenericRowData]
+    } else {
+      classOf[JoinedRowData]
+    }
   }
 
   private def genOutputDirectly(

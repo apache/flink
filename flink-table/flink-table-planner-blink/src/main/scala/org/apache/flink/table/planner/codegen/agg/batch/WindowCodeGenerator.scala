@@ -26,7 +26,7 @@ import org.apache.commons.math3.util.ArithmeticUtils
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
 import org.apache.flink.table.functions.AggregateFunction
@@ -96,14 +96,6 @@ abstract class WindowCodeGenerator(
   private lazy val windowedGroupKeyType: RowType = RowType.of(
     (groupKeyRowType.getChildren :+ timestampInternalType).toArray,
     (groupKeyRowType.getFieldNames :+ "assignedTs$").toArray)
-
-  def getOutputRowClass: Class[_ <: RowData] = {
-    if (namedProperties.isEmpty && grouping.isEmpty) {
-      classOf[GenericRowData]
-    } else {
-      classOf[JoinedRowData]
-    }
-  }
 
   private[flink] def getWindowsGroupingElementInfo(
       enablePreAccumulate: Boolean = true): RowType = {
