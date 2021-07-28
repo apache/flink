@@ -235,6 +235,14 @@ public class AlignedCheckpointsMassiveRandomTest {
         @Override
         public void checkpointStopped(long cancelledCheckpointId) {}
 
+        @Override
+        public int getBuffersInUseCount() {
+            return 0;
+        }
+
+        @Override
+        public void announceBufferSize(int bufferSize) {}
+
         public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)
                 throws IOException {}
 

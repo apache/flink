@@ -337,6 +337,16 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
+    void announceBufferSize(int newBufferSize) {
+        // Not supported.
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return subpartitionView.getNumberOfQueuedBuffers();
+    }
+
+    @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         ResultSubpartitionView view = subpartitionView;
 

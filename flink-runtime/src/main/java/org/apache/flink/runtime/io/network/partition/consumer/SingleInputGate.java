@@ -366,6 +366,22 @@ public class SingleInputGate extends IndexedInputGate {
         return unfinishedChannels;
     }
 
+    @Override
+    public int getBuffersInUseCount() {
+        int total = 0;
+        for (InputChannel channel : channels) {
+            total += Math.max(1, channel.getBuffersInUseCount());
+        }
+        return total;
+    }
+
+    @Override
+    public void announceBufferSize(int newBufferSize) {
+        for (InputChannel channel : channels) {
+            channel.announceBufferSize(newBufferSize);
+        }
+    }
+
     /**
      * Returns the type of this input channel's consumed result partition.
      *
