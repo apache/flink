@@ -813,7 +813,7 @@ under the License.
 												<exclude>*:*_2.12</exclude>
 												<exclude>*:*_2.10</exclude>
 											</excludes>
-											<message>Scala 2.10/2.12 dependencies are not allowed for Scala 2.11 builds. This can be caused by hard-coded scala version, where the 'scala.binary.version' property should be used instead.</message>
+											<message>Scala 2.10/2.12 dependencies are not allowed for Scala 2.11 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
 										</bannedDependencies>
 									</rules>
 								</configuration>
@@ -879,7 +879,7 @@ under the License.
 												<exclude>*:*_2.11</exclude>
 												<exclude>*:*_2.10</exclude>
 											</excludes>
-											<message>Scala 2.10/2.11 dependencies are not allowed for Scala 2.12 builds. This can be caused by hard-coded scala version, where the 'scala.binary.version' property should be used instead.</message>
+											<message>Scala 2.10/2.11 dependencies are not allowed for Scala 2.12 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
 										</bannedDependencies>
 									</rules>
 								</configuration>
