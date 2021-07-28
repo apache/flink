@@ -142,7 +142,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
         private final ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
         private final Executor mainThreadExecutor = MAIN_THREAD_EXECUTOR;
         private FineGrainedSlotManager slotManager;
-        private long requirementCheckDelay = 0;
+        private long requirementCheckDelay = 20;
 
         final TestingResourceAllocationStrategy.Builder resourceAllocationStrategyBuilder =
                 TestingResourceAllocationStrategy.newBuilder();
