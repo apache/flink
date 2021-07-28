@@ -128,6 +128,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private TimestampsAndWatermarks<OUT> eventTimeLogic;
 
+    private boolean dataFinished = false;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -279,8 +281,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
         // guarding an assumptions we currently make due to the fact that certain classes
-        // assume a constant output
-        assert lastInvokedOutput == output || lastInvokedOutput == null;
+        // assume a constant output, this assumption does not need to stand if we emitted all
+        // records. In that case the output will change to FinishedDataOutput
+        assert lastInvokedOutput == output || lastInvokedOutput == null || dataFinished;
 
         // short circuit the common case (every invocation except the first)
         if (currentMainOutput != null) {
@@ -300,7 +303,12 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case NOTHING_AVAILABLE:
                 return DataInputStatus.NOTHING_AVAILABLE;
             case END_OF_INPUT:
-                return DataInputStatus.END_OF_INPUT;
+                if (dataFinished) {
+                    return DataInputStatus.END_OF_INPUT;
+                } else {
+                    dataFinished = true;
+                    return DataInputStatus.END_OF_DATA;
+                }
             default:
                 throw new IllegalArgumentException("Unknown input status: " + inputStatus);
         }

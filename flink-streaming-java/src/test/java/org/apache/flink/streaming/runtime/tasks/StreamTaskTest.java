@@ -57,7 +57,6 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -132,9 +131,7 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -200,8 +197,6 @@ import static org.mockito.Mockito.when;
 public class StreamTaskTest extends TestLogger {
 
     private static OneShotLatch syncLatch;
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     @Test
     public void testCancellationWaitsForActiveTimers() throws Exception {
@@ -1144,47 +1139,6 @@ public class StreamTaskTest extends TestLogger {
     }
 
     /**
-     * Tests that the StreamTask first closes all of its operators before setting its state to not
-     * running (isRunning == false)
-     *
-     * <p>See FLINK-7430.
-     */
-    @Test
-    public void testOperatorClosingBeforeStopRunning() throws Throwable {
-        BlockingFinishStreamOperator.resetLatches();
-        Configuration taskConfiguration = new Configuration();
-        StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-        streamConfig.setStreamOperator(new BlockingFinishStreamOperator());
-        streamConfig.setOperatorID(new OperatorID());
-
-        try (MockEnvironment mockEnvironment =
-                new MockEnvironmentBuilder()
-                        .setTaskName("Test Task")
-                        .setManagedMemorySize(32L * 1024L)
-                        .setInputSplitProvider(new MockInputSplitProvider())
-                        .setBufferSize(1)
-                        .setTaskConfiguration(taskConfiguration)
-                        .build()) {
-
-            RunningTask<StreamTask<Void, BlockingFinishStreamOperator>> task =
-                    runTask(() -> new NoOpStreamTask<>(mockEnvironment));
-
-            BlockingFinishStreamOperator.inClose.await();
-
-            // check that the StreamTask is not yet in isRunning == false
-            assertTrue(task.streamTask.isRunning());
-
-            // let the operator finish its close operation
-            BlockingFinishStreamOperator.finishClose.trigger();
-
-            task.waitForTaskCompletion(false);
-
-            // now the StreamTask should no longer be running
-            assertFalse(task.streamTask.isRunning());
-        }
-    }
-
-    /**
      * Tests that {@link StreamTask#notifyCheckpointCompleteAsync(long)} is not relayed to closed
      * operators.
      *
@@ -2020,24 +1974,24 @@ public class StreamTaskTest extends TestLogger {
     private static class BlockingFinishStreamOperator extends AbstractStreamOperator<Void> {
         private static final long serialVersionUID = -9042150529568008847L;
 
-        private static volatile OneShotLatch inClose;
+        private static volatile OneShotLatch inFinish;
         private static volatile OneShotLatch finishClose;
 
         @Override
         public void finish() throws Exception {
             checkLatches();
-            inClose.trigger();
+            inFinish.trigger();
             finishClose.await();
             super.close();
         }
 
         private void checkLatches() {
-            Preconditions.checkNotNull(inClose);
+            Preconditions.checkNotNull(inFinish);
             Preconditions.checkNotNull(finishClose);
         }
 
         private static void resetLatches() {
-            inClose = new OneShotLatch();
+            inFinish = new OneShotLatch();
             finishClose = new OneShotLatch();
         }
     }

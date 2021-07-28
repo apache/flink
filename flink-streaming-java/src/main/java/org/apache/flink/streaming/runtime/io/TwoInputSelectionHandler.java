@@ -32,9 +32,14 @@ public class TwoInputSelectionHandler {
 
     @Nullable private final InputSelectable inputSelectable;
 
-    private InputSelection inputSelection;
+    private int selectedInputsMask = (int) InputSelection.ALL.getInputMask();
 
     private int availableInputsMask;
+    private final int allInputsMask = 3;
+
+    private int dataFinishedButNotPartition = 0;
+
+    private int inputsFinishedMask = 0;
 
     public TwoInputSelectionHandler(@Nullable InputSelectable inputSelectable) {
         this.inputSelectable = inputSelectable;
@@ -44,18 +49,27 @@ public class TwoInputSelectionHandler {
 
     void nextSelection() {
         if (inputSelectable == null) {
-            inputSelection = InputSelection.ALL;
+            selectedInputsMask = (int) InputSelection.ALL.getInputMask();
+        } else if (dataFinishedButNotPartition != 0) {
+            selectedInputsMask =
+                    ((int) inputSelectable.nextSelection().getInputMask()
+                            | dataFinishedButNotPartition);
         } else {
-            inputSelection = inputSelectable.nextSelection();
+            selectedInputsMask = (int) inputSelectable.nextSelection().getInputMask();
         }
     }
 
+    public boolean allInputsReceivedEndOfData() {
+        return (dataFinishedButNotPartition | inputsFinishedMask) == 3;
+    }
+
     int selectNextInputIndex(int lastReadInputIndex) {
-        return inputSelection.fairSelectNextIndexOutOf2(availableInputsMask, lastReadInputIndex);
+        return InputSelection.fairSelectNextIndexOutOf2(
+                selectedInputsMask, availableInputsMask, lastReadInputIndex);
     }
 
     boolean shouldSetAvailableForAnotherInput() {
-        return availableInputsMask < 3 && inputSelection.areAllInputsSelected();
+        return availableInputsMask < 3 && areAllInputsSelected();
     }
 
     void setAvailableInput(int inputIndex) {
@@ -66,15 +80,28 @@ public class TwoInputSelectionHandler {
         availableInputsMask &= ~(1 << inputIndex);
     }
 
+    void setDataFinishedOnInput(int inputIndex) {
+        dataFinishedButNotPartition |= 1 << inputIndex;
+    }
+
     boolean areAllInputsSelected() {
-        return inputSelection.areAllInputsSelected();
+        return (selectedInputsMask & allInputsMask) == 3;
     }
 
     boolean isFirstInputSelected() {
-        return inputSelection.isInputSelected(1);
+        return checkBitMask(selectedInputsMask, 0);
     }
 
     boolean isSecondInputSelected() {
-        return inputSelection.isInputSelected(2);
+        return checkBitMask(selectedInputsMask, 1);
+    }
+
+    public void setEndOfPartition(int inputIndex) {
+        dataFinishedButNotPartition &= ~(1L << inputIndex);
+        inputsFinishedMask |= 1 << inputIndex;
+    }
+
+    boolean checkBitMask(long mask, int inputIndex) {
+        return (mask & (1L << inputIndex)) != 0;
     }
 }

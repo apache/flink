@@ -52,6 +52,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     private int lastReadInputIndex = 1;
 
     private boolean isPrepared;
+    private boolean emittedEndOfData = false;
 
     public StreamTwoInputProcessor(
             TwoInputSelectionHandler inputSelectionHandler,
@@ -96,6 +97,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
         } else {
             secondInputStatus = processor2.processInput();
         }
+        updateAvailability();
         inputSelectionHandler.nextSelection();
 
         return getInputStatus();
@@ -126,6 +128,11 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
             return DataInputStatus.END_OF_INPUT;
         }
 
+        if (inputSelectionHandler.allInputsReceivedEndOfData() & !emittedEndOfData) {
+            emittedEndOfData = true;
+            return DataInputStatus.END_OF_DATA;
+        }
+
         if (inputSelectionHandler.areAllInputsSelected()) {
             if (firstInputStatus == DataInputStatus.MORE_AVAILABLE
                     || secondInputStatus == DataInputStatus.MORE_AVAILABLE) {
@@ -139,7 +146,18 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
                 inputSelectionHandler.isFirstInputSelected() ? firstInputStatus : secondInputStatus;
         DataInputStatus otherStatus =
                 inputSelectionHandler.isFirstInputSelected() ? secondInputStatus : firstInputStatus;
-        return selectedStatus == DataInputStatus.END_OF_INPUT ? otherStatus : selectedStatus;
+        if (selectedStatus == DataInputStatus.END_OF_INPUT) {
+            return otherStatus;
+        } else if (selectedStatus == DataInputStatus.END_OF_DATA) {
+            if (inputSelectionHandler.allInputsReceivedEndOfData() & !emittedEndOfData) {
+                emittedEndOfData = true;
+                return DataInputStatus.END_OF_DATA;
+            } else {
+                return DataInputStatus.MORE_AVAILABLE;
+            }
+        } else {
+            return selectedStatus;
+        }
     }
 
     @Override
@@ -203,8 +221,13 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
     private void updateAvailability(
             DataInputStatus status, StreamOneInputProcessor<?> input, int inputIdx) {
-        if (status == DataInputStatus.MORE_AVAILABLE
-                || (status != DataInputStatus.END_OF_INPUT && input.isApproximatelyAvailable())) {
+        if (status == DataInputStatus.MORE_AVAILABLE) {
+            inputSelectionHandler.setAvailableInput(inputIdx);
+        } else if (status == DataInputStatus.END_OF_DATA) {
+            inputSelectionHandler.setDataFinishedOnInput(inputIdx);
+        } else if (status == DataInputStatus.END_OF_INPUT) {
+            inputSelectionHandler.setEndOfPartition(inputIdx);
+        } else if (input.isApproximatelyAvailable()) {
             inputSelectionHandler.setAvailableInput(inputIdx);
         } else {
             inputSelectionHandler.setUnavailableInput(inputIdx);

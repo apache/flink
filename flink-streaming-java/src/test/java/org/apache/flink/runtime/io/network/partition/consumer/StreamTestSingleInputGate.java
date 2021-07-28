@@ -23,6 +23,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -111,6 +112,13 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
                                             nextType,
                                             0,
                                             0));
+                        } else if (input != null && input.isDataEnd()) {
+                            return Optional.of(
+                                    new BufferAndAvailability(
+                                            EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                                            nextType,
+                                            0,
+                                            0));
                         } else if (input != null && input.isStreamRecord()) {
                             Object inputElement = input.getStreamRecord();
 
@@ -166,8 +174,15 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
     }
 
     public void endInput() {
+        endInput(true);
+    }
+
+    public void endInput(boolean emitEndOfData) {
         for (int i = 0; i < numInputChannels; i++) {
             synchronized (inputQueues[i]) {
+                if (emitEndOfData) {
+                    inputQueues[i].add(InputValue.dataEnd());
+                }
                 inputQueues[i].add(InputValue.streamEnd());
                 inputQueues[i].notifyAll();
             }
@@ -186,32 +201,39 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
     }
 
     private static class InputValue<T> {
-        private Object elementOrEvent;
-        private boolean isStreamEnd;
-        private boolean isStreamRecord;
-        private boolean isEvent;
+        private final Object elementOrEvent;
+        private final boolean isStreamEnd;
+        private final boolean isStreamRecord;
+        private final boolean isEvent;
+        private final boolean isDataEnd;
 
         private InputValue(
                 Object elementOrEvent,
                 boolean isStreamEnd,
+                boolean isDataEnd,
                 boolean isEvent,
                 boolean isStreamRecord) {
             this.elementOrEvent = elementOrEvent;
             this.isStreamEnd = isStreamEnd;
             this.isStreamRecord = isStreamRecord;
             this.isEvent = isEvent;
+            this.isDataEnd = isDataEnd;
         }
 
         public static <X> InputValue<X> element(Object element) {
-            return new InputValue<X>(element, false, false, true);
+            return new InputValue<X>(element, false, false, false, true);
+        }
+
+        public static <X> InputValue<X> dataEnd() {
+            return new InputValue<X>(null, false, true, false, false);
         }
 
         public static <X> InputValue<X> streamEnd() {
-            return new InputValue<X>(null, true, false, false);
+            return new InputValue<X>(null, true, false, false, false);
         }
 
         public static <X> InputValue<X> event(AbstractEvent event) {
-            return new InputValue<X>(event, false, true, false);
+            return new InputValue<X>(event, false, false, true, false);
         }
 
         public Object getStreamRecord() {
@@ -232,6 +254,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 
         public boolean isEvent() {
             return isEvent;
+        }
+
+        public boolean isDataEnd() {
+            return isDataEnd;
         }
     }
 }
