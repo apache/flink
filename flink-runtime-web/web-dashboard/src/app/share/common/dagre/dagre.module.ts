@@ -22,7 +22,7 @@ import { FormsModule } from '@angular/forms';
 import { NodeComponent } from './node.component';
 import { DagreComponent } from './dagre.component';
 import { SvgContainerComponent } from './svg-container.component';
-import { NzSliderModule } from 'ng-zorro-antd';
+import { NzSliderModule } from 'ng-zorro-antd/slider';
 
 @NgModule({
   imports: [CommonModule, FormsModule, NzSliderModule],

@@ -17,31 +17,31 @@
   -->
 
 <nz-table
+  #table
   class="no-border small full-height"
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTask"
   [nzScroll]="{x:'1480px',y:'calc( 100% - 35px )'}"
-  [nzFrontPagination]="false"
   [nzShowPagination]="false">
-  <thead (nzSortChange)="sort($event)" nzSingleSort>
+  <thead>
     <tr>
       <th nzWidth="80px" nzLeft="0px">ID</th>
-      <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
-      <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
-      <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
-      <th nzSortKey="metrics.write-records" nzShowSort nzWidth="120px">Records Sent</th>
-      <th nzSortKey="attempt" nzShowSort nzWidth="100px">Attempt</th>
-      <th nzSortKey="host" nzShowSort nzWidth="200px">Host</th>
-      <th nzSortKey="start_time" nzShowSort nzWidth="150px">Start Time</th>
-      <th nzSortKey="duration" nzShowSort nzWidth="100px">Duration</th>
-      <th nzSortKey="end-time" nzShowSort nzWidth="150px">End Time</th>
-      <th nzSortKey="status" nzShowSort nzWidth="120px" nzRight="50px">Status</th>
+      <th [nzSortFn]="sortReadBytesFn" nzWidth="140px">Bytes Received</th>
+      <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
+      <th [nzSortFn]="sortWriteBytesFn" nzWidth="120px">Bytes Sent</th>
+      <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
+      <th [nzSortFn]="sortAttemptFn" nzWidth="100px">Attempt</th>
+      <th [nzSortFn]="sortHostFn" nzWidth="200px">Host</th>
+      <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
+      <th [nzSortFn]="sortDurationFn" nzWidth="100px">Duration</th>
+      <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
+      <th [nzSortFn]="sortStatusFn" nzWidth="120px" nzRight="50px">Status</th>
       <th nzWidth="50px" nzRight="0px">More</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
+    <tr *ngFor="let task of table.data; trackBy:trackTaskBy;">
       <td nzLeft="0">
         {{ task.subtask }}
       </td>

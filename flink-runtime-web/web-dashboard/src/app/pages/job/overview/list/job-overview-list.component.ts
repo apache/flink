@@ -19,6 +19,7 @@
 import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ElementRef } from '@angular/core';
 import { deepFind } from 'utils';
 import { NodesItemCorrectInterface } from 'interfaces';
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
   selector: 'flink-job-overview-list',
@@ -37,31 +38,25 @@ export class JobOverviewListComponent {
   @Input()
   set nodes(value: NodesItemCorrectInterface[]) {
     this.innerNodes = value;
-    this.search();
   }
 
   get nodes() {
     return this.innerNodes;
   }
 
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
+  sortStatusFn = this.sortFn('detail.status');
+  sortReadBytesFn = this.sortFn('detail.metrics.read-bytes');
+  sortReadRecordsFn = this.sortFn('detail.metrics.read-records');
+  sortWriteBytesFn = this.sortFn('detail.metrics.write-bytes');
+  sortWriteRecordsFn = this.sortFn('detail.metrics.write-records');
+  sortParallelismFn = this.sortFn('parallelism');
+  sortStartTimeFn = this.sortFn('detail.start-time');
+  sortDurationFn = this.sortFn('detail.duration');
+  sortEndTimeFn = this.sortFn('detail.end-time');
 
-  search() {
-    if (this.sortName) {
-      this.innerNodes = [
-        ...this.innerNodes.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
+  sortFn(path: string): NzTableSortFn {
+    return (pre: NodesItemCorrectInterface, next: NodesItemCorrectInterface) =>
+      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
   trackJobBy(_: number, node: NodesItemCorrectInterface) {

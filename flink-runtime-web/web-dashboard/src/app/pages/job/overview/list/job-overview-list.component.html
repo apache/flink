@@ -17,29 +17,29 @@
   -->
 
 <nz-table
+  #table
   class="no-border small"
   [nzSize]="'small'"
   [nzData]="nodes"
   [nzScroll]="{x:((1360+left)+'px')}"
-  [nzFrontPagination]="false"
   [nzShowPagination]="false">
-  <thead (nzSortChange)="sort($event)" nzSingleSort>
+  <thead>
     <tr>
       <th nzLeft="0px" [nzWidth]="left+'px'">Name</th>
-      <th nzSortKey="detail.status" nzShowSort nzWidth="120px">Status</th>
-      <th nzSortKey="detail.metrics.read-bytes" nzShowSort nzWidth="150px">Bytes Received</th>
-      <th nzSortKey="detail.metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
-      <th nzSortKey="detail.metrics.write-bytes" nzShowSort nzWidth="150px">Bytes Sent</th>
-      <th nzSortKey="detail.metrics.write-records" nzShowSort nzWidth="120px">Records Sent</th>
-      <th nzSortKey="parallelism" nzShowSort nzWidth="120px">Parallelism</th>
-      <th nzSortKey="detail.start-time" nzShowSort nzWidth="150px">Start Time</th>
-      <th nzSortKey="detail.duration" nzShowSort nzWidth="150px">Duration</th>
-      <th nzSortKey="detail.end-time" nzShowSort nzWidth="150px">End Time</th>
+      <th [nzSortFn]="sortStatusFn" nzWidth="120px">Status</th>
+      <th [nzSortFn]="sortReadBytesFn" nzWidth="150px">Bytes Received</th>
+      <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
+      <th [nzSortFn]="sortWriteBytesFn" nzWidth="150px">Bytes Sent</th>
+      <th [nzSortFn]="sortWriteRecordsFn" nzWidth="120px">Records Sent</th>
+      <th [nzSortFn]="sortParallelismFn" nzWidth="120px">Parallelism</th>
+      <th [nzSortFn]="sortStartTimeFn" nzWidth="150px">Start Time</th>
+      <th [nzSortFn]="sortDurationFn" nzWidth="150px">Duration</th>
+      <th [nzSortFn]="sortEndTimeFn" nzWidth="150px">End Time</th>
       <th nzWidth="100px" nzRight="0px">Tasks</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let node of nodes; trackBy:trackJobBy;" class="clickable" (click)="clickNode(node)" [class.selected]="selectedNode?.id === node.id">
+    <tr *ngFor="let node of table.data; trackBy:trackJobBy;" class="clickable" (click)="clickNode(node)" [class.selected]="selectedNode?.id === node.id">
       <td nzLeft="0px" class="name" [class.selected]="selectedNode?.id === node.id">
         <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">{{ node.detail?.name }}</a>
       </td>

@@ -119,5 +119,7 @@
   </div>
 </ng-template>
 <nz-drawer [nzHeight]="'100%'" [nzVisible]="planVisible" [nzPlacement]="'bottom'" [nzTitle]="'Plan Visualization'" (nzOnClose)="hidePlan()">
-  <flink-dagre></flink-dagre>
+  <ng-container *nzDrawerContent>
+    <flink-dagre></flink-dagre>
+  </ng-container>
 </nz-drawer>

@@ -74,28 +74,28 @@
   </nz-table>
 
   <nz-table
+    #table
     class="no-border small"
     [nzData]="listOfSubTaskCheckPoint"
     [nzSize]="'small'"
     [nzLoading]="isLoading"
-    [nzFrontPagination]="false"
     [nzShowPagination]="false">
-    <thead (nzSortChange)="sort($event)" nzSingleSort>
+    <thead>
       <tr>
         <th><strong>ID</strong></th>
-        <th nzSortKey="ack_timestamp" nzShowSort><strong>Acknowledged</strong></th>
-        <th nzSortKey="end_to_end_duration" nzShowSort><strong>End to End Duration</strong></th>
-        <th nzSortKey="state_size" nzShowSort><strong>Checkpointed Data Size</strong></th>
-        <th nzSortKey="checkpoint.sync" nzShowSort><strong>Sync Duration</strong></th>
-        <th nzSortKey="checkpoint.async" nzShowSort><strong>Async Duration</strong></th>
-        <th nzSortKey="alignment.processed" nzShowSort><strong>Processed (persisted) Data</strong></th>
-        <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
-        <th nzSortKey="start_delay" nzShowSort><strong>Start Delay</strong></th>
-        <th nzSortKey="unaligned_checkpoint" nzShowSort><strong>Unaligned Checkpoint</strong></th>
+        <th [nzSortFn]="sortAckTimestampFn"><strong>Acknowledged</strong></th>
+        <th [nzSortFn]="sortEndToEndDurationFn"><strong>End to End Duration</strong></th>
+        <th [nzSortFn]="sortStateSizeFn"><strong>Checkpointed Data Size</strong></th>
+        <th [nzSortFn]="sortCpSyncFn"><strong>Sync Duration</strong></th>
+        <th [nzSortFn]="sortCpAsyncFn"><strong>Async Duration</strong></th>
+        <th [nzSortFn]="sortAlignmentProcessedFn"><strong>Processed (persisted) Data</strong></th>
+        <th [nzSortFn]="sortAlignmentDurationFn"><strong>Alignment Duration</strong></th>
+        <th [nzSortFn]="sortStartDelayFn"><strong>Start Delay</strong></th>
+        <th [nzSortFn]="sortUnalignedCpFn"><strong>Unaligned Checkpoint</strong></th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let subTask of listOfSubTaskCheckPoint">
+      <tr *ngFor="let subTask of table.data">
         <td>{{ subTask['index'] }}</td>
         <ng-container *ngIf="subTask['status'] == 'completed'">
           <td >{{ subTask['ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>

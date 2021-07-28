@@ -23,6 +23,7 @@ import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 import { StatusService, TaskManagerService } from 'services';
 import { deepFind } from 'utils';
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
   selector: 'flink-task-manager-list',
@@ -37,24 +38,18 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   sortName: string;
   sortValue: string;
 
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
+  sortDataPortFn = this.sortFn('dataPort');
+  sortHeartBeatFn = this.sortFn('timeSinceLastHeartbeat');
+  sortSlotsNumberFn = this.sortFn('slotsNumber');
+  sortFreeSlotsFn = this.sortFn('freeSlots');
+  sortCpuCoresFn = this.sortFn('hardware.cpuCores');
+  sortPhysicalMemoryFn = this.sortFn('hardware.physicalMemory');
+  sortFreeMemoryFn = this.sortFn('hardware.freeMemory');
+  sortManagedMemoryFn = this.sortFn('hardware.managedMemory');
 
-  search() {
-    if (this.sortName) {
-      this.listOfTaskManager = [
-        ...this.listOfTaskManager.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
+  sortFn(path: string): NzTableSortFn {
+    return (pre: TaskmanagersItemInterface, next: TaskmanagersItemInterface) =>
+      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
   trackManagerBy(_: number, node: TaskmanagersItemInterface) {
@@ -83,7 +78,6 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
         data => {
           this.isLoading = false;
           this.listOfTaskManager = data;
-          this.search();
           this.cdr.markForCheck();
         },
         () => {

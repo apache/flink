@@ -22,8 +22,8 @@ import { JobsItemInterface } from 'interfaces';
 import { Observable, Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 import { JobService, StatusService } from 'services';
-import { deepFind, isNil } from 'utils';
-import { NzMessageService } from 'ng-zorro-antd';
+import { isNil } from 'utils';
+import { NzMessageService } from 'ng-zorro-antd/message';
 
 @Component({
   selector: 'flink-job-list',
@@ -37,29 +37,15 @@ export class JobListComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
   sortName = 'start-time';
   sortValue = 'descend';
+  pageSize = Infinity;
   @Input() completed = false;
   @Input() title: string;
   @Input() jobData$: Observable<JobsItemInterface[]>;
 
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
-
-  search() {
-    if (this.sortName) {
-      this.listOfJob = [
-        ...this.listOfJob.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
-  }
+  sortStartTimeFn = (pre: JobsItemInterface, next: JobsItemInterface) => pre['start-time'] - next['start-time'];
+  sortDurationFn = (pre: JobsItemInterface, next: JobsItemInterface) => pre.duration - next.duration;
+  sortEndTimeFn = (pre: JobsItemInterface, next: JobsItemInterface) => pre['end-time'] - next['end-time'];
+  sortStateFn = (pre: JobsItemInterface, next: JobsItemInterface) => pre.state.localeCompare(next.state);
 
   trackJobBy(_: number, node: JobsItemInterface) {
     return node.jid;
@@ -100,7 +86,6 @@ export class JobListComponent implements OnInit, OnDestroy {
     this.jobData$.subscribe(data => {
       this.isLoading = false;
       this.listOfJob = data.filter(item => item.completed === this.completed);
-      this.search();
       this.cdr.markForCheck();
     });
   }
