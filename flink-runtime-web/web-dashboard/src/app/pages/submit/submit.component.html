@@ -46,7 +46,7 @@
               </div>
             </td>
             <td class="delete-jar">
-              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteJar(jar)" nzTitle="Are you sure delete this jar?">Delete</a>
+              <a nz-popconfirm (click)="$event.stopPropagation();" (nzOnConfirm)="deleteJar(jar)" nzPopconfirmTitle="Are you sure delete this jar?">Delete</a>
             </td>
           </tr>
           <tr [nzExpand]="expandedMap.get(jar.id)">

@@ -28,9 +28,29 @@ import { JobManagerLogListComponent } from './log-list/job-manager-log-list.comp
 import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
 import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
+import {
+  NzBreadCrumbModule,
+  NzCardModule,
+  NzGridModule,
+  NzIconModule,
+  NzProgressModule,
+  NzTableModule,
+  NzToolTipModule
+} from 'ng-zorro-antd';
 
 @NgModule({
-  imports: [CommonModule, ShareModule, JobManagerRoutingModule],
+  imports: [
+    CommonModule,
+    ShareModule,
+    JobManagerRoutingModule,
+    NzTableModule,
+    NzProgressModule,
+    NzCardModule,
+    NzGridModule,
+    NzIconModule,
+    NzToolTipModule,
+    NzBreadCrumbModule
+  ],
   declarations: [
     JobManagerComponent,
     JobManagerConfigurationComponent,

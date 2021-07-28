@@ -76,14 +76,16 @@
       <td nzRight="0px">
         <span *ngIf="!task['taskmanager-id'] || task['taskmanager-id'] === '(unassigned)'; else hrefTpl">-</span>
         <ng-template #hrefTpl>
-          <nz-dropdown [nzPlacement]="'bottomRight'">
-            <span nz-dropdown><i nz-icon nzType="ellipsis" nzTheme="outline"></i></span>
+          <a nz-dropdown nzPlacement="bottomRight" [nzDropdownMenu]="menu">
+            <i nz-icon nzType="ellipsis" nzTheme="outline"></i>
+          </a>
+          <nz-dropdown-menu #menu="nzDropdownMenu">
             <ul nz-menu>
               <li nz-menu-item>
                 <a [routerLink]="['/task-manager',task['taskmanager-id'],'logs']" target="_blank">View taskmanager log</a>
               </li>
             </ul>
-          </nz-dropdown>
+          </nz-dropdown-menu>
         </ng-template>
       </td>
     </tr>

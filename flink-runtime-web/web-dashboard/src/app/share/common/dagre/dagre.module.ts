@@ -19,13 +19,13 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NgZorroAntdModule } from 'ng-zorro-antd';
 import { NodeComponent } from './node.component';
 import { DagreComponent } from './dagre.component';
 import { SvgContainerComponent } from './svg-container.component';
+import { NzSliderModule } from 'ng-zorro-antd';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, NgZorroAntdModule],
+  imports: [CommonModule, FormsModule, NzSliderModule],
   declarations: [DagreComponent, SvgContainerComponent, NodeComponent],
   exports: [DagreComponent, SvgContainerComponent, NodeComponent]
 })

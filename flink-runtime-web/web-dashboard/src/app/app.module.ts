@@ -21,7 +21,20 @@ import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { NgZorroAntdModule, NZ_I18N, en_US, NZ_ICONS, NZ_NOTIFICATION_CONFIG } from 'ng-zorro-antd';
+import {
+  NZ_I18N,
+  en_US,
+  NZ_ICONS,
+  NZ_CONFIG,
+  NzConfig,
+  NzLayoutModule,
+  NzIconModule,
+  NzMenuModule,
+  NzDividerModule,
+  NzBadgeModule,
+  NzDrawerModule,
+  NzAlertModule
+} from 'ng-zorro-antd';
 import { FormsModule } from '@angular/forms';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -81,17 +94,34 @@ export function AppInitServiceFactory(
   };
 }
 
+const ngZorroConfig: NzConfig = {
+  notification: { nzMaxStack: 1 }
+};
+
 @NgModule({
   declarations: [AppComponent],
-  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule],
+  imports: [
+    BrowserModule,
+    AppRoutingModule,
+    FormsModule,
+    HttpClientModule,
+    BrowserAnimationsModule,
+    NzLayoutModule,
+    NzIconModule,
+    NzMenuModule,
+    NzDividerModule,
+    NzBadgeModule,
+    NzDrawerModule,
+    NzAlertModule
+  ],
   providers: [
     {
       provide: NZ_I18N,
       useValue: en_US
     },
     {
-      provide: NZ_NOTIFICATION_CONFIG,
-      useValue: { nzMaxStack: 1 }
+      provide: NZ_CONFIG,
+      useValue: ngZorroConfig
     },
     {
       provide: NZ_ICONS,
