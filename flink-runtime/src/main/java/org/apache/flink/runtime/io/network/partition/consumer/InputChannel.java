@@ -211,6 +211,10 @@ public abstract class InputChannel {
     /** Releases all resources of the channel. */
     abstract void releaseAllResources() throws IOException;
 
+    abstract void announceBufferSize(int newBufferSize);
+
+    abstract int getBuffersInUseCount();
+
     // ------------------------------------------------------------------------
     // Error notification
     // ------------------------------------------------------------------------

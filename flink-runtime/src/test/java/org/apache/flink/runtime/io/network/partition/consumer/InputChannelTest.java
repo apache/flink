@@ -156,5 +156,13 @@ public class InputChannelTest {
 
         @Override
         void releaseAllResources() throws IOException {}
+
+        @Override
+        void announceBufferSize(int newBufferSize) {}
+
+        @Override
+        int getBuffersInUseCount() {
+            return 0;
+        }
     }
 }

@@ -93,6 +93,16 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public int getBuffersInUseCount() {
+        return inputGate.getBuffersInUseCount();
+    }
+
+    @Override
+    public void announceBufferSize(int bufferSize) {
+        inputGate.announceBufferSize(bufferSize);
+    }
+
+    @Override
     public boolean isFinished() {
         return inputGate.isFinished();
     }
