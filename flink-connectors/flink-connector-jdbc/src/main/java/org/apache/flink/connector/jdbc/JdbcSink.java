@@ -108,7 +108,9 @@ public class JdbcSink {
                 sql,
                 statementBuilder,
                 XaFacade.fromXaDataSourceSupplier(
-                        dataSourceSupplier, exactlyOnceOptions.getTimeoutSec()),
+                        dataSourceSupplier,
+                        exactlyOnceOptions.getTimeoutSec(),
+                        exactlyOnceOptions.isTransactionPerConnection()),
                 executionOptions,
                 exactlyOnceOptions);
     }
