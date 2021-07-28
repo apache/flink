@@ -1637,7 +1637,7 @@ under the License.
 									<excludes>
 										<exclude>com.fasterxml.jackson*:*:(,2.12.0]</exclude>
 									</excludes>
-									<message>Older jackson versions are not allow due to security vulnerabilities.</message>
+									<message>Older jackson versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
