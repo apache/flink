@@ -168,6 +168,11 @@ public class AlignedCheckpointsMassiveRandomTest {
         }
 
         @Override
+        public boolean hasReceivedEndOfData() {
+            return false;
+        }
+
+        @Override
         public InputChannel getChannel(int channelIndex) {
             throw new UnsupportedOperationException();
         }

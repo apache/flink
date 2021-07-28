@@ -114,6 +114,11 @@ public class MockInputGate extends IndexedInputGate {
     }
 
     @Override
+    public boolean hasReceivedEndOfData() {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    @Override
     public Optional<BufferOrEvent> getNext() {
         BufferOrEvent next = bufferOrEvents.poll();
         if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {

@@ -96,6 +96,11 @@ public class MockIndexedInputGate extends IndexedInputGate {
     }
 
     @Override
+    public boolean hasReceivedEndOfData() {
+        return false;
+    }
+
+    @Override
     public Optional<BufferOrEvent> getNext() {
         throw new UnsupportedOperationException();
     }

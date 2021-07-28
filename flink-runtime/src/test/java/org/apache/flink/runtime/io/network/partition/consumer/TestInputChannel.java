@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -100,6 +101,16 @@ public class TestInputChannel extends InputChannel {
 
     TestInputChannel readBuffer(Buffer.DataType nextType) throws IOException, InterruptedException {
         return read(createBuffer(1), nextType);
+    }
+
+    TestInputChannel readEndOfData() throws IOException {
+        addBufferAndAvailability(
+                new BufferAndAvailability(
+                        EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                        Buffer.DataType.EVENT_BUFFER,
+                        0,
+                        sequenceNumber++));
+        return this;
     }
 
     TestInputChannel readEndOfPartitionEvent() {

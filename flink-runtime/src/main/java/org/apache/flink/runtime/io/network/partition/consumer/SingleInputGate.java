@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -160,6 +161,9 @@ public class SingleInputGate extends IndexedInputGate {
     private final BitSet channelsWithEndOfPartitionEvents;
 
     @GuardedBy("inputChannelsWithData")
+    private final BitSet channelsWithEndOfUserRecords;
+
+    @GuardedBy("inputChannelsWithData")
     private int[] lastPrioritySequenceNumber;
 
     /** The partition producer state listener. */
@@ -172,6 +176,8 @@ public class SingleInputGate extends IndexedInputGate {
     private BufferPool bufferPool;
 
     private boolean hasReceivedAllEndOfPartitionEvents;
+
+    private boolean hasReceivedEndOfData;
 
     /** Flag indicating whether partitions have been requested. */
     private boolean requestedPartitionsFlag;
@@ -227,6 +233,7 @@ public class SingleInputGate extends IndexedInputGate {
         this.inputChannels = new HashMap<>(numberOfInputChannels);
         this.channels = new InputChannel[numberOfInputChannels];
         this.channelsWithEndOfPartitionEvents = new BitSet(numberOfInputChannels);
+        this.channelsWithEndOfUserRecords = new BitSet(numberOfInputChannels);
         this.enqueuedInputChannelsWithData = new BitSet(numberOfInputChannels);
         this.lastPrioritySequenceNumber = new int[numberOfInputChannels];
         Arrays.fill(lastPrioritySequenceNumber, Integer.MIN_VALUE);
@@ -604,6 +611,11 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @Override
+    public boolean hasReceivedEndOfData() {
+        return hasReceivedEndOfData;
+    }
+
+    @Override
     public String toString() {
         return "SingleInputGate{"
                 + "owningTaskName='"
@@ -768,6 +780,13 @@ public class SingleInputGate extends IndexedInputGate {
             }
 
             currentChannel.releaseAllResources();
+        } else if (event.getClass() == EndOfData.class) {
+            synchronized (inputChannelsWithData) {
+                checkState(!channelsWithEndOfUserRecords.get(currentChannel.getChannelIndex()));
+                channelsWithEndOfUserRecords.set(currentChannel.getChannelIndex());
+                hasReceivedEndOfData =
+                        channelsWithEndOfUserRecords.cardinality() == numberOfInputChannels;
+            }
         }
 
         return new BufferOrEvent(
