@@ -59,6 +59,7 @@ public class AsyncCheckpointRunnableTest {
                         env,
                         (msg, ex) -> {},
                         false,
+                        false,
                         () -> true)
                 .close();
         assertEquals(
@@ -165,6 +166,7 @@ public class AsyncCheckpointRunnableTest {
                 environment,
                 (msg, ex) -> {},
                 isFinishedOnRestore,
+                false,
                 () -> isTaskRunning);
     }
 

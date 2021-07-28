@@ -176,6 +176,7 @@ public class SubtaskCheckpointCoordinatorTest {
                             SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> true);
 
             assertEquals(false, broadcastedPriorityEvent.get());
@@ -223,6 +224,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     forcedAlignedOptions,
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> true);
 
             assertEquals(true, broadcastedPriorityEvent.get());
@@ -249,6 +251,7 @@ public class SubtaskCheckpointCoordinatorTest {
                             new NoOpStreamTask<>(new DummyEnvironment()),
                             new NonRecordWriter<>(),
                             false),
+                    false,
                     () -> true);
         }
     }
@@ -308,6 +311,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             assertFalse(checkpointOperator.isCheckpointed());
             assertEquals(-1, stateManager.getReportedCheckpointId());
@@ -362,6 +366,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
 
             assertEquals(1, recordOrEvents.size());
@@ -418,6 +423,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             rawKeyedStateHandleFuture.awaitRun();
             assertEquals(1, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
@@ -449,6 +455,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
