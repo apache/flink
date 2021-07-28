@@ -1156,7 +1156,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         // set classpath from YARN configuration
-        Utils.setupYarnClassPath(yarnConfiguration, appMasterEnv);
+        Utils.setupYarnClassPath(yarnConfiguration, configuration, appMasterEnv);
 
         amContainer.setEnvironment(appMasterEnv);
 

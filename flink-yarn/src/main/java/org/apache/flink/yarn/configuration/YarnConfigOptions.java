@@ -301,6 +301,13 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription("Specify YARN node label for the YARN application.");
 
+    public static final ConfigOption<Boolean> INCLUDE_MAPREDUCE_CLASSPATH =
+            key("yarn.include.mapreduce.classpath")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When this is true Flink will add mapreduce classpath (configured via MRJobConfig.MAPREDUCE_APPLICATION_CLASSPATH with default value MRJobConfig.DEFAULT_MAPREDUCE_APPLICATION_CLASSPATH) to the cluster");
+
     public static final ConfigOption<Boolean> SHIP_LOCAL_KEYTAB =
             key("yarn.security.kerberos.ship-local-keytab")
                     .booleanType()
