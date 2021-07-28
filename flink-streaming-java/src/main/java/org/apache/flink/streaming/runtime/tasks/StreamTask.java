@@ -79,6 +79,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloater;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
@@ -270,6 +271,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private final ThroughputCalculator throughputCalculator;
 
+    private final BufferDebloater bufferDebloater;
+
+    private final long bufferDebloatPeriod;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -390,6 +395,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
         this.throughputCalculator = environment.getThroughputMeter();
+        this.bufferDebloatPeriod = getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD);
+
+        this.bufferDebloater =
+                getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)
+                        ? new BufferDebloater(
+                                getTaskConfiguration(), getEnvironment().getAllInputGates())
+                        : null;
     }
 
     private TimerService createTimerService(String timerThreadName) {
@@ -674,7 +686,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // final check to exit early before starting to run
         ensureNotCanceled();
 
-        throughputCalculationSetup();
+        scheduleBufferDebloater();
 
         // let the task do its work
         runMailboxLoop();
@@ -686,17 +698,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         afterInvoke();
     }
 
-    void throughputCalculationSetup() {
+    private void scheduleBufferDebloater() {
         systemTimerService.registerTimer(
-                systemTimerService.getCurrentProcessingTime()
-                        + getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
+                systemTimerService.getCurrentProcessingTime() + bufferDebloatPeriod,
                 timestamp ->
                         mainMailboxExecutor.submit(
                                 () -> {
-                                    throughputCalculator.calculateThroughput();
-                                    throughputCalculationSetup();
+                                    long throughput = throughputCalculator.calculateThroughput();
+                                    if (bufferDebloater != null) {
+                                        bufferDebloater.recalculateBufferSize(throughput);
+                                    }
+                                    scheduleBufferDebloater();
                                 },
-                                "Throughput recalculation"));
+                                "Buffer size recalculation"));
     }
 
     private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
