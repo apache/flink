@@ -29,9 +29,34 @@ import { JobRoutingModule } from './job-routing.module';
 import { JobComponent } from './job.component';
 import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
+import {
+  NzAlertModule,
+  NzButtonModule,
+  NzCardModule,
+  NzCollapseModule,
+  NzDividerModule,
+  NzEmptyModule,
+  NzSkeletonModule,
+  NzTableModule,
+  NzTabsModule
+} from 'ng-zorro-antd';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ShareModule, JobRoutingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ShareModule,
+    JobRoutingModule,
+    NzTableModule,
+    NzButtonModule,
+    NzTabsModule,
+    NzCardModule,
+    NzDividerModule,
+    NzCollapseModule,
+    NzEmptyModule,
+    NzSkeletonModule,
+    NzAlertModule
+  ],
   declarations: [
     JobComponent,
     JobStatusComponent,

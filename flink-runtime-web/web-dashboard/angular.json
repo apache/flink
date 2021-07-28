@@ -37,6 +37,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "aot": true,
             "outputPath": "web",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -50,13 +51,9 @@
                 "output": "libs/vs"
               }
             ],
-            "styles": [
-              "src/styles/index.less"
-            ],
+            "styles": ["src/styles/index.less"],
             "stylePreprocessorOptions": {
-              "includePaths": [
-                "src/styles"
-              ]
+              "includePaths": ["src/styles"]
             },
             "scripts": [],
             "es5BrowserSupport": true
@@ -83,6 +80,10 @@
                   "type": "initial",
                   "maximumWarning": "2mb",
                   "maximumError": "5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kb"
                 }
               ]
             }
@@ -112,26 +113,16 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "karmaConfig": "src/karma.conf.js",
-            "styles": [
-              "src/styles.less"
-            ],
+            "styles": ["src/styles.less"],
             "scripts": [],
-            "assets": [
-              "src/favicon.ico",
-              "src/assets"
-            ]
+            "assets": ["src/favicon.ico", "src/assets"]
           }
         },
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",
           "options": {
-            "tsConfig": [
-              "src/tsconfig.app.json",
-              "src/tsconfig.spec.json"
-            ],
-            "exclude": [
-              "**/node_modules/**"
-            ]
+            "tsConfig": ["src/tsconfig.app.json", "src/tsconfig.spec.json"],
+            "exclude": ["**/node_modules/**"]
           }
         }
       }

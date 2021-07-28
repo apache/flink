@@ -41,7 +41,7 @@
   <tbody>
     <tr *ngFor="let node of nodes; trackBy:trackJobBy;" class="clickable" (click)="clickNode(node)" [class.selected]="selectedNode?.id === node.id">
       <td nzLeft="0px" class="name" [class.selected]="selectedNode?.id === node.id">
-        <a nzPlacement="topLeft" nz-tooltip [nzTitle]="node.detail?.name">{{ node.detail?.name }}</a>
+        <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">{{ node.detail?.name }}</a>
       </td>
       <td>
         <flink-job-badge [state]="node.detail?.status"></flink-job-badge>

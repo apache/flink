@@ -23,9 +23,36 @@ import { ShareModule } from 'share/share.module';
 
 import { SubmitRoutingModule } from './submit-routing.module';
 import { SubmitComponent } from './submit.component';
+import {
+  NzButtonModule,
+  NzCardModule,
+  NzCheckboxModule,
+  NzDrawerModule,
+  NzFormModule,
+  NzIconModule,
+  NzInputModule,
+  NzPopconfirmModule,
+  NzProgressModule,
+  NzTableModule
+} from 'ng-zorro-antd';
 
 @NgModule({
-  imports: [CommonModule, ReactiveFormsModule, SubmitRoutingModule, ShareModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    SubmitRoutingModule,
+    ShareModule,
+    NzTableModule,
+    NzPopconfirmModule,
+    NzFormModule,
+    NzCardModule,
+    NzInputModule,
+    NzProgressModule,
+    NzDrawerModule,
+    NzIconModule,
+    NzButtonModule,
+    NzCheckboxModule
+  ],
   declarations: [SubmitComponent]
 })
 export class SubmitModule {}
