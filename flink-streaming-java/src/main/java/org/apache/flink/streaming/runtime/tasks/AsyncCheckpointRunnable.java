@@ -115,7 +115,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             SnapshotsFinalizeResult snapshotsFinalizeResult =
                     isFinishedOnRestore
                             ? new SnapshotsFinalizeResult(
-                                    TaskStateSnapshot.FINISHED, TaskStateSnapshot.FINISHED, 0L)
+                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
+                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
+                                    0L)
                             : finalizeNonFinishedSnapshots();
 
             final long asyncEndNanos = System.nanoTime();
