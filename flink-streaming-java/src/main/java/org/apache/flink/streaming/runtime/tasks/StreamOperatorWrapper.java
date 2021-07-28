@@ -19,7 +19,11 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -98,6 +102,22 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         if (!closed) {
             wrapped.notifyCheckpointComplete(checkpointId);
+        }
+    }
+
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        if (!closed) {
+            KeyedStateBackend<?> keyedStateBackend = null;
+            if (wrapped instanceof AbstractStreamOperator) {
+                keyedStateBackend = ((AbstractStreamOperator<?>) wrapped).getKeyedStateBackend();
+            } else if (wrapped instanceof AbstractStreamOperatorV2) {
+                keyedStateBackend = ((AbstractStreamOperatorV2<?>) wrapped).getKeyedStateBackend();
+            }
+
+            if (keyedStateBackend instanceof InternalCheckpointListener) {
+                ((InternalCheckpointListener) keyedStateBackend)
+                        .notifyCheckpointSubsumed(checkpointId);
+            }
         }
     }
 

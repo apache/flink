@@ -87,6 +87,9 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void notifyCheckpointAborted(long checkpointId) throws Exception {}
 
     @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {}
+
+    @Override
     public boolean isClosed() {
         return isClosed;
     }

@@ -208,6 +208,13 @@ public abstract class AbstractInvokable
     }
 
     @Override
+    public Future<Void> notifyCheckpointSubsumedAsync(long checkpointId) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "notifyCheckpointSubsumeAsync not supported by %s",
+                        this.getClass().getName()));
+    }
+
     public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event)
             throws FlinkException {
         throw new UnsupportedOperationException(

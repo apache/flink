@@ -499,11 +499,15 @@ public class CheckpointCoordinatorTestingUtils {
         }
 
         @Override
-        public void notifyCheckpointComplete(
-                ExecutionAttemptID attemptId, JobID jobId, long checkpointId, long timestamp) {
+        public void notifyCheckpointOnComplete(
+                ExecutionAttemptID attemptId,
+                JobID jobId,
+                long completedCheckpointId,
+                long completedTimestamp,
+                long lastSubsumedCheckpointId) {
             notifiedCompletedCheckpoints
                     .computeIfAbsent(attemptId, k -> new ArrayList<>())
-                    .add(new NotifiedCheckpoint(jobId, checkpointId, timestamp));
+                    .add(new NotifiedCheckpoint(jobId, completedCheckpointId, completedTimestamp));
         }
 
         @Override

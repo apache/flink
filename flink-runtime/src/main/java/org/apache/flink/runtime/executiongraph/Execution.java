@@ -777,19 +777,28 @@ public class Execution
     }
 
     /**
-     * Notify the task of this execution about a completed checkpoint.
+     * Notify the task of this execution about a completed checkpoint and the last subsumed
+     * checkpoint id if possible.
      *
-     * @param checkpointId of the completed checkpoint
-     * @param timestamp of the completed checkpoint
+     * @param completedCheckpointId of the completed checkpoint
+     * @param completedTimestamp of the completed checkpoint
+     * @param lastSubsumedCheckpointId of the last subsumed checkpoint, a value of {@link
+     *     org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID} means no
+     *     checkpoint has been subsumed.
      */
-    public void notifyCheckpointComplete(long checkpointId, long timestamp) {
+    public void notifyCheckpointOnComplete(
+            long completedCheckpointId, long completedTimestamp, long lastSubsumedCheckpointId) {
         final LogicalSlot slot = assignedResource;
 
         if (slot != null) {
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-            taskManagerGateway.notifyCheckpointComplete(
-                    attemptId, getVertex().getJobId(), checkpointId, timestamp);
+            taskManagerGateway.notifyCheckpointOnComplete(
+                    attemptId,
+                    getVertex().getJobId(),
+                    completedCheckpointId,
+                    completedTimestamp,
+                    lastSubsumedCheckpointId);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is "

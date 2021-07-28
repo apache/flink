@@ -981,18 +981,23 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> confirmCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long completedCheckpointId,
+            long completedCheckpointTimestamp,
+            long lastSubsumedCheckpointId) {
         log.debug(
-                "Confirm checkpoint {}@{} for {}.",
-                checkpointId,
-                checkpointTimestamp,
+                "Confirm completed checkpoint {}@{} and last subsumed checkpoint {} for {}.",
+                completedCheckpointId,
+                completedCheckpointTimestamp,
+                lastSubsumedCheckpointId,
                 executionAttemptID);
 
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
-            task.notifyCheckpointComplete(checkpointId);
+            task.notifyCheckpointComplete(completedCheckpointId);
 
+            task.notifyCheckpointSubsumed(lastSubsumedCheckpointId);
             return CompletableFuture.completedFuture(Acknowledge.get());
         } else {
             final String message =
