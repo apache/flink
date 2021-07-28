@@ -310,7 +310,7 @@ public class StreamTaskFinalCheckpointsTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
                         .setupOutputForSingletonOperatorChain(new LifeCycleMonitorOperator<>())
                         .build()) {
             // Finish the restore, including state initialization and open.

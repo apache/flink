@@ -140,10 +140,10 @@ public class AsyncCheckpointRunnableTest {
                 asyncCheckpointRunnable.getCheckpointId(),
                 testTaskStateManager.getReportedCheckpointId());
         assertEquals(
-                TaskStateSnapshot.FINISHED,
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
                 testTaskStateManager.getLastJobManagerTaskStateSnapshot());
         assertEquals(
-                TaskStateSnapshot.FINISHED,
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
                 testTaskStateManager.getLastTaskManagerTaskStateSnapshot());
         assertTrue(asyncCheckpointRunnable.getFinishedFuture().isDone());
     }

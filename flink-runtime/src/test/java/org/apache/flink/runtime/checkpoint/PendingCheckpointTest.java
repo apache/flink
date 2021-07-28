@@ -639,7 +639,10 @@ public class PendingCheckpointTest {
         for (ExecutionAttemptID attemptId : runningTaskIds) {
             TaskAcknowledgeResult result =
                     pendingCheckpoint.acknowledgeTask(
-                            attemptId, TaskStateSnapshot.FINISHED, new CheckpointMetrics(), null);
+                            attemptId,
+                            TaskStateSnapshot.FINISHED_ON_RESTORE,
+                            new CheckpointMetrics(),
+                            null);
             assertEquals(TaskAcknowledgeResult.SUCCESS, result);
         }
 

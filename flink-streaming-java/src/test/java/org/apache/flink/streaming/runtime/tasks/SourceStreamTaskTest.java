@@ -665,7 +665,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         LifeCycleMonitorSource testSource = new LifeCycleMonitorSource();
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
                         .setupOutputForSingletonOperatorChain(new StreamSource<>(testSource))
                         .build()) {
             harness.getStreamTask().invoke();

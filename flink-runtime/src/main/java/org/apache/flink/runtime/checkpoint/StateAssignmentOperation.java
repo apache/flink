@@ -227,7 +227,8 @@ public class StateAssignmentOperation {
 
     private void assignFinishedStateToTask(Execution currentExecutionAttempt) {
         JobManagerTaskRestore taskRestore =
-                new JobManagerTaskRestore(restoreCheckpointId, TaskStateSnapshot.FINISHED);
+                new JobManagerTaskRestore(
+                        restoreCheckpointId, TaskStateSnapshot.FINISHED_ON_RESTORE);
         currentExecutionAttempt.setInitialState(taskRestore);
     }
 

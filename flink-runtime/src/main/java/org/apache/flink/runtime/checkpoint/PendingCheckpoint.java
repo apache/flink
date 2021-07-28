@@ -423,10 +423,11 @@ public class PendingCheckpoint implements Checkpoint {
             long ackTimestamp = System.currentTimeMillis();
 
             for (OperatorIDPair operatorID : operatorIDs) {
-                if (operatorSubtaskStates != null && operatorSubtaskStates.isFinished()) {
-                    updateFinishedOperatorState(vertex, operatorID);
+                if (operatorSubtaskStates != null && operatorSubtaskStates.isFinishedOnRestore()) {
+                    updateFinishedOnRestoreOperatorState(vertex, operatorID);
                 } else {
-                    updateNonFinishedOperatorState(vertex, operatorSubtaskStates, operatorID);
+                    updateNonFinishedOnRestoreOperatorState(
+                            vertex, operatorSubtaskStates, operatorID);
                 }
             }
 
@@ -471,7 +472,8 @@ public class PendingCheckpoint implements Checkpoint {
         }
     }
 
-    private void updateFinishedOperatorState(ExecutionVertex vertex, OperatorIDPair operatorID) {
+    private void updateFinishedOnRestoreOperatorState(
+            ExecutionVertex vertex, OperatorIDPair operatorID) {
         OperatorState operatorState = operatorStates.get(operatorID.getGeneratedOperatorID());
 
         if (operatorState == null) {
@@ -492,7 +494,7 @@ public class PendingCheckpoint implements Checkpoint {
         }
     }
 
-    private void updateNonFinishedOperatorState(
+    private void updateNonFinishedOnRestoreOperatorState(
             ExecutionVertex vertex,
             TaskStateSnapshot operatorSubtaskStates,
             OperatorIDPair operatorID) {
