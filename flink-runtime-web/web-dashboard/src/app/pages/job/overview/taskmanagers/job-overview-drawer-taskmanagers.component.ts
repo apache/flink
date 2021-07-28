@@ -22,6 +22,7 @@ import { flatMap, takeUntil } from 'rxjs/operators';
 import { deepFind } from 'utils';
 import { VertexTaskManagerDetailInterface } from 'interfaces';
 import { JobService } from 'services';
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
   selector: 'flink-job-overview-drawer-taskmanagers',
@@ -35,28 +36,24 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   sortValue: string;
   isLoading = true;
 
+  sortReadBytesFn = this.sortFn('metrics.read-bytes');
+  sortReadRecordsFn = this.sortFn('metrics.read-records');
+  sortWriteBytesFn = this.sortFn('metrics.write-bytes');
+  sortWriteRecordsFn = this.sortFn('metrics.write-records');
+  sortAttemptFn = this.sortFn('attempt');
+  sortHostFn = this.sortFn('host');
+  sortStartTimeFn = this.sortFn('detail.start-time');
+  sortDurationFn = this.sortFn('detail.duration');
+  sortEndTimeFn = this.sortFn('detail.end-time');
+  sortStatusFn = this.sortFn('status');
+
+  sortFn(path: string): NzTableSortFn {
+    return (pre: VertexTaskManagerDetailInterface, next: VertexTaskManagerDetailInterface) =>
+      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
+  }
+
   trackTaskManagerBy(_: number, node: VertexTaskManagerDetailInterface) {
     return node.host;
-  }
-
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
-
-  search() {
-    if (this.sortName) {
-      this.listOfTaskManager = [
-        ...this.listOfTaskManager.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
@@ -71,7 +68,6 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
         data => {
           this.listOfTaskManager = data.taskmanagers;
           this.isLoading = false;
-          this.search();
           this.cdr.markForCheck();
         },
         () => {

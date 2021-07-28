@@ -29,11 +29,12 @@ import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInte
 import { first } from 'rxjs/operators';
 import { JobService } from 'services';
 import { deepFind } from 'utils';
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
-  selector       : 'flink-job-checkpoints-subtask',
-  templateUrl    : './job-checkpoints-subtask.component.html',
-  styleUrls      : [ './job-checkpoints-subtask.component.less' ],
+  selector: 'flink-job-checkpoints-subtask',
+  templateUrl: './job-checkpoints-subtask.component.html',
+  styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
@@ -46,24 +47,19 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   sortName: string;
   sortValue: string;
 
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
+  sortAckTimestampFn = this.sortFn('ack_timestamp');
+  sortEndToEndDurationFn = this.sortFn('end_to_end_duration');
+  sortStateSizeFn = this.sortFn('state_size');
+  sortCpSyncFn = this.sortFn('checkpoint.sync');
+  sortCpAsyncFn = this.sortFn('checkpoint.async');
+  sortAlignmentProcessedFn = this.sortFn('alignment.processed');
+  sortAlignmentDurationFn = this.sortFn('alignment.duration');
+  sortStartDelayFn = this.sortFn('start_delay');
+  sortUnalignedCpFn = this.sortFn('unaligned_checkpoint');
 
-  search() {
-    if (this.sortName) {
-      this.listOfSubTaskCheckPoint = [
-        ...this.listOfSubTaskCheckPoint.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
+  sortFn(path: string): NzTableSortFn {
+    return (pre: { index: number; status: string }, next: { index: number; status: string }) =>
+      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
   refresh() {
@@ -83,8 +79,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
     }
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.jobService.jobDetail$.pipe(first()).subscribe(job => {

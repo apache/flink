@@ -32,15 +32,13 @@ import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.compon
 import { RefreshDownloadComponent } from 'share/customize/refresh-download/refresh-download.component';
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
-import {
-  NzButtonModule,
-  NzCardModule,
-  NzDividerModule,
-  NzMessageModule,
-  NzTableModule,
-  NzTabsModule,
-  NzToolTipModule
-} from 'ng-zorro-antd';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzMessageModule } from 'ng-zorro-antd/message';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @NgModule({
   imports: [

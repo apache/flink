@@ -28,15 +28,13 @@ import { JobManagerLogListComponent } from './log-list/job-manager-log-list.comp
 import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
 import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
-import {
-  NzBreadCrumbModule,
-  NzCardModule,
-  NzGridModule,
-  NzIconModule,
-  NzProgressModule,
-  NzTableModule,
-  NzToolTipModule
-} from 'ng-zorro-antd';
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @NgModule({
   imports: [

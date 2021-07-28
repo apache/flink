@@ -79,10 +79,12 @@
 </nz-layout>
 
 <nz-drawer [nzVisible]="visible" [nzWidth]="500" nzPlacement="right" nzTitle="Server Response Message List" (nzOnClose)="clearMessage()">
-  <nz-alert *ngFor="let message of statusService.listOfErrorMessage"
-    [nzShowIcon]="true"
-    [nzType]="'info'"
-    [nzMessage]="'Server Response:'"
-    [nzDescription]="message">
-  </nz-alert>
+  <ng-container *nzDrawerContent>
+    <nz-alert *ngFor="let message of statusService.listOfErrorMessage"
+              [nzShowIcon]="true"
+              [nzType]="'info'"
+              [nzMessage]="'Server Response:'"
+              [nzDescription]="message">
+    </nz-alert>
+  </ng-container>
 </nz-drawer>
