@@ -22,13 +22,17 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_T
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
+import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
+
+import java.time.LocalDateTime
 
 class WindowAggregateITCase extends BatchTestBase {
 
@@ -640,5 +644,38 @@ class WindowAggregateITCase extends BatchTestBase {
         "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
 
     checkResult(sqlQuery, Seq())
+  }
+
+  @Test
+  def testLocalGlobalWindowAggregateWithoutGroupingAndNamedProperties(): Unit = {
+    val data: Seq[Row] = Seq(
+      row(1, LocalDateTime.of(2021, 7, 26, 0, 0, 0)),
+      row(2, LocalDateTime.of(2021, 7, 26, 0, 0, 3)),
+      row(3, LocalDateTime.of(2021, 7, 26, 0, 0, 6)),
+      row(4, LocalDateTime.of(2021, 7, 26, 0, 0, 4)),
+      row(5, LocalDateTime.of(2021, 7, 26, 0, 0, 5)),
+      row(6, LocalDateTime.of(2021, 7, 26, 0, 0, 8)),
+      row(7, LocalDateTime.of(2021, 7, 26, 0, 0, 10)))
+    val dataId = TestValuesTableFactory.registerData(data)
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a INT,
+         |  ts TIMESTAMP
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+
+    tEnv.executeSql(ddl)
+    checkResult(
+      """
+        |SELECT sum(a) FROM MyTable
+        |GROUP BY
+        |TUMBLE(ts, interval '5' seconds)
+        |""".stripMargin,
+      Seq(row(14), row(7), row(7)))
   }
 }
