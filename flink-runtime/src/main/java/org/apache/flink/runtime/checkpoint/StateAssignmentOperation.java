@@ -237,7 +237,7 @@ public class StateAssignmentOperation {
             List<OperatorIDPair> operatorIDs,
             int subTaskIndex,
             Execution currentExecutionAttempt) {
-        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
+        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size(), false);
         boolean statelessTask = true;
 
         for (OperatorIDPair operatorID : operatorIDs) {
