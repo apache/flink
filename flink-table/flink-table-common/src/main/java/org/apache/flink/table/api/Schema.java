@@ -705,7 +705,7 @@ public final class Schema {
                     .ifPresent(
                             c -> {
                                 sb.append(" COMMENT '");
-                                sb.append(c);
+                                sb.append(EncodingUtils.escapeSingleQuotes(c));
                                 sb.append("'");
                             });
             return sb.toString();
@@ -765,7 +765,7 @@ public final class Schema {
                     .ifPresent(
                             c -> {
                                 sb.append(" COMMENT '");
-                                sb.append(c);
+                                sb.append(EncodingUtils.escapeSingleQuotes(c));
                                 sb.append("'");
                             });
             return sb.toString();
@@ -856,7 +856,7 @@ public final class Schema {
                     .ifPresent(
                             c -> {
                                 sb.append(" COMMENT '");
-                                sb.append(c);
+                                sb.append(EncodingUtils.escapeSingleQuotes(c));
                                 sb.append("'");
                             });
             return sb.toString();

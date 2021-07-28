@@ -123,7 +123,7 @@ public abstract class Column {
                 .ifPresent(
                         c -> {
                             sb.append(" COMMENT '");
-                            sb.append(c);
+                            sb.append(EncodingUtils.escapeSingleQuotes(c));
                             sb.append("'");
                         });
         return sb.toString();
