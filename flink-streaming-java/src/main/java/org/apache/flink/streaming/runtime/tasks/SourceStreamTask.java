@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -140,7 +141,7 @@ public class SourceStreamTask<
 
     @Override
     protected void advanceToEndOfEventTime() throws Exception {
-        mainOperator.advanceToEndOfEventTime();
+        operatorChain.getMainOperatorOutput().emitWatermark(Watermark.MAX_WATERMARK);
     }
 
     @Override
@@ -159,14 +160,7 @@ public class SourceStreamTask<
         // not in steps).
         sourceThread.setTaskDescription(getName());
 
-        if (operatorChain.isFinishedOnRestore()) {
-            LOG.debug(
-                    "Legacy source {} skip execution since the task is finished on restore",
-                    getTaskNameWithSubtaskAndId());
-            sourceThread.getCompletionFuture().complete(null);
-        } else {
-            sourceThread.start();
-        }
+        sourceThread.start();
 
         sourceThread
                 .getCompletionFuture()
@@ -280,11 +274,26 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                mainOperator.run(lock, operatorChain);
-                if (!wasStoppedExternally && !isCanceled()) {
+                if (!operatorChain.isFinishedOnRestore()) {
+                    LOG.debug(
+                            "Legacy source {} skip execution since the task is finished on restore",
+                            getTaskNameWithSubtaskAndId());
+                    mainOperator.run(lock, operatorChain);
+                }
+                if (!wasStoppedExternally && !isCanceled() && !isFailing()) {
                     synchronized (lock) {
                         operatorChain.setIgnoreEndOfInput(false);
                     }
+                    CompletableFuture<Void> endOfDataProcessed = new CompletableFuture<>();
+                    mainMailboxExecutor.execute(
+                            () -> {
+                                endData();
+                                endOfDataProcessed.complete(null);
+                            },
+                            "SourceStreamTask finished processing data.");
+
+                    // wait until all operators are finished
+                    endOfDataProcessed.get();
                 }
                 completionFuture.complete(null);
             } catch (Throwable t) {

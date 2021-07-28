@@ -388,8 +388,9 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
 
         switch (timeCharacteristic) {
             case ProcessingTime:
-                // NonTimestampContext, no watermark
-                assertEquals(records.size(), numElementsPerProducer);
+                // NonTimestampContext, no intermediate watermarks, and one end-of-event-time
+                // watermark
+                assertEquals(records.size(), numElementsPerProducer + 1);
                 break;
             case IngestionTime:
                 // IngestionTime uses AutomaticWatermarkContext and it emits a watermark after every
@@ -438,14 +439,18 @@ public class KafkaShuffleITCase extends KafkaShuffleTestBase {
                 assertEquals(record.getValue().f2.intValue(), 0);
                 recordIndex++;
             } else if (element.isWatermark()) {
+                KafkaShuffleWatermark watermark = element.asWatermark();
                 switch (timeCharacteristic) {
                     case ProcessingTime:
-                        fail("Watermarks should not be generated in the case of ProcessingTime");
+                        assertEquals(watermark.getSubtask(), 0);
+                        // the last element is the watermark that signifies end-of-event-time
+                        assertEquals(numElementsPerProducer, recordIndex);
+                        assertEquals(
+                                watermark.getWatermark(), Watermark.MAX_WATERMARK.getTimestamp());
                         break;
                     case IngestionTime:
                         break;
                     case EventTime:
-                        KafkaShuffleWatermark watermark = element.asWatermark();
                         assertEquals(watermark.getSubtask(), 0);
                         if (watermarkIndex == recordIndex) {
                             // the last element is the watermark that signifies end-of-event-time

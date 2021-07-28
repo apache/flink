@@ -30,6 +30,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class StreamTaskFinishedOnRestoreSourceInput<T> extends StreamTaskSourceInput<T> {
 
+    private boolean emittedEndOfData = false;
+
     public StreamTaskFinishedOnRestoreSourceInput(
             SourceOperator<T, ?> operator, int inputGateIndex, int inputIndex) {
         super(operator, inputGateIndex, inputIndex);
@@ -37,7 +39,12 @@ public class StreamTaskFinishedOnRestoreSourceInput<T> extends StreamTaskSourceI
 
     @Override
     public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
-        return DataInputStatus.END_OF_INPUT;
+        if (emittedEndOfData) {
+            return DataInputStatus.END_OF_INPUT;
+        } else {
+            emittedEndOfData = true;
+            return DataInputStatus.END_OF_DATA;
+        }
     }
 
     @Override

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
@@ -136,6 +137,8 @@ public class StreamTaskFinalCheckpointsTest {
                 partitionWriters[i].setup();
             }
 
+            int lastCheckpointId = 6;
+            CompletableFuture<Long> lastCheckpointCompleted = new CompletableFuture<>();
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -150,6 +153,26 @@ public class StreamTaskFinalCheckpointsTest {
                                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                                         true);
                                     })
+                            .setCheckpointResponder(
+                                    new TestCheckpointResponder() {
+                                        @Override
+                                        public void acknowledgeCheckpoint(
+                                                JobID jobID,
+                                                ExecutionAttemptID executionAttemptID,
+                                                long checkpointId,
+                                                CheckpointMetrics checkpointMetrics,
+                                                TaskStateSnapshot subtaskState) {
+                                            super.acknowledgeCheckpoint(
+                                                    jobID,
+                                                    executionAttemptID,
+                                                    checkpointId,
+                                                    checkpointMetrics,
+                                                    subtaskState);
+                                            if (checkpointId == lastCheckpointId) {
+                                                lastCheckpointCompleted.complete(checkpointId);
+                                            }
+                                        }
+                                    })
                             .setupOperatorChain(new EmptyOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -161,6 +184,7 @@ public class StreamTaskFinalCheckpointsTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -168,9 +192,13 @@ public class StreamTaskFinalCheckpointsTest {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 1);
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
-                checkpointFuture = triggerCheckpoint(testHarness, 6);
+                lastCheckpointCompleted.whenComplete(
+                        (id, error) -> testHarness.streamTask.notifyCheckpointCompleteAsync(id));
+                checkpointFuture = triggerCheckpoint(testHarness, lastCheckpointId);
 
                 // Notifies the result partition that all records are processed after the
                 // last checkpoint is triggered.
@@ -248,7 +276,7 @@ public class StreamTaskFinalCheckpointsTest {
                 // The checkpoint is added to the mailbox and will be processed in the
                 // mailbox loop after call operators' finish method in the afterInvoke()
                 // method.
-                testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 checkState(
                         checkpointFuture instanceof CompletableFuture,

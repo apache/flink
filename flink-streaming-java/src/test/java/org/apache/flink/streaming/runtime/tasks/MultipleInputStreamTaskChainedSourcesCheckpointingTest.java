@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -29,7 +30,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -44,6 +47,9 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
@@ -54,8 +60,10 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
@@ -317,6 +325,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 testHarness.processAll();
 
                 // The checkpoint 2 would be aligned after received all the EndOfPartitionEvent.
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(EndOfData.INSTANCE, 1, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
@@ -364,12 +374,22 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         OperatorID secondSourceOperatorId = new OperatorID();
         OperatorID nonSourceOperatorId = new OperatorID();
 
+        List<Object> output = new ArrayList<>();
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addAdditionalOutput(
+                                new RecordOrEventCollectingResultPartitionWriter<StreamElement>(
+                                        output,
+                                        new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
+                                    @Override
+                                    public void notifyEndOfData() throws IOException {
+                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    }
+                                })
                         .addSourceInput(
                                 firstSourceOperatorId,
                                 new SourceOperatorFactory<>(
@@ -391,10 +411,12 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                         .build()) {
 
+            testHarness.processElement(Watermark.MAX_WATERMARK, 0, 0);
+            testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
             testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
 
             testHarness.processAll();
-            testHarness.waitForTaskCompletion();
+            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {
