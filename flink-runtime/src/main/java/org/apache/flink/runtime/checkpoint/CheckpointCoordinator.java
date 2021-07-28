@@ -1255,7 +1255,7 @@ public class CheckpointCoordinator {
                                 completedCheckpoint,
                                 checkpointsCleaner,
                                 this::scheduleTriggerRequest);
-                if (lastSubsumed != null && lastSubsumed.discardOnSubsume()) {
+                if (lastSubsumed != null && lastSubsumed.getProperties().discardOnSubsumed()) {
                     lastSubsumedCheckpointId = lastSubsumed.getCheckpointID();
                 }
             } catch (Exception exception) {
@@ -1318,7 +1318,8 @@ public class CheckpointCoordinator {
         sendAcknowledgeMessages(
                 pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
                 checkpointId,
-                completedCheckpoint.getTimestamp());
+                completedCheckpoint.getTimestamp(),
+                lastSubsumedCheckpointId);
     }
 
     void scheduleTriggerRequest() {
@@ -1333,18 +1334,22 @@ public class CheckpointCoordinator {
     }
 
     private void sendAcknowledgeMessages(
-            List<ExecutionVertex> tasksToCommit, long checkpointId, long timestamp) {
+            List<ExecutionVertex> tasksToCommit,
+            long completedCheckpointId,
+            long completedTimestamp,
+            long lastSubsumedCheckpointId) {
         // commit tasks
         for (ExecutionVertex ev : tasksToCommit) {
             Execution ee = ev.getCurrentExecutionAttempt();
             if (ee != null) {
-                ee.notifyCheckpointComplete(checkpointId, timestamp);
+                ee.notifyCheckpointOnComplete(
+                        completedCheckpointId, completedTimestamp, lastSubsumedCheckpointId);
             }
         }
 
         // commit coordinators
         for (OperatorCoordinatorCheckpointContext coordinatorContext : coordinatorsToCheckpoint) {
-            coordinatorContext.notifyCheckpointComplete(checkpointId);
+            coordinatorContext.notifyCheckpointComplete(completedCheckpointId);
         }
     }
 

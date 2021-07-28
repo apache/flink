@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -1395,59 +1396,80 @@ public class Task
     }
 
     public void notifyCheckpointComplete(final long checkpointID) {
-        final TaskInvokable invokable = this.invokable;
-
-        if (executionState == ExecutionState.RUNNING) {
-            checkState(invokable instanceof CheckpointableTask, "invokable is not checkpointable");
-            try {
-                ((CheckpointableTask) invokable).notifyCheckpointCompleteAsync(checkpointID);
-            } catch (RejectedExecutionException ex) {
-                // This may happen if the mailbox is closed. It means that the task is shutting
-                // down, so we just ignore it.
-                LOG.debug(
-                        "Notify checkpoint complete {} for {} ({}) was rejected by the mailbox",
-                        checkpointID,
-                        taskNameWithSubtask,
-                        executionId);
-            } catch (Throwable t) {
-                if (getExecutionState() == ExecutionState.RUNNING) {
-                    // fail task if checkpoint confirmation failed.
-                    failExternally(new RuntimeException("Error while confirming checkpoint", t));
-                }
-            }
-        } else {
-            LOG.debug(
-                    "Ignoring checkpoint commit notification for non-running task {}.",
-                    taskNameWithSubtask);
-        }
+        notifyCheckpoint(
+                checkpointID,
+                CheckpointStoreUtil.INVALID_CHECKPOINT_ID,
+                NotifyCheckpointOperation.COMPLETE);
     }
 
     public void notifyCheckpointAborted(
             final long checkpointID, final long latestCompletedCheckpointId) {
-        final TaskInvokable invokable = this.invokable;
+        notifyCheckpoint(
+                checkpointID, latestCompletedCheckpointId, NotifyCheckpointOperation.ABORT);
+    }
 
-        if (executionState == ExecutionState.RUNNING) {
+    public void notifyCheckpointSubsumed(long checkpointID) {
+        notifyCheckpoint(
+                checkpointID,
+                CheckpointStoreUtil.INVALID_CHECKPOINT_ID,
+                NotifyCheckpointOperation.SUBSUME);
+    }
+
+    private void notifyCheckpoint(
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            NotifyCheckpointOperation notifyCheckpointOperation) {
+        TaskInvokable invokable = this.invokable;
+
+        if (executionState == ExecutionState.RUNNING && invokable != null) {
             checkState(invokable instanceof CheckpointableTask, "invokable is not checkpointable");
             try {
-                ((CheckpointableTask) invokable)
-                        .notifyCheckpointAbortAsync(checkpointID, latestCompletedCheckpointId);
+                switch (notifyCheckpointOperation) {
+                    case ABORT:
+                        ((CheckpointableTask) invokable)
+                                .notifyCheckpointAbortAsync(
+                                        checkpointId, latestCompletedCheckpointId);
+                        break;
+                    case COMPLETE:
+                        ((CheckpointableTask) invokable)
+                                .notifyCheckpointCompleteAsync(checkpointId);
+                        break;
+                    case SUBSUME:
+                        ((CheckpointableTask) invokable)
+                                .notifyCheckpointSubsumedAsync(checkpointId);
+                }
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
                 LOG.debug(
-                        "Notify checkpoint abort {} for {} ({}) was rejected by the mailbox",
-                        checkpointID,
+                        "Notify checkpoint {}} {} for {} ({}) was rejected by the mailbox.",
+                        notifyCheckpointOperation,
+                        checkpointId,
                         taskNameWithSubtask,
                         executionId);
             } catch (Throwable t) {
-                if (getExecutionState() == ExecutionState.RUNNING) {
-                    // fail task if checkpoint aborted notification failed.
-                    failExternally(new RuntimeException("Error while aborting checkpoint", t));
+                switch (notifyCheckpointOperation) {
+                    case ABORT:
+                    case COMPLETE:
+                        if (getExecutionState() == ExecutionState.RUNNING) {
+                            failExternally(
+                                    new RuntimeException(
+                                            String.format(
+                                                    "Error while notify checkpoint %s.",
+                                                    notifyCheckpointOperation),
+                                            t));
+                        }
+                        break;
+                    case SUBSUME:
+                        // just rethrow the throwable out as we do not expect notification of
+                        // subsume could fail the task.
+                        ExceptionUtils.rethrow(t);
                 }
             }
         } else {
             LOG.info(
-                    "Ignoring checkpoint aborted notification for non-running task {}.",
+                    "Ignoring checkpoint {} notification for non-running task {}.",
+                    notifyCheckpointOperation,
                     taskNameWithSubtask);
         }
     }
@@ -1788,5 +1810,12 @@ public class Task
                 action,
                 timeoutMs / 1000,
                 stackTraceStr);
+    }
+
+    /** Various operation of notify checkpoint. */
+    public enum NotifyCheckpointOperation {
+        ABORT,
+        COMPLETE,
+        SUBSUME
     }
 }

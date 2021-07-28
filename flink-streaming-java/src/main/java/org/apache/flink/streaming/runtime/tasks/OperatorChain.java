@@ -308,6 +308,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     public abstract void notifyCheckpointAborted(long checkpointId) throws Exception;
 
+    public abstract void notifyCheckpointSubsumed(long checkpointId) throws Exception;
+
     public abstract void snapshotState(
             Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
             CheckpointMetaData checkpointMetaData,

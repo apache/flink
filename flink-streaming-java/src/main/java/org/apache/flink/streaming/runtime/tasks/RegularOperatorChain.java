@@ -173,6 +173,19 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
+        Exception previousException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.notifyCheckpointSubsumed(checkpointId);
+            } catch (Exception e) {
+                previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+            }
+        }
+        ExceptionUtils.tryRethrowException(previousException);
+    }
+
+    @Override
     public void snapshotState(
             Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
             CheckpointMetaData checkpointMetaData,
