@@ -205,7 +205,8 @@ class SortMergeSubpartitionReader
 
     @Override
     public void acknowledgeAllDataProcessed() {
-        throw new UnsupportedOperationException("Method should never be called.");
+        // in case of bounded partitions there is no upstream to acknowledge, we simply ignore
+        // the ack, as there are no checkpoints
     }
 
     @Override

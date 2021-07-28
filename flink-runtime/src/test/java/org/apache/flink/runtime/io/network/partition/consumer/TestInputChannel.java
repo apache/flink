@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -203,9 +202,7 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() throws IOException {
-        throw new UnsupportedEncodingException();
-    }
+    public void acknowledgeAllRecordsProcessed() throws IOException {}
 
     @Override
     protected void notifyChannelNonEmpty() {
