@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,8 +58,9 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
         this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
     }
 
+    @Nullable
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
@@ -65,8 +68,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
         checkpoints.addLast(checkpoint);
 
-        CheckpointSubsumeHelper.subsume(
-                checkpoints, maxNumberOfCheckpointsToRetain, CompletedCheckpoint::discardOnSubsume);
+        return CheckpointSubsumeHelper.subsume(
+                        checkpoints,
+                        maxNumberOfCheckpointsToRetain,
+                        CompletedCheckpoint::discardOnSubsume)
+                .orElse(null);
     }
 
     @Override

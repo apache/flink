@@ -2771,7 +2771,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .setCheckpointStatsTracker(tracker)
                         .build();
 
-        store.addCheckpoint(
+        store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         new JobID(),
                         0,

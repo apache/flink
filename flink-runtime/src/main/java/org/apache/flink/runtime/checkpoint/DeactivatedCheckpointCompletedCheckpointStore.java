@@ -31,7 +31,7 @@ public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCh
     INSTANCE;
 
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)

@@ -1218,6 +1218,8 @@ public class CheckpointCoordinator {
         Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
         sharedStateRegistry.registerAll(operatorStates.values());
 
+        long lastSubsumedCheckpointId = CheckpointStoreUtil.INVALID_CHECKPOINT_ID;
+
         try {
             try {
                 completedCheckpoint =
@@ -1248,8 +1250,14 @@ public class CheckpointCoordinator {
             Preconditions.checkState(pendingCheckpoint.isDisposed() && completedCheckpoint != null);
 
             try {
-                completedCheckpointStore.addCheckpoint(
-                        completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
+                CompletedCheckpoint lastSubsumed =
+                        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
+                                completedCheckpoint,
+                                checkpointsCleaner,
+                                this::scheduleTriggerRequest);
+                if (lastSubsumed != null && lastSubsumed.discardOnSubsume()) {
+                    lastSubsumedCheckpointId = lastSubsumed.getCheckpointID();
+                }
             } catch (Exception exception) {
                 if (exception instanceof PossibleInconsistentStateException) {
                     LOG.warn(
@@ -1660,7 +1668,7 @@ public class CheckpointCoordinator {
                 Checkpoints.loadAndValidateCheckpoint(
                         job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
 
-        completedCheckpointStore.addCheckpoint(
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
 
         // Reset the checkpoint ID counter

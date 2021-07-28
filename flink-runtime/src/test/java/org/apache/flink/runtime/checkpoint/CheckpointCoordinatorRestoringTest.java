@@ -941,7 +941,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 new StandaloneCompletedCheckpointStore(checkpoints.length);
         CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
         for (final CompletedCheckpoint checkpoint : checkpoints) {
-            store.addCheckpoint(checkpoint, checkpointsCleaner, postCleanupAction);
+            store.addCheckpointAndSubsumeOldestOne(
+                    checkpoint, checkpointsCleaner, postCleanupAction);
         }
         return store;
     }
@@ -1082,7 +1083,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         new TestCompletedCheckpointStorageLocation());
-        completedCheckpointStore.addCheckpoint(
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
 
         CheckpointCoordinator coord =
@@ -1141,7 +1142,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 op2.getGeneratedOperatorID(),
                 new OperatorState(op2.getGeneratedOperatorID(), 1, 1));
         CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
-        store.addCheckpoint(
+        store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         graph.getJobID(),
                         2,
@@ -1352,7 +1353,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                 createOperatorState(op2.getGeneratedOperatorID(), secondOperatorFinishedState));
 
         CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
-        store.addCheckpoint(
+        store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         graph.getJobID(),
                         2,
