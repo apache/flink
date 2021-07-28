@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -45,14 +46,15 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the interaction between the {@link ExecutionGraph} and the {@link
- * CheckpointCoordinator}.
+ * Tests for the interaction between the {@link DefaultScheduler}, {@link ExecutionGraph} and the
+ * {@link CheckpointCoordinator}.
  */
-public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
+public class DefaultSchedulerCheckpointCoordinatorTest extends TestLogger {
 
     /** Tests that the checkpoint coordinator is shut down if the execution graph is failed. */
     @Test
-    public void testShutdownCheckpointCoordinatorOnFailure() throws Exception {
+    public void testClosingSchedulerShutsDownCheckpointCoordinatorOnFailedExecutionGraph()
+            throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
         CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
 
@@ -68,6 +70,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
         graph.failJob(new Exception("Test Exception"), System.currentTimeMillis());
 
+        scheduler.closeAsync().get();
+
         assertThat(checkpointCoordinator.isShutdown(), is(true));
         assertThat(counterShutdownFuture.get(), is(JobStatus.FAILED));
         assertThat(storeShutdownFuture.get(), is(JobStatus.FAILED));
@@ -75,7 +79,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
     /** Tests that the checkpoint coordinator is shut down if the execution graph is suspended. */
     @Test
-    public void testShutdownCheckpointCoordinatorOnSuspend() throws Exception {
+    public void testClosingSchedulerShutsDownCheckpointCoordinatorOnSuspendedExecutionGraph()
+            throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
         CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
 
@@ -91,6 +96,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
         graph.suspend(new Exception("Test Exception"));
 
+        scheduler.closeAsync().get();
+
         assertThat(checkpointCoordinator.isShutdown(), is(true));
         assertThat(counterShutdownFuture.get(), is(JobStatus.SUSPENDED));
         assertThat(storeShutdownFuture.get(), is(JobStatus.SUSPENDED));
@@ -98,7 +105,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
     /** Tests that the checkpoint coordinator is shut down if the execution graph is finished. */
     @Test
-    public void testShutdownCheckpointCoordinatorOnFinished() throws Exception {
+    public void testClosingSchedulerShutsDownCheckpointCoordinatorOnFinishedExecutionGraph()
+            throws Exception {
         final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
         CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
 
@@ -123,12 +131,39 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
         assertThat(graph.getTerminationFuture().get(), is(JobStatus.FINISHED));
 
+        scheduler.closeAsync().get();
+
         assertThat(checkpointCoordinator.isShutdown(), is(true));
         assertThat(counterShutdownFuture.get(), is(JobStatus.FINISHED));
         assertThat(storeShutdownFuture.get(), is(JobStatus.FINISHED));
     }
 
-    private SchedulerBase createSchedulerAndEnableCheckpointing(
+    /** Tests that the checkpoint coordinator is shut down if the execution graph is suspended. */
+    @Test
+    public void testClosingSchedulerSuspendsExecutionGraphAndShutsDownCheckpointCoordinator()
+            throws Exception {
+        final CompletableFuture<JobStatus> counterShutdownFuture = new CompletableFuture<>();
+        CheckpointIDCounter counter = new TestingCheckpointIDCounter(counterShutdownFuture);
+
+        final CompletableFuture<JobStatus> storeShutdownFuture = new CompletableFuture<>();
+        CompletedCheckpointStore store = new TestingCompletedCheckpointStore(storeShutdownFuture);
+
+        final SchedulerBase scheduler = createSchedulerAndEnableCheckpointing(counter, store);
+        final ExecutionGraph graph = scheduler.getExecutionGraph();
+        final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
+
+        assertThat(checkpointCoordinator, Matchers.notNullValue());
+        assertThat(checkpointCoordinator.isShutdown(), is(false));
+
+        scheduler.closeAsync().get();
+
+        assertThat(graph.getState(), is(JobStatus.SUSPENDED));
+        assertThat(checkpointCoordinator.isShutdown(), is(true));
+        assertThat(counterShutdownFuture.get(), is(JobStatus.SUSPENDED));
+        assertThat(storeShutdownFuture.get(), is(JobStatus.SUSPENDED));
+    }
+
+    private DefaultScheduler createSchedulerAndEnableCheckpointing(
             CheckpointIDCounter counter, CompletedCheckpointStore store) throws Exception {
         final Time timeout = Time.days(1L);
 
@@ -136,17 +171,10 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         jobVertex.setInvokableClass(AbstractInvokable.class);
 
         final CheckpointCoordinatorConfiguration chkConfig =
-                new CheckpointCoordinatorConfiguration(
-                        100,
-                        100,
-                        100,
-                        1,
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                        true,
-                        false,
-                        false,
-                        0,
-                        0);
+                CheckpointCoordinatorConfiguration.builder()
+                        .setCheckpointInterval(100L)
+                        .setCheckpointTimeout(100L)
+                        .build();
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);
 
@@ -156,14 +184,10 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         .setJobCheckpointingSettings(checkpointingSettings)
                         .build();
 
-        final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(
-                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                        .setCheckpointRecoveryFactory(
-                                new TestingCheckpointRecoveryFactory(store, counter))
-                        .setRpcTimeout(timeout)
-                        .build();
-
-        return scheduler;
+        return SchedulerTestingUtils.newSchedulerBuilder(
+                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                .setCheckpointRecoveryFactory(new TestingCheckpointRecoveryFactory(store, counter))
+                .setRpcTimeout(timeout)
+                .build();
     }
 }

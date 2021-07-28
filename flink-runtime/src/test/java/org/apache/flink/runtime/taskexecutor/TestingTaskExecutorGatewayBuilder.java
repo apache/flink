@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
@@ -89,10 +91,22 @@ public class TestingTaskExecutorGatewayBuilder {
                     (a, b, c) -> CompletableFuture.completedFuture(Acknowledge.get());
     private static final Supplier<CompletableFuture<ThreadDumpInfo>> DEFAULT_THREAD_DUMP_SUPPLIER =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
-
     private static final Supplier<CompletableFuture<TaskThreadInfoResponse>>
             DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER =
                     () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private static final QuadFunction<
+                    ExecutionAttemptID,
+                    Long,
+                    Long,
+                    CheckpointOptions,
+                    CompletableFuture<Acknowledge>>
+            NOOP_TRIGGER_CHECKPOINT_FUNCTION =
+                    ((executionAttemptId, checkpointId, checkpointTimestamp, checkpointOptions) ->
+                            CompletableFuture.completedFuture(Acknowledge.get()));
+    private static final TriFunction<ExecutionAttemptID, Long, Long, CompletableFuture<Acknowledge>>
+            NOOP_CONFIRM_CHECKPOINT_FUNCTION =
+                    ((executionAttemptId, checkpointId, checkpointTimestamp) ->
+                            CompletableFuture.completedFuture(Acknowledge.get()));
 
     private String address = "foobar:1234";
     private String hostname = "foobar";
@@ -132,6 +146,17 @@ public class TestingTaskExecutorGatewayBuilder {
 
     private Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier =
             DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER;
+
+    private QuadFunction<
+                    ExecutionAttemptID,
+                    Long,
+                    Long,
+                    CheckpointOptions,
+                    CompletableFuture<Acknowledge>>
+            triggerCheckpointFunction = NOOP_TRIGGER_CHECKPOINT_FUNCTION;
+
+    private TriFunction<ExecutionAttemptID, Long, Long, CompletableFuture<Acknowledge>>
+            confirmCheckpointFunction = NOOP_CONFIRM_CHECKPOINT_FUNCTION;
 
     public TestingTaskExecutorGatewayBuilder setAddress(String address) {
         this.address = address;
@@ -249,6 +274,25 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
+    public TestingTaskExecutorGatewayBuilder setTriggerCheckpointFunction(
+            QuadFunction<
+                            ExecutionAttemptID,
+                            Long,
+                            Long,
+                            CheckpointOptions,
+                            CompletableFuture<Acknowledge>>
+                    triggerCheckpointFunction) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
+        return this;
+    }
+
+    public TestingTaskExecutorGatewayBuilder setConfirmCheckpointFunction(
+            TriFunction<ExecutionAttemptID, Long, Long, CompletableFuture<Acknowledge>>
+                    confirmCheckpointFunction) {
+        this.confirmCheckpointFunction = confirmCheckpointFunction;
+        return this;
+    }
+
     public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
         return new TestingTaskExecutorGateway(
                 address,
@@ -267,6 +311,8 @@ public class TestingTaskExecutorGatewayBuilder {
                 releaseClusterPartitionsConsumer,
                 operatorEventHandler,
                 requestThreadDumpSupplier,
-                requestThreadInfoSamplesSupplier);
+                requestThreadInfoSamplesSupplier,
+                triggerCheckpointFunction,
+                confirmCheckpointFunction);
     }
 }

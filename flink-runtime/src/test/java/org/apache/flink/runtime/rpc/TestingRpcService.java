@@ -108,6 +108,13 @@ public class TestingRpcService implements RpcService {
         }
     }
 
+    public void unregisterGateway(String address) {
+        checkNotNull(address);
+        if (registeredConnections.remove(address) == null) {
+            throw new IllegalStateException("no gateway is registered under " + address);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private <C extends RpcGateway> CompletableFuture<C> getRpcGatewayFuture(C gateway) {
         return (CompletableFuture<C>) rpcGatewayFutureFunction.apply(gateway);
