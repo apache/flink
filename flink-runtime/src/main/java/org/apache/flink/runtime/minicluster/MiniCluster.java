@@ -658,6 +658,11 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getNumTaskManagers() == 1;
     }
 
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return miniClusterConfiguration.getConfiguration();
+    }
+
     @GuardedBy("lock")
     private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
         final Collection<CompletableFuture<Void>> terminationFutures =
