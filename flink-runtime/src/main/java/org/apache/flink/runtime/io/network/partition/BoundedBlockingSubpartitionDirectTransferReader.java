@@ -149,6 +149,11 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
+    public int getNumberOfQueuedBuffers() {
+        return parent.getNumberOfQueuedBuffers();
+    }
+
+    @Override
     public void notifyDataAvailable() {
         throw new UnsupportedOperationException("Method should never be called.");
     }
