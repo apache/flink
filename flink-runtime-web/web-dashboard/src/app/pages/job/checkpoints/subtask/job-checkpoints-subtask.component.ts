@@ -57,7 +57,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
   sortStartDelayFn = this.sortFn('start_delay');
   sortUnalignedCpFn = this.sortFn('unaligned_checkpoint');
 
-  sortFn(path: string): NzTableSortFn {
+  sortFn(path: string): NzTableSortFn<{ index: number; status: string }> {
     return (pre: { index: number; status: string }, next: { index: number; status: string }) =>
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }

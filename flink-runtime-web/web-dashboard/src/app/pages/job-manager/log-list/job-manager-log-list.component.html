@@ -21,8 +21,11 @@
     [nzSize]="'small'"
     [nzData]="listOfLog"
     [nzLoading]="isLoading"
-    [nzFrontPagination]="false"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+    [nzVirtualItemSize]="39"
+    [nzVirtualForTrackBy]="trackByName"
+    [nzScroll]="{ y: '700px' }"
+  >
     <thead>
       <tr>
         <th>Log Name</th>

@@ -15,22 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @import "theme";
 
-.content {
-  margin-top: 16px;
-  font-size: 14px;
-  line-height: 1.5;
-  box-sizing: border-box;
-  padding: 0;
-  list-style: none;
-  background: @component-background;
-  border-radius: 2px;
-  position: relative;
-  border: 1px solid @border-color-split;
-}
-
-.router {
-  height: 100%;
-  width: 100%;
+:host {
+  ::ng-deep .ant-card-body {
+    padding: 0;
+  }
 }

@@ -47,7 +47,7 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
   sortEndTimeFn = this.sortFn('detail.end-time');
   sortStatusFn = this.sortFn('status');
 
-  sortFn(path: string): NzTableSortFn {
+  sortFn(path: string): NzTableSortFn<VertexTaskManagerDetailInterface> {
     return (pre: VertexTaskManagerDetailInterface, next: VertexTaskManagerDetailInterface) =>
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }

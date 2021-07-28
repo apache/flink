@@ -26,7 +26,6 @@
   position: absolute;
   right: 0;
   top: 0;
-  padding: 12px;
   background: @component-background;
   border-left: solid 1px @border-color-split;
 
@@ -47,6 +46,9 @@
   ::ng-deep {
     .ant-tabs-bar {
       margin: 0;
+    }
+    .ant-tabs-tab:first-of-type {
+      margin: 0 0 0 @margin-md;
     }
   }
 }
