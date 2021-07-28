@@ -115,7 +115,10 @@ public final class Utils {
 
     private static final int DEFAULT_YARN_RM_INCREMENT_ALLOCATION_VCORES = 1;
 
-    public static void setupYarnClassPath(Configuration conf, org.apache.flink.configuration.Configuration flinkConfig, Map<String, String> appMasterEnv) {
+    public static void setupYarnClassPath(
+            Configuration conf,
+            org.apache.flink.configuration.Configuration flinkConfig,
+            Map<String, String> appMasterEnv) {
         addToEnvironment(
                 appMasterEnv, Environment.CLASSPATH.name(), appMasterEnv.get(ENV_FLINK_CLASSPATH));
         String[] yarnClassPathEntries =
