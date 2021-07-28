@@ -17,13 +17,16 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 
 import java.io.IOException;
 
-class FsStateChangelogStorageFactory implements StateChangelogStorageFactory {
+/** {@link FsStateChangelogStorage} factory. */
+@Internal
+public class FsStateChangelogStorageFactory implements StateChangelogStorageFactory {
 
     @Override
     public String getIdentifier() {
