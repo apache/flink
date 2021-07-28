@@ -137,7 +137,6 @@ public class CsvRowFormatFactoryTest extends TestLogger {
                 new Csv()
                         .schema(SCHEMA)
                         .fieldDelimiter(';')
-                        .lineDelimiter("\r\n")
                         .allowComments()
                         .ignoreParseErrors()
                         .arrayElementDelimiter("|")
@@ -146,10 +145,26 @@ public class CsvRowFormatFactoryTest extends TestLogger {
                         .disableQuoteCharacter()
                         .toProperties();
 
+        final CsvRowDeserializationSchema expectedDeser =
+                new CsvRowDeserializationSchema.Builder(SCHEMA)
+                        .setFieldDelimiter(';')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
+
+        final DeserializationSchema<?> actualDeser =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
+
+        assertEquals(expectedDeser, actualDeser);
+
         final CsvRowSerializationSchema expectedSer =
                 new CsvRowSerializationSchema.Builder(SCHEMA)
                         .setFieldDelimiter(';')
-                        .setLineDelimiter("\r\n")
                         .setArrayElementDelimiter("|")
                         .setEscapeCharacter('\\')
                         .setNullLiteral("n/a")

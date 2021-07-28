@@ -168,6 +168,14 @@ public class CsvRowDeSerializationSchemaTest {
     }
 
     @Test
+    public void testDeserializationWithDisableQuoteCharacter() throws Exception {
+        Consumer<CsvRowDeserializationSchema.Builder> deserConfig =
+                (deserSchemaBuilder) ->
+                        deserSchemaBuilder.disableQuoteCharacter().setFieldDelimiter(',');
+        testField(Types.STRING, "\"abc", "\"abc", deserConfig, ",");
+    }
+
+    @Test
     public void testDeserializeUnsupportedNull() throws Exception {
         // unsupported null for integer
         assertEquals(

@@ -72,9 +72,15 @@ public final class CsvRowFormatFactory extends TableFormatFactoryBase<Row>
                 .getOptionalCharacter(CsvValidator.FORMAT_FIELD_DELIMITER)
                 .ifPresent(schemaBuilder::setFieldDelimiter);
 
-        descriptorProperties
-                .getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER)
-                .ifPresent(schemaBuilder::setQuoteCharacter);
+        if (descriptorProperties
+                .getOptionalBoolean(CsvValidator.FORMAT_DISABLE_QUOTE_CHARACTER)
+                .orElse(false)) {
+            schemaBuilder.disableQuoteCharacter();
+        } else {
+            descriptorProperties
+                    .getOptionalCharacter(CsvValidator.FORMAT_QUOTE_CHARACTER)
+                    .ifPresent(schemaBuilder::setQuoteCharacter);
+        }
 
         descriptorProperties
                 .getOptionalBoolean(CsvValidator.FORMAT_ALLOW_COMMENTS)
