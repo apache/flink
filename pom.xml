@@ -1621,7 +1621,7 @@ under the License.
 											so there's no benefit in us investing time into bumping these. -->
 										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
 									</includes>
-									<message>Older snakeyaml versions are not allow due to security vulnerabilities.</message>
+									<message>Older snakeyaml versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
