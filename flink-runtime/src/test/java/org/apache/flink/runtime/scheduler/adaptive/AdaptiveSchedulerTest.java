@@ -82,7 +82,6 @@ import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matchers;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -772,6 +771,16 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(
                 scheduler.howToHandleFailure(null, new Exception("test")).canRestart(), is(false));
+    }
+
+    @Test
+    public void testHowToHandleFailureRejectedByStrategyWithNull() throws Exception {
+        JobGraph jobGraph = createJobGraph();
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
+                        .setRestartBackoffTimeStrategy(NoRestartBackoffTimeStrategy.INSTANCE)
+                        .build();
+
         assertThat(
                 scheduler
                         .howToHandleFailure(
@@ -865,11 +874,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(
                 failure.getException().deserializeError(ClassLoader.getSystemClassLoader()),
-                Matchers.is(expectedException));
+                is(expectedException));
         assertThat(failure.getTimestamp(), greaterThanOrEqualTo(start));
         assertThat(failure.getTimestamp(), lessThanOrEqualTo(end));
-        assertThat(failure.getTaskManagerLocation(), Matchers.is(nullValue()));
-        assertThat(failure.getFailingTaskName(), Matchers.is(nullValue()));
+        assertThat(failure.getTaskManagerLocation(), is(nullValue()));
+        assertThat(failure.getFailingTaskName(), is(nullValue()));
     }
 
     @Test
@@ -933,11 +942,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         assertThat(
                 failure.getException().deserializeError(ClassLoader.getSystemClassLoader()),
-                Matchers.is(expectedException));
+                is(expectedException));
         assertThat(failure.getTimestamp(), greaterThanOrEqualTo(start));
         assertThat(failure.getTimestamp(), lessThanOrEqualTo(end));
-        assertThat(failure.getTaskManagerLocation(), Matchers.is(nullValue()));
-        assertThat(failure.getFailingTaskName(), Matchers.is(nullValue()));
+        assertThat(failure.getTaskManagerLocation(), is(nullValue()));
+        assertThat(failure.getFailingTaskName(), is(nullValue()));
     }
 
     @Test(expected = IllegalStateException.class)

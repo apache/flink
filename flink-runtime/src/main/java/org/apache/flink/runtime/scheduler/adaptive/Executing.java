@@ -306,7 +306,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         @Nullable private final Duration backoffTime;
 
         /**
-         * the {@link ExecutionVertexID} refering to the {@link ExecutionVertex} the failure is
+         * The {@link ExecutionVertexID} refering to the {@link ExecutionVertex} the failure is
          * originating from or {@code null} if it's a global failure.
          */
         @Nullable private final ExecutionVertexID failingExecutionVertexId;

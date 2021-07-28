@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -60,7 +59,7 @@ public class FailureHandlingResultSnapshot {
             FailureHandlingResult failureHandlingResult,
             Function<ExecutionVertexID, Execution> latestExecutionLookup) {
         return create(
-                failureHandlingResult.getExecutionVertexIdOfFailedTask(),
+                failureHandlingResult.getExecutionVertexIdOfFailedTask().orElse(null),
                 failureHandlingResult.getError(),
                 failureHandlingResult.getVerticesToRestart(),
                 failureHandlingResult.getTimestamp(),
@@ -81,13 +80,15 @@ public class FailureHandlingResultSnapshot {
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
-            Optional<ExecutionVertexID> failingExecutionVertexId,
+            ExecutionVertexID failingExecutionVertexId,
             Throwable rootCause,
             Set<ExecutionVertexID> concurrentVertexIds,
             long timestamp,
             Function<ExecutionVertexID, Execution> latestExecutionLookup) {
         final Execution rootCauseExecution =
-                failingExecutionVertexId.map(latestExecutionLookup).orElse(null);
+                failingExecutionVertexId != null
+                        ? latestExecutionLookup.apply(failingExecutionVertexId)
+                        : null;
 
         Preconditions.checkArgument(
                 rootCauseExecution == null || rootCauseExecution.getFailureInfo().isPresent(),
@@ -96,14 +97,13 @@ public class FailureHandlingResultSnapshot {
                         // the "(null)" values should never be used due to the condition - it's just
                         // added to make the compiler happy
                         rootCauseExecution != null ? rootCauseExecution.getAttemptId() : "(null)",
-                        failingExecutionVertexId.map(Objects::toString).orElse("(null)")));
+                        failingExecutionVertexId != null
+                                ? failingExecutionVertexId.toString()
+                                : "(null)"));
 
-        final ExecutionVertexID rootCauseExecutionVertexId = failingExecutionVertexId.orElse(null);
         final Set<Execution> concurrentlyFailedExecutions =
                 concurrentVertexIds.stream()
-                        .filter(
-                                executionVertexId ->
-                                        !executionVertexId.equals(rootCauseExecutionVertexId))
+                        .filter(executionVertexId -> !executionVertexId.equals(rootCauseExecution))
                         .map(latestExecutionLookup)
                         .filter(execution -> execution.getFailureInfo().isPresent())
                         .collect(Collectors.toSet());
