@@ -443,8 +443,11 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    int getCurrentNumberOfBuffers() {
-        return buffers.size();
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (buffers) {
+            return buffers.size();
+        }
     }
 
     // ------------------------------------------------------------------------
