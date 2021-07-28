@@ -24,7 +24,7 @@ import { isNil } from 'utils';
 })
 export class HumanizeDurationPipe implements PipeTransform {
   transform(value: number, short: boolean = false): any {
-    if (isNil(value)) {
+    if (isNil(value) || isNaN(value)) {
       return '-';
     } else if (value < 0) {
       return '-';

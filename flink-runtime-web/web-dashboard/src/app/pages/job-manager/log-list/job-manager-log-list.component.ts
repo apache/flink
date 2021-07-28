@@ -23,11 +23,14 @@ import { JobManagerService } from 'services';
 @Component({
   selector: 'flink-job-manager-log-list',
   templateUrl: './job-manager-log-list.component.html',
+  styleUrls: ['./job-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
   listOfLog: { name: string; size: number }[] = [];
   isLoading = true;
+
+  trackByName = (_: number, log: { name: string; size: number }) => log.name;
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 

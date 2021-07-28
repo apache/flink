@@ -16,8 +16,14 @@
   ~ limitations under the License.
   -->
 <div class="wrapper">
-  <nz-table class="flink-memory-model" *ngIf="metrics" nzTemplateMode nzSize="small"
-            [nzWidthConfig]="['220px','160px','200px',null]">
+  <nz-table
+    nzBordered
+    class="flink-memory-model"
+    *ngIf="metrics"
+    nzTemplateMode
+    nzSize="small"
+    [nzWidthConfig]="['220px','160px','200px',null]"
+  >
     <thead>
       <tr>
         <th colspan="2" class="table-header">Flink Memory Model</th>
@@ -83,92 +89,92 @@
   <nz-card nzTitle="Advanced">
     <div nz-row [nzGutter]="16">
       <div nz-col [nzSpan]="12">
-        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="JVM (Heap/Non-Heap) Memory">
-          <nz-table
-              [nzTemplateMode]="true"
-              [nzShowPagination]="false"
-              [nzSize]="'small'"
-              class="no-border">
-            <thead>
-            <tr>
-              <th>Type</th>
-              <th>Committed</th>
-              <th>Used</th>
-              <th>Maximum</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-              <td><strong>Heap</strong></td>
-              <td>{{ metrics['Status.JVM.Memory.Heap.Committed'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}</td>
-            </tr>
-            <tr>
-              <td><strong>Non-Heap</strong></td>
-              <td>{{ metrics['Status.JVM.Memory.NonHeap.Committed'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.NonHeap.Used'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.NonHeap.Max'] | humanizeBytes }}</td>
-            </tr>
-            </tbody>
-          </nz-table>
-        </nz-card>
+        <nz-table
+          nzBordered
+          nzTitle="JVM (Heap/Non-Heap) Memory"
+          [nzTemplateMode]="true"
+          [nzShowPagination]="false"
+          [nzSize]="'small'"
+        >
+          <thead>
+          <tr>
+            <th>Type</th>
+            <th>Committed</th>
+            <th>Used</th>
+            <th>Maximum</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td><strong>Heap</strong></td>
+            <td>{{ metrics['Status.JVM.Memory.Heap.Committed'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}</td>
+          </tr>
+          <tr>
+            <td><strong>Non-Heap</strong></td>
+            <td>{{ metrics['Status.JVM.Memory.NonHeap.Committed'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.NonHeap.Used'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.NonHeap.Max'] | humanizeBytes }}</td>
+          </tr>
+          </tbody>
+        </nz-table>
       </div>
       <div nz-col [nzSpan]="12">
-        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="Outside JVM Memory">
-          <nz-table
-              [nzTemplateMode]="true"
-              [nzShowPagination]="false"
-              [nzSize]="'small'"
-              class="no-border">
-            <thead>
-            <tr>
-              <th>Type</th>
-              <th>Count</th>
-              <th>Used</th>
-              <th>Capacity</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-              <td><strong>Direct</strong></td>
-              <td>{{ metrics['Status.JVM.Memory.Direct.Count'] | number }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Direct.MemoryUsed'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Direct.TotalCapacity'] | humanizeBytes }}</td>
-            </tr>
-            <tr>
-              <td><strong>Mapped</strong></td>
-              <td>{{ metrics['Status.JVM.Memory.Mapped.Count'] | number }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Mapped.MemoryUsed'] | humanizeBytes }}</td>
-              <td>{{ metrics['Status.JVM.Memory.Mapped.TotalCapacity'] | humanizeBytes }}</td>
-            </tr>
-            </tbody>
-          </nz-table>
-        </nz-card>
+        <nz-table
+          nzBordered
+          nzTitle="Outside JVM Memory"
+          [nzTemplateMode]="true"
+          [nzShowPagination]="false"
+          [nzSize]="'small'"
+        >
+          <thead>
+          <tr>
+            <th>Type</th>
+            <th>Count</th>
+            <th>Used</th>
+            <th>Capacity</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td><strong>Direct</strong></td>
+            <td>{{ metrics['Status.JVM.Memory.Direct.Count'] | number }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Direct.MemoryUsed'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Direct.TotalCapacity'] | humanizeBytes }}</td>
+          </tr>
+          <tr>
+            <td><strong>Mapped</strong></td>
+            <td>{{ metrics['Status.JVM.Memory.Mapped.Count'] | number }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Mapped.MemoryUsed'] | humanizeBytes }}</td>
+            <td>{{ metrics['Status.JVM.Memory.Mapped.TotalCapacity'] | humanizeBytes }}</td>
+          </tr>
+          </tbody>
+        </nz-table>
       </div>
-      <div nz-col [nzSpan]="24">
-        <nz-card nzType="inner" [nzBodyStyle]="{ padding:'0px' }" nzTitle="Garbage Collection">
-          <nz-table
-              [nzTemplateMode]="true"
-              [nzShowPagination]="false"
-              [nzSize]="'small'"
-              class="no-border">
-            <thead>
-              <tr>
-                <th>Collector</th>
-                <th>Count</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let gc of listOfGCMetric">
-                <td><strong>{{ gc.name }}</strong></td>
-                <td>{{ gc.count || '-' }}</td>
-                <td>{{ gc.time || '-' }}</td>
-              </tr>
-            </tbody>
-          </nz-table>
-        </nz-card>
+      <div nz-col [nzSpan]="24" class="top-margin">
+        <nz-table
+          nzBordered
+          nzTitle="Garbage Collection"
+          [nzTemplateMode]="true"
+          [nzShowPagination]="false"
+          [nzSize]="'small'"
+        >
+          <thead>
+          <tr>
+            <th>Collector</th>
+            <th>Count</th>
+            <th>Time</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr *ngFor="let gc of listOfGCMetric">
+            <td><strong>{{ gc.name }}</strong></td>
+            <td>{{ gc.count || '-' }}</td>
+            <td>{{ gc.time || '-' }}</td>
+          </tr>
+          </tbody>
+        </nz-table>
       </div>
 
     </div>

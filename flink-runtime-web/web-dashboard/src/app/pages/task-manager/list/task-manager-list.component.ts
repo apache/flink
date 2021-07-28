@@ -47,7 +47,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   sortFreeMemoryFn = this.sortFn('hardware.freeMemory');
   sortManagedMemoryFn = this.sortFn('hardware.managedMemory');
 
-  sortFn(path: string): NzTableSortFn {
+  sortFn(path: string): NzTableSortFn<TaskmanagersItemInterface> {
     return (pre: TaskmanagersItemInterface, next: TaskmanagersItemInterface) =>
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }

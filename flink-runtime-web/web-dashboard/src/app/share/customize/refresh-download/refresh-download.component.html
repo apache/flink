@@ -18,8 +18,8 @@
 
 
 <nz-button-group nzSize="small" *ngIf="compactMode; else defaultTemplate">
-  <a nz-button (click)="reload.next()"><i nz-icon nzType="reload"></i></a>
-  <a nz-button [attr.download]="downloadName" [attr.href]="downloadHref"><i nz-icon nzType="download"></i></a>
+  <a nz-button class="flex-center" (click)="reload.next()"><i nz-icon nzType="reload"></i></a>
+  <a nz-button class="flex-center" [attr.download]="downloadName" [attr.href]="downloadHref"><i nz-icon nzType="download"></i></a>
 </nz-button-group>
 
 <ng-template #defaultTemplate>

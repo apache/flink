@@ -54,7 +54,7 @@ export class JobOverviewListComponent {
   sortDurationFn = this.sortFn('detail.duration');
   sortEndTimeFn = this.sortFn('detail.end-time');
 
-  sortFn(path: string): NzTableSortFn {
+  sortFn(path: string): NzTableSortFn<NodesItemCorrectInterface> {
     return (pre: NodesItemCorrectInterface, next: NodesItemCorrectInterface) =>
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }

@@ -48,7 +48,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   sortEndTimeFn = this.sortFn('detail.end-time');
   sortStatusFn = this.sortFn('status');
 
-  sortFn(path: string): NzTableSortFn {
+  sortFn(path: string): NzTableSortFn<JobSubTaskInterface> {
     return (pre: JobSubTaskInterface, next: JobSubTaskInterface) =>
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
