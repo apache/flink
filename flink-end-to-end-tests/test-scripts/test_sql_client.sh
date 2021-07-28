@@ -61,7 +61,8 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/org/apache/avro"* ]] && \
         # Following required by amazon-kinesis-producer in flink-connector-kinesis
         ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/amazon-kinesis-producer-native-binaries"* ]] && \
-        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/cacerts"* ]] ; then
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/cacerts"* ]] && \
+        ! [[ $EXTRACTED_FILE = "$EXTRACTED_JAR/google"* ]] ; then
       echo "Bad file in JAR: $EXTRACTED_FILE"
       exit 1
     fi

@@ -33,10 +33,10 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<aws.sdk.version>1.11.754</aws.sdk.version>
-		<aws.sdkv2.version>2.15.32</aws.sdkv2.version>
+		<aws.sdk.version>1.12.7</aws.sdk.version>
+		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
 		<reactivestreams.version>1.0.2</reactivestreams.version>
-		<netty.version>4.1.53.Final</netty.version>
+		<netty.version>4.1.63.Final</netty.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 
