@@ -43,6 +43,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
@@ -846,8 +847,8 @@ public class MultipleInputStreamTaskTest {
 
             finishAddingRecords(testHarness, 1);
             testHarness.endInput();
-            testHarness.finishProcessing();
             testHarness.waitForTaskCompletion();
+            testHarness.finishProcessing();
         }
     }
 
@@ -948,12 +949,15 @@ public class MultipleInputStreamTaskTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
+                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
                 assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after all the inputs have received EndOfPartition.
+                testHarness.processEvent(EndOfData.INSTANCE, 1, 0);
+                testHarness.processEvent(EndOfData.INSTANCE, 2, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 2, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 6);

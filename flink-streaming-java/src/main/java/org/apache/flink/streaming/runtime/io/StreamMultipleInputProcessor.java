@@ -84,8 +84,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
         lastReadInputIndex = readingInputIndex;
         DataInputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
-        inputSelectionHandler.nextSelection();
-        return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
+        return inputSelectionHandler.updateStatusAndSelection(inputStatus, readingInputIndex);
     }
 
     private int selectFirstReadingInputIndex() {

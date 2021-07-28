@@ -24,7 +24,6 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
@@ -51,8 +50,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     private transient SourceFunction.SourceContext<OUT> ctx;
 
     private transient volatile boolean canceledOrStopped = false;
-
-    private transient volatile boolean hasSentMaxWatermark = false;
 
     public StreamSource(SRC sourceFunction, boolean emitProgressiveWatermarks) {
         super(sourceFunction);
@@ -136,21 +133,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
             if (latencyEmitter != null) {
                 latencyEmitter.close();
             }
-        }
-    }
-
-    public void advanceToEndOfEventTime() {
-        if (!hasSentMaxWatermark) {
-            ctx.emitWatermark(Watermark.MAX_WATERMARK);
-            hasSentMaxWatermark = true;
-        }
-    }
-
-    @Override
-    public void finish() throws Exception {
-        super.finish();
-        if (!isCanceledOrStopped() && ctx != null) {
-            advanceToEndOfEventTime();
         }
     }
 

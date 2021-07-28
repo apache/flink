@@ -188,7 +188,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         DataInputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
-        if (inputStatus == DataInputStatus.END_OF_INPUT) {
+        if (inputStatus == DataInputStatus.END_OF_DATA) {
             endSorting();
             return emitNextSortedRecord(output);
         }
@@ -211,7 +211,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             if (watermarkSeen > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(watermarkSeen));
             }
-            return DataInputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_DATA;
         }
     }
 
