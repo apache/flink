@@ -255,7 +255,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /**
    * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
+   *
+   * @deprecated Use [[addTemporarySystemFunction]].
    */
+  @deprecated
+  @Deprecated
   def addFunction(name: String, function: ScalarFunction): Unit = {
     getTableEnv.registerFunction(name, function)
   }

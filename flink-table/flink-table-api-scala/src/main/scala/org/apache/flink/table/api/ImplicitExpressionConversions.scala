@@ -154,9 +154,7 @@ trait ImplicitExpressionConversions {
       * Calls a scalar function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      unresolvedCall(
-        new ScalarFunctionDefinition(s.getClass.getName, s),
-        params.map(ApiExpressionUtils.objectToExpression): _*)
+      unresolvedCall(s, params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
 

@@ -28,7 +28,7 @@ LogicalFilter(condition=[>=($0, 0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Merger$(c, Merger$(c, f)) AS c1], where=[(Merger$(c, Merger$(c, f)) >= 0)])
+Calc(select=[org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50(c, org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50(c, f)) AS c1], where=[(org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50(c, org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50(c, f)) >= 0)])
 +- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, f], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
@@ -287,7 +287,7 @@ LogicalJoin(condition=[AND(=($1, $4), =(org$apache$flink$table$planner$plan$batc
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[InnerJoin], where=[((b = e) AND (Merger$(a, d) = 10))], select=[a, b, c, d, e, f], build=[right])
+HashJoin(joinType=[InnerJoin], where=[((b = e) AND (org$apache$flink$table$planner$plan$batch$table$JoinTest$Merger$$234a0810cc9eb576e09d551c1fe0de50(a, d) = 10))], select=[a, b, c, d, e, f], build=[right])
 :- Exchange(distribution=[hash[b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])

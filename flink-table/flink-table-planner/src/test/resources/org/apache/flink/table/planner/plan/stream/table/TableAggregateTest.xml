@@ -94,7 +94,7 @@ LogicalProject(a=[org$apache$flink$table$planner$expressions$utils$Func0$$6ad060
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[Func0$(f0) AS a, f1 AS b])
+Calc(select=[org$apache$flink$table$planner$expressions$utils$Func0$$6ad060e6c46e5cd996d7b888db472ebc(f0) AS a, f1 AS b])
 +- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[single])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])

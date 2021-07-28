@@ -207,7 +207,7 @@ object JoinTest {
 
   @SerialVersionUID(1L)
   object Merger extends ScalarFunction {
-    def eval(f0: Int, f1: Int): Int = {
+    def eval(f0: Integer, f1: Integer): Int = {
       f0 + f1
     }
   }
