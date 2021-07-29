@@ -248,7 +248,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
             long discoveryIntervalMillis,
             boolean useMetrics) {
         this.topicsDescriptor = new KafkaTopicsDescriptor(topics, topicPattern);
-        this.deserializer = checkNotNull(deserializer, "valueDeserializer");
+        this.deserializer = checkNotNull(deserializer, "valueDeserializer cannot be null");
 
         checkArgument(
                 discoveryIntervalMillis == PARTITION_DISCOVERY_DISABLED
