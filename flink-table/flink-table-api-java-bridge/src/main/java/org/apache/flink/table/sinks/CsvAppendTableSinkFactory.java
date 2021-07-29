@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.sinks;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.types.Row;
 
@@ -30,8 +31,12 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 
 /**
  * Factory base for creating configured instances of {@link CsvTableSink} in a stream environment.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@link FileSink}. It is kept only to
+ *     support tests for the legacy connector stack.
  */
-@PublicEvolving
+@Internal
+@Deprecated
 public class CsvAppendTableSinkFactory extends CsvTableSinkFactoryBase
         implements StreamTableSinkFactory<Row> {
 
