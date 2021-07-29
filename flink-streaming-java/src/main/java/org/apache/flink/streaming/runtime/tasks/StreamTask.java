@@ -111,9 +111,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
@@ -263,10 +265,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
     private final ExecutorService channelIOExecutor;
 
+    // ========================================================
+    //  Final  checkpoint / savepoint
+    // ========================================================
     private Long syncSavepointWithoutDrain = null;
-
     private Long syncSavepointWithDrain = null;
-    private CompletableFuture<Void> syncSavepointWithDrainCompletionFuture = null;
+    private Long finalCheckpointMinId = null;
+    private final CompletableFuture<Void> finalCheckpointCompleted = new CompletableFuture<>();
 
     private long latestReportCheckpointId = -1;
 
@@ -541,7 +546,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         if (isDrain) {
             if (syncSavepointWithDrain == null) {
                 syncSavepointWithDrain = checkpointId;
-                syncSavepointWithDrainCompletionFuture = new CompletableFuture<>();
             }
         } else {
             syncSavepointWithoutDrain = checkpointId;
@@ -819,7 +823,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         LOG.debug("Finished task {}", getName());
         getCompletionFuture().exceptionally(unused -> null).join();
 
-        List<CompletableFuture<Void>> terminationConditions = new ArrayList<>();
+        Set<CompletableFuture<Void>> terminationConditions = new HashSet<>();
         // If checkpoints are enabled, waits for all the records get processed by the downstream
         // tasks. During this process, this task could coordinate with its downstream tasks to
         // continue perform checkpoints.
@@ -829,10 +833,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
                 terminationConditions.add(partitionWriter.getAllDataProcessedFuture());
             }
+
+            terminationConditions.add(finalCheckpointCompleted);
         }
 
-        if (syncSavepointWithDrainCompletionFuture != null) {
-            terminationConditions.add(syncSavepointWithDrainCompletionFuture);
+        if (syncSavepointWithDrain != null) {
+            terminationConditions.add(finalCheckpointCompleted);
         }
 
         FutureUtils.waitForAll(terminationConditions)
@@ -1297,6 +1303,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                     checkpointOptions.getCheckpointType().shouldDrain());
                         }
 
+                        if (areCheckpointsWithFinishedTasksEnabled()
+                                && endOfDataReceived
+                                && this.finalCheckpointMinId == null) {
+                            this.finalCheckpointMinId = checkpointMetaData.getCheckpointId();
+                        }
+
                         subtaskCheckpointCoordinator.checkpointState(
                                 checkpointMetaData,
                                 checkpointOptions,
@@ -1400,7 +1412,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 // Reset to "notify" the internal synchronous savepoint mailbox loop.
                 syncSavepointWithoutDrain = null;
             } else if (isCurrentSavepointWithDrain(checkpointId)) {
-                syncSavepointWithDrainCompletionFuture.complete(null);
+                finalCheckpointCompleted.complete(null);
+            } else if (syncSavepointWithDrain == null
+                    && finalCheckpointMinId != null
+                    && checkpointId >= finalCheckpointMinId) {
+                finalCheckpointCompleted.complete(null);
             }
         }
     }
