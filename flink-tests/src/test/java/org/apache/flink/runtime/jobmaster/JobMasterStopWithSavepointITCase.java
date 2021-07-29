@@ -105,12 +105,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         stopWithSavepointNormalExecutionHelper(false);
     }
 
-    @Test
-    public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
-            throws Exception {
-        stopWithSavepointNormalExecutionHelper(true);
-    }
-
     private void stopWithSavepointNormalExecutionHelper(final boolean terminate) throws Exception {
         setUpJobGraph(NoOpBlockingStreamTask.class, RestartStrategies.noRestart());
 
@@ -347,7 +341,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
             final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
@@ -443,7 +437,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
                 final CheckpointOptions checkpointOptions) {
             final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();

@@ -238,6 +238,78 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
+    /**
+     * In this scenario:
+     *
+     * <ul>
+     *   <li>Network inputs are processed until CheckpointBarriers for synchronous savepoint are
+     *       processed.
+     *   <li>RPC for stop-with-savepoint comes for sources
+     *   <li>Sources keep being invoked until they return END_OF_DATA
+     *   <li>Synchronous savepoint is triggered
+     * </ul>
+     */
+    @Test
+    public void testStopWithSavepointDrainWaitsForSourcesFinish() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(4, true))
+                        .build(); ) {
+            testHarness.setAutoProcess(false);
+            ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+            CheckpointBarrier barrier = createStopWithSavepointDrainBarrier();
+
+            testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
+            testHarness.processEvent(EndOfData.INSTANCE, 0);
+            testHarness.processEvent(barrier, 0);
+            testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
+            testHarness.processEvent(EndOfData.INSTANCE, 1);
+            testHarness.processEvent(barrier, 1);
+
+            addSourceRecords(testHarness, 1, Boundedness.CONTINUOUS_UNBOUNDED, 1, 2);
+            addSourceRecords(testHarness, 2, Boundedness.CONTINUOUS_UNBOUNDED, 3, 4);
+
+            testHarness.processAll();
+
+            Future<Boolean> checkpointFuture =
+                    testHarness
+                            .getStreamTask()
+                            .triggerCheckpointAsync(metaData, barrier.getCheckpointOptions());
+            processSingleStepUntil(testHarness, checkpointFuture::isDone);
+
+            expectedOutput.add(new StreamRecord<>("3", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("47.0", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("1", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("4", TimestampAssigner.NO_TIMESTAMP));
+            expectedOutput.add(new StreamRecord<>("2", TimestampAssigner.NO_TIMESTAMP));
+
+            ArrayList<Object> actualOutput = new ArrayList<>(testHarness.getOutput());
+            assertThat(
+                    actualOutput.subList(0, expectedOutput.size()),
+                    containsInAnyOrder(expectedOutput.toArray()));
+            assertThat(
+                    actualOutput.subList(actualOutput.size() - 2, actualOutput.size()),
+                    contains(new StreamRecord<>("FINISH"), barrier));
+        }
+    }
+
     @Test
     public void testOnlyOneSource() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
@@ -443,6 +515,16 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             throws Exception {
         addRecords(testHarness);
         addBarriers(testHarness, checkpointBarrier);
+    }
+
+    private CheckpointBarrier createStopWithSavepointDrainBarrier() {
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.SAVEPOINT_TERMINATE,
+                        CheckpointStorageLocationReference.getDefault());
+
+        return new CheckpointBarrier(
+                metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
     }
 
     private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {

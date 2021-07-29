@@ -34,19 +34,30 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -66,6 +77,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -82,6 +94,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -113,6 +126,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -206,6 +220,64 @@ public class SavepointITCase extends TestLogger {
         } finally {
             cluster.after();
         }
+    }
+
+    @Test
+    public void testStopWithSavepointWithDrainCallsFinishBeforeSnapshotState() throws Exception {
+        int sinkParallelism = 5;
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberSlotsPerTaskManager(sinkParallelism + 1)
+                                .build());
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        env.addSource(new InfiniteTestSource())
+                .name("Infinite Source")
+                .addSink(new FinishingSink<>())
+                // different parallelism to break chaining and add some concurrent tasks
+                .setParallelism(sinkParallelism);
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        cluster.before();
+        try {
+            ClusterClient<?> client = cluster.getClusterClient();
+            client.submitJob(jobGraph).get();
+            waitUntilAllTasksAreRunning(cluster.getRestAddres(), jobGraph.getJobID());
+
+            client.stopWithSavepoint(jobGraph.getJobID(), true, savepointDir.getAbsolutePath())
+                    .get();
+            // there should be no exceptions and the finish should've been called in the
+            // FinishingSink
+        } finally {
+            cluster.after();
+        }
+    }
+
+    private static class FinishingSink<T> implements SinkFunction<T>, CheckpointedFunction {
+        private boolean finishCalled;
+
+        @Override
+        public void invoke(T value) throws Exception {
+            // ignore
+        }
+
+        @Override
+        public void finish() throws Exception {
+            this.finishCalled = true;
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            if (!finishCalled) {
+                fail("Finish is expected to be called before taking the savepoint with drain");
+            }
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
     /**
@@ -637,6 +709,100 @@ public class SavepointITCase extends TestLogger {
                 // 2. job failover triggered by SchedulerBase.stopWithSavepoint
                 2,
                 assertAfterSnapshotCreationFailure());
+    }
+
+    @Test
+    public void testStopWithSavepointWithDrainGlobalFailoverIfSavepointAborted() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                HighAvailabilityOptions.HA_MODE, FailingSyncSavepointHAFactory.class.getName());
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                .build());
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        env.addSource(new InfiniteTestSource())
+                .name("Infinite Source")
+                .addSink(new DiscardingSink<>());
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        cluster.before();
+        try {
+            ClusterClient<?> client = cluster.getClusterClient();
+            client.submitJob(jobGraph).get();
+            waitUntilAllTasksAreRunning(cluster.getRestAddres(), jobGraph.getJobID());
+
+            try {
+                client.stopWithSavepoint(jobGraph.getJobID(), true, savepointDir.getAbsolutePath())
+                        .get();
+                fail("The future should fail exceptionally.");
+            } catch (ExecutionException e) {
+                assertThat(
+                        e.getMessage(),
+                        CoreMatchers.startsWith(
+                                "org.apache.flink.util.FlinkException: Inconsistent execution state"
+                                        + " after stopping with savepoint. At least one execution"
+                                        + " is still in one of the following states: FAILED. "
+                                        + "A global fail-over is triggered to recover the job"));
+            }
+        } finally {
+            cluster.after();
+        }
+    }
+
+    private static class FailingSyncSavepointCompletedCheckpointStore
+            extends StandaloneCompletedCheckpointStore {
+        FailingSyncSavepointCompletedCheckpointStore() {
+            super(1);
+        }
+
+        @Override
+        public void addCheckpoint(
+                CompletedCheckpoint checkpoint,
+                CheckpointsCleaner checkpointsCleaner,
+                Runnable postCleanup)
+                throws Exception {
+            if (checkpoint.getProperties().isSynchronous()) {
+                throw new ExpectedTestException();
+            } else {
+                super.addCheckpoint(checkpoint, checkpointsCleaner, postCleanup);
+            }
+        }
+    }
+
+    private static class TestingHaServices extends EmbeddedHaServices {
+        private final CheckpointRecoveryFactory checkpointRecoveryFactory;
+
+        TestingHaServices(CheckpointRecoveryFactory checkpointRecoveryFactory, Executor executor) {
+            super(executor);
+            this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+        }
+
+        @Override
+        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+            return checkpointRecoveryFactory;
+        }
+    }
+
+    /**
+     * A factory for HA services used to inject {@link
+     * FailingSyncSavepointCompletedCheckpointStore}.
+     */
+    public static class FailingSyncSavepointHAFactory implements HighAvailabilityServicesFactory {
+        @Override
+        public HighAvailabilityServices createHAServices(
+                Configuration configuration, Executor executor) throws Exception {
+            return new TestingHaServices(
+                    PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
+                            new FailingSyncSavepointCompletedCheckpointStore(),
+                            new StandaloneCheckpointIDCounter()),
+                    executor);
+        }
     }
 
     private static BiConsumer<JobID, ExecutionException> assertAfterSnapshotCreationFailure() {
