@@ -80,6 +80,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
+import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -921,6 +922,7 @@ public class MultipleInputStreamTaskTest {
                 partitionWriters[i].setup();
             }
 
+            CompletingCheckpointResponder checkpointResponder = new CompletingCheckpointResponder();
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -928,6 +930,7 @@ public class MultipleInputStreamTaskTest {
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
                             .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
+                            .setCheckpointResponder(checkpointResponder)
                             .modifyStreamConfig(
                                     config -> {
                                         config.setCheckpointingEnabled(true);
@@ -941,6 +944,9 @@ public class MultipleInputStreamTaskTest {
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
 
+                checkpointResponder.setHandlers(
+                        testHarness.streamTask::notifyCheckpointCompleteAsync,
+                        testHarness.streamTask::notifyCheckpointAbortAsync);
                 testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
                 // Tests triggering checkpoint when all the inputs are alive.
@@ -976,6 +982,7 @@ public class MultipleInputStreamTaskTest {
                                 });
 
                 // The checkpoint 6 would be triggered successfully.
+                testHarness.processAll();
                 testHarness.finishProcessing();
                 assertTrue(checkpointFuture.isDone());
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();

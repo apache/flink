@@ -53,6 +53,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
+import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -357,6 +358,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 partitionWriters[i].setup();
             }
 
+            CompletingCheckpointResponder checkpointResponder = new CompletingCheckpointResponder();
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
@@ -370,6 +372,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                                         true);
                                     })
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                            .setCheckpointResponder(checkpointResponder)
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                             .addSourceInput(
@@ -391,6 +394,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
 
+                checkpointResponder.setHandlers(
+                        testHarness.streamTask::notifyCheckpointCompleteAsync,
+                        testHarness.streamTask::notifyCheckpointAbortAsync);
                 testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
                 Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
@@ -421,6 +427,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                 });
 
                 // The checkpoint 4 would be triggered successfully.
+                testHarness.processAll();
                 testHarness.finishProcessing();
                 assertTrue(checkpointFuture.isDone());
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
