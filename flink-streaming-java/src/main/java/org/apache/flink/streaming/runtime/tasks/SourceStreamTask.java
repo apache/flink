@@ -166,14 +166,7 @@ public class SourceStreamTask<
                 .getCompletionFuture()
                 .whenComplete(
                         (Void ignore, Throwable sourceThreadThrowable) -> {
-                            if (isCanceled()
-                                    && ExceptionUtils.findThrowable(
-                                                    sourceThreadThrowable,
-                                                    InterruptedException.class)
-                                            .isPresent()) {
-                                mailboxProcessor.reportThrowable(
-                                        new CancelTaskException(sourceThreadThrowable));
-                            } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
+                            if (sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
                                 mailboxProcessor.suspend();
@@ -299,6 +292,17 @@ public class SourceStreamTask<
             } catch (Throwable t) {
                 // Note, t can be also an InterruptedException
                 completionFuture.completeExceptionally(t);
+                if (isCanceled()
+                        && ExceptionUtils.findThrowable(t, InterruptedException.class)
+                                .isPresent()) {
+                    completionFuture.completeExceptionally(new CancelTaskException(t));
+                } else if (wasStoppedExternally) {
+                    // swallow all exceptions if the source was stopped externally
+                    completionFuture.complete(null);
+                } else {
+                    completionFuture.completeExceptionally(t);
+                }
+            }
             }
         }
 
