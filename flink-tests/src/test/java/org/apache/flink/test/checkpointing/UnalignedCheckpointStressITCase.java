@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -110,6 +111,10 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+    // a separate folder is used because temporaryFolder is cleaned up
+    // after each checkpoint
+    @Rule public TemporaryFolder changelogFolder = new TemporaryFolder();
+
     private MiniClusterWithClientResource cluster;
 
     @Before
@@ -118,6 +123,12 @@ public class UnalignedCheckpointStressITCase extends TestLogger {
         File folder = temporaryFolder.getRoot();
         configuration.set(CHECKPOINTS_DIRECTORY, folder.toURI().toString());
         configuration.set(MAX_RETAINED_CHECKPOINTS, 1);
+
+        // Configure DFS DSTL for this test as it might produce too much GC pressure if
+        // ChangelogStateBackend is used.
+        // Doing it on cluster level unconditionally as randomization currently happens on the job
+        // level (environment); while this factory can only be set on the cluster level.
+        FsStateChangelogStorageFactory.configure(configuration, changelogFolder.newFolder());
 
         cluster =
                 new MiniClusterWithClientResource(
