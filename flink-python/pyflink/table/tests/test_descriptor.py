@@ -19,25 +19,11 @@ import collections
 import sys
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Csv, Avro, Json,
-                                       CustomFormatDescriptor)
+from pyflink.table.descriptors import (OldCsv, Rowtime, Schema, Csv, Avro, Json,
+                                      CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
-
-
-class FileSystemDescriptorTests(PyFlinkTestCase):
-
-    def test_path(self):
-        file_system = FileSystem()
-
-        file_system = file_system.path("/test.csv")
-
-        properties = file_system.to_properties()
-        expected = {'connector.property-version': '1',
-                    'connector.type': 'filesystem',
-                    'connector.path': '/test.csv'}
-        self.assertEqual(expected, properties)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):

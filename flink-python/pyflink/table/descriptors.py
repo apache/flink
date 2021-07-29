@@ -30,7 +30,6 @@ __all__ = [
     'Rowtime',
     'Schema',
     'OldCsv',
-    'FileSystem',
     'Csv',
     'Avro',
     'Json',
@@ -820,32 +819,4 @@ class ConnectorDescriptor(Descriptor, metaclass=ABCMeta):
     def __init__(self, j_connector_descriptor):
         self._j_connector_descriptor = j_connector_descriptor
         super(ConnectorDescriptor, self).__init__(self._j_connector_descriptor)
-
-
-class FileSystem(ConnectorDescriptor):
-    """
-    Connector descriptor for a file system.
-    """
-
-    def __init__(self, path=None):
-        """
-        Constructor of FileSystem descriptor.
-
-        :param path: The path of a file or directory.
-        """
-        gateway = get_gateway()
-        self._j_file_system = gateway.jvm.FileSystem()
-        super(FileSystem, self).__init__(self._j_file_system)
-
-        if path is not None:
-            self.path(path)
-
-    def path(self, path_str: str) -> 'FileSystem':
-        """
-        Sets the path to a file or directory in a file system.
-
-        :param path_str: The path of a file or directory.
-        :return: This :class:`FileSystem` object.
-        """
-        self._j_file_system = self._j_file_system.path(path_str)
         return self

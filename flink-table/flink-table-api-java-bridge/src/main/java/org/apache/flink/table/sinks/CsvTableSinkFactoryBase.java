@@ -19,6 +19,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -56,8 +57,14 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_WRITE_MO
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 import static org.apache.flink.table.sources.CsvTableSourceFactoryBase.getFieldLogicalTypes;
 
-/** Factory base for creating configured instances of {@link CsvTableSink}. */
+/**
+ * Factory base for creating configured instances of {@link CsvTableSink}.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@link FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
+ */
 @Internal
+@Deprecated
 public abstract class CsvTableSinkFactoryBase implements TableFactory {
 
     @Override
