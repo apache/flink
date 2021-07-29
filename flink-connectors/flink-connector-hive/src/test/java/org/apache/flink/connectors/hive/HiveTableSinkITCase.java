@@ -305,24 +305,35 @@ public class HiveTableSinkITCase {
                                     .build());
             tEnv.createTemporaryView("my_table", table);
             /*
-             * prepare test data, the poch mills used to define watermark, the watermark value is
+             * prepare test data, we write two records into each partition in source table
+             * the epoch mills used to define watermark, the watermark value is
              * the max timestamp value of all the partition data, i.e:
              * partition timestamp + 1 hour - 1 second in this case
              *
              * <pre>
-             * epoch mills 1588464000000L <=>  local timestamp 2020-05-03 08:00:00 in Shanghai
-             * epoch mills 1588467600000L <=>  local timestamp 2020-05-03 09:00:00 in Shanghai
-             * epoch mills 1588471200000L <=>  local timestamp 2020-05-03 10:00:00 in Shanghai
-             * epoch mills 1588474800000L <=>  local timestamp 2020-05-03 11:00:00 in Shanghai
-             * epoch mills 1588478400000L <=>  local timestamp 2020-05-03 12:00:00 in Shanghai
+             * epoch mills 1588461300000L <=>  local timestamp 2020-05-03 07:15:00 in Shanghai
+             * epoch mills 1588463100000L <=>  local timestamp 2020-05-03 07:45:00 in Shanghai
+             * epoch mills 1588464300000L <=>  local timestamp 2020-05-03 08:05:00 in Shanghai
+             * epoch mills 1588466400000L <=>  local timestamp 2020-05-03 08:40:00 in Shanghai
+             * epoch mills 1588468800000L <=>  local timestamp 2020-05-03 09:20:00 in Shanghai
+             * epoch mills 1588470900000L <=>  local timestamp 2020-05-03 09:55:00 in Shanghai
+             * epoch mills 1588471800000L <=>  local timestamp 2020-05-03 10:10:00 in Shanghai
+             * epoch mills 1588473300000L <=>  local timestamp 2020-05-03 10:35:00 in Shanghai
+             * epoch mills 1588476300000L <=>  local timestamp 2020-05-03 11:25:00 in Shanghai
+             * epoch mills 1588477800000L <=>  local timestamp 2020-05-03 11:50:00 in Shanghai
              * </pre>
              */
             Map<Integer, Object[]> testData = new HashMap<>();
-            testData.put(1, new Object[] {1, "a", "b", 1588464000000L});
-            testData.put(2, new Object[] {2, "p", "q", 1588467600000L});
-            testData.put(3, new Object[] {3, "x", "y", 1588471200000L});
-            testData.put(4, new Object[] {4, "x", "y", 1588474800000L});
-            testData.put(5, new Object[] {5, "x", "y", 1588478400000L});
+            testData.put(1, new Object[] {1, "a", "b", 1588461300000L});
+            testData.put(2, new Object[] {1, "a", "b", 1588463100000L});
+            testData.put(3, new Object[] {2, "p", "q", 1588464300000L});
+            testData.put(4, new Object[] {2, "p", "q", 1588466400000L});
+            testData.put(5, new Object[] {3, "x", "y", 1588468800000L});
+            testData.put(6, new Object[] {3, "x", "y", 1588470900000L});
+            testData.put(7, new Object[] {4, "x", "y", 1588471800000L});
+            testData.put(8, new Object[] {4, "x", "y", 1588473300000L});
+            testData.put(9, new Object[] {5, "x", "y", 1588476300000L});
+            testData.put(10, new Object[] {5, "x", "y", 1588477800000L});
 
             Map<Integer, String> testPartition = new HashMap<>();
             testPartition.put(1, "pt_day='2020-05-03',pt_hour='7'");
@@ -343,7 +354,7 @@ public class HiveTableSinkITCase {
 
             HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "source_table")
                     .addRow(testData.get(1))
-                    .addRow(testData.get(1))
+                    .addRow(testData.get(2))
                     .commit(testPartition.get(1));
 
             for (int i = 2; i < 7; i++) {
@@ -360,8 +371,8 @@ public class HiveTableSinkITCase {
 
                 if (i < 6) {
                     HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "source_table")
-                            .addRow(testData.get(i))
-                            .addRow(testData.get(i))
+                            .addRow(testData.get(2 * i - 1))
+                            .addRow(testData.get(2 * i))
                             .commit(testPartition.get(i));
                 }
             }
