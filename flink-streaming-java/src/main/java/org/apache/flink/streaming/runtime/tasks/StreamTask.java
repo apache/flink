@@ -152,8 +152,8 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  *       +----> initialize-operator-states()
  *       +----> open-operators()
  *       +----> run()
+ *       +----> finish-operators()
  *       +----> close-operators()
- *       +----> dispose-operators()
  *       +----> common cleanup
  *       +----> task specific cleanup()
  * }</pre>
