@@ -814,6 +814,7 @@ under the License.
 												<exclude>*:*_2.12</exclude>
 												<exclude>*:*_2.10</exclude>
 											</excludes>
+											<message>Scala 2.10/2.12 dependencies are not allowed for Scala 2.11 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
 										</bannedDependencies>
 									</rules>
 								</configuration>
@@ -879,6 +880,7 @@ under the License.
 												<exclude>*:*_2.11</exclude>
 												<exclude>*:*_2.10</exclude>
 											</excludes>
+											<message>Scala 2.10/2.11 dependencies are not allowed for Scala 2.12 builds. This can be caused by hard-coded scala versions, where the 'scala.binary.version' property should be used instead.</message>
 										</bannedDependencies>
 									</rules>
 								</configuration>
@@ -1620,6 +1622,7 @@ under the License.
 											so there's no benefit in us investing time into bumping these. -->
 										<include>org.yaml:snakeyaml:(,1.26]:*:test</include>
 									</includes>
+									<message>Older snakeyaml versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
@@ -1635,6 +1638,7 @@ under the License.
 									<excludes>
 										<exclude>com.fasterxml.jackson*:*:(,2.12.0]</exclude>
 									</excludes>
+									<message>Older jackson versions are not allowed due to security vulnerabilities.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
@@ -1651,6 +1655,7 @@ under the License.
 										<exclude>log4j:log4j</exclude>
 										<exclude>org.slf4j:slf4j-log4j12</exclude>
 									</excludes>
+									<message>Log4j 1 dependencies are not allowed because they conflict with Log4j 2. If the dependency absolutely requires the Log4j 1 API, use 'org.apache.logging.log4j:log4j-1.2-api'.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>

@@ -279,9 +279,9 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<!-- Incompatible license -->
 										<exclude>org.openjdk.jol:*</exclude>
 									</excludes>
+									<message>Dependencies on org.openjdk.jol are not allowed due to licensing issues.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
