@@ -133,8 +133,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     private final OperatorEventDispatcherImpl operatorEventDispatcher;
 
-    private boolean ignoreEndOfInput;
-
     private final Closer closer = Closer.create();
 
     public OperatorChain(
@@ -425,7 +423,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void endInput(int inputId) throws Exception {
-        if (mainOperatorWrapper != null && !ignoreEndOfInput) {
+        if (mainOperatorWrapper != null) {
             mainOperatorWrapper.endOperatorInput(inputId);
         }
     }
@@ -459,7 +457,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         }
 
         if (firstOperatorWrapper != null) {
-            firstOperatorWrapper.finish(actionExecutor, ignoreEndOfInput);
+            firstOperatorWrapper.finish(actionExecutor);
         }
     }
 
@@ -799,10 +797,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     @Nullable
     StreamOperator<?> getTailOperator() {
         return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
-    }
-
-    public void setIgnoreEndOfInput(boolean ignoreEndOfInput) {
-        this.ignoreEndOfInput = ignoreEndOfInput;
     }
 
     /** Wrapper class to access the chained sources and their's outputs. */

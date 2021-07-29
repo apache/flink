@@ -153,4 +153,8 @@ public class StreamTaskSourceInput<T> implements StreamTaskInput<T>, Checkpointa
     public OperatorID getOperatorID() {
         return operator.getOperatorID();
     }
+
+    public SourceOperator<T, ?> getOperator() {
+        return operator;
+    }
 }

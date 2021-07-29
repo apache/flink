@@ -119,7 +119,9 @@ public class SourceTaskTerminationTest extends TestLogger {
         assertTrue(srcTask.getSynchronousSavepointId().isPresent());
 
         srcTask.notifyCheckpointCompleteAsync(syncSavepointId).get();
-        assertFalse(srcTask.getSynchronousSavepointId().isPresent());
+        if (!shouldTerminate) {
+            assertFalse(srcTask.getSynchronousSavepointId().isPresent());
+        }
 
         executionThread.join();
     }
@@ -192,8 +194,10 @@ public class SourceTaskTerminationTest extends TestLogger {
 
             while (isRunning) {
                 runLoopStart.await();
-                ctx.emitWatermark(new Watermark(element));
-                ctx.collect(element++);
+                if (isRunning) {
+                    ctx.emitWatermark(new Watermark(element));
+                    ctx.collect(element++);
+                }
                 runLoopEnd.trigger();
             }
         }
