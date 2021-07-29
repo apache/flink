@@ -19,8 +19,8 @@ import collections
 import sys
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
-                                       Csv, Avro, Json, CustomFormatDescriptor)
+from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Csv, Avro, Json,
+                                       CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
@@ -38,141 +38,6 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
                     'connector.type': 'filesystem',
                     'connector.path': '/test.csv'}
         self.assertEqual(expected, properties)
-
-
-class KafkaDescriptorTests(PyFlinkTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(KafkaDescriptorTests, cls).setUpClass()
-        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka')
-
-    def test_version(self):
-        kafka = Kafka().version("0.11")
-
-        properties = kafka.to_properties()
-        expected = {'connector.version': '0.11',
-                    'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_topic(self):
-        kafka = Kafka().topic("topic1")
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.topic': 'topic1',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_properties(self):
-        kafka = Kafka().properties({"bootstrap.servers": "localhost:9092"})
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.properties.bootstrap.servers': 'localhost:9092',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_property(self):
-        kafka = Kafka().property("group.id", "testGroup")
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.properties.group.id': 'testGroup',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_start_from_earliest(self):
-        kafka = Kafka().start_from_earliest()
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.startup-mode': 'earliest-offset',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_start_from_latest(self):
-        kafka = Kafka().start_from_latest()
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.startup-mode': 'latest-offset',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_start_from_group_offsets(self):
-        kafka = Kafka().start_from_group_offsets()
-
-        properties = kafka.to_properties()
-        expected = {'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_start_from_specific_offsets(self):
-        kafka = Kafka().start_from_specific_offsets({1: 220, 3: 400})
-
-        properties = kafka.to_properties()
-        expected = {'connector.startup-mode': 'specific-offsets',
-                    'connector.specific-offsets': 'partition:1,offset:220;partition:3,offset:400',
-                    'connector.type': 'kafka',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_start_from_specific_offset(self):
-        kafka = Kafka().start_from_specific_offset(3, 300)
-
-        properties = kafka.to_properties()
-        expected = {'connector.startup-mode': 'specific-offsets',
-                    'connector.specific-offsets': 'partition:3,offset:300',
-                    'connector.type': 'kafka',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_sink_partitioner_fixed(self):
-        kafka = Kafka().sink_partitioner_fixed()
-
-        properties = kafka.to_properties()
-        expected = {'connector.sink-partitioner': 'fixed',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.type': 'kafka',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_sink_partitioner_custom(self):
-        kafka = Kafka().sink_partitioner_custom(
-            "org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner")
-
-        properties = kafka.to_properties()
-        expected = {'connector.sink-partitioner': 'custom',
-                    'connector.sink-partitioner-class':
-                        'org.apache.flink.streaming.connectors.kafka.partitioner.'
-                        'FlinkFixedPartitioner',
-                    'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_sink_partitioner_round_robin(self):
-        kafka = Kafka().sink_partitioner_round_robin()
-
-        properties = kafka.to_properties()
-        expected = {'connector.sink-partitioner': 'round-robin',
-                    'connector.type': 'kafka',
-                    'connector.startup-mode': 'group-offsets',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
 
 
 class OldCsvDescriptorTests(PyFlinkTestCase):
