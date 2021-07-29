@@ -754,14 +754,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
 
         assertRunningInJobMasterMainThread();
 
         LOG.debug(
                 "Attaching {} topologically sorted vertices to existing job graph with {} "
                         + "vertices and {} intermediate results.",
-                topologiallySorted.size(),
+                topologicallySorted.size(),
                 tasks.size(),
                 intermediateResults.size());
 
@@ -769,7 +769,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 new ArrayList<>(topologiallySorted.size());
         final long createTimestamp = System.currentTimeMillis();
 
-        for (JobVertex jobVertex : topologiallySorted) {
+        for (JobVertex jobVertex : topologicallySorted) {
 
             if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
                 this.isStoppable = false;
