@@ -765,8 +765,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 tasks.size(),
                 intermediateResults.size());
 
-        final ArrayList<ExecutionJobVertex> newExecJobVertices =
-                new ArrayList<>(topologiallySorted.size());
         final long createTimestamp = System.currentTimeMillis();
 
         for (JobVertex jobVertex : topologicallySorted) {
@@ -812,7 +810,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             this.verticesInCreationOrder.add(ejv);
             this.numVerticesTotal += ejv.getParallelism();
-            newExecJobVertices.add(ejv);
         }
 
         registerExecutionVerticesAndResultPartitions(this.verticesInCreationOrder);
