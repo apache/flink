@@ -394,10 +394,11 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
-            numEmittedEvents++;
-            if (numEmittedEvents == numEventsBeforeCheckpoint) {
+            if (numEmittedEvents == numEventsBeforeCheckpoint - 1) {
+                numEmittedEvents++;
                 return InputStatus.NOTHING_AVAILABLE;
             } else if (numEmittedEvents < totalNumEvents) {
+                numEmittedEvents++;
                 return InputStatus.MORE_AVAILABLE;
             } else {
                 return InputStatus.END_OF_INPUT;

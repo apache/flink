@@ -114,21 +114,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
         try {
             userFunction.run(ctx);
-
-            // if we get here, then the user function either exited after being done (finite source)
-            // or the function was canceled or stopped. For the finite source case, we should emit
-            // a final watermark that indicates that we reached the end of event-time, and end
-            // inputs
-            // of the operator chain
-            if (!isCanceledOrStopped()) {
-                // in theory, the subclasses of StreamSource may implement the BoundedOneInput
-                // interface,
-                // so we still need the following call to end the input
-                synchronized (lockingObject) {
-                    operatorChain.setIgnoreEndOfInput(false);
-                    operatorChain.endInput(1);
-                }
-            }
         } finally {
             if (latencyEmitter != null) {
                 latencyEmitter.close();
@@ -143,6 +128,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
             ctx.close();
         }
         super.close();
+    }
+
+    public void stop() {
+        userFunction.cancel();
     }
 
     public void cancel() {

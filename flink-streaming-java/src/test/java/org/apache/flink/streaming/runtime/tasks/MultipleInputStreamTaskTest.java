@@ -114,10 +114,10 @@ import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpoint
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -1001,13 +1001,22 @@ public class MultipleInputStreamTaskTest {
         private static final long serialVersionUID = 1L;
 
         private final int numberOfInputs;
+        private final boolean emitOnFinish;
         private boolean openCalled;
         private boolean closeCalled;
 
         public MapToStringMultipleInputOperator(
                 StreamOperatorParameters<String> parameters, int numberOfInputs) {
+            this(parameters, numberOfInputs, false);
+        }
+
+        public MapToStringMultipleInputOperator(
+                StreamOperatorParameters<String> parameters,
+                int numberOfInputs,
+                boolean emitOnFinish) {
             super(parameters, numberOfInputs);
             this.numberOfInputs = numberOfInputs;
+            this.emitOnFinish = emitOnFinish;
         }
 
         @Override
@@ -1017,6 +1026,13 @@ public class MultipleInputStreamTaskTest {
                 Assert.fail("Close called before open.");
             }
             openCalled = true;
+        }
+
+        @Override
+        public void finish() throws Exception {
+            if (emitOnFinish) {
+                output.collect(new StreamRecord<>("FINISH"));
+            }
         }
 
         @Override
@@ -1069,15 +1085,22 @@ public class MultipleInputStreamTaskTest {
     protected static class MapToStringMultipleInputOperatorFactory
             extends AbstractStreamOperatorFactory<String> {
         private final int numberOfInputs;
+        private final boolean emitOnFinish;
 
         public MapToStringMultipleInputOperatorFactory(int numberOfInputs) {
+            this(numberOfInputs, false);
+        }
+
+        public MapToStringMultipleInputOperatorFactory(int numberOfInputs, boolean emitOnFinish) {
             this.numberOfInputs = numberOfInputs;
+            this.emitOnFinish = emitOnFinish;
         }
 
         @Override
         public <T extends StreamOperator<String>> T createStreamOperator(
                 StreamOperatorParameters<String> parameters) {
-            return (T) new MapToStringMultipleInputOperator(parameters, numberOfInputs);
+            return (T)
+                    new MapToStringMultipleInputOperator(parameters, numberOfInputs, emitOnFinish);
         }
 
         @Override
@@ -1124,10 +1147,23 @@ public class MultipleInputStreamTaskTest {
     static void addSourceRecords(
             StreamTaskMailboxTestHarness<String> testHarness, int sourceId, int... records)
             throws Exception {
+        addSourceRecords(testHarness, sourceId, Boundedness.BOUNDED, records);
+    }
+
+    static void addSourceRecords(
+            StreamTaskMailboxTestHarness<String> testHarness,
+            int sourceId,
+            Boundedness boundedness,
+            int... records)
+            throws Exception {
         OperatorID sourceOperatorID = getSourceOperatorID(testHarness, sourceId);
 
         // Prepare the source split and assign it to the source reader.
-        MockSourceSplit split = new MockSourceSplit(0, 0, records.length);
+        MockSourceSplit split =
+                new MockSourceSplit(
+                        0,
+                        0,
+                        boundedness == Boundedness.BOUNDED ? records.length : Integer.MAX_VALUE);
         for (int record : records) {
             split.addRecord(record);
         }

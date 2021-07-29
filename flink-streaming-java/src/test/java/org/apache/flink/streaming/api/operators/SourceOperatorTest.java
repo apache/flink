@@ -42,7 +42,9 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.util.MockOutput;
@@ -57,8 +59,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -125,6 +129,26 @@ public class SourceOperatorTest {
         OperatorEvent operatorEvent = mockGateway.getEventsSent().get(0);
         assertTrue(operatorEvent instanceof ReaderRegistrationEvent);
         assertEquals(SUBTASK_INDEX, ((ReaderRegistrationEvent) operatorEvent).subtaskId());
+    }
+
+    @Test
+    public void testStop() throws Exception {
+        // Initialize the operator.
+        operator.initializeState(getStateContext());
+        // Open the operator.
+        operator.open();
+        // The source reader should have been assigned a split.
+        assertEquals(Collections.singletonList(MOCK_SPLIT), mockSourceReader.getAssignedSplits());
+
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+        assertEquals(DataInputStatus.NOTHING_AVAILABLE, operator.emitNext(dataOutput));
+        assertFalse(operator.isAvailable());
+
+        CompletableFuture<Void> sourceStopped = operator.stop();
+        assertTrue(operator.isAvailable());
+        assertFalse(sourceStopped.isDone());
+        assertEquals(DataInputStatus.END_OF_DATA, operator.emitNext(dataOutput));
+        assertTrue(sourceStopped.isDone());
     }
 
     @Test
