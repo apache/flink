@@ -111,6 +111,8 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> lastResourceRequirementsCheck;
 
+    @Nullable private CompletableFuture<Void> requirementsCheckFuture;
+
     /** True iff the component has been started. */
     private boolean started;
 
@@ -147,6 +149,7 @@ public class FineGrainedSlotManager implements SlotManager {
         mainThreadExecutor = null;
         taskManagerTimeoutsCheck = null;
         lastResourceRequirementsCheck = null;
+        requirementsCheckFuture = null;
 
         started = false;
     }
@@ -226,7 +229,7 @@ public class FineGrainedSlotManager implements SlotManager {
             taskManagerTimeoutsCheck = null;
         }
 
-        if (lastResourceRequirementsCheck != null && !lastResourceRequirementsCheck.isDone()) {
+        if (lastResourceRequirementsCheck != null) {
             lastResourceRequirementsCheck.cancel(false);
             lastResourceRequirementsCheck = null;
         }
@@ -489,8 +492,9 @@ public class FineGrainedSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (lastResourceRequirementsCheck == null || lastResourceRequirementsCheck.isDone()) {
+        if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
             LOG.info("Scheduling the resource requirement check.");
+            requirementsCheckFuture = new CompletableFuture<>();
             lastResourceRequirementsCheck =
                     scheduledExecutor.schedule(
                             () -> mainThreadExecutor.execute(this::checkResourceRequirements),
@@ -507,6 +511,7 @@ public class FineGrainedSlotManager implements SlotManager {
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
+            requirementsCheckFuture.complete(null);
             return;
         }
 
@@ -550,6 +555,7 @@ public class FineGrainedSlotManager implements SlotManager {
                         jobId, resourceTracker.getAcquiredResources(jobId));
             }
         }
+        requirementsCheckFuture.complete(null);
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
