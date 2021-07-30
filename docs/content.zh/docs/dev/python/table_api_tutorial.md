@@ -147,7 +147,7 @@ tab.group_by(tab.word) \
 
 ```python
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
-from pyflink.table.descriptors import Schema, OldCsv, FileSystem
+from pyflink.table.descriptors import Schema, FileSystem
 from pyflink.table.expressions import lit
 
 settings = EnvironmentSettings.in_batch_mode()

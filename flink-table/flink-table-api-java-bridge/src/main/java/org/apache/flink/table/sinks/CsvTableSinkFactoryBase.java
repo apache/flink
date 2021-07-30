@@ -25,10 +25,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
@@ -47,8 +47,6 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_PATH;
 import static org.apache.flink.table.descriptors.FileSystemValidator.CONNECTOR_TYPE_VALUE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELD_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_NUM_FILES;
@@ -71,9 +69,9 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
         context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE);
-        context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE);
+        context.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE);
         context.put(CONNECTOR_PROPERTY_VERSION, "1");
-        context.put(FORMAT_PROPERTY_VERSION, "1");
+        context.put(TableFactoryService.FORMAT_PROPERTY_VERSION, "1");
         return context;
     }
 
@@ -85,7 +83,7 @@ public abstract class CsvTableSinkFactoryBase implements TableFactory {
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TYPE);
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.DATA_TYPE);
         properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.NAME);
-        properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
+        properties.add(TableFactoryService.FORMAT_DERIVE_SCHEMA);
         properties.add(FORMAT_FIELD_DELIMITER);
         properties.add(CONNECTOR_PATH);
         properties.add(FORMAT_WRITE_MODE);

@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 # test pyflink shell environment
-from pyflink.shell import s_env, st_env, FileSystem, OldCsv, DataTypes
+from pyflink.shell import s_env, st_env, DataTypes
 from pyflink.table.schema import Schema
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
 
