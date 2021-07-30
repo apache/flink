@@ -80,8 +80,15 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
 
     @Override
     public void discardState() {
-        handlesAndOffsets.forEach(
-                handleAndOffset -> stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
+        if (stateRegistry == null) {
+            // todo: discard private state (FLINK-23139)
+            // discarding the state here will fail some tests
+            // by invalidating checkpoints on abortion
+        } else {
+            handlesAndOffsets.forEach(
+                    handleAndOffset ->
+                            stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
+        }
     }
 
     @Override
