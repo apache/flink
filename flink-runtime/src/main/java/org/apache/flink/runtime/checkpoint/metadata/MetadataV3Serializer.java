@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.FinishedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.FullyFinishedOperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -114,9 +115,23 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
                     operatorState.getSubtaskStates();
             dos.writeInt(subtaskStateMap.size());
             for (Map.Entry<Integer, OperatorSubtaskState> entry : subtaskStateMap.entrySet()) {
-                dos.writeInt(entry.getKey());
-                serializeSubtaskState(entry.getValue(), dos);
+                boolean isFinished = entry.getValue().isFinished();
+                serializeSubtaskIndexAndFinishedState(entry.getKey(), isFinished, dos);
+                if (!isFinished) {
+                    serializeSubtaskState(entry.getValue(), dos);
+                }
             }
+        }
+    }
+
+    private void serializeSubtaskIndexAndFinishedState(
+            int subtaskIndex, boolean isFinished, DataOutputStream dos) throws IOException {
+        if (isFinished) {
+            // We store a negative index for the finished subtask. In consideration
+            // of the index 0, the negative index would start from -1.
+            dos.writeInt(-(subtaskIndex + 1));
+        } else {
+            dos.writeInt(subtaskIndex);
         }
     }
 
@@ -158,12 +173,29 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
 
         // Sub task states
         for (int j = 0; j < numSubTaskStates; j++) {
-            final int subtaskIndex = dis.readInt();
-            final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, context);
-            operatorState.putState(subtaskIndex, subtaskState);
+            SubtaskAndFinishedState subtaskAndFinishedState =
+                    deserializeSubtaskIndexAndFinishedState(dis);
+            if (subtaskAndFinishedState.isFinished) {
+                operatorState.putState(
+                        subtaskAndFinishedState.subtaskIndex,
+                        FinishedOperatorSubtaskState.INSTANCE);
+            } else {
+                final OperatorSubtaskState subtaskState = deserializeSubtaskState(dis, context);
+                operatorState.putState(subtaskAndFinishedState.subtaskIndex, subtaskState);
+            }
         }
 
         return operatorState;
+    }
+
+    private SubtaskAndFinishedState deserializeSubtaskIndexAndFinishedState(DataInputStream dis)
+            throws IOException {
+        int storedSubtaskIndex = dis.readInt();
+        if (storedSubtaskIndex < 0) {
+            return new SubtaskAndFinishedState(-storedSubtaskIndex - 1, true);
+        } else {
+            return new SubtaskAndFinishedState(storedSubtaskIndex, false);
+        }
     }
 
     @VisibleForTesting
@@ -271,5 +303,17 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     public StateObjectCollection<ResultSubpartitionStateHandle>
             deserializeResultSubpartitionStateHandle(DataInputStream dis) throws IOException {
         return INSTANCE.deserializeResultSubpartitionStateHandle(dis, null);
+    }
+
+    private static class SubtaskAndFinishedState {
+
+        final int subtaskIndex;
+
+        final boolean isFinished;
+
+        public SubtaskAndFinishedState(int subtaskIndex, boolean isFinished) {
+            this.subtaskIndex = subtaskIndex;
+            this.isFinished = isFinished;
+        }
     }
 }
