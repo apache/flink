@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
+import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
 import org.apache.flink.streaming.api.operators.python.PythonTimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -326,9 +326,9 @@ public class PythonConfigUtil {
             }
             AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                     getPythonOperator(firstInputTransformation);
-            if (pythonFunctionOperator instanceof PythonPartitionCustomOperator) {
-                PythonPartitionCustomOperator<?, ?> partitionCustomFunctionOperator =
-                        (PythonPartitionCustomOperator<?, ?>) pythonFunctionOperator;
+            if (pythonFunctionOperator instanceof PythonProcessOperator) {
+                PythonProcessOperator<?, ?> partitionCustomFunctionOperator =
+                        (PythonProcessOperator<?, ?>) pythonFunctionOperator;
 
                 partitionCustomFunctionOperator.setNumPartitions(transformation.getParallelism());
             }

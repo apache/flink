@@ -140,13 +140,7 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
     process_element_func = None
 
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
-    if func_type == UserDefinedDataStreamFunction.MAP:
-        process_element_func = user_defined_func.map
-
-    elif func_type == UserDefinedDataStreamFunction.FLAT_MAP:
-        process_element_func = user_defined_func.flat_map
-
-    elif func_type == UserDefinedDataStreamFunction.CO_MAP:
+    if func_type == UserDefinedDataStreamFunction.CO_MAP:
         map1 = user_defined_func.map1
         map2 = user_defined_func.map2
 
