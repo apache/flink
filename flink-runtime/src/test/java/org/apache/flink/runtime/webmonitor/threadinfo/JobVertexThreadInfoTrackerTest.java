@@ -139,7 +139,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached result is NOT reused after refresh interval. */
     @Test
     public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
-        final Duration threadInfoStatsRefreshInterval2 = Duration.ofMillis(10);
+        final Duration threadInfoStatsRefreshInterval2 = Duration.ofMillis(1);
         final long waitingTime = threadInfoStatsRefreshInterval2.toMillis() + 10;
 
         final int requestId2 = 1;
