@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
 /**
- * Validator for {@link OldCsv}.
+ * Validator for the legacy CSV connector.
  *
  * @deprecated Use the RFC-compliant {@code Csv} format in the dedicated flink-formats/flink-csv
  *     module instead.

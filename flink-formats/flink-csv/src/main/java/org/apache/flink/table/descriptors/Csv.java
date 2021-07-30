@@ -44,10 +44,6 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
  *
  * <p>This descriptor aims to comply with RFC-4180 ("Common Format and MIME Type for Comma-Separated
  * Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
- *
- * <p>Note: This descriptor does not describe Flink's old non-standard CSV table source/sink.
- * Currently, this descriptor can be used when writing to Kafka. The old one is still available
- * under "org.apache.flink.table.descriptors.OldCsv" for stream/batch filesystem operations.
  */
 @PublicEvolving
 public class Csv extends FormatDescriptor {

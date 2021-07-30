@@ -19,103 +19,10 @@ import collections
 import sys
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.descriptors import (OldCsv, Rowtime, Schema, Csv, Avro, Json,
-                                      CustomFormatDescriptor)
+from pyflink.table.descriptors import (Rowtime, Schema, Csv, Avro, Json, CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
-
-
-class OldCsvDescriptorTests(PyFlinkTestCase):
-
-    def test_field_delimiter(self):
-        csv = OldCsv().field_delimiter("|")
-
-        properties = csv.to_properties()
-        expected = {'format.field-delimiter': '|',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_line_delimiter(self):
-        csv = OldCsv().line_delimiter(";")
-
-        expected = {'format.type': 'csv',
-                    'format.property-version': '1',
-                    'format.line-delimiter': ';'}
-
-        properties = csv.to_properties()
-        self.assertEqual(expected, properties)
-
-    def test_ignore_parse_errors(self):
-        csv = OldCsv().ignore_parse_errors()
-
-        properties = csv.to_properties()
-        expected = {'format.ignore-parse-errors': 'true',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_quote_character(self):
-        csv = OldCsv().quote_character("*")
-
-        properties = csv.to_properties()
-        expected = {'format.quote-character': '*',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_comment_prefix(self):
-        csv = OldCsv().comment_prefix("#")
-
-        properties = csv.to_properties()
-        expected = {'format.comment-prefix': '#',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_ignore_first_line(self):
-        csv = OldCsv().ignore_first_line()
-
-        properties = csv.to_properties()
-        expected = {'format.ignore-first-line': 'true',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_field(self):
-        csv = OldCsv()
-
-        csv.field("a", DataTypes.BIGINT())
-        csv.field("b", DataTypes.STRING())
-        csv.field("c", "SQL_TIMESTAMP")
-
-        properties = csv.to_properties()
-        expected = {'format.fields.0.name': 'a',
-                    'format.fields.0.data-type': 'BIGINT',
-                    'format.fields.1.name': 'b',
-                    'format.fields.1.data-type': 'VARCHAR(2147483647)',
-                    'format.fields.2.name': 'c',
-                    'format.fields.2.data-type': 'TIMESTAMP(3)',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_schema(self):
-        csv = OldCsv()
-        schema = TableSchema(["a", "b"], [DataTypes.INT(), DataTypes.STRING()])
-
-        csv = csv.schema(schema)
-
-        properties = csv.to_properties()
-        expected = {'format.fields.0.name': 'a',
-                    'format.fields.0.data-type': 'INT',
-                    'format.fields.1.name': 'b',
-                    'format.fields.1.data-type': 'VARCHAR(2147483647)',
-                    'format.type': 'csv',
-                    'format.property-version': '1'}
-
-        self.assertEqual(expected, properties)
 
 
 class CsvDescriptorTests(PyFlinkTestCase):

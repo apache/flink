@@ -29,7 +29,6 @@ from pyflink.table.types import _to_java_type, DataType
 __all__ = [
     'Rowtime',
     'Schema',
-    'OldCsv',
     'Csv',
     'Avro',
     'Json',
@@ -300,161 +299,12 @@ class FormatDescriptor(Descriptor, metaclass=ABCMeta):
         super(FormatDescriptor, self).__init__(self._j_format_descriptor)
 
 
-class OldCsv(FormatDescriptor):
-    """
-    Format descriptor for comma-separated values (CSV).
-
-    .. note::
-
-        This descriptor describes Flink's non-standard CSV table source/sink. In the future, the
-        descriptor will be replaced by a proper RFC-compliant version. Use the RFC-compliant `Csv`
-        format in the dedicated `flink-formats/flink-csv` module instead when writing to Kafka. Use
-        the old one for stream/batch filesystem operations for now.
-
-    .. note::
-
-        Deprecated: use the RFC-compliant `Csv` format instead when writing to Kafka.
-    """
-
-    def __init__(self, schema=None, field_delimiter=None, line_delimiter=None, quote_character=None,
-                 comment_prefix=None, ignore_parse_errors=False, ignore_first_line=False):
-        """
-        Constructor of OldCsv format descriptor.
-
-        :param schema: Data type from :class:`DataTypes` that describes the schema.
-        :param field_delimiter: The field delimiter character.
-        :param line_delimiter: The line delimiter.
-        :param quote_character: The quote character.
-        :param comment_prefix: The prefix to indicate comments.
-        :param ignore_parse_errors: Skip records with parse error instead to fail. Throw an
-                                    exception by default.
-        :param ignore_first_line: Ignore the first line. Not skip the first line by default.
-        """
-        gateway = get_gateway()
-        self._j_csv = gateway.jvm.OldCsv()
-        super(OldCsv, self).__init__(self._j_csv)
-
-        if schema is not None:
-            self.schema(schema)
-
-        if field_delimiter is not None:
-            self.field_delimiter(field_delimiter)
-
-        if line_delimiter is not None:
-            self.line_delimiter(line_delimiter)
-
-        if quote_character is not None:
-            self.quote_character(quote_character)
-
-        if comment_prefix is not None:
-            self.comment_prefix(comment_prefix)
-
-        if ignore_parse_errors:
-            self.ignore_parse_errors()
-
-        if ignore_first_line:
-            self.ignore_first_line()
-
-    def field_delimiter(self, delimiter: str) -> 'OldCsv':
-        """
-        Sets the field delimiter, "," by default.
-
-        :param delimiter: The field delimiter.
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.fieldDelimiter(delimiter)
-        return self
-
-    def line_delimiter(self, delimiter: str) -> 'OldCsv':
-        r"""
-        Sets the line delimiter, "\\n" by default.
-
-        :param delimiter: The line delimiter.
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.lineDelimiter(delimiter)
-        return self
-
-    def schema(self, table_schema: 'TableSchema') -> 'OldCsv':
-        """
-        Sets the schema with field names and the types. Required.
-
-        This method overwrites existing fields added with
-        :func:`~pyflink.table.descriptors.OldCsv.field`.
-
-        :param table_schema: The :class:`TableSchema` object.
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.schema(table_schema._j_table_schema)
-        return self
-
-    def field(self, field_name: str, field_type: Union[DataType, str]) -> 'OldCsv':
-        """
-        Adds a format field with the field name and the data type or type string. Required.
-        This method can be called multiple times. The call order of this method defines
-        also the order of the fields in the format.
-
-        :param field_name: The field name.
-        :param field_type: The data type or type string of the field.
-        :return: This :class:`OldCsv` object.
-        """
-        if isinstance(field_type, str):
-            self._j_csv = self._j_csv.field(field_name, field_type)
-        else:
-            self._j_csv = self._j_csv.field(field_name, _to_java_type(field_type))
-        return self
-
-    def quote_character(self, quote_character: str) -> 'OldCsv':
-        """
-        Sets a quote character for String values, null by default.
-
-        :param quote_character: The quote character.
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.quoteCharacter(quote_character)
-        return self
-
-    def comment_prefix(self, prefix: str) -> 'OldCsv':
-        """
-        Sets a prefix to indicate comments, null by default.
-
-        :param prefix: The prefix to indicate comments.
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.commentPrefix(prefix)
-        return self
-
-    def ignore_parse_errors(self) -> 'OldCsv':
-        """
-        Skip records with parse error instead to fail. Throw an exception by default.
-
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.ignoreParseErrors()
-        return self
-
-    def ignore_first_line(self) -> 'OldCsv':
-        """
-        Ignore the first line. Not skip the first line by default.
-
-        :return: This :class:`OldCsv` object.
-        """
-        self._j_csv = self._j_csv.ignoreFirstLine()
-        return self
-
-
 class Csv(FormatDescriptor):
     """
     Format descriptor for comma-separated values (CSV).
 
     This descriptor aims to comply with RFC-4180 ("Common Format and MIME Type for
     Comma-Separated Values (CSV) Files") proposed by the Internet Engineering Task Force (IETF).
-
-    .. note::
-
-        This descriptor does not describe Flink's old non-standard CSV table
-        source/sink. Currently, this descriptor can be used when writing to Kafka. The old one is
-        still available as :class:`OldCsv` for stream/batch filesystem operations.
     """
 
     def __init__(self, schema=None, field_delimiter=None, line_delimiter=None, quote_character=None,
