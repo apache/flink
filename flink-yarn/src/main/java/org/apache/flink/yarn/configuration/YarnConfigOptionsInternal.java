@@ -41,7 +41,7 @@ public class YarnConfigOptionsInternal {
      * the vcores of allocated containers with those requested.
      *
      * <p>By default, Yarn ignores vcores in the container requests, and always allocate 1 vcore for
-     * each container. Iff 'yarn.scheduler.capacity.resource-calculator' is set to
+     * each container. If 'yarn.scheduler.capacity.resource-calculator' is set to
      * 'DominantResourceCalculator' for Yarn, will it allocate container vcores as requested.
      *
      * <p>For Hadoop 2.6+, we can learn whether Yarn matches vcores from {@link
