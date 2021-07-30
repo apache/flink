@@ -518,70 +518,6 @@ class FunctionWrapper(Function):
         self._func = func
 
 
-class MapFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for MapFunction. It's used for wrapping up user defined function in a
-    MapFunction when user does not implement a MapFunction but directly pass a function object or
-    a lambda function to map() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(MapFunctionWrapper, self).__init__(func)
-
-    def map(self, value):
-        """
-        A delegated map function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined map function.
-        """
-        return self._func(value)
-
-
-class FlatMapFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for FlatMapFunction. It's used for wrapping up user defined function in a
-    FlatMapFunction when user does not implement a FlatMapFunction but directly pass a function
-    object or a lambda function to flat_map() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(FlatMapFunctionWrapper, self).__init__(func)
-
-    def flat_map(self, value):
-        """
-        A delegated flat_map function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined flat_map function.
-        """
-        return self._func(value)
-
-
-class FilterFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for FilterFunction. It's used for wrapping up user defined function in a
-    FilterFunction when user does not implement a FilterFunction but directly pass a function
-    object or a lambda function to filter() function.
-    """
-
-    def __init__(self, func):
-        super(FilterFunctionWrapper, self).__init__(func)
-
-    def filter(self, value):
-        return self._func(value)
-
-
 class ReduceFunctionWrapper(FunctionWrapper):
     """
     A wrapper class for ReduceFunction. It's used for wrapping up user defined function in a
@@ -606,57 +542,6 @@ class ReduceFunctionWrapper(FunctionWrapper):
         :return: The combined value of both input values.
         """
         return self._func(value1, value2)
-
-
-class KeySelectorFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for KeySelector. It's used for wrapping up user defined function in a
-    KeySelector when user does not implement a KeySelector but directly pass a function
-    object or a lambda function to key_by() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of MapFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(KeySelectorFunctionWrapper, self).__init__(func)
-
-    def get_key(self, value):
-        """
-        A delegated get_key function to invoke user defined function.
-
-        :param value: The input value.
-        :return: the return value of user defined get_key function.
-        """
-        return self._func(value)
-
-
-class PartitionerFunctionWrapper(FunctionWrapper):
-    """
-    A wrapper class for Partitioner. It's used for wrapping up user defined function in a
-    Partitioner when user does not implement a Partitioner but directly pass a function
-    object or a lambda function to partition_custom() function.
-    """
-
-    def __init__(self, func):
-        """
-        The constructor of PartitionerFunctionWrapper.
-
-        :param func: user defined function object.
-        """
-        super(PartitionerFunctionWrapper, self).__init__(func)
-
-    def partition(self, key: Any, num_partitions: int) -> int:
-        """
-        A delegated partition function to invoke user defined function.
-
-        :param key: The key.
-        :param num_partitions: The number of partitions to partition into.
-        :return: The partition index.
-        """
-        return self._func(key, num_partitions)
 
 
 def _get_python_env():
