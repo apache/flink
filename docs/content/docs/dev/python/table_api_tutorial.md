@@ -184,13 +184,14 @@ tab.group_by(tab.word) \
 ```
 
 ## Executing a Flink Python Table API Program
-Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
+Firstly, you need to prepare input data in the "/tmp/input" directory. You can choose the following command line to prepare the input data:
 
 ```bash
-$ echo -e  "flink\npyflink\nflink" > /tmp/input
+$ mkdir /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input/input.csv
 ```
 
-Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
+Next, you can run this example on the command line (Note: if the output directory "/tmp/output" has already existed, you need to remove the file before running the example):
 
 ```bash
 $ python WordCount.py
@@ -204,7 +205,7 @@ for more details.
 Finally, you can see the execution result on the command line:
 
 ```bash
-$ cat /tmp/output
+$ cat /tmp/output/*
 flink	2
 pyflink	1
 ```
