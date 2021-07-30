@@ -135,6 +135,7 @@ under the License.
 		<arrow.version>0.16.0</arrow.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<lz4.version>1.8.0</lz4.version>
+		<brotli4j.version>1.5.0</brotli4j.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
@@ -642,6 +643,28 @@ under the License.
 				<groupId>com.esotericsoftware.kryo</groupId>
 				<artifactId>kryo</artifactId>
 				<version>2.24.0</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.aayushatharva.brotli4j</groupId>
+				<artifactId>brotli4j</artifactId>
+				<version>${brotli4j.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.aayushatharva.brotli4j</groupId>
+				<artifactId>native-linux-x86_64</artifactId>
+				<version>${brotli4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aayushatharva.brotli4j</groupId>
+				<artifactId>native-osx-x86_64</artifactId>
+				<version>${brotli4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.aayushatharva.brotli4j</groupId>
+				<artifactId>native-windows-x86_64</artifactId>
+				<version>${brotli4j.version}</version>
 			</dependency>
 
 			<dependency>
