@@ -119,7 +119,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
-import static org.apache.flink.configuration.TaskManagerOptions.AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -395,7 +395,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
         this.throughputCalculator = environment.getThroughputMeter();
-        this.bufferDebloatPeriod = getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD);
+        this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
 
         this.bufferDebloater =
                 getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)
