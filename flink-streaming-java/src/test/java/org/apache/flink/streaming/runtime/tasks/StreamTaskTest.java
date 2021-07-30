@@ -171,8 +171,8 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
-import static org.apache.flink.configuration.TaskManagerOptions.AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_ENABLED;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_TARGET;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
@@ -1819,7 +1819,8 @@ public class StreamTaskTest extends TestLogger {
         try (MockEnvironment mockEnvironment =
                 new MockEnvironmentBuilder()
                         .setTaskConfiguration(
-                                new Configuration().set(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD, 1))
+                                new Configuration()
+                                        .set(BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(1)))
                         .setThroughputMeter(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
@@ -1888,7 +1889,7 @@ public class StreamTaskTest extends TestLogger {
         int inputChannels = 3;
         Consumer<StreamConfig> configuration =
                 (config) -> {
-                    config.getConfiguration().set(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD, 10);
+                    config.getConfiguration().set(BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(10));
                     config.getConfiguration().set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1));
                     config.getConfiguration().set(BUFFER_DEBLOAT_ENABLED, true);
                 };

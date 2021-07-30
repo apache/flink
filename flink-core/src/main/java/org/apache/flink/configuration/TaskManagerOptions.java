@@ -524,18 +524,18 @@ public class TaskManagerOptions {
 
     /** The period between recalculation the relevant size of the buffer. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD =
-            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.period")
-                    .intType()
-                    .defaultValue(500)
+    public static final ConfigOption<Duration> BUFFER_DEBLOAT_PERIOD =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(500))
                     .withDescription(
-                            "The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. "
+                            "The minimum period of time after which the buffer size will be debloated if required. "
                                     + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
 
     /** The number of samples requires for the buffer size adjustment. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_SAMPLES =
-            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.samples")
+    public static final ConfigOption<Integer> BUFFER_DEBLOAT_SAMPLES =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.samples")
                     .intType()
                     .defaultValue(20)
                     .withDescription(
