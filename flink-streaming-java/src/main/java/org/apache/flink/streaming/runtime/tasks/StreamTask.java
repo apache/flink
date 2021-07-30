@@ -685,7 +685,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         afterInvoke();
     }
 
-    private void throughputCalculationSetup() {
+    void throughputCalculationSetup() {
         systemTimerService.registerTimer(
                 systemTimerService.getCurrentProcessingTime()
                         + getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
@@ -741,9 +741,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         LOG.debug("Finished task {}", getName());
         getCompletionFuture().exceptionally(unused -> null).join();
 
-        final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> systemTimersFinishedFuture = new CompletableFuture<>();
-
         // close all operators in a chain effect way
         operatorChain.finishOperators(actionExecutor);
         finishedOperators = true;
@@ -775,10 +772,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // at the same time, this makes sure that during any "regular" exit where still
         actionExecutor.runThrowing(
                 () -> {
-
                     // make sure no new timers can come
-                    FutureUtils.forward(timerService.quiesce(), timersFinishedFuture);
-                    FutureUtils.forward(systemTimerService.quiesce(), systemTimersFinishedFuture);
+                    timerService.quiesce().get();
+                    systemTimerService.quiesce().get();
 
                     // let mailbox execution reject all new letters from this point
                     mailboxProcessor.prepareClose();
@@ -795,10 +791,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                     // See FLINK-7430
                     isRunning = false;
                 });
-
-        // make sure all timers finish
-        timersFinishedFuture.get();
-        systemTimersFinishedFuture.get();
 
         LOG.debug("Closed operators for task {}", getName());
 
