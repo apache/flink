@@ -75,6 +75,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
         zooKeeperClient = ZooKeeperUtils.startCuratorFramework(config);
+        zooKeeperClient.blockUntilConnected();
     }
 
     @After
