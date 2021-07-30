@@ -142,7 +142,7 @@ public class StateAssignmentOperation {
 
         // actually assign the state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasNonFinishedState || stateAssignment.isFinished) {
+            if (stateAssignment.hasNonFinishedState || stateAssignment.isFullyFinished) {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
             }
         }
@@ -216,7 +216,7 @@ public class StateAssignmentOperation {
             Execution currentExecutionAttempt =
                     executionJobVertex.getTaskVertices()[subTaskIndex].getCurrentExecutionAttempt();
 
-            if (assignment.isFinished) {
+            if (assignment.isFullyFinished) {
                 assignFinishedStateToTask(currentExecutionAttempt);
             } else {
                 assignNonFinishedStateToTask(

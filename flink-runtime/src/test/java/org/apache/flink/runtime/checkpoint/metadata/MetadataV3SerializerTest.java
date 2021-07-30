@@ -110,7 +110,7 @@ public class MetadataV3SerializerTest {
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
                     CheckpointTestUtils.createOperatorStates(
-                            rnd, basePath, numTasks, 0, numSubtasks);
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final Collection<MasterState> masterStates = Collections.emptyList();
 
@@ -142,7 +142,7 @@ public class MetadataV3SerializerTest {
             final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
             final Collection<OperatorState> taskStates =
                     CheckpointTestUtils.createOperatorStates(
-                            rnd, basePath, numTasks, 0, numSubtasks);
+                            rnd, basePath, numTasks, 0, 0, numSubtasks);
 
             final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
             final Collection<MasterState> masterStates =
@@ -166,18 +166,26 @@ public class MetadataV3SerializerTest {
         final Random rnd = new Random();
 
         final int maxNumMasterStates = 5;
-        final int maxTaskStates = 20;
         final int maxNumSubtasks = 20;
-        final int maxFinishedSubtasks = 10;
+
+        final int maxAllRunningTaskStates = 20;
+        final int maxPartlyFinishedStates = 10;
+        final int maxFullyFinishedSubtasks = 10;
 
         final long checkpointId = rnd.nextLong() & 0x7fffffffffffffffL;
 
-        final int numTasks = rnd.nextInt(maxTaskStates) + 1;
         final int numSubtasks = rnd.nextInt(maxNumSubtasks) + 1;
-        final int numFinished = rnd.nextInt(maxFinishedSubtasks) + 1;
+        final int numAllRunningTasks = rnd.nextInt(maxAllRunningTaskStates) + 1;
+        final int numPartlyFinishedTasks = rnd.nextInt(maxPartlyFinishedStates) + 1;
+        final int numFullyFinishedTasks = rnd.nextInt(maxFullyFinishedSubtasks) + 1;
         final Collection<OperatorState> taskStates =
                 CheckpointTestUtils.createOperatorStates(
-                        rnd, basePath, numTasks, numFinished, numSubtasks);
+                        rnd,
+                        basePath,
+                        numAllRunningTasks,
+                        numPartlyFinishedTasks,
+                        numFullyFinishedTasks,
+                        numSubtasks);
 
         final int numMasterStates = rnd.nextInt(maxNumMasterStates) + 1;
         final Collection<MasterState> masterStates =

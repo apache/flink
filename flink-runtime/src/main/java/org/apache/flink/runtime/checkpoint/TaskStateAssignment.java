@@ -63,7 +63,7 @@ class TaskStateAssignment {
     final ExecutionJobVertex executionJobVertex;
     final Map<OperatorID, OperatorState> oldState;
     final boolean hasNonFinishedState;
-    final boolean isFinished;
+    final boolean isFullyFinished;
     final boolean hasInputState;
     final boolean hasOutputState;
     final int newParallelism;
@@ -99,8 +99,8 @@ class TaskStateAssignment {
         this.hasNonFinishedState =
                 oldState.values().stream()
                         .anyMatch(operatorState -> operatorState.getNumberCollectedStates() > 0);
-        this.isFinished = oldState.values().stream().anyMatch(OperatorState::isFullyFinished);
-        if (isFinished) {
+        this.isFullyFinished = oldState.values().stream().anyMatch(OperatorState::isFullyFinished);
+        if (isFullyFinished) {
             checkState(
                     oldState.values().stream().allMatch(OperatorState::isFullyFinished),
                     "JobVertex could not have mixed finished and unfinished operators");

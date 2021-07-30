@@ -139,6 +139,7 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                 partlyFinishedVertex, operatorStates);
 
         fulfillFullyFinishedOrFinishedOnRestoreOperatorStates(operatorStates);
+        fulfillSubtaskStateForPartiallyFinishedOperators(operatorStates);
     }
 
     /**
@@ -241,6 +242,34 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                                 jobVertex.getParallelism(),
                                 jobVertex.getMaxParallelism());
                 operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
+            }
+        }
+    }
+
+    private void fulfillSubtaskStateForPartiallyFinishedOperators(
+            Map<OperatorID, OperatorState> operatorStates) {
+        for (Execution finishedTask : finishedTasks) {
+            ExecutionJobVertex jobVertex = finishedTask.getVertex().getJobVertex();
+            for (OperatorIDPair operatorIDPair : jobVertex.getOperatorIDs()) {
+                OperatorState operatorState =
+                        operatorStates.get(operatorIDPair.getGeneratedOperatorID());
+
+                if (operatorState != null && operatorState.isFullyFinished()) {
+                    continue;
+                }
+
+                if (operatorState == null) {
+                    operatorState =
+                            new OperatorState(
+                                    operatorIDPair.getGeneratedOperatorID(),
+                                    jobVertex.getParallelism(),
+                                    jobVertex.getMaxParallelism());
+                    operatorStates.put(operatorIDPair.getGeneratedOperatorID(), operatorState);
+                }
+
+                operatorState.putState(
+                        finishedTask.getParallelSubtaskIndex(),
+                        FinishedOperatorSubtaskState.INSTANCE);
             }
         }
     }

@@ -40,6 +40,7 @@ import java.util.Map;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.createSubtaskStateWithUnionListState;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Tests the behavior of the {@link DefaultCheckpointPlan}. */
@@ -124,8 +125,10 @@ public class DefaultCheckpointPlanTest {
     public void testFulfillFinishedStates() throws Exception {
         JobVertexID fullyFinishedVertexId = new JobVertexID();
         JobVertexID finishedOnRestoreVertexId = new JobVertexID();
+        JobVertexID partiallyFinishedVertexId = new JobVertexID();
         OperatorID fullyFinishedOperatorId = new OperatorID();
         OperatorID finishedOnRestoreOperatorId = new OperatorID();
+        OperatorID partiallyFinishedOperatorId = new OperatorID();
 
         ExecutionGraph executionGraph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
@@ -144,13 +147,24 @@ public class DefaultCheckpointPlanTest {
                                         OperatorIDPair.generatedIDOnly(
                                                 finishedOnRestoreOperatorId)),
                                 true)
+                        .addJobVertex(
+                                partiallyFinishedVertexId,
+                                2,
+                                2,
+                                Collections.singletonList(
+                                        OperatorIDPair.generatedIDOnly(
+                                                partiallyFinishedOperatorId)),
+                                true)
                         .build();
         ExecutionVertex[] fullyFinishedVertexTasks =
                 executionGraph.getJobVertex(fullyFinishedVertexId).getTaskVertices();
         ExecutionVertex[] finishedOnRestoreVertexTasks =
                 executionGraph.getJobVertex(finishedOnRestoreVertexId).getTaskVertices();
+        ExecutionVertex[] partiallyFinishedVertexTasks =
+                executionGraph.getJobVertex(partiallyFinishedVertexId).getTaskVertices();
         Arrays.stream(fullyFinishedVertexTasks)
                 .forEach(task -> task.getCurrentExecutionAttempt().markFinished());
+        partiallyFinishedVertexTasks[0].getCurrentExecutionAttempt().markFinished();
 
         CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
         Arrays.stream(finishedOnRestoreVertexTasks)
@@ -159,9 +173,12 @@ public class DefaultCheckpointPlanTest {
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
 
-        assertEquals(2, operatorStates.size());
+        assertEquals(3, operatorStates.size());
         assertTrue(operatorStates.get(fullyFinishedOperatorId).isFullyFinished());
         assertTrue(operatorStates.get(finishedOnRestoreOperatorId).isFullyFinished());
+        OperatorState operatorState = operatorStates.get(partiallyFinishedOperatorId);
+        assertFalse(operatorState.isFullyFinished());
+        assertTrue(operatorState.getState(0).isFinished());
     }
 
     private CheckpointPlan createCheckpointPlan(ExecutionGraph executionGraph) throws Exception {
