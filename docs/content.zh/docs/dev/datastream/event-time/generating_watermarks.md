@@ -366,8 +366,7 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 ```java
 FlinkKafkaConsumer<MyType> kafkaSource = new FlinkKafkaConsumer<>("myTopic", schema, props);
 kafkaSource.assignTimestampsAndWatermarks(
-        WatermarkStrategy.
-                .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
+        WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<MyType> stream = env.addSource(kafkaSource);
 ```
