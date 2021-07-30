@@ -109,7 +109,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> taskManagerTimeoutsCheck;
 
-    @Nullable private ScheduledFuture<?> lastResourceRequirementsCheck;
+    @Nullable private CompletableFuture<Void> requirementsCheckFuture;
 
     /** True iff the component has been started. */
     private boolean started;
@@ -146,7 +146,7 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceActions = null;
         mainThreadExecutor = null;
         taskManagerTimeoutsCheck = null;
-        lastResourceRequirementsCheck = null;
+        requirementsCheckFuture = null;
 
         started = false;
     }
@@ -224,11 +224,6 @@ public class FineGrainedSlotManager implements SlotManager {
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
             taskManagerTimeoutsCheck = null;
-        }
-
-        if (lastResourceRequirementsCheck != null && !lastResourceRequirementsCheck.isDone()) {
-            lastResourceRequirementsCheck.cancel(false);
-            lastResourceRequirementsCheck = null;
         }
 
         slotStatusSyncer.close();
@@ -489,13 +484,19 @@ public class FineGrainedSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (lastResourceRequirementsCheck == null || lastResourceRequirementsCheck.isDone()) {
+        if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
             LOG.info("Scheduling the resource requirement check.");
-            lastResourceRequirementsCheck =
-                    scheduledExecutor.schedule(
-                            () -> mainThreadExecutor.execute(this::checkResourceRequirements),
-                            requirementsCheckDelay.toMilliseconds(),
-                            TimeUnit.MILLISECONDS);
+            requirementsCheckFuture = new CompletableFuture<>();
+            scheduledExecutor.schedule(
+                    () ->
+                            mainThreadExecutor.execute(
+                                    () -> {
+                                        checkResourceRequirements();
+                                        Preconditions.checkNotNull(requirementsCheckFuture)
+                                                .complete(null);
+                                    }),
+                    requirementsCheckDelay.toMilliseconds(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -503,6 +504,9 @@ public class FineGrainedSlotManager implements SlotManager {
      * DO NOT call this method directly. Use {@link #checkResourceRequirementsWithDelay()} instead.
      */
     private void checkResourceRequirements() {
+        if (!started) {
+            return;
+        }
         LOG.info("Matching resource requirements against available resources.");
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
