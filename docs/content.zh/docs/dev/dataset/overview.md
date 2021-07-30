@@ -1019,6 +1019,7 @@ The following table lists the currently supported compression methods.
 | Bzip2 | .bz2 | no |
 | XZ | .xz | no |
 | ZStandart | .zst | no |
+| Brotli | .br | no |
 
 ## Data Sinks
 
