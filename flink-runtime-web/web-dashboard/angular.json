@@ -35,6 +35,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "allowedCommonJsDependencies": ["dagre"],
             "outputPath": "web",
             "index": "src/index.html",
             "main": "src/main.ts",
