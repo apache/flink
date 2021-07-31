@@ -686,8 +686,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void throughputCalculationSetup() {
-        systemTimerService.registerTimer(
-                systemTimerService.getCurrentProcessingTime()
+        timerService.registerTimer(
+                timerService.getCurrentProcessingTime()
                         + getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
                 timestamp ->
                         mainMailboxExecutor.submit(
