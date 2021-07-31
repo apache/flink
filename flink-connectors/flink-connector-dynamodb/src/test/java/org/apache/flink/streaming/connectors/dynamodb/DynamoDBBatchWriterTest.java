@@ -136,8 +136,10 @@ public class DynamoDBBatchWriterTest {
         BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
         ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
+        AwsServiceException exception = getThrottlingException();
+
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
-                .thenThrow(getThrottlingException())
+                .thenThrow(exception)
                 .thenReturn(getResponse());
 
         DynamoDbBatchWriter writer =
@@ -152,7 +154,7 @@ public class DynamoDBBatchWriterTest {
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
         verify(client, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
         verify(listener, times(1)).beforeWrite(request.getId(), request);
-        verify(listener, times(1)).afterWrite(request.getId(), request, response);
+        verify(listener, times(1)).afterWrite(request.getId(), request, exception);
     }
 
     @Test

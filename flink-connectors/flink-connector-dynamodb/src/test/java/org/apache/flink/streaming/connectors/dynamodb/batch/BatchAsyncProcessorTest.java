@@ -24,11 +24,8 @@ import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
 
+import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,10 +35,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /** Unit tests for {@link BatchAsyncProcessor}. */
-@RunWith(MockitoJUnitRunner.class)
 public class BatchAsyncProcessorTest {
-
-    @Mock ProducerWriteRequest<DynamoDbRequest> request;
 
     private ExecutorService createExecutorService() {
         return Executors.newCachedThreadPool(
@@ -89,6 +83,10 @@ public class BatchAsyncProcessorTest {
         }
     }
 
+    private ProducerWriteRequest createMockRequest() {
+        return new ProducerWriteRequest<>("id", "table", Collections.EMPTY_LIST);
+    }
+
     private void waitUntilAllProcessed(BatchAsyncProcessor processor) {
         try {
             while (processor.getOutstandingRecordsCount() > 0) {
@@ -110,7 +108,7 @@ public class BatchAsyncProcessorTest {
                         new CountingResponseHandler());
 
         processor.shutdown();
-        processor.accept(request);
+        processor.accept(createMockRequest());
     }
 
     @Test(expected = ProducerException.class)
@@ -123,7 +121,7 @@ public class BatchAsyncProcessorTest {
                         new MockWriterProvider(null),
                         new CountingResponseHandler());
 
-        processor.accept(request);
+        processor.accept(createMockRequest());
     }
 
     @Test
@@ -143,9 +141,9 @@ public class BatchAsyncProcessorTest {
 
         processor.start();
 
-        processor.accept(request);
-        processor.accept(request);
-        processor.accept(request);
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
 
         waitUntilAllProcessed(processor);
 
@@ -180,8 +178,8 @@ public class BatchAsyncProcessorTest {
 
         processor.start();
 
-        processor.accept(request);
-        processor.accept(request);
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
 
         waitUntilAllProcessed(processor);
 
@@ -217,12 +215,12 @@ public class BatchAsyncProcessorTest {
 
         processor.start();
 
-        processor.accept(request);
-        processor.accept(request);
-        processor.accept(request);
-        processor.accept(request);
-        processor.accept(request);
-        processor.accept(request);
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
+        processor.accept(createMockRequest());
 
         processor.shutdown();
 
