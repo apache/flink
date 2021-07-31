@@ -18,5 +18,218 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
+import org.apache.flink.streaming.connectors.dynamodb.ProducerException;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+
 /** Unit tests for {@link BatchAsyncProcessor}. */
-public class BatchAsyncProcessorTest {}
+@RunWith(MockitoJUnitRunner.class)
+public class BatchAsyncProcessorTest {
+
+    @Mock ProducerWriteRequest<DynamoDbRequest> request;
+
+    private ExecutorService createExecutorService() {
+        return Executors.newCachedThreadPool(
+                (new ThreadFactoryBuilder())
+                        .setDaemon(true)
+                        .setNameFormat("dynamo-daemon-%04d")
+                        .build());
+    }
+
+    private static class CountingResponseHandler implements BatchAsyncProcessor.ResponseHandler {
+        private final AtomicInteger completionCounter = new AtomicInteger(0);
+        private final AtomicInteger exceptionCounter = new AtomicInteger(0);
+
+        @Override
+        public void onCompletion(ProducerWriteResponse response) {
+            completionCounter.incrementAndGet();
+        }
+
+        @Override
+        public void onException(Throwable error) {
+            exceptionCounter.incrementAndGet();
+        }
+
+        public int completionInvocations() {
+            return completionCounter.get();
+        }
+
+        public int exceptionInvocations() {
+            return exceptionCounter.get();
+        }
+    }
+
+    private static class MockWriterProvider extends BatchWriterProvider {
+
+        private final Callable<ProducerWriteResponse> mockWriter;
+
+        public MockWriterProvider(Callable<ProducerWriteResponse> writer) {
+            super(null, null, null);
+            this.mockWriter = writer;
+        }
+
+        @Override
+        public Callable<ProducerWriteResponse> createWriter(ProducerWriteRequest request) {
+            return mockWriter;
+        }
+    }
+
+    private void waitUntilAllProcessed(BatchAsyncProcessor processor) {
+        try {
+            while (processor.getOutstandingRecordsCount() > 0) {
+                Thread.sleep(1000);
+            }
+        } catch (InterruptedException e) {
+            processor.shutdown();
+        }
+    }
+
+    @Test(expected = ProducerException.class)
+    public void testDoesNotAcceptNewMessagesOnShutdown() {
+        BatchAsyncProcessor processor =
+                new BatchAsyncProcessor(
+                        3,
+                        false,
+                        createExecutorService(),
+                        new MockWriterProvider(null),
+                        new CountingResponseHandler());
+
+        processor.shutdown();
+        processor.accept(request);
+    }
+
+    @Test(expected = ProducerException.class)
+    public void testDoesNotAcceptMessagesWhenNotStarted() {
+        BatchAsyncProcessor processor =
+                new BatchAsyncProcessor(
+                        3,
+                        false,
+                        createExecutorService(),
+                        new MockWriterProvider(null),
+                        new CountingResponseHandler());
+
+        processor.accept(request);
+    }
+
+    @Test
+    public void testOnCompletionHandlerIsCalled() {
+        CountingResponseHandler handler = new CountingResponseHandler();
+
+        Callable<ProducerWriteResponse> writer =
+                () -> new ProducerWriteResponse("test", true, 1, null, 10L);
+
+        BatchAsyncProcessor processor =
+                new BatchAsyncProcessor(
+                        10,
+                        false,
+                        createExecutorService(),
+                        new MockWriterProvider(writer),
+                        handler);
+
+        processor.start();
+
+        processor.accept(request);
+        processor.accept(request);
+        processor.accept(request);
+
+        waitUntilAllProcessed(processor);
+
+        assertEquals(
+                "total number of times completion handler is called",
+                3,
+                handler.completionInvocations());
+        assertEquals(
+                "total number of times exception handler is called",
+                0,
+                handler.exceptionInvocations());
+
+        processor.shutdown();
+    }
+
+    @Test
+    public void testOnExceptionHandlerIsCalled() throws Exception {
+        CountingResponseHandler handler = new CountingResponseHandler();
+
+        Callable<ProducerWriteResponse> writer =
+                () -> {
+                    throw new Exception("Writer Exception");
+                };
+
+        BatchAsyncProcessor processor =
+                new BatchAsyncProcessor(
+                        10,
+                        false,
+                        createExecutorService(),
+                        new MockWriterProvider(writer),
+                        handler);
+
+        processor.start();
+
+        processor.accept(request);
+        processor.accept(request);
+
+        waitUntilAllProcessed(processor);
+
+        assertEquals(
+                "total number of times completion handler is called",
+                0,
+                handler.completionInvocations());
+        assertEquals(
+                "total number of times exception handler is called",
+                2,
+                handler.exceptionInvocations());
+
+        processor.shutdown();
+    }
+
+    @Test
+    public void testShutdownGracefully() {
+        Callable<ProducerWriteResponse> sleepingWriter =
+                () -> {
+                    Thread.sleep(1000);
+                    return new ProducerWriteResponse("test", true, 1, null, 10L);
+                };
+
+        CountingResponseHandler handler = new CountingResponseHandler();
+
+        BatchAsyncProcessor processor =
+                new BatchAsyncProcessor(
+                        6,
+                        false,
+                        createExecutorService(),
+                        new MockWriterProvider(sleepingWriter),
+                        handler);
+
+        processor.start();
+
+        processor.accept(request);
+        processor.accept(request);
+        processor.accept(request);
+        processor.accept(request);
+        processor.accept(request);
+        processor.accept(request);
+
+        processor.shutdown();
+
+        assertFalse("processor is not started", processor.isStarted());
+        assertEquals(
+                "total number of times completion handler is called",
+                6,
+                handler.completionInvocations());
+    }
+}

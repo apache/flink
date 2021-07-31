@@ -18,7 +18,10 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch.concurrent;
 
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -30,13 +33,18 @@ import java.util.concurrent.TimeUnit;
 public class UnboundedTaskExecutor extends ThreadPoolExecutor {
 
     public UnboundedTaskExecutor(
-            int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit) {
+            int corePoolSize,
+            int maximumPoolSize,
+            long keepAliveTime,
+            ThreadFactory threadFactory,
+            TimeUnit unit) {
         super(
                 corePoolSize,
                 maximumPoolSize,
                 keepAliveTime,
                 unit,
                 new LinkedBlockingQueue<>(),
+                threadFactory,
                 new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
@@ -45,6 +53,7 @@ public class UnboundedTaskExecutor extends ThreadPoolExecutor {
                 calculateCorePoolSize(),
                 calculateCorePoolSize(),
                 5L, // doesn't matter as core pool size is the same as maximum pool size
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("task-pool-%04d").build(),
                 TimeUnit.MINUTES);
     }
 

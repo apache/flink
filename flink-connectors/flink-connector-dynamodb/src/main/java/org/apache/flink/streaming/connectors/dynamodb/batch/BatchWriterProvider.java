@@ -20,9 +20,12 @@ package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+
+import java.util.concurrent.Callable;
 
 /** Provides a callable to write ProducerWriteRequest. */
 public class BatchWriterProvider {
@@ -40,7 +43,7 @@ public class BatchWriterProvider {
         this.listener = listener;
     }
 
-    public DynamoDbBatchWriter createWriter(ProducerWriteRequest request) {
+    public Callable<ProducerWriteResponse> createWriter(ProducerWriteRequest request) {
         return new DynamoDbBatchWriter(client, retryPolicy, listener, request);
-    };
+    }
 }
