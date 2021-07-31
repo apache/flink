@@ -571,11 +571,13 @@ public class CheckpointCoordinatorTestingUtils {
     static class CheckpointExecutionGraphBuilder {
         private final List<JobVertex> sourceVertices = new ArrayList<>();
         private final List<JobVertex> nonSourceVertices = new ArrayList<>();
+        private DistributionPattern distributionPattern;
         private boolean transitToRunning;
         private TaskManagerGateway taskManagerGateway;
         private ComponentMainThreadExecutor mainThreadExecutor;
 
         CheckpointExecutionGraphBuilder() {
+            this.distributionPattern = DistributionPattern.ALL_TO_ALL;
             this.transitToRunning = true;
             this.mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
         }
@@ -627,6 +629,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointExecutionGraphBuilder setDistributionPattern(
+                DistributionPattern distributionPattern) {
+            this.distributionPattern = distributionPattern;
+            return this;
+        }
+
         public CheckpointExecutionGraphBuilder setTransitToRunning(boolean transitToRunning) {
             this.transitToRunning = transitToRunning;
             return this;
@@ -643,7 +651,7 @@ public class CheckpointCoordinatorTestingUtils {
             for (JobVertex source : sourceVertices) {
                 for (JobVertex nonSource : nonSourceVertices) {
                     nonSource.connectNewDataSetAsInput(
-                            source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                            source, distributionPattern, ResultPartitionType.PIPELINED);
                 }
             }
 
