@@ -517,7 +517,7 @@ public class TaskManagerOptions {
     public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD =
             ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.period")
                     .intType()
-                    .defaultValue(500)
+                    .defaultValue(5000)
                     .withDescription(
                             "The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. "
                                     + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
