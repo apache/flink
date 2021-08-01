@@ -686,17 +686,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void throughputCalculationSetup() {
-        timerService.registerTimer(
-                timerService.getCurrentProcessingTime()
-                        + getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
+        timerService.scheduleAtFixedRate(
                 timestamp ->
                         mainMailboxExecutor.submit(
                                 () -> {
-                                    //
-                                    // throughputCalculator.calculateThroughput();
+                                    throughputCalculator.calculateThroughput();
                                     throughputCalculationSetup();
                                 },
-                                "Throughput recalculation"));
+                                "Throughput recalculation"),
+                getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
+                getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD));
     }
 
     private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
