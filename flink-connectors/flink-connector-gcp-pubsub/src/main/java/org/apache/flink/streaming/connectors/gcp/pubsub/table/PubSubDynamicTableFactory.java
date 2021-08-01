@@ -15,8 +15,6 @@ import org.apache.flink.table.types.DataType;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.gcp.pubsub.table.PubSubConnectorConfigOptions.NON_VALIDATED_PREFIXES;
-
 /** Factory for creating {@link PubsubDynamicSource}. */
 @Internal
 public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
@@ -46,18 +44,18 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(this, context);
 
+        // discover a suitable decoding format
+        final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
+                helper.discoverDecodingFormat(
+                        DeserializationFormatFactory.class, FactoryUtil.FORMAT);
+
         // validate all options
-        helper.validateExcept(NON_VALIDATED_PREFIXES);
+        helper.validate();
 
         // get the validated options
         final ReadableConfig options = helper.getOptions();
         final String project = options.get(PubSubConnectorConfigOptions.PROJECT_NAME);
         final String topic = options.get(PubSubConnectorConfigOptions.TOPIC);
-
-        // discover a suitable decoding format
-        final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
-                helper.discoverDecodingFormat(
-                        DeserializationFormatFactory.class, FactoryUtil.FORMAT);
 
         // derive the produced data type (excluding computed columns) from the catalog table
         final DataType producedDataType =

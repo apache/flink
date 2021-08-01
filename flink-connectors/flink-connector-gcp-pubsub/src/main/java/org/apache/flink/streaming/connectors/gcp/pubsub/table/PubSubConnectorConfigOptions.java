@@ -24,13 +24,4 @@ public class PubSubConnectorConfigOptions {
                     .withDescription("Name of the PubSub topic backing this table.");
 
     public static final String IDENTIFIER = "pubsub";
-
-    public static final String JSON_FORMAT_PROPERTIES_PREFIX = "json.";
-
-    /**
-     * Prefixes of properties that are validated by downstream components and should not be
-     * validated by the Table API infrastructure.
-     */
-    public static final String[] NON_VALIDATED_PREFIXES =
-            new String[] {JSON_FORMAT_PROPERTIES_PREFIX};
 }
