@@ -692,7 +692,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 timestamp ->
                         mainMailboxExecutor.submit(
                                 () -> {
-                                    throughputCalculator.calculateThroughput();
+                                    //
+                                    // throughputCalculator.calculateThroughput();
                                     throughputCalculationSetup();
                                 },
                                 "Throughput recalculation"));
