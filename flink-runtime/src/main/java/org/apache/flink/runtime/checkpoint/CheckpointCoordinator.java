@@ -1314,6 +1314,9 @@ public class CheckpointCoordinator {
 
     private void sendAbortedMessages(
             List<ExecutionVertex> tasksToAbort, long checkpointId, long timeStamp) {
+        assert (Thread.holdsLock(lock));
+        long latestCompletedCheckpointId = completedCheckpointStore.getLatestCheckpointId();
+
         // send notification of aborted checkpoints asynchronously.
         executor.execute(
                 () -> {
@@ -1321,7 +1324,8 @@ public class CheckpointCoordinator {
                     for (ExecutionVertex ev : tasksToAbort) {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
-                            ee.notifyCheckpointAborted(checkpointId, timeStamp);
+                            ee.notifyCheckpointAborted(
+                                    checkpointId, latestCompletedCheckpointId, timeStamp);
                         }
                     }
                 });

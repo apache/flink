@@ -1000,7 +1000,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> abortCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long checkpointTimestamp) {
         log.debug(
                 "Abort checkpoint {}@{} for {}.",
                 checkpointId,
@@ -1010,7 +1013,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
-            task.notifyCheckpointAborted(checkpointId);
+            task.notifyCheckpointAborted(checkpointId, latestCompletedCheckpointId);
 
             return CompletableFuture.completedFuture(Acknowledge.get());
         } else {
