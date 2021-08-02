@@ -130,6 +130,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         }
     }
 
+    @Test
     public void testGetAllPipelinedRegions() {
         final Iterable<DefaultSchedulingPipelinedRegion> allPipelinedRegions =
                 adapter.getAllPipelinedRegions();
