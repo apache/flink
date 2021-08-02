@@ -30,7 +30,7 @@ from typing import List, Union
 from cloudpickle import cloudpickle
 
 from pyflink.common import Row, RowKind
-from pyflink.common.types import Instant
+from pyflink.common.time import Instant
 from pyflink.datastream.window import CountWindow, TimeWindow
 
 ROW_KIND_BIT_SIZE = 2

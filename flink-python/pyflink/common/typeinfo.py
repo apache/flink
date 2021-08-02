@@ -201,11 +201,11 @@ class InstantTypeInfo(BasicTypeInfo):
         return True
 
     def to_internal_type(self, obj):
-        return obj.to_epoch_milli()
+        return obj.to_epoch_milli() * 1000
 
     def from_internal_type(self, obj):
-        from pyflink.common.types import Instant
-        return Instant.of_epoch_milli(obj)
+        from pyflink.common.time import Instant
+        return Instant.of_epoch_milli(obj // 1000)
 
 
 class SqlTimeTypeInfo(TypeInformation):

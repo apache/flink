@@ -25,7 +25,7 @@ import cloudpickle
 import pyarrow as pa
 
 from pyflink.common import Row, RowKind
-from pyflink.common.types import Instant
+from pyflink.common.time import Instant
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream

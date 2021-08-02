@@ -1331,6 +1331,9 @@ class TableEnvironment(object):
                 view_path,
                 table_or_data_stream._j_data_stream,
                 to_expression_jarray(fields_or_schema))
+        else:
+            raise ValueError("Invalid arguments for 'fields': %r" %
+                             ','.join([repr(item) for item in fields_or_schema]))
 
     def add_python_file(self, file_path: str):
         """

@@ -20,7 +20,7 @@ from enum import Enum
 
 from typing import List
 
-__all__ = ['Row', 'RowKind', 'Instant']
+__all__ = ['Row', 'RowKind']
 
 
 class RowKind(Enum):
@@ -257,33 +257,3 @@ class Row(object):
 
     def __len__(self):
         return len(self._values)
-
-
-class Instant(object):
-    """
-    An instantaneous point on the time-line. Similar to Java.time.Instant.
-    """
-
-    def __init__(self, seconds, nanos):
-        self.seconds = seconds
-        self.nanos = nanos
-
-    def to_epoch_milli(self):
-        if self.seconds < 0 < self.nanos:
-            return (self.seconds + 1) * 1000 + self.nanos // 1000_1000 - 1000
-        else:
-            return self.seconds * 1000 + self.nanos // 1000_000
-
-    @staticmethod
-    def of_epoch_milli(epoch_milli: int) -> 'Instant':
-        secs = epoch_milli // 1000
-        mos = epoch_milli % 1000
-        return Instant(secs, mos * 1000_000)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self.seconds == other.seconds and
-                self.nanos == other.nanos)
-
-    def __repr__(self):
-        return 'Instant<{}, {}>'.format(self.seconds, self.nanos)
