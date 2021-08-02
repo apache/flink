@@ -56,16 +56,16 @@ under the License.
 </table>
 
 请注意，流连接器目前不是二进制发行版的一部分。
-有关如何将程序和用于集群执行的库一起打包，参考[此处]({{< ref "docs/dev/datastream/project-configuration" >}})
+有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})
 
 ## 安装 Elasticsearch
 
-Elasticsearch 集群的设置可以参考[此处](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html)。
-确保设置并记住集群名称。这是在创建 `ElasticsearchSink` 请求集群文档操作时必须要设置的。
+Elasticsearch 集群的设置可以参考[此文档](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html)。
+确认设置并记住集群名称。这是在创建 `ElasticsearchSink` 请求集群文档操作时必须要设置的。
 
 ## Elasticsearch Sink
 
-`ElasticsearchSink` 使用 `TransportClient` （6.x 之前） 或者 `RestHighLevelClient` （6.x 开始） 和 Elasticsearch 集群进行通信。
+`ElasticsearchSink` 使用 `TransportClient`（6.x 之前）或者 `RestHighLevelClient`（6.x 开始）和 Elasticsearch 集群进行通信。
 
 下面的示例展示了如何配置并创建一个 sink：
 
@@ -92,7 +92,7 @@ DataStream<String> input = ...;
 
 Map<String, String> config = new HashMap<>();
 config.put("cluster.name", "my-cluster-name");
-// 这指示 sink 在接收每个元素之后立即提交，否则它们将被缓存
+// 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
 config.put("bulk.flush.max.actions", "1");
 
 List<InetSocketAddress> transportAddresses = new ArrayList<>();
@@ -160,7 +160,7 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
     }
 );
 
-// 批量请求的配置；这指示 sink 在接收每个元素之后立即提交，否则它们将被缓存
+// 批量请求的配置；下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
 esSinkBuilder.setBulkFlushMaxActions(1);
 
 // 为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
@@ -199,7 +199,7 @@ val input: DataStream[String] = ...
 
 val config = new java.util.HashMap[String, String]
 config.put("cluster.name", "my-cluster-name")
-// 这指示 sink 在接收每个元素之后立即提交，否则它们将被缓存
+// 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
 config.put("bulk.flush.max.actions", "1")
 
 val transportAddresses = new java.util.ArrayList[InetSocketAddress]
@@ -276,10 +276,10 @@ input.addSink(esSinkBuilder.build)
 {{< /tab >}}
 {{< /tabs >}}
 
-对于仍然使用已被弃用的 `TransportClient` 和 Elasticsearch 集群通信的 Elasticsearch 版本 (即，小于或等于 5.x 的版本)，
-请注意如何使用一个 `String` 类型的 `Map` 配置 `ElasticsearchSink`。在创建内部使用的 `TransportClient` 时将直接转发此配置映射。
-配置项参见[此处](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)的 Elasticsearch 文档中。
-特别重要的是参数 `cluster.name` 必须和你的集群名称对应上。
+对于仍然使用已被弃用的 `TransportClient` 和 Elasticsearch 集群通信的 Elasticsearch 客户端版本 (即，小于或等于 5.x 的版本)，
+使用一个 `String` 类型的 `Map` 配置 `ElasticsearchSink`。这些配置项将在创建 `TransportClient` 时被使用。
+配置项参见[此处](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)的 Elasticsearch 文档。
+需要特别注意的是参数 `cluster.name` 必须和你的集群名称对应。
 
 对于 Elasticsearch 6.x 及以上版本，内部使用 `RestHighLevelClient` 和集群通信。
 默认情况下，连接器使用 REST 客户端的默认配置。
@@ -289,7 +289,7 @@ input.addSink(esSinkBuilder.build)
 通常，`ElasticsearchSinkFunction` 可用于执行多个不同类型的请求（例如 `DeleteRequest`、 `UpdateRequest` 等）。
 
 在内部，Flink Elasticsearch Sink 的每个并行实例使用一个 `BulkProcessor` 向集群发送操作请求。
-这将使得元素在发送到集群之前进行批量缓存。
+这会在元素批量发送到集群之前进行缓存。
 `BulkProcessor` 一次执行一个批量请求，即不会存在两个并行刷新缓存的操作。
 
 ### Elasticsearch Sinks 和容错
@@ -318,7 +318,7 @@ env.enableCheckpointing(5000) // 每 5000 毫秒执行一次 checkpoint
 {{< /tabs >}}
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>注意</b>： 如果用户愿意，可以通过在创建的
+<b>注意</b>：如果用户愿意，可以通过在创建的
 <b> ElasticsearchSink </b>上调用 <b>disableFlushOnCheckpoint()</b> 来禁用刷新。请注意，
  这实质上意味着 sink 将不再提供任何可靠的交付保证，即使启用了作业拓扑的 checkpoint。
 </p>
@@ -374,10 +374,10 @@ input.addSink(new ElasticsearchSink(
                 RequestIndexer indexer) {
 
             if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
-                 // 队列已满；重新添加文档进行索引
+                // 队列已满；重新添加文档进行索引
                 indexer.add(action)
             } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
-                 // 文档格式错误；简单地删除请求避免 sink 失败
+                // 文档格式错误；简单地删除请求避免 sink 失败
             } else {
                 // 对于所有其他失败的请求，失败的 sink
                 // 这里的失败只是简单的重新抛出，但用户也可以选择抛出自定义异常
@@ -399,7 +399,7 @@ input.addSink(new ElasticsearchSink(
 连接器还提供了一个 `RetryRejectedExecutionFailureHandler` 实现，它总是重新添加由于队列容量已满导致失败的请求。
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>重要提示</b>：在失败时将请求重新添加回内部 <b>BulkProcessor</b> 会导致更长的 checkpoint，因为在进行 checkpoint 时， sink 还需要等待重新添加的请求被刷新。
+<b>重要提示</b>：在失败时将请求重新添加回内部 <b>BulkProcessor</b> 会导致更长的 checkpoint，因为在进行 checkpoint 时，sink 还需要等待重新添加的请求被刷新。
 例如，当使用 <b>RetryRejectedExecutionFailureHandler</b> 时，
 checkpoint 需要等到 Elasticsearch 节点队列有足够的容量来处理所有挂起的请求。
 这也就意味着如果重新添加的请求永远不成功，checkpoint 也将永远不会完成。
@@ -420,13 +420,13 @@ checkpoint 需要等到 Elasticsearch 节点队列有足够的容量来处理所
  * **bulk.flush.backoff.delay**：延迟重试的时间间隔。对于常量延迟来说，此值是每次重试间的间隔。对于指数延迟来说，此值是延迟的初始值。
  * **bulk.flush.backoff.retries**：延迟重试次数。
 
-可以在[此处](https://elastic.co)找到 Elasticsearch 的更多信息。
+可以在[此文档](https://elastic.co)找到 Elasticsearch 的更多信息。
 
 ## 将 Elasticsearch 连接器打包到 Uber-Jar 中
 
-为了执行你的 Flink 程序，建议构建一个 uber-jar (可执行的 jar)，其中包含了你所有的依赖
-(更多信息参见[此处]({{< ref "docs/dev/datastream/project-configuration" >}}))。
+建议构建一个包含所有依赖的 uber-jar (可执行的 jar)，以便更好地执行你的 Flink 程序。
+(更多信息参见[此文档]({{< ref "docs/dev/datastream/project-configuration" >}}))。
 
-或者，你可以将连接器的 jar 文件放入 Flink 的 `lib/` 目录下，使其在全局范围内可用，即用于所有的作业。
+或者，你可以将连接器的 jar 文件放入 Flink 的 `lib/` 目录下，使其在全局范围内可用，即可用于所有的作业。
 
 {{< top >}}
