@@ -341,13 +341,12 @@ message TypeInfo {
 // User defined DataStream function definition.
 message UserDefinedDataStreamFunction {
   enum FunctionType {
-    CO_MAP = 0;
-    CO_FLAT_MAP = 1;
-    PROCESS = 2;
-    KEYED_PROCESS = 3;
-    KEYED_CO_PROCESS = 4;
-    TIMESTAMP_ASSIGNER = 5;
-    WINDOW = 6;
+    PROCESS = 0;
+    CO_PROCESS = 1;
+    KEYED_PROCESS = 2;
+    KEYED_CO_PROCESS = 3;
+    TIMESTAMP_ASSIGNER = 4;
+    WINDOW = 5;
   }
 
   message JobParameter {

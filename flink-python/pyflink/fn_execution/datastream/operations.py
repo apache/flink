@@ -140,30 +140,7 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
     process_element_func = None
 
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
-    if func_type == UserDefinedDataStreamFunction.CO_MAP:
-        map1 = user_defined_func.map1
-        map2 = user_defined_func.map2
-
-        def wrapped_func(value):
-            # value in format of: [INPUT_FLAG, REAL_VALUE]
-            # INPUT_FLAG value of True for the left stream, while False for the right stream
-            return map1(value[1]) if value[0] else map2(value[2])
-
-        process_element_func = wrapped_func
-
-    elif func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:
-        flat_map1 = user_defined_func.flat_map1
-        flat_map2 = user_defined_func.flat_map2
-
-        def wrapped_func(value):
-            if value[0]:
-                yield from flat_map1(value[1])
-            else:
-                yield from flat_map2(value[2])
-
-        process_element_func = wrapped_func
-
-    elif func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
+    if func_type == UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER:
         extract_timestamp = user_defined_func.extract_timestamp
 
         def wrapped_func(value):
@@ -183,6 +160,24 @@ def extract_stateless_function(user_defined_function_proto, runtime_context: Run
             ctx.timer_service().advance_watermark(value[1])
             output_result = process_element(value[2], ctx)
             return output_result
+
+        process_element_func = wrapped_func
+
+    elif func_type == UserDefinedDataStreamFunction.CO_PROCESS:
+        process_element1 = user_defined_func.process_element1
+        process_element2 = user_defined_func.process_element2
+        ctx = InternalProcessFunctionContext(NonKeyedTimerServiceImpl())
+
+        def wrapped_func(value):
+            # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, [isLeft, leftInput, rightInput]]
+            ctx.set_timestamp(value[0])
+            ctx.timer_service().advance_watermark(value[1])
+
+            normal_data = value[2]
+            if normal_data[0]:
+                yield from process_element1(normal_data[1], ctx)
+            else:
+                yield from process_element2(normal_data[2], ctx)
 
         process_element_func = wrapped_func
 
