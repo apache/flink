@@ -373,6 +373,95 @@ message UserDefinedDataStreamFunction {
   bool profile_enabled = 6;
 }
 
+// A representation of State
+message StateDescriptor {
+  message StateTTLConfig {
+    // This option value configures when to update last access timestamp which prolongs state TTL.
+    enum UpdateType {
+      // TTL is disabled. State does not expire.
+      Disabled = 0;
+
+      // Last access timestamp is initialised when state is created and updated on every write operation.
+      OnCreateAndWrite = 1;
+
+      // The same as OnCreateAndWrite but also updated on read.
+      OnReadAndWrite = 2;
+    }
+
+    // This option configures whether expired user value can be returned or not.
+    enum StateVisibility {
+      // Return expired user value if it is not cleaned up yet.
+      ReturnExpiredIfNotCleanedUp = 0;
+
+      // Never return expired user value.
+      NeverReturnExpired = 1;
+    }
+
+    // This option configures time scale to use for ttl.
+    enum TtlTimeCharacteristic {
+      // Processing time
+      ProcessingTime = 0;
+    }
+
+    // TTL cleanup strategies.
+    message CleanupStrategies {
+      // Fixed strategies ordinals in strategies config field.
+      enum Strategies {
+        FULL_STATE_SCAN_SNAPSHOT = 0;
+        INCREMENTAL_CLEANUP = 1;
+        ROCKSDB_COMPACTION_FILTER = 2;
+      }
+
+      enum EmptyCleanupStrategy {
+        EMPTY_STRATEGY = 0;
+      }
+
+      // Configuration of cleanup strategy while taking the full snapshot.
+      message IncrementalCleanupStrategy {
+        // Max number of keys pulled from queue for clean up upon state touch for any key.
+        int32 cleanup_size = 1;
+
+        // Whether to run incremental cleanup per each processed record.
+        bool run_cleanup_for_every_record = 2;
+      }
+
+      // Configuration of cleanup strategy using custom compaction filter in RocksDB.
+      message RocksdbCompactFilterCleanupStrategy {
+        // Number of state entries to process by compaction filter before updating current timestamp.
+        int64 query_time_after_num_entries = 1;
+      }
+
+      message MapStrategiesEntry {
+        Strategies strategy = 1;
+
+        oneof CleanupStrategy {
+          EmptyCleanupStrategy empty_strategy = 2;
+          IncrementalCleanupStrategy incremental_cleanup_strategy = 3;
+          RocksdbCompactFilterCleanupStrategy rocksdb_compact_filter_cleanup_strategy = 4;
+        }
+      }
+
+      bool is_cleanup_in_background = 1;
+
+      repeated MapStrategiesEntry strategies = 2;
+    }
+
+    UpdateType update_type = 1;
+
+    StateVisibility state_visibility = 2;
+
+    TtlTimeCharacteristic ttl_time_characteristic = 3;
+
+    int64 ttl = 4;
+
+    CleanupStrategies cleanup_strategies = 5;
+  }
+
+  string state_name = 1;
+
+  StateTTLConfig state_ttl_config = 2;
+}
+
 // ------------------------------------------------------------------------
 // Common of Table API and DataStream API
 // ------------------------------------------------------------------------

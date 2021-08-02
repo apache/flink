@@ -35,7 +35,7 @@ from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
-from pyflink.common.time import Duration, Instant
+from pyflink.common.time import Duration, Instant, Time
 from pyflink.common.watermark_strategy import WatermarkStrategy
 
 __all__ = [
@@ -59,4 +59,5 @@ __all__ = [
     "Types",
     "TypeInformation",
     "Instant",
+    "Time"
 ]

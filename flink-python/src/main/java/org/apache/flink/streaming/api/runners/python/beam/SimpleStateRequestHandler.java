@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
@@ -32,6 +33,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapper;
 import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -48,6 +51,7 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -294,13 +298,22 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
 
     private ListState<byte[]> getListState(BeamFnApi.StateRequest request) throws Exception {
         BeamFnApi.StateKey.BagUserState bagUserState = request.getStateKey().getBagUserState();
-        String stateName = PYTHON_STATE_PREFIX + bagUserState.getUserStateId();
+        byte[] data = Base64.getDecoder().decode(bagUserState.getUserStateId());
+        FlinkFnApi.StateDescriptor stateDescriptor = FlinkFnApi.StateDescriptor.parseFrom(data);
+        String stateName = PYTHON_STATE_PREFIX + stateDescriptor.getStateName();
         ListStateDescriptor<byte[]> listStateDescriptor;
         StateDescriptor cachedStateDescriptor = stateDescriptorCache.get(stateName);
         if (cachedStateDescriptor instanceof ListStateDescriptor) {
             listStateDescriptor = (ListStateDescriptor<byte[]>) cachedStateDescriptor;
         } else if (cachedStateDescriptor == null) {
             listStateDescriptor = new ListStateDescriptor<>(stateName, valueSerializer);
+            if (stateDescriptor.hasStateTtlConfig()) {
+                FlinkFnApi.StateDescriptor.StateTTLConfig stateTtlConfigProto =
+                        stateDescriptor.getStateTtlConfig();
+                StateTtlConfig stateTtlConfig =
+                        ProtoUtils.parseStateTtlConfigFromProto(stateTtlConfigProto);
+                listStateDescriptor.enableTimeToLive(stateTtlConfig);
+            }
             stateDescriptorCache.put(stateName, listStateDescriptor);
         } else {
             throw new RuntimeException(
@@ -587,7 +600,9 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
             throws Exception {
         BeamFnApi.StateKey.MultimapSideInput mapUserState =
                 request.getStateKey().getMultimapSideInput();
-        String stateName = PYTHON_STATE_PREFIX + mapUserState.getSideInputId();
+        byte[] data = Base64.getDecoder().decode(mapUserState.getSideInputId());
+        FlinkFnApi.StateDescriptor stateDescriptor = FlinkFnApi.StateDescriptor.parseFrom(data);
+        String stateName = PYTHON_STATE_PREFIX + stateDescriptor.getStateName();
         StateDescriptor cachedStateDescriptor = stateDescriptorCache.get(stateName);
         MapStateDescriptor<ByteArrayWrapper, byte[]> mapStateDescriptor;
         if (cachedStateDescriptor instanceof MapStateDescriptor) {
@@ -597,6 +612,13 @@ public class SimpleStateRequestHandler implements StateRequestHandler {
             mapStateDescriptor =
                     new MapStateDescriptor<>(
                             stateName, ByteArrayWrapperSerializer.INSTANCE, valueSerializer);
+            if (stateDescriptor.hasStateTtlConfig()) {
+                FlinkFnApi.StateDescriptor.StateTTLConfig stateTtlConfigProto =
+                        stateDescriptor.getStateTtlConfig();
+                StateTtlConfig stateTtlConfig =
+                        ProtoUtils.parseStateTtlConfigFromProto(stateTtlConfigProto);
+                mapStateDescriptor.enableTimeToLive(stateTtlConfig);
+            }
             stateDescriptorCache.put(stateName, mapStateDescriptor);
         } else {
             throw new RuntimeException(
