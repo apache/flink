@@ -17,7 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 
-__all__ = ['Instant']
+__all__ = ['Duration', 'Instant']
 
 
 class Duration(object):

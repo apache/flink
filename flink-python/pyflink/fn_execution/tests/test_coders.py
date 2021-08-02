@@ -111,7 +111,7 @@ class CodersTest(PyFlinkTestCase):
                          timezone.localize(datetime.datetime(2019, 9, 10, 18, 30, 20, 123456)))
 
     def test_instant_coder(self):
-        from pyflink.common.types import Instant
+        from pyflink.common.time import Instant
 
         coder = InstantCoder()
         self.check_coder(coder, Instant(100, 2000), None, Instant(-9223372036854775808, 0))
