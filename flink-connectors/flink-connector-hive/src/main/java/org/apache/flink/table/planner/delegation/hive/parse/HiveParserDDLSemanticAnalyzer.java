@@ -107,7 +107,6 @@ import org.apache.hadoop.hive.metastore.api.SkewedInfo;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.FunctionUtils;
 import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.hadoop.hive.ql.parse.EximUtil;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.PrincipalDesc;
@@ -756,7 +755,6 @@ public class HiveParserDDLSemanticAnalyzer {
                     location =
                             HiveParserBaseSemanticAnalyzer.unescapeSQLString(
                                     child.getChild(0).getText());
-                    location = EximUtil.relativeToAbsolutePath(conf, location);
                     break;
                 case HiveASTParser.TOK_TABLEPROPERTIES:
                     tblProps = getProps((HiveParserASTNode) child.getChild(0));
