@@ -912,7 +912,8 @@ table.printSchema()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-from pyflink.common.types import Row, RowKind, Instant
+from pyflink.common.time import Instant
+from pyflink.common.types import Row, RowKind
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.functions import ProcessFunction
@@ -943,10 +944,10 @@ table.print_schema()
 # )
 
 
-// === EXAMPLE 2 ===
+# === EXAMPLE 2 ===
 
-// derive all physical columns automatically
-// but add computed columns (in this case for creating a proctime attribute column)
+# derive all physical columns automatically
+# but add computed columns (in this case for creating a proctime attribute column)
 
 table = t_env.from_data_stream(
     ds,
@@ -986,7 +987,7 @@ table.print_schema()
 #  WATERMARK FOR `rowtime`: TIMESTAMP_LTZ(3) AS rowtime - INTERVAL '10' SECOND
 # )
 
-// === EXAMPLE 4 ===
+# === EXAMPLE 4 ===
 
 # derive all physical columns automatically
 # but access the stream record's timestamp for creating a rowtime attribute column

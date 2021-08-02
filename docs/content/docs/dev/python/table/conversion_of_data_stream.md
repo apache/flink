@@ -2,8 +2,6 @@
 title: "Conversions between Table and DataStream"
 weight: 42
 type: docs
-aliases:
-- /dev/python/table-api-users-guide/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

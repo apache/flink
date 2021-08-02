@@ -1,9 +1,7 @@
 ---
-title: "Table 和 DataStream 的互转"
+title: "Table 和 DataStream 互转"
 weight: 42
 type: docs
-aliases:
-  - /zh/dev/python/table-api-users-guide/conversion_of_pandas.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
