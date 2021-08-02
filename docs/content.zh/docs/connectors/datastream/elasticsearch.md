@@ -257,7 +257,7 @@ val esSinkBuilder = new ElasticsearchSink.Builder[String](
   }
 )
 
-// 批量请求的配置；下面的配置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
+// 批量请求的配置；下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
 esSinkBuilder.setBulkFlushMaxActions(1)
 
 // 为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
