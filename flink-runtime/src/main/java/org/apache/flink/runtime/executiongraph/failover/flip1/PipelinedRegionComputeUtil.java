@@ -22,9 +22,6 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.topology.Result;
 import org.apache.flink.runtime.topology.Vertex;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,14 +29,11 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utility for computing pipelined regions. */
 public final class PipelinedRegionComputeUtil {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PipelinedRegionComputeUtil.class);
 
     public static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>>
             Set<Set<V>> computePipelinedRegions(
@@ -122,8 +116,7 @@ public final class PipelinedRegionComputeUtil {
     private static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>>
             Set<Set<V>> mergeRegionsOnCycles(final Map<V, Set<V>> vertexToRegion) {
 
-        final List<Set<V>> regionList =
-                uniqueRegions(vertexToRegion).stream().collect(Collectors.toList());
+        final List<Set<V>> regionList = new ArrayList<>(uniqueRegions(vertexToRegion));
         final List<List<Integer>> outEdges = buildOutEdgesDesc(vertexToRegion, regionList);
         final Set<Set<Integer>> sccs =
                 StronglyConnectedComponentsComputeUtils.computeStronglyConnectedComponents(
@@ -154,9 +147,8 @@ public final class PipelinedRegionComputeUtil {
         }
 
         final List<List<Integer>> outEdges = new ArrayList<>(regionList.size());
-        for (int i = 0; i < regionList.size(); i++) {
+        for (Set<V> currentRegion : regionList) {
             final List<Integer> currentRegionOutEdges = new ArrayList<>();
-            final Set<V> currentRegion = regionList.get(i);
             for (V vertex : currentRegion) {
                 for (R producedResult : vertex.getProducedResults()) {
                     if (producedResult.getResultType().isPipelined()) {
