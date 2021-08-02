@@ -32,9 +32,7 @@ public interface Topology<
      *
      * @return Iterable over pipelined regions in this topology
      */
-    default Iterable<? extends PR> getAllPipelinedRegions() {
-        throw new UnsupportedOperationException();
-    }
+    Iterable<? extends PR> getAllPipelinedRegions();
 
     /**
      * The pipelined region for a specified vertex.
