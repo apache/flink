@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.SubRowData;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -61,7 +62,8 @@ import java.util.Map;
  * <p>The planner will select required metadata columns and will call {@link
  * #applyWritableMetadata(List, DataType)} with a list of metadata keys. An implementation must
  * ensure that metadata columns are accepted at the end of the physical row in the order of the
- * provided list after the apply method has been called.
+ * provided list after the apply method has been called. You can use {@link SubRowData} to reduce a
+ * row to its non-metadata fields.
  *
  * <p>The metadata column's data type must match with {@link #listWritableMetadata()}. For the
  * examples above, this means that a table sink for `t2` accepts a TIMESTAMP and not INT. The
