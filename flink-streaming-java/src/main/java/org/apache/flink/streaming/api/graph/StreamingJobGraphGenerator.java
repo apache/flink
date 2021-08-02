@@ -1035,8 +1035,8 @@ public class StreamingJobGraphGenerator {
                         .ifPresent(regionSlotSharingGroup::setResourceProfile);
             }
 
-            for (JobVertexID jobVertexID : region.getVertexIDs()) {
-                vertexRegionSlotSharingGroups.put(jobVertexID, regionSlotSharingGroup);
+            for (LogicalVertex vertex : region.getVertices()) {
+                vertexRegionSlotSharingGroups.put(vertex.getId(), regionSlotSharingGroup);
             }
         }
 
