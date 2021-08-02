@@ -6,7 +6,6 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- aopalliance:aopalliance:1.0
 - commons-beanutils:commons-beanutils:1.9.4
 - commons-codec:commons-codec:1.13
 - commons-collections:commons-collections:3.2.2
@@ -69,3 +68,8 @@ This project bundles the following dependencies under BSD License (https://opens
 See bundled license files for details.
 
 - org.codehaus.woodstox:stax2-api:3.1.4 (https://github.com/FasterXML/stax2-api/tree/stax2-api-3.1.4)
+
+This project bundles the following dependencies under the Public Domain.
+See bundled license files for details.
+
+- aopalliance:aopalliance:1.0
