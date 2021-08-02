@@ -22,7 +22,8 @@ import unittest
 import uuid
 from typing import Collection, Iterable
 
-from pyflink.common import Row
+from pyflink.common import Row, Configuration
+from pyflink.common.time import Time
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
@@ -36,7 +37,7 @@ from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFl
                                           WindowFunction)
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
-                                      AggregatingStateDescriptor)
+                                      AggregatingStateDescriptor, StateTtlConfig)
 from pyflink.datastream.window import (CountWindowSerializer, MergingWindowAssigner, TimeWindow,
                                        TimeWindowSerializer)
 from pyflink.java_gateway import get_gateway
@@ -620,6 +621,12 @@ class DataStreamTests(object):
                 list_state_descriptor = ListStateDescriptor('list_state', Types.INT())
                 self.list_state = runtime_context.get_list_state(list_state_descriptor)
                 map_state_descriptor = MapStateDescriptor('map_state', Types.INT(), Types.STRING())
+                state_ttl_config = StateTtlConfig \
+                    .new_builder(Time.seconds(1)) \
+                    .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
+                    .disable_cleanup_in_background() \
+                    .build()
+                map_state_descriptor.enable_time_to_live(state_ttl_config)
                 self.map_state = runtime_context.get_map_state(map_state_descriptor)
 
             def process_element(self, value, ctx):
@@ -727,20 +734,32 @@ class DataStreamTests(object):
                 self.aggregating_state = None  # type: AggregatingState
 
             def open(self, runtime_context: RuntimeContext):
-                self.aggregating_state = runtime_context.get_aggregating_state(
-                    AggregatingStateDescriptor(
-                        'aggregating_state', MyAggregateFunction(), Types.INT()))
+                descriptor = AggregatingStateDescriptor(
+                    'aggregating_state', MyAggregateFunction(), Types.INT())
+                state_ttl_config = StateTtlConfig \
+                    .new_builder(Time.milliseconds(1)) \
+                    .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
+                    .disable_cleanup_in_background() \
+                    .build()
+                descriptor.enable_time_to_live(state_ttl_config)
+                self.aggregating_state = runtime_context.get_aggregating_state(descriptor)
 
             def process_element(self, value, ctx):
                 self.aggregating_state.add(value[0])
                 yield self.aggregating_state.get(), value[1]
 
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        config.set_integer("python.fn-execution.bundle.size", 1)
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
             .add_sink(self.test_sink)
         self.env.execute('test_aggregating_state')
         results = self.test_sink.get_results()
-        expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
+        if isinstance(self, PyFlinkBatchTestCase):
+            expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
+        else:
+            expected = ['(1,hi)', '(2,hello)', '(3,hi)', '(4,hello)', '(5,hi)', '(6,hello)']
         self.assert_equals_sorted(expected, results)
 
     def test_count_window(self):

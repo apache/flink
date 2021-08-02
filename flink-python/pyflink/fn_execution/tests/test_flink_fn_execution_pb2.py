@@ -22,7 +22,7 @@ from pyflink.gen_protos import generate_proto_files
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class FlinkFnExecutionSyncTests(PyFlinkTestCase):
+class FlinkFnExecutionTests(PyFlinkTestCase):
     """
     Tests whether flink_fn_exeution_pb2.py is synced with flink-fn-execution.proto.
     """
@@ -41,3 +41,39 @@ class FlinkFnExecutionSyncTests(PyFlinkTestCase):
                         % (self.flink_fn_execution_pb2_file_name,
                            self.gen_protos_script,
                            self.flink_fn_execution_proto_file_name))
+
+    def test_state_ttl_config_proto(self):
+        from pyflink.datastream.state import StateTtlConfig
+        from pyflink.common.time import Time
+        state_ttl_config = StateTtlConfig \
+            .new_builder(Time.milliseconds(1000)) \
+            .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+            .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+            .cleanup_full_snapshot() \
+            .cleanup_incrementally(10, True) \
+            .cleanup_in_rocksdb_compact_filter(1000) \
+            .build()
+        state_ttl_config_proto = state_ttl_config._to_proto()
+        state_ttl_config = StateTtlConfig._from_proto(state_ttl_config_proto)
+        self.assertEqual(state_ttl_config.get_ttl(), Time.milliseconds(1000))
+        self.assertEqual(
+            state_ttl_config.get_update_type(), StateTtlConfig.UpdateType.OnCreateAndWrite)
+        self.assertEqual(
+            state_ttl_config.get_state_visibility(),
+            StateTtlConfig.StateVisibility.NeverReturnExpired)
+        self.assertEqual(
+            state_ttl_config.get_ttl_time_characteristic(),
+            StateTtlConfig.TtlTimeCharacteristic.ProcessingTime)
+
+        cleanup_strategies = state_ttl_config.get_cleanup_strategies()
+        self.assertTrue(cleanup_strategies.is_cleanup_in_background())
+        self.assertTrue(cleanup_strategies.in_full_snapshot())
+
+        incremental_cleanup_strategy = cleanup_strategies.get_incremental_cleanup_strategy()
+        self.assertEqual(incremental_cleanup_strategy.get_cleanup_size(), 10)
+        self.assertTrue(incremental_cleanup_strategy.run_cleanup_for_every_record())
+
+        rocksdb_compact_filter_cleanup_strategy = \
+            cleanup_strategies.get_rocksdb_compact_filter_cleanup_strategy()
+        self.assertEqual(
+            rocksdb_compact_filter_cleanup_strategy.get_query_time_after_num_entries(), 1000)
