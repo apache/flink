@@ -45,22 +45,34 @@ public class DefaultLogicalTopology implements LogicalTopology {
 
     private final Map<IntermediateDataSetID, DefaultLogicalResult> idToResultMap;
 
-    public DefaultLogicalTopology(final JobGraph jobGraph) {
-        checkNotNull(jobGraph);
+    private DefaultLogicalTopology(final List<JobVertex> jobVertices) {
+        checkNotNull(jobVertices);
 
-        this.verticesSorted = new ArrayList<>(jobGraph.getNumberOfVertices());
+        this.verticesSorted = new ArrayList<>(jobVertices.size());
         this.idToVertexMap = new HashMap<>();
         this.idToResultMap = new HashMap<>();
 
-        buildVerticesAndResults(jobGraph);
+        buildVerticesAndResults(jobVertices);
     }
 
-    private void buildVerticesAndResults(final JobGraph jobGraph) {
+    public static DefaultLogicalTopology fromJobGraph(final JobGraph jobGraph) {
+        checkNotNull(jobGraph);
+
+        return fromTopologicallySortedJobVertices(
+                jobGraph.getVerticesSortedTopologicallyFromSources());
+    }
+
+    public static DefaultLogicalTopology fromTopologicallySortedJobVertices(
+            final List<JobVertex> jobVertices) {
+        return new DefaultLogicalTopology(jobVertices);
+    }
+
+    private void buildVerticesAndResults(final Iterable<JobVertex> topologicallySortedJobVertices) {
         final Function<JobVertexID, DefaultLogicalVertex> vertexRetriever = this::getVertex;
         final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever =
                 this::getResult;
 
-        for (JobVertex jobVertex : jobGraph.getVerticesSortedTopologicallyFromSources()) {
+        for (JobVertex jobVertex : topologicallySortedJobVertices) {
             final DefaultLogicalVertex logicalVertex =
                     new DefaultLogicalVertex(jobVertex, resultRetriever);
             this.verticesSorted.add(logicalVertex);
@@ -91,7 +103,8 @@ public class DefaultLogicalTopology implements LogicalTopology {
                         () -> new IllegalArgumentException("can not find result: " + resultId));
     }
 
-    public Set<DefaultLogicalPipelinedRegion> getLogicalPipelinedRegions() {
+    @Override
+    public Iterable<DefaultLogicalPipelinedRegion> getAllPipelinedRegions() {
         final Set<Set<LogicalVertex>> regionsRaw =
                 PipelinedRegionComputeUtil.computePipelinedRegions(verticesSorted);
 
