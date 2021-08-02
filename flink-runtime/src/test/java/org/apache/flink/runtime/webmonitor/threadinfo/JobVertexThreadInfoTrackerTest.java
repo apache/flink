@@ -143,7 +143,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     }
 
     /** Tests that cached result is NOT reused after refresh interval. */
-    @Test(timeout = 1000)
+    @Test
     public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
         final Duration threadInfoStatsRefreshInterval2 = Duration.ofMillis(1);
 
@@ -178,8 +178,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         assertExpectedEqualsReceived(
                 threadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
 
-        // wait until the entry is refreshed
-        latch.await();
+        // wait until the entry is refreshed, with generous buffer
+        assertTrue(latch.await(500, TimeUnit.MILLISECONDS));
 
         // verify that we get the second result on the next request
         Optional<JobVertexThreadInfoStats> result =
@@ -188,7 +188,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     }
 
     /** Tests that cached results are removed within the cleanup interval. */
-    @Test(timeout = 1000)
+    @Test
     public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
         final Duration cleanUpInterval2 = Duration.ofMillis(1);
 
@@ -205,8 +205,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
-        // wait until one eviction was registered
-        latch.await();
+        // wait until one eviction was registered, with generous buffer
+        assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
 
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
