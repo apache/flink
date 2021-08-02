@@ -54,6 +54,7 @@ to derive the *total process memory* and request a container with the memory of 
   <strong>Warning:</strong> If Flink or user code allocates unmanaged off-heap (native) memory beyond the container size
   the job can fail because the deployment environment can kill the offending containers.
 </div>
+
 See also description of [container memory exceeded]({{< ref "docs/deployment/memory/mem_trouble" >}}#container-memory-exceeded) failure.
 
 ## Configure memory for state backends
