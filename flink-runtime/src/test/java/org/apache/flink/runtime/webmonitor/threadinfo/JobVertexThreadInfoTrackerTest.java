@@ -36,12 +36,16 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -50,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -166,17 +171,19 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     }
 
     /** Tests that cached results are removed within the cleanup interval. */
-    @Test
+    @Test(timeout = 1000)
     public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
         final Duration cleanUpInterval2 = Duration.ofMillis(1);
-        final long waitingTime = cleanUpInterval2.toMillis() + 10;
 
-        // use cache recording stats so we can check later that it evicted the entry
+        // register a CountDownLatch with the cache so we can await expiry of the entry
+        CountDownLatch latch = new CountDownLatch(1);
+        RemovalListener<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> listener =
+                new LatchRemovalListener<>(latch);
         Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache =
                 CacheBuilder.newBuilder()
                         .concurrencyLevel(1)
                         .expireAfterAccess(cleanUpInterval2.toMillis(), TimeUnit.MILLISECONDS)
-                        .recordStats()
+                        .removalListener(listener)
                         .build();
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
@@ -187,13 +194,10 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
-        // wait until the result is available
-        tracker.getResultAvailableFuture().get();
-        // wait for the cleanup time plus a little buffer
-        Thread.sleep(waitingTime);
+        // wait until one eviction was registered
+        latch.await();
 
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
-        assertEquals(1, vertexStatsCache.stats().evictionCount());
     }
 
     /** Tests that cached results are NOT removed within the cleanup interval. */
@@ -347,6 +351,20 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 int ignored4) {
             return CompletableFuture.completedFuture(
                     jobVertexThreadInfoStats[(counter++) % jobVertexThreadInfoStats.length]);
+        }
+    }
+
+    private static class LatchRemovalListener<K, V> implements RemovalListener<K, V> {
+
+        private final CountDownLatch latch;
+
+        private LatchRemovalListener(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public void onRemoval(@Nonnull RemovalNotification<K, V> removalNotification) {
+            latch.countDown();
         }
     }
 }
