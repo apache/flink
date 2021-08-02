@@ -41,11 +41,13 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import com.mysql.cj.jdbc.MysqlXADataSource;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -60,8 +62,10 @@ import javax.sql.XADataSource;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -81,9 +85,11 @@ import static org.apache.flink.configuration.TaskManagerOptions.TASK_CANCELLATIO
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInsertedIds;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
+import static org.slf4j.event.Level.TRACE;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
 @RunWith(Parameterized.class)
@@ -91,6 +97,17 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
+
+    private static final long CHECKPOINT_TIMEOUT_MS = 2000L;
+    private static final long TASK_CANCELLATION_TIMEOUT_MS = 2000L;
+
+    // todo: remove after fixing FLINK-22889
+    @ClassRule
+    public static final LogLevelRule TEST_LOG_LEVEL_RULE =
+            new LogLevelRule()
+                    .set(JdbcExactlyOnceSinkE2eTest.class, TRACE)
+                    .set(XaFacadeImpl.class, TRACE)
+                    .set(MySqlJdbcExactlyOnceSinkTestEnv.InnoDbStatusLogger.class, TRACE);
 
     private interface JdbcExactlyOnceSinkTestEnv {
         void start();
@@ -141,7 +158,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         // restart all tasks if at least one fails
         configuration.set(EXECUTION_FAILOVER_STRATEGY, "full");
         // cancel tasks eagerly to reduce the risk of running out of memory with many restarts
-        configuration.set(TASK_CANCELLATION_TIMEOUT, 1000L);
+        configuration.set(TASK_CANCELLATION_TIMEOUT, TASK_CANCELLATION_TIMEOUT_MS);
+        configuration.set(CHECKPOINTING_TIMEOUT, Duration.ofMillis(CHECKPOINT_TIMEOUT_MS));
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -504,6 +522,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         private static final class MySqlXaDb extends MySQLContainer<MySqlXaDb> {
             private static final String IMAGE_NAME = "mysql:8.0.23"; // version 5 had issues with XA
+            private volatile InnoDbStatusLogger innoDbStatusLogger;
 
             @Override
             public String toString() {
@@ -517,20 +536,42 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             @Override
             public void start() {
                 super.start();
+                long lockWaitTimeout = (CHECKPOINT_TIMEOUT_MS + TASK_CANCELLATION_TIMEOUT_MS) * 2;
                 // prevent XAER_RMERR: Fatal error occurred in the transaction  branch - check your
                 // data for consistency works for mysql v8+
                 try (Connection connection =
                         DriverManager.getConnection(getJdbcUrl(), "root", getPassword())) {
-                    grantRecover(connection);
+                    prepareDb(connection, lockWaitTimeout);
                 } catch (SQLException e) {
                     ExceptionUtils.rethrow(e);
                 }
+                this.innoDbStatusLogger =
+                        new InnoDbStatusLogger(
+                                getJdbcUrl(), "root", getPassword(), lockWaitTimeout / 2);
+                innoDbStatusLogger.start();
             }
 
-            private void grantRecover(Connection connection) throws SQLException {
+            @Override
+            public void stop() {
+                try {
+                    innoDbStatusLogger.stop();
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
+                } finally {
+                    super.stop();
+                }
+            }
+
+            private void prepareDb(Connection connection, long lockWaitTimeout)
+                    throws SQLException {
                 try (Statement st = connection.createStatement()) {
                     st.execute("GRANT XA_RECOVER_ADMIN ON *.* TO '" + getUsername() + "'@'%'");
                     st.execute("FLUSH PRIVILEGES");
+                    // if the reason of task cancellation failure is waiting for a lock
+                    // then failing transactions with a relevant message would ease debugging
+                    st.execute("SET GLOBAL innodb_lock_wait_timeout = " + lockWaitTimeout);
+                    // st.execute("SET GLOBAL innodb_status_output = ON");
+                    // st.execute("SET GLOBAL innodb_status_output_locks = ON");
                 }
             }
         }
@@ -560,6 +601,109 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         @Override
         public String toString() {
             return db + ", parallelism=" + parallelism;
+        }
+
+        private static class InnoDbStatusLogger {
+            private static final Logger LOG = LoggerFactory.getLogger(InnoDbStatusLogger.class);
+            private final Thread thread;
+            private volatile boolean running;
+
+            private InnoDbStatusLogger(String url, String user, String password, long intervalMs) {
+                running = true;
+                thread =
+                        new Thread(
+                                () -> {
+                                    LOG.info("Logging InnoDB status every {}ms", intervalMs);
+                                    try (Connection connection =
+                                            DriverManager.getConnection(url, user, password)) {
+                                        while (running) {
+                                            Thread.sleep(intervalMs);
+                                            queryAndLog(connection);
+                                        }
+                                    } catch (Exception e) {
+                                        LOG.warn("failed", e);
+                                    } finally {
+                                        LOG.info("Logging InnoDB status stopped");
+                                    }
+                                });
+            }
+
+            public void start() {
+                thread.start();
+            }
+
+            public void stop() throws InterruptedException {
+                running = false;
+                thread.join();
+            }
+
+            private void queryAndLog(Connection connection) throws SQLException {
+                try (Statement st = connection.createStatement()) {
+                    showBlockedTrx(st);
+                    showAllTrx(st);
+                    showEngineStatus(st);
+                    showRecoveredTrx(st);
+                    // additional query: show full processlist \G; -- only shows live
+                }
+            }
+
+            private void showRecoveredTrx(Statement st) throws SQLException {
+                try (ResultSet rs = st.executeQuery("xa recover convert xid ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "recovered trx: {} {} {} {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4));
+                    }
+                }
+            }
+
+            private void showEngineStatus(Statement st) throws SQLException {
+                LOG.debug("Engine status");
+                try (ResultSet rs = st.executeQuery("show engine innodb status")) {
+                    while (rs.next()) {
+                        LOG.debug(rs.getString(3));
+                    }
+                }
+            }
+
+            private void showAllTrx(Statement st) throws SQLException {
+                LOG.debug("All TRX");
+                try (ResultSet rs =
+                        st.executeQuery("select * from information_schema.innodb_trx")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "trx_id: {}, trx_state: {}, trx_started: {}, trx_requested_lock_id: {}, trx_wait_started: {}, trx_mysql_thread_id: {},",
+                                rs.getString("trx_id"),
+                                rs.getString("trx_state"),
+                                rs.getString("trx_started"),
+                                rs.getString("trx_requested_lock_id"),
+                                rs.getString("trx_wait_started"),
+                                rs.getString("trx_mysql_thread_id") /* 0 for recovered*/);
+                    }
+                }
+            }
+
+            private void showBlockedTrx(Statement st) throws SQLException {
+                LOG.debug("Blocked TRX");
+                try (ResultSet rs =
+                        st.executeQuery(
+                                " SELECT waiting_trx_id, waiting_pid, waiting_query, blocking_trx_id, blocking_pid, blocking_query "
+                                        + "FROM sys.innodb_lock_waits; ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "waiting_trx_id: {}, waiting_pid: {}, waiting_query: {}, blocking_trx_id: {}, blocking_pid: {}, blocking_query: {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4),
+                                rs.getString(5),
+                                rs.getString(6));
+                    }
+                }
+            }
         }
     }
 

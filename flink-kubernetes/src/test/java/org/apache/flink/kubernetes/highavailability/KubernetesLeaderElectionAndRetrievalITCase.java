@@ -41,8 +41,8 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
 import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_INFORMATION;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link
@@ -70,7 +70,6 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                 flinkKubeClient.createConfigMapSharedWatcher(
                         KubernetesUtils.getConfigMapLabels(
                                 clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-        configMapSharedWatcher.run();
         final ExecutorService watchExecutorService = Executors.newCachedThreadPool();
 
         final TestingLeaderElectionEventHandler electionEventHandler =

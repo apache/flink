@@ -32,8 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link InitJobManagerDecorator} with pod template. */
 public class InitJobManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {

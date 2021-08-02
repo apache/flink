@@ -20,17 +20,15 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher;
-import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Informable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
-import io.fabric8.kubernetes.client.informers.SharedInformerEventListener;
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,47 +45,36 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** Base class for shared watcher based on {@link SharedIndexInformer}. */
-public abstract class KubernetesSharedInformer<
-                T extends HasMetadata, TList extends KubernetesResourceList<T>, R>
+public abstract class KubernetesSharedInformer<T extends HasMetadata, R>
         implements KubernetesSharedWatcher<R> {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     private final NamespacedKubernetesClient client;
-    private final SharedInformerFactory sharedInformerFactory;
     private final SharedIndexInformer<T> sharedIndexInformer;
     private final Function<T, R> eventWrapper;
+
+    private final ExecutorService informerExecutor;
 
     private final AggregatedEventHandler aggregatedEventHandler;
 
     public KubernetesSharedInformer(
             NamespacedKubernetesClient client,
-            Class<T> apiTypeClass,
-            Class<TList> apiListTypeClass,
-            Map<String, String> labels,
+            Informable<T> informable,
             Function<T, R> eventWrapper) {
-        Preconditions.checkArgument(
-                !CollectionUtil.isNullOrEmpty(labels), "Labels must not be null or empty");
         this.client = client;
-        final ExecutorService executorService =
+
+        informerExecutor =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("KubernetesClient-Informer"));
-        this.sharedInformerFactory = client.informers(executorService);
-        this.sharedInformerFactory.withLabels(labels);
-        // Using Long.MAX_VALUE as resync period to disable the internal periodical resync. Zero
-        // value does not work exactly here. It could be fixed after we bump the fabric8 Kubernetes
-        // client version to 5.0.0+. For more details, see
-        // https://github.com/fabric8io/kubernetes-client/issues/2651.
-        this.sharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(
-                        apiTypeClass, apiListTypeClass, Long.MAX_VALUE);
-        this.aggregatedEventHandler = new AggregatedEventHandler(executorService);
-        this.sharedIndexInformer.addEventHandler(aggregatedEventHandler);
-        this.sharedInformerFactory.addSharedInformerEventListener(aggregatedEventHandler);
+
+        this.aggregatedEventHandler = new AggregatedEventHandler(informerExecutor);
+        this.sharedIndexInformer = informable.inform(aggregatedEventHandler, 0);
 
         this.eventWrapper = eventWrapper;
     }
@@ -101,21 +88,16 @@ public abstract class KubernetesSharedInformer<
     }
 
     @Override
-    public void run() {
-        sharedInformerFactory.startAllRegisteredInformers();
-    }
-
-    @Override
     public void close() {
-        sharedInformerFactory.stopAllRegisteredInformers();
+        this.sharedIndexInformer.stop();
+        ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.informerExecutor);
     }
 
     private String getResourceKey(String name) {
         return client.getNamespace() + "/" + name;
     }
 
-    private class AggregatedEventHandler
-            implements ResourceEventHandler<T>, SharedInformerEventListener {
+    private class AggregatedEventHandler implements ResourceEventHandler<T> {
         private final Map<String, EventHandler> handlers = new HashMap<>();
         private final ExecutorService executorService;
 
@@ -139,11 +121,6 @@ public abstract class KubernetesSharedInformer<
         public void onDelete(T obj, boolean deletedFinalStateUnknown) {
             executorService.execute(
                     () -> findHandler(obj).ifPresent(EventHandler::handleResourceEvent));
-        }
-
-        @Override
-        public void onException(Exception exception) {
-            handlers.forEach((k, h) -> h.handleExceptionEvent(exception));
         }
 
         private Watch watch(String name, WatchCallback<R> watch) {
@@ -240,10 +217,6 @@ public abstract class KubernetesSharedInformer<
 
         private List<R> wrapEvent(T obj) {
             return Collections.singletonList(eventWrapper.apply(obj));
-        }
-
-        private void handleExceptionEvent(Exception e) {
-            this.callbacks.forEach((id, callback) -> callback.run(h -> h.handleError(e)));
         }
     }
 

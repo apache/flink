@@ -79,7 +79,6 @@ public class KubernetesSharedInformerITCase extends TestLogger {
 
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
-            watcher.run();
             for (int i = 0; i < 10; i++) {
                 List<TestingCallbackHandler> callbackHandlers = new ArrayList<>();
                 List<Watch> watchers = new ArrayList<>();
@@ -119,7 +118,6 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     public void testWatchWithBlockHandler() throws Exception {
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
-            watcher.run();
 
             final String configMapName = getConfigMapName(System.currentTimeMillis());
             final long block = 500;
