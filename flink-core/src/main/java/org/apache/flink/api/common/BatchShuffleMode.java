@@ -25,65 +25,46 @@ import org.apache.flink.configuration.description.InlineElement;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
- * Mode that defines how data is exchanged between tasks if the shuffling behavior has not been set
- * explicitly for an individual exchange.
+ * Defines how data is exchanged between tasks in batch {@link ExecutionOptions#RUNTIME_MODE} if the
+ * shuffling behavior has not been set explicitly for an individual exchange.
  *
- * <p>The shuffle mode depends on the configured {@link ExecutionOptions#RUNTIME_MODE} and is only
- * relevant for batch executions on bounded streams.
+ * <p>With pipelined exchanges, upstream and downstream tasks run simultaneously. In order to
+ * achieve lower latency, a result record is immediately sent to and processed by the downstream
+ * task. Thus, the receiver back-pressures the sender. The streaming mode always uses this exchange.
  *
- * <p>In streaming mode, upstream and downstream tasks run simultaneously to achieve low latency. An
- * exchange is always pipelined (i.e. a result record is immediately sent to and processed by the
- * downstream task). Thus, the receiver back-pressures the sender.
- *
- * <p>In batch mode, upstream and downstream tasks can run in stages. Blocking exchanges persist
- * records to some storage. Downstream tasks then fetch these records after the upstream tasks
+ * <p>With blocking exchanges, upstream and downstream tasks run in stages. Records are persisted to
+ * some storage between stages. Downstream tasks then fetch these records after the upstream tasks
  * finished. Such an exchange reduces the resources required to execute the job as it does not need
  * to run upstream and downstream tasks simultaneously.
  */
 @PublicEvolving
-public enum ShuffleMode implements DescribedEnum {
+public enum BatchShuffleMode implements DescribedEnum {
 
     /**
      * Upstream and downstream tasks run simultaneously.
      *
      * <p>This leads to lower latency and more evenly distributed (but higher) resource usage across
-     * tasks in batch mode.
-     *
-     * <p>This is the only supported shuffle behavior in streaming mode.
+     * tasks.
      */
     ALL_EXCHANGES_PIPELINED(
             text(
                     "Upstream and downstream tasks run simultaneously. This leads to lower latency "
-                            + "and more evenly distributed (but higher) resource usage across tasks "
-                            + "in batch mode. This is the only supported shuffle behavior in streaming "
-                            + "mode.")),
+                            + "and more evenly distributed (but higher) resource usage across tasks.")),
 
     /**
      * Upstream and downstream tasks run subsequently.
      *
-     * <p>This reduces the resource usage in batch mode as downstream tasks are started after
-     * upstream tasks finished.
-     *
-     * <p>This shuffle behavior is not supported in streaming mode.
+     * <p>This reduces the resource usage as downstream tasks are started after upstream tasks
+     * finished.
      */
     ALL_EXCHANGES_BLOCKING(
             text(
                     "Upstream and downstream tasks run subsequently. This reduces the resource usage "
-                            + "in batch mode as downstream tasks are started after upstream tasks "
-                            + "finished. This shuffle behavior is not supported in streaming mode.")),
-
-    /**
-     * The framework chooses an appropriate shuffle behavior based on the {@link
-     * ExecutionOptions#RUNTIME_MODE} and slot assignment.
-     */
-    AUTOMATIC(
-            text(
-                    "The framework chooses an appropriate shuffle behavior based on the runtime mode "
-                            + "and slot assignment."));
+                            + "as downstream tasks are started after upstream tasks finished."));
 
     private final InlineElement description;
 
-    ShuffleMode(InlineElement description) {
+    BatchShuffleMode(InlineElement description) {
         this.description = description;
     }
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.api.common.ShuffleMode;
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
@@ -38,15 +38,18 @@ public class StreamExchangeModeUtilsTest {
     public void testBatchStreamExchangeMode() {
         final Configuration configuration = new Configuration();
 
-        assertEquals(StreamExchangeMode.UNDEFINED, getBatchStreamExchangeMode(configuration, null));
-
-        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_BLOCKING);
         assertEquals(StreamExchangeMode.BATCH, getBatchStreamExchangeMode(configuration, null));
 
-        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_BLOCKING);
+        assertEquals(StreamExchangeMode.BATCH, getBatchStreamExchangeMode(configuration, null));
+
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
         assertEquals(StreamExchangeMode.UNDEFINED, getBatchStreamExchangeMode(configuration, null));
 
-        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
         assertEquals(
                 StreamExchangeMode.BATCH,
                 getBatchStreamExchangeMode(configuration, StreamExchangeMode.BATCH));
@@ -56,7 +59,8 @@ public class StreamExchangeModeUtilsTest {
     public void testBatchStreamExchangeModeLegacyPrecedence() {
         final Configuration configuration = new Configuration();
 
-        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString());
