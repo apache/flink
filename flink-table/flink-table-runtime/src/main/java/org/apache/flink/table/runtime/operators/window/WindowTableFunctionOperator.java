@@ -43,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>Note: The operator only works for row-time.
  *
+ * <p>Note: The operator is not suitable for Session Window because can't do state-less window
+ * assigning for input row per record for Session Window.
+ *
  * <p>Note: The operator emits per record instead of at the end of window.
  */
 public class WindowTableFunctionOperator extends TableStreamOperator<RowData>
