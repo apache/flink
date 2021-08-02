@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
@@ -55,6 +56,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.composi
 import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
@@ -1475,6 +1477,31 @@ public final class BuiltInFunctionDefinitions {
                     .name("withoutColumns")
                     .kind(OTHER)
                     .outputTypeStrategy(TypeStrategies.MISSING)
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // JSON functions
+    // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition JSON_EXISTS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_EXISTS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            and(
+                                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                                    LITERAL),
+                                            symbol(JsonExistsOnError.class))))
+                    .outputTypeStrategy(explicit(DataTypes.BOOLEAN().nullable()))
+                    .runtimeDeferred()
                     .build();
 
     // --------------------------------------------------------------------------------------------

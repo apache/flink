@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -85,6 +86,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
@@ -1260,5 +1262,65 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType sha2(InType hashLength) {
         return toApiSpecificExpression(
                 unresolvedCall(SHA2, toExpr(), objectToExpression(hashLength)));
+    }
+
+    // JSON functions
+
+    /**
+     * Returns whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @param onError Behavior in case of an error.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path, JsonExistsOnError onError) {
+        return toApiSpecificExpression(
+                unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path), valueLiteral(onError)));
+    }
+
+    /**
+     * Determines whether a JSON string satisfies a given search criterion.
+     *
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // true
+     * lit("{\"a\": true}").jsonExists("$.a")
+     * // false
+     * lit("{\"a\": true}").jsonExists("$.b")
+     * // true
+     * lit("{\"a\": [{ \"b\": 1 }]}").jsonExists("$.a[0].b")
+     *
+     * // true
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.TRUE)
+     * // false
+     * lit("{\"a\": true}").jsonExists("strict $.b", JsonExistsOnError.FALSE)
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @return {@code true} if the JSON string satisfies the search criterion.
+     */
+    public OutType jsonExists(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path)));
     }
 }
