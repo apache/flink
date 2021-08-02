@@ -311,8 +311,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         return;
                     }
                     if (threadInfoStats != null) {
-                        resultAvailableFuture.complete(null);
                         vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
+                        resultAvailableFuture.complete(null);
                     } else {
                         LOG.debug(
                                 "Failed to gather a thread info sample for {}",
