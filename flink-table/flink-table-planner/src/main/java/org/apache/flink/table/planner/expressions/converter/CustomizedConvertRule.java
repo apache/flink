@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.JsonExistsOnError;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -39,10 +40,12 @@ import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.sql.SqlJsonExistsErrorBehavior;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -98,6 +101,8 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
                 BuiltInFunctionDefinitions.ORDER_ASC, CustomizedConvertRule::convertOrderAsc);
         DEFINITION_RULE_MAP.put(
                 BuiltInFunctionDefinitions.SQRT, CustomizedConvertRule::convertSqrt);
+        DEFINITION_RULE_MAP.put(
+                BuiltInFunctionDefinitions.JSON_EXISTS, CustomizedConvertRule::convertJsonExists);
 
         // planner specific expression
         DEFINITION_RULE_MAP.put(
@@ -409,6 +414,29 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
                                 Arrays.asList(
                                         call.getChildren().get(0),
                                         ApiExpressionUtils.valueLiteral(0.5))));
+    }
+
+    private static RexNode convertJsonExists(CallExpression call, ConvertContext context) {
+        checkArgumentNumber(call, 2, 3);
+
+        final List<RexNode> operands = new LinkedList<>();
+        operands.add(context.toRexNode(call.getChildren().get(0)));
+        operands.add(context.toRexNode(call.getChildren().get(1)));
+
+        if (call.getChildren().size() >= 3) {
+            ((ValueLiteralExpression) call.getChildren().get(2))
+                    .getValueAs(JsonExistsOnError.class)
+                    .map(JsonExistsOnError::name)
+                    .map(SqlJsonExistsErrorBehavior::valueOf)
+                    .ifPresent(
+                            onErrorBehavior ->
+                                    operands.add(
+                                            context.getRelBuilder()
+                                                    .getRexBuilder()
+                                                    .makeFlag(onErrorBehavior)));
+        }
+
+        return context.getRelBuilder().call(FlinkSqlOperatorTable.JSON_EXISTS, operands);
     }
 
     private static RexNode convertThrowException(CallExpression call, ConvertContext context) {

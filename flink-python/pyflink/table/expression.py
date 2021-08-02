@@ -23,7 +23,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 
-__all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
+__all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit', 'JsonExistsOnError']
 
 
 _aggregation_doc = """
@@ -350,6 +350,22 @@ class TimePointUnit(Enum):
         gateway = get_gateway()
         JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
         return getattr(JTimePointUnit, self.name)
+
+
+class JsonExistsOnError(Enum):
+    """
+    Behavior in case of errors for json_exists().
+    """
+
+    TRUE = 0,
+    FALSE = 1,
+    UNKNOWN = 2,
+    ERROR = 3
+
+    def _to_j_json_exists_on_error(self):
+        gateway = get_gateway()
+        JJsonExistsOnError = gateway.jvm.org.apache.flink.table.api.JsonExistsOnError
+        return getattr(JJsonExistsOnError, self.name)
 
 
 T = TypeVar('T')
@@ -1353,6 +1369,29 @@ class Expression(Generic[T]):
                      :py:attr:`~Expression.sha384`, :py:attr:`~Expression.sha512`
         """
         return _binary_op("sha2")(self, hash_length)
+
+    # ---------------------------- JSON functions -----------------------------
+
+    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
+        """
+        Determines whether a JSON string satisfies a given search criterion.
+
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
+
+        Example:
+        ::
+
+            >>> lit('{"a": true}').json_exists('$.a') // true
+            >>> lit('{"a": true}').json_exists('$.b') // false
+            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') // true
+
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) // true
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) // false
+        """
+        if on_error is None:
+            return _binary_op("jsonExists")(self, path)
+        else:
+            return _ternary_op("jsonExists")(self, path, on_error._to_j_json_exists_on_error())
 
 
 # add the docs

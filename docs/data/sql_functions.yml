@@ -571,6 +571,31 @@ collection:
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
 
+json:
+  - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
+    table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
+    description: |
+      Determines whether a JSON string satisfies a given path search criterion.
+
+      If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
+
+      ```
+      // TRUE
+      SELECT JSON_EXISTS('{"a": true}', '$.a');
+      // FALSE
+      SELECT JSON_EXISTS('{"a": true}', '$.b');
+      // TRUE
+      SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
+        '$.a[0].b');
+
+      // TRUE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' TRUE ON ERROR);
+      // FALSE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' FALSE ON ERROR);
+      ```
+
 valueconstruction:
   - sql: |
       -- implicit constructor with parenthesis
