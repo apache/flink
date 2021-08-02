@@ -501,7 +501,11 @@ public class CheckpointCoordinatorTestingUtils {
 
         @Override
         public void notifyCheckpointAborted(
-                ExecutionAttemptID attemptId, JobID jobId, long checkpointId, long timestamp) {
+                ExecutionAttemptID attemptId,
+                JobID jobId,
+                long checkpointId,
+                long latestCompletedCheckpointId,
+                long timestamp) {
             notifiedAbortCheckpoints
                     .computeIfAbsent(attemptId, k -> new ArrayList<>())
                     .add(new NotifiedCheckpoint(jobId, checkpointId, timestamp));

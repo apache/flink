@@ -406,7 +406,7 @@ public class StreamTaskFinalCheckpointsTest {
 
             // Checkpoint notification.
             harness.streamTask.notifyCheckpointCompleteAsync(2);
-            harness.streamTask.notifyCheckpointAbortAsync(3);
+            harness.streamTask.notifyCheckpointAbortAsync(3, 2);
             harness.processAll();
 
             // Finish & close operators.

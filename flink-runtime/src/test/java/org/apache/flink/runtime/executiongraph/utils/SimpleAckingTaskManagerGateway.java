@@ -137,6 +137,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
+            long latestCompletedCheckpointId,
             long timestamp) {}
 
     @Override
