@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -136,14 +137,14 @@ public class JobVertexThreadInfoTrackerBuilder<T extends Statistics> {
     }
 
     /**
-     * Sets {@code vertexStatsCache}.
+     * Sets {@code vertexStatsCache}. This is currently only used for testing.
      *
      * @param vertexStatsCache The Cache instance to use for caching statistics. Will use the
      *     default defined in {@link JobVertexThreadInfoTrackerBuilder#defaultCache()} if not set.
      * @return Builder.
      */
-    public JobVertexThreadInfoTrackerBuilder<T> setVertexStatsCache(
-            Cache<Key, T> vertexStatsCache) {
+    @VisibleForTesting
+    JobVertexThreadInfoTrackerBuilder<T> setVertexStatsCache(Cache<Key, T> vertexStatsCache) {
         this.vertexStatsCache = vertexStatsCache;
         return this;
     }
