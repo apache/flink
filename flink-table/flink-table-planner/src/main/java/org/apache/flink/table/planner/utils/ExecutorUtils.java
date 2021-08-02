@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -89,9 +89,9 @@ public class ExecutorUtils {
         // temporary solution until StreamGraphGenerator will take care of this setting
         // after enabling batch runtime mode
         if (exchangeMode == null) {
-            final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
-            if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING
-                    || shuffleMode == ShuffleMode.AUTOMATIC) {
+            final BatchShuffleMode shuffleMode =
+                    configuration.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
+            if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
                 exchangeMode = GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
             } else {
                 exchangeMode = GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;

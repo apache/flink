@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
@@ -30,7 +30,6 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -76,7 +75,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for generating correct properties for sorting inputs in {@link RuntimeExecutionMode#BATCH}
@@ -90,37 +88,18 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testShuffleMode() {
         testGlobalStreamExchangeMode(
                 RuntimeExecutionMode.AUTOMATIC,
-                ShuffleMode.AUTOMATIC,
+                BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
                 GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
 
         testGlobalStreamExchangeMode(
                 RuntimeExecutionMode.STREAMING,
-                ShuffleMode.AUTOMATIC,
+                BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
 
         testGlobalStreamExchangeMode(
                 RuntimeExecutionMode.BATCH,
-                ShuffleMode.AUTOMATIC,
-                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
-
-        testGlobalStreamExchangeMode(
-                RuntimeExecutionMode.BATCH,
-                ShuffleMode.ALL_EXCHANGES_PIPELINED,
+                BatchShuffleMode.ALL_EXCHANGES_PIPELINED,
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
-    }
-
-    @Test
-    public void testInvalidShuffleMode() {
-        try {
-            testGlobalStreamExchangeMode(
-                    RuntimeExecutionMode.STREAMING, ShuffleMode.ALL_EXCHANGES_BLOCKING, null);
-            fail();
-        } catch (IllegalArgumentException e) {
-            assertThat(
-                    e,
-                    FlinkMatchers.containsMessage(
-                            "Unsupported shuffle mode 'ALL_EXCHANGES_BLOCKING' in STREAMING runtime mode."));
-        }
     }
 
     @Test
@@ -532,11 +511,11 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
 
     private void testGlobalStreamExchangeMode(
             RuntimeExecutionMode runtimeExecutionMode,
-            ShuffleMode shuffleMode,
+            BatchShuffleMode shuffleMode,
             GlobalStreamExchangeMode expectedStreamExchangeMode) {
         final Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeExecutionMode);
-        configuration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode);
+        configuration.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSink<Integer> sink = addDummyPipeline(env);
         final StreamGraphGenerator graphGenerator =

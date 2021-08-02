@@ -989,10 +989,11 @@ public class StreamExecutionEnvironment {
                                 this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
 
         configuration
-                .getOptional(ExecutionOptions.SHUFFLE_MODE)
+                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
                 .ifPresent(
                         shuffleMode ->
-                                this.configuration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode));
+                                this.configuration.set(
+                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
 
         configuration
                 .getOptional(ExecutionOptions.SORT_INPUTS)
