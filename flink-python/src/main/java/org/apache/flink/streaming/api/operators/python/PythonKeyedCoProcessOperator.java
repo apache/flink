@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -270,46 +269,5 @@ public class PythonKeyedCoProcessOperator<OUT>
             TypeInformation<?> runnerOutType) {
         return createRawTypeCoderInfoDescriptorProto(
                 runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
-    }
-
-    private static final class RunnerInputHandler {
-
-        private final Row reusableElementData;
-        private final Row reusableRunnerInput;
-
-        public RunnerInputHandler() {
-            this.reusableElementData = new Row(3);
-            this.reusableRunnerInput = new Row(3);
-            this.reusableRunnerInput.setField(2, reusableElementData);
-        }
-
-        public Row buildRunnerInputData(
-                boolean isLeft, long timestamp, long watermark, Row elementData) {
-            reusableElementData.setField(0, isLeft);
-            if (isLeft) {
-                // The input row is a tuple of key and value.
-                reusableElementData.setField(1, elementData);
-                // need to set null since it is a reuse row.
-                reusableElementData.setField(2, null);
-            } else {
-                // need to set null since it is a reuse row.
-                reusableElementData.setField(1, null);
-                // The input row is a tuple of key and value.
-                reusableElementData.setField(2, elementData);
-            }
-
-            reusableRunnerInput.setField(0, timestamp);
-            reusableRunnerInput.setField(1, watermark);
-            return reusableRunnerInput;
-        }
-
-        public static TypeInformation<Row> getRunnerInputTypeInfo(
-                TypeInformation<Row> leftInputType, TypeInformation<Row> rightInputType) {
-            // structure: [timestamp, watermark, [isLeft, leftInput, rightInput]]
-            return Types.ROW(
-                    Types.LONG,
-                    Types.LONG,
-                    new RowTypeInfo(Types.BOOLEAN, leftInputType, rightInputType));
-        }
     }
 }

@@ -722,6 +722,83 @@ class KeyedProcessFunction(Function):
         pass
 
 
+class CoProcessFunction(Function):
+    """
+    A function that processes elements of two streams and produces a single output one.
+
+    The function will be called for every element in the input streams and can produce zero or
+    more output elements. Contrary to the {@link CoFlatMapFunction}, this function can also query
+    the time (both event and processing) and set timers, through the provided {@link Context}. When
+    reacting to the firing of set timers the function can emit yet more elements.
+
+    An example use-case for connected streams would be the application of a set of rules that
+    change over time ({@code stream A}) to the elements contained in another stream (stream {@code
+    B}). The rules contained in {@code stream A} can be stored in the state and wait for new
+    elements to arrive on {@code stream B}. Upon reception of a new element on {@code stream B},
+    the function can now apply the previously stored rules to the element and directly emit a
+    result, and/or register a timer that will trigger an action in the future.
+    """
+
+    class Context(ABC):
+
+        @abstractmethod
+        def timer_service(self) -> TimerService:
+            """
+            A Timer service for querying time and registering timers.
+            """
+            pass
+
+        @abstractmethod
+        def timestamp(self) -> int:
+            """
+            Timestamp of the element currently being processed or timestamp of a firing timer.
+
+            This might be None, for example if the time characteristic of your program is set to
+            TimeCharacteristic.ProcessTime.
+            """
+            pass
+
+    class OnTimerContext(Context):
+
+        @abstractmethod
+        def time_domain(self) -> TimeDomain:
+            """
+            The TimeDomain of the firing timer.
+            :return: The TimeDomain of current fired timer.
+            """
+            pass
+
+    @abstractmethod
+    def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+        """
+        This method is called for each element in the first of the connected streams.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+    @abstractmethod
+    def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+        """
+        This method is called for each element in the second of the connected streams.
+
+        This function can output zero or more elements using the Collector parameter and also update
+        internal state or set timers using the Context parameter.
+
+        :param value: The input value.
+        :param ctx:  A Context that allows querying the timestamp of the element and getting a
+                     TimerService for registering timers and querying the time. The context is only
+                     valid during the invocation of this method, do not store it.
+        """
+        pass
+
+
 class KeyedCoProcessFunction(Function):
     """
 A function that processes elements of two keyed streams and produces a single output one.

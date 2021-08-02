@@ -18,7 +18,7 @@
 
 from pyflink.datastream import TimerService, TimeDomain
 from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction, \
-    ProcessFunction
+    ProcessFunction, CoProcessFunction
 
 
 class InternalKeyedProcessFunctionOnTimerContext(
@@ -82,9 +82,9 @@ class InternalKeyedProcessFunctionContext(
         self._timestamp = ts
 
 
-class InternalProcessFunctionContext(ProcessFunction.Context):
+class InternalProcessFunctionContext(ProcessFunction.Context, CoProcessFunction.Context):
     """
-    Internal implementation of ProcessFunction.Context.
+    Internal implementation of ProcessFunction.Context and CoProcessFunction.Context.
     """
 
     def __init__(self, timer_service: TimerService):

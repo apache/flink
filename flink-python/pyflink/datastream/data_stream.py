@@ -17,7 +17,6 @@
 ################################################################################
 import typing
 import uuid
-import warnings
 from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
@@ -35,7 +34,7 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           KeyedCoProcessFunction, WindowFunction,
                                           ProcessWindowFunction, InternalWindowFunction,
                                           InternalIterableWindowFunction,
-                                          InternalIterableProcessWindowFunction)
+                                          InternalIterableProcessWindowFunction, CoProcessFunction)
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
@@ -1365,8 +1364,7 @@ class ConnectedStreams(object):
 
     def key_by(self, key_selector1: Union[Callable, KeySelector],
                key_selector2: Union[Callable, KeySelector],
-               key_type: TypeInformation = None,
-               key_type_info: TypeInformation = None) -> 'ConnectedStreams':
+               key_type: TypeInformation = None) -> 'ConnectedStreams':
         """
         KeyBy operation for connected data stream. Assigns keys to the elements of
         input1 and input2 using keySelector1 and keySelector2 with explicit type information
@@ -1374,16 +1372,9 @@ class ConnectedStreams(object):
 
         :param key_selector1: The `KeySelector` used for grouping the first input.
         :param key_selector2: The `KeySelector` used for grouping the second input.
-        :param key_type: The type information of the common key type.
-        :param key_type_info: The type information of the common key type.
-                              (Deprecated, use key_type instead)
+        :param key_type: The type information of the common key type
         :return: The partitioned `ConnectedStreams`
         """
-        if key_type_info is not None:
-            warnings.warn("The parameter key_type_info is deprecated in 1.13. "
-                          "Use key_type instead.", DeprecationWarning)
-        if key_type is None:
-            key_type = key_type_info
 
         ds1 = self.stream1
         ds2 = self.stream2
@@ -1395,8 +1386,7 @@ class ConnectedStreams(object):
             ds1.key_by(key_selector1, key_type),
             ds2.key_by(key_selector2, key_type))
 
-    def map(self, func: CoMapFunction, output_type: TypeInformation = None) \
-            -> 'DataStream':
+    def map(self, func: CoMapFunction, output_type: TypeInformation = None) -> 'DataStream':
         """
         Applies a CoMap transformation on a `ConnectedStreams` and maps the output to a common
         type. The transformation calls a `CoMapFunction.map1` for each element of the first
@@ -1411,7 +1401,6 @@ class ConnectedStreams(object):
             raise TypeError("The input function must be a CoMapFunction!")
 
         if self._is_keyed_stream():
-
             class CoMapKeyedCoProcessFunctionAdapter(KeyedCoProcessFunction):
                 def __init__(self, co_map_func: CoMapFunction):
                     self._open_func = co_map_func.open
@@ -1432,17 +1421,29 @@ class ConnectedStreams(object):
                     yield self._map2_func(value)
 
             return self.process(CoMapKeyedCoProcessFunctionAdapter(func), output_type) \
-                .name("CoMap")
+                .name("Co-Map")
         else:
-            # get connected stream
-            j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
-            from pyflink.fn_execution import flink_fn_execution_pb2
-            j_operator, j_output_type = _get_two_input_stream_operator(
-                self,
-                func,
-                flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_MAP,  # type: ignore
-                output_type)
-            return DataStream(j_connected_stream.transform("Co-Map", j_output_type, j_operator))
+            class CoMapCoProcessFunctionAdapter(CoProcessFunction):
+                def __init__(self, co_map_func: CoMapFunction):
+                    self._open_func = co_map_func.open
+                    self._close_func = co_map_func.close
+                    self._map1_func = co_map_func.map1
+                    self._map2_func = co_map_func.map2
+
+                def open(self, runtime_context: RuntimeContext):
+                    self._open_func(runtime_context)
+
+                def close(self):
+                    self._close_func()
+
+                def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+                    yield self._map1_func(value)
+
+                def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+                    yield self._map2_func(value)
+
+            return self.process(CoMapCoProcessFunctionAdapter(func), output_type) \
+                .name("Co-Map")
 
     def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
             -> 'DataStream':
@@ -1461,7 +1462,6 @@ class ConnectedStreams(object):
             raise TypeError("The input must be a CoFlatMapFunction!")
 
         if self._is_keyed_stream():
-
             class FlatMapKeyedCoProcessFunctionAdapter(KeyedCoProcessFunction):
 
                 def __init__(self, co_flat_map_func: CoFlatMapFunction):
@@ -1483,36 +1483,52 @@ class ConnectedStreams(object):
                     yield from self._flat_map2_func(value)
 
             return self.process(FlatMapKeyedCoProcessFunctionAdapter(func), output_type) \
-                .name("CoFlatMap")
+                .name("Co-Flat Map")
         else:
-            # get connected stream
-            j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
-            from pyflink.fn_execution import flink_fn_execution_pb2
-            j_operator, j_output_type = _get_two_input_stream_operator(
-                self,
-                func,
-                flink_fn_execution_pb2.UserDefinedDataStreamFunction.CO_FLAT_MAP,  # type: ignore
-                output_type)
-            return DataStream(
-                j_connected_stream.transform("Co-Flat Map", j_output_type, j_operator))
+            class FlatMapCoProcessFunctionAdapter(CoProcessFunction):
 
-    def process(self, func: KeyedCoProcessFunction, output_type: TypeInformation = None) \
-            -> 'DataStream':
-        if not self._is_keyed_stream():
-            raise TypeError("Currently only keyed co process operation is supported.!")
-        if not isinstance(func, KeyedCoProcessFunction):
-            raise TypeError("The input must be a KeyedCoProcessFunction!")
+                def __init__(self, co_flat_map_func: CoFlatMapFunction):
+                    self._open_func = co_flat_map_func.open
+                    self._close_func = co_flat_map_func.close
+                    self._flat_map1_func = co_flat_map_func.flat_map1
+                    self._flat_map2_func = co_flat_map_func.flat_map2
 
-        # get connected stream
+                def open(self, runtime_context: RuntimeContext):
+                    self._open_func(runtime_context)
+
+                def close(self):
+                    self._close_func()
+
+                def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+                    yield from self._flat_map1_func(value)
+
+                def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+                    yield from self._flat_map2_func(value)
+
+            return self.process(FlatMapCoProcessFunctionAdapter(func), output_type) \
+                .name("Co-Flat Map")
+
+    def process(self,
+                func: Union[CoProcessFunction, KeyedCoProcessFunction],
+                output_type: TypeInformation = None) -> 'DataStream':
+        if not isinstance(func, CoProcessFunction) and not isinstance(func, KeyedCoProcessFunction):
+            raise TypeError("The input must be a CoProcessFunction or KeyedCoProcessFunction!")
+
+        from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
+        if self._is_keyed_stream():
+            func_type = UserDefinedDataStreamFunction.KEYED_CO_PROCESS  # type: ignore
+            func_name = "Keyed Co-Process"
+        else:
+            func_type = UserDefinedDataStreamFunction.CO_PROCESS  # type: ignore
+            func_name = "Co-Process"
+
         j_connected_stream = self.stream1._j_data_stream.connect(self.stream2._j_data_stream)
-        from pyflink.fn_execution import flink_fn_execution_pb2
         j_operator, j_output_type = _get_two_input_stream_operator(
             self,
             func,
-            flink_fn_execution_pb2.UserDefinedDataStreamFunction.KEYED_CO_PROCESS,  # type: ignore
+            func_type,
             output_type)
-        return DataStream(
-            j_connected_stream.transform("Keyed Co-Process", j_output_type, j_operator))
+        return DataStream(j_connected_stream.transform(func_name, j_output_type, j_operator))
 
     def _is_keyed_stream(self):
         return isinstance(self.stream1, KeyedStream) and isinstance(self.stream2, KeyedStream)
@@ -1627,10 +1643,8 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
         func_type)
 
     from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-    if func_type == UserDefinedDataStreamFunction.CO_FLAT_MAP:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoFlatMapOperator
-    elif func_type == UserDefinedDataStreamFunction.CO_MAP:  # type: ignore
-        JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoMapOperator
+    if func_type == UserDefinedDataStreamFunction.CO_PROCESS:  # type: ignore
+        JTwoInputPythonFunctionOperator = gateway.jvm.PythonCoProcessOperator
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_PROCESS:  # type: ignore
         JTwoInputPythonFunctionOperator = gateway.jvm.PythonKeyedCoProcessOperator
     else:
