@@ -54,6 +54,8 @@ import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -70,6 +72,7 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Integration tests for the {@link DefaultDispatcherRunner}. */
@@ -210,6 +213,19 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
             assertThat(
                     leaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS),
                     is(equalTo(leaderSessionId)));
+
+            // Wait for job to recover...
+            final DispatcherGateway leaderGateway =
+                    rpcServiceResource
+                            .getTestingRpcService()
+                            .connect(
+                                    dispatcherLeaderElectionService.getAddress(),
+                                    DispatcherId.fromUuid(leaderSessionId),
+                                    DispatcherGateway.class)
+                            .get();
+            assertEquals(
+                    jobGraph.getJobID(),
+                    Iterables.getOnlyElement(leaderGateway.listJobs(TIMEOUT).get()));
         }
     }
 
