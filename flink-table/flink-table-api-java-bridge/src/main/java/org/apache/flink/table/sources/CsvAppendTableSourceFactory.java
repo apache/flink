@@ -26,9 +26,6 @@ import org.apache.flink.types.Row;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
-
 /**
  * Factory for creating configured instances of {@link CsvTableSource} in a stream environment.
  *
@@ -38,6 +35,9 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 @Internal
 public class CsvAppendTableSourceFactory extends CsvTableSourceFactoryBase
         implements StreamTableSourceFactory<Row> {
+
+    private static final String UPDATE_MODE = "update-mode";
+    private static final String UPDATE_MODE_VALUE_APPEND = "append";
 
     @Override
     public Map<String, String> requiredContext() {
