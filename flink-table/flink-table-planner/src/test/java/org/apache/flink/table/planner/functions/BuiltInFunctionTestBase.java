@@ -129,6 +129,8 @@ public abstract class BuiltInFunctionTestBase {
         try {
             inputTable.select(testItem.expression).execute();
             fail("Error expected: " + testItem.errorMessage);
+        } catch (AssertionError e) {
+            throw e;
         } catch (Throwable t) {
             assertThat(t, containsCause(new ValidationException(testItem.errorMessage)));
         }
@@ -150,6 +152,8 @@ public abstract class BuiltInFunctionTestBase {
         try {
             env.sqlQuery("SELECT " + testItem.expression + " FROM " + inputTable).execute();
             fail("Error expected: " + testItem.errorMessage);
+        } catch (AssertionError e) {
+            throw e;
         } catch (Throwable t) {
             assertTrue(t instanceof ValidationException);
             assertThat(t.getMessage(), containsString(testItem.errorMessage));
