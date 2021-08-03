@@ -72,7 +72,7 @@ public class HiveCatalogTest {
                 HiveTableUtil.instantiateHiveTable(
                         new ObjectPath("test", "test"),
                         new CatalogTableImpl(
-                                schema, getFileSystemConnectorOptions("/test_path"), null),
+                                schema, getLegacyFileSystemConnectorOptions("/test_path"), null),
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
@@ -84,7 +84,7 @@ public class HiveCatalogTest {
 
     @Test
     public void testCreateHiveTable() {
-        Map<String, String> options = getFileSystemConnectorOptions("/test_path");
+        Map<String, String> options = getLegacyFileSystemConnectorOptions("/test_path");
         options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
 
         Table hiveTable =
@@ -105,7 +105,7 @@ public class HiveCatalogTest {
         ObjectPath hiveObjectPath =
                 new ObjectPath(HiveCatalog.DEFAULT_DB, "testRetrieveProperties");
 
-        Map<String, String> options = getFileSystemConnectorOptions("/test_path");
+        Map<String, String> options = getLegacyFileSystemConnectorOptions("/test_path");
         options.put(CONNECTOR.key(), "jdbc");
         options.put("url", "jdbc:clickhouse://host:port/testUrl1");
         options.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
@@ -151,7 +151,7 @@ public class HiveCatalogTest {
         assertEquals(TableSchema.builder().build(), catalogTable.getSchema());
     }
 
-    private static Map<String, String> getFileSystemConnectorOptions(String path) {
+    private static Map<String, String> getLegacyFileSystemConnectorOptions(String path) {
         final Map<String, String> options = new HashMap<>();
         options.put("connector.type", "filesystem");
         options.put("connector.path", path);
