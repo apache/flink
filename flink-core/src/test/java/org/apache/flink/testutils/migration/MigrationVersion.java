@@ -44,7 +44,8 @@ public enum MigrationVersion {
     v1_9("1.9"),
     v1_10("1.10"),
     v1_11("1.11"),
-    v1_12("1.12");
+    v1_12("1.12"),
+    v1_13("1.13");
 
     private final String versionStr;
 
