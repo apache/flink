@@ -24,8 +24,8 @@ public class PubsubDynamicSource implements ScanTableSource {
 
     /** Name of the PubSub project backing this table. */
     private final String project;
-    /** Name of the PubSub topic backing this table. */
-    private final String topic;
+    /** Name of the PubSub subscription backing this table. */
+    private final String subscription;
     /** Scan format for decoding records from PubSub. */
     private final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
     /** Data type that describes the final output of the source. */
@@ -33,12 +33,12 @@ public class PubsubDynamicSource implements ScanTableSource {
 
     public PubsubDynamicSource(
             String project,
-            String topic,
+            String subscription,
             DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
             DataType producedDataType) {
 
         this.project = project;
-        this.topic = topic;
+        this.subscription = subscription;
         this.decodingFormat = decodingFormat;
         this.producedDataType = producedDataType;
     }
@@ -60,7 +60,7 @@ public class PubsubDynamicSource implements ScanTableSource {
                     PubSubSource.newBuilder()
                             .withDeserializationSchema(deserializer)
                             .withProjectName(project)
-                            .withSubscriptionName(topic)
+                            .withSubscriptionName(subscription)
                             .build();
             return SourceFunctionProvider.of(source, false);
         } catch (IOException e) {
@@ -70,7 +70,7 @@ public class PubsubDynamicSource implements ScanTableSource {
 
     @Override
     public DynamicTableSource copy() {
-        return new PubsubDynamicSource(project, topic, decodingFormat, producedDataType);
+        return new PubsubDynamicSource(project, subscription, decodingFormat, producedDataType);
     }
 
     @Override

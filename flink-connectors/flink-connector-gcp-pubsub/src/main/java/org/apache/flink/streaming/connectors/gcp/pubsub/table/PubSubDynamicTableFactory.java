@@ -28,7 +28,7 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(PubSubConnectorConfigOptions.PROJECT_NAME);
-        options.add(PubSubConnectorConfigOptions.TOPIC);
+        options.add(PubSubConnectorConfigOptions.SUBSCRIPTION);
         options.add(FactoryUtil.FORMAT);
         return options;
     }
@@ -55,7 +55,7 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         // get the validated options
         final ReadableConfig options = helper.getOptions();
         final String project = options.get(PubSubConnectorConfigOptions.PROJECT_NAME);
-        final String topic = options.get(PubSubConnectorConfigOptions.TOPIC);
+        final String topic = options.get(PubSubConnectorConfigOptions.SUBSCRIPTION);
 
         // derive the produced data type (excluding computed columns) from the catalog table
         final DataType producedDataType =

@@ -17,11 +17,11 @@ public class PubSubConnectorConfigOptions {
                     .noDefaultValue()
                     .withDescription("Name of the PubSub project backing this table.");
 
-    public static final ConfigOption<String> TOPIC =
-            ConfigOptions.key("topic")
+    public static final ConfigOption<String> SUBSCRIPTION =
+            ConfigOptions.key("subscription")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Name of the PubSub topic backing this table.");
+                    .withDescription("Name of the PubSub subscription backing this table.");
 
     public static final String IDENTIFIER = "pubsub";
 }
