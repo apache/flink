@@ -170,7 +170,7 @@ catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
 // Create a catalog table
 final Schema schema = Schema.newBuilder()
     .column("name", DataTypes.STRING())
-    .column("age", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build();
 
 tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
@@ -202,7 +202,7 @@ catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
 // Create a catalog table
 val schema = Schema.newBuilder()
     .column("name", DataTypes.STRING())
-    .column("age", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build()
 
 tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
