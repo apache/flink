@@ -1,0 +1,2 @@
+org.apache.flink.runtime.rest.Prio0OutboundChannelHandlerFactory
+org.apache.flink.runtime.rest.Prio1OutboundChannelHandlerFactory

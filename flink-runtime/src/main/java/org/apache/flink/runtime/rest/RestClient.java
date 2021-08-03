@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -121,7 +122,7 @@ public class RestClient implements AutoCloseableAsync {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
-    private List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
 
     public RestClient(Configuration configuration, Executor executor)
             throws ConfigurationException {

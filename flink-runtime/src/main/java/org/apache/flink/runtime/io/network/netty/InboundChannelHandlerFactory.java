@@ -51,6 +51,7 @@ public interface InboundChannelHandlerFactory {
      * @return {@link ChannelHandler} or null if no custom handler need to be created.
      * @throws ConfigurationException Thrown, if the handler configuration is incorrect.
      */
-    Optional<ChannelHandler> createHandler(Configuration configuration, Map<String, String> responseHeaders)
+    Optional<ChannelHandler> createHandler(
+            Configuration configuration, Map<String, String> responseHeaders)
             throws ConfigurationException;
 }
