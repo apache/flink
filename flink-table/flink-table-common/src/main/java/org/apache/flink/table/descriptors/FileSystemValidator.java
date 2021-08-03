@@ -19,13 +19,14 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 
 /**
  * Validator for the options of the filesystem connector.
  *
- * @deprecated The legacy CSV connector has been replaced by {@link FileSource}. It is kept only to
- *     support tests for the legacy connector stack.
+ * @deprecated The legacy CSV connector has been replaced by {@link FileSource} / {@link FileSink}.
+ *     It is kept only to support tests for the legacy connector stack.
  */
 @Internal
 @Deprecated
