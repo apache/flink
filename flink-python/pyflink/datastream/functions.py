@@ -43,6 +43,7 @@ __all__ = [
     'SourceFunction',
     'SinkFunction',
     'ProcessFunction',
+    'CoProcessFunction',
     'KeyedProcessFunction',
     'KeyedCoProcessFunction',
     'TimerService',
@@ -727,9 +728,10 @@ class CoProcessFunction(Function):
     A function that processes elements of two streams and produces a single output one.
 
     The function will be called for every element in the input streams and can produce zero or
-    more output elements. Contrary to the {@link CoFlatMapFunction}, this function can also query
-    the time (both event and processing) and set timers, through the provided {@link Context}. When
-    reacting to the firing of set timers the function can emit yet more elements.
+    more output elements. Contrary to the :class:`CoFlatMapFunction`, this function can also query
+    the time (both event and processing) and set timers, through the provided
+    :class:`CoProcessFunction.Context`. When reacting to the firing of set timers the function can
+    emit yet more elements.
 
     An example use-case for connected streams would be the application of a set of rules that
     change over time ({@code stream A}) to the elements contained in another stream (stream {@code
@@ -755,16 +757,6 @@ class CoProcessFunction(Function):
 
             This might be None, for example if the time characteristic of your program is set to
             TimeCharacteristic.ProcessTime.
-            """
-            pass
-
-    class OnTimerContext(Context):
-
-        @abstractmethod
-        def time_domain(self) -> TimeDomain:
-            """
-            The TimeDomain of the firing timer.
-            :return: The TimeDomain of current fired timer.
             """
             pass
 
