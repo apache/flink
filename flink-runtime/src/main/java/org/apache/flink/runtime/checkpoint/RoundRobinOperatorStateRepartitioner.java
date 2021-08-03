@@ -69,7 +69,11 @@ public class RoundRobinOperatorStateRepartitioner
             Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
                     unionStates = collectUnionStates(previousParallelSubtaskStates);
 
-            if (unionStates.isEmpty()) {
+            Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
+                    partlyFinishedBroadcastStates =
+                            collectPartlyFinishedBroadcastStates(previousParallelSubtaskStates);
+
+            if (unionStates.isEmpty() && partlyFinishedBroadcastStates.isEmpty()) {
                 return previousParallelSubtaskStates;
             }
 
@@ -77,6 +81,7 @@ public class RoundRobinOperatorStateRepartitioner
             mergeMapList = initMergeMapList(previousParallelSubtaskStates);
 
             repartitionUnionState(unionStates, mergeMapList);
+            repartitionBroadcastState(partlyFinishedBroadcastStates, mergeMapList);
         } else {
 
             // Reorganize: group by (State Name -> StreamStateHandle + Offsets)
@@ -123,9 +128,28 @@ public class RoundRobinOperatorStateRepartitioner
         return mergeMapList;
     }
 
-    /** Collect union states from given parallelSubtaskStates. */
     private Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
             collectUnionStates(List<List<OperatorStateHandle>> parallelSubtaskStates) {
+        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.UNION);
+    }
+
+    private Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
+            collectPartlyFinishedBroadcastStates(
+                    List<List<OperatorStateHandle>> parallelSubtaskStates) {
+        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.BROADCAST).entrySet()
+                .stream()
+                .filter(
+                        e ->
+                                e.getValue().size() > 0
+                                        && e.getValue().size() < parallelSubtaskStates.size())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    /** Collect union states from given parallelSubtaskStates. */
+    private Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
+            collectStates(
+                    List<List<OperatorStateHandle>> parallelSubtaskStates,
+                    OperatorStateHandle.Mode mode) {
 
         Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
                 unionStates = new HashMap<>(parallelSubtaskStates.size());
@@ -141,11 +165,7 @@ public class RoundRobinOperatorStateRepartitioner
                                 operatorStateHandle.getStateNameToPartitionOffsets().entrySet();
 
                 partitionOffsetEntries.stream()
-                        .filter(
-                                entry ->
-                                        entry.getValue()
-                                                .getDistributionMode()
-                                                .equals(OperatorStateHandle.Mode.UNION))
+                        .filter(entry -> entry.getValue().getDistributionMode().equals(mode))
                         .forEach(
                                 entry -> {
                                     List<
