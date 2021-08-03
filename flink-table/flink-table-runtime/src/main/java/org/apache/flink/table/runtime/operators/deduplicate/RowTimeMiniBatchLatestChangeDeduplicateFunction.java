@@ -35,7 +35,7 @@ import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFu
  * This function is used to get the first or last row for every key partition in miniBatch mode. But
  * only send latest change log to downstream.
  */
-public class RowTimeMiniBatchLatestChangelogDeduplicateFunction
+public class RowTimeMiniBatchLatestChangeDeduplicateFunction
         extends MiniBatchDeduplicateFunctionBase<RowData, RowData, RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -46,7 +46,7 @@ public class RowTimeMiniBatchLatestChangelogDeduplicateFunction
     private final int rowtimeIndex;
     private final boolean keepLastRow;
 
-    public RowTimeMiniBatchLatestChangelogDeduplicateFunction(
+    public RowTimeMiniBatchLatestChangeDeduplicateFunction(
             InternalTypeInfo<RowData> typeInfo,
             TypeSerializer<RowData> serializer,
             long minRetentionTime,
@@ -78,9 +78,6 @@ public class RowTimeMiniBatchLatestChangelogDeduplicateFunction
             RowData bufferedRow = entry.getValue();
             ctx.setCurrentKey(currentKey);
             RowData preRow = state.value();
-            // Note: we output all changelog here rather than comparing the first and the last
-            // record in buffer then output at most two changelog.
-            // The motivation is we need all changelog in versioned table of temporal join.
             checkInsertOnly(bufferedRow);
             if (isDuplicate(preRow, bufferedRow, rowtimeIndex, keepLastRow)) {
                 updateDeduplicateResult(

@@ -48,7 +48,7 @@ import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDed
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
-import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchLatestChangelogDeduplicateFunction;
+import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchLatestChangeDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -92,15 +92,15 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     + "Default is true.");
 
     @Experimental
-    public static final ConfigOption<Boolean>
-            TABLE_EXEC_DEDUPLICATE_MINIBATCH_ALL_CHANGELOG_ENABLED =
-                    ConfigOptions.key("table.exec.deduplicate.mini-batch.all.change-log.enabled")
-                            .booleanType()
-                            .defaultValue(true)
-                            .withDescription(
-                                    "Set whether send all change log for row-time mini-batch."
-                                            + "If false, Flink will only send the latest change log to downstream like proc-time."
-                                            + "If true, Flink will send all change log to downstream.");
+    public static final ConfigOption<Boolean> TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES =
+            ConfigOptions.key("table.exec.deduplicate.mini-batch.compact-changes")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Set whether send all change log for row-time mini-batch."
+                                    + "If true, Flink will only send the latest change log to downstream like proc-time."
+                                    + "If false, Flink will send all change log to downstream."
+                                    + "Notes: If downstream is Versioned Table Views, this optimization can not be enabled.");
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
@@ -236,10 +236,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                     .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
         }
 
-        protected boolean isAllChangelogEnabled() {
+        protected boolean isCompactChanges() {
             return tableConfig
                     .getConfiguration()
-                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_ALL_CHANGELOG_ENABLED);
+                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES);
         }
 
         protected long getMinRetentionTime() {
@@ -295,9 +295,9 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             if (isMiniBatchEnabled()) {
                 CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(getMiniBatchSize());
                 MapBundleFunction processFunction;
-                if (isAllChangelogEnabled()) {
+                if (isCompactChanges()) {
                     processFunction =
-                            new RowTimeMiniBatchDeduplicateFunction(
+                            new RowTimeMiniBatchLatestChangeDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
                                     getMinRetentionTime(),
@@ -307,7 +307,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     keepLastRow);
                 } else {
                     processFunction =
-                            new RowTimeMiniBatchLatestChangelogDeduplicateFunction(
+                            new RowTimeMiniBatchDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
                                     getMinRetentionTime(),
