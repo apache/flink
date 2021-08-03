@@ -42,13 +42,13 @@ public class PrometheusPushGatewayReporterOptions {
     public static final ConfigOption<String> JOB_NAME =
             ConfigOptions.key("jobName")
                     .defaultValue("")
-                    .withDescription("The job name under which metrics will be pushed");
+                    .withDescription("The job name under which metrics will be pushed.");
 
     public static final ConfigOption<Boolean> RANDOM_JOB_NAME_SUFFIX =
             ConfigOptions.key("randomJobNameSuffix")
                     .defaultValue(true)
                     .withDescription(
-                            "Specifies whether a random suffix should be appended to the job name.");
+                            "Specifies whether a random suffix should be appended to the job name. Job at least have two container(JobManager and TaskManager), enabled it can diff each other.");
 
     public static final ConfigOption<Boolean> DELETE_ON_SHUTDOWN =
             ConfigOptions.key("deleteOnShutdown")
