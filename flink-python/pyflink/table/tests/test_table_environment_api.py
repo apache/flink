@@ -18,6 +18,8 @@
 import datetime
 import decimal
 import sys
+import unittest
+
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
@@ -326,6 +328,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             collected_result.sort()
             self.assertEqual(expected_result, collected_result)
 
+    @unittest.skip
     def test_from_and_to_data_stream_event_time(self):
         from pyflink.table import Schema
 
