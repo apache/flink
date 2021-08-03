@@ -34,7 +34,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
-/** Harness tests for {@link RowTimeMiniBatchLatestChangeDeduplicateFunction} */
+/** Harness tests for {@link RowTimeMiniBatchLatestChangeDeduplicateFunction}. */
 public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         extends RowTimeDeduplicateFunctionTestBase {
 

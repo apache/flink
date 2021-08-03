@@ -193,7 +193,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   def testFirstRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
     tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_ALL_CHANGELOG_ENABLED, false)
+      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
@@ -300,7 +300,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   def testLastRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
     tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_ALL_CHANGELOG_ENABLED, false)
+      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
