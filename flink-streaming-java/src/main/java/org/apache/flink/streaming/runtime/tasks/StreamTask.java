@@ -118,7 +118,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
-import static org.apache.flink.configuration.TaskManagerOptions.AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -673,8 +672,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // final check to exit early before starting to run
         ensureNotCanceled();
 
-        throughputCalculationSetup();
-
         // let the task do its work
         runMailboxLoop();
 
@@ -683,21 +680,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         ensureNotCanceled();
 
         afterInvoke();
-    }
-
-    private void throughputCalculationSetup() {
-        new Thread(
-                        () -> {
-                            try {
-                                Thread.sleep(
-                                        getTaskConfiguration()
-                                                .get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD));
-                            } catch (InterruptedException e) {
-                                // ignore.
-                            }
-                            mainMailboxExecutor.submit(() -> {}, "test");
-                        })
-                .start();
     }
 
     private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
