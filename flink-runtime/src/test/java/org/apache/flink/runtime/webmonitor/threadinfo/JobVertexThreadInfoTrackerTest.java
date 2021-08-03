@@ -34,10 +34,10 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalNotification;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
