@@ -43,7 +43,7 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
     /** Operand type checker for SESSION. */
     private static class OperandMetadataImpl extends AbstractOperandMetadata {
         OperandMetadataImpl() {
-            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, PARAM_STEP, PARAM_SIZE), 3);
+            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, PARAM_SESSION_GAP), 3);
         }
 
         @Override
@@ -61,9 +61,7 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
 
         @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
-            return opName
-                    + "(TABLE table_name, DESCRIPTOR(timecol), "
-                    + "datetime interval, datetime interval)";
+            return opName + "(TABLE table_name, DESCRIPTOR(timecol), datetime interval)";
         }
     }
 }
