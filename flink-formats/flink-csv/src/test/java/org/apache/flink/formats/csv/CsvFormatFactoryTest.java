@@ -100,6 +100,20 @@ public class CsvFormatFactoryTest extends TestLogger {
                             opts.remove("csv.quote-character");
                         });
 
+        final CsvRowDataDeserializationSchema expectedDeser =
+                new CsvRowDataDeserializationSchema.Builder(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE))
+                        .setFieldDelimiter(';')
+                        .setAllowComments(true)
+                        .setIgnoreParseErrors(true)
+                        .setArrayElementDelimiter("|")
+                        .setEscapeCharacter('\\')
+                        .setNullLiteral("n/a")
+                        .disableQuoteCharacter()
+                        .build();
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+
+        assertEquals(expectedDeser, actualDeser);
+
         final CsvRowDataSerializationSchema expectedSer =
                 new CsvRowDataSerializationSchema.Builder(ROW_TYPE)
                         .setFieldDelimiter(';')
@@ -203,6 +217,29 @@ public class CsvFormatFactoryTest extends TestLogger {
                         ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
         RowData expected = GenericRowData.of(fromString("abc"), 123, false);
         RowData actual = deserializationSchema.deserialize("abc\t123\tfalse".getBytes());
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testDeserializeWithDisableQuoteCharacter() throws IOException {
+        // test deserialization schema
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> {
+                            opts.put("csv.disable-quote-character", "true");
+                            opts.remove("csv.quote-character");
+                        });
+
+        final DynamicTableSource actualSource = createTableSource(options);
+        assert actualSource instanceof TestDynamicTableFactory.DynamicTableSourceMock;
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        DeserializationSchema<RowData> deserializationSchema =
+                sourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
+        RowData expected = GenericRowData.of(fromString("\"abc"), 123, false);
+        RowData actual = deserializationSchema.deserialize("\"abc;123;false".getBytes());
         assertEquals(expected, actual);
     }
 
