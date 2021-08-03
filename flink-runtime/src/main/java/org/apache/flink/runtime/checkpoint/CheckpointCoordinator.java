@@ -1333,7 +1333,8 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void sendAcknowledgeMessages(
+    @VisibleForTesting
+    void sendAcknowledgeMessages(
             List<ExecutionVertex> tasksToCommit,
             long completedCheckpointId,
             long completedTimestamp,
