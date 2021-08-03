@@ -34,7 +34,7 @@ under the License.
 ## 独立部署模式（Standalone Deployment）下的内存配置
 
 [独立部署模式]({{< ref "docs/deployment/resource-providers/standalone/overview" >}})下，我们通常更关注 Flink 应用本身使用的内存大小。
-建议配置 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-flink-size" >}})）或其组成部分。
+建议配置 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-flink-size)）或其组成部分。
 此外，如果出现 [Metaspace 不足的问题]({{< ref "docs/deployment/memory/mem_trouble" >}}#outofmemoryerror-metaspace)，可以调整 *JVM Metaspace* 的大小。
 
 这种情况下通常无需配置*进程总内存*，因为不管是 Flink 还是部署环境都不会对 *JVM 开销* 进行限制，它只与机器的物理资源相关。
