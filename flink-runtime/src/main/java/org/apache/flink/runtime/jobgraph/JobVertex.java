@@ -500,11 +500,6 @@ public class JobVertex implements java.io.Serializable {
         return edge;
     }
 
-    public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
-        JobEdge edge = new JobEdge(dataSetId, this, distPattern);
-        this.inputs.add(edge);
-    }
-
     // --------------------------------------------------------------------------------------------
 
     public boolean isInputVertex() {
