@@ -101,7 +101,7 @@ public class DefaultExecutionGraphConstructionTest {
     }
 
     /**
-     * Creates a JobGraph of the following form:
+     * Creates a JobGraph of the following form.
      *
      * <pre>
      *  v1--->v2-->\
@@ -178,10 +178,8 @@ public class DefaultExecutionGraphConstructionTest {
 
         // create results for v2 and v3
         IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_1 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_2 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3Result1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3Result2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 
         JobVertex v4 = new JobVertex("vertex4");
         JobVertex v5 = new JobVertex("vertex5");
@@ -192,10 +190,10 @@ public class DefaultExecutionGraphConstructionTest {
         v5.setInvokableClass(AbstractInvokable.class);
 
         v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
-        v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
+        v4.connectDataSetAsInput(v3Result1, DistributionPattern.ALL_TO_ALL);
         v5.connectNewDataSetAsInput(
                 v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
+        v5.connectDataSetAsInput(v3Result2, DistributionPattern.ALL_TO_ALL);
 
         List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
 
@@ -246,10 +244,8 @@ public class DefaultExecutionGraphConstructionTest {
 
         // create results for v2 and v3
         IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_1 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_2 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3result1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3result2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 
         // construct part two of the execution graph
         JobVertex v4 = new JobVertex("vertex4");
@@ -261,10 +257,10 @@ public class DefaultExecutionGraphConstructionTest {
         v5.setInvokableClass(AbstractInvokable.class);
 
         v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
-        v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
+        v4.connectIdInput(v3result1.getId(), DistributionPattern.ALL_TO_ALL);
         v5.connectNewDataSetAsInput(
                 v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
+        v5.connectIdInput(v3result2.getId(), DistributionPattern.ALL_TO_ALL);
 
         List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
         List<JobVertex> ordered2 = Arrays.asList(v4, v5);
