@@ -97,10 +97,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Set whether send all change log for row-time mini-batch."
-                                    + "If true, Flink will only send the latest change log to downstream like proc-time."
-                                    + "If false, Flink will send all change log to downstream."
-                                    + "Notes: If downstream is Versioned Table Views, this optimization can not be enabled.");
+                            "Set whether to compact the changes sent downstream in row-time mini-batch. "
+                                    + "If true, Flink will compact changes, only send the latest change to downstream. "
+                                    + "Notes: If the downstream needs the details of versioned data, this optimization cannot be opened. "
+                                    + "If false, Flink will send all changes to downstream just like when the mini-batch is not on.");
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
