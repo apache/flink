@@ -1,0 +1,2 @@
+org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory
+org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory

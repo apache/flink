@@ -107,7 +107,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
     private State state = State.CREATED;
 
-    private List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
+    @VisibleForTesting List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
 
     public RestServerEndpoint(Configuration configuration)
             throws IOException, ConfigurationException {

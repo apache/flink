@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.utils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
@@ -66,7 +67,7 @@ public class WebFrontendBootstrap {
     private final Channel serverChannel;
     private final String restAddress;
     private final Map<String, String> responseHeaders;
-    private List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
+    @VisibleForTesting List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
 
     public WebFrontendBootstrap(
             Router router,
