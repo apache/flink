@@ -31,6 +31,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.internals.TransactionManager;
 import org.apache.kafka.clients.producer.internals.TransactionalRequestResult;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -226,9 +228,10 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
                                 "org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
                 invoke(topicPartitionBookkeeper, "reset");
 
-                Object producerIdAndEpoch = getField(transactionManager, "producerIdAndEpoch");
-                setField(producerIdAndEpoch, "producerId", producerId);
-                setField(producerIdAndEpoch, "epoch", epoch);
+                setField(
+                        transactionManager,
+                        "producerIdAndEpoch",
+                        createProducerIdAndEpoch(producerId, epoch));
 
                 invoke(
                         transactionManager,
@@ -280,6 +283,22 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
                     String.format(
                             "The producer %s has already been closed",
                             System.identityHashCode(this)));
+        }
+    }
+
+    private Object createProducerIdAndEpoch(long producerId, short epoch) {
+        try {
+            Field field = TransactionManager.class.getDeclaredField("producerIdAndEpoch");
+            Class<?> clazz = field.getType();
+            Constructor<?> constructor = clazz.getDeclaredConstructor(Long.TYPE, Short.TYPE);
+            constructor.setAccessible(true);
+            return constructor.newInstance(producerId, epoch);
+        } catch (InvocationTargetException
+                | InstantiationException
+                | IllegalAccessException
+                | NoSuchFieldException
+                | NoSuchMethodException e) {
+            throw new RuntimeException("Incompatible KafkaProducer version", e);
         }
     }
 
