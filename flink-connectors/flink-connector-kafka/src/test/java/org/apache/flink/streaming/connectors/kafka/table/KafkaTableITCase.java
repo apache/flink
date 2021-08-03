@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -63,10 +64,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
     @Parameterized.Parameter public String format;
 
     @Parameterized.Parameters(name = "format = {0}")
-    public static Object[] parameters() {
-        return new Object[][] {
-            new Object[] {JSON_FORMAT}, new Object[] {AVRO_FORMAT}, new Object[] {CSV_FORMAT},
-        };
+    public static Collection<String> parameters() {
+        return Arrays.asList(JSON_FORMAT, AVRO_FORMAT, CSV_FORMAT);
     }
 
     @Before
