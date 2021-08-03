@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 
 /** This classes encapsulates the boot-strapping of netty for the web-frontend. */
@@ -121,10 +122,10 @@ public class WebFrontendBootstrap {
 
                         for (InboundChannelHandlerFactory factory :
                                 inboundChannelHandlerFactories) {
-                            ChannelHandler channelHandler =
+                            Optional<ChannelHandler> channelHandler =
                                     factory.createHandler(config, responseHeaders);
-                            if (channelHandler != null) {
-                                ch.pipeline().addLast(channelHandler);
+                            if (channelHandler.isPresent()) {
+                                ch.pipeline().addLast(channelHandler.get());
                             }
                         }
 

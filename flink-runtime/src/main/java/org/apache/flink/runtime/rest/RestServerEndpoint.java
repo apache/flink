@@ -74,6 +74,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -210,10 +211,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
                             for (InboundChannelHandlerFactory factory :
                                     inboundChannelHandlerFactories) {
-                                ChannelHandler channelHandler =
+                                Optional<ChannelHandler> channelHandler =
                                         factory.createHandler(configuration, responseHeaders);
-                                if (channelHandler != null) {
-                                    ch.pipeline().addLast(channelHandler);
+                                if (channelHandler.isPresent()) {
+                                    ch.pipeline().addLast(channelHandler.get());
                                 }
                             }
 

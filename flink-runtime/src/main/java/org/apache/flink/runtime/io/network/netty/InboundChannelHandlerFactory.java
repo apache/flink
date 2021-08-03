@@ -25,6 +25,7 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Custom netty inbound handler factory in order to make custom changes on netty inbound data. Good
@@ -50,6 +51,6 @@ public interface InboundChannelHandlerFactory {
      * @return {@link ChannelHandler} or null if no custom handler need to be created.
      * @throws ConfigurationException Thrown, if the handler configuration is incorrect.
      */
-    ChannelHandler createHandler(Configuration configuration, Map<String, String> responseHeaders)
+    Optional<ChannelHandler> createHandler(Configuration configuration, Map<String, String> responseHeaders)
             throws ConfigurationException;
 }

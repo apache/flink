@@ -24,6 +24,8 @@ import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
+import java.util.Optional;
+
 /**
  * Custom netty outbound handler factory in order to make custom changes on netty outbound data.
  * Good example usage of this API is custom authentication. When the user wants to send
@@ -48,5 +50,5 @@ public interface OutboundChannelHandlerFactory {
      * @return {@link ChannelHandler} or null if no custom handler needs to be created.
      * @throws ConfigurationException Thrown, if the handler configuration is incorrect.
      */
-    ChannelHandler createHandler(Configuration configuration) throws ConfigurationException;
+    Optional<ChannelHandler> createHandler(Configuration configuration) throws ConfigurationException;
 }

@@ -96,6 +96,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -173,10 +174,10 @@ public class RestClient implements AutoCloseableAsync {
 
                             for (OutboundChannelHandlerFactory factory :
                                     outboundChannelHandlerFactories) {
-                                ChannelHandler channelHandler =
+                                Optional<ChannelHandler> channelHandler =
                                         factory.createHandler(configuration);
-                                if (channelHandler != null) {
-                                    socketChannel.pipeline().addLast(channelHandler);
+                                if (channelHandler.isPresent()) {
+                                    socketChannel.pipeline().addLast(channelHandler.get());
                                 }
                             }
 
