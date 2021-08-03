@@ -92,6 +92,7 @@ public class TableEnvironmentTest {
         assertEquals("Test", catalogTable.getOptions().get("a"));
     }
 
+    @Test
     public void testTableFromDescriptor() {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
 
