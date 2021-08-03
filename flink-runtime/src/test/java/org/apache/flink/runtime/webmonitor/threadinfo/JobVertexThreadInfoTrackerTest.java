@@ -126,48 +126,48 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
     /** Tests that cached result is reused within refresh interval. */
     @Test
     public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
-        final int requestId2 = 1;
-
-        final JobVertexThreadInfoStats threadInfoStats2 =
-                createThreadInfoStats(requestId2, TIME_GAP, null);
+        final JobVertexThreadInfoStats unusedThreadInfoStats =
+                createThreadInfoStats(1, TIME_GAP, null);
 
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
-                        STATS_REFRESH_INTERVAL, threadInfoStatsDefaultSample, threadInfoStats2);
+                        STATS_REFRESH_INTERVAL,
+                        threadInfoStatsDefaultSample,
+                        unusedThreadInfoStats);
         // stores threadInfoStatsDefaultSample in cache
         doInitialRequestAndVerifyResult(tracker);
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
-        // cached result is returned instead of threadInfoStats2
+        // cached result is returned instead of unusedThreadInfoStats
         assertEquals(threadInfoStatsDefaultSample, result.get());
     }
 
     /** Tests that cached result is NOT reused after refresh interval. */
     @Test
     public void testCachedStatsUpdatedAfterRefreshInterval() throws Exception {
-        final Duration threadInfoStatsRefreshInterval2 = Duration.ofMillis(1);
+        final Duration shortRefreshInterval = Duration.ofMillis(1);
 
         // first entry is in the past, so refresh is triggered immediately upon fetching it
-        final JobVertexThreadInfoStats threadInfoStats =
+        final JobVertexThreadInfoStats initialThreadInfoStats =
                 createThreadInfoStats(
                         Instant.now().minus(10, ChronoUnit.SECONDS),
                         REQUEST_ID,
                         Duration.ofMillis(5),
                         Collections.singletonList(threadInfoSample));
-        final JobVertexThreadInfoStats threadInfoStats2 =
+        final JobVertexThreadInfoStats threadInfoStatsAfterRefresh =
                 createThreadInfoStats(1, TIME_GAP, Collections.singletonList(threadInfoSample));
 
         // register a CountDownLatch with the cache so we can await refresh of the entry
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch cacheRefreshed = new CountDownLatch(1);
         Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache =
-                createCache(CLEAN_UP_INTERVAL, new LatchRemovalListener<>(latch));
+                createCache(CLEAN_UP_INTERVAL, new LatchRemovalListener<>(cacheRefreshed));
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
                         CLEAN_UP_INTERVAL,
-                        threadInfoStatsRefreshInterval2,
+                        shortRefreshInterval,
                         vertexStatsCache,
-                        threadInfoStats,
-                        threadInfoStats2);
+                        initialThreadInfoStats,
+                        threadInfoStatsAfterRefresh);
 
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
@@ -176,29 +176,29 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         // retrieve the entry, triggering the refresh as side effect
         assertExpectedEqualsReceived(
-                threadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
+                initialThreadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
 
         // wait until the entry is refreshed, with generous buffer
-        assertTrue(latch.await(500, TimeUnit.MILLISECONDS));
+        assertTrue(cacheRefreshed.await(500, TimeUnit.MILLISECONDS));
 
         // verify that we get the second result on the next request
         Optional<JobVertexThreadInfoStats> result =
                 tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX);
-        assertExpectedEqualsReceived(threadInfoStats2, result);
+        assertExpectedEqualsReceived(threadInfoStatsAfterRefresh, result);
     }
 
     /** Tests that cached results are removed within the cleanup interval. */
     @Test
     public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
-        final Duration cleanUpInterval2 = Duration.ofMillis(1);
+        final Duration shortCleanUpInterval = Duration.ofMillis(1);
 
         // register a CountDownLatch with the cache so we can await expiry of the entry
-        CountDownLatch latch = new CountDownLatch(1);
+        CountDownLatch cacheExpired = new CountDownLatch(1);
         Cache<JobVertexThreadInfoTracker.Key, JobVertexThreadInfoStats> vertexStatsCache =
-                createCache(cleanUpInterval2, new LatchRemovalListener<>(latch));
+                createCache(shortCleanUpInterval, new LatchRemovalListener<>(cacheExpired));
         final JobVertexThreadInfoTracker<JobVertexThreadInfoStats> tracker =
                 createThreadInfoTracker(
-                        cleanUpInterval2,
+                        shortCleanUpInterval,
                         STATS_REFRESH_INTERVAL,
                         vertexStatsCache,
                         threadInfoStatsDefaultSample);
@@ -206,7 +206,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
         // wait until one eviction was registered, with generous buffer
-        assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+        assertTrue(cacheExpired.await(1000, TimeUnit.MILLISECONDS));
 
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
