@@ -63,6 +63,7 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -139,6 +140,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         expectedLabels.putAll(userLabels);
         assertEquals(expectedLabels, resultDeployment.getMetadata().getLabels());
 
+        assertThat(resultDeployment.getMetadata().getAnnotations(), equalTo(userAnnotations));
+
         assertThat(
                 resultDeployment.getMetadata().getOwnerReferences(),
                 Matchers.containsInAnyOrder(OWNER_REFERENCES.toArray()));
@@ -160,6 +163,10 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
         assertEquals(expectedLabels, resultDeploymentSpec.getTemplate().getMetadata().getLabels());
         assertEquals(expectedLabels, resultDeploymentSpec.getSelector().getMatchLabels());
+
+        assertThat(
+                resultDeploymentSpec.getTemplate().getMetadata().getAnnotations(),
+                equalTo(userAnnotations));
 
         assertNotNull(resultDeploymentSpec.getTemplate().getSpec());
     }
