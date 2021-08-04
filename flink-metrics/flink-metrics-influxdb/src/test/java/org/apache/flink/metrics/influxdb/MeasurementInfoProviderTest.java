@@ -69,6 +69,7 @@ public class MeasurementInfoProviderTest extends TestLogger {
 
     @Test
     public void testNormalizingTags() {
+        String logicalScope = "myService.Status.JVM.ClassLoader";
         Map<String, String> variables = new HashMap<>();
         variables.put("<A\n>", "a\n");
 
@@ -79,6 +80,7 @@ public class MeasurementInfoProviderTest extends TestLogger {
                             throw new UnsupportedOperationException("unexpected method call");
                         });
         doReturn(variables).when(metricGroup).getAllVariables();
+        doReturn(logicalScope).when(metricGroup).getLogicalScope(any(), anyChar());
 
         MeasurementInfo info = provider.getMetricInfo("m1", metricGroup);
         assertThat(info.getTags(), hasEntry("A", "a"));
