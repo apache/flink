@@ -18,32 +18,50 @@
 
 package org.apache.flink.runtime.webmonitor.utils;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandler;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandlerTest;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerTest;
 
+import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
+import org.junit.rules.TemporaryFolder;
+import org.slf4j.LoggerFactory;
 
-import java.net.UnknownHostException;
+import java.io.File;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 public class WebFrontendBootstrapTest {
+
+    @Rule public TemporaryFolder tmp = new TemporaryFolder();
+
     @Test
-    public void testHandlersMustBeLoaded() throws UnknownHostException, InterruptedException {
+    public void testHandlersMustBeLoaded() throws Exception {
+        File webDir = tmp.newFolder("webDir");
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(
+                Prio0InboundChannelHandlerFactory.GIVE_ME_INDEX_HTML_ENABLED, true);
+        Router router =
+                new Router().addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
         WebFrontendBootstrap webUI =
                 new WebFrontendBootstrap(
-                        mock(Router.class),
-                        mock(Logger.class),
+                        router,
+                        LoggerFactory.getLogger(WebFrontendBootstrapTest.class),
+                        tmp.newFolder("uploadDir"),
                         null,
-                        null,
-                        null,
+                        "localhost",
                         0,
-                        new Configuration());
+                        configuration);
+
         assertEquals(webUI.inboundChannelHandlerFactories.size(), 2);
         assertTrue(
                 webUI.inboundChannelHandlerFactories.get(0)
@@ -51,5 +69,20 @@ public class WebFrontendBootstrapTest {
         assertTrue(
                 webUI.inboundChannelHandlerFactories.get(1)
                         instanceof Prio0InboundChannelHandlerFactory);
+
+        int port = webUI.getServerPort();
+        try {
+            Tuple2<Integer, String> index =
+                    HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
+            Assert.assertThat(index.f0, is(200));
+            Assert.assertThat(index.f1, containsString("Apache Flink Web Dashboard"));
+
+            Tuple2<Integer, String> index2 =
+                    HistoryServerTest.getFromHTTP("http://localhost:" + port + "/nonExisting");
+            Assert.assertThat(index2.f0, is(200));
+            Assert.assertEquals(index, index2);
+        } finally {
+            webUI.shutdown();
+        }
     }
 }
