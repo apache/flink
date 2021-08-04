@@ -18,9 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
@@ -28,18 +26,19 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.committableRecord;
+import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.committableRecords;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 
-/** Tests for {@link BatchGlobalCommitterOperator}. */
-public class BatchGlobalCommitterOperatorTest extends TestLogger {
+/** Tests for {@link GlobalBatchCommitterHandler}. */
+public class GlobalBatchCommitterHandlerTest extends TestLogger {
 
     @Test(expected = IllegalStateException.class)
     public void throwExceptionWithoutCommitter() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
                 createTestHarness(null);
 
         testHarness.initializeEmptyState();
@@ -47,12 +46,12 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
     @Test(expected = UnsupportedOperationException.class)
     public void doNotSupportRetry() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
 
         testHarness.initializeEmptyState();
         testHarness.open();
-        testHarness.processElement(new StreamRecord<>("hotel"));
+        testHarness.processElement(committableRecord("hotel"));
         testHarness.endInput();
         testHarness.close();
     }
@@ -61,15 +60,14 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
     public void endOfInput() throws Exception {
         final TestSink.DefaultGlobalCommitter globalCommitter =
                 new TestSink.DefaultGlobalCommitter();
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
                 createTestHarness(globalCommitter);
         final List<String> inputs = Arrays.asList("compete", "swear", "shallow");
 
         testHarness.initializeEmptyState();
         testHarness.open();
 
-        testHarness.processElements(
-                inputs.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.processElements(committableRecords(inputs));
 
         testHarness.endInput();
 
@@ -87,7 +85,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
     public void close() throws Exception {
         final TestSink.DefaultGlobalCommitter globalCommitter =
                 new TestSink.DefaultGlobalCommitter();
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
                 createTestHarness(globalCommitter);
         testHarness.initializeEmptyState();
         testHarness.open();
@@ -96,16 +94,18 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
         assertThat(globalCommitter.isClosed(), is(true));
     }
 
-    private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
+    private OneInputStreamOperatorTestHarness<byte[], byte[]> createTestHarness(
             GlobalCommitter<String, String> globalCommitter) throws Exception {
 
         return new OneInputStreamOperatorTestHarness<>(
-                new BatchGlobalCommitterOperatorFactory<>(
+                new CommitterOperatorFactory<>(
                         TestSink.newBuilder()
+                                .setCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setGlobalCommitter(globalCommitter)
                                 .setGlobalCommittableSerializer(
                                         TestSink.StringCommittableSerializer.INSTANCE)
-                                .build()),
-                StringSerializer.INSTANCE);
+                                .build(),
+                        true));
     }
 }

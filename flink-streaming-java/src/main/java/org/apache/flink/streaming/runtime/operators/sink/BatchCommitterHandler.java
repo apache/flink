@@ -19,12 +19,9 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.function.SupplierWithException;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -33,44 +30,51 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
  * Committer} in the batch execution mode.
  *
- * @param <CommT> The committable type of the {@link Committer}.
+ * @param <InputT> The committable type of the {@link Committer}.
  */
-final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
-        implements OneInputStreamOperator<CommT, CommT>, BoundedOneInput {
+final class BatchCommitterHandler<InputT, OutputT>
+        extends AbstractCommitterHandler<InputT, OutputT> {
 
     /** Responsible for committing the committable to the external system. */
-    private final Committer<CommT> committer;
+    private final Committer<InputT> committer;
 
-    /** Record all the committables until the end of the input. */
-    private final List<CommT> allCommittables;
+    /**
+     * The committer that is chained to this committer. It's either {@link
+     * GlobalBatchCommitterHandler} or {@link NoopCommitterHandler}.
+     */
+    private final CommitterHandler<InputT, OutputT> chainedHandler;
 
-    public BatchCommitterOperator(Committer<CommT> committer) {
+    public BatchCommitterHandler(
+            Committer<InputT> committer, CommitterHandler<InputT, OutputT> chainedHandler) {
         this.committer = checkNotNull(committer);
-        this.allCommittables = new ArrayList<>();
+        this.chainedHandler = chainedHandler;
     }
 
     @Override
-    public void processElement(StreamRecord<CommT> element) {
-        allCommittables.add(element.getValue());
+    public List<OutputT> processCommittables(
+            SupplierWithException<List<InputT>, Exception> committableSupplier) throws Exception {
+        List<InputT> committables = committableSupplier.get();
+        super.processCommittables(() -> committables);
+        return chainedHandler.processCommittables(() -> committables);
     }
 
     @Override
-    public void endInput() throws Exception {
+    public List<OutputT> endOfInput() throws IOException, InterruptedException {
+        List<InputT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
-            final List<CommT> neededRetryCommittables = committer.commit(allCommittables);
+            final List<InputT> neededRetryCommittables = committer.commit(allCommittables);
             if (!neededRetryCommittables.isEmpty()) {
                 throw new UnsupportedOperationException(
                         "Currently does not support the re-commit!");
             }
-            for (CommT committable : allCommittables) {
-                output.collect(new StreamRecord<>(committable));
-            }
         }
+        return chainedHandler.endOfInput();
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
         committer.close();
+        chainedHandler.close();
+        super.close();
     }
 }

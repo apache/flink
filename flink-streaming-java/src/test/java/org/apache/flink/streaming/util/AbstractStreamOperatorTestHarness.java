@@ -371,6 +371,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         return outputList;
     }
 
+    @SuppressWarnings("unchecked")
+    public Collection<StreamRecord<OUT>> getRecordOutput() {
+        return outputList.stream()
+                .filter(element -> element instanceof StreamRecord)
+                .map(element -> (StreamRecord<OUT>) element)
+                .collect(Collectors.toList());
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public <X> ConcurrentLinkedQueue<StreamRecord<X>> getSideOutput(OutputTag<X> tag) {
         return (ConcurrentLinkedQueue) sideOutputLists.get(tag);
