@@ -60,6 +60,7 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
@@ -81,9 +82,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -96,8 +94,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -165,33 +161,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             miniCluster.after();
         }
         if (settings.generateCheckpoint) {
-            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                    .max(Comparator.comparing(Path::toString))
-                    .map(Path::toFile)
-                    .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+            return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir);
         }
         return null;
-    }
-
-    private boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
-        return attr.isDirectory()
-                && path.getFileName().toString().startsWith(CHECKPOINT_DIR_PREFIX)
-                && hasMetadata(path);
-    }
-
-    private boolean hasMetadata(Path file) {
-        try {
-            return Files.find(
-                            file.toAbsolutePath(),
-                            1,
-                            (path, attrs) ->
-                                    path.getFileName().toString().equals(METADATA_FILE_NAME))
-                    .findAny()
-                    .isPresent();
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
-            return false; // should never happen
-        }
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
