@@ -19,19 +19,20 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.types.Row;
 
-import java.util.LinkedList;
+import java.util.Collections;
 
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * The {@link PythonCoProcessOperator} is responsible for executing the Python CoProcess Function.
@@ -42,93 +43,75 @@ import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoder
  */
 @Internal
 public class PythonCoProcessOperator<IN1, IN2, OUT>
-        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT, OUT> {
+        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    private transient LinkedList<Long> bufferedTimestamp;
-
-    private transient RunnerInputHandler runnerInputHandler;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
 
     public PythonCoProcessOperator(
             Configuration config,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN1> inputTypeInfo1,
             TypeInformation<IN2> inputTypeInfo2,
-            TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                pythonFunctionInfo,
-                RunnerInputHandler.getRunnerInputTypeInfo(inputTypeInfo1, inputTypeInfo2),
-                outputTypeInfo);
+            TypeInformation<OUT> outputTypeInfo) {
+        super(config, pythonFunctionInfo, inputTypeInfo1, inputTypeInfo2, outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        this.bufferedTimestamp = new LinkedList<>();
-        this.runnerInputHandler = new RunnerInputHandler();
         this.currentWatermark = Long.MIN_VALUE;
     }
 
     @Override
+    public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
+        return new BeamDataStreamPythonFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                createPythonEnvironmentManager(),
+                STATELESS_FUNCTION_URN,
+                getUserDefinedDataStreamFunctionProto(
+                        getPythonFunctionInfo(),
+                        getRuntimeContext(),
+                        Collections.emptyMap(),
+                        inBatchExecutionMode(getKeyedStateBackend())),
+                getJobOptions(),
+                getFlinkMetricContainer(),
+                null,
+                null,
+                null,
+                null,
+                getContainingTask().getEnvironment().getMemoryManager(),
+                getOperatorConfig()
+                        .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                ManagedMemoryUseCase.PYTHON,
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getTaskManagerInfo()
+                                        .getConfiguration(),
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getUserCodeClassLoader()
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(),
+                createOutputCoderInfoDescriptor(),
+                null);
+    }
+
+    @Override
     public void processElement1(StreamRecord<IN1> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        processElement(true, element);
+        processElement(true, element.getTimestamp(), currentWatermark, element.getValue());
     }
 
     @Override
     public void processElement2(StreamRecord<IN2> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        processElement(false, element);
+        processElement(false, element.getTimestamp(), currentWatermark, element.getValue());
     }
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
         currentWatermark = mark.getTimestamp();
-    }
-
-    private void processElement(boolean isLeft, StreamRecord<?> element) throws Exception {
-        Row row =
-                runnerInputHandler.buildRunnerInputData(
-                        isLeft, element.getTimestamp(), currentWatermark, element.getValue());
-        getRunnerInputTypeSerializer().serialize(row, baosWrapper);
-        pythonFunctionRunner.process(baos.toByteArray());
-        baos.reset();
-        elementCount++;
-        checkInvokeFinishBundleByCount();
-        emitResults();
-    }
-
-    @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        if (PythonOperatorUtils.endOfLastFlatMap(length, rawResult)) {
-            bufferedTimestamp.poll();
-        } else {
-            bais.setBuffer(rawResult, 0, length);
-            collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-            OUT outputRow = getRunnerOutputTypeSerializer().deserialize(baisWrapper);
-            collector.collect(outputRow);
-        }
-    }
-
-    @Override
-    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
-            TypeInformation<?> runnerInputType) {
-        return createRawTypeCoderInfoDescriptorProto(
-                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
-    }
-
-    @Override
-    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
-            TypeInformation<?> runnerOutType) {
-        return createRawTypeCoderInfoDescriptorProto(
-                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 }

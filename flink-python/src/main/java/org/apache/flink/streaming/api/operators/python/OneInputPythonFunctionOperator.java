@@ -19,30 +19,28 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCollector;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.Map;
 
-import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * {@link OneInputPythonFunctionOperator} is responsible for launching beam runner which will start
@@ -52,34 +50,41 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  * output element.
  */
 @Internal
-public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
-        extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
+public abstract class OneInputPythonFunctionOperator<IN, OUT>
+        extends AbstractOneInputPythonFunctionOperator<IN, OUT>
+        implements ResultTypeQueryable<OUT> {
 
     private static final long serialVersionUID = 1L;
 
     /** The options used to configure the Python worker process. */
-    protected final Map<String, String> jobOptions;
-
-    /** The TypeInformation of runner input data. */
-    private final TypeInformation<UDFIN> runnerInputTypeInfo;
-
-    /** The TypeInformation of runner output data. */
-    final TypeInformation<UDFOUT> runnerOutputTypeInfo;
+    private final Map<String, String> jobOptions;
 
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
+    /** The TypeInformation of input data. */
+    private final TypeInformation<IN> inputTypeInfo;
+
+    /** The TypeInformation of output data. */
+    private final TypeInformation<OUT> outputTypeInfo;
+
+    /** The TypeInformation of runner input data. */
+    private transient TypeInformation<Row> runnerInputTypeInfo;
+
+    /** The TypeInformation of runner output data. */
+    private transient TypeInformation<Row> runnerOutputTypeInfo;
+
     /** The TypeSerializer of python worker input data. */
-    transient TypeSerializer<UDFIN> runnerInputTypeSerializer;
+    private transient TypeSerializer<Row> runnerInputTypeSerializer;
 
     /** The TypeSerializer of python worker output data. */
-    transient TypeSerializer<UDFOUT> runnerOutputTypeSerializer;
+    private transient TypeSerializer<Row> runnerOutputTypeSerializer;
 
     /** Reusable InputStream used to holding the execution results to be deserialized. */
-    protected transient ByteArrayInputStreamWithPos bais;
+    private transient ByteArrayInputStreamWithPos bais;
 
     /** InputStream Wrapper. */
-    protected transient DataInputViewStreamWrapper baisWrapper;
+    private transient DataInputViewStreamWrapper baisWrapper;
 
     /** Reusable OutputStream used to holding the serialized input elements. */
     protected transient ByteArrayOutputStreamWithPos baos;
@@ -87,73 +92,42 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     /** OutputStream Wrapper. */
     protected transient DataOutputViewStreamWrapper baosWrapper;
 
-    protected transient TimestampedCollector<OUT> collector;
+    private transient RunnerInputHandler runnerInputHandler;
 
-    transient LinkedList<Long> bufferedTimestamp;
+    private transient RunnerOutputCollector<OUT> runnerOutputCollector;
 
     public OneInputPythonFunctionOperator(
             Configuration config,
-            TypeInformation<UDFIN> runnerInputTypeInfo,
-            TypeInformation<UDFOUT> runnerOutputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
+            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<OUT> outputTypeInfo) {
         super(config);
         this.jobOptions = config.toMap();
-        this.runnerInputTypeInfo = runnerInputTypeInfo;
-        this.runnerOutputTypeInfo = runnerOutputTypeInfo;
-        this.pythonFunctionInfo = pythonFunctionInfo;
+        this.pythonFunctionInfo = Preconditions.checkNotNull(pythonFunctionInfo);
+        this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
+        this.outputTypeInfo = Preconditions.checkNotNull(outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
-        super.open();
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
 
-        this.bufferedTimestamp = new LinkedList<>();
-        this.runnerInputTypeSerializer =
+        runnerInputTypeInfo = RunnerInputHandler.getRunnerInputTypeInfo(inputTypeInfo);
+        runnerOutputTypeInfo = RunnerOutputCollector.getRunnerOutputTypeInfo(outputTypeInfo);
+        runnerInputTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         runnerInputTypeInfo);
-        this.runnerOutputTypeSerializer =
+        runnerOutputTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
                         runnerOutputTypeInfo);
 
-        this.collector = new TimestampedCollector<>(output);
-    }
+        runnerInputHandler = new RunnerInputHandler();
+        runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
 
-    @Override
-    public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return new BeamDataStreamPythonFunctionRunner(
-                getRuntimeContext().getTaskName(),
-                createPythonEnvironmentManager(),
-                getFunctionUrn(),
-                getUserDefinedDataStreamFunctionProto(
-                        pythonFunctionInfo,
-                        getRuntimeContext(),
-                        getInternalParameters(),
-                        inBatchExecutionMode(getKeyedStateBackend())),
-                jobOptions,
-                getFlinkMetricContainer(),
-                null,
-                null,
-                null,
-                null,
-                getContainingTask().getEnvironment().getMemoryManager(),
-                getOperatorConfig()
-                        .getManagedMemoryFractionOperatorUseCaseOfSlot(
-                                ManagedMemoryUseCase.PYTHON,
-                                getContainingTask()
-                                        .getEnvironment()
-                                        .getTaskManagerInfo()
-                                        .getConfiguration(),
-                                getContainingTask()
-                                        .getEnvironment()
-                                        .getUserCodeClassLoader()
-                                        .asClassLoader()),
-                createInputCoderInfoDescriptor(runnerInputTypeInfo),
-                createOutputCoderInfoDescriptor(runnerOutputTypeInfo),
-                null);
+        super.open();
     }
 
     @Override
@@ -162,9 +136,22 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        runnerInputTypeSerializer.serialize((UDFIN) element.getValue(), baosWrapper);
+    public TypeInformation<OUT> getProducedType() {
+        return this.outputTypeInfo;
+    }
+
+    @Override
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        byte[] rawResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        bais.setBuffer(rawResult, 0, length);
+        Row runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
+        runnerOutputCollector.collect(runnerOutput);
+    }
+
+    public void processElement(long timestamp, long watermark, Object element) throws Exception {
+        Row row = runnerInputHandler.buildRunnerInputData(timestamp, watermark, element);
+        runnerInputTypeSerializer.serialize(row, baosWrapper);
         pythonFunctionRunner.process(baos.toByteArray());
         baos.reset();
         elementCount++;
@@ -172,23 +159,56 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         emitResults();
     }
 
-    public String getFunctionUrn() {
-        return STATELESS_FUNCTION_URN;
-    }
-
     public Map<String, String> getInternalParameters() {
-        return Collections.EMPTY_MAP;
+        return Collections.emptyMap();
     }
 
-    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
-            TypeInformation runnerInputType) {
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor() {
         return createRawTypeCoderInfoDescriptorProto(
-                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+                runnerInputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 
-    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
-            TypeInformation runnerOutType) {
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor() {
         return createRawTypeCoderInfoDescriptorProto(
-                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+                runnerOutputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    // ----------------------------------------------------------------------
+    // Getters
+    // ----------------------------------------------------------------------
+
+    protected Map<String, String> getJobOptions() {
+        return jobOptions;
+    }
+
+    protected DataStreamPythonFunctionInfo getPythonFunctionInfo() {
+        return pythonFunctionInfo;
+    }
+
+    protected TypeInformation<IN> getInputTypeInfo() {
+        return inputTypeInfo;
+    }
+
+    private static final class RunnerInputHandler {
+
+        /** Reusable row for element data. */
+        private final Row reusableRunnerInput;
+
+        public RunnerInputHandler() {
+            this.reusableRunnerInput = new Row(3);
+        }
+
+        public Row buildRunnerInputData(long timestamp, long watermark, Object elementData) {
+            reusableRunnerInput.setField(0, timestamp);
+            reusableRunnerInput.setField(1, watermark);
+            reusableRunnerInput.setField(2, elementData);
+            return reusableRunnerInput;
+        }
+
+        public static TypeInformation<Row> getRunnerInputTypeInfo(
+                TypeInformation<?> elementDataTypeInfo) {
+            // structure: [timestamp, watermark, data]
+            return Types.ROW(Types.LONG, Types.LONG, elementDataTypeInfo);
+        }
     }
 }

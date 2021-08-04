@@ -345,8 +345,7 @@ message UserDefinedDataStreamFunction {
     CO_PROCESS = 1;
     KEYED_PROCESS = 2;
     KEYED_CO_PROCESS = 3;
-    TIMESTAMP_ASSIGNER = 4;
-    WINDOW = 5;
+    WINDOW = 4;
   }
 
   message JobParameter {
