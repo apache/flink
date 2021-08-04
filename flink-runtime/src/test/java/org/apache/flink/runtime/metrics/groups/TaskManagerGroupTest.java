@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
@@ -67,7 +68,8 @@ public class TaskManagerGroupTest extends TestLogger {
     @Test
     public void addAndRemoveJobs() throws IOException {
         final TaskManagerMetricGroup group =
-                new TaskManagerMetricGroup(registry, "localhost", new AbstractID().toString());
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "localhost", ResourceID.generate());
 
         final JobID jid1 = new JobID();
         final JobID jid2 = new JobID();
@@ -125,7 +127,8 @@ public class TaskManagerGroupTest extends TestLogger {
     @Test
     public void testCloseClosesAll() throws IOException {
         final TaskManagerMetricGroup group =
-                new TaskManagerMetricGroup(registry, "localhost", new AbstractID().toString());
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "localhost", new ResourceID(new AbstractID().toString()));
 
         final JobID jid1 = new JobID();
         final JobID jid2 = new JobID();
@@ -161,7 +164,9 @@ public class TaskManagerGroupTest extends TestLogger {
 
     @Test
     public void testGenerateScopeDefault() {
-        TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "localhost", "id");
+        TaskManagerMetricGroup group =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "localhost", new ResourceID("id"));
 
         assertArrayEquals(
                 new String[] {"localhost", "taskmanager", "id"}, group.getScopeComponents());
@@ -174,7 +179,9 @@ public class TaskManagerGroupTest extends TestLogger {
         cfg.setString(MetricOptions.SCOPE_NAMING_TM, "constant.<host>.foo.<host>");
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
-        TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup group =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
 
         assertArrayEquals(
                 new String[] {"constant", "host", "foo", "host"}, group.getScopeComponents());
@@ -184,7 +191,9 @@ public class TaskManagerGroupTest extends TestLogger {
 
     @Test
     public void testCreateQueryServiceMetricInfo() {
-        TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup tm =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
 
         QueryScopeInfo.TaskManagerQueryScopeInfo info =
                 tm.createQueryServiceMetricInfo(new DummyCharacterFilter());

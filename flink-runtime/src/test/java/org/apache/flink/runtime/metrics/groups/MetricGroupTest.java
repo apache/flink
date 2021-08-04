@@ -25,6 +25,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -337,7 +338,9 @@ public class MetricGroupTest extends TestLogger {
         JobVertexID vid = new JobVertexID();
         ExecutionAttemptID eid = new ExecutionAttemptID();
         MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
-        TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup tm =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
         TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
         TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
         GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");

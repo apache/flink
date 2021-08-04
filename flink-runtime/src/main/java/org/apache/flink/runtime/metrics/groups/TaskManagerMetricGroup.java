@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -46,7 +47,7 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
 
     private final String taskManagerId;
 
-    public TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
+    TaskManagerMetricGroup(MetricRegistry registry, String hostname, String taskManagerId) {
         super(
                 registry,
                 registry.getScopeFormats()
@@ -55,6 +56,11 @@ public class TaskManagerMetricGroup extends ComponentMetricGroup<TaskManagerMetr
                 null);
         this.hostname = hostname;
         this.taskManagerId = taskManagerId;
+    }
+
+    public static TaskManagerMetricGroup createTaskManagerMetricGroup(
+            MetricRegistry metricRegistry, String hostName, ResourceID resourceID) {
+        return new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
     }
 
     public String hostname() {
