@@ -35,7 +35,13 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.function.BiConsumer;
 
-/** A settable testing {@link StreamTask}. */
+/**
+ * A settable testing {@link StreamTask}.
+ *
+ * @deprecated This class is deprecated in favour of using {@link
+ *     org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder}.
+ */
+@Deprecated
 public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamTask<OUT, OP> {
 
     private final Object checkpointLock;
