@@ -180,7 +180,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /**
      * All actions outside of the task {@link #mailboxProcessor mailbox} (i.e. performed by another
      * thread) must be executed through this executor to ensure that we don't have concurrent method
-     * calls that void consistent checkpoints.
+     * calls that void consistent checkpoints. The execution will always be performed in the task
+     * thread.
      *
      * <p>CheckpointLock is superseded by {@link MailboxExecutor}, with {@link
      * StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor
