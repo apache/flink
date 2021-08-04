@@ -17,7 +17,6 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
@@ -32,7 +31,6 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.KEY_VALUE;
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE;
@@ -54,17 +52,14 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     protected final RegisteredStateMetaInfoBase metaInfo;
     private final StateMetaInfoSnapshot.BackendStateType stateType;
     private boolean metaDataWritten = false;
-    private final StateTtlConfig ttlConfig;
 
     public AbstractStateChangeLogger(
             StateChangelogWriter<?> stateChangelogWriter,
             InternalKeyContext<Key> keyContext,
-            RegisteredStateMetaInfoBase metaInfo,
-            StateTtlConfig ttlConfig) {
+            RegisteredStateMetaInfoBase metaInfo) {
         this.stateChangelogWriter = checkNotNull(stateChangelogWriter);
         this.keyContext = checkNotNull(keyContext);
         this.metaInfo = checkNotNull(metaInfo);
-        this.ttlConfig = checkNotNull(ttlConfig);
         if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
             this.stateType = KEY_VALUE;
         } else if (metaInfo instanceof RegisteredPriorityQueueStateBackendMetaInfo) {
@@ -153,20 +148,13 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
                                 out.writeInt(CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
                                 StateMetaInfoSnapshotReadersWriters.getWriter()
                                         .writeStateMetaInfoSnapshot(metaInfo.snapshot(), out);
-                                writeTtl(out);
+                                writeDefaultValueAndTtl(out);
                             }));
             metaDataWritten = true;
         }
     }
 
-    private void writeTtl(DataOutputViewStreamWrapper out) throws IOException {
-        out.writeBoolean(ttlConfig.isEnabled());
-        if (ttlConfig.isEnabled()) {
-            try (ObjectOutputStream o = new ObjectOutputStream(out)) {
-                o.writeObject(ttlConfig);
-            }
-        }
-    }
+    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {}
 
     private byte[] serialize(
             StateChangeOperation op,
