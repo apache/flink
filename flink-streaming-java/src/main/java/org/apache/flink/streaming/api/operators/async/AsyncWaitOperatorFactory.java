@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;

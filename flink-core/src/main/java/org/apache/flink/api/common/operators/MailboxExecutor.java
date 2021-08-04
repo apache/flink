@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.mailbox;
+package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FutureTaskWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -31,8 +31,8 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * {@link java.util.concurrent.Executor} like interface for an build around a mailbox-based
- * execution model (see {@code TaskMailbox}). {@code MailboxExecutor} can also execute downstream
- * messages of a mailbox by yielding control from the task thread.
+ * execution model. {@code MailboxExecutor} can also execute downstream messages of a mailbox by
+ * yielding control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further
  * processing in a FIFO fashion.
@@ -46,13 +46,13 @@ import java.util.concurrent.RejectedExecutionException;
  * <p>The yielding functions will only process events from the operator itself and any downstream
  * operator. Events of upstream operators are only processed when the input has been fully processed
  * or if they yield themselves. This method avoid congestion and potential deadlocks, but will
- * process {@code Mail}s slightly out-of-order, effectively creating a view on the mailbox that
- * contains no message from upstream operators.
+ * process mails slightly out-of-order, effectively creating a view on the mailbox that contains no
+ * message from upstream operators.
  *
- * <p><b>All yielding functions must be called in the mailbox thread</b> (see {@code
- * TaskMailbox#isMailboxThread()}) to not violate the single-threaded execution model. There are two
- * typical cases, both waiting until the resource is available. The main difference is if the
- * resource becomes available through a mailbox message itself or not.
+ * <p><b>All yielding functions must be called in the mailbox thread</b> to not violate the
+ * single-threaded execution model. There are two typical cases, both waiting until the resource is
+ * available. The main difference is if the resource becomes available through a mailbox message
+ * itself or not.
  *
  * <p>If the resource becomes available through a mailbox mail, we can effectively block the task
  * thread. Implicitly, this requires the mail to be enqueued by a different thread.
@@ -63,13 +63,20 @@ import java.util.concurrent.RejectedExecutionException;
  * }
  * }</pre>
  *
+ * <pre>in some other thread{@code
+ * mailboxExecutor.execute(() -> free resource, "freeing resource");
+ * }</pre>
+ *
  * <p>If the resource becomes available through an external mechanism or the corresponding mail
  * needs to be enqueued in the task thread, we cannot block.
  *
  * <pre>{@code
  * while (resource not available) {
  *     if (!mailboxExecutor.tryYield()) {
- *         do stuff or sleep for a small amount of time
+ *         // do stuff or sleep for a small amount of time
+ *         if (special condition) {
+ *             free resource
+ *         }
  *     }
  * }
  * }</pre>
