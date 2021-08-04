@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFacto
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandler;
-import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandlerTest;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerTest;
 
 import org.junit.Assert;
@@ -35,11 +34,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/** Tests for the WebFrontendBootstrap. */
 public class WebFrontendBootstrapTest {
 
     @Rule public TemporaryFolder tmp = new TemporaryFolder();
@@ -48,8 +46,9 @@ public class WebFrontendBootstrapTest {
     public void testHandlersMustBeLoaded() throws Exception {
         File webDir = tmp.newFolder("webDir");
         Configuration configuration = new Configuration();
-        configuration.setBoolean(
-                Prio0InboundChannelHandlerFactory.GIVE_ME_INDEX_HTML_ENABLED, true);
+        configuration.setString(
+                Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
+        configuration.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
         Router router =
                 new Router().addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
         WebFrontendBootstrap webUI =
@@ -74,12 +73,12 @@ public class WebFrontendBootstrapTest {
         try {
             Tuple2<Integer, String> index =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
-            Assert.assertThat(index.f0, is(200));
-            Assert.assertThat(index.f1, containsString("Apache Flink Web Dashboard"));
+            Assert.assertEquals(index.f0.intValue(), 200);
+            Assert.assertTrue(index.f1.contains("Apache Flink Web Dashboard"));
 
             Tuple2<Integer, String> index2 =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/nonExisting");
-            Assert.assertThat(index2.f0, is(200));
+            Assert.assertEquals(index2.f0.intValue(), 200);
             Assert.assertEquals(index, index2);
         } finally {
             webUI.shutdown();

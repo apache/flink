@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
-import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
-import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
@@ -97,22 +92,6 @@ public class RestServerEndpointTest extends TestLogger {
             RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER, true);
             fail("Expected exception not thrown.");
         } catch (IOException e) {
-        }
-    }
-
-    @Test
-    public void testHandlersMustBeLoaded() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(RestOptions.ADDRESS, "localhost");
-        try (RestServerEndpoint restServerEndpoint =
-                TestRestServerEndpoint.builder(config).build()) {
-            assertEquals(restServerEndpoint.inboundChannelHandlerFactories.size(), 2);
-            assertTrue(
-                    restServerEndpoint.inboundChannelHandlerFactories.get(0)
-                            instanceof Prio1InboundChannelHandlerFactory);
-            assertTrue(
-                    restServerEndpoint.inboundChannelHandlerFactories.get(1)
-                            instanceof Prio0InboundChannelHandlerFactory);
         }
     }
 }

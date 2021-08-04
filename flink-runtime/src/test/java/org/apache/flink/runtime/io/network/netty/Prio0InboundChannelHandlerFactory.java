@@ -32,9 +32,12 @@ import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 import java.util.Map;
 import java.util.Optional;
 
+/** Test inbound channel handler factory. */
 public class Prio0InboundChannelHandlerFactory implements InboundChannelHandlerFactory {
-    public static final ConfigOption<Boolean> GIVE_ME_INDEX_HTML_ENABLED =
-            ConfigOptions.key("test.give.me.index.html.enabled").booleanType().noDefaultValue();
+    public static final ConfigOption<String> REDIRECT_FROM_URL =
+            ConfigOptions.key("test.in.redirect.from.url").stringType().defaultValue("");
+    public static final ConfigOption<String> REDIRECT_TO_URL =
+            ConfigOptions.key("test.in.redirect.to.url").stringType().defaultValue("");
 
     @Override
     public int priority() {
@@ -45,14 +48,18 @@ public class Prio0InboundChannelHandlerFactory implements InboundChannelHandlerF
     public Optional<ChannelHandler> createHandler(
             Configuration configuration, Map<String, String> responseHeaders)
             throws ConfigurationException {
-        if (configuration.getBoolean(GIVE_ME_INDEX_HTML_ENABLED)) {
+        String redirectFromUrl = configuration.getString(REDIRECT_FROM_URL);
+        String redirectToUrl = configuration.getString(REDIRECT_TO_URL);
+        if (!redirectFromUrl.isEmpty() && !redirectToUrl.isEmpty()) {
             return Optional.of(
                     new ChannelInboundHandlerAdapter() {
                         @Override
                         public void channelRead(ChannelHandlerContext ctx, Object msg) {
                             if (msg instanceof HttpRequest) {
                                 HttpRequest httpRequest = (HttpRequest) msg;
-                                httpRequest.setUri("/index.html");
+                                if (httpRequest.uri().equals(redirectFromUrl)) {
+                                    httpRequest.setUri(redirectToUrl);
+                                }
                             }
                             ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
                         }

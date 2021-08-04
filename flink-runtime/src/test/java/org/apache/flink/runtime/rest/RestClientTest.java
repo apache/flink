@@ -48,9 +48,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link RestClient}. */
 public class RestClientTest extends TestLogger {
@@ -195,20 +193,6 @@ public class RestClientTest extends TestLogger {
             if (connectionSocket != null) {
                 connectionSocket.close();
             }
-        }
-    }
-
-    @Test
-    public void testHandlersMustBeLoaded() throws Exception {
-        try (final RestClient restClient =
-                new RestClient(new Configuration(), Executors.directExecutor())) {
-            assertEquals(restClient.outboundChannelHandlerFactories.size(), 2);
-            assertTrue(
-                    restClient.outboundChannelHandlerFactories.get(0)
-                            instanceof Prio1OutboundChannelHandlerFactory);
-            assertTrue(
-                    restClient.outboundChannelHandlerFactories.get(1)
-                            instanceof Prio0OutboundChannelHandlerFactory);
         }
     }
 

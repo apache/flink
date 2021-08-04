@@ -26,6 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import java.util.Map;
 import java.util.Optional;
 
+/** Test inbound channel handler factory. */
 public class Prio1InboundChannelHandlerFactory implements InboundChannelHandlerFactory {
     @Override
     public int priority() {

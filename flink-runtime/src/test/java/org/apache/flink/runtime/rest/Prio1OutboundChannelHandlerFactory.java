@@ -26,6 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
 import java.util.Optional;
 
+/** Test outbound channel handler factory. */
 public class Prio1OutboundChannelHandlerFactory implements OutboundChannelHandlerFactory {
     @Override
     public int priority() {
