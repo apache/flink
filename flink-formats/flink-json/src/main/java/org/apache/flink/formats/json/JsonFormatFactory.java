@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -52,6 +53,7 @@ import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
  * Table format factory for providing configured instances of JSON to RowData {@link
  * SerializationSchema} and {@link DeserializationSchema}.
  */
+@Internal
 public class JsonFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "json";
