@@ -19,27 +19,21 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
- * GlobalCommitter} in the batch execution mode.
+ * {@link CommitterHandler} for executing {@link GlobalCommitter} in the batch execution mode.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}
  * @param <GlobalCommT> The committable type of the {@link GlobalCommitter}
  */
-final class BatchGlobalCommitterOperator<CommT, GlobalCommT>
-        extends AbstractStreamOperator<GlobalCommT>
-        implements OneInputStreamOperator<CommT, GlobalCommT>, BoundedOneInput {
+final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
+        extends AbstractCommitterHandler<CommT, GlobalCommT> {
 
     /**
      * Aggregate committables to global committables and commit the global committables to the
@@ -47,21 +41,13 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT>
      */
     private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
-    /** Record all the committables until the end of the input. */
-    private final List<CommT> allCommittables;
-
-    BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
+    public GlobalBatchCommitterHandler(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
         this.globalCommitter = checkNotNull(globalCommitter);
-        this.allCommittables = new ArrayList<>();
     }
 
     @Override
-    public void processElement(StreamRecord<CommT> element) {
-        allCommittables.add(element.getValue());
-    }
-
-    @Override
-    public void endInput() throws Exception {
+    public List<GlobalCommT> endOfInput() throws IOException, InterruptedException {
+        List<CommT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
             final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
             final List<GlobalCommT> neededRetryCommittables =
@@ -72,11 +58,12 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT>
             }
         }
         globalCommitter.endOfInput();
+        return Collections.emptyList();
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
         globalCommitter.close();
+        super.close();
     }
 }

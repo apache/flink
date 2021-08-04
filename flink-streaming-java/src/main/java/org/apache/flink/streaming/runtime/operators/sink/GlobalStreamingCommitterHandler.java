@@ -21,24 +21,24 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
- * GlobalCommitter} in the streaming execution mode.
+ * {@link CommitterHandler} for executing {@link GlobalCommitter} in the streaming execution mode.
  *
  * @param <CommT> The committable type of the {@link GlobalCommitter}.
  * @param <GlobalCommT> The global committable type of the {@link GlobalCommitter}.
  */
 @Internal
-public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
-        extends AbstractStreamingCommitterOperator<CommT, GlobalCommT> implements BoundedOneInput {
+public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
+        extends AbstractStreamingCommitterHandler<CommT, GlobalCommT> {
 
     /**
      * Aggregate committables to global committables and commit the global committables to the
@@ -54,7 +54,7 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
 
     private boolean endOfInput;
 
-    StreamingGlobalCommitterOperator(
+    public GlobalStreamingCommitterHandler(
             GlobalCommitter<CommT, GlobalCommT> globalCommitter,
             SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
         super(committableSerializer);
@@ -84,27 +84,31 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
     }
 
     @Override
-    List<GlobalCommT> commit(List<GlobalCommT> committables) throws Exception {
+    List<GlobalCommT> commit(List<GlobalCommT> committables)
+            throws IOException, InterruptedException {
         return globalCommitter.commit(checkNotNull(committables));
     }
 
     @Override
-    public void endInput() {
+    public List<GlobalCommT> endOfInput() {
         endOfInput = true;
+        return Collections.emptyList();
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
         globalCommitter.close();
         super.close();
     }
 
     @Override
-    public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        super.notifyCheckpointComplete(checkpointId);
+    public Collection<GlobalCommT> notifyCheckpointCompleted(long checkpointId)
+            throws IOException, InterruptedException {
+        super.notifyCheckpointCompleted(checkpointId);
+        commitUpTo(checkpointId);
         if (endOfInput) {
             globalCommitter.endOfInput();
         }
+        return Collections.emptyList();
     }
 }

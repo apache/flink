@@ -19,44 +19,29 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.function.SupplierWithException;
 
-import javax.annotation.Nullable;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
- * SinkWriter Writers} that have state.
- *
- * @param <InputT> The input type of the {@link SinkWriter}.
- * @param <CommT> The committable type of the {@link SinkWriter}.
- * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
- */
+/** {@link SinkWriterStateHandler} for stateful sinks. */
 @Internal
-final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
-        extends AbstractSinkWriterOperator<InputT, CommT> {
+final class StatefulSinkWriterStateHandler<WriterStateT>
+        implements SinkWriterStateHandler<WriterStateT> {
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> WRITER_RAW_STATES_DESC =
             new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
-
-    /** Used to create the stateful {@link SinkWriter}. */
-    private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
     /** The writer operator's state serializer. */
     private final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer;
@@ -67,7 +52,7 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
      * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
      * migration to newer Sink implementations.
      */
-    @Nullable private final String previousSinkStateName;
+    private final Collection<String> previousSinkStateNames;
 
     // ------------------------------- runtime fields ---------------------------------------
 
@@ -77,64 +62,46 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
      * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
      * migration to newer Sink implementations.
      */
-    @Nullable private ListState<WriterStateT> previousSinkState;
+    private List<ListState<WriterStateT>> previousSinkStates = new ArrayList<>();
 
     /** The operator's state. */
     private ListState<WriterStateT> writerState;
 
-    StatefulSinkWriterOperator(
-            @Nullable final String previousSinkStateName,
-            final ProcessingTimeService processingTimeService,
-            MailboxExecutor mailboxExecutor,
-            final Sink<InputT, CommT, WriterStateT, ?> sink,
-            final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
-        super(processingTimeService, mailboxExecutor);
-        this.sink = sink;
+    public StatefulSinkWriterStateHandler(
+            final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer,
+            Collection<String> previousSinkStateNames) {
         this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
-        this.previousSinkStateName = previousSinkStateName;
+        this.previousSinkStateNames = previousSinkStateNames;
     }
 
-    @Override
-    public void initializeState(StateInitializationContext context) throws Exception {
-        super.initializeState(context);
-
+    public List<WriterStateT> initializeState(StateInitializationContext context) throws Exception {
         final ListState<byte[]> rawState =
                 context.getOperatorStateStore().getListState(WRITER_RAW_STATES_DESC);
         writerState =
                 new SimpleVersionedListState<>(rawState, writerStateSimpleVersionedSerializer);
+        final List<WriterStateT> writerStates = CollectionUtil.iterableToList(writerState.get());
+        final List<WriterStateT> states = new ArrayList<>(writerStates);
 
-        if (previousSinkStateName != null) {
+        for (String previousSinkStateName : previousSinkStateNames) {
             final ListStateDescriptor<byte[]> preSinkStateDesc =
                     new ListStateDescriptor<>(
                             previousSinkStateName, BytePrimitiveArraySerializer.INSTANCE);
 
             final ListState<byte[]> preRawState =
                     context.getOperatorStateStore().getListState(preSinkStateDesc);
-            this.previousSinkState =
+            SimpleVersionedListState<WriterStateT> previousSinkState =
                     new SimpleVersionedListState<>(
                             preRawState, writerStateSimpleVersionedSerializer);
+            previousSinkStates.add(previousSinkState);
+            Iterables.addAll(states, previousSinkState.get());
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public void snapshotState(StateSnapshotContext context) throws Exception {
-        writerState.update((List<WriterStateT>) sinkWriter.snapshotState());
-        if (previousSinkState != null) {
-            previousSinkState.clear();
-        }
+        return states;
     }
 
     @Override
-    SinkWriter<InputT, CommT, WriterStateT> createWriter() throws Exception {
-        final List<WriterStateT> writerStates = CollectionUtil.iterableToList(writerState.get());
-        final List<WriterStateT> states = new ArrayList<>(writerStates);
-        if (previousSinkStateName != null) {
-            checkNotNull(previousSinkState);
-            final List<WriterStateT> previousSinkStates =
-                    CollectionUtil.iterableToList(previousSinkState.get());
-            states.addAll(previousSinkStates);
-        }
-        return sink.createWriter(createInitContext(), states);
+    public void snapshotState(SupplierWithException<List<WriterStateT>, Exception> stateSupplier)
+            throws Exception {
+        writerState.update(stateSupplier.get());
+        previousSinkStates.forEach(ListState::clear);
     }
 }

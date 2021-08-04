@@ -25,10 +25,10 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,10 +49,10 @@ import java.util.TreeMap;
  * @param <InputT> The input type of the {@link Committer}.
  * @param <CommT> The committable type of the {@link Committer}.
  */
-abstract class AbstractStreamingCommitterOperator<InputT, CommT>
-        extends AbstractStreamOperator<CommT> implements OneInputStreamOperator<InputT, CommT> {
-
-    private static final long serialVersionUID = 1L;
+abstract class AbstractStreamingCommitterHandler<InputT, CommT>
+        extends AbstractCommitterHandler<InputT, CommT> {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AbstractStreamingCommitterHandler.class);
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
@@ -67,9 +67,6 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
 
     /** The operator's state. */
     private ListState<StreamingCommitterState<CommT>> streamingCommitterState;
-
-    /** Inputs collected between every pre-commit. */
-    private List<InputT> currentInputs;
 
     /**
      * Notifies a list of committables that might need to be committed again after recovering from a
@@ -93,13 +90,12 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
      * @param committables A list of committables that is ready for committing.
      * @return A list of committables needed to re-commit.
      */
-    abstract List<CommT> commit(List<CommT> committables) throws Exception;
+    abstract List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException;
 
-    AbstractStreamingCommitterOperator(SimpleVersionedSerializer<CommT> committableSerializer) {
+    AbstractStreamingCommitterHandler(SimpleVersionedSerializer<CommT> committableSerializer) {
         this.streamingCommitterStateSerializer =
                 new StreamingCommitterStateSerializer<>(committableSerializer);
         this.committablesPerCheckpoint = new TreeMap<>();
-        this.currentInputs = new ArrayList<>();
     }
 
     @Override
@@ -116,28 +112,16 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
     }
 
     @Override
-    public void processElement(StreamRecord<InputT> element) throws Exception {
-        currentInputs.add(element.getValue());
-    }
-
-    @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        committablesPerCheckpoint.put(context.getCheckpointId(), prepareCommit(currentInputs));
-        currentInputs = new ArrayList<>();
+        committablesPerCheckpoint.put(context.getCheckpointId(), prepareCommit(pollCommittables()));
 
         streamingCommitterState.update(
                 Collections.singletonList(
                         new StreamingCommitterState<>(committablesPerCheckpoint)));
     }
 
-    @Override
-    public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        super.notifyCheckpointComplete(checkpointId);
-        commitUpTo(checkpointId);
-    }
-
-    private void commitUpTo(long checkpointId) throws Exception {
+    protected List<CommT> commitUpTo(long checkpointId) throws IOException, InterruptedException {
         final Iterator<Map.Entry<Long, List<CommT>>> it =
                 committablesPerCheckpoint.headMap(checkpointId, true).entrySet().iterator();
 
@@ -156,11 +140,7 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
         if (!neededToRetryCommittables.isEmpty()) {
             throw new UnsupportedOperationException("Currently does not support the re-commit!");
         }
-
-        // TODO fix :: send only for the committer, not for the global COMMITTER
-        for (CommT committable : readyCommittables) {
-            output.collect(new StreamRecord<>(committable));
-        }
+        return readyCommittables;
     }
 
     @Override

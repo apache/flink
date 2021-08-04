@@ -18,14 +18,15 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -33,32 +34,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.fromRecords;
 import static org.apache.flink.streaming.util.TestHarnessUtil.buildSubtaskState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 
-/**
- * Test the {@link StreamingCommitterOperator}.
- *
- * <p>This has no tests of its own because {@link StreamingCommitterOperator} has no functionality
- * beyond what {@link AbstractStreamingCommitterOperator} provides.
- */
-public class StreamingCommitterOperatorTest extends TestLogger {
+/** Test the {@link StreamingCommitterHandler}. */
+public class StreamingCommitterHandlerTest extends TestLogger {
 
     @Test(expected = IllegalStateException.class)
     public void throwExceptionWithoutSerializer() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<String, byte[]> testHarness =
                 createTestHarness(new TestSink.DefaultCommitter(), null);
-        testHarness.initializeEmptyState();
-        testHarness.open();
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void throwExceptionWithoutCommitter() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
-                createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
         testHarness.initializeEmptyState();
         testHarness.open();
     }
@@ -66,13 +54,14 @@ public class StreamingCommitterOperatorTest extends TestLogger {
     @Test(expected = UnsupportedOperationException.class)
     public void doNotSupportRetry() throws Exception {
         final List<String> input = Arrays.asList("lazy", "leaf");
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<String, byte[]> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryCommitter());
 
         testHarness.initializeEmptyState();
         testHarness.open();
         testHarness.processElements(
                 input.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(1);
         testHarness.snapshot(1L, 1L);
         testHarness.notifyOfCompletedCheckpoint(1L);
 
@@ -82,12 +71,12 @@ public class StreamingCommitterOperatorTest extends TestLogger {
     @Test
     public void closeCommitter() throws Exception {
         final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<String, byte[]> testHarness =
                 createTestHarness(committer);
         testHarness.initializeEmptyState();
         testHarness.open();
         testHarness.close();
-        assertThat(committer.isClosed(), is(true));
+        assertThat(committer.isClosed(), Matchers.equalTo(true));
     }
 
     @Test
@@ -102,7 +91,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
                 buildSubtaskState(createTestHarness(), input2);
 
         final TestSink.DefaultCommitter committer = new TestSink.DefaultCommitter();
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<String, byte[]> testHarness =
                 createTestHarness(committer);
 
         final OperatorSubtaskState mergedOperatorSubtaskState =
@@ -118,16 +107,19 @@ public class StreamingCommitterOperatorTest extends TestLogger {
         expectedOutput.addAll(input1);
         expectedOutput.addAll(input2);
 
+        testHarness.prepareSnapshotPreBarrier(1L);
         testHarness.snapshot(1L, 1L);
         testHarness.notifyOfCompletedCheckpoint(1);
 
         testHarness.close();
 
-        assertThat(
-                testHarness.getOutput(),
-                containsInAnyOrder(expectedOutput.stream().map(StreamRecord::new).toArray()));
+        String[] expectedList =
+                expectedOutput.stream()
+                        .map(output -> Tuple3.of(output, null, Long.MIN_VALUE).toString())
+                        .toArray(String[]::new);
+        assertThat(fromRecords(testHarness.getRecordOutput()), containsInAnyOrder(expectedList));
 
-        assertThat(committer.getCommittedData(), containsInAnyOrder(expectedOutput.toArray()));
+        assertThat(committer.getCommittedData(), containsInAnyOrder(expectedList));
     }
 
     @Test
@@ -145,21 +137,22 @@ public class StreamingCommitterOperatorTest extends TestLogger {
         expectedOutput.addAll(input2);
         expectedOutput.addAll(input3);
 
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        final OneInputStreamOperatorTestHarness<String, byte[]> testHarness =
                 createTestHarness(committer);
         testHarness.initializeEmptyState();
         testHarness.open();
 
         testHarness.processElements(
                 input1.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(1L);
         testHarness.snapshot(1L, 1L);
-
         testHarness.processElements(
                 input2.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(2L);
         testHarness.snapshot(2L, 2L);
-
         testHarness.processElements(
                 input3.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(3L);
         testHarness.snapshot(3L, 3L);
 
         testHarness.notifyOfCompletedCheckpoint(1);
@@ -167,32 +160,39 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 
         testHarness.close();
 
-        assertThat(
-                testHarness.getOutput().toArray(),
-                equalTo(expectedOutput.stream().map(StreamRecord::new).toArray()));
+        List<String> expectedList =
+                expectedOutput.stream()
+                        .map(output -> Tuple3.of(output, null, Long.MIN_VALUE).toString())
+                        .collect(Collectors.toList());
+        assertThat(fromRecords(testHarness.getRecordOutput()), equalTo(expectedList));
 
-        assertThat(committer.getCommittedData().toArray(), equalTo(expectedOutput.toArray()));
+        assertThat(committer.getCommittedData(), equalTo(expectedList));
     }
 
-    private OneInputStreamOperatorTestHarness<String, String> createTestHarness() throws Exception {
+    private OneInputStreamOperatorTestHarness<String, byte[]> createTestHarness() throws Exception {
         return createTestHarness(
                 new TestSink.DefaultCommitter(), TestSink.StringCommittableSerializer.INSTANCE);
     }
 
-    private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
+    private OneInputStreamOperatorTestHarness<String, byte[]> createTestHarness(
             Committer<String> committer) throws Exception {
         return createTestHarness(committer, TestSink.StringCommittableSerializer.INSTANCE);
     }
 
-    private OneInputStreamOperatorTestHarness<String, String> createTestHarness(
+    private OneInputStreamOperatorTestHarness<String, byte[]> createTestHarness(
             Committer<String> committer, SimpleVersionedSerializer<String> serializer)
             throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
-                new StreamingCommitterOperatorFactory<>(
+                new SinkOperatorFactory<>(
                         TestSink.newBuilder()
+                                .setWriter(new TestSink.DefaultSinkWriter<String>())
+                                .withWriterState()
+                                .setCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setCommitter(committer)
                                 .setCommittableSerializer(serializer)
-                                .build()),
-                StringSerializer.INSTANCE);
+                                .build(),
+                        false,
+                        true));
     }
 }

@@ -139,6 +139,7 @@ public class TestHarnessUtil {
 
         testHarness.processElements(
                 input.stream().map(StreamRecord::new).collect(Collectors.toList()));
+        testHarness.prepareSnapshotPreBarrier(1);
         final OperatorSubtaskState operatorSubtaskState = testHarness.snapshot(1, 1);
         testHarness.close();
 

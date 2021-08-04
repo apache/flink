@@ -21,19 +21,20 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
- * Committer} in the streaming execution mode.
+ * {@link CommitterHandler} for executing {@link Committer} in the streaming execution mode.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
-final class StreamingCommitterOperator<CommT>
-        extends AbstractStreamingCommitterOperator<CommT, CommT> {
+final class StreamingCommitterHandler<CommT>
+        extends AbstractStreamingCommitterHandler<CommT, CommT> {
 
     /** The committables that might need to be committed again after recovering from a failover. */
     private final List<CommT> recoveredCommittables;
@@ -41,7 +42,7 @@ final class StreamingCommitterOperator<CommT>
     /** Responsible for committing the committable to the external system. * */
     private final Committer<CommT> committer;
 
-    StreamingCommitterOperator(
+    public StreamingCommitterHandler(
             Committer<CommT> committer, SimpleVersionedSerializer<CommT> committableSerializer) {
         super(committableSerializer);
         this.committer = checkNotNull(committer);
@@ -63,14 +64,19 @@ final class StreamingCommitterOperator<CommT>
     }
 
     @Override
-    List<CommT> commit(List<CommT> committables) throws Exception {
+    List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException {
         return committer.commit(checkNotNull(committables));
     }
 
     @Override
     public void close() throws Exception {
-        super.close();
         committer.close();
         super.close();
+    }
+
+    @Override
+    public Collection<CommT> notifyCheckpointCompleted(long checkpointId)
+            throws IOException, InterruptedException {
+        return commitUpTo(checkpointId);
     }
 }
