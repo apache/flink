@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.connector.print.table;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -31,6 +31,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
@@ -38,7 +40,8 @@ import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.connector.print.table.PrintConnectorOptions.PRINT_IDENTIFIER;
+import static org.apache.flink.connector.print.table.PrintConnectorOptions.STANDARD_ERROR;
 
 /**
  * Print table sink factory writing every row to the standard output or standard error stream. It is
@@ -51,24 +54,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  *
  * <p>output string format is "$RowKind[f0, f1, f2, ...]", example is: "+I[1, 1]".
  */
-@PublicEvolving
+@Internal
 public class PrintTableSinkFactory implements DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "print";
-
-    public static final ConfigOption<String> PRINT_IDENTIFIER =
-            key("print-identifier")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Message that identify print and is prefixed to the output of the value.");
-
-    public static final ConfigOption<Boolean> STANDARD_ERROR =
-            key("standard-error")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "True, if the format should print to standard error instead of standard out.");
 
     @Override
     public String factoryIdentifier() {
