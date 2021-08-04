@@ -1813,39 +1813,31 @@ public class StreamTaskTest extends TestLogger {
      */
     @Test
     public void testThroughputSchedulerStartsOnInvoke() throws Exception {
-        // given: Throughput meter which finishes the task when calculateThroughput was called.
-        UnAvailableTestInputProcessor inputProcessor = new UnAvailableTestInputProcessor();
-        AtomicInteger desirableNumberOfCalculation = new AtomicInteger(2);
-        try (MockEnvironment mockEnvironment =
-                new MockEnvironmentBuilder()
-                        .setTaskConfiguration(
-                                new Configuration()
-                                        .set(BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(1)))
+        CompletableFuture<?> finishFuture = new CompletableFuture<>();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .modifyStreamConfig(
+                                config ->
+                                        config.getConfiguration()
+                                                .set(BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(1)))
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
                         .setThroughputMeter(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
                                     public long calculateThroughput() {
-                                        if (desirableNumberOfCalculation.decrementAndGet() == 0) {
-                                            inputProcessor
-                                                    .availabilityProvider
-                                                    .getUnavailableToResetAvailable()
-                                                    .complete(null);
-                                        }
+                                        finishFuture.complete(null);
                                         return super.calculateThroughput();
                                     }
                                 })
                         .build()) {
-
-            StreamTask task =
-                    new MockStreamTaskBuilder(mockEnvironment)
-                            .setStreamInputProcessor(inputProcessor)
-                            .build();
-
-            // when: Starting the task.
-            task.invoke();
-
-            // then: The task successfully finishes because throughput calculation was called from
-            // scheduler which leads to the finish of the task
+            finishFuture.thenApply(
+                    (value) -> {
+                        harness.endInput();
+                        return value;
+                    });
+            harness.streamTask.invoke();
         }
     }
 
