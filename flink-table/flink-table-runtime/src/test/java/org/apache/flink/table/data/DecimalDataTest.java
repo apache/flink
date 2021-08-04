@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.data;
 
+import org.apache.flink.table.data.binary.BinaryStringData;
+
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -47,6 +49,7 @@ import static org.apache.flink.table.data.DecimalDataUtils.subtract;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /** Test for {@link DecimalData}. */
@@ -176,5 +179,19 @@ public class DecimalDataTest {
         assertEquals(val, castFrom(val, 39, val.length() - 2).toString());
         val = "123456789012345678901234567890123456789";
         assertEquals(val, castFrom(val, 39, 0).toString());
+    }
+
+    @Test
+    public void testCompareToBinaryStringData() {
+        BinaryStringData validLarger = BinaryStringData.fromString("12345.12345");
+        BinaryStringData validEqual = BinaryStringData.fromString("12345.12300");
+        BinaryStringData validLess = BinaryStringData.fromString("12345.12245");
+        BinaryStringData invalid = BinaryStringData.fromString("12345abcde");
+
+        DecimalData decimalData = DecimalData.fromBigDecimal(new BigDecimal("12345.123"), 20, 3);
+        assertTrue(compare(decimalData, validLarger) < 0);
+        assertTrue(compare(decimalData, validLess) > 0);
+        assertEquals(0, compare(decimalData, validEqual));
+        assertThrows(NumberFormatException.class, () -> compare(decimalData, invalid));
     }
 }

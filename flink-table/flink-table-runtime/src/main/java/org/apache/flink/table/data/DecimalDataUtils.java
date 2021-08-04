@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.data;
 
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
@@ -261,11 +263,23 @@ public final class DecimalDataUtils {
         return Double.compare(doubleValue(b1), n2);
     }
 
+    public static int compare(DecimalData b1, BinaryStringData n2) {
+        Double doubleValue = BinaryStringDataUtil.toDouble(n2);
+        if (doubleValue == null) {
+            throw new NumberFormatException("Cannot cast BinaryStringData: " + n2 + "to double");
+        }
+        return compare(b1, doubleValue);
+    }
+
     public static int compare(long n1, DecimalData b2) {
         return -compare(b2, n1);
     }
 
     public static int compare(double n1, DecimalData b2) {
+        return -compare(b2, n1);
+    }
+
+    public static int compare(BinaryStringData n1, DecimalData b2) {
         return -compare(b2, n1);
     }
 
