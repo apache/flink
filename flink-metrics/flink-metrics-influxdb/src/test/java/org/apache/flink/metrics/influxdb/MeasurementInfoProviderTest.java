@@ -72,8 +72,13 @@ public class MeasurementInfoProviderTest extends TestLogger {
         Map<String, String> variables = new HashMap<>();
         variables.put("<A\n>", "a\n");
 
-        final MetricGroup metricGroup =
-                TestMetricGroup.newBuilder().setVariables(variables).build();
+        FrontMetricGroup metricGroup =
+                mock(
+                        FrontMetricGroup.class,
+                        (invocation) -> {
+                            throw new UnsupportedOperationException("unexpected method call");
+                        });
+        doReturn(variables).when(metricGroup).getAllVariables();
 
         MeasurementInfo info = provider.getMetricInfo("m1", metricGroup);
         assertThat(info.getTags(), hasEntry("A", "a"));
