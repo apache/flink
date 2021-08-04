@@ -916,8 +916,8 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8">Task</th>
-      <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
+      <th rowspan="18">Task</th>
+      <td rowspan="4">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
       <td>Gauge</td>
@@ -971,7 +971,6 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8"><strong>Task</strong></th>
       <td rowspan="8">Shuffle.Netty.Input</td>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
@@ -1195,7 +1194,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="14"><strong>Task</strong></th>
+      <th rowspan="16"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
