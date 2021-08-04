@@ -111,11 +111,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
     enum StateBackendEnum {
         MEM,
         FILE,
-        ROCKSDB_FULLY_ASYNC,
+        ROCKSDB_FULL,
         ROCKSDB_INCREMENTAL,
         ROCKSDB_INCREMENTAL_ZK,
-        MEM_ASYNC,
-        FILE_ASYNC
     }
 
     @Parameterized.Parameters(name = "statebackend type ={0}, buffersPerChannel = {1}")
@@ -173,24 +171,15 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
         switch (stateBackendEnum) {
             case MEM:
-                this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
+                this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE);
                 break;
             case FILE:
                 {
                     String backups = tempFolder.newFolder().getAbsolutePath();
-                    this.stateBackend = new FsStateBackend("file://" + backups, false);
+                    this.stateBackend = new FsStateBackend("file://" + backups);
                     break;
                 }
-            case MEM_ASYNC:
-                this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE, true);
-                break;
-            case FILE_ASYNC:
-                {
-                    String backups = tempFolder.newFolder().getAbsolutePath();
-                    this.stateBackend = new FsStateBackend("file://" + backups, true);
-                    break;
-                }
-            case ROCKSDB_FULLY_ASYNC:
+            case ROCKSDB_FULL:
                 {
                     setupRocksDB(config, -1, false);
                     break;
