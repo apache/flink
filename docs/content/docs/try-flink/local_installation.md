@@ -46,7 +46,7 @@ to have __Java 8 or 11__ installed. To check the Java version installed, type in
 $ java -version
 ```
 
-Next, [download the latest binary release](https://flink.apache.org/downloads.html) of Flink, 
+Next, [download the latest binary release]({{< param "DownloadPage" >}}) of Flink, 
 then extract the archive: 
 
 ```bash
