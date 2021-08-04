@@ -16,21 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.connector.datagen.table;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.END;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.FIELDS;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.KIND;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.LENGTH;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MAX;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MIN;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
-import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.START;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.END;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.FIELDS;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.KIND;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.LENGTH;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MAX;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.MIN;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.START;
 
 /** Options for the DataGen connector. */
 @PublicEvolving

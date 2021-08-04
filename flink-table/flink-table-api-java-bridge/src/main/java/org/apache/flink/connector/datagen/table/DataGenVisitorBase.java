@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories.datagen;
+package org.apache.flink.connector.datagen.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -42,6 +43,7 @@ import static java.time.temporal.ChronoField.MILLI_OF_DAY;
 /**
  * Base class for translating {@link LogicalType LogicalTypes} to {@link DataGeneratorContainer}'s.
  */
+@Internal
 public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataGeneratorContainer> {
 
     protected final String name;

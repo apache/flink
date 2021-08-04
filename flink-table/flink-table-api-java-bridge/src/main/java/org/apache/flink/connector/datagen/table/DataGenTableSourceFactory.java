@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.connector.datagen.table;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -26,10 +26,8 @@ import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.factories.datagen.DataGenTableSource;
-import org.apache.flink.table.factories.datagen.DataGeneratorContainer;
-import org.apache.flink.table.factories.datagen.RandomGeneratorVisitor;
-import org.apache.flink.table.factories.datagen.SequenceGeneratorVisitor;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
@@ -42,7 +40,7 @@ import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 /**
  * Factory for creating configured instances of {@link DataGenTableSource} in a stream environment.
  */
-@PublicEvolving
+@Internal
 public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
 
     public static final String IDENTIFIER = "datagen";
