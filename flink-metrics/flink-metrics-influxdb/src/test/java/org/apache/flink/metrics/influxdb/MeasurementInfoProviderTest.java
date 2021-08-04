@@ -61,4 +61,16 @@ public class MeasurementInfoProviderTest extends TestLogger {
         assertThat(info.getTags(), hasEntry("C", "c"));
         assertEquals(3, info.getTags().size());
     }
+
+    @Test
+    public void testNormalizingTags() {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("<A\n>", "a\n");
+
+        final MetricGroup metricGroup =
+                TestMetricGroup.newBuilder().setVariables(variables).build();
+
+        MeasurementInfo info = provider.getMetricInfo("m1", metricGroup);
+        assertThat(info.getTags(), hasEntry("A", "a"));
+    }
 }
