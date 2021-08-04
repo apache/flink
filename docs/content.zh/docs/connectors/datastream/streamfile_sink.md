@@ -599,10 +599,10 @@ Flink 有两个内置的滚动策略：
 
 处于 Finished 状态的文件不会再被修改，可以被下游系统安全地读取。
 
-<div class="alert alert-info">
-     <b>重要:</b> 部分文件的索引在每个 subtask 内部是严格递增的（按文件创建顺序）。但是索引并不总是连续的。当 Job 重启后，所有部分文件的索引从 `max part index + 1` 开始，
-     这里的 `max part index` 是所有 subtask 中索引的最大值。
-</div>
+{{< hint info >}}
+**重要:** 部分文件的索引在每个 subtask 内部是严格递增的（按文件创建顺序）。但是索引并不总是连续的。当 Job 重启后，所有部分文件的索引从 `max part index + 1` 开始，
+这里的 `max part index` 是所有 subtask 中索引的最大值。
+{{< /hint >}}
 
 对于每个活动的桶，Writer 在任何时候都只有一个处于 In-progress 状态的部分文件（part file），但是可能有几个 Penging 和 Finished 状态的部分文件（part file）。
 

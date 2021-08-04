@@ -35,11 +35,11 @@ under the License.
 * toc
 
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 请仔细阅读本篇升级指南。
-  使用原本的和新的内存配制方法可能会使内存组成部分具有截然不同的大小。
-  未经调整直接沿用 Flink 1.10 以前版本的 TaskManager 配置文件或 Flink 1.11 以前版本的 JobManager 配置文件，可能导致应用的行为、性能发生变化，甚至造成应用执行失败。
-</div>
+{{< hint warning >}}
+**注意：** 请仔细阅读本篇升级指南。
+使用原本的和新的内存配制方法可能会使内存组成部分具有截然不同的大小。
+未经调整直接沿用 Flink 1.10 以前版本的 TaskManager 配置文件或 Flink 1.11 以前版本的 JobManager 配置文件，可能导致应用的行为、性能发生变化，甚至造成应用执行失败。
+{{< /hint >}}
 
 <span class="label label-info">提示</span>
 在 *1.10/1.11* 版本之前，Flink 不要求用户一定要配置 TaskManager/JobManager 内存相关的参数，因为这些参数都具有默认值。
@@ -300,6 +300,6 @@ Flink 通过设置上述 JVM 内存限制降低内存泄漏问题的排查难度
 
 请参考[如何配置总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)。
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 使用新的默认 `flink-conf.yaml` 可能会造成各内存部分的大小发生变化，从而产生性能变化。
-</div>
+{{< hint warning >}}
+**注意：** 使用新的默认 `flink-conf.yaml` 可能会造成各内存部分的大小发生变化，从而产生性能变化。
+{{< /hint >}}
