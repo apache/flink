@@ -65,28 +65,15 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.SetOp;
-import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCalc;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalExchange;
-import org.apache.calcite.rel.logical.LogicalFilter;
-import org.apache.calcite.rel.logical.LogicalIntersect;
-import org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.calcite.rel.logical.LogicalMatch;
-import org.apache.calcite.rel.logical.LogicalMinus;
-import org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.logical.LogicalTableModify;
-import org.apache.calcite.rel.logical.LogicalUnion;
-import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
@@ -131,7 +118,7 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
  * If a time attribute is accessed for a calculation, it will be materialized. Forwarding is allowed
  * in some cases, but not all.
  */
-public final class RelTimeIndicatorConverter implements RelShuttle {
+public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
 
     private final RexBuilder rexBuilder;
 
@@ -144,7 +131,7 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
         RelTimeIndicatorConverter converter = new RelTimeIndicatorConverter(rexBuilder);
         RelNode convertedRoot = rootRel.accept(converter);
 
-        // LogicalLegacySink and LogicalSink are already converted
+        // FlinkLogicalLegacySink and FlinkLogicalSink are already converted
         if (rootRel instanceof FlinkLogicalLegacySink
                 || rootRel instanceof FlinkLogicalSink
                 || !needFinalTimeIndicatorConversion) {
@@ -156,7 +143,7 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
 
     @Override
     public RelNode visit(RelNode node) {
-        if (node instanceof FlinkLogicalValues) {
+        if (node instanceof FlinkLogicalValues || node instanceof TableScan) {
             return node;
         } else if (node instanceof FlinkLogicalIntersect
                 || node instanceof FlinkLogicalUnion
@@ -174,44 +161,11 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
         } else if (node instanceof FlinkLogicalWindowAggregate) {
             return visitWindowAggregate((FlinkLogicalWindowAggregate) node);
         } else if (node instanceof FlinkLogicalWindowTableAggregate) {
-            FlinkLogicalWindowTableAggregate tableAgg = (FlinkLogicalWindowTableAggregate) node;
-            FlinkLogicalWindowAggregate correspondingAgg =
-                    new FlinkLogicalWindowAggregate(
-                            tableAgg.getCluster(),
-                            tableAgg.getTraitSet(),
-                            tableAgg.getInput(),
-                            tableAgg.getGroupSet(),
-                            tableAgg.getAggCallList(),
-                            tableAgg.getWindow(),
-                            tableAgg.getNamedProperties());
-            FlinkLogicalWindowAggregate convertedWindowAgg = visitWindowAggregate(correspondingAgg);
-            return new FlinkLogicalWindowTableAggregate(
-                    tableAgg.getCluster(),
-                    tableAgg.getTraitSet(),
-                    convertedWindowAgg.getInput(),
-                    tableAgg.getGroupSet(),
-                    tableAgg.getGroupSets(),
-                    convertedWindowAgg.getAggCallList(),
-                    tableAgg.getWindow(),
-                    tableAgg.getNamedProperties());
+            return visitWindowTableAggregate((FlinkLogicalWindowTableAggregate) node);
         } else if (node instanceof FlinkLogicalAggregate) {
             return visitAggregate((FlinkLogicalAggregate) node);
         } else if (node instanceof FlinkLogicalTableAggregate) {
-            FlinkLogicalTableAggregate tableAgg = (FlinkLogicalTableAggregate) node;
-            FlinkLogicalAggregate correspondingAgg =
-                    FlinkLogicalAggregate.create(
-                            tableAgg.getInput(),
-                            tableAgg.getGroupSet(),
-                            tableAgg.getGroupSets(),
-                            tableAgg.getAggCallList());
-            FlinkLogicalAggregate convertedAgg = visitAggregate(correspondingAgg);
-            return new FlinkLogicalTableAggregate(
-                    tableAgg.getCluster(),
-                    tableAgg.getTraitSet(),
-                    convertedAgg.getInput(),
-                    convertedAgg.getGroupSet(),
-                    convertedAgg.getGroupSets(),
-                    convertedAgg.getAggCallList());
+            return visitTableAggregate((FlinkLogicalTableAggregate) node);
         } else if (node instanceof FlinkLogicalMatch) {
             return visitMatch((FlinkLogicalMatch) node);
         } else if (node instanceof FlinkLogicalCalc) {
@@ -230,82 +184,8 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
     }
 
     @Override
-    public RelNode visit(TableScan scan) {
-        return scan;
-    }
-
-    @Override
-    public RelNode visit(TableFunctionScan scan) {
-        if (scan instanceof FlinkLogicalTableFunctionScan) {
-            return visitSimpleRel(scan);
-        } else {
-            return visitInvalidRel(scan);
-        }
-    }
-
-    @Override
-    public RelNode visit(LogicalValues values) {
-        return values;
-    }
-
-    @Override
-    public RelNode visit(LogicalFilter filter) {
-        return visitInvalidRel(filter);
-    }
-
-    @Override
     public RelNode visit(LogicalCalc calc) {
         return visitInvalidRel(calc);
-    }
-
-    @Override
-    public RelNode visit(LogicalProject project) {
-        return visitInvalidRel(project);
-    }
-
-    @Override
-    public RelNode visit(LogicalJoin join) {
-        return visitInvalidRel(join);
-    }
-
-    @Override
-    public RelNode visit(LogicalCorrelate correlate) {
-        return visitInvalidRel(correlate);
-    }
-
-    @Override
-    public RelNode visit(LogicalUnion union) {
-        return visitInvalidRel(union);
-    }
-
-    @Override
-    public RelNode visit(LogicalIntersect intersect) {
-        return visitInvalidRel(intersect);
-    }
-
-    @Override
-    public RelNode visit(LogicalMinus minus) {
-        return visitInvalidRel(minus);
-    }
-
-    @Override
-    public RelNode visit(LogicalAggregate aggregate) {
-        return visitInvalidRel(aggregate);
-    }
-
-    @Override
-    public RelNode visit(LogicalMatch match) {
-        return visitInvalidRel(match);
-    }
-
-    @Override
-    public RelNode visit(LogicalSort sort) {
-        return visitInvalidRel(sort);
-    }
-
-    @Override
-    public RelNode visit(LogicalExchange exchange) {
-        return visitInvalidRel(exchange);
     }
 
     @Override
@@ -595,6 +475,24 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                 .collect(Collectors.toList());
     }
 
+    private RelNode visitTableAggregate(FlinkLogicalTableAggregate node) {
+        FlinkLogicalTableAggregate tableAgg = node;
+        FlinkLogicalAggregate correspondingAgg =
+                FlinkLogicalAggregate.create(
+                        tableAgg.getInput(),
+                        tableAgg.getGroupSet(),
+                        tableAgg.getGroupSets(),
+                        tableAgg.getAggCallList());
+        FlinkLogicalAggregate convertedAgg = visitAggregate(correspondingAgg);
+        return new FlinkLogicalTableAggregate(
+                tableAgg.getCluster(),
+                tableAgg.getTraitSet(),
+                convertedAgg.getInput(),
+                convertedAgg.getGroupSet(),
+                convertedAgg.getGroupSets(),
+                convertedAgg.getAggCallList());
+    }
+
     private FlinkLogicalWindowAggregate visitWindowAggregate(FlinkLogicalWindowAggregate agg) {
         RelNode newInput = convertAggInput(agg);
         List<AggregateCall> updatedAggCalls = convertAggregateCalls(agg);
@@ -680,6 +578,29 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                 updatedAggCalls,
                 newWindow,
                 newNamedProperties);
+    }
+
+    private RelNode visitWindowTableAggregate(FlinkLogicalWindowTableAggregate node) {
+        FlinkLogicalWindowTableAggregate tableAgg = node;
+        FlinkLogicalWindowAggregate correspondingAgg =
+                new FlinkLogicalWindowAggregate(
+                        tableAgg.getCluster(),
+                        tableAgg.getTraitSet(),
+                        tableAgg.getInput(),
+                        tableAgg.getGroupSet(),
+                        tableAgg.getAggCallList(),
+                        tableAgg.getWindow(),
+                        tableAgg.getNamedProperties());
+        FlinkLogicalWindowAggregate convertedWindowAgg = visitWindowAggregate(correspondingAgg);
+        return new FlinkLogicalWindowTableAggregate(
+                tableAgg.getCluster(),
+                tableAgg.getTraitSet(),
+                convertedWindowAgg.getInput(),
+                tableAgg.getGroupSet(),
+                tableAgg.getGroupSets(),
+                convertedWindowAgg.getAggCallList(),
+                tableAgg.getWindow(),
+                tableAgg.getNamedProperties());
     }
 
     private RelNode visitInvalidRel(RelNode node) {
@@ -920,9 +841,8 @@ public final class RelTimeIndicatorConverter implements RelShuttle {
                         || updatedCallOp == FlinkSqlOperatorTable.SESSION_ROWTIME
                         || updatedCallOp == FlinkSqlOperatorTable.SESSION_PROCTIME
                         || updatedCallOp == FlinkSqlOperatorTable.MATCH_PROCTIME
-                        || updatedCallOp == FlinkSqlOperatorTable.PROCTIME) {
-                    return updatedCall;
-                } else if (updatedCallOp == SqlStdOperatorTable.AS
+                        || updatedCallOp == FlinkSqlOperatorTable.PROCTIME
+                        || updatedCallOp == SqlStdOperatorTable.AS
                         || updatedCallOp == SqlStdOperatorTable.CAST
                         || updatedCallOp == FlinkSqlOperatorTable.REINTERPRET) {
                     return updatedCall;
