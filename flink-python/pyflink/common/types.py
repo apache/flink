@@ -29,6 +29,16 @@ class RowKind(Enum):
     UPDATE_AFTER = 2
     DELETE = 3
 
+    def __str__(self):
+        if self.value == RowKind.INSERT.value:
+            return '+I'
+        elif self.value == RowKind.UPDATE_BEFORE.value:
+            return '-U'
+        elif self.value == RowKind.UPDATE_AFTER.value:
+            return '+U'
+        else:
+            return '-D'
+
 
 def _create_row(fields, values, row_kind: RowKind = None):
     row = Row(*values)
@@ -140,6 +150,18 @@ class Row(object):
 
     def set_field_names(self, field_names: List):
         self._fields = field_names
+
+    def _is_retract_msg(self):
+        return self._row_kind == RowKind.UPDATE_BEFORE or self._row_kind == RowKind.DELETE
+
+    def _is_accumulate_msg(self):
+        return self._row_kind == RowKind.UPDATE_AFTER or self._row_kind == RowKind.INSERT
+
+    @staticmethod
+    def of_kind(row_kind: RowKind, *args, **kwargs):
+        row = Row(*args, **kwargs)
+        row.set_row_kind(row_kind)
+        return row
 
     def __contains__(self, item):
         return item in self._values

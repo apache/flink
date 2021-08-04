@@ -78,9 +78,7 @@ Checkpoint 历史记录保存有关最近触发的 checkpoint 的统计信息，
 
 对于 subtask，有两个更详细的统计信息可用。
 
-<center>
-  <img src="{% link /fig/checkpoint_monitoring-history-subtasks.png %}" width="700px" alt="Checkpoint Monitoring: History">
-</center>
+{{< img src="/fig/checkpoint_monitoring-history-subtasks.png" width="700px" alt="Checkpoint Monitoring: History">}}
 
 - **Sync Duration**：Checkpoint 同步部分的持续时间。这包括 operator 的快照状态，并阻塞 subtask 上的所有其他活动（处理记录、触发计时器等）。
 - **Async Duration**：Checkpoint 的异步部分的持续时间。这包括将 checkpoint 写入设置的文件系统所需的时间。对于 unaligned checkpoint，这还包括 subtask 必须等待最后一个 checkpoint barrier 到达的时间（checkpoint alignment 持续时间）以及持久化数据所需的时间。

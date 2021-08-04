@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -44,6 +46,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
@@ -625,6 +628,38 @@ public class ResultPartitionTest {
                 assertEquals(
                         partialLength,
                         pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+            }
+        }
+    }
+
+    @Test
+    public void testWaitForAllRecordProcessed() throws IOException {
+        // Creates a result partition with 2 channels.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        bufferWritingResultPartition.notifyEndOfUserRecords();
+        CompletableFuture<Void> allRecordsProcessedFuture =
+                bufferWritingResultPartition.getAllRecordsProcessedFuture();
+        assertFalse(allRecordsProcessedFuture.isDone());
+        for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
+            assertEquals(1, resultSubpartition.getTotalNumberOfBuffers());
+            Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
+            assertFalse(nextBuffer.isBuffer());
+            assertEquals(
+                    EndOfUserRecordsEvent.INSTANCE,
+                    EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()));
+        }
+
+        for (int i = 0; i < bufferWritingResultPartition.subpartitions.length; ++i) {
+            ((PipelinedSubpartition) bufferWritingResultPartition.subpartitions[i])
+                    .acknowledgeAllRecordsProcessed();
+
+            if (i < bufferWritingResultPartition.subpartitions.length - 1) {
+                assertFalse(allRecordsProcessedFuture.isDone());
+            } else {
+                assertTrue(allRecordsProcessedFuture.isDone());
+                assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
             }
         }
     }

@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -84,7 +83,7 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
                         ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
                         : new NoWatermarksGenerator<>();
 
-        wmOutput = new WatermarkEmitter(output, getContainingTask().getStreamStatusMaintainer());
+        wmOutput = new WatermarkEmitter(output);
 
         watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
         if (watermarkInterval > 0 && emitProgressiveWatermarks) {
@@ -128,8 +127,8 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
     }
 
     @Override
-    public void close() throws Exception {
-        super.close();
+    public void finish() throws Exception {
+        super.finish();
         watermarkGenerator.onPeriodicEmit(wmOutput);
     }
 
@@ -143,15 +142,12 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
         private final Output<?> output;
 
-        private final StreamStatusMaintainer statusMaintainer;
-
         private long currentWatermark;
 
         private boolean idle;
 
-        public WatermarkEmitter(Output<?> output, StreamStatusMaintainer statusMaintainer) {
+        public WatermarkEmitter(Output<?> output) {
             this.output = output;
-            this.statusMaintainer = statusMaintainer;
             this.currentWatermark = Long.MIN_VALUE;
         }
 
@@ -167,7 +163,7 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
             if (idle) {
                 idle = false;
-                statusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+                output.emitStreamStatus(StreamStatus.ACTIVE);
             }
 
             output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(ts));
@@ -176,7 +172,7 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
         @Override
         public void markIdle() {
             idle = true;
-            statusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
+            output.emitStreamStatus(StreamStatus.IDLE);
         }
     }
 }

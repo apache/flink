@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -72,6 +73,8 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
     private int maxNumberOfIterations;
 
     private final AtomicBoolean terminated = new AtomicBoolean(false);
+
+    private final CompletableFuture<Void> terminationCompletionFuture = new CompletableFuture<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -175,6 +178,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
                 currentIteration++;
             }
         }
+        terminationCompleted();
     }
 
     private boolean checkForConvergence() {
@@ -274,5 +278,10 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
     @Override
     public void requestTermination() {
         terminated.set(true);
+    }
+
+    @Override
+    public void terminationCompleted() {
+        terminationCompletionFuture.complete(null);
     }
 }

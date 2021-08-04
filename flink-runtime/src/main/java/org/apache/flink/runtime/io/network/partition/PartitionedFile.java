@@ -63,6 +63,15 @@ public class PartitionedFile {
     /** Path of the index file which stores all index entries in this {@link PartitionedFile}. */
     private final Path indexFilePath;
 
+    /** Size of the data file. */
+    private final long dataFileSize;
+
+    /** Size of the index file. */
+    private final long indexFileSize;
+
+    /** Total number of buffers in the data file. */
+    private final long numBuffers;
+
     /** Used to accelerate index data access. */
     @Nullable private final ByteBuffer indexEntryCache;
 
@@ -71,6 +80,9 @@ public class PartitionedFile {
             int numSubpartitions,
             Path dataFilePath,
             Path indexFilePath,
+            long dataFileSize,
+            long indexFileSize,
+            long numBuffers,
             @Nullable ByteBuffer indexEntryCache) {
         checkArgument(numRegions >= 0, "Illegal number of data regions.");
         checkArgument(numSubpartitions > 0, "Illegal number of subpartitions.");
@@ -79,6 +91,9 @@ public class PartitionedFile {
         this.numSubpartitions = numSubpartitions;
         this.dataFilePath = checkNotNull(dataFilePath);
         this.indexFilePath = checkNotNull(indexFilePath);
+        this.dataFileSize = dataFileSize;
+        this.indexFileSize = indexFileSize;
+        this.numBuffers = numBuffers;
         this.indexEntryCache = indexEntryCache;
     }
 
@@ -144,8 +159,14 @@ public class PartitionedFile {
                 + dataFilePath
                 + ", indexFilePath="
                 + indexFilePath
-                + ", indexDataCache="
-                + indexEntryCache
+                + ", dataFileSize="
+                + dataFileSize
+                + ", indexFileSize="
+                + indexFileSize
+                + ", numBuffers="
+                + numBuffers
+                + ", indexDataCached="
+                + (indexEntryCache != null)
                 + '}';
     }
 }

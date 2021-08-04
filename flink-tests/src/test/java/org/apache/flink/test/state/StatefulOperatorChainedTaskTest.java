@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -58,7 +57,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.INCREMENTAL_CHECKPOINTS;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_BACKEND;
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.junit.Assert.assertEquals;
 
 /** Test for StatefulOperatorChainedTaskTest. */
@@ -179,13 +178,10 @@ public class StatefulOperatorChainedTaskTest {
         long checkpointId = 1L;
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 1L);
 
-        testHarness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
-
+        testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         while (!streamTask
                 .triggerCheckpointAsync(
-                        checkpointMetaData,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get()) {}
 
         testHarness.getTaskStateManager().getWaitForReportLatch().await();

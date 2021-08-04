@@ -21,10 +21,16 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.table.api.TableColumn.ComputedColumn;
+import org.apache.flink.table.api.TableColumn.MetadataColumn;
+import org.apache.flink.table.api.TableColumn.PhysicalColumn;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
@@ -49,12 +55,20 @@ import java.util.stream.IntStream;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.Field;
 import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
-/** A table schema that represents a table's structure with field names and data types. */
+/**
+ * A table schema that represents a table's structure with field names and data types.
+ *
+ * @deprecated This class has been deprecated as part of FLIP-164. It has been replaced by two more
+ *     dedicated classes {@link Schema} and {@link ResolvedSchema}. Use {@link Schema} for
+ *     declaration in APIs. {@link ResolvedSchema} is offered by the framework after resolution and
+ *     validation.
+ */
+@Deprecated
 @PublicEvolving
 public class TableSchema {
 
@@ -298,6 +312,40 @@ public class TableSchema {
         return Optional.ofNullable(primaryKey);
     }
 
+    /** Helps to migrate to the new {@link Schema} class. */
+    public Schema toSchema() {
+        final Schema.Builder builder = Schema.newBuilder();
+
+        columns.forEach(
+                column -> {
+                    if (column instanceof PhysicalColumn) {
+                        final PhysicalColumn c = (PhysicalColumn) column;
+                        builder.column(c.getName(), c.getType());
+                    } else if (column instanceof MetadataColumn) {
+                        final MetadataColumn c = (MetadataColumn) column;
+                        builder.columnByMetadata(
+                                c.getName(),
+                                c.getType(),
+                                c.getMetadataAlias().orElse(null),
+                                c.isVirtual());
+                    } else if (column instanceof ComputedColumn) {
+                        final ComputedColumn c = (ComputedColumn) column;
+                        builder.columnByExpression(c.getName(), c.getExpression());
+                    } else {
+                        throw new IllegalArgumentException("Unsupported column type: " + column);
+                    }
+                });
+
+        watermarkSpecs.forEach(
+                spec -> builder.watermark(spec.getRowtimeAttribute(), spec.getWatermarkExpr()));
+
+        if (primaryKey != null) {
+            builder.primaryKeyNamed(primaryKey.getName(), primaryKey.getColumns());
+        }
+
+        return builder.build();
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
@@ -369,6 +417,54 @@ public class TableSchema {
         }
     }
 
+    /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
+    public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
+        final TableSchema.Builder builder = TableSchema.builder();
+
+        resolvedSchema.getColumns().stream()
+                .map(
+                        column -> {
+                            if (column instanceof Column.PhysicalColumn) {
+                                final Column.PhysicalColumn c = (Column.PhysicalColumn) column;
+                                return TableColumn.physical(c.getName(), c.getDataType());
+                            } else if (column instanceof Column.MetadataColumn) {
+                                final Column.MetadataColumn c = (Column.MetadataColumn) column;
+                                return TableColumn.metadata(
+                                        c.getName(),
+                                        c.getDataType(),
+                                        c.getMetadataKey().orElse(null),
+                                        c.isVirtual());
+                            } else if (column instanceof Column.ComputedColumn) {
+                                final Column.ComputedColumn c = (Column.ComputedColumn) column;
+                                return TableColumn.computed(
+                                        c.getName(),
+                                        c.getDataType(),
+                                        c.getExpression().asSerializableString());
+                            }
+                            throw new IllegalArgumentException(
+                                    "Unsupported column type: " + column);
+                        })
+                .forEach(builder::add);
+
+        resolvedSchema
+                .getWatermarkSpecs()
+                .forEach(
+                        spec ->
+                                builder.watermark(
+                                        spec.getRowtimeAttribute(),
+                                        spec.getWatermarkExpression().asSerializableString(),
+                                        spec.getWatermarkExpression().getOutputDataType()));
+
+        resolvedSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        pk ->
+                                builder.primaryKey(
+                                        pk.getName(), pk.getColumns().toArray(new String[0])));
+
+        return builder.build();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -424,18 +520,19 @@ public class TableSchema {
                                                     String.format(
                                                             "Rowtime attribute '%s' is not defined in schema.",
                                                             rowtimeAttribute)));
-            if (rowtimeType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
+            if (!(rowtimeType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                    || rowtimeType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
                 throw new ValidationException(
                         String.format(
-                                "Rowtime attribute '%s' must be of type TIMESTAMP but is of type '%s'.",
+                                "Rowtime attribute '%s' must be of type TIMESTAMP or TIMESTAMP_LTZ but is of type '%s'.",
                                 rowtimeAttribute, rowtimeType));
             }
             LogicalType watermarkOutputType =
                     watermark.getWatermarkExprOutputType().getLogicalType();
-            if (watermarkOutputType.getTypeRoot() != TIMESTAMP_WITHOUT_TIME_ZONE) {
+            if (!canBeTimeAttributeType(watermarkOutputType)) {
                 throw new ValidationException(
                         String.format(
-                                "Watermark strategy %s must be of type TIMESTAMP but is of type '%s'.",
+                                "Watermark strategy %s must be of type TIMESTAMP or TIMESTAMP_LTZ but is of type '%s'.",
                                 watermark.getWatermarkExpr(),
                                 watermarkOutputType.asSummaryString()));
             }

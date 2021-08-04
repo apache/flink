@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -60,7 +61,8 @@ import java.util.Map;
  * <p>The planner will select required metadata columns (i.e. perform projection push down) and will
  * call {@link #applyReadableMetadata(List, DataType)} with a list of metadata keys. An
  * implementation must ensure that metadata columns are appended at the end of the physical row in
- * the order of the provided list after the apply method has been called.
+ * the order of the provided list after the apply method has been called, e.g. using {@link
+ * JoinedRowData}.
  *
  * <p>Note: The final output data type emitted by a source changes from the physically produced data
  * type to a data type with metadata columns. {@link #applyReadableMetadata(List, DataType)} will

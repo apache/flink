@@ -20,8 +20,9 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class IntermediateResultPartition {
@@ -30,22 +31,22 @@ public class IntermediateResultPartition {
 
     private final ExecutionVertex producer;
 
-    private final int partitionNumber;
-
     private final IntermediateResultPartitionID partitionId;
 
-    private List<List<ExecutionEdge>> consumers;
+    private final EdgeManager edgeManager;
 
     /** Whether this partition has produced some data. */
     private boolean hasDataProduced = false;
 
     public IntermediateResultPartition(
-            IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
+            IntermediateResult totalResult,
+            ExecutionVertex producer,
+            int partitionNumber,
+            EdgeManager edgeManager) {
         this.totalResult = totalResult;
         this.producer = producer;
-        this.partitionNumber = partitionNumber;
-        this.consumers = new ArrayList<List<ExecutionEdge>>(0);
         this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
+        this.edgeManager = edgeManager;
     }
 
     public ExecutionVertex getProducer() {
@@ -53,7 +54,7 @@ public class IntermediateResultPartition {
     }
 
     public int getPartitionNumber() {
-        return partitionNumber;
+        return partitionId.getPartitionNumber();
     }
 
     public IntermediateResult getIntermediateResult() {
@@ -68,8 +69,12 @@ public class IntermediateResultPartition {
         return totalResult.getResultType();
     }
 
-    public List<List<ExecutionEdge>> getConsumers() {
-        return consumers;
+    public List<ConsumerVertexGroup> getConsumerVertexGroups() {
+        return getEdgeManager().getConsumerVertexGroupsForPartition(partitionId);
+    }
+
+    public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
+        return getEdgeManager().getConsumedPartitionGroupsById(partitionId);
     }
 
     public void markDataProduced() {
@@ -77,59 +82,46 @@ public class IntermediateResultPartition {
     }
 
     public boolean isConsumable() {
-        if (getResultType().isPipelined()) {
-            return hasDataProduced;
-        } else {
-            return totalResult.areAllPartitionsFinished();
-        }
+        return hasDataProduced;
     }
 
     void resetForNewExecution() {
         if (getResultType().isBlocking() && hasDataProduced) {
             // A BLOCKING result partition with data produced means it is finished
             // Need to add the running producer count of the result on resetting it
-            totalResult.incrementNumberOfRunningProducersAndGetRemaining();
+            for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+                consumedPartitionGroup.partitionUnfinished();
+            }
         }
         hasDataProduced = false;
+        totalResult.notifyPartitionChanged();
     }
 
-    int addConsumerGroup() {
-        int pos = consumers.size();
-
-        // NOTE: currently we support only one consumer per result!!!
-        if (pos != 0) {
-            throw new RuntimeException(
-                    "Currently, each intermediate result can only have one consumer.");
-        }
-
-        consumers.add(new ArrayList<ExecutionEdge>());
-        return pos;
+    public void addConsumers(ConsumerVertexGroup consumers) {
+        getEdgeManager().connectPartitionWithConsumerVertexGroup(partitionId, consumers);
     }
 
-    void addConsumer(ExecutionEdge edge, int consumerNumber) {
-        consumers.get(consumerNumber).add(edge);
+    private EdgeManager getEdgeManager() {
+        return edgeManager;
     }
 
-    boolean markFinished() {
+    void markFinished() {
         // Sanity check that this is only called on blocking partitions.
         if (!getResultType().isBlocking()) {
             throw new IllegalStateException(
                     "Tried to mark a non-blocking result partition as finished");
         }
 
-        hasDataProduced = true;
-
-        final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
-
-        if (refCnt == 0) {
-            return true;
-        } else if (refCnt < 0) {
+        // Sanity check to make sure a result partition cannot be marked as finished twice.
+        if (hasDataProduced) {
             throw new IllegalStateException(
-                    "Decremented number of unfinished producers below 0. "
-                            + "This is most likely a bug in the execution state/intermediate result "
-                            + "partition management.");
+                    "Tried to mark a finished result partition as finished.");
         }
 
-        return false;
+        hasDataProduced = true;
+
+        for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+            consumedPartitionGroup.partitionFinished();
+        }
     }
 }

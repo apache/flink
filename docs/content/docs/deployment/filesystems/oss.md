@@ -49,8 +49,8 @@ env.readTextFile("oss://<your-bucket>/<object-name>");
 // Write to OSS bucket
 stream.writeAsText("oss://<your-bucket>/<object-name>")
 
-// Use OSS as FsStatebackend
-env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
+// Use OSS as checkpoint storage
+env.getCheckpointConfig().setCheckpointStorage("oss://<your-bucket>/<object-name>");
 ```
 
 ### Shaded Hadoop OSS file system

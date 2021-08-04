@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
@@ -65,15 +65,13 @@ import java.util.concurrent.CompletableFuture;
  * <p>Implementations can expect that methods will not be invoked concurrently. In fact, all
  * invocations will originate from a thread in the {@link ComponentMainThreadExecutor}.
  */
-public interface SchedulerNG {
+public interface SchedulerNG extends AutoCloseableAsync {
 
     void startScheduling();
 
-    void suspend(Throwable cause);
-
     void cancel();
 
-    CompletableFuture<Void> getTerminationFuture();
+    CompletableFuture<JobStatus> getJobTerminationFuture();
 
     void handleGlobalFailure(Throwable cause);
 
@@ -92,7 +90,7 @@ public interface SchedulerNG {
 
     void notifyPartitionDataAvailable(ResultPartitionID partitionID);
 
-    ArchivedExecutionGraph requestJob();
+    ExecutionGraphInfo requestJob();
 
     JobStatus requestJobStatus();
 
@@ -144,8 +142,7 @@ public interface SchedulerNG {
 
     void declineCheckpoint(DeclineCheckpoint decline);
 
-    CompletableFuture<String> stopWithSavepoint(
-            String targetDirectory, boolean advanceToEndOfEventTime);
+    CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate);
 
     // ------------------------------------------------------------------------
     //  Operator Coordinator related methods

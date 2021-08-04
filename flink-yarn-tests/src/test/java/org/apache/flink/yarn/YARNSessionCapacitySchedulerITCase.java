@@ -42,7 +42,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.util.TestUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.net.HostAndPort;
+import org.apache.flink.shaded.guava30.com.google.common.net.HostAndPort;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -322,7 +322,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     try {
                         final String logs = outContent.toString();
                         final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-                        final String host = hostAndPort.getHostText();
+                        final String host = hostAndPort.getHost();
                         final int port = hostAndPort.getPort();
                         LOG.info("Extracted hostname:port: {}:{}", host, port);
 
@@ -628,7 +628,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         // find out the application id and wait until it has finished.
         try {
             List<ApplicationReport> apps =
-                    yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
+                    getApplicationReportWithRetryOnNPE(
+                            yc, EnumSet.of(YarnApplicationState.RUNNING));
 
             ApplicationId tmpAppId;
             if (apps.size() == 1) {
@@ -639,12 +640,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
                 LOG.info("waiting for the job with appId {} to finish", tmpAppId);
                 // wait until the app has finished
-                while (yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING)).size() > 0) {
+                while (getApplicationReportWithRetryOnNPE(
+                                        yc, EnumSet.of(YarnApplicationState.RUNNING))
+                                .size()
+                        > 0) {
                     sleep(500);
                 }
             } else {
                 // get appId by finding the latest finished appid
-                apps = yc.getApplications();
+                apps = getApplicationReportWithRetryOnNPE(yc);
                 Collections.sort(
                         apps,
                         new Comparator<ApplicationReport>() {

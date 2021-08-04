@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,7 +33,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class RunnablesTest {
+public class RunnablesTest extends TestLogger {
 
     private static final int TIMEOUT_MS = 100;
 
@@ -47,15 +49,14 @@ public class RunnablesTest {
                         .setDaemon(true)
                         .setUncaughtExceptionHandler((t, e) -> handlerCalled.countDown())
                         .build();
-        final ExecutorService scheduledExecutorService =
-                Executors.newSingleThreadExecutor(threadFactory);
-        scheduledExecutorService.execute(
+        final ExecutorService executorService = Executors.newSingleThreadExecutor(threadFactory);
+        executorService.execute(
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertTrue(
-                "Expected handler to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+
+        // expect handler to be called
+        handlerCalled.await();
     }
 
     @Test

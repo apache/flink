@@ -43,13 +43,16 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     public void resumeConsumption() {}
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {}
+
+    @Override
     public Throwable getFailureCause() {
         return null;
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
-        return false;
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        return new AvailabilityWithBacklog(false, 0);
     }
 
     @Override

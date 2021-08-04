@@ -38,17 +38,17 @@ The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sink
 
 Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
 
- * [Apache Kafka](kafka.html) (source/sink)
- * [Apache Cassandra](cassandra.html) (sink)
- * [Amazon Kinesis Streams](kinesis.html) (source/sink)
- * [Elasticsearch](elasticsearch.html) (sink)
- * [FileSystem (Hadoop included) - Streaming only](streamfile_sink.html) (sink)
- * [FileSystem (Hadoop included) - Streaming and Batch](file_sink.html) (sink)
- * [RabbitMQ](rabbitmq.html) (source/sink)
- * [Apache NiFi](nifi.html) (source/sink)
- * [Twitter Streaming API](twitter.html) (source)
- * [Google PubSub](pubsub.html) (source/sink)
- * [JDBC](jdbc.html) (sink)
+ * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
+ * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
+ * [Amazon Kinesis Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
+ * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
+ * [FileSystem (Hadoop included) - Streaming only]({{< ref "docs/connectors/datastream/streamfile_sink" >}}) (sink)
+ * [FileSystem (Hadoop included) - Streaming and Batch]({{< ref "docs/connectors/datastream/file_sink" >}}) (sink)
+ * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
+ * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
+ * [Twitter Streaming API]({{< ref "docs/connectors/datastream/twitter" >}}) (source)
+ * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.

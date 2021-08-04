@@ -127,12 +127,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (!future.isSuccess()) {
                             clientHandler.removeInputChannel(inputChannel);
-                            SocketAddress remoteAddr = future.channel().remoteAddress();
                             inputChannel.onError(
                                     new LocalTransportException(
                                             String.format(
-                                                    "Sending the partition request to '%s' failed.",
-                                                    remoteAddr),
+                                                    "Sending the partition request to '%s (#%d)' failed.",
+                                                    connectionId.getAddress(),
+                                                    connectionId.getConnectionIndex()),
                                             future.channel().localAddress(),
                                             future.cause()));
                         }
@@ -180,12 +180,12 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
                                 if (!future.isSuccess()) {
-                                    SocketAddress remoteAddr = future.channel().remoteAddress();
                                     inputChannel.onError(
                                             new LocalTransportException(
                                                     String.format(
-                                                            "Sending the task event to '%s' failed.",
-                                                            remoteAddr),
+                                                            "Sending the task event to '%s (#%d)' failed.",
+                                                            connectionId.getAddress(),
+                                                            connectionId.getConnectionIndex()),
                                                     future.channel().localAddress(),
                                                     future.cause()));
                                 }
@@ -201,6 +201,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     @Override
     public void resumeConsumption(RemoteInputChannel inputChannel) {
         clientHandler.resumeConsumption(inputChannel);
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
+        clientHandler.acknowledgeAllRecordsProcessed(inputChannel);
     }
 
     @Override

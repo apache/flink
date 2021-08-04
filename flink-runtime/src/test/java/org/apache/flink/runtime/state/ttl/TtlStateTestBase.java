@@ -25,8 +25,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.CopyOnWriteStateMap;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import org.junit.After;
@@ -151,9 +153,11 @@ public abstract class TtlStateTestBase {
     private <S extends State> StateDescriptor<S, Object> createState() throws Exception {
         StateDescriptor<S, Object> stateDescriptor = ctx().createStateDescriptor();
         stateDescriptor.enableTimeToLive(ttlConfig);
+        String defaultNamespace = "defaultNamespace";
         ctx().ttlState =
                 (InternalKvState<?, String, ?>)
-                        sbetc.createState(stateDescriptor, "defaultNamespace");
+                        sbetc.createState(stateDescriptor, defaultNamespace);
+        ctx().setCurrentNamespace(defaultNamespace);
         return stateDescriptor;
     }
 
@@ -472,6 +476,26 @@ public abstract class TtlStateTestBase {
     }
 
     @Test
+    public void testIncrementalCleanupWholeState() throws Exception {
+        assumeTrue(incrementalCleanupSupported());
+        initTest(getConfBuilder(TTL).cleanupIncrementally(5, true).build());
+        timeProvider.time = 0;
+        // create enough keys to trigger incremental rehash
+        updateKeys(0, INC_CLEANUP_ALL_KEYS, ctx().updateEmpty);
+        // expire all state
+        timeProvider.time = 120;
+        // trigger state clean up
+        for (int i = 0; i < INC_CLEANUP_ALL_KEYS; i++) {
+            sbetc.setCurrentKey(Integer.toString(i));
+        }
+        // check all state cleaned up
+        for (int i = 0; i < INC_CLEANUP_ALL_KEYS; i++) {
+            sbetc.setCurrentKey(Integer.toString(i));
+            assertTrue("Original state should be cleared", isOriginalCleared());
+        }
+    }
+
+    @Test
     public void testIncrementalCleanup() throws Exception {
         assumeTrue(incrementalCleanupSupported());
 
@@ -556,6 +580,14 @@ public abstract class TtlStateTestBase {
                 ctx().update(ctx().updateEmpty);
             }
         }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private boolean isOriginalCleared() {
+        InternalKvState<?, String, ?> original =
+                ((AbstractTtlDecorator<InternalKvState<?, String, ?>>) ctx.ttlState).original;
+        Preconditions.checkState(original instanceof AbstractHeapState);
+        return ((AbstractHeapState) original).getStateTable().get(ctx.currentNamespace) == null;
     }
 
     @After

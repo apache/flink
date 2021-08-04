@@ -22,55 +22,65 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /** {@link TableResult} for testing. */
 public class TestTableResult implements TableResult {
-    private final TableSchema tableSchema;
+    private final JobClient jobClient;
+    private final ResolvedSchema resolvedSchema;
     private final ResultKind resultKind;
     private final CloseableIterator<Row> data;
 
     public static final TestTableResult TABLE_RESULT_OK =
             new TestTableResult(
                     ResultKind.SUCCESS,
-                    TableSchema.builder().field("result", DataTypes.STRING()).build(),
+                    ResolvedSchema.of(Column.physical("result", DataTypes.STRING())),
                     CloseableIterator.adapterForIterator(
                             Collections.singletonList(Row.of("OK")).iterator()));
 
-    public TestTableResult(ResultKind resultKind, TableSchema tableSchema) {
-        this(resultKind, tableSchema, CloseableIterator.empty());
+    public TestTableResult(ResultKind resultKind, ResolvedSchema resolvedSchema) {
+        this(resultKind, resolvedSchema, CloseableIterator.empty());
     }
 
     public TestTableResult(
-            ResultKind resultKind, TableSchema tableSchema, CloseableIterator<Row> data) {
+            ResultKind resultKind, ResolvedSchema resolvedSchema, CloseableIterator<Row> data) {
+        this(null, resultKind, resolvedSchema, data);
+    }
+
+    public TestTableResult(
+            JobClient jobClient,
+            ResultKind resultKind,
+            ResolvedSchema resolvedSchema,
+            CloseableIterator<Row> data) {
+        this.jobClient = jobClient;
         this.resultKind = resultKind;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
         this.data = data;
     }
 
     @Override
     public Optional<JobClient> getJobClient() {
-        return Optional.empty();
+        return Optional.ofNullable(jobClient);
     }
 
     @Override
-    public void await() throws InterruptedException, ExecutionException {}
+    public void await() throws InterruptedException {
+        Thread.sleep(60000);
+    }
 
     @Override
-    public void await(long timeout, TimeUnit unit)
-            throws InterruptedException, ExecutionException, TimeoutException {}
+    public void await(long timeout, TimeUnit unit) {}
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

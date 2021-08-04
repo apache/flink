@@ -56,8 +56,7 @@ public interface InternalTimeServiceManager<K> {
     void advanceWatermark(Watermark watermark) throws Exception;
 
     /**
-     * Snapshots the timers to raw keyed state. This should only be called iff {@link
-     * #isUsingLegacyRawKeyedStateSnapshots()} returns {@code true}.
+     * Snapshots the timers to raw keyed state.
      *
      * <p><b>TODO:</b> This can be removed once heap-based timers are integrated with RocksDB
      * incremental snapshots.
@@ -65,15 +64,6 @@ public interface InternalTimeServiceManager<K> {
     void snapshotToRawKeyedState(
             KeyedStateCheckpointOutputStream stateCheckpointOutputStream, String operatorName)
             throws Exception;
-
-    /**
-     * Flag indicating whether or not the internal timer services should be checkpointed with legacy
-     * synchronous snapshots.
-     *
-     * <p><b>TODO:</b> This can be removed once heap-based timers are integrated with RocksDB
-     * incremental snapshots.
-     */
-    boolean isUsingLegacyRawKeyedStateSnapshots();
 
     /**
      * A provider pattern for creating an instance of a {@link InternalTimeServiceManager}. Allows

@@ -178,7 +178,7 @@ In its basic form, you apply windowing to a keyed stream like this:
 stream.
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .reduce|aggregate|process(<window function>)
+    .reduce|aggregate|process(<window function>);
 ```
 
 You can also use windowing with non-keyed streams, but keep in mind that in this case, the
@@ -187,7 +187,7 @@ processing will _not_ be done in parallel:
 ```java
 stream.
     .windowAll(<window assigner>)
-    .reduce|aggregate|process(<window function>)
+    .reduce|aggregate|process(<window function>);
 ```
 
 ### Window Assigners
@@ -398,7 +398,7 @@ stream
     .window(<window assigner>)
     .reduce(<reduce function>)
     .windowAll(<same window assigner>)
-    .reduce(<same reduce function>)
+    .reduce(<same reduce function>);
 ```
 
 You might expect Flink's runtime to be smart enough to do this parallel pre-aggregation for you (provided you are using a ReduceFunction or AggregateFunction), but it's not.

@@ -17,16 +17,15 @@
 ################################################################################
 import unittest
 
-from pyflink.datastream import TimeCharacteristic
 from pyflink.table import expressions as expr
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udaf, udf, AggregateFunction
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
-class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
+class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
 
     def test_check_result_type(self):
         def pandas_udaf():
@@ -281,7 +280,7 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
                             "+I[3, 2.0, 3, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]"])
 
 
-class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
+class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
     def test_sliding_group_window_over_time(self):
         # create source file path
         import tempfile
@@ -301,7 +300,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 fd.write(ele + '\n')
 
         from pyflink.table.window import Slide
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
 
         source_table = """
@@ -348,8 +348,38 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[3, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2.0]"])
         os.remove(source_path)
 
+    def test_sliding_group_window_over_proctime(self):
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        from pyflink.table.window import Slide
+        self.t_env.register_function("mean_udaf", mean_udaf)
+
+        source_table = """
+            create table source_table(
+                a INT,
+                proctime as PROCTIME()
+            ) with(
+                'connector' = 'datagen',
+                'rows-per-second' = '1',
+                'fields.a.kind' = 'sequence',
+                'fields.a.start' = '1',
+                'fields.a.end' = '10'
+            )
+        """
+        self.t_env.execute_sql(source_table)
+        t = self.t_env.from_path("source_table")
+        iterator = t.select("a, proctime") \
+            .window(Slide.over("1.seconds").every("1.seconds").on("proctime").alias("w")) \
+            .group_by("a, w") \
+            .select("mean_udaf(a) as b, w.start").execute().collect()
+        result = [i for i in iterator]
+        # if the WindowAssigner.isEventTime() does not return false,
+        # the w.start would be 1970-01-01
+        # TODO: After fixing the TimeZone problem of window with processing time (will be fixed in
+        # FLIP-162), we should replace it with a more accurate assertion.
+        self.assertTrue(result[0][1].year > 1970)
+
     def test_sliding_group_window_over_count(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path
         import tempfile
         import os
@@ -369,8 +399,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 fd.write(ele + '\n')
 
         from pyflink.table.window import Slide
-        from pyflink.datastream import TimeCharacteristic
-        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "ProcessingTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
 
         source_table = """
@@ -424,7 +454,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 fd.write(ele + '\n')
 
         from pyflink.table.window import Tumble
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
 
         source_table = """
@@ -469,7 +500,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         os.remove(source_path)
 
     def test_tumbling_group_window_over_count(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         # create source file path
         import tempfile
         import os
@@ -490,8 +521,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                 fd.write(ele + '\n')
 
         from pyflink.table.window import Tumble
-        from pyflink.datastream import TimeCharacteristic
-        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "ProcessingTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
 
         source_table = """
@@ -546,7 +577,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
                                 result_type=DataTypes.SMALLINT(),
                                 func_type='pandas')
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
         self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
@@ -613,7 +645,8 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
                                 result_type=DataTypes.SMALLINT(),
                                 func_type='pandas')
-        self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
         self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
@@ -680,8 +713,9 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
                                 result_type=DataTypes.SMALLINT(),
                                 func_type='pandas')
-        self.env.set_parallelism(1)
-        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "ProcessingTime")
         self.t_env.register_function("mean_udaf", mean_udaf)
         self.t_env.register_function("max_add_min_udaf", max_add_min_udaf)
         source_table = """
@@ -725,6 +759,76 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[2, 2.0, 4]",
                             "+I[3, 2.0, 4]"])
         os.remove(source_path)
+
+    def test_execute_over_aggregate_from_json_plan(self):
+        # create source file path
+        tmp_dir = self.tempdir
+        data = [
+            '1,1,2013-01-01 03:10:00',
+            '3,2,2013-01-01 03:10:00',
+            '2,1,2013-01-01 03:10:00',
+            '1,5,2013-01-01 03:10:00',
+            '1,8,2013-01-01 04:20:00',
+            '2,3,2013-01-01 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_execute_over_aggregate_from_json_plan.csv'
+        sink_path = tmp_dir + '/test_execute_over_aggregate_from_json_plan'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        source_table = """
+            CREATE TABLE source_table (
+                a TINYINT,
+                b SMALLINT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+
+        self.t_env.execute_sql("""
+            CREATE TABLE sink_table (
+                a TINYINT,
+                b FLOAT,
+                c SMALLINT
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % sink_path)
+
+        max_add_min_udaf = udaf(lambda a: a.max() + a.min(),
+                                result_type=DataTypes.SMALLINT(),
+                                func_type='pandas')
+        self.t_env.get_config().get_configuration().set_string(
+            "pipeline.time-characteristic", "EventTime")
+        self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+        self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
+
+        json_plan = self.t_env._j_tenv.getJsonPlan("""
+        insert into sink_table
+            select a,
+             mean_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+             max_add_min_udaf(b)
+             over (PARTITION BY a ORDER BY rowtime
+             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+            from source_table
+        """)
+        from py4j.java_gateway import get_method
+        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+
+        import glob
+        lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
+        lines.sort()
+        self.assertEqual(lines, ['1,1.0,2', '1,3.0,6', '1,6.5,13', '2,1.0,2', '2,2.0,4', '3,2.0,4'])
 
 
 @udaf(result_type=DataTypes.FLOAT(), func_type="pandas")

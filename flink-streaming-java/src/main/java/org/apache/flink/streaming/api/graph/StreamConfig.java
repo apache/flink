@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
@@ -42,9 +43,11 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TernaryBoolean;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -95,8 +98,10 @@ public class StreamConfig implements Serializable {
     private static final String CHECKPOINTING_ENABLED = "checkpointing";
     private static final String CHECKPOINT_MODE = "checkpointMode";
 
+    private static final String SAVEPOINT_DIR = "savepointdir";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
+    private static final String ENABLE_CHANGE_LOG_STATE_BACKEND = "enablechangelog";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
     private static final String STATE_PARTITIONER = "statePartitioner";
 
@@ -457,14 +462,13 @@ public class StreamConfig implements Serializable {
         return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
     }
 
-    public long getAlignmentTimeout() {
-        return config.getLong(
-                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(),
-                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis());
+    public Duration getAlignedCheckpointTimeout() {
+        return config.get(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT);
     }
 
-    public void setAlignmentTimeout(long alignmentTimeout) {
-        config.setLong(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.key(), alignmentTimeout);
+    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
+        config.set(
+                ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
     }
 
     public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {
@@ -552,6 +556,16 @@ public class StreamConfig implements Serializable {
         }
     }
 
+    public void setChangelogStateBackendEnabled(TernaryBoolean enabled) {
+        try {
+            InstantiationUtil.writeObjectToConfig(
+                    enabled, this.config, ENABLE_CHANGE_LOG_STATE_BACKEND);
+        } catch (Exception e) {
+            throw new StreamTaskException(
+                    "Could not serialize change log state backend enable flag.", e);
+        }
+    }
+
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
         this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
@@ -562,6 +576,34 @@ public class StreamConfig implements Serializable {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+        }
+    }
+
+    public TernaryBoolean isChangelogStateBackendEnabled(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(
+                    this.config, ENABLE_CHANGE_LOG_STATE_BACKEND, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException(
+                    "Could not instantiate change log state backend enable flag.", e);
+        }
+    }
+
+    public void setSavepointDir(Path directory) {
+        if (directory != null) {
+            try {
+                InstantiationUtil.writeObjectToConfig(directory, config, SAVEPOINT_DIR);
+            } catch (Exception e) {
+                throw new StreamTaskException("Could not serialize savepoint directory.", e);
+            }
+        }
+    }
+
+    public Path getSavepointDir(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, SAVEPOINT_DIR, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate savepoint directory.", e);
         }
     }
 

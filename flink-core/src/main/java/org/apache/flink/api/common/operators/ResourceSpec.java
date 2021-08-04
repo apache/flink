@@ -20,17 +20,21 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.resources.GPUResource;
-import org.apache.flink.api.common.resources.Resource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,10 +71,16 @@ public final class ResourceSpec implements Serializable {
     public static final ResourceSpec DEFAULT = UNKNOWN;
 
     /** A ResourceSpec that indicates zero amount of resources. */
-    public static final ResourceSpec ZERO = ResourceSpec.newBuilder(0.0, 0).build();
+    public static final ResourceSpec ZERO =
+            new ResourceSpec(
+                    new CPUResource(0.0),
+                    MemorySize.ZERO,
+                    MemorySize.ZERO,
+                    MemorySize.ZERO,
+                    Collections.emptyMap());
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
-    @Nullable private final Resource cpuCores;
+    @Nullable private final CPUResource cpuCores;
 
     /** How much task heap memory is needed. */
     @Nullable // can be null only for UNKNOWN
@@ -84,28 +94,26 @@ public final class ResourceSpec implements Serializable {
     @Nullable // can be null only for UNKNOWN
     private final MemorySize managedMemory;
 
-    private final Map<String, Resource> extendedResources = new HashMap<>(1);
+    private final Map<String, ExternalResource> extendedResources;
 
     private ResourceSpec(
-            final Resource cpuCores,
+            final CPUResource cpuCores,
             final MemorySize taskHeapMemory,
             final MemorySize taskOffHeapMemory,
             final MemorySize managedMemory,
-            final Resource... extendedResources) {
+            final Map<String, ExternalResource> extendedResources) {
 
         checkNotNull(cpuCores);
-        checkArgument(cpuCores instanceof CPUResource, "cpuCores must be CPUResource");
 
         this.cpuCores = cpuCores;
         this.taskHeapMemory = checkNotNull(taskHeapMemory);
         this.taskOffHeapMemory = checkNotNull(taskOffHeapMemory);
         this.managedMemory = checkNotNull(managedMemory);
 
-        for (Resource resource : extendedResources) {
-            if (resource != null) {
-                this.extendedResources.put(resource.getName(), resource);
-            }
-        }
+        this.extendedResources =
+                checkNotNull(extendedResources).entrySet().stream()
+                        .filter(entry -> !checkNotNull(entry.getValue()).isZero())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /** Creates a new ResourceSpec with all fields unknown. */
@@ -114,6 +122,7 @@ public final class ResourceSpec implements Serializable {
         this.taskHeapMemory = null;
         this.taskOffHeapMemory = null;
         this.managedMemory = null;
+        this.extendedResources = new HashMap<>();
     }
 
     /**
@@ -130,17 +139,22 @@ public final class ResourceSpec implements Serializable {
             return UNKNOWN;
         }
 
-        ResourceSpec target =
-                new ResourceSpec(
-                        this.cpuCores.merge(other.cpuCores),
-                        this.taskHeapMemory.add(other.taskHeapMemory),
-                        this.taskOffHeapMemory.add(other.taskOffHeapMemory),
-                        this.managedMemory.add(other.managedMemory));
-        target.extendedResources.putAll(extendedResources);
-        for (Resource resource : other.extendedResources.values()) {
-            target.extendedResources.merge(resource.getName(), resource, (v1, v2) -> v1.merge(v2));
-        }
-        return target;
+        Map<String, ExternalResource> resultExtendedResource = new HashMap<>(extendedResources);
+
+        other.extendedResources.forEach(
+                (String name, ExternalResource resource) -> {
+                    resultExtendedResource.compute(
+                            name,
+                            (ignored, oldResource) ->
+                                    oldResource == null ? resource : oldResource.merge(resource));
+                });
+
+        return new ResourceSpec(
+                this.cpuCores.merge(other.cpuCores),
+                this.taskHeapMemory.add(other.taskHeapMemory),
+                this.taskOffHeapMemory.add(other.taskOffHeapMemory),
+                this.managedMemory.add(other.managedMemory),
+                resultExtendedResource);
     }
 
     /**
@@ -160,30 +174,21 @@ public final class ResourceSpec implements Serializable {
                 other.lessThanOrEqual(this),
                 "Cannot subtract a larger ResourceSpec from this one.");
 
-        final ResourceSpec target =
-                new ResourceSpec(
-                        this.cpuCores.subtract(other.cpuCores),
-                        this.taskHeapMemory.subtract(other.taskHeapMemory),
-                        this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
-                        this.managedMemory.subtract(other.managedMemory));
-
-        target.extendedResources.putAll(extendedResources);
-
-        for (Resource resource : other.extendedResources.values()) {
-            target.extendedResources.merge(
-                    resource.getName(),
-                    resource,
-                    (v1, v2) -> {
-                        final Resource subtracted = v1.subtract(v2);
-                        return subtracted.getValue().compareTo(BigDecimal.ZERO) == 0
-                                ? null
-                                : subtracted;
-                    });
+        Map<String, ExternalResource> resultExtendedResources = new HashMap<>(extendedResources);
+        for (ExternalResource resource : other.extendedResources.values()) {
+            resultExtendedResources.merge(
+                    resource.getName(), resource, (v1, v2) -> v1.subtract(v2));
         }
-        return target;
+
+        return new ResourceSpec(
+                this.cpuCores.subtract(other.cpuCores),
+                this.taskHeapMemory.subtract(other.taskHeapMemory),
+                this.taskOffHeapMemory.subtract(other.taskOffHeapMemory),
+                this.managedMemory.subtract(other.managedMemory),
+                resultExtendedResources);
     }
 
-    public Resource getCpuCores() {
+    public CPUResource getCpuCores() {
         throwUnsupportedOperationExceptionIfUnknown();
         return this.cpuCores;
     }
@@ -203,14 +208,14 @@ public final class ResourceSpec implements Serializable {
         return managedMemory;
     }
 
-    public Resource getGPUResource() {
+    public Optional<ExternalResource> getExtendedResource(String name) {
         throwUnsupportedOperationExceptionIfUnknown();
-        return extendedResources.get(GPUResource.NAME);
+        return Optional.ofNullable(extendedResources.get(name));
     }
 
-    public Map<String, Resource> getExtendedResources() {
+    public Map<String, ExternalResource> getExtendedResources() {
         throwUnsupportedOperationExceptionIfUnknown();
-        return extendedResources;
+        return Collections.unmodifiableMap(extendedResources);
     }
 
     private void throwUnsupportedOperationExceptionIfUnknown() {
@@ -242,7 +247,7 @@ public final class ResourceSpec implements Serializable {
         int cmp3 = this.taskOffHeapMemory.compareTo(other.taskOffHeapMemory);
         int cmp4 = this.managedMemory.compareTo(other.managedMemory);
         if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0) {
-            for (Resource resource : extendedResources.values()) {
+            for (ExternalResource resource : extendedResources.values()) {
                 if (!other.extendedResources.containsKey(resource.getName())
                         || other.extendedResources
                                         .get(resource.getName())
@@ -290,7 +295,7 @@ public final class ResourceSpec implements Serializable {
         }
 
         final StringBuilder extResources = new StringBuilder(extendedResources.size() * 10);
-        for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
+        for (Map.Entry<String, ExternalResource> resource : extendedResources.entrySet()) {
             extResources
                     .append(", ")
                     .append(resource.getKey())
@@ -327,14 +332,18 @@ public final class ResourceSpec implements Serializable {
         return new Builder(new CPUResource(cpuCores), MemorySize.ofMebiBytes(taskHeapMemoryMB));
     }
 
+    public static Builder newBuilder(double cpuCores, MemorySize taskHeapMemory) {
+        return new Builder(new CPUResource(cpuCores), taskHeapMemory);
+    }
+
     /** Builder for the {@link ResourceSpec}. */
     public static class Builder {
 
-        private Resource cpuCores;
+        private CPUResource cpuCores;
         private MemorySize taskHeapMemory;
         private MemorySize taskOffHeapMemory = MemorySize.ZERO;
         private MemorySize managedMemory = MemorySize.ZERO;
-        private GPUResource gpuResource;
+        private Map<String, ExternalResource> extendedResources = new HashMap<>();
 
         private Builder(CPUResource cpuCores, MemorySize taskHeapMemory) {
             this.cpuCores = cpuCores;
@@ -361,7 +370,7 @@ public final class ResourceSpec implements Serializable {
             return this;
         }
 
-        public Builder setOffTaskHeapMemoryMB(int taskOffHeapMemoryMB) {
+        public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
             this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
             return this;
         }
@@ -376,14 +385,33 @@ public final class ResourceSpec implements Serializable {
             return this;
         }
 
-        public Builder setGPUResource(double gpus) {
-            this.gpuResource = new GPUResource(gpus);
+        /**
+         * Add the given extended resource. The old value with the same resource name will be
+         * replaced if present.
+         */
+        public Builder setExtendedResource(ExternalResource extendedResource) {
+            this.extendedResources.put(extendedResource.getName(), extendedResource);
+            return this;
+        }
+
+        /**
+         * Add the given extended resources. This will discard all the previous added extended
+         * resources.
+         */
+        public Builder setExtendedResources(Collection<ExternalResource> extendedResources) {
+            this.extendedResources =
+                    extendedResources.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExternalResource::getName, Function.identity()));
             return this;
         }
 
         public ResourceSpec build() {
+            checkArgument(cpuCores.getValue().compareTo(BigDecimal.ZERO) > 0);
+            checkArgument(taskHeapMemory.compareTo(MemorySize.ZERO) > 0);
             return new ResourceSpec(
-                    cpuCores, taskHeapMemory, taskOffHeapMemory, managedMemory, gpuResource);
+                    cpuCores, taskHeapMemory, taskOffHeapMemory, managedMemory, extendedResources);
         }
     }
 }

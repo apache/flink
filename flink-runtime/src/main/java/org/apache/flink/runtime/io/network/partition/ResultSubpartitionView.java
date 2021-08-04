@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** A view to consume a {@link ResultSubpartition} instance. */
 public interface ResultSubpartitionView {
 
@@ -51,9 +53,37 @@ public interface ResultSubpartitionView {
 
     void resumeConsumption();
 
+    void acknowledgeAllRecordsProcessed();
+
     Throwable getFailureCause();
 
-    boolean isAvailable(int numCreditsAvailable);
+    AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
 
     int unsynchronizedGetNumberOfQueuedBuffers();
+
+    /**
+     * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding
+     * {@link ResultSubpartition}.
+     */
+    class AvailabilityWithBacklog {
+
+        private final boolean isAvailable;
+
+        private final int backlog;
+
+        public AvailabilityWithBacklog(boolean isAvailable, int backlog) {
+            checkArgument(backlog >= 0, "Backlog must be non-negative.");
+
+            this.isAvailable = isAvailable;
+            this.backlog = backlog;
+        }
+
+        public boolean isAvailable() {
+            return isAvailable;
+        }
+
+        public int getBacklog() {
+            return backlog;
+        }
+    }
 }

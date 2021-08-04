@@ -24,6 +24,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.slf4j.Logger;
@@ -111,10 +112,15 @@ public class ZooKeeperRunningJobsRegistry implements RunningJobsRegistry {
     public void clearJob(JobID jobID) throws IOException {
         checkNotNull(jobID);
 
+        final String zkPath = createZkPath(jobID);
+
         try {
-            final String zkPath = createZkPath(jobID);
-            this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-            this.client.delete().forPath(zkPath);
+            final Stat stat = this.client.checkExists().forPath(zkPath);
+            if (stat != null) {
+                this.client.delete().forPath(zkPath);
+            }
+        } catch (KeeperException.NoNodeException ignored) {
+            // The zNode has been deleted by somebody else. This works as well.
         } catch (Exception e) {
             throw new IOException("Failed to clear job state from ZooKeeper for job " + jobID, e);
         }
@@ -127,7 +133,21 @@ public class ZooKeeperRunningJobsRegistry implements RunningJobsRegistry {
     private void writeEnumToZooKeeper(JobID jobID, JobSchedulingStatus status) throws Exception {
         LOG.debug("Setting scheduling state for job {} to {}.", jobID, status);
         final String zkPath = createZkPath(jobID);
-        this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-        this.client.setData().forPath(zkPath, status.name().getBytes(ENCODING));
+        while (true) {
+            try {
+                final Stat stat = this.client.checkExists().forPath(zkPath);
+                if (stat != null) {
+                    this.client.setData().forPath(zkPath, status.name().getBytes(ENCODING));
+                } else {
+                    this.client
+                            .create()
+                            .creatingParentContainersIfNeeded()
+                            .forPath(zkPath, status.name().getBytes(ENCODING));
+                }
+                return;
+            } catch (KeeperException.NoNodeException | KeeperException.NodeExistsException e) {
+                LOG.debug("Retrying failure to set job state from ZooKeeper for job {}", jobID, e);
+            }
+        }
     }
 }

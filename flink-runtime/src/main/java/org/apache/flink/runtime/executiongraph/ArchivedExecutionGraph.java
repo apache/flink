@@ -26,6 +26,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -42,7 +43,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
-/** An archived execution graph represents a serializable form of the {@link ExecutionGraph}. */
+/** An archived execution graph represents a serializable form of an {@link ExecutionGraph}. */
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
     private static final long serialVersionUID = 7231383912742578428L;
@@ -211,7 +212,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return new Iterable<ArchivedExecutionVertex>() {
             @Override
             public Iterator<ArchivedExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
+                return new AllVerticesIterator<>(getVerticesTopologically().iterator());
             }
         };
     }
@@ -229,11 +230,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Override
     public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
         return checkpointStatsSnapshot;
-    }
-
-    @Override
-    public boolean isArchived() {
-        return true;
     }
 
     @Override
@@ -266,51 +262,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return Optional.ofNullable(checkpointStorageName);
     }
 
-    class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
-
-        private final Iterator<ArchivedExecutionJobVertex> jobVertices;
-
-        private ArchivedExecutionVertex[] currVertices;
-
-        private int currPos;
-
-        public AllVerticesIterator(Iterator<ArchivedExecutionJobVertex> jobVertices) {
-            this.jobVertices = jobVertices;
-        }
-
-        @Override
-        public boolean hasNext() {
-            while (true) {
-                if (currVertices != null) {
-                    if (currPos < currVertices.length) {
-                        return true;
-                    } else {
-                        currVertices = null;
-                    }
-                } else if (jobVertices.hasNext()) {
-                    currVertices = jobVertices.next().getTaskVertices();
-                    currPos = 0;
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        @Override
-        public ArchivedExecutionVertex next() {
-            if (hasNext()) {
-                return currVertices[currPos++];
-            } else {
-                throw new NoSuchElementException();
-            }
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
-    }
-
     /**
      * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
      *
@@ -318,6 +269,23 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
      * @return ArchivedExecutionGraph created from the given ExecutionGraph
      */
     public static ArchivedExecutionGraph createFrom(ExecutionGraph executionGraph) {
+        return createFrom(executionGraph, null);
+    }
+
+    /**
+     * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
+     *
+     * @param executionGraph to create the ArchivedExecutionGraph from
+     * @param statusOverride optionally overrides the JobStatus of the ExecutionGraph with a
+     *     non-globally-terminal state and clears timestamps of globally-terminal states
+     * @return ArchivedExecutionGraph created from the given ExecutionGraph
+     */
+    public static ArchivedExecutionGraph createFrom(
+            ExecutionGraph executionGraph, @Nullable JobStatus statusOverride) {
+        Preconditions.checkArgument(
+                statusOverride == null || !statusOverride.isGloballyTerminalState(),
+                "Status override is only allowed for non-globally-terminal states.");
+
         final int numberVertices = executionGraph.getTotalNumberOfVertices();
 
         Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(numberVertices);
@@ -335,9 +303,15 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
         final long[] timestamps = new long[JobStatus.values().length];
 
+        // if the state is overridden with a non-globally-terminal state then we need to erase
+        // traces of globally-terminal states for consistency
+        final boolean clearGloballyTerminalStateTimestamps = statusOverride != null;
+
         for (JobStatus jobStatus : JobStatus.values()) {
             final int ordinal = jobStatus.ordinal();
-            timestamps[ordinal] = executionGraph.getStatusTimestamp(jobStatus);
+            if (!(clearGloballyTerminalStateTimestamps && jobStatus.isGloballyTerminalState())) {
+                timestamps[ordinal] = executionGraph.getStatusTimestamp(jobStatus);
+            }
         }
 
         return new ArchivedExecutionGraph(
@@ -346,7 +320,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 archivedTasks,
                 archivedVerticesInCreationOrder,
                 timestamps,
-                executionGraph.getState(),
+                statusOverride == null ? executionGraph.getState() : statusOverride,
                 executionGraph.getFailureInfo(),
                 executionGraph.getJsonPlan(),
                 executionGraph.getAccumulatorResultsStringified(),
@@ -368,6 +342,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             String jobName,
             JobStatus jobStatus,
             @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
             long initializationTimestamp) {
         Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = Collections.emptyMap();
         List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = Collections.emptyList();
@@ -403,9 +378,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
                 false,
-                null,
-                null,
-                null,
-                null);
+                checkpointingSettings == null
+                        ? null
+                        : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
+                checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
+                checkpointingSettings == null ? null : "Unknown",
+                checkpointingSettings == null ? null : "Unknown");
     }
 }

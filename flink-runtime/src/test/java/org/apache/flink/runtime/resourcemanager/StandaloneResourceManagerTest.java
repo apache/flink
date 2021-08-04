@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -39,6 +38,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -95,28 +95,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
         rm.close();
     }
 
-    @Test
-    public void testStartUpPeriodAfterLeadershipSwitch() throws Exception {
-        final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes =
-                new LinkedBlockingQueue<>();
-        final SlotManager slotManager =
-                new TestingSlotManagerBuilder()
-                        .setSetFailUnfulfillableRequestConsumer(
-                                setFailUnfulfillableRequestInvokes::add)
-                        .createSlotManager();
-        final TestingStandaloneResourceManager rm =
-                createResourceManager(Time.milliseconds(1L), slotManager);
-
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
-
-        rm.rmServices.revokeLeadership();
-        rm.rmServices.grantLeadership();
-
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
-    }
-
     private TestingStandaloneResourceManager createResourceManager(
             Time startupPeriod, SlotManager slotManager) throws Exception {
 
@@ -127,42 +105,39 @@ public class StandaloneResourceManagerTest extends TestLogger {
         final TestingStandaloneResourceManager rm =
                 new TestingStandaloneResourceManager(
                         rmServices.rpcService,
+                        UUID.randomUUID(),
                         ResourceID.generate(),
-                        rmServices.highAvailabilityServices,
                         rmServices.heartbeatServices,
                         rmServices.slotManager,
                         rmServices.jobLeaderIdService,
                         new ClusterInformation("localhost", 1234),
                         fatalErrorHandler,
                         UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                        startupPeriod,
-                        rmServices);
+                        startupPeriod);
 
         rm.start();
-        rmServices.grantLeadership();
+        rm.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
 
         return rm;
     }
 
     private static class TestingStandaloneResourceManager extends StandaloneResourceManager {
-        private final MockResourceManagerRuntimeServices rmServices;
 
         private TestingStandaloneResourceManager(
                 RpcService rpcService,
+                UUID leaderSessionId,
                 ResourceID resourceId,
-                HighAvailabilityServices highAvailabilityServices,
                 HeartbeatServices heartbeatServices,
                 SlotManager slotManager,
                 JobLeaderIdService jobLeaderIdService,
                 ClusterInformation clusterInformation,
                 FatalErrorHandler fatalErrorHandler,
                 ResourceManagerMetricGroup resourceManagerMetricGroup,
-                Time startupPeriodTime,
-                MockResourceManagerRuntimeServices rmServices) {
+                Time startupPeriodTime) {
             super(
                     rpcService,
+                    leaderSessionId,
                     resourceId,
-                    highAvailabilityServices,
                     heartbeatServices,
                     slotManager,
                     NoOpResourceManagerPartitionTracker::get,
@@ -173,7 +148,6 @@ public class StandaloneResourceManagerTest extends TestLogger {
                     startupPeriodTime,
                     RpcUtils.INF_TIMEOUT,
                     ForkJoinPool.commonPool());
-            this.rmServices = rmServices;
         }
     }
 }

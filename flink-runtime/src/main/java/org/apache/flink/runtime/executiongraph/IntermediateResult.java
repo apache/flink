@@ -19,12 +19,19 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,15 +54,14 @@ public class IntermediateResult {
 
     private final int numParallelProducers;
 
-    private final AtomicInteger numberOfRunningProducers;
-
     private int partitionsAssigned;
-
-    private int numConsumers;
 
     private final int connectionIndex;
 
     private final ResultPartitionType resultType;
+
+    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
+            shuffleDescriptorCache;
 
     public IntermediateResult(
             IntermediateDataSetID id,
@@ -71,8 +77,6 @@ public class IntermediateResult {
 
         this.partitions = new IntermediateResultPartition[numParallelProducers];
 
-        this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
-
         // we do not set the intermediate result partitions here, because we let them be initialized
         // by
         // the execution vertex that produces them
@@ -82,6 +86,8 @@ public class IntermediateResult {
 
         // The runtime type for this produced result
         this.resultType = checkNotNull(resultType);
+
+        this.shuffleDescriptorCache = new HashMap<>();
     }
 
     public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -145,19 +151,6 @@ public class IntermediateResult {
         return resultType;
     }
 
-    public int registerConsumer() {
-        final int index = numConsumers;
-        numConsumers++;
-
-        for (IntermediateResultPartition p : partitions) {
-            if (p.addConsumerGroup() != index) {
-                throw new RuntimeException(
-                        "Inconsistent consumer mapping between intermediate result partitions.");
-            }
-        }
-        return index;
-    }
-
     public int getConnectionIndex() {
         return connectionIndex;
     }
@@ -169,21 +162,39 @@ public class IntermediateResult {
         }
     }
 
-    @VisibleForTesting
-    int getNumberOfRunningProducers() {
-        return numberOfRunningProducers.get();
+    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        return shuffleDescriptorCache.get(consumedPartitionGroup);
     }
 
-    int incrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.incrementAndGet();
+    public void cacheShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
+        this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
     }
 
-    int decrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.decrementAndGet();
-    }
+    public void notifyPartitionChanged() {
+        // When partitions change, the cache of shuffle descriptors is no longer valid
+        // and need to be removed.
+        // Currently there are two scenarios:
+        // 1. The partitions are released
+        // 2. The producer encounters a failover
 
-    boolean areAllPartitionsFinished() {
-        return numberOfRunningProducers.get() == 0;
+        // Get all the offloaded caches and notify blob write to delete them
+        final List<PermanentBlobKey> blobToDelete =
+                this.shuffleDescriptorCache.values().stream()
+                        .filter(maybeOffloaded -> maybeOffloaded instanceof Offloaded)
+                        .map(
+                                maybeOffloaded ->
+                                        ((Offloaded<ShuffleDescriptor[]>) maybeOffloaded)
+                                                .serializedValueKey)
+                        .collect(Collectors.toList());
+        if (blobToDelete.size() > 0) {
+            this.producer.getGraph().deleteBlobs(blobToDelete);
+        }
+
+        // Clear all the caches
+        this.shuffleDescriptorCache.clear();
     }
 
     @Override

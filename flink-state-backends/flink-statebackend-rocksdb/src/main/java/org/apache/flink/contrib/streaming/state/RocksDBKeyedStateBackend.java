@@ -19,13 +19,8 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -34,16 +29,19 @@ import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysAndNamespaceIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.contrib.streaming.state.snapshot.RocksDBFullSnapshotResources;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersManager;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
+import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -51,6 +49,7 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
@@ -58,7 +57,9 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTran
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -83,6 +84,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +97,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBSnapshotTransformFactoryAdaptor.wrapStateSnapshotTransformFactory;
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -119,23 +120,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      */
     public static final String MERGE_OPERATOR_NAME = "stringappendtest";
 
-    @SuppressWarnings("deprecation")
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
+                                    StateDescriptor.Type.VALUE,
                                     (StateFactory) RocksDBValueState::create),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
+                                    StateDescriptor.Type.LIST,
                                     (StateFactory) RocksDBListState::create),
                             Tuple2.of(
-                                    MapStateDescriptor.class,
+                                    StateDescriptor.Type.MAP,
                                     (StateFactory) RocksDBMapState::create),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
+                                    StateDescriptor.Type.AGGREGATING,
                                     (StateFactory) RocksDBAggregatingState::create),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
+                                    StateDescriptor.Type.REDUCING,
                                     (StateFactory) RocksDBReducingState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
@@ -182,6 +182,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      */
     private final LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation;
 
+    private final HeapPriorityQueuesManager heapPriorityQueuesManager;
+
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
 
@@ -201,9 +203,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * state, and so on.
      */
     private final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
-
-    /** The savepoint snapshot strategy. */
-    private final RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy;
 
     /** The native metrics monitor. */
     private final RocksDBNativeMetricMonitor nativeMetricMonitor;
@@ -238,14 +237,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             TypeSerializer<K> keySerializer,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
             RocksDB db,
             LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             int keyGroupPrefixBytes,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             ResourceGuard rocksDBResourceGuard,
             RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
-            RocksDBSnapshotStrategyBase<K, ?> savepointSnapshotStrategy,
             RocksDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
@@ -261,6 +261,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 userCodeClassLoader,
                 executionConfig,
                 ttlTimeProvider,
+                latencyTrackingStateConfig,
                 cancelStreamRegistry,
                 keyGroupCompressionDecorator,
                 keyContext);
@@ -279,17 +280,25 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         this.writeOptions = optionsContainer.getWriteOptions();
         this.readOptions = optionsContainer.getReadOptions();
-        checkArgument(writeBatchSize >= 0, "Write batch size have to be no negative value.");
         this.writeBatchSize = writeBatchSize;
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
         this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
-        this.savepointSnapshotStrategy = savepointSnapshotStrategy;
         this.writeBatchWrapper = writeBatchWrapper;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
         this.sharedRocksKeyBuilder = sharedRocksKeyBuilder;
         this.priorityQueueFactory = priorityQueueFactory;
+        if (priorityQueueFactory instanceof HeapPriorityQueueSetFactory) {
+            this.heapPriorityQueuesManager =
+                    new HeapPriorityQueuesManager(
+                            registeredPQStates,
+                            (HeapPriorityQueueSetFactory) priorityQueueFactory,
+                            keyContext.getKeyGroupRange(),
+                            keyContext.getNumberOfKeyGroups());
+        } else {
+            this.heapPriorityQueuesManager = null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -450,16 +459,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
             cleanInstanceBasePath();
         }
+        IOUtils.closeQuietly(checkpointSnapshotStrategy);
         this.disposed = true;
     }
 
     @Nonnull
     @Override
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        return priorityQueueFactory.create(stateName, byteOrderedElementSerializer);
+        if (this.heapPriorityQueuesManager != null) {
+            return this.heapPriorityQueuesManager.createOrUpdate(
+                    stateName, byteOrderedElementSerializer);
+        } else {
+            return priorityQueueFactory.create(stateName, byteOrderedElementSerializer);
+        }
     }
 
     private void cleanInstanceBasePath() {
@@ -528,17 +543,40 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // flush everything into db before taking a snapshot
         writeBatchWrapper.flush();
 
-        RocksDBSnapshotStrategyBase<K, ?> chosenSnapshotStrategy =
-                checkpointOptions.getCheckpointType().isSavepoint()
-                        ? savepointSnapshotStrategy
-                        : checkpointSnapshotStrategy;
-
         return new SnapshotStrategyRunner<>(
-                        chosenSnapshotStrategy.getDescription(),
-                        chosenSnapshotStrategy,
+                        checkpointSnapshotStrategy.getDescription(),
+                        checkpointSnapshotStrategy,
                         cancelStreamRegistry,
                         ASYNCHRONOUS)
                 .snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() throws Exception {
+
+        // flush everything into db before taking a snapshot
+        writeBatchWrapper.flush();
+
+        Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
+        if (heapPriorityQueuesManager != null) {
+            registeredPQStates = heapPriorityQueuesManager.getRegisteredPQStates();
+        } else {
+            registeredPQStates = new HashMap<>();
+        }
+
+        RocksDBFullSnapshotResources<K> snapshotResources =
+                RocksDBFullSnapshotResources.create(
+                        kvStateInformation,
+                        registeredPQStates,
+                        db,
+                        rocksDBResourceGuard,
+                        keyGroupRange,
+                        keySerializer,
+                        keyGroupPrefixBytes,
+                        keyGroupCompressionDecorator);
+
+        return new SavepointResources<>(snapshotResources, ASYNCHRONOUS);
     }
 
     @Override
@@ -547,17 +585,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         if (checkpointSnapshotStrategy != null) {
             checkpointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
         }
-
-        if (savepointSnapshotStrategy != null) {
-            savepointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
-        }
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         checkpointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
-
-        savepointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
     }
 
     /**
@@ -640,7 +672,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                     TypeSerializer<SV> stateSerializer)
                     throws Exception {
 
-        @SuppressWarnings("unchecked")
         RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
 
         // fetch current serializer now because if it is incompatible, we can't access
@@ -723,7 +754,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         // we need to get an actual state instance because migration is different
         // for different state types. For example, ListState needs to deal with
         // individual elements
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -794,7 +825,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             @Nonnull StateDescriptor<S, SV> stateDesc,
             @Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -814,7 +845,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @VisibleForTesting
-    @SuppressWarnings("unchecked")
     @Override
     public int numKeyValueStateEntries() {
         int count = 0;
@@ -837,8 +867,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
-    public boolean requiresLegacySynchronousTimerSnapshots() {
-        return priorityQueueFactory instanceof HeapPriorityQueueSetFactory;
+    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+        return priorityQueueFactory instanceof HeapPriorityQueueSetFactory
+                && checkpointType == CheckpointType.CHECKPOINT;
+    }
+
+    @Override
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
+        return !requiresLegacySynchronousTimerSnapshots(checkpointType);
     }
 
     /** Rocks DB specific information about the k/v states. */

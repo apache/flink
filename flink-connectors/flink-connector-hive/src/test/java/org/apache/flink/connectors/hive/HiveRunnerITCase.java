@@ -209,8 +209,7 @@ public class HiveRunnerITCase {
 
     @Test
     public void testWriteNullValues() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create database db1");
@@ -268,8 +267,7 @@ public class HiveRunnerITCase {
 
             // populate src2 with same data from Flink
             tableEnv.executeSql(
-                            "insert into db1.src2 values (cast(1.0 as decimal(10,2))), (cast(2.12 as decimal(10,2))), "
-                                    + "(cast(5.123 as decimal(10,2))), (cast(5.456 as decimal(10,2))), (cast(123456789.12 as decimal(10,2)))")
+                            "insert into db1.src2 values (1.0),(2.12),(5.123),(5.456),(123456789.12)")
                     .await();
             // verify src1 and src2 contain same data
             verifyHiveQueryResult(
@@ -337,7 +335,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p1 string, p2 double)");
             tableEnv.executeSql(
-                            "insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src")
+                            "insert into db1.dest partition (p1='1\\'1', p2=1.1) select x from db1.src")
                     .await();
             assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
             verifyHiveQueryResult(
@@ -381,7 +379,8 @@ public class HiveRunnerITCase {
                     .commit();
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p1 double, p2 string)");
-            tableEnv.executeSql("insert into db1.dest partition (p1=1.1) select x,y from db1.src")
+            tableEnv.executeSql(
+                            "insert into db1.dest partition (p1=1.1,p2) select x,y from db1.src")
                     .await();
             assertEquals(2, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
             verifyHiveQueryResult(
@@ -617,8 +616,7 @@ public class HiveRunnerITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -627,7 +625,7 @@ public class HiveRunnerITCase {
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;

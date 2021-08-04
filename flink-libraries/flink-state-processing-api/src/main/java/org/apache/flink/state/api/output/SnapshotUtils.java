@@ -48,12 +48,12 @@ public final class SnapshotUtils {
             throws Exception {
 
         CheckpointOptions options =
-                new CheckpointOptions(
+                CheckpointOptions.forConfig(
                         CheckpointType.SAVEPOINT,
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,
                         isUnalignedCheckpoint,
-                        CheckpointOptions.NO_ALIGNMENT_TIME_OUT);
+                        CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
 
         operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
 

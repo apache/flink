@@ -26,7 +26,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
@@ -109,7 +109,7 @@ public class JobManagerLogListHandlerTest extends TestLogger {
     private JobManagerLogListHandler createHandler(@Nullable final File jobManagerLogRoot) {
         return new JobManagerLogListHandler(
                 () -> CompletableFuture.completedFuture(dispatcherGateway),
-                TestingUtils.TIMEOUT(),
+                TestingUtils.TIMEOUT,
                 Collections.emptyMap(),
                 JobManagerLogListHeaders.getInstance(),
                 jobManagerLogRoot);

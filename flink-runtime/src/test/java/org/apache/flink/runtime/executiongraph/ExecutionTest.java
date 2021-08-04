@@ -22,20 +22,14 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
-import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.ProducerDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -47,8 +41,6 @@ import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
-import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -81,7 +73,7 @@ public class ExecutionTest extends TestLogger {
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(jobVertex),
+                                JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
@@ -124,7 +116,7 @@ public class ExecutionTest extends TestLogger {
 
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(jobVertex),
+                                JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
@@ -168,7 +160,8 @@ public class ExecutionTest extends TestLogger {
                                                 .build()));
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(jobVertex), testMainThreadUtil.getMainThreadExecutor())
+                                JobGraphTestUtils.streamingJobGraph(jobVertex),
+                                testMainThreadUtil.getMainThreadExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
@@ -206,7 +199,8 @@ public class ExecutionTest extends TestLogger {
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
-                                new JobGraph(jobVertex), testMainThreadUtil.getMainThreadExecutor())
+                                JobGraphTestUtils.streamingJobGraph(jobVertex),
+                                testMainThreadUtil.getMainThreadExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
@@ -234,54 +228,6 @@ public class ExecutionTest extends TestLogger {
 
                     assertThat(execution.getReleaseFuture().isDone(), is(true));
                 });
-    }
-
-    /**
-     * Tests that incomplete futures returned by {@link ShuffleMaster#registerPartitionWithProducer}
-     * are rejected.
-     */
-    @Test
-    public void testIncompletePartitionRegistrationFutureIsRejected() throws Exception {
-        final ShuffleMaster<ShuffleDescriptor> shuffleMaster = new TestingShuffleMaster();
-        final JobGraph jobGraph = new JobGraph("job graph");
-        final JobVertex source = new JobVertex("source");
-        final JobVertex target = new JobVertex("target");
-
-        source.setInvokableClass(AbstractInvokable.class);
-        target.setInvokableClass(AbstractInvokable.class);
-        target.connectNewDataSetAsInput(source, POINTWISE, PIPELINED);
-        jobGraph.addVertex(source);
-        jobGraph.addVertex(target);
-        ExecutionGraph executionGraph =
-                TestingExecutionGraphBuilder.newBuilder()
-                        .setJobGraph(jobGraph)
-                        .setShuffleMaster(shuffleMaster)
-                        .build();
-
-        final ExecutionVertex sourceVertex =
-                executionGraph.getAllVertices().get(source.getID()).getTaskVertices()[0];
-
-        boolean incompletePartitionRegistrationRejected = false;
-        try {
-            Execution.registerProducedPartitions(
-                    sourceVertex, new LocalTaskManagerLocation(), new ExecutionAttemptID(), false);
-        } catch (IllegalStateException e) {
-            incompletePartitionRegistrationRejected = true;
-        }
-
-        assertTrue(incompletePartitionRegistrationRejected);
-    }
-
-    private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
-
-        @Override
-        public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
-                PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
-            return new CompletableFuture<>();
-        }
-
-        @Override
-        public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {}
     }
 
     @Nonnull

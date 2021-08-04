@@ -18,10 +18,13 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.OrcColumnarRowSplitReader;
 import org.apache.flink.orc.OrcSplitReaderUtil;
 import org.apache.flink.orc.nohive.OrcNoHiveSplitReaderUtil;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
@@ -33,6 +36,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 
 import static org.apache.flink.table.data.vector.VectorizedColumnBatch.DEFAULT_SIZE;
 
@@ -62,13 +66,20 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
             throw new IllegalArgumentException("Unknown split type: " + hadoopSplit);
         }
 
+        Map<String, Object> partitionValues =
+                HivePartitionUtils.parsePartitionValues(
+                        split.getHiveTablePartition().getPartitionSpec(),
+                        fieldNames,
+                        fieldTypes,
+                        JobConfUtils.getDefaultPartitionName(jobConf),
+                        HiveShimLoader.loadHiveShim(hiveVersion));
         this.reader =
                 hiveVersion.startsWith("1.")
                         ? OrcNoHiveSplitReaderUtil.genPartColumnarRowReader(
                                 conf,
                                 fieldNames,
                                 fieldTypes,
-                                split.getHiveTablePartition().getPartitionSpec(),
+                                partitionValues,
                                 selectedFields,
                                 new ArrayList<>(),
                                 DEFAULT_SIZE,
@@ -80,7 +91,7 @@ public class HiveVectorizedOrcSplitReader implements SplitReader {
                                 conf,
                                 fieldNames,
                                 fieldTypes,
-                                split.getHiveTablePartition().getPartitionSpec(),
+                                partitionValues,
                                 selectedFields,
                                 new ArrayList<>(),
                                 DEFAULT_SIZE,

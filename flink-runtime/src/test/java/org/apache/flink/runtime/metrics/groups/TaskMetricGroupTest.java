@@ -24,8 +24,8 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
@@ -49,7 +49,7 @@ public class TaskMetricGroupTest extends TestLogger {
     public void setup() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
     @After
@@ -94,7 +94,7 @@ public class TaskMetricGroupTest extends TestLogger {
         cfg.setString(
                 MetricOptions.SCOPE_NAMING_TASK, "<tm_id>.<job_id>.<task_id>.<task_attempt_id>");
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
         JobID jid = new JobID();
         JobVertexID vertexId = new JobVertexID();
@@ -124,7 +124,7 @@ public class TaskMetricGroupTest extends TestLogger {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_TASK, "*.<task_attempt_id>.<subtask_index>");
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
         ExecutionAttemptID executionId = new ExecutionAttemptID();
 
@@ -204,7 +204,7 @@ public class TaskMetricGroupTest extends TestLogger {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, ScopeFormat.SCOPE_OPERATOR_NAME);
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
         TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
         TaskManagerJobMetricGroup job =
                 new TaskManagerJobMetricGroup(registry, tm, new JobID(), "jobname");
@@ -228,7 +228,7 @@ public class TaskMetricGroupTest extends TestLogger {
         private int counter = 0;
 
         CountingMetricRegistry(Configuration config) {
-            super(MetricRegistryConfiguration.fromConfiguration(config));
+            super(MetricRegistryTestUtils.fromConfiguration(config));
         }
 
         @Override

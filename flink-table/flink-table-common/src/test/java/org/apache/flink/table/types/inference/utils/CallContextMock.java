@@ -45,6 +45,8 @@ public class CallContextMock implements CallContext {
 
     public Optional<DataType> outputDataType;
 
+    public boolean isGroupedAggregation;
+
     @Override
     public DataTypeFactory getDataTypeFactory() {
         return typeFactory;
@@ -85,5 +87,10 @@ public class CallContextMock implements CallContext {
     @Override
     public Optional<DataType> getOutputDataType() {
         return outputDataType;
+    }
+
+    @Override
+    public boolean isGroupedAggregation() {
+        return isGroupedAggregation;
     }
 }

@@ -20,20 +20,16 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.utils.Constants;
 
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link KubernetesLeaderRetrievalDriver}. */
 public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabilityTestBase {
@@ -103,36 +99,6 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
                             callbackHandler.onModified(
                                     Collections.singletonList(getLeaderConfigMap()));
                             assertThat(retrievalEventHandler.getAddress(), is(nullValue()));
-                        });
-            }
-        };
-    }
-
-    @Test
-    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
-            throws Exception {
-        new Context() {
-            {
-                runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>
-                                    callbackHandler = getLeaderRetrievalConfigMapCallback();
-                            callbackHandler.handleError(
-                                    new KubernetesTooOldResourceVersionException(
-                                            new Exception("too old resource version")));
-                            // Verify the old watch is closed and a new one is created
-                            assertThat(configMapWatches.size(), is(3));
-                            // The three watches are [leader-election-watch,
-                            // old-leader-retrieval-watch, new-leader-retrieval-watch]
-                            assertThat(
-                                    configMapWatches.stream()
-                                            .map(
-                                                    TestingFlinkKubeClient.MockKubernetesWatch
-                                                            ::isClosed)
-                                            .collect(Collectors.toList()),
-                                    contains(false, true, false));
                         });
             }
         };

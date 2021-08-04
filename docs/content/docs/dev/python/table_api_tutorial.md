@@ -33,7 +33,7 @@ Apache Flink offers a Table API as a unified, relational API for batch and strea
 
 ## What Will You Be Building? 
 
-In this tutorial, you will learn how to build a pure Python Flink Table API project.
+In this tutorial, you will learn how to build a pure Python Flink Table API pipeline.
 The pipeline will read data from an input csv file and write the results to an output csv file.
 
 ## Prerequisites
@@ -51,7 +51,7 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 If you want to follow along, you will require a computer with: 
 
 * Java 8 or 11
-* Python 3.5, 3.6 or 3.7
+* Python 3.6, 3.7 or 3.8
 
 Using Python Table API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`. 
 
@@ -63,39 +63,44 @@ Once PyFlink is installed, you can move on to write a Python Table API job.
 
 ## Writing a Flink Python Table API Program
 
-Table API applications begin by declaring a table environment; either a `BatchTableEvironment` for batch applications or `StreamTableEnvironment` for streaming applications.
+Table API applications begin by declaring a table environment.
 This serves as the main entry point for interacting with the Flink runtime.
 It can be used for setting execution parameters such as restart strategy, default parallelism, etc.
 The table config allows setting Table API specific configurations.
 
 ```python
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
+
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 ```
 
-The table environment created, you can declare source and sink tables.
+You can now create source and sink tables:
 
 ```python
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 ```
+
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
+
 ```python
 my_source_ddl = """
     create table mySource (
@@ -143,32 +148,34 @@ tab.group_by(tab.word) \
 The complete code so far:
 
 ```python
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.table import TableConfig, DataTypes, BatchTableEnvironment
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
 from pyflink.table.expressions import lit
 
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
 
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
@@ -204,4 +211,4 @@ pyflink	1
 
 This should get you started with writing your own Flink Python Table API programs.
 To learn more about the Python Table API, you can refer
-[Flink Python API Docs]({{ site.pythondocs_baseurl }}/api/python) for more details.
+{{< pythondoc name="Flink Python API Docs">}} for more details.

@@ -25,8 +25,8 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandle
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,6 +190,11 @@ public class CollectSinkOperatorCoordinator
 
     @Override
     public void subtaskReset(int subtask, long checkpointId) {
+        // nothing to do here, connections are re-created lazily
+    }
+
+    @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
         // nothing to do here, connections are re-created lazily
     }
 

@@ -58,7 +58,6 @@ export class NodeComponent {
     this.parallelism = value.parallelism;
     this.lowWatermark = value.lowWatermark;
     if (this.isValid(value.backPressuredPercentage)) {
-        console.log(value.backPressuredPercentage)
         this.backPressuredPercentage = value.backPressuredPercentage
     }
     if (this.isValid(value.busyPercentage)) {

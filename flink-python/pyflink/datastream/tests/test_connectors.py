@@ -16,18 +16,20 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.common import typeinfo
+from pyflink.common import typeinfo, Duration
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
-    JsonRowSerializationSchema, SimpleStringEncoder
+    JsonRowSerializationSchema, Encoder
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink,\
-    JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, DefaultRollingPolicy, \
-    OutputFileConfig
+from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer, JdbcSink, \
+    JdbcConnectionOptions, JdbcExecutionOptions, StreamingFileSink, \
+    OutputFileConfig, FileSource, StreamFormat, FileEnumeratorProvider, FileSplitAssignerProvider, \
+    NumberSequenceSource, RollingPolicy, FileSink, BucketAssigner
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase, _load_specific_flink_module_jars, \
     get_private_field, invoke_java_object_method
+from pyflink.util.java_utils import load_java_class
 
 
 class FlinkKafkaTest(PyFlinkTestCase):
@@ -151,6 +153,11 @@ class ConnectorTests(PyFlinkTestCase):
     def setUp(self) -> None:
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.test_sink = DataStreamTestSinkFunction()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-files')
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-sink-common')
+
+    def tearDown(self) -> None:
+        self.test_sink.clear()
 
     def test_stream_file_sink(self):
         self.env.set_parallelism(2)
@@ -159,11 +166,12 @@ class ConnectorTests(PyFlinkTestCase):
         ds.map(
             lambda a: a[0],
             Types.STRING()).add_sink(
-            StreamingFileSink.for_row_format(self.tempdir, SimpleStringEncoder())
+            StreamingFileSink.for_row_format(self.tempdir, Encoder.simple_string_encoder())
                 .with_rolling_policy(
-                    DefaultRollingPolicy.builder().with_rollover_interval(15 * 60 * 1000)
-                .with_inactivity_interval(5 * 60 * 1000)
-                .with_max_part_size(1024 * 1024 * 1024).build())
+                    RollingPolicy.default_rolling_policy(
+                        part_size=1024 * 1024 * 1024,
+                        rollover_interval=15 * 60 * 1000,
+                        inactivity_interval=5 * 60 * 1000))
                 .with_output_file_config(
                     OutputFileConfig.OutputFileConfigBuilder()
                     .with_part_prefix("prefix")
@@ -187,5 +195,85 @@ class ConnectorTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
-    def tearDown(self) -> None:
-        self.test_sink.clear()
+    def test_file_source(self):
+        stream_format = StreamFormat.text_line_format()
+        paths = ["/tmp/1.txt", "/tmp/2.txt"]
+        file_source_builder = FileSource.for_record_stream_format(stream_format, *paths)
+        file_source = file_source_builder\
+            .monitor_continuously(Duration.of_days(1)) \
+            .set_file_enumerator(FileEnumeratorProvider.default_splittable_file_enumerator()) \
+            .set_split_assigner(FileSplitAssignerProvider.locality_aware_split_assigner()) \
+            .build()
+
+        continuous_setting = file_source.get_java_function().getContinuousEnumerationSettings()
+        self.assertIsNotNone(continuous_setting)
+        self.assertEqual(Duration.of_days(1), Duration(continuous_setting.getDiscoveryInterval()))
+
+        input_paths_field = \
+            load_java_class("org.apache.flink.connector.file.src.AbstractFileSource"). \
+            getDeclaredField("inputPaths")
+        input_paths_field.setAccessible(True)
+        input_paths = input_paths_field.get(file_source.get_java_function())
+        self.assertEqual(len(input_paths), len(paths))
+        self.assertEqual(str(input_paths[0]), paths[0])
+        self.assertEqual(str(input_paths[1]), paths[1])
+
+    def test_file_sink(self):
+        base_path = "/tmp/1.txt"
+        encoder = Encoder.simple_string_encoder()
+        file_sink_builder = FileSink.for_row_format(base_path, encoder)
+        file_sink = file_sink_builder\
+            .with_bucket_check_interval(1000) \
+            .with_bucket_assigner(BucketAssigner.base_path_bucket_assigner()) \
+            .with_rolling_policy(RollingPolicy.on_checkpoint_rolling_policy()) \
+            .with_output_file_config(
+                OutputFileConfig.builder().with_part_prefix("pre").with_part_suffix("suf").build())\
+            .build()
+
+        buckets_builder_field = \
+            load_java_class("org.apache.flink.connector.file.sink.FileSink"). \
+            getDeclaredField("bucketsBuilder")
+        buckets_builder_field.setAccessible(True)
+        buckets_builder = buckets_builder_field.get(file_sink.get_java_function())
+
+        self.assertEqual("DefaultRowFormatBuilder", buckets_builder.getClass().getSimpleName())
+
+        row_format_builder_clz = load_java_class(
+            "org.apache.flink.connector.file.sink.FileSink$RowFormatBuilder")
+        encoder_field = row_format_builder_clz.getDeclaredField("encoder")
+        encoder_field.setAccessible(True)
+        self.assertEqual("SimpleStringEncoder",
+                         encoder_field.get(buckets_builder).getClass().getSimpleName())
+
+        interval_field = row_format_builder_clz.getDeclaredField("bucketCheckInterval")
+        interval_field.setAccessible(True)
+        self.assertEqual(1000, interval_field.get(buckets_builder))
+
+        bucket_assigner_field = row_format_builder_clz.getDeclaredField("bucketAssigner")
+        bucket_assigner_field.setAccessible(True)
+        self.assertEqual("BasePathBucketAssigner",
+                         bucket_assigner_field.get(buckets_builder).getClass().getSimpleName())
+
+        rolling_policy_field = row_format_builder_clz.getDeclaredField("rollingPolicy")
+        rolling_policy_field.setAccessible(True)
+        self.assertEqual("OnCheckpointRollingPolicy",
+                         rolling_policy_field.get(buckets_builder).getClass().getSimpleName())
+
+        output_file_config_field = row_format_builder_clz.getDeclaredField("outputFileConfig")
+        output_file_config_field.setAccessible(True)
+        output_file_config = output_file_config_field.get(buckets_builder)
+        self.assertEqual("pre", output_file_config.getPartPrefix())
+        self.assertEqual("suf", output_file_config.getPartSuffix())
+
+    def test_seq_source(self):
+        seq_source = NumberSequenceSource(1, 10)
+
+        seq_source_clz = load_java_class(
+            "org.apache.flink.api.connector.source.lib.NumberSequenceSource")
+        from_field = seq_source_clz.getDeclaredField("from")
+        from_field.setAccessible(True)
+        self.assertEqual(1, from_field.get(seq_source.get_java_function()))
+
+        to_field = seq_source_clz.getDeclaredField("to")
+        to_field.setAccessible(True)
+        self.assertEqual(10, to_field.get(seq_source.get_java_function()))

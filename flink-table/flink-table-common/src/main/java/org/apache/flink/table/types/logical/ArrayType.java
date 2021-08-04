@@ -38,6 +38,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class ArrayType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final String FORMAT = "ARRAY<%s>";
 

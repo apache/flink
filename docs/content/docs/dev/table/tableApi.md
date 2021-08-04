@@ -49,16 +49,16 @@ The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. 
 For the Expression DSL it is also necessary to import static `org.apache.flink.table.api.Expressions.*`
 
 ```java
-import org.apache.flink.table.api.*
+import org.apache.flink.table.api.*;
 
-import static org.apache.flink.table.api.Expressions.*
+import static org.apache.flink.table.api.Expressions.*;
 
 EnvironmentSettings settings = EnvironmentSettings
     .newInstance()
     .inStreamingMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(env);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // register Orders table in table environment
 // ...
@@ -70,9 +70,8 @@ Table counts = orders
         .groupBy($("a"))
         .select($("a"), $("b").count().as("cnt"));
 
-// conversion to DataSet
-DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
-result.print();
+// print
+counts.execute().print();
 ```
 
 {{< /tab >}}
@@ -104,7 +103,7 @@ val orders = tEnv.from("Orders") // schema (a, b, c, rowtime)
 val result = orders
                .groupBy($"a")
                .select($"a", $"b".count as "cnt")
-               .toDataSet[Row] // conversion to DataSet
+               .execute()
                .print()
 ```
 
@@ -117,8 +116,8 @@ The following example shows how a Python Table API program is constructed and ho
 from pyflink.table import *
 
 # environment configuration
-t_env = BatchTableEnvironment.create(
-    environment_settings=EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
+t_env = TableEnvironment.create(
+    environment_settings=EnvironmentSettings.in_batch_mode())
 
 # register Orders table and Result table sink in table environment
 source_data_path = "/path/to/source/directory/"
@@ -891,8 +890,8 @@ Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct f
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
 Table result = left.join(right)
     .where($("a").isEqual($("d")))
     .select($("a"), $("b"), $("e"));
@@ -900,8 +899,8 @@ Table result = left.join(right)
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
-val right = ds2.toTable(tableEnv, $"d", $"e", $"f")
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f")
 val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 ```
 {{< /tab >}}
@@ -929,8 +928,8 @@ Both tables must have distinct field names and at least one equality join predic
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
 
 Table leftOuterResult = left.leftOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
@@ -942,8 +941,8 @@ Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = tableEnv.fromDataSet(ds1, $"a", $"b", $"c")
-val right = tableEnv.fromDataSet(ds2, $"d", $"e", $"f")
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f")
 
 val leftOuterResult = left.leftOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
 val rightOuterResult = left.rightOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
@@ -977,8 +976,8 @@ An interval join requires at least one equi-join predicate and a join condition 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, $("a"), $("b"), $("c"), $("ltime").rowtime());
-Table right = tableEnv.fromDataSet(ds2, $("d"), $("e"), $("f"), $("rtime").rowtime()));
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
 
 Table result = left.join(right)
   .where(
@@ -992,8 +991,8 @@ Table result = left.join(right)
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = ds1.toTable(tableEnv, $"a", $"b", $"c", $"ltime".rowtime)
-val right = ds2.toTable(tableEnv, $"d", $"e", $"f", $"rtime".rowtime)
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c", $"ltime")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f", $"rtime")
 
 val result = left.join(right)
   .where($"a" === $"d" && $"ltime" >= $"rtime" - 5.minutes && $"ltime" < $"rtime" + 10.minutes)
@@ -1007,7 +1006,7 @@ from pyflink.table.expressions import col
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
   
-joined_table = left.join(right).where(left.a == right.d & left.rowtime1 >= right.rowtime2 - lit(1).second & left.rowtime1 <= right.rowtime2 + lit(2).seconds)
+joined_table = left.join(right).where((left.a == right.d) & (left.rowtime1 >= right.rowtime2 - lit(1).second) & (left.rowtime1 <= right.rowtime2 + lit(2).seconds))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
 ```
 {{< /tab >}}
@@ -1131,7 +1130,7 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
+    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
 {{< /tab >}}
 {{< tabs "Scala" >}}
 ```scala
@@ -1587,7 +1586,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below.
+The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics. The supported window definitions are listed below.
 
 #### Tumble (Tumbling Windows)
 
@@ -2099,16 +2098,16 @@ Note: Currently, all aggregation functions in the same select() call must be com
 {{< tab "Java" >}}
 ```java
 // Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"));
 
 // Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"));
 
 // Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"));
  
 // Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -2153,10 +2152,11 @@ The row-based operations generate outputs with multiple columns.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
-
 {{< tabs "map" >}}
 {{< tab "Java" >}}
+
+Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+
 ```java
 public class MyMapFunction extends ScalarFunction {
     public Row eval(String a) {
@@ -2165,7 +2165,7 @@ public class MyMapFunction extends ScalarFunction {
 
     @Override
     public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return Types.ROW(Types.STRING(), Types.STRING());
+        return Types.ROW(Types.STRING, Types.STRING);
     }
 }
 
@@ -2173,10 +2173,13 @@ ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .map(call("func", $("c")).as("a", "b"))
+  .map(call("func", $("c"))).as("a", "b");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+
 ```scala
 class MyMapFunction extends ScalarFunction {
   def eval(a: String): Row = {
@@ -2193,7 +2196,32 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a map operation with a python [general scalar function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions). The output will be flattened if the output type is a composite type.
+
+```python
+from pyflink.common import Row
+from pyflink.table import DataTypes
+from pyflink.table.udf import udf
+
+def map_function(a: Row) -> Row:
+    return Row(a.a + 1, a.b * a.b)
+
+# map operation with a python general scalar function
+func = udf(map_function, result_type=DataTypes.ROW(
+                                     [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                      DataTypes.FIELD("b", DataTypes.BIGINT())]))
+table = input.map(func).alias('a', 'b')
+
+# map operation with a python vectorized scalar function
+pandas_func = udf(lambda x: x * 2, result_type=DataTypes.ROW(
+                                                    [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                                                    DataTypes.FIELD("b", DataTypes.BIGINT()))]),
+                  func_type='pandas')
+
+table = input.map(pandas_func).alias('a', 'b')
+```
+
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2201,10 +2229,11 @@ Currently not supported in Python Table API.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Performs a `flatMap` operation with a table function.
-
 {{< tabs "flatmap" >}}
 {{< tab "Java" >}}
+
+Performs a `flatMap` operation with a table function.
+
 ```java
 public class MyFlatMapFunction extends TableFunction<Row> {
 
@@ -2219,7 +2248,7 @@ public class MyFlatMapFunction extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
+        return Types.ROW(Types.STRING, Types.INT);
     }
 }
 
@@ -2227,10 +2256,13 @@ TableFunction func = new MyFlatMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .flatMap(call("func", $("c")).as("a", "b"))
+  .flatMap(call("func", $("c"))).as("a", "b");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs a `flatMap` operation with a python table function.
+
 ```scala
 class MyFlatMapFunction extends TableFunction[Row] {
   def eval(str: String): Unit = {
@@ -2255,7 +2287,21 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions).
+
+```python
+from pyflink.table.udf import udtf
+from pyflink.table import DataTypes
+from pyflink.common import Row
+
+@udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+def split(x: Row) -> Row:
+    for s in x.b.split(","):
+        yield x.a, s
+
+input.flat_map(split)
+```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2263,10 +2309,11 @@ Currently not supported in Python Table API.
 
 {{< label Batch >}} {{< label Streaming >}} {{< label Result Updating >}}
 
-Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
-
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
+
+Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
 ```java
 public class MyMinMaxAcc {
     public int min = 0;
@@ -2310,10 +2357,13 @@ tableEnv.registerFunction("myAggFunc", myAggFunc);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
-  .select($("key"), $("x"), $("y"))
+  .select($("key"), $("x"), $("y"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
 
@@ -2352,7 +2402,67 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs an aggregate operation with a python [general aggregate function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions). You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+
+```python
+from pyflink.common import Row
+from pyflink.table import DataTypes
+from pyflink.table.udf import AggregateFunction, udaf
+
+class CountAndSumAggregateFunction(AggregateFunction):
+
+    def get_value(self, accumulator):
+        return Row(accumulator[0], accumulator[1])
+
+    def create_accumulator(self):
+        return Row(0, 0)
+
+    def accumulate(self, accumulator, row: Row):
+        accumulator[0] += 1
+        accumulator[1] += row.b
+
+    def retract(self, accumulator, row: Row):
+        accumulator[0] -= 1
+        accumulator[1] -= row.b
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            accumulator[0] += other_acc[0]
+            accumulator[1] += other_acc[1]
+
+    def get_accumulator_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())])
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())])
+
+function = CountAndSumAggregateFunction()
+agg = udaf(function,
+           result_type=function.get_result_type(),
+           accumulator_type=function.get_accumulator_type(),
+           name=str(function.__class__.__name__))
+
+# aggregate with a python general aggregate function
+result = t.group_by(t.a) \
+    .aggregate(agg.alias("c", "d")) \
+    .select("a, c, d")
+    
+# aggregate with a python vectorized aggregate function
+pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
+                   result_type=DataTypes.ROW(
+                       [DataTypes.FIELD("a", DataTypes.FLOAT()),
+                        DataTypes.FIELD("b", DataTypes.INT())]),
+                   func_type="pandas")
+t.aggregate(pandas_udaf.alias("a", "b")) \
+    .select("a, b")
+
+```
+
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -2388,18 +2498,37 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+```python
+from pyflink.table import DataTypes
+from pyflink.table.udf import AggregateFunction, udaf
+
+pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
+                   result_type=DataTypes.ROW(
+                       [DataTypes.FIELD("a", DataTypes.FLOAT()),
+                        DataTypes.FIELD("b", DataTypes.INT())]),
+                   func_type="pandas")
+tumble_window = Tumble.over(expr.lit(1).hours) \
+    .on(expr.col("rowtime")) \
+    .alias("w")
+t.select(t.b, t.rowtime) \
+    .window(tumble_window) \
+    .group_by("w") \
+    .aggregate(pandas_udaf.alias("d", "e")) \
+    .select("w.rowtime, d, e")
+```
 {{< /tab >}}
 {{< /tabs >}}
 
 #### FlatAggregate
 
+{{< tabs "flataggregate" >}}
+{{< tab "Java" >}}
+
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
 
 Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
 
-{{< tabs "flataggregate" >}}
-{{< tab "Java" >}}
 ```java
 /**
  * Accumulator for Top2.
@@ -2459,6 +2588,11 @@ Table result = orders
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
+Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
+
+Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+
 ```scala
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -2522,7 +2656,58 @@ val result = orders
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+
+Performs a flat_aggregate operation with a python general [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions)
+
+Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flat_aggregate" with a select statement. And the select statement does not support aggregate functions.
+
+```python
+from pyflink.common import Row
+from pyflink.table.udf import TableAggregateFunction, udtaf
+from pyflink.table import DataTypes
+
+class Top2(TableAggregateFunction):
+
+    def emit_value(self, accumulator):
+        yield Row(accumulator[0])
+        yield Row(accumulator[1])
+
+    def create_accumulator(self):
+        return [None, None]
+
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
+                accumulator[1] = accumulator[0]
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
+
+    def merge(self, accumulator, accumulators):
+        for other_acc in accumulators:
+            self.accumulate(accumulator, other_acc[0])
+            self.accumulate(accumulator, other_acc[1])
+
+    def get_accumulator_type(self):
+        return DataTypes.ARRAY(DataTypes.BIGINT())
+
+    def get_result_type(self):
+        return DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+
+mytop = udtaf(Top2())
+t = t_env.from_elements([(1, 'Hi', 'Hello'),
+                              (3, 'Hi', 'hi'),
+                              (5, 'Hi2', 'hi'),
+                              (7, 'Hi', 'Hello'),
+                              (2, 'Hi', 'Hello')], ['a', 'b', 'c'])
+result = t.select(t.a, t.c) \
+    .group_by(t.c) \
+    .flat_aggregate(mytop) \
+    .select(t.a) \
+    .flat_aggregate(mytop.alias("b"))
+
+```
 {{< /tab >}}
 {{< /tabs >}}
 

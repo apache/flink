@@ -204,8 +204,10 @@ public class ExecutionGraphHandler {
 
         final InputSplit nextInputSplit = execution.getNextInputSplit();
 
-        if (log.isDebugEnabled()) {
+        if (nextInputSplit != null) {
             log.debug("Send next input split {}.", nextInputSplit);
+        } else {
+            log.debug("No more input splits available");
         }
 
         try {

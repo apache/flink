@@ -26,13 +26,12 @@ import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushD
  * Adds support for projection push-down to a {@link TableSource} with nested fields.
  *
  * <p>A {@link TableSource} extending this interface is able to project the fields of its returned
- * {@code DataSet} if it is a {@code BatchTableSource} or {@code DataStream} if it is a {@code
- * StreamTableSource}.
+ * {@code DataStream} if it is a {@code StreamTableSource}.
  *
  * @param <T> The return type of the {@link TableSource}.
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use {@link
- *     SupportsProjectionPushDown} instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use {@link SupportsProjectionPushDown} instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @PublicEvolving
@@ -46,8 +45,7 @@ public interface NestedFieldsProjectableTableSource<T> {
      *
      * <p>The table schema ({@link TableSource#getTableSchema()} of the {@link TableSource} copy
      * must not be modified by this method, but only the produced data type ({@link
-     * TableSource#getProducedDataType()}) and the produced {@code DataSet} ({@code
-     * BatchTableSource.getDataSet(}) or {@code DataStream} ({@code
+     * TableSource#getProducedDataType()}) and the produced {@code DataStream} ({@code
      * StreamTableSource.getDataStream()}). The produced data type may only be changed by removing
      * or reordering first level fields. The type of the first level fields must not be changed.
      *

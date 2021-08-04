@@ -19,14 +19,18 @@
 package org.apache.flink.table.expressions.resolver;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+
+import javax.annotation.Nullable;
 
 /** Translates a SQL expression string into a {@link ResolvedExpression}. */
 @Internal
 public interface SqlExpressionResolver {
 
     /** Translates the given SQL expression string or throws a {@link ValidationException}. */
-    ResolvedExpression resolveExpression(String sqlExpression, TableSchema inputSchema);
+    ResolvedExpression resolveExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType);
 }

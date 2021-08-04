@@ -9,7 +9,7 @@ https://flink.apache.org/ is also generated from the files found here.
 ### Build the site locally
 
 Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
-system.
+system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
 
 From this directory:
 
@@ -92,6 +92,26 @@ The ToC can be ommitted by adding the following to the front matter of the page:
 
 Flink uses [shortcodes](https://gohugo.io/content-management/shortcodes/) to add custom functionality
 to its documentation markdown. The following are available for use:  
+
+#### Flink Artifact
+
+    {{< artfiact flink-streaming-java withScalaVersion >}}
+
+This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
+
+```xml
+<dependency>
+    <groupdId>org.apache.flink</groupId>
+    <artifactId>flink-streaming-java_2.11</artifactId>
+    <version><!-- current flink version --></version>
+</dependency>
+```
+
+It includes a number of optional flags:
+
+* withScalaVersion: Includes the scala version suffix to the artifact id
+* withTestScope: Includes `<scope>test</scope>` to the module. Useful for marking test dependencies.
+* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flinks tests dependencies. This is mostly for the test harnesses and probably not what you want. 
 
 #### Back to Top
 
@@ -198,3 +218,12 @@ Renders a link to the apache flink repo.
     
 Renders a link to a file in the Apache Flink repo with a given name. 
  
+#### JavaDocs Link
+    {{< javadoc file="some/file" name="Some file" >}}
+
+Renders a link to a file in the Apache Flink Java Documentation. 
+
+#### PythonDocs Link
+    {< pythondoc file="some/file" name="Some file" >}}
+
+Renders a link to a file in the Apache Flink Python Documentation. 

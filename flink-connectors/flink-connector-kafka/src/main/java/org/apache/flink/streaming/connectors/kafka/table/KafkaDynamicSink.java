@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -35,7 +36,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.common.header.Header;
 
@@ -51,6 +51,8 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Stream;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** A version-agnostic Kafka {@link DynamicTableSink}. */
 @Internal
 public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
@@ -65,6 +67,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     // --------------------------------------------------------------------------------------------
     // Format attributes
     // --------------------------------------------------------------------------------------------
+
+    /** Data type of consumed data type. */
+    protected DataType consumedDataType;
 
     /** Data type to configure the formats. */
     protected final DataType physicalDataType;
@@ -98,7 +103,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     protected final @Nullable FlinkKafkaPartitioner<RowData> partitioner;
 
     /** Sink commit semantic. */
-    protected final KafkaSinkSemantic semantic;
+    protected final SinkSemantic sinkSemantic;
 
     /**
      * Flag to determine sink mode. In upsert mode sink transforms the delete/update-before message
@@ -106,10 +111,14 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
      */
     protected final boolean upsertMode;
 
+    /** Sink buffer flush config which only supported in upsert mode now. */
+    protected final SinkBufferFlushMode flushMode;
+
     /** Parallelism of the physical Kafka producer. * */
     protected final @Nullable Integer parallelism;
 
     public KafkaDynamicSink(
+            DataType consumedDataType,
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat,
@@ -119,30 +128,34 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             String topic,
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
-            KafkaSinkSemantic semantic,
+            SinkSemantic sinkSemantic,
             boolean upsertMode,
+            SinkBufferFlushMode flushMode,
             @Nullable Integer parallelism) {
         // Format attributes
+        this.consumedDataType =
+                checkNotNull(consumedDataType, "Consumed data type must not be null.");
         this.physicalDataType =
-                Preconditions.checkNotNull(
-                        physicalDataType, "Physical data type must not be null.");
+                checkNotNull(physicalDataType, "Physical data type must not be null.");
         this.keyEncodingFormat = keyEncodingFormat;
         this.valueEncodingFormat =
-                Preconditions.checkNotNull(
-                        valueEncodingFormat, "Value encoding format must not be null.");
-        this.keyProjection =
-                Preconditions.checkNotNull(keyProjection, "Key projection must not be null.");
-        this.valueProjection =
-                Preconditions.checkNotNull(valueProjection, "Value projection must not be null.");
+                checkNotNull(valueEncodingFormat, "Value encoding format must not be null.");
+        this.keyProjection = checkNotNull(keyProjection, "Key projection must not be null.");
+        this.valueProjection = checkNotNull(valueProjection, "Value projection must not be null.");
         this.keyPrefix = keyPrefix;
         // Mutable attributes
         this.metadataKeys = Collections.emptyList();
         // Kafka-specific attributes
-        this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
-        this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
+        this.topic = checkNotNull(topic, "Topic must not be null.");
+        this.properties = checkNotNull(properties, "Properties must not be null.");
         this.partitioner = partitioner;
-        this.semantic = Preconditions.checkNotNull(semantic, "Semantic must not be null.");
+        this.sinkSemantic = checkNotNull(sinkSemantic, "Semantic must not be null.");
         this.upsertMode = upsertMode;
+        this.flushMode = checkNotNull(flushMode);
+        if (flushMode.isEnabled() && !upsertMode) {
+            throw new IllegalArgumentException(
+                    "Sink buffer flush is only supported in upsert-kafka.");
+        }
         this.parallelism = parallelism;
     }
 
@@ -162,7 +175,18 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         final FlinkKafkaProducer<RowData> kafkaProducer =
                 createKafkaProducer(keySerialization, valueSerialization);
 
-        return SinkFunctionProvider.of(kafkaProducer, parallelism);
+        if (flushMode.isEnabled() && upsertMode) {
+            BufferedUpsertSinkFunction buffedSinkFunction =
+                    new BufferedUpsertSinkFunction(
+                            kafkaProducer,
+                            physicalDataType,
+                            keyProjection,
+                            context.createTypeInformation(consumedDataType),
+                            flushMode);
+            return SinkFunctionProvider.of(buffedSinkFunction, parallelism);
+        } else {
+            return SinkFunctionProvider.of(kafkaProducer, parallelism);
+        }
     }
 
     @Override
@@ -176,12 +200,14 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     @Override
     public void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType) {
         this.metadataKeys = metadataKeys;
+        this.consumedDataType = consumedDataType;
     }
 
     @Override
     public DynamicTableSink copy() {
         final KafkaDynamicSink copy =
                 new KafkaDynamicSink(
+                        consumedDataType,
                         physicalDataType,
                         keyEncodingFormat,
                         valueEncodingFormat,
@@ -191,8 +217,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         topic,
                         properties,
                         partitioner,
-                        semantic,
+                        sinkSemantic,
                         upsertMode,
+                        flushMode,
                         parallelism);
         copy.metadataKeys = metadataKeys;
         return copy;
@@ -213,6 +240,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         }
         final KafkaDynamicSink that = (KafkaDynamicSink) o;
         return Objects.equals(metadataKeys, that.metadataKeys)
+                && Objects.equals(consumedDataType, that.consumedDataType)
                 && Objects.equals(physicalDataType, that.physicalDataType)
                 && Objects.equals(keyEncodingFormat, that.keyEncodingFormat)
                 && Objects.equals(valueEncodingFormat, that.valueEncodingFormat)
@@ -222,8 +250,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 && Objects.equals(topic, that.topic)
                 && Objects.equals(properties, that.properties)
                 && Objects.equals(partitioner, that.partitioner)
-                && Objects.equals(semantic, that.semantic)
+                && Objects.equals(sinkSemantic, that.sinkSemantic)
                 && Objects.equals(upsertMode, that.upsertMode)
+                && Objects.equals(flushMode, that.flushMode)
                 && Objects.equals(parallelism, that.parallelism);
     }
 
@@ -231,6 +260,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     public int hashCode() {
         return Objects.hash(
                 metadataKeys,
+                consumedDataType,
                 physicalDataType,
                 keyEncodingFormat,
                 valueEncodingFormat,
@@ -240,8 +270,9 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 topic,
                 properties,
                 partitioner,
-                semantic,
+                sinkSemantic,
                 upsertMode,
+                flushMode,
                 parallelism);
     }
 
@@ -300,7 +331,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 topic,
                 kafkaSerializer,
                 properties,
-                FlinkKafkaProducer.Semantic.valueOf(semantic.toString()),
+                sinkSemantic.getSemantic(),
                 FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
     }
 

@@ -62,7 +62,11 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean isUnalignedCheckpointsEnabled;
 
-    private final long alignmentTimeout;
+    private final long alignedCheckpointTimeout;
+
+    private final long checkpointIdOfIgnoredInFlightData;
+
+    private final boolean enableCheckpointsAfterTasksFinish;
 
     /** @deprecated use {@link #builder()}. */
     @Deprecated
@@ -76,7 +80,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             boolean isExactlyOnce,
             boolean isUnalignedCheckpoint,
             boolean isPreferCheckpointForRecovery,
-            int tolerableCpFailureNumber) {
+            int tolerableCpFailureNumber,
+            long checkpointIdOfIgnoredInFlightData) {
         this(
                 checkpointInterval,
                 checkpointTimeout,
@@ -87,7 +92,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 isPreferCheckpointForRecovery,
                 tolerableCpFailureNumber,
                 isUnalignedCheckpoint,
-                0);
+                0,
+                checkpointIdOfIgnoredInFlightData,
+                false);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -100,7 +107,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             boolean isPreferCheckpointForRecovery,
             int tolerableCpFailureNumber,
             boolean isUnalignedCheckpointsEnabled,
-            long alignmentTimeout) {
+            long alignedCheckpointTimeout,
+            long checkpointIdOfIgnoredInFlightData,
+            boolean enableCheckpointsAfterTasksFinish) {
 
         // sanity checks
         if (checkpointInterval < MINIMAL_CHECKPOINT_TIME
@@ -123,7 +132,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.isPreferCheckpointForRecovery = isPreferCheckpointForRecovery;
         this.tolerableCheckpointFailureNumber = tolerableCpFailureNumber;
         this.isUnalignedCheckpointsEnabled = isUnalignedCheckpointsEnabled;
-        this.alignmentTimeout = alignmentTimeout;
+        this.alignedCheckpointTimeout = alignedCheckpointTimeout;
+        this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
+        this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
     }
 
     public long getCheckpointInterval() {
@@ -162,8 +173,16 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return isUnalignedCheckpointsEnabled;
     }
 
-    public long getAlignmentTimeout() {
-        return alignmentTimeout;
+    public long getAlignedCheckpointTimeout() {
+        return alignedCheckpointTimeout;
+    }
+
+    public long getCheckpointIdOfIgnoredInFlightData() {
+        return checkpointIdOfIgnoredInFlightData;
+    }
+
+    public boolean isEnableCheckpointsAfterTasksFinish() {
+        return enableCheckpointsAfterTasksFinish;
     }
 
     @Override
@@ -181,9 +200,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && maxConcurrentCheckpoints == that.maxConcurrentCheckpoints
                 && isExactlyOnce == that.isExactlyOnce
                 && isUnalignedCheckpointsEnabled == that.isUnalignedCheckpointsEnabled
+                && alignedCheckpointTimeout == that.alignedCheckpointTimeout
                 && checkpointRetentionPolicy == that.checkpointRetentionPolicy
                 && isPreferCheckpointForRecovery == that.isPreferCheckpointForRecovery
-                && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber;
+                && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
+                && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
+                && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish;
     }
 
     @Override
@@ -196,8 +218,11 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 checkpointRetentionPolicy,
                 isExactlyOnce,
                 isUnalignedCheckpointsEnabled,
+                alignedCheckpointTimeout,
                 isPreferCheckpointForRecovery,
-                tolerableCheckpointFailureNumber);
+                tolerableCheckpointFailureNumber,
+                checkpointIdOfIgnoredInFlightData,
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override
@@ -217,10 +242,16 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + isExactlyOnce
                 + ", isUnalignedCheckpoint="
                 + isUnalignedCheckpointsEnabled
+                + ", alignedCheckpointTimeout="
+                + alignedCheckpointTimeout
                 + ", isPreferCheckpointForRecovery="
                 + isPreferCheckpointForRecovery
                 + ", tolerableCheckpointFailureNumber="
                 + tolerableCheckpointFailureNumber
+                + ", checkpointIdOfIgnoredInFlightData="
+                + checkpointIdOfIgnoredInFlightData
+                + ", enableCheckpointsAfterTasksFinish="
+                + enableCheckpointsAfterTasksFinish
                 + '}';
     }
 
@@ -240,7 +271,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private boolean isPreferCheckpointForRecovery = true;
         private int tolerableCheckpointFailureNumber;
         private boolean isUnalignedCheckpointsEnabled;
-        private long alignmentTimeout = 0;
+        private long alignedCheckpointTimeout = 0;
+        private long checkpointIdOfIgnoredInFlightData;
+        private boolean enableCheckpointsAfterTasksFinish;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -253,7 +286,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     isPreferCheckpointForRecovery,
                     tolerableCheckpointFailureNumber,
                     isUnalignedCheckpointsEnabled,
-                    alignmentTimeout);
+                    alignedCheckpointTimeout,
+                    checkpointIdOfIgnoredInFlightData,
+                    enableCheckpointsAfterTasksFinish);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -309,9 +344,21 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             return this;
         }
 
-        public CheckpointCoordinatorConfigurationBuilder setAlignmentTimeout(
-                long alignmentTimeout) {
-            this.alignmentTimeout = alignmentTimeout;
+        public CheckpointCoordinatorConfigurationBuilder setAlignedCheckpointTimeout(
+                long alignedCheckpointTimeout) {
+            this.alignedCheckpointTimeout = alignedCheckpointTimeout;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setCheckpointIdOfIgnoredInFlightData(
+                long checkpointIdOfIgnoredInFlightData) {
+            this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setEnableCheckpointsAfterTasksFinish(
+                boolean enableCheckpointsAfterTasksFinish) {
+            this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
             return this;
         }
     }

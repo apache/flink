@@ -51,7 +51,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link TaskExecutor} RPC gateway interface. */
-public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEventGateway {
+public interface TaskExecutorGateway
+        extends RpcGateway, TaskExecutorOperatorEventGateway, TaskExecutorThreadInfoGateway {
 
     /**
      * Requests a slot from the TaskManager.
@@ -129,16 +130,13 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
      * @param checkpointID unique id for the checkpoint
      * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
      * @param checkpointOptions for performing the checkpoint
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
      * @return Future acknowledge if the checkpoint has been successfully triggered
      */
     CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             long checkpointID,
             long checkpointTimestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime);
+            CheckpointOptions checkpointOptions);
 
     /**
      * Confirm a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -158,11 +156,15 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
      *
      * @param executionAttemptID identifying the task
      * @param checkpointId unique id for the checkpoint
+     * @param latestCompletedCheckpointId the id of the latest completed checkpoint
      * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
      * @return Future acknowledge if the checkpoint has been successfully confirmed
      */
     CompletableFuture<Acknowledge> abortCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long checkpointTimestamp);
 
     /**
      * Cancel the given task.
@@ -178,16 +180,18 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
      * Heartbeat request from the job manager.
      *
      * @param heartbeatOrigin unique id of the job manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromJobManager(
+    CompletableFuture<Void> heartbeatFromJobManager(
             ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport);
 
     /**
      * Heartbeat request from the resource manager.
      *
      * @param heartbeatOrigin unique id of the resource manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromResourceManager(ResourceID heartbeatOrigin);
+    CompletableFuture<Void> heartbeatFromResourceManager(ResourceID heartbeatOrigin);
 
     /**
      * Disconnects the given JobManager from the TaskManager.
@@ -214,6 +218,14 @@ public interface TaskExecutorGateway extends RpcGateway, TaskExecutorOperatorEve
      */
     CompletableFuture<Acknowledge> freeSlot(
             final AllocationID allocationId, final Throwable cause, @RpcTimeout final Time timeout);
+
+    /**
+     * Frees all currently inactive slot allocated for the given job.
+     *
+     * @param jobId job for which all inactive slots should be released
+     * @param timeout for the operation
+     */
+    void freeInactiveSlots(JobID jobId, @RpcTimeout Time timeout);
 
     /**
      * Requests the file upload of the specified type to the cluster's {@link BlobServer}.

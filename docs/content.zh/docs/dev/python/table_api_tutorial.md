@@ -52,7 +52,7 @@ Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询
 如果要继续我们的旅程，您需要一台具有以下功能的计算机：
 
 * Java 8 or 11
-* Python 3.5, 3.6 or 3.7
+* Python 3.6, 3.7 or 3.8
 
 使用Python Table API需要安装PyFlink，它已经被发布到 [PyPi](https://pypi.org/project/apache-flink/)，您可以通过如下方式安装PyFlink：
 
@@ -64,40 +64,37 @@ $ python -m pip install apache-flink
 
 ## 编写一个Flink Python Table API程序
 
-编写Flink Python Table API程序的第一步是创建`BatchTableEnvironment`
-(或者`StreamTableEnvironment`，如果你要创建一个流式作业)。这是Python Table API作业的入口类。
+编写Flink Python Table API程序的第一步是创建`TableEnvironment`。这是Python Table API作业的入口类。
 
 ```python
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
+
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 ```
-
-`ExecutionEnvironment` (或者`StreamExecutionEnvironment`，如果你要创建一个流式作业)
-可以用来设置执行参数，比如重启策略，缺省并发值等。
-
-`TableConfig`可以用来设置缺省的catalog名字，自动生成代码时方法大小的阈值等.
 
 接下来，我们将介绍如何创建源表和结果表。
 
 ```python
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 ```
 
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
@@ -149,32 +146,34 @@ tab.group_by(tab.word) \
 该教程的完整代码如下:
 
 ```python
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.table import TableConfig, DataTypes, BatchTableEnvironment
+from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
 from pyflink.table.expressions import lit
 
-exec_env = ExecutionEnvironment.get_execution_environment()
-exec_env.set_parallelism(1)
-t_config = TableConfig()
-t_env = BatchTableEnvironment.create(exec_env, t_config)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
 
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
@@ -208,4 +207,4 @@ pyflink	1
 ```
 
 上述教程介绍了如何编写并运行一个Flink Python Table API程序，如果想了解Flink Python Table API
-的更多信息，可以参考[Flink Python API文档]({{ site.pythondocs_baseurl }}/api/python)。
+的更多信息，可以参考{{< pythondoc name="Flink Python API 文档">}}。

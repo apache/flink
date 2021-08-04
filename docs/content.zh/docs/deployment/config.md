@@ -2,7 +2,6 @@
 title: "配置参数"
 weight: 3
 type: docs
-bookToc: false
 aliases:
   - /zh/deployment/config.html
   - /zh/ops/config.html
@@ -34,6 +33,10 @@ The configuration is parsed and evaluated when the Flink processes are started. 
 
 The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
 
+You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
+
+On session clusters, the provided configuration will only be used for configuring [execution](#execution) parameters, e.g. configuration parameters affecting the job, not the underlying cluster.
+
 # Basic Setup
 
 The default configuration supports starting a single-node Flink session cluster without any changes.
@@ -43,7 +46,7 @@ The options in this section are the ones most commonly needed for a basic distri
 
 These options are only necessary for *standalone* application- or session deployments ([simple standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) or [Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}})).
 
-If you use Flink with [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}), [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}), or the [*active* Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}), the hostnames and ports are automatically discovered.
+If you use Flink with [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) or the [*active* Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}), the hostnames and ports are automatically discovered.
 
   - `rest.address`, `rest.port`: These are used by the client to connect to Flink. Set this to the hostname where the JobManager runs, or to the hostname of the (Kubernetes) service in front of the JobManager's REST interface.
 
@@ -76,10 +79,12 @@ You can configure checkpointing directly in code within your Flink job or applic
   - `state.backend`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
   - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+  - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
 
 **Web UI**
 
   - `web.submit.enable`: Enables uploading and starting jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still accept jobs through REST requests (HTTP calls). This flag only guards the feature to upload jobs in the UI.
+  - `web.cancel.enable`: Enables canceling jobs through the Flink UI *(true by default)*. Please note that even when this is disabled, session clusters still cancel jobs through REST requests (HTTP calls). This flag only guards the feature to cancel jobs in the UI.  
   - `web.upload.dir`: The directory where to store uploaded jobs. Only used when `web.submit.enable` is true.
 
 **Other**
@@ -90,7 +95,7 @@ You can configure checkpointing directly in code within your Flink job or applic
     
     This data is NOT relied upon for persistence/recovery, but if this data gets deleted, it typically causes a heavyweight recovery operation. It is hence recommended to set this to a directory that is not automatically periodically purged.
     
-    Yarn, Mesos, and Kubernetes setups automatically configure this value to the local working directories by default.
+    Yarn and Kubernetes setups automatically configure this value to the local working directories by default.
 
 ----
 ----
@@ -107,7 +112,7 @@ The JobManager hostname and port are only relevant for standalone setups without
 In that setup, the config values are used by the TaskManagers to find (and connect to) the JobManager.
 In all highly-available setups, the TaskManagers discover the JobManager via the High-Availability-Service (for example ZooKeeper).
 
-Setups using resource orchestration frameworks (K8s, Yarn, Mesos) typically use the framework's service discovery facilities.
+Setups using resource orchestration frameworks (K8s, Yarn) typically use the framework's service discovery facilities.
 
 You do not need to configure any TaskManager hosts and ports, unless the setup requires the use of specific port ranges or specific network interfaces to bind to.
 
@@ -201,7 +206,7 @@ Please refer to the [Flink and Kerberos Docs]({{< ref "docs/deployment/security/
 
 # Resource Orchestration Frameworks
 
-This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, Mesos, etc.
+This section contains options related to integrating Flink with resource orchestration frameworks, like Kubernetes, Yarn, etc.
 
 Note that is not always necessary to integrate Flink with the resource orchestration framework.
 For example, you can easily deploy Flink applications on Kubernetes without Flink knowing that it runs on Kubernetes (and without specifying any of the Kubernetes config options here.) See [this setup guide]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) for an example.
@@ -215,14 +220,6 @@ The options in this section are necessary for setups where Flink itself actively
 ### Kubernetes
 
 {{< generated/kubernetes_config_configuration >}}
-
-### Mesos
-
-{{< generated/mesos_configuration >}}
-
-**Mesos TaskManager**
-
-{{< generated/mesos_task_manager_configuration >}}
 
 ----
 ----
@@ -285,6 +282,31 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ----
 ----
 
+# Client
+
+{{< generated/client_configuration >}}
+
+----
+----
+
+# Execution
+
+{{< generated/deployment_configuration >}}
+{{< generated/savepoint_config_configuration >}}
+{{< generated/execution_configuration >}}
+
+### Pipeline
+
+{{< generated/pipeline_configuration >}}
+{{< generated/stream_pipeline_configuration >}}
+
+### Checkpointing
+
+{{< generated/execution_checkpointing_configuration >}}
+
+----
+----
+
 # Debugging & Expert Tuning
 
 <div class="alert alert-warning">
@@ -306,6 +328,10 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 ### Advanced State Backends Options
 
 {{< generated/expert_state_backends_section >}}
+
+### State Backends Latency Tracking Options
+
+{{< generated/state_backend_latency_tracking_section >}}
 
 ### Advanced RocksDB State Backends Options
 
@@ -374,7 +400,7 @@ The Blob Server is a component in the JobManager. It is used for distribution of
 
 **ResourceManager**
 
-These configuration keys control basic Resource Manager behavior, independent of the used resource orchestration management framework (YARN, Mesos, etc.)
+These configuration keys control basic Resource Manager behavior, independent of the used resource orchestration management framework (YARN, etc.)
 
 {{< generated/resource_manager_configuration >}}
 
@@ -404,7 +430,7 @@ Flink does not use Akka for data transport.
 
 # Forwarding Environment Variables
 
-You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn/Mesos.
+You can configure environment variables to be set on the JobManager and TaskManager processes started on Yarn.
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
@@ -431,29 +457,5 @@ These options may be removed in a future release.
 **DataSet File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
-
-----
-----
-
-# Backup
-
-#### Client
-
-{{< generated/client_configuration >}}
-
-#### Execution
-
-{{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
-{{< generated/execution_configuration >}}
-
-#### Pipeline
-
-{{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
-
-#### Checkpointing
-
-{{< generated/execution_checkpointing_configuration >}}
 
 {{< top >}}

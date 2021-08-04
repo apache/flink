@@ -39,8 +39,6 @@ Flink 与 Hive 的集成包含两个层面。
 `HiveCatalog`的设计提供了与 Hive 良好的兼容性，用户可以"开箱即用"的访问其已有的 Hive 数仓。
 您不需要修改现有的 Hive Metastore，也不需要更改表的数据位置或分区。
 
-* 我们强烈建议用户使用 [Blink planner]({{< ref "docs/dev/table/overview" >}}#dependency-structure) 与 Hive 集成。
-
 ## 支持的Hive版本
 
 Flink 支持一下的 Hive 版本。
@@ -127,6 +125,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Hive dependencies
        hive-exec-2.3.4.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.0.0" >}}
@@ -145,6 +146,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Orc dependencies -- required by the ORC vectorized optimizations
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -165,6 +169,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.2.1" >}}
@@ -184,6 +191,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.0.0" >}}
@@ -197,6 +207,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        // Hive dependencies
        hive-exec-2.0.0.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.1.0" >}}
@@ -209,6 +222,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
        // Hive dependencies
        hive-exec-2.1.0.jar
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -227,6 +243,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        orc-core-1.4.3.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 3.1.0" >}}
@@ -241,6 +260,9 @@ export HADOOP_CLASSPATH=`hadoop classpath`
        hive-exec-3.1.0.jar
        libfb303-0.9.3.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -254,15 +276,15 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -279,8 +301,6 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 通过 TableEnvironment 或者 YAML 配置，使用 [Catalog 接口]({{< ref "docs/dev/table/catalogs" >}}) 和 [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}})连接到现有的 Hive 集群。
 
-请注意，虽然 HiveCatalog 不需要特定的 planner，但读写Hive表仅适用于 Blink planner。因此，强烈建议您在连接到 Hive 仓库时使用 Blink planner。
-
 以下是如何连接到 Hive 的示例：
 
 {{< tabs "2ca7cad8-0b84-45db-92d9-a75abd8808e7" >}}
@@ -288,7 +308,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -306,7 +326,7 @@ tableEnv.useCatalog("myhive");
 
 ```scala
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
@@ -325,8 +345,8 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().use_blink_planner().build()
-t_env = BatchTableEnvironment.create(environment_settings=settings)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
 
 catalog_name = "myhive"
 default_database = "mydatabase"
@@ -343,7 +363,6 @@ tableEnv.use_catalog("myhive")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
     current-database: mydatabase

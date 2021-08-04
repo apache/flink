@@ -3,7 +3,7 @@ title: "Handling Application Parameters"
 weight: 51
 type: docs
 aliases:
-  - /dev/application_parameters.html
+  - /zh/dev/application_parameters.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -99,14 +99,14 @@ For example, you could set the parallelism of a operator like this:
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
 int parallelism = parameters.get("mapParallelism", 2);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
+DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 ```
 
 Since the `ParameterTool` is serializable, you can pass it to the functions itself:
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
+DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
 ```
 
 and then use it inside the function for getting values from the command line.

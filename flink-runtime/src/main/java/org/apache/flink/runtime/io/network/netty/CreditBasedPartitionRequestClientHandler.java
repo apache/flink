@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AckAllUserRecordsProcessed;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -37,6 +38,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdap
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -137,6 +140,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                                                 new ResumeConsumptionMessage(inputChannel)));
     }
 
+    @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
+        ctx.executor()
+                .execute(
+                        () -> {
+                            ctx.pipeline()
+                                    .fireUserEventTriggered(
+                                            new AcknowledgeAllRecordsProcessedMessage(
+                                                    inputChannel));
+                        });
+    }
+
     // ------------------------------------------------------------------------
     // Network events
     // ------------------------------------------------------------------------
@@ -184,8 +199,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             final TransportException tex;
 
             // Improve on the connection reset by peer error message
-            if (cause instanceof IOException
-                    && cause.getMessage().equals("Connection reset by peer")) {
+            if (cause.getMessage() != null
+                    && cause.getMessage().contains("Connection reset by peer")) {
                 tex =
                         new RemoteTransportException(
                                 "Lost connection to task manager '"
@@ -330,6 +345,20 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     }
                 }
             }
+        } else if (msgClazz == NettyMessage.BacklogAnnouncement.class) {
+            NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
+
+            RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
+            if (inputChannel == null || inputChannel.isReleased()) {
+                cancelRequestFor(announcement.receiverId);
+                return;
+            }
+
+            try {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } catch (Throwable throwable) {
+                inputChannel.onError(throwable);
+            }
         } else {
             throw new IllegalStateException(
                     "Received unknown message from producer: " + msg.getClass());
@@ -373,6 +402,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             // It is no need to notify credit or resume data consumption for the released channel.
             if (!outboundMessage.inputChannel.isReleased()) {
                 Object msg = outboundMessage.buildMessage();
+                if (msg == null) {
+                    continue;
+                }
 
                 // Write and flush and wait until this is done before
                 // trying to continue with the next input channel.
@@ -409,6 +441,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             this.inputChannel = inputChannel;
         }
 
+        @Nullable
         abstract Object buildMessage();
     }
 
@@ -420,8 +453,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
         @Override
         public Object buildMessage() {
-            return new AddCredit(
-                    inputChannel.getAndResetUnannouncedCredit(), inputChannel.getInputChannelId());
+            int credits = inputChannel.getAndResetUnannouncedCredit();
+            return credits > 0 ? new AddCredit(credits, inputChannel.getInputChannelId()) : null;
         }
     }
 
@@ -434,6 +467,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         @Override
         Object buildMessage() {
             return new ResumeConsumption(inputChannel.getInputChannelId());
+        }
+    }
+
+    private static class AcknowledgeAllRecordsProcessedMessage extends ClientOutboundMessage {
+
+        AcknowledgeAllRecordsProcessedMessage(RemoteInputChannel inputChannel) {
+            super(checkNotNull(inputChannel));
+        }
+
+        @Override
+        Object buildMessage() {
+            return new AckAllUserRecordsProcessed(inputChannel.getInputChannelId());
         }
     }
 }

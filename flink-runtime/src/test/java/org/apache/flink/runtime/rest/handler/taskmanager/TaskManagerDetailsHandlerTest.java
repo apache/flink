@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -38,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMetricsInfo;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -75,7 +76,7 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
         testInstance =
                 new TaskManagerDetailsHandler(
                         () -> CompletableFuture.completedFuture(null),
-                        TestingUtils.TIMEOUT(),
+                        TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         TaskManagerDetailsHeaders.getInstance(),
                         () -> CompletableFuture.completedFuture(resourceManagerGateway),
@@ -87,8 +88,11 @@ public class TaskManagerDetailsHandlerTest extends TestLogger {
             throws RestHandlerException, ExecutionException, InterruptedException,
                     JsonProcessingException, HandlerRequestException {
         initializeMetricStore(metricFetcher.getMetricStore());
-        resourceManagerGateway.setRequestTaskManagerInfoFunction(
-                taskManagerId -> CompletableFuture.completedFuture(createEmptyTaskManagerInfo()));
+        resourceManagerGateway.setRequestTaskManagerDetailsInfoFunction(
+                taskManagerId ->
+                        CompletableFuture.completedFuture(
+                                new TaskManagerInfoWithSlots(
+                                        createEmptyTaskManagerInfo(), Collections.emptyList())));
 
         HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request = createRequest();
         TaskManagerDetailsInfo taskManagerDetailsInfo =

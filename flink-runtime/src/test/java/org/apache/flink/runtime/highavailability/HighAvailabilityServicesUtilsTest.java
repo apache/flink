@@ -21,9 +21,11 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -65,7 +67,9 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
                         config,
                         executor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        RpcSystem.load());
+
         // then
         assertSame(haServices, actualHaServices);
     }

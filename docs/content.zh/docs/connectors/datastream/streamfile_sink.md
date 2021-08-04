@@ -144,13 +144,7 @@ Flink 包含为不同 Avro 类型，创建 ParquetWriterFactory 的便捷方法�
 
 在应用中使用 Parquet 批量编码器，你需要添加以下依赖：
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-parquet{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-parquet withScalaVersion >}}
 
 这个例子使用 StreamingFileSink 将 Avro 数据写入 Parquet 格式：
 
@@ -236,13 +230,7 @@ Flink 也提供了将数据写入 Avro 文件的内置支持。对于创建 Avro
 
 使用Avro相关的Writer需要在项目中添加以下依赖：
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-```
+{{< artifact flink-avro >}}
 
 将数据写入 Avro 文件的 StreamingFileSink 算子可以通过如下方式创建：
 
@@ -407,13 +395,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-orc{{ site.scala_version_suffix }}</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-```
+{{< artifact flink-orc withScalaVersion >}}
 
 And then a `StreamingFileSink` that writes data in ORC format can be created like this:
 
@@ -531,13 +513,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 在应用中使用 SequenceFile 批量编码器，你需要添加以下依赖：
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-sequence-file</artifactId>
-  <version>{{ site.version }}</version>
-</dependency>
-```
+{{< artifact flink-sequence-file withScalaVersion >}}
 
 简单的 SequenceFile 写入示例：
 

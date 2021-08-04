@@ -27,8 +27,7 @@ under the License.
 Flink is a distributed system and requires effective allocation and management
 of compute resources in order to execute streaming applications. It integrates
 with all common cluster resource managers such as [Hadoop
-YARN](https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/YARN.html),
-[Apache Mesos](https://mesos.apache.org/) and
+YARN](https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/YARN.html) and
 [Kubernetes](https://kubernetes.io/), but can also be set up to run as a
 standalone cluster or even as a library.
 
@@ -50,8 +49,7 @@ that triggers the execution, or in the command line process `./bin/flink run
 
 The JobManager and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}), in containers, or managed by resource
-frameworks like [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}})
-or [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}).
+frameworks like [YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}).
 TaskManagers connect to JobManagers, announcing themselves as available, and
 are assigned work.
 
@@ -68,7 +66,7 @@ failures, among others. This process consists of three different components:
     provisioning in a Flink cluster — it manages **task slots**, which are the
     unit of resource scheduling in a Flink cluster (see [TaskManagers](#taskmanagers)).
     Flink implements multiple ResourceManagers for different environments and
-    resource providers such as YARN, Mesos, Kubernetes and standalone
+    resource providers such as YARN, Kubernetes and standalone
     deployments. In a standalone setup, the ResourceManager can only distribute
     the slots of available TaskManagers and cannot start new TaskManagers on
     its own.  
@@ -204,7 +202,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session 
 ### Flink Job Cluster
 
 * **Cluster Lifecycle**: in a Flink Job Cluster, the available cluster manager
-  (like YARN or Kubernetes) is used to spin up a cluster for each submitted job
+  (like YARN) is used to spin up a cluster for each submitted job
   and this cluster is available to that job only. Here, the client first
   requests resources from the cluster manager to start the JobManager and
   submits the job to the Dispatcher running inside this process. TaskManagers
@@ -221,6 +219,9 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in `session 
 
 {{< hint info >}}
 Formerly, a Flink Job Cluster was also known as a Flink Cluster in `job (or per-job) mode`.
+{{< /hint >}}
+{{< hint info >}}
+Kubernetes doesn't support Flink Job Cluster. See details in [Standalone Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#per-job-cluster-mode) and [Native Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#per-job-cluster-mode).
 {{< /hint >}}
 
 ### Flink Application Cluster

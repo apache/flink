@@ -852,7 +852,6 @@ public class FlinkKinesisConsumerTest extends TestLogger {
 
     @Test
     public void testPeriodicWatermark() throws Exception {
-
         String streamName = "fakeStreamName";
         Time maxOutOfOrderness = Time.milliseconds(5);
         long autoWatermarkInterval = 1_000;
@@ -867,8 +866,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         props.setProperty(
                 ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, Long.toString(10L));
 
-        BlockingQueue<String> shard1 = new LinkedBlockingQueue();
-        BlockingQueue<String> shard2 = new LinkedBlockingQueue();
+        BlockingQueue<String> shard1 = new LinkedBlockingQueue<>();
+        BlockingQueue<String> shard2 = new LinkedBlockingQueue<>();
 
         Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
         streamToQueueMap.put(streamName, Arrays.asList(shard1, shard2));
@@ -963,7 +962,10 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         int watermarkCount = 0;
         awaitRecordCount(testHarness.getOutput(), recordCount);
 
-        // trigger watermark emit
+        // Trigger watermark emit, first watermark is -3
+        // - Shard-1 @2
+        // - Shard-2 @10
+        // - Watermark = min(2, 10) - maxOutOfOrderness = 2 - 5 = -3
         testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
         watermarkCount++;
 
@@ -972,7 +974,10 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         recordCount++;
         awaitRecordCount(testHarness.getOutput(), recordCount);
 
-        // trigger watermark emit
+        // Trigger watermark emit, second watermark is -3
+        // - Shard-1 @10
+        // - Shard-2 @10
+        // - Watermark = min(10, 10) - maxOutOfOrderness = 10 - 5 = 5
         testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
         watermarkCount++;
 
@@ -980,8 +985,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         testHarness.close();
 
         assertEquals("record count", recordCount, testHarness.getOutput().size());
-        assertEquals("watermark count", watermarkCount, watermarks.size());
         assertThat(watermarks, org.hamcrest.Matchers.contains(new Watermark(-3), new Watermark(5)));
+        assertEquals("watermark count", watermarkCount, watermarks.size());
     }
 
     @Test
@@ -1007,7 +1012,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
                 Long.toString(watermarkSyncInterval));
         props.setProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS, Long.toString(5));
 
-        BlockingQueue<String> shard1 = new LinkedBlockingQueue();
+        BlockingQueue<String> shard1 = new LinkedBlockingQueue<>();
 
         Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
         streamToQueueMap.put(streamName, Collections.singletonList(shard1));
@@ -1194,6 +1199,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
         while (deadline.hasTimeLeft() && queue.size() < count) {
             Thread.sleep(10);
+        }
+
+        int received = queue.size();
+        if (received < count) {
+            Assert.fail(
+                    String.format("Timeout waiting for records, received %d/%d", received, count));
         }
     }
 

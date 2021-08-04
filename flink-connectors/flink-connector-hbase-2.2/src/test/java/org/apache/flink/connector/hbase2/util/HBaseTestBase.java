@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.hbase2.util;
 
-import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.table.api.EnvironmentSettings;
 
 import org.apache.hadoop.hbase.TableName;
@@ -80,9 +79,6 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
     protected EnvironmentSettings streamSettings;
     protected EnvironmentSettings batchSettings;
 
-    /** Gets the planner type to execute. */
-    protected abstract PlannerType planner();
-
     @BeforeClass
     public static void activateHBaseCluster() throws IOException {
         prepareTables();
@@ -90,18 +86,8 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
     @Before
     public void before() {
-        EnvironmentSettings.Builder streamBuilder =
-                EnvironmentSettings.newInstance().inStreamingMode();
-        EnvironmentSettings.Builder batchBuilder = EnvironmentSettings.newInstance().inBatchMode();
-        if (PlannerType.BLINK_PLANNER.equals(planner())) {
-            this.streamSettings = streamBuilder.useBlinkPlanner().build();
-            this.batchSettings = batchBuilder.useBlinkPlanner().build();
-        } else if (PlannerType.OLD_PLANNER.equals(planner())) {
-            this.streamSettings = streamBuilder.useOldPlanner().build();
-            this.batchSettings = batchBuilder.useOldPlanner().build();
-        } else {
-            throw new IllegalArgumentException("Unsupported planner name " + planner());
-        }
+        this.streamSettings = EnvironmentSettings.inStreamingMode();
+        this.batchSettings = EnvironmentSettings.inBatchMode();
     }
 
     private static void prepareTables() throws IOException {
@@ -131,7 +117,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-18 19:00:00"),
                         Date.valueOf("2019-08-18"),
                         Time.valueOf("19:00:00"),
-                        new BigDecimal(12345678.0001)));
+                        new BigDecimal("12345678.0001")));
         puts.add(
                 putRow(
                         2,
@@ -144,7 +130,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-18 19:01:00"),
                         Date.valueOf("2019-08-18"),
                         Time.valueOf("19:01:00"),
-                        new BigDecimal(12345678.0002)));
+                        new BigDecimal("12345678.0002")));
         puts.add(
                 putRow(
                         3,
@@ -157,7 +143,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-18 19:02:00"),
                         Date.valueOf("2019-08-18"),
                         Time.valueOf("19:02:00"),
-                        new BigDecimal(12345678.0003)));
+                        new BigDecimal("12345678.0003")));
         puts.add(
                 putRow(
                         4,
@@ -170,7 +156,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-18 19:03:00"),
                         Date.valueOf("2019-08-18"),
                         Time.valueOf("19:03:00"),
-                        new BigDecimal(12345678.0004)));
+                        new BigDecimal("12345678.0004")));
         puts.add(
                 putRow(
                         5,
@@ -183,7 +169,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-19 19:10:00"),
                         Date.valueOf("2019-08-19"),
                         Time.valueOf("19:10:00"),
-                        new BigDecimal(12345678.0005)));
+                        new BigDecimal("12345678.0005")));
         puts.add(
                 putRow(
                         6,
@@ -196,7 +182,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-19 19:20:00"),
                         Date.valueOf("2019-08-19"),
                         Time.valueOf("19:20:00"),
-                        new BigDecimal(12345678.0006)));
+                        new BigDecimal("12345678.0006")));
         puts.add(
                 putRow(
                         7,
@@ -209,7 +195,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-19 19:30:00"),
                         Date.valueOf("2019-08-19"),
                         Time.valueOf("19:30:00"),
-                        new BigDecimal(12345678.0007)));
+                        new BigDecimal("12345678.0007")));
         puts.add(
                 putRow(
                         8,
@@ -222,7 +208,7 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
                         Timestamp.valueOf("2019-08-19 19:40:00"),
                         Date.valueOf("2019-08-19"),
                         Time.valueOf("19:40:00"),
-                        new BigDecimal(12345678.0008)));
+                        new BigDecimal("12345678.0008")));
 
         // append rows to table
         table.put(puts);

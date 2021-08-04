@@ -90,7 +90,7 @@ CREATE TABLE products (
 	product_name  STRING,
 	price         DECIMAL(32, 2),
 	update_time   TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-	PRIMARY KEY (product_id) NOT ENFORCED
+	PRIMARY KEY (product_id) NOT ENFORCED,
 	WATERMARK FOR update_time AS update_time
 ) WITH (...);
 ```
@@ -103,7 +103,7 @@ and event-time attribute. Imagine an append-only table of currency rates.
 ```sql
 CREATE TABLE currency_rates (
 	currency      STRING,
-	rate          DECIMAL(32, 10)
+	rate          DECIMAL(32, 10),
 	update_time   TIMESTAMP(3),
 	WATERMARK FOR update_time AS update_time
 ) WITH (
@@ -130,7 +130,7 @@ The `JSON` format does not support native changelog semantics, so Flink can only
 
 Flink interprets each row as an `INSERT` to the table, meaning we cannot define a `PRIMARY KEY` over currency.
 However, it is clear to us (the query developer) that this table has all the necessary information to define a versioned table. 
-Flink can reinterpret this table as a versioned table by defining a [deduplication query]({{< ref "docs/dev/table/sql/queries" >}}#deduplication)
+Flink can reinterpret this table as a versioned table by defining a [deduplication query]({{< ref "docs/dev/table/sql/queries/deduplication" >}}#deduplication)
 which produces an ordered changelog stream with an inferred primary key (currency) and event time (update_time). 
 
 ```sql

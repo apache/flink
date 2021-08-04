@@ -19,7 +19,6 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -110,8 +109,8 @@ public class JdbcDataTypeTest {
                         "The Derby dialect doesn't support type: VARBINARY(10)."),
                 createTestItem(
                         "derby",
-                        "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-                        "The Derby dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+                        "TIMESTAMP_LTZ(3)",
+                        "The Derby dialect doesn't support type: TIMESTAMP_LTZ(3)."),
                 createTestItem(
                         "derby",
                         "DECIMAL(38, 18)",
@@ -128,8 +127,8 @@ public class JdbcDataTypeTest {
                         "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by MySQL dialect."),
                 createTestItem(
                         "mysql",
-                        "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-                        "The MySQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."),
+                        "TIMESTAMP_LTZ(3)",
+                        "The MySQL dialect doesn't support type: TIMESTAMP_LTZ(3)."),
                 createTestItem(
                         "postgresql",
                         "BINARY",
@@ -144,8 +143,8 @@ public class JdbcDataTypeTest {
                         "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by PostgreSQL dialect."),
                 createTestItem(
                         "postgresql",
-                        "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-                        "The PostgreSQL dialect doesn't support type: TIMESTAMP(3) WITH LOCAL TIME ZONE."));
+                        "TIMESTAMP_LTZ(3)",
+                        "The PostgreSQL dialect doesn't support type: TIMESTAMP_LTZ(3)."));
     }
 
     private static TestItem createTestItem(Object... args) {
@@ -164,9 +163,7 @@ public class JdbcDataTypeTest {
         String sqlDDL = String.format(DDL_FORMAT, testItem.dataTypeExpr, testItem.dialect);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(sqlDDL);
 

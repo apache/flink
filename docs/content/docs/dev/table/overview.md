@@ -35,7 +35,7 @@ and specify the same result regardless of whether the input is continuous (strea
 
 The Table API and SQL interfaces integrate seamlessly with each other and Flink's DataStream API. 
 You can easily switch between all APIs and libraries which build upon them.
-For instance, you can detect patterns from a table using [`MATCH_RECOGNIZE` clause]({{< ref "docs/dev/table/concepts/match_recognize" >}})
+For instance, you can detect patterns from a table using [`MATCH_RECOGNIZE` clause]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
 and later use the DataStream API to build alerting based on the matched patterns.
 
 ## Table Program Dependencies
@@ -84,7 +84,7 @@ following set of modules.
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner-blink{{< scala_version >}}</artifactId>
+  <artifactId>flink-table-planner{{< scala_version >}}</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>

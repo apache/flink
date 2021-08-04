@@ -167,9 +167,9 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 if [ -z "$_FLINK_HOME_DETERMINED" ]; then
     FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
 fi
-FLINK_LIB_DIR=$FLINK_HOME/lib
-FLINK_PLUGINS_DIR=$FLINK_HOME/plugins
-FLINK_OPT_DIR=$FLINK_HOME/opt
+if [ -z "$FLINK_LIB_DIR" ]; then FLINK_LIB_DIR=$FLINK_HOME/lib; fi
+if [ -z "$FLINK_PLUGINS_DIR" ]; then FLINK_PLUGINS_DIR=$FLINK_HOME/plugins; fi
+if [ -z "$FLINK_OPT_DIR" ]; then FLINK_OPT_DIR=$FLINK_HOME/opt; fi
 
 
 # These need to be mangled because they are directly passed to java.
@@ -524,8 +524,9 @@ extractLoggingOutputs() {
     echo "${output}" | grep -v ${EXECUTION_PREFIX}
 }
 
-parseJmArgsAndExportLogs() {
-  java_utils_output=$(runBashJavaUtilsCmd GET_JM_RESOURCE_PARAMS "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+parseResourceParamsAndExportLogs() {
+  local cmd=$1
+  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
   params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
@@ -543,8 +544,17 @@ parseJmArgsAndExportLogs() {
   export FLINK_INHERITED_LOGS="
 $FLINK_INHERITED_LOGS
 
-JM_RESOURCE_PARAMS extraction logs:
+RESOURCE_PARAMS extraction logs:
 jvm_params: $jvm_params
+dynamic_configs: $DYNAMIC_PARAMETERS
 logs: $logging_output
 "
+}
+
+parseJmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS
+}
+
+parseTmArgsAndExportLogs() {
+  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS
 }

@@ -37,7 +37,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -47,6 +47,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDo
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -70,11 +71,11 @@ import java.util.Optional;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
 import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 
 /** A TableSource implementation to read data from Hive tables. */
 public class HiveTableSource
@@ -110,7 +111,7 @@ public class HiveTableSource
         this.catalogTable = Preconditions.checkNotNull(catalogTable);
         this.hiveVersion =
                 Preconditions.checkNotNull(
-                        jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
+                        jobConf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key()),
                         "Hive version is not defined");
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
     }
@@ -156,13 +157,12 @@ public class HiveTableSource
                         (RowType) getProducedDataType().getLogicalType());
         if (isStreamingSource()) {
             if (catalogTable.getPartitionKeys().isEmpty()) {
-                String consumeOrderStr = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
-                ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
-                if (consumeOrder != ConsumeOrder.CREATE_TIME_ORDER) {
+                PartitionOrder partitionOrder = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
+                if (partitionOrder != PartitionOrder.CREATE_TIME) {
                     throw new UnsupportedOperationException(
-                            "Only "
-                                    + ConsumeOrder.CREATE_TIME_ORDER
-                                    + " is supported for non partition table.");
+                            "Only '"
+                                    + PartitionOrder.CREATE_TIME
+                                    + "' is supported for non partition table.");
                 }
             }
 
@@ -184,8 +184,8 @@ public class HiveTableSource
                                 hiveShim,
                                 new JobConfWrapper(jobConf),
                                 catalogTable.getPartitionKeys(),
-                                getProducedTableSchema().getFieldDataTypes(),
-                                getProducedTableSchema().getFieldNames(),
+                                getTableSchema().getFieldDataTypes(),
+                                getTableSchema().getFieldNames(),
                                 configuration,
                                 defaultPartitionName);
                 sourceBuilder.setFetcherContext(fetcherContext);
@@ -349,8 +349,8 @@ public class HiveTableSource
                     configuration,
                     defaultPartitionName);
 
-            switch (consumeOrder) {
-                case PARTITION_NAME_ORDER:
+            switch (partitionOrder) {
+                case PARTITION_NAME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
                                 configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
@@ -360,8 +360,8 @@ public class HiveTableSource
                     }
                     typeSerializer = (TypeSerializer<T>) StringSerializer.INSTANCE;
                     break;
-                case PARTITION_TIME_ORDER:
-                case CREATE_TIME_ORDER:
+                case PARTITION_TIME:
+                case CREATE_TIME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
                                 configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
@@ -373,7 +373,7 @@ public class HiveTableSource
                     break;
                 default:
                     throw new UnsupportedOperationException(
-                            "Unsupported consumer order: " + consumeOrder);
+                            "Unsupported partition order: " + partitionOrder);
             }
         }
 
@@ -395,38 +395,9 @@ public class HiveTableSource
             return tablePath;
         }
 
-        /**
-         * Get the partition modified time.
-         *
-         * <p>the time is the the folder/file modification time in filesystem when fetched in
-         * create-time order, the time is extracted from partition name when fetched in
-         * partition-time order, the time is partition create time in metaStore when fetched in
-         * partition-name order.
-         */
-        public long getModificationTime(Partition partition, T partitionOffset) {
-            switch (consumeOrder) {
-                case PARTITION_NAME_ORDER:
-                    // second to millisecond
-                    return partition.getCreateTime() * 1_1000L;
-                case PARTITION_TIME_ORDER:
-                case CREATE_TIME_ORDER:
-                    return (Long) partitionOffset;
-                default:
-                    throw new UnsupportedOperationException(
-                            "Unsupported consumer order: " + consumeOrder);
-            }
-        }
-
         /** Convert partition to HiveTablePartition. */
         public HiveTablePartition toHiveTablePartition(Partition partition) {
-            return HivePartitionUtils.toHiveTablePartition(
-                    partitionKeys,
-                    fieldNames,
-                    fieldTypes,
-                    hiveShim,
-                    tableProps,
-                    defaultPartitionName,
-                    partition);
+            return HivePartitionUtils.toHiveTablePartition(partitionKeys, tableProps, partition);
         }
 
         @Override
@@ -445,5 +416,10 @@ public class HiveTableSource
                 this.metaStoreClient.close();
             }
         }
+    }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
     }
 }

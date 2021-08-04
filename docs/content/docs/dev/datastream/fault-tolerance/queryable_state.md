@@ -43,10 +43,10 @@ useful for debugging purposes.
   When querying a state object, that object is accessed from a concurrent 
   thread without any synchronization or copying. This is a design choice, as any of the above would lead
   to increased job latency, which we wanted to avoid. Since any state backend using Java heap space, 
-  <i>e.g.</i> <code>MemoryStateBackend</code> or <code>FsStateBackend</code>, does not work 
+  <i>e.g.</i> <code>HashMapStateBackend</code>, does not work 
   with copies when retrieving values but instead directly references the stored values, read-modify-write 
   patterns are unsafe and may cause the queryable state server to fail due to concurrent modifications.
-  The <code>RocksDBStateBackend</code> is safe from these issues.
+  The <code>EmbeddedRocksDBStateBackend</code> is safe from these issues.
 {{< /hint >}}
 
 ## Architecture
@@ -71,7 +71,7 @@ response back to the client.
 
 To enable queryable state on your Flink cluster, you need to do the following:
 
- 1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
+ 1. copy the `flink-queryable-state-runtime{{< scala_version >}}-{{< version >}}.jar`
 from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
 to the `lib/` folder.
  2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{< ref "docs/deployment/config" >}}#queryable-state) documentation for details and additional parameters.

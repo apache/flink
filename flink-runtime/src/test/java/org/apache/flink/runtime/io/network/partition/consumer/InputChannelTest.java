@@ -136,6 +136,9 @@ public class InputChannelTest {
         public void resumeConsumption() {}
 
         @Override
+        public void acknowledgeAllRecordsProcessed() throws IOException {}
+
+        @Override
         void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
 
         @Override

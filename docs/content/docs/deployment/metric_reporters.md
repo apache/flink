@@ -159,7 +159,7 @@ metrics.reporter.influxdb.interval: 60 SECONDS
 ```
 
 The reporter would send metrics using http protocol to the InfluxDB server with the specified retention policy (or the default policy specified on the server).
-All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported as InfluxDB tags.
+All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metrics" >}}#list-of-all-variables)) are exported as InfluxDB tags.
 
 ### Prometheus
 #### (org.apache.flink.metrics.prometheus.PrometheusReporter)
@@ -186,7 +186,7 @@ Flink metric types are mapped to Prometheus metric types as follows:
 | Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
 | Meter     | Gauge      |The gauge exports the meter's rate.       |
 
-All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
+All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metrics" >}}#list-of-all-variables)) are exported to Prometheus as labels. 
 
 ### PrometheusPushGateway 
 #### (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)

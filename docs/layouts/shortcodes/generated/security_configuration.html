@@ -15,10 +15,16 @@
             <td>List of factories that should be used to instantiate a security context. If multiple are configured, Flink will use the first compatible factory. You should have a NoOpSecurityContextFactory in this list as a fallback.</td>
         </tr>
         <tr>
+            <td><h5>security.kerberos.fetch.delegation-token</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Indicates whether to fetch the delegation tokens for external services the Flink job needs to contact. Only HDFS and HBase are supported. It is used in Yarn deployments. If true, Flink will fetch HDFS and HBase delegation tokens and inject them into Yarn AM containers. If false, Flink will assume that the delegation tokens are managed outside of Flink. As a consequence, it will not fetch delegation tokens for HDFS and HBase. You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, to handle delegation tokens.</td>
+        </tr>
+        <tr>
             <td><h5>security.kerberos.krb5-conf.path</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and TaskManager containers/pods for Kubernetes, Yarn and Mesos. Note: The KDC defined needs to be visible from inside the containers.</td>
+            <td>Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and TaskManager containers/pods for Kubernetes and Yarn. Note: The KDC defined needs to be visible from inside the containers.</td>
         </tr>
         <tr>
             <td><h5>security.kerberos.login.contexts</h5></td>
@@ -132,7 +138,7 @@
             <td><h5>security.ssl.provider</h5></td>
             <td style="word-wrap: break-word;">"JDK"</td>
             <td>String</td>
-            <td>The SSL engine provider to use for the ssl transport:<ul><li><span markdown="span">`JDK`</span>: default Java-based SSL engine</li><li><span markdown="span">`OPENSSL`</span>: openSSL-based SSL engine using system libraries</li></ul><span markdown="span">`OPENSSL`</span> is based on <a href="http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4">netty-tcnative</a> and comes in two flavours:<ul><li>dynamically linked: This will use your system's openSSL libraries (if compatible) and requires <span markdown="span">`opt/flink-shaded-netty-tcnative-dynamic-*.jar`</span> to be copied to <span markdown="span">`lib/`</span></li><li>statically linked: Due to potential licensing issues with openSSL (see <a href="https://issues.apache.org/jira/browse/LEGAL-393">LEGAL-393</a>), we cannot ship pre-built libraries. However, you can build the required library yourself and put it into <span markdown="span">`lib/`</span>:<br /><span markdown="span">`git clone https://github.com/apache/flink-shaded.git &amp;&amp; cd flink-shaded &amp;&amp; mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static`</span></li></ul></td>
+            <td>The SSL engine provider to use for the ssl transport:<ul><li><code class="highlighter-rouge">JDK</code>: default Java-based SSL engine</li><li><code class="highlighter-rouge">OPENSSL</code>: openSSL-based SSL engine using system libraries</li></ul><code class="highlighter-rouge">OPENSSL</code> is based on <a href="http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4">netty-tcnative</a> and comes in two flavours:<ul><li>dynamically linked: This will use your system's openSSL libraries (if compatible) and requires <code class="highlighter-rouge">opt/flink-shaded-netty-tcnative-dynamic-*.jar</code> to be copied to <code class="highlighter-rouge">lib/</code></li><li>statically linked: Due to potential licensing issues with openSSL (see <a href="https://issues.apache.org/jira/browse/LEGAL-393">LEGAL-393</a>), we cannot ship pre-built libraries. However, you can build the required library yourself and put it into <code class="highlighter-rouge">lib/</code>:<br /><code class="highlighter-rouge">git clone https://github.com/apache/flink-shaded.git &amp;&amp; cd flink-shaded &amp;&amp; mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static</code></li></ul></td>
         </tr>
         <tr>
             <td><h5>security.ssl.rest.authentication-enabled</h5></td>

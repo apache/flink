@@ -58,8 +58,6 @@ public class PythonTimestampsAndWatermarksOperator<IN>
     public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME =
             "_timestamp_and_watermark_operator";
 
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
-
     /** A user specified watermarkStrategy. */
     private final WatermarkStrategy<IN> watermarkStrategy;
 
@@ -110,9 +108,7 @@ public class PythonTimestampsAndWatermarksOperator<IN>
                 emitProgressiveWatermarks
                         ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
                         : new NoWatermarksGenerator<>();
-        watermarkOutput =
-                new TimestampsAndWatermarksOperator.WatermarkEmitter(
-                        output, getContainingTask().getStreamStatusMaintainer());
+        watermarkOutput = new TimestampsAndWatermarksOperator.WatermarkEmitter(output);
 
         watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
         if (watermarkInterval > 0 && emitProgressiveWatermarks) {
@@ -156,11 +152,6 @@ public class PythonTimestampsAndWatermarksOperator<IN>
         watermarkGenerator.onEvent(bufferedInput, newTimestamp, watermarkOutput);
     }
 
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
-    }
-
     public void configureEmitProgressiveWatermarks(boolean emitProgressiveWatermarks) {
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
     }
@@ -173,15 +164,17 @@ public class PythonTimestampsAndWatermarksOperator<IN>
     }
 
     @Override
-    public void processWatermark(org.apache.flink.streaming.api.watermark.Watermark mark) {
+    public void processWatermark(org.apache.flink.streaming.api.watermark.Watermark mark)
+            throws Exception {
         if (mark.getTimestamp() == Long.MAX_VALUE) {
+            invokeFinishBundle();
             watermarkOutput.emitWatermark(Watermark.MAX_WATERMARK);
         }
     }
 
     @Override
-    public void close() throws Exception {
-        super.close();
+    public void finish() throws Exception {
+        super.finish();
         watermarkGenerator.onPeriodicEmit(watermarkOutput);
     }
 }

@@ -37,6 +37,7 @@ public abstract class TtlStateTestContextBase<S extends InternalKvState<?, Strin
     GV getUpdateExpired;
 
     public GV emptyValue = null;
+    public String currentNamespace = "defaultNamespace";
 
     abstract void initTestValues();
 
@@ -59,5 +60,9 @@ public abstract class TtlStateTestContextBase<S extends InternalKvState<?, Strin
     @Override
     public String toString() {
         return this.getClass().getSimpleName();
+    }
+
+    public void setCurrentNamespace(String currentNamespace) {
+        this.currentNamespace = currentNamespace;
     }
 }

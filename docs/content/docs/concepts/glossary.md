@@ -25,6 +25,10 @@ under the License.
 
 # Glossary
 
+#### Checkpoint Storage
+
+The location where the [State Backend](#state-backend) will store its snapshot during a checkpoint (Java Heap of [JobManager](#flink-jobmanager) or Filesystem).
+
 #### Flink Application Cluster
 
 A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that
@@ -160,8 +164,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session 
 
 For stream processing programs, the State Backend of a [Flink Job](#flink-job) determines how its
 [state](#managed-state) is stored on each TaskManager (Java Heap of TaskManager or (embedded)
-RocksDB) as well as where it is written upon a checkpoint (Java Heap of
-[JobManager](#flink-jobmanager) or Filesystem).
+RocksDB).
 
 #### Sub-Task
 

@@ -49,7 +49,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for the access and transfer methods of the HeapMemorySegment. */
+/** Tests for the access and transfer methods of the {@link MemorySegment}. */
 public abstract class MemorySegmentTestBase {
 
     private final Random random = new Random();

@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics.RestAPICheckpointType;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,11 +44,11 @@ public class CheckpointingStatisticsTest
                 new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
         final CheckpointingStatistics.Summary summary =
                 new CheckpointingStatistics.Summary(
-                        new MinMaxAvgStatistics(1L, 1L, 1L),
-                        new MinMaxAvgStatistics(2L, 2L, 2L),
-                        new MinMaxAvgStatistics(3L, 3L, 3L),
-                        new MinMaxAvgStatistics(4L, 4L, 4L),
-                        new MinMaxAvgStatistics(5L, 5L, 5L));
+                        new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(2L, 2L, 2L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(3L, 3L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(4L, 4L, 4L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(5L, 5L, 5L, 0, 0, 0, 0, 0));
 
         final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask =
                 new HashMap<>(2);
@@ -76,7 +77,7 @@ public class CheckpointingStatisticsTest
                         44L,
                         10,
                         10,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap(),
                         null,
                         false);
@@ -95,7 +96,7 @@ public class CheckpointingStatisticsTest
                         4244L,
                         9,
                         9,
-                        CheckpointType.SAVEPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.SAVEPOINT),
                         checkpointStatisticsPerTask,
                         "externalPath",
                         false);
@@ -114,7 +115,7 @@ public class CheckpointingStatisticsTest
                         22L,
                         11,
                         9,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap(),
                         100L,
                         "Test failure");
@@ -136,7 +137,7 @@ public class CheckpointingStatisticsTest
                         16L,
                         10,
                         10,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap());
 
         final CheckpointingStatistics.LatestCheckpoints latestCheckpoints =

@@ -47,6 +47,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
  */
 @Internal
 public final class LegacyTypeInformationType<T> extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "LEGACY('%s', '%s')";
 

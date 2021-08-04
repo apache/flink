@@ -25,6 +25,10 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+// ------------------------------------------------------------------------
+// Table API & SQL
+// ------------------------------------------------------------------------
+
 message Input {
   oneof input {
     UserDefinedFunction udf = 1;
@@ -50,6 +54,9 @@ message UserDefinedFunction {
 
   // Whether the UDF takes row as input instead of each columns of a row
   bool takes_row_as_input = 4;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
 }
 
 // A list of user-defined functions to be executed in a batch.
@@ -57,6 +64,7 @@ message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
   repeated OverWindow windows = 3;
+  bool profile_enabled = 4;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation
@@ -74,41 +82,6 @@ message OverWindow {
   WindowType window_type = 1;
   int64 lower_boundary = 2;
   int64 upper_boundary = 3;
-}
-
-// User defined DataStream function definition.
-message UserDefinedDataStreamFunction {
-  enum FunctionType {
-    MAP = 0;
-    FLAT_MAP = 1;
-    REDUCE = 2;
-    CO_MAP = 3;
-    CO_FLAT_MAP = 4;
-    PROCESS = 5;
-    KEYED_PROCESS = 6;
-    TIMESTAMP_ASSIGNER = 7;
-  }
-
-  message JobParameter {
-    string key = 1;
-    string value = 2;
-  }
-
-  message RuntimeContext {
-    string task_name = 1;
-    string task_name_with_subtasks = 2;
-    int32 number_of_parallel_subtasks = 3;
-    int32 max_number_of_parallel_subtasks = 4;
-    int32 index_of_this_subtask = 5;
-    int32 attempt_number = 6;
-    repeated JobParameter job_parameters = 7;
-  }
-
-  FunctionType function_type = 1;
-  RuntimeContext runtime_context = 2;
-  bytes payload = 3;
-  bool metric_enabled = 4;
-  TypeInfo key_type_info = 5;
 }
 
 message UserDefinedAggregateFunction {
@@ -147,6 +120,41 @@ message UserDefinedAggregateFunction {
   bool takes_row_as_input = 6;
 }
 
+message GroupWindow {
+  enum WindowType {
+    TUMBLING_GROUP_WINDOW = 0;
+    SLIDING_GROUP_WINDOW = 1;
+    SESSION_GROUP_WINDOW = 2;
+  }
+
+  enum WindowProperty {
+    WINDOW_START = 0;
+    WINDOW_END = 1;
+    ROW_TIME_ATTRIBUTE = 2;
+    PROC_TIME_ATTRIBUTE = 3;
+  }
+
+  WindowType window_type = 1;
+
+  bool is_time_window = 2;
+
+  int64 window_slide = 3;
+
+  int64 window_size = 4;
+
+  int64 window_gap = 5;
+
+  bool is_row_time = 6;
+
+  int32 time_field_index = 7;
+
+  int64 allowedLateness = 8;
+
+  repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
+}
+
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
 message UserDefinedAggregateFunctions {
   repeated UserDefinedAggregateFunction udfs = 1;
@@ -169,6 +177,11 @@ message UserDefinedAggregateFunctions {
   int32 map_state_write_cache_size = 10;
   // True if the count(*) agg is inserted by the planner.
   bool count_star_inserted = 11;
+
+  // Group Window.
+  GroupWindow group_window = 12;
+
+  bool profile_enabled = 13;
 }
 
 // A representation of the data schema.
@@ -267,6 +280,10 @@ message Schema {
   repeated Field fields = 1;
 }
 
+// ------------------------------------------------------------------------
+// DataStream API
+// ------------------------------------------------------------------------
+
 // A representation of the data type information in DataStream.
 message TypeInfo {
   enum TypeName {
@@ -291,6 +308,8 @@ message TypeInfo {
     LIST = 18;
     MAP = 19;
     PICKLED_BYTES = 20;
+    OBJECT_ARRAY = 21;
+    INSTANT = 22;
   }
 
   message MapTypeInfo {
@@ -317,4 +336,93 @@ message TypeInfo {
     TupleTypeInfo tuple_type_info = 4;
     MapTypeInfo map_type_info = 5;
   }
+}
+
+// User defined DataStream function definition.
+message UserDefinedDataStreamFunction {
+  enum FunctionType {
+    PROCESS = 0;
+    CO_PROCESS = 1;
+    KEYED_PROCESS = 2;
+    KEYED_CO_PROCESS = 3;
+    TIMESTAMP_ASSIGNER = 4;
+    WINDOW = 5;
+  }
+
+  message JobParameter {
+    string key = 1;
+    string value = 2;
+  }
+
+  message RuntimeContext {
+    string task_name = 1;
+    string task_name_with_subtasks = 2;
+    int32 number_of_parallel_subtasks = 3;
+    int32 max_number_of_parallel_subtasks = 4;
+    int32 index_of_this_subtask = 5;
+    int32 attempt_number = 6;
+    repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
+  }
+
+  FunctionType function_type = 1;
+  RuntimeContext runtime_context = 2;
+  bytes payload = 3;
+  bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
+  bool profile_enabled = 6;
+}
+
+// ------------------------------------------------------------------------
+// Common of Table API and DataStream API
+// ------------------------------------------------------------------------
+
+// A representation of the coder
+message CoderInfoDescriptor {
+  // for Table & SQL
+  message FlattenRowType {
+    Schema schema = 1;
+  }
+
+  message RowType {
+    Schema schema = 1;
+  }
+
+  message ArrowType {
+    Schema schema = 1;
+  }
+
+  // only used in batch over window
+  // the data consists of [window data][arrow data]
+  message OverWindowArrowType {
+    Schema schema = 1;
+  }
+
+  // for DataStream
+  message RawType {
+    TypeInfo type_info = 1;
+  }
+
+  enum Mode {
+    // process one record at a time
+    SINGLE = 0;
+    // process multiple records at a time
+    MULTIPLE = 1;
+  }
+
+  oneof data_type {
+    // for Table & SQL
+    FlattenRowType flatten_row_type = 1;
+    RowType row_type = 2;
+    ArrowType arrow_type = 3;
+    OverWindowArrowType over_window_arrow_type = 4;
+
+    // for DataStream
+    RawType raw_type = 5;
+  }
+
+  Mode mode = 6;
+
+  // append an end message (0x00) after serializing the records belonging to the same batch.
+  bool separated_with_end_message = 7;
 }

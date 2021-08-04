@@ -37,16 +37,7 @@ For example, you can now arbitrarily modify the data types of states, adjust the
 
 To get started with the state processor api, include the following library in your application.
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-state-processor-api{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-  <scope>provided</scope>
-</dependency>
-```
-
-
+{{< artifact flink-state-processor-api withScalaVersion >}}
 
 ## Mapping Application State to DataSets 
 
@@ -228,7 +219,7 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
 
 Along with reading registered state values, each key has access to a `Context` with metadata such as registered event time and processing time timers.
 
-{% panel **Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`. %}
+**Note:** When using a `KeyedStateReaderFunction`, all state descriptors must be registered eagerly inside of open. Any attempt to call a `RuntimeContext#get*State` will result in a `RuntimeException`.
 
 ### Window State
 

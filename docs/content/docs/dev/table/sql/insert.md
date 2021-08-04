@@ -1,6 +1,6 @@
 ---
 title: "INSERT Statement"
-weight: 6
+weight: 7
 type: docs
 aliases:
   - /dev/table/sql/insert.html
@@ -66,8 +66,7 @@ The following examples show how to run a single INSERT statement in SQL CLI.
 {{< tabs "15bc87ce-93fd-4fdd-8c51-3301a432c048" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tEnv = TableEnvironment.create(settings);
+TableEnvironment tEnv = TableEnvironment.create(...);
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
@@ -99,8 +98,7 @@ System.out.println(tableResult2.getJobClient().get().getJobStatus());
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tEnv = TableEnvironment.create(settings)
+val tEnv = TableEnvironment.create(...)
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -132,8 +130,7 @@ println(tableResult2.getJobClient().get().getJobStatus())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(...)
 
 # register a source table named "Orders" and a sink table named "RubberOrders"
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -191,11 +188,13 @@ Query Results can be inserted into tables by using the insert clause.
 
 ```sql
 
-INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] select_statement
+INSERT { INTO | OVERWRITE } [catalog_name.][db_name.]table_name [PARTITION part_spec] [column_list] select_statement
 
 part_spec:
   (part_col_name1=val1 [, part_col_name2=val2, ...])
 
+column_list:
+  (col_name1 [, column_name2, ...])
 ```
 
 **OVERWRITE**
@@ -205,6 +204,11 @@ part_spec:
 **PARTITION**
 
 `PARTITION` clause should contain static partition columns of this inserting.
+
+**COLUMN LIST**
+
+Given a table T(a INT, b INT, c INT), Flink supports INSERT INTO T(c, b) SELECT x, y FROM S. The expectation is
+that 'x' is written to column 'c' and 'y' is written to column 'b' and 'a' is set to NULL (assuming column 'a' is nullable). 
 
 ### Examples
 
@@ -231,6 +235,11 @@ INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30', country='China')
 -- country is dynamic partition whose value is dynamic determined by each row.
 INSERT OVERWRITE country_page_view PARTITION (date='2019-8-30')
   SELECT user, cnt, country FROM page_view_source;
+
+-- Appends rows into the static partition (date='2019-8-30', country='China')
+-- the column cnt is set to NULL
+INSERT INTO country_page_view PARTITION (date='2019-8-30', country='China') (user)
+  SELECT user FROM page_view_source;
 ```
 
 

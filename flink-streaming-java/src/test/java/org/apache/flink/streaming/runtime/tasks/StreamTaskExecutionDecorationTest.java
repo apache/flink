@@ -25,10 +25,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -75,8 +75,7 @@ public class StreamTaskExecutionDecorationTest {
                 new CheckpointMetaData(1, 2),
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {1})),
-                false);
+                        new CheckpointStorageLocationReference(new byte[] {1})));
         Assert.assertTrue("mailbox is empty", mailbox.hasMail());
         Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
         mailbox.drain()
@@ -117,7 +116,7 @@ public class StreamTaskExecutionDecorationTest {
                     @Override
                     protected void processInput(MailboxDefaultAction.Controller controller) {}
                 };
-        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>());
+        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>(), false);
     }
 
     @After

@@ -22,40 +22,27 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /**
- * A wrapper class that allows threads to block until the inner source completes. It's run method
- * does not return until explicitly canceled so external processes can perform operations such as
- * taking savepoints.
+ * A wrapper class that does not return until explicitly canceled so external processes can perform
+ * operations such as taking savepoints.
  *
  * @param <T> The output type of the inner source.
  */
-@SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
 public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTypeQueryable<T> {
-
-    private static final Map<String, OneShotLatch> guards = new HashMap<>();
 
     private final SourceFunction<T> source;
 
     private final TypeInformation<T> returnType;
-
-    private final String guardId;
 
     private volatile boolean running;
 
     public WaitingSource(SourceFunction<T> source, TypeInformation<T> returnType) {
         this.source = source;
         this.returnType = returnType;
-        this.guardId = UUID.randomUUID().toString();
 
-        guards.put(guardId, new OneShotLatch());
         this.running = true;
     }
 
@@ -82,12 +69,7 @@ public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTyp
 
     @Override
     public void run(SourceContext<T> ctx) throws Exception {
-        OneShotLatch latch = guards.get(guardId);
-        try {
-            source.run(ctx);
-        } finally {
-            latch.trigger();
-        }
+        source.run(ctx);
 
         while (running) {
             try {
@@ -102,15 +84,6 @@ public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTyp
     public void cancel() {
         source.cancel();
         running = false;
-    }
-
-    /** This method blocks until the inner source has completed. */
-    public void awaitSource() throws RuntimeException {
-        try {
-            guards.get(guardId).await();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to initialize source");
-        }
     }
 
     @Override

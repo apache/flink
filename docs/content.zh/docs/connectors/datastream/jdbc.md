@@ -30,13 +30,7 @@ under the License.
 
 添加下面的依赖以便使用该连接器（同时添加 JDBC 驱动）：
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-jdbc{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-jdbc withScalaVersion >}}
 
 注意该连接器目前还 __不是__ 二进制发行版的一部分，如何在集群中运行请参考 [这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
 

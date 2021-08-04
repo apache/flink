@@ -21,10 +21,12 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,6 +58,10 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
             @Nullable TaskStateSnapshot acknowledgedState,
             @Nullable TaskStateSnapshot localState);
 
+    InflightDataRescalingDescriptor getInputRescalingDescriptor();
+
+    InflightDataRescalingDescriptor getOutputRescalingDescriptor();
+
     /**
      * Report the stats for state snapshots for an aborted checkpoint.
      *
@@ -64,6 +70,9 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
      */
     void reportIncompleteTaskStateSnapshots(
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics);
+
+    /** Whether all the operators of the task are finished on restore. */
+    boolean isFinishedOnRestore();
 
     /**
      * Returns means to restore previously reported state of an operator running in the owning task.
@@ -83,4 +92,8 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
     LocalRecoveryConfig createLocalRecoveryConfig();
 
     SequentialChannelStateReader getSequentialChannelStateReader();
+
+    /** Returns the configured state changelog storage for this task. */
+    @Nullable
+    StateChangelogStorage<?> getStateChangelogStorage();
 }

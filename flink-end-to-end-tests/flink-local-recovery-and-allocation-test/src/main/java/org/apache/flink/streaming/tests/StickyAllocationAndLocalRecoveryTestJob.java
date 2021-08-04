@@ -28,10 +28,10 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,8 +42,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -70,8 +68,6 @@ import java.util.Set;
  *       default <code>file</code>.
  *   <li>killJvmOnFail: flag that determines whether or not an artificial failure induced by the
  *       test kills the JVM or not.
- *   <li>asyncCheckpoints: flag for async checkpoints with file state backend, default <code>true
- *       </code>.
  *   <li>incrementalCheckpoints: flag for incremental checkpoint with rocks state backend, default
  *       <code>false</code>.
  *   <li>delay: sleep delay to throttle down the production of the source, default 0.
@@ -81,9 +77,6 @@ import java.util.Set;
  * </ul>
  */
 public class StickyAllocationAndLocalRecoveryTestJob {
-
-    private static final Logger LOG =
-            LoggerFactory.getLogger(StickyAllocationAndLocalRecoveryTestJob.class);
 
     public static void main(String[] args) throws Exception {
 
@@ -103,17 +96,17 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                             CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         }
 
-        String stateBackend = pt.get("stateBackend", "file");
         String checkpointDir = pt.getRequired("checkpointDir");
+        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
 
         boolean killJvmOnFail = pt.getBoolean("killJvmOnFail", false);
 
-        if ("file".equals(stateBackend)) {
-            boolean asyncCheckpoints = pt.getBoolean("asyncCheckpoints", true);
-            env.setStateBackend(new FsStateBackend(checkpointDir, asyncCheckpoints));
+        String stateBackend = pt.get("stateBackend", "hashmap");
+        if ("hashmap".equals(stateBackend)) {
+            env.setStateBackend(new HashMapStateBackend());
         } else if ("rocks".equals(stateBackend)) {
             boolean incrementalCheckpoints = pt.getBoolean("incrementalCheckpoints", false);
-            env.setStateBackend(new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend: " + stateBackend);
         }

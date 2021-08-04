@@ -20,16 +20,17 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.TransientBlobService;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
@@ -52,6 +53,7 @@ import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
+import org.apache.flink.runtime.rest.handler.job.JobVertexFlameGraphHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
 import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskCurrentAttemptDetailsHandler;
@@ -129,14 +131,20 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileH
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoStats;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker;
+import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTrackerBuilder;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoRequestCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -144,6 +152,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -155,6 +164,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Rest endpoint which serves the web frontend REST calls.
@@ -218,6 +228,31 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
     }
 
+    private JobVertexThreadInfoTracker<JobVertexThreadInfoStats> initializeThreadInfoTracker(
+            ScheduledExecutorService executor) {
+        final Duration akkaTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+
+        final Duration flameGraphCleanUpInterval =
+                clusterConfiguration.get(RestOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
+        final ThreadInfoRequestCoordinator threadInfoRequestCoordinator =
+                new ThreadInfoRequestCoordinator(executor, akkaTimeout);
+
+        return JobVertexThreadInfoTrackerBuilder.newBuilder(
+                        resourceManagerRetriever,
+                        Function.identity(),
+                        executor,
+                        restConfiguration.getTimeout())
+                .setCoordinator(threadInfoRequestCoordinator)
+                .setCleanUpInterval(flameGraphCleanUpInterval)
+                .setNumSamples(clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_NUM_SAMPLES))
+                .setStatsRefreshInterval(
+                        clusterConfiguration.get(RestOptions.FLAMEGRAPH_REFRESH_INTERVAL))
+                .setDelayBetweenSamples(clusterConfiguration.get(RestOptions.FLAMEGRAPH_DELAY))
+                .setMaxThreadInfoDepth(
+                        clusterConfiguration.getInteger(RestOptions.FLAMEGRAPH_STACK_TRACE_DEPTH))
+                .build();
+    }
+
     @Override
     protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
             final CompletableFuture<String> localAddressFuture) {
@@ -245,7 +280,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         DashboardConfigurationHeaders.getInstance(),
                         restConfiguration.getRefreshInterval(),
-                        hasWebSubmissionHandlers);
+                        hasWebSubmissionHandlers,
+                        restConfiguration.isWebCancelEnabled());
 
         JobIdsHandler jobIdsHandler =
                 new JobIdsHandler(
@@ -506,7 +542,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 rescalingHandlers
                 .new RescalingStatusHandler(leaderRetriever, timeout, responseHeaders);
 
-        JobVertexBackPressureHandler jobVertexBackPressureHandler =
+        final JobVertexBackPressureHandler jobVertexBackPressureHandler =
                 new JobVertexBackPressureHandler(
                         leaderRetriever,
                         timeout,
@@ -698,6 +734,27 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobVertexBackPressureHandler.getMessageHeaders(),
                         jobVertexBackPressureHandler));
+
+        final AbstractRestHandler<?, ?, ?, ?> jobVertexFlameGraphHandler;
+        if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
+            jobVertexFlameGraphHandler =
+                    new JobVertexFlameGraphHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            executionGraphCache,
+                            executor,
+                            initializeThreadInfoTracker(executor));
+        } else {
+            jobVertexFlameGraphHandler =
+                    JobVertexFlameGraphHandler.disabledHandler(
+                            leaderRetriever, timeout, responseHeaders);
+        }
+        handlers.add(
+                Tuple2.of(
+                        jobVertexFlameGraphHandler.getMessageHeaders(),
+                        jobVertexFlameGraphHandler));
+
         handlers.add(
                 Tuple2.of(
                         jobCancelTerminationHandler.getMessageHeaders(),
@@ -952,11 +1009,11 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     @Override
-    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+    public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
         Collection<ArchivedJson> archivedJson = new ArrayList<>(archivingHandlers.size());
         for (JsonArchivist archivist : archivingHandlers) {
-            Collection<ArchivedJson> subArchive = archivist.archiveJsonWithPath(graph);
+            Collection<ArchivedJson> subArchive = archivist.archiveJsonWithPath(executionGraphInfo);
             archivedJson.addAll(subArchive);
         }
         return archivedJson;

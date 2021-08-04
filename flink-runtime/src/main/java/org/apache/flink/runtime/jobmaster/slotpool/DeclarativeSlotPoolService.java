@@ -33,6 +33,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.Clock;
@@ -304,5 +305,13 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         CREATED,
         STARTED,
         CLOSED,
+    }
+
+    protected String getSlotServiceStatus() {
+        return String.format(
+                "Registered TMs: %d, registered slots: %d free slots: %d",
+                registeredTaskManagers.size(),
+                declarativeSlotPool.getAllSlotsInformation().size(),
+                declarativeSlotPool.getFreeSlotsInformation().size());
     }
 }

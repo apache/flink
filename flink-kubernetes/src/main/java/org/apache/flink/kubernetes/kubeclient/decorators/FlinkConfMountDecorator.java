@@ -26,7 +26,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -73,7 +73,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-        final Pod mountedPod = decoratePod(flinkPod.getPod());
+        final Pod mountedPod = decoratePod(flinkPod.getPodWithoutMainContainer());
 
         final Container mountedMainContainer =
                 new ContainerBuilder(flinkPod.getMainContainer())

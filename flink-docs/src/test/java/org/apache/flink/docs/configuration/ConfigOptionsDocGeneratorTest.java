@@ -24,9 +24,11 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.docs.configuration.data.TestCommonOptions;
 import org.apache.flink.util.FileUtils;
 
@@ -43,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -75,6 +78,22 @@ public class ConfigOptionsDocGeneratorTest {
         VALUE_3
     }
 
+    private enum DescribedTestEnum implements DescribedEnum {
+        A(text("First letter of the alphabet")),
+        B(text("Second letter of the alphabet"));
+
+        private final InlineElement description;
+
+        DescribedTestEnum(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
     static class TypeTestConfigGroup {
         public static ConfigOption<TestEnum> enumOption =
                 ConfigOptions.key("option.enum")
@@ -87,6 +106,12 @@ public class ConfigOptionsDocGeneratorTest {
                         .enumType(TestEnum.class)
                         .asList()
                         .defaultValues(TestEnum.VALUE_1, TestEnum.VALUE_2)
+                        .withDescription("Description");
+
+        public static ConfigOption<DescribedTestEnum> describedEnum =
+                ConfigOptions.key("option.enum.described")
+                        .enumType(DescribedTestEnum.class)
+                        .noDefaultValue()
                         .withDescription("Description");
 
         public static ConfigOption<MemorySize> memoryOption =
@@ -139,14 +164,20 @@ public class ConfigOptionsDocGeneratorTest {
                         + "        <tr>\n"
                         + "            <td><h5>option.enum</h5></td>\n"
                         + "            <td style=\"word-wrap: break-word;\">VALUE_1</td>\n"
-                        + "            <td><p>Enum</p>Possible values: [VALUE_1, VALUE_2, VALUE_3]</td>\n"
-                        + "            <td>Description</td>\n"
+                        + "            <td><p>Enum</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"VALUE_1\"</li><li>\"VALUE_2\"</li><li>\"VALUE_3\"</li></ul></td>\n"
+                        + "        </tr>\n"
+                        + "        <tr>\n"
+                        + "            <td><h5>option.enum.described</h5></td>\n"
+                        + "            <td style=\"word-wrap: break-word;\">(none)</td>\n"
+                        + "            <td><p>Enum</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"A\": First letter of the alphabet</li><li>\"B\": Second letter of the alphabet</li></ul></td>\n"
                         + "        </tr>\n"
                         + "        <tr>\n"
                         + "            <td><h5>option.enum.list</h5></td>\n"
                         + "            <td style=\"word-wrap: break-word;\">VALUE_1;<wbr>VALUE_2</td>\n"
-                        + "            <td><p>List&lt;Enum&gt;</p>Possible values: [VALUE_1, VALUE_2, VALUE_3]</td>\n"
-                        + "            <td>Description</td>\n"
+                        + "            <td><p>List&lt;Enum&gt;</p></td>\n"
+                        + "            <td>Description<br /><br />Possible values:<ul><li>\"VALUE_1\"</li><li>\"VALUE_2\"</li><li>\"VALUE_3\"</li></ul></td>\n"
                         + "        </tr>\n"
                         + "        <tr>\n"
                         + "            <td><h5>option.map</h5></td>\n"

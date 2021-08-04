@@ -20,7 +20,7 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
+import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -41,7 +41,7 @@ public interface DispatcherResourceManagerComponentFactory {
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
             MetricRegistry metricRegistry,
-            ArchivedExecutionGraphStore archivedExecutionGraphStore,
+            ExecutionGraphInfoStore executionGraphInfoStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
             FatalErrorHandler fatalErrorHandler)
             throws Exception;

@@ -131,6 +131,12 @@ public abstract class InputChannel {
     public abstract void resumeConsumption() throws IOException;
 
     /**
+     * When received {@link org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent} from one
+     * channel, it need to acknowledge after this event get processed.
+     */
+    public abstract void acknowledgeAllRecordsProcessed() throws IOException;
+
+    /**
      * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
      *
      * <p>This is guaranteed to be called only when a Buffer was added to a previously empty input

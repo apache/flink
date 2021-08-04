@@ -41,8 +41,7 @@ import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStateme
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 class TableJdbcUpsertOutputFormat
-        extends JdbcBatchingOutputFormat<
-                Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
+        extends JdbcOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
     private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
 
     private JdbcBatchStatementExecutor<Row> deleteExecutor;

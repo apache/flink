@@ -22,26 +22,38 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.types.CRow;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Queue;
+
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /** Tests for {@link PythonScalarFunctionOperator}. */
 public class PythonScalarFunctionOperatorTest
-        extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row> {
+        extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
+
+    private final RowDataHarnessAssertor assertor =
+            new RowDataHarnessAssertor(
+                    new LogicalType[] {
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.STRING().getLogicalType(),
+                        DataTypes.BIGINT().getLogicalType()
+                    });
 
     @Override
-    public AbstractPythonScalarFunctionOperator<CRow, CRow, Row> getTestOperator(
+    public AbstractPythonScalarFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
@@ -53,15 +65,20 @@ public class PythonScalarFunctionOperatorTest
     }
 
     @Override
-    public CRow newRow(boolean accumulateMsg, Object... fields) {
-        return new CRow(Row.of(fields), accumulateMsg);
+    public RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
     }
 
     @Override
     public void assertOutputEquals(
             String message, Collection<Object> expected, Collection<Object> actual) {
-        TestHarnessUtil.assertOutputEquals(
-                message, (Queue<Object>) expected, (Queue<Object>) actual);
+        assertor.assertOutputEquals(message, expected, actual);
     }
 
     @Override
@@ -70,9 +87,10 @@ public class PythonScalarFunctionOperatorTest
     }
 
     @Override
-    public TypeSerializer<CRow> getOutputTypeSerializer(RowType dataType) {
-        // If set to null, PojoSerializer is used by default which works well here.
-        return null;
+    public TypeSerializer<RowData> getOutputTypeSerializer(RowType rowType) {
+        // If not specified, PojoSerializer will be used which doesn't work well with the Arrow data
+        // structure.
+        return new RowDataSerializer(rowType);
     }
 
     private static class PassThroughPythonScalarFunctionOperator
@@ -97,7 +115,6 @@ public class PythonScalarFunctionOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer());
         }

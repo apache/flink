@@ -68,7 +68,9 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
     @Test
     public void testWhetherPodOrContainerIsDecorated() {
         final FlinkPod resultFlinkPod = kerberosMountDecorator.decorateFlinkPod(baseFlinkPod);
-        assertNotEquals(baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertNotEquals(
+                baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertNotEquals(baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 

@@ -50,6 +50,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -62,7 +63,6 @@ import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
-import org.apache.commons.collections.ListUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -105,6 +105,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -528,6 +529,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 throw new RuntimeException(
                         "Hadoop security with Kerberos is enabled but the login user "
                                 + "does not have Kerberos credentials or delegation tokens!");
+            }
+
+            final boolean fetchToken =
+                    flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+            final boolean yarnAccessFSEnabled =
+                    !CollectionUtil.isNullOrEmpty(
+                            flinkConfiguration.get(YarnConfigOptions.YARN_ACCESS));
+            if (!fetchToken && yarnAccessFSEnabled) {
+                throw new IllegalConfigurationException(
+                        String.format(
+                                "When %s is disabled, %s must be disabled as well.",
+                                SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN.key(),
+                                YarnConfigOptions.YARN_ACCESS.key()));
             }
         }
 
@@ -1081,13 +1095,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (UserGroupInformation.isSecurityEnabled()) {
             // set HDFS delegation tokens when security is enabled
             LOG.info("Adding delegation token to the AM container.");
-            List<Path> yarnAccessList =
-                    ConfigUtils.decodeListFromConfig(
-                            configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
-            Utils.setTokensFor(
-                    amContainer,
-                    ListUtils.union(yarnAccessList, fileUploader.getRemotePaths()),
-                    yarnConfiguration);
+            final List<Path> pathsToObtainToken = new ArrayList<>();
+            boolean fetchToken =
+                    configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+            if (fetchToken) {
+                List<Path> yarnAccessList =
+                        ConfigUtils.decodeListFromConfig(
+                                configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+                pathsToObtainToken.addAll(yarnAccessList);
+                pathsToObtainToken.addAll(fileUploader.getRemotePaths());
+            }
+            Utils.setTokensFor(amContainer, pathsToObtainToken, yarnConfiguration, fetchToken);
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());

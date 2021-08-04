@@ -97,6 +97,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
                 new ChannelStateWriteRequestExecutorImpl(
                         taskName,
                         new ChannelStateWriteRequestDispatcherImpl(
+                                taskName,
                                 subtaskIndex,
                                 streamFactoryResolver,
                                 new ChannelStateSerializerImpl())),
@@ -149,7 +150,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
             InputChannelInfo info,
             int startSeqNum,
             CloseableIterator<Buffer> iterator) {
-        LOG.debug(
+        LOG.trace(
                 "{} adding input data, checkpoint {}, channel: {}, startSeqNum: {}",
                 taskName,
                 checkpointId,
@@ -161,7 +162,7 @@ public class ChannelStateWriterImpl implements ChannelStateWriter {
     @Override
     public void addOutputData(
             long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
-        LOG.debug(
+        LOG.trace(
                 "{} adding output data, checkpoint {}, channel: {}, startSeqNum: {}, num buffers: {}",
                 taskName,
                 checkpointId,

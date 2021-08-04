@@ -37,6 +37,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -79,10 +80,16 @@ public class AutoClosableProcess implements AutoCloseable {
         private final String[] commands;
         private Consumer<String> stdoutProcessor = LOG::debug;
         private Consumer<String> stderrProcessor = LOG::debug;
+        private Consumer<Map<String, String>> envProcessor = map -> {};
         private @Nullable String[] stdInputs;
 
         AutoClosableProcessBuilder(final String... commands) {
             this.commands = commands;
+        }
+
+        public AutoClosableProcessBuilder setEnv(final Consumer<Map<String, String>> envProcessor) {
+            this.envProcessor = envProcessor;
+            return this;
         }
 
         public AutoClosableProcessBuilder setStdoutProcessor(
@@ -119,6 +126,7 @@ public class AutoClosableProcess implements AutoCloseable {
                                     stderrProcessor.accept(line);
                                     printer.println(line);
                                 },
+                                envProcessor,
                                 stdInputs);
 
                 try (AutoClosableProcess autoProcess = new AutoClosableProcess(process)) {
@@ -165,7 +173,8 @@ public class AutoClosableProcess implements AutoCloseable {
 
         public AutoClosableProcess runNonBlocking() throws IOException {
             return new AutoClosableProcess(
-                    createProcess(commands, stdoutProcessor, stderrProcessor, stdInputs));
+                    createProcess(
+                            commands, stdoutProcessor, stderrProcessor, envProcessor, stdInputs));
         }
     }
 
@@ -173,11 +182,13 @@ public class AutoClosableProcess implements AutoCloseable {
             final String[] commands,
             Consumer<String> stdoutProcessor,
             Consumer<String> stderrProcessor,
+            Consumer<Map<String, String>> envProcessor,
             @Nullable String[] stdInputs)
             throws IOException {
         final ProcessBuilder processBuilder = new ProcessBuilder();
         LOG.debug("Creating process: {}", Arrays.toString(commands));
         processBuilder.command(commands);
+        envProcessor.accept(processBuilder.environment());
 
         final Process process = processBuilder.start();
 

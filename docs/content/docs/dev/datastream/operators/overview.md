@@ -91,7 +91,7 @@ dataStream.flatMap { str => str.split(" ") }
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
-data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
+data_stream.flat_map(lambda x: x.split(' '), output_type=Types.STRING())
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -146,7 +146,7 @@ dataStream.keyBy(_._1)
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
-data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the result of KeySelector
+data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result of KeySelector
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -184,7 +184,7 @@ keyedStream.reduce { _ + _ }
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.ROW([Types.INT(), Types.STRING()]))
+data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
 data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 ```
 {{< /tab >}}
@@ -194,7 +194,7 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 #### KeyedStream &rarr; WindowedStream
 
 Windows can be defined on already partitioned KeyedStreams. Windows group the data in each key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
-See [windows](windows.html) for a complete description of windows.
+See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complete description of windows.
 
 {{< tabs window >}}
 {{< tab "Java">}}
@@ -217,7 +217,7 @@ This feature is not yet supported in Python
 {{< /tabs>}}
 
 ### WindowAll
-#### DataStreamStream &rarr; AllWindowedStream
+#### DataStream &rarr; AllWindowedStream
 
 Windows can be defined on regular DataStreams. Windows group all the stream events according to some characteristic (e.g., the data that arrived within the last 5 seconds). See [windows](windows.html) for a complete description of windows.
 
@@ -530,7 +530,7 @@ class MyCoFlatMapFunction(CoFlatMapFunction):
         yield value[0] + 1
         
 connectedStreams.map(MyCoMapFunction())
-connectedStreams.flatMap(MyCoFlatMapFunction())
+connectedStreams.flat_map(MyCoFlatMapFunction())
 ```
 {{< /tab >}}
 {{< /tabs>}}

@@ -25,12 +25,13 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 
 import org.slf4j.Logger;
@@ -43,8 +44,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
 /**
  * The {@link CheckpointedInputGate} uses {@link CheckpointBarrierHandler} to handle incoming {@link
@@ -173,17 +174,19 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return next;
     }
 
-    private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent)
-            throws IOException, InterruptedException {
+    private Optional<BufferOrEvent> handleEvent(BufferOrEvent bufferOrEvent) throws IOException {
         Class<? extends AbstractEvent> eventClass = bufferOrEvent.getEvent().getClass();
         if (eventClass == CheckpointBarrier.class) {
             CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
             barrierHandler.processBarrier(checkpointBarrier, bufferOrEvent.getChannelInfo());
         } else if (eventClass == CancelCheckpointMarker.class) {
             barrierHandler.processCancellationBarrier(
-                    (CancelCheckpointMarker) bufferOrEvent.getEvent());
+                    (CancelCheckpointMarker) bufferOrEvent.getEvent(),
+                    bufferOrEvent.getChannelInfo());
+        } else if (eventClass == EndOfUserRecordsEvent.class) {
+            inputGate.acknowledgeAllRecordsProcessed(bufferOrEvent.getChannelInfo());
         } else if (eventClass == EndOfPartitionEvent.class) {
-            barrierHandler.processEndOfPartition();
+            barrierHandler.processEndOfPartition(bufferOrEvent.getChannelInfo());
         } else if (eventClass == EventAnnouncement.class) {
             EventAnnouncement eventAnnouncement = (EventAnnouncement) bufferOrEvent.getEvent();
             AbstractEvent announcedEvent = eventAnnouncement.getAnnouncedEvent();
@@ -198,9 +201,6 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
                     bufferOrEvent.getChannelInfo());
         } else if (bufferOrEvent.getEvent().getClass() == EndOfChannelStateEvent.class) {
             upstreamRecoveryTracker.handleEndOfRecovery(bufferOrEvent.getChannelInfo());
-            if (!upstreamRecoveryTracker.allChannelsRecovered()) {
-                return pollNext();
-            }
         }
         return Optional.of(bufferOrEvent);
     }
@@ -286,6 +286,10 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 
     public List<InputChannelInfo> getChannelInfos() {
         return inputGate.getChannelInfos();
+    }
+
+    public boolean allChannelsRecovered() {
+        return upstreamRecoveryTracker.allChannelsRecovered();
     }
 
     @VisibleForTesting

@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -55,8 +56,21 @@ class NetworkFailureHandler extends SimpleChannelUpstreamHandler {
     private final ClientSocketChannelFactory channelFactory;
     private final String remoteHost;
     private final int remotePort;
-
     private final AtomicBoolean blocked;
+    // The set of channels that are being closed in closeOnFlush(). This is needed to avoid
+    // closing a channel recursively. See FLINK-22085 for more detail.
+    private static final Set<Channel> channelsBeingClosed = ConcurrentHashMap.newKeySet();
+
+    private static final ChannelFutureListener CLOSE_WITH_BOOKKEEPING =
+            new ChannelFutureListener() {
+                public void operationComplete(ChannelFuture future) {
+                    future.getChannel()
+                            .close()
+                            .addListener(
+                                    channelFuture ->
+                                            channelsBeingClosed.remove(channelFuture.getChannel()));
+                }
+            };
 
     public NetworkFailureHandler(
             AtomicBoolean blocked,
@@ -73,8 +87,9 @@ class NetworkFailureHandler extends SimpleChannelUpstreamHandler {
 
     /** Closes the specified channel after all queued write requests are flushed. */
     static void closeOnFlush(Channel channel) {
-        if (channel.isConnected()) {
-            channel.write(ChannelBuffers.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+        if (channel.isConnected() && !channelsBeingClosed.contains(channel)) {
+            channelsBeingClosed.add(channel);
+            channel.write(ChannelBuffers.EMPTY_BUFFER).addListener(CLOSE_WITH_BOOKKEEPING);
         }
     }
 

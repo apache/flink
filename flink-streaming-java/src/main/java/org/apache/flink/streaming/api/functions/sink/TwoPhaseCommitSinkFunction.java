@@ -211,6 +211,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
      */
     protected void finishRecoveringContext(Collection<TXN> handledTransactions) {}
 
+    /**
+     * This method is called at the end of data processing.
+     *
+     * <p>The method is expected to flush all remaining buffered data. Exceptions will cause the
+     * pipeline to be recognized as failed, because the last data items are not processed properly.
+     * You may use this method to flush remaining buffered elements in the state into the current
+     * transaction which will be committed in the last checkpoint.
+     */
+    protected void finishProcessing(@Nullable TXN transaction) {}
+
     // ------ entry points for above methods implementing {@CheckPointedFunction} and
     // {@CheckpointListener} ------
 
@@ -221,6 +231,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
     @Override
     public final void invoke(IN value, Context context) throws Exception {
         invoke(currentTransactionHolder.handle, value, context);
+    }
+
+    @Override
+    public final void finish() throws Exception {
+        finishProcessing(currentTransaction());
     }
 
     @Override

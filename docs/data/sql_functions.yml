@@ -41,7 +41,7 @@ comparison:
       table: value.isNotNull
       description: Returns TRUE if value is not NULL.
     - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns TRUE; NULL IS NOT DISTINCT FROM NULL returns FALSE.
     - sql: value1 IS NOT DISTINCT FROM value2
       description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
     - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
@@ -402,7 +402,7 @@ temporal:
   - table: | 
       NUMERIC.hour
       NUMERIC.hours
-    desription: Creates an interval of milliseconds for NUMERIC hours.
+    description: Creates an interval of milliseconds for NUMERIC hours.
   - table: |
       NUMERIC.minute
       NUMERIC.minutes
@@ -415,18 +415,25 @@ temporal:
       NUMERIC.milli
       NUMERIC.millis
     description: Creates an interval of NUMERIC milliseconds.
-  - sql: CURRENT_DATE()
-    table: currentDate()
-    description: Returns the current SQL date in the UTC time zone.
-  - sql: CURRENT_TIME()
-    table: currentTime()
-    description: Returns the current SQL time in the UTC time zone.
   - sql: LOCALTIME
     table: localTime()
-    description: Returns the current SQL timestamp in the UTC time zone.
+    description: Returns the current SQL time in the local time zone, the return type is TIME(0). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: LOCALTIMESTAMP
     table: localTimestamp()
-    description: Returns the current SQL timestamp in local time zone.
+    description: Returns the current SQL timestamp in local time zone, the return type is TIMESTAMP(3). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+  - sql: CURRENT_TIME
+    table: currentTime()
+    description: Returns the current SQL time in the local time zone, this is a synonym of LOCAL_TIME.
+  - sql: CURRENT_DATE
+    table: currentDate()
+    description: Returns the current SQL date in the local time zone. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+  - sql: CURRENT_TIMESTAMP
+    table: currentTimestamp()
+    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP_LTZ(3). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
+  - sql: NOW()
+    description: Returns the current SQL timestamp in the local time zone, this is a synonym of CURRENT_TIMESTAMP.
+  - sql: CURRENT_ROW_TIMESTAMP()
+    description: Returns the current SQL timestamp in the local time zone, the return type is TIMESTAMP_LTZ(3). It is evaluated for each record no matter in batch or streaming mode.
   - sql: EXTRACT(timeinteravlunit FROM temporal)
     table: TEMPORAL.extract(TIMEINTERVALUNIT)
     description: Returns a long value extracted from the timeintervalunit part of temporal. E.g., EXTRACT(DAY FROM DATE '2006-06-05') returns 5.
@@ -451,7 +458,7 @@ temporal:
   - sql: FLOOR(timepoint TO timeintervalunit) 
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
@@ -462,9 +469,9 @@ temporal:
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
-    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
+    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
-    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
+    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
     description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
   - sql: UNIX_TIMESTAMP()
@@ -473,10 +480,23 @@ temporal:
     description: 'Converts date time string string1 in format string2 (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.'
   - sql: TO_DATE(string1[, string2])
     description: Converts a date string string1 with format string2 (by default 'yyyy-MM-dd') to a date.
+  - sql: TO_TIMESTAMP_LTZ(numeric, precision)
+    table: toTimestampLtz(NUMERIC, PRECISION)
+    description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
   - sql: TO_TIMESTAMP(string1[, string2])
-    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp."
-  - sql: NOW()
-    description: Returns the current SQL timestamp in the UTC time zone. This function is not deterministic which means the value would be recalculated for each record.
+    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the 'UTC+0' time zone to a timestamp."
+  - sql: CURRENT_WATERMARK(rowtime)
+    description: |
+      Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark of all upstream operations is available at the current operation in the pipeline.
+      The return type of the function is inferred to match that of the provided rowtime attribute, but with an adjusted precision of 3. For example, if the rowtime attribute is `TIMESTAMP_LTZ(9)`, the function will return `TIMESTAMP_LTZ(3)`.
+
+      Note that this function can return `NULL`, and you may have to consider this case. For example, if you want to filter out late data you can use:
+
+      ```
+      WHERE
+        CURRENT_WATERMARK(ts) IS NULL
+        OR ts > CURRENT_WATERMARK(ts)
+      ```
 
 conditional:
   - sql: |
@@ -496,7 +516,7 @@ conditional:
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
   - sql: COALESCE(value1, value2 [, value3]*)
-    description: Returns the first value that is not NULL from value1, value2, .... E.g., IF(5 > 3, 5, 3) returns 5.
+    description: Returns the first value that is not NULL from value1, value2, .... E.g., COALESCE(NULL, 5) returns 5.
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)
@@ -517,7 +537,11 @@ conditional:
     description: Returns true if all characters in string are digit, otherwise false.
   - table: BOOLEAN.?(VALUE1, VALUE2)
     description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-   
+  - sql: GREATEST(value1[, value2]*)
+    description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
+  - sql: LEAST(value1[, value2]*)
+    description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
+
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
@@ -539,7 +563,7 @@ collection:
     description: Returns the element at position INT in array. The index starts from 1.
   - sql: ELEMENT(array)
     table: ARRAY.element()
-    table: Returns the sole element of array (whose cardinality should be one); returns NULL if array is empty. Throws an exception if array has more than one element.
+    description: Returns the sole element of array (whose cardinality should be one); returns NULL if array is empty. Throws an exception if array has more than one element.
   - sql: CARDINALITY(map)
     table: MAP.cardinality()
     description: Returns the number of entries in map.
@@ -663,13 +687,13 @@ aggregate:
     description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
   - sql: DENSE_RANK()
     description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMER()
+  - sql: ROW_NUMBER()
     description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
   - sql: LEAD(expression [, offset] [, default])
-    description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
-  - sql: LAG(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
-  - sql: FIRST_VALUE(expression) 
+  - sql: LAG(expression [, offset] [, default])
+    description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
+  - sql: FIRST_VALUE(expression)
     description: Returns the first value in an ordered set of values.
   - sql: LAST_VALUE(expression)
     description: Returns the last value in an ordered set of values.

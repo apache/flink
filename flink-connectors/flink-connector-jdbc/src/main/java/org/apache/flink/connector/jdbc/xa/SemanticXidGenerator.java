@@ -18,24 +18,28 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
 import javax.transaction.xa.Xid;
 
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 /**
  * Generates {@link Xid} from:
  *
  * <ol>
+ *   <li>To provide uniqueness over other jobs and apps, and other instances
+ *   <li>of this job, gtrid consists of
+ *   <li>job id (16 bytes)
+ *   <li>subtask index (4 bytes)
  *   <li>checkpoint id (4 bytes)
- *   <li>subtask index
- *   <li>8 random bytes to provide uniqueness across other jobs and apps (generated at startup using
- *       {@link SecureRandom})
+ *   <li>bqual consists of 4 random bytes (generated using {@link SecureRandom})
  * </ol>
  *
- * <p>Each {@link SemanticXidGenerator} instance MUST be used for only one Sink (otherwise Xids
- * could collide).
+ * <p>Each {@link SemanticXidGenerator} instance MUST be used for only one Sink (otherwise Xids will
+ * collide).
  */
 @Internal
 class SemanticXidGenerator implements XidGenerator {
@@ -46,26 +50,53 @@ class SemanticXidGenerator implements XidGenerator {
 
     private static final int FORMAT_ID = 201;
 
-    private transient byte[] gtridBuffer; // globalTransactionId = checkpoint id (long)
-    private transient byte[] bqualBuffer; // branchQualifier = task index + random bytes
+    private transient byte[] gtridBuffer;
+    private transient byte[] bqualBuffer;
 
     @Override
     public void open() {
-        bqualBuffer = getRandomBytes(Long.BYTES);
-        gtridBuffer = new byte[Long.BYTES];
+        // globalTransactionId = job id + task index + checkpoint id
+        gtridBuffer = new byte[JobID.SIZE + Integer.BYTES + Long.BYTES];
+        // branchQualifier = random bytes
+        bqualBuffer = getRandomBytes(Integer.BYTES);
     }
 
     @Override
     public Xid generateXid(RuntimeContext runtimeContext, long checkpointId) {
-        writeNumber(runtimeContext.getIndexOfThisSubtask(), gtridBuffer, 0);
-        // deliberately write only 4 bytes of checkpoint id and rely on random generation
-        writeNumber((int) checkpointId, gtridBuffer, Integer.BYTES);
+        byte[] jobIdBytes = runtimeContext.getJobId().getBytes();
+        System.arraycopy(jobIdBytes, 0, gtridBuffer, 0, JobID.SIZE);
+
+        writeNumber(runtimeContext.getIndexOfThisSubtask(), Integer.BYTES, gtridBuffer, JobID.SIZE);
+        writeNumber(checkpointId, Long.BYTES, gtridBuffer, JobID.SIZE + Integer.BYTES);
         // relying on arrays copying inside XidImpl constructor
         return new XidImpl(FORMAT_ID, gtridBuffer, bqualBuffer);
     }
 
-    private static void writeNumber(int number, byte[] dst, int dstOffset) {
-        for (int i = dstOffset; i < dstOffset + Integer.BYTES; i++) {
+    @Override
+    public boolean belongsToSubtask(Xid xid, RuntimeContext ctx) {
+        if (xid.getFormatId() != FORMAT_ID) {
+            return false;
+        }
+        int subtaskIndex = readNumber(xid.getGlobalTransactionId(), JobID.SIZE, Integer.BYTES);
+        if (subtaskIndex != ctx.getIndexOfThisSubtask()
+                && subtaskIndex <= ctx.getNumberOfParallelSubtasks() - 1) {
+            return false;
+        }
+        byte[] jobIdBytes = new byte[JobID.SIZE];
+        System.arraycopy(xid.getGlobalTransactionId(), 0, jobIdBytes, 0, JobID.SIZE);
+        return Arrays.equals(jobIdBytes, ctx.getJobId().getBytes());
+    }
+
+    private static int readNumber(byte[] bytes, int offset, int numBytes) {
+        int result = 0;
+        for (int i = 0; i < numBytes; i++) {
+            result |= (bytes[offset + i] & 0xff) << Byte.SIZE * i;
+        }
+        return result;
+    }
+
+    private static void writeNumber(long number, int numBytes, byte[] dst, int dstOffset) {
+        for (int i = dstOffset; i < dstOffset + numBytes; i++) {
             dst[i] = (byte) number;
             number >>>= Byte.SIZE;
         }

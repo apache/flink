@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
@@ -60,10 +59,7 @@ public class BlockingShutdownTest {
             // wait for the marker file to appear, which means the process is up properly
             TestJvmProcess.waitForMarkerFile(markerFile, 30000);
 
-            // send it a regular kill command (SIG_TERM)
-            Process kill = Runtime.getRuntime().exec("kill " + pid);
-            kill.waitFor();
-            assertEquals("failed to send SIG_TERM to process", 0, kill.exitValue());
+            TestJvmProcess.killProcessWithSigTerm(pid);
 
             // minimal delay until the Java process object notices that the process is gone
             // this will not let the test fail predictably if the process is actually in fact going
@@ -105,10 +101,7 @@ public class BlockingShutdownTest {
             // wait for the marker file to appear, which means the process is up properly
             TestJvmProcess.waitForMarkerFile(markerFile, 30000);
 
-            // send it a regular kill command (SIG_TERM)
-            Process kill = Runtime.getRuntime().exec("kill " + pid);
-            kill.waitFor();
-            assertEquals("failed to send SIG_TERM to process", 0, kill.exitValue());
+            TestJvmProcess.killProcessWithSigTerm(pid);
 
             // the process should eventually go away
             final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs in nanos

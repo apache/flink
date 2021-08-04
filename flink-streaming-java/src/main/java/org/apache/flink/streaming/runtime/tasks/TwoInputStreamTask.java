@@ -22,11 +22,17 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessorFactory;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -37,25 +43,44 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
+    @Nullable private CheckpointBarrierHandler checkpointBarrierHandler;
+
     public TwoInputStreamTask(Environment env) throws Exception {
         super(env);
     }
 
     @Override
+    protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
+        return Optional.ofNullable(checkpointBarrierHandler);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
     protected void createInputProcessor(
-            List<IndexedInputGate> inputGates1, List<IndexedInputGate> inputGates2) {
+            List<IndexedInputGate> inputGates1,
+            List<IndexedInputGate> inputGates2,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners) {
 
         // create an input instance for each input
+        checkpointBarrierHandler =
+                InputProcessorUtil.createCheckpointBarrierHandler(
+                        this,
+                        configuration,
+                        getCheckpointCoordinator(),
+                        getTaskNameWithSubtaskAndId(),
+                        new List[] {inputGates1, inputGates2},
+                        Collections.emptyList(),
+                        mainMailboxExecutor,
+                        systemTimerService);
+
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
-                        this,
-                        getConfiguration(),
-                        getCheckpointCoordinator(),
-                        getEnvironment().getMetricGroup().getIOMetricGroup(),
-                        getTaskNameWithSubtaskAndId(),
                         mainMailboxExecutor,
                         new List[] {inputGates1, inputGates2},
-                        Collections.emptyList());
+                        getEnvironment().getMetricGroup().getIOMetricGroup(),
+                        checkpointBarrierHandler,
+                        configuration);
+
         checkState(checkpointedInputGates.length == 2);
 
         inputProcessor =
@@ -65,7 +90,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         getEnvironment().getIOManager(),
                         getEnvironment().getMemoryManager(),
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
-                        getStreamStatusMaintainer(),
                         mainOperator,
                         input1WatermarkGauge,
                         input2WatermarkGauge,
@@ -75,6 +99,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
-                        setupNumRecordsInCounter(mainOperator));
+                        setupNumRecordsInCounter(mainOperator),
+                        getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                        gatePartitioners,
+                        getEnvironment().getTaskInfo());
     }
 }

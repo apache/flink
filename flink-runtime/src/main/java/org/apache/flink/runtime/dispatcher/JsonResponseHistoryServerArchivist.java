@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -50,14 +51,15 @@ class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 
     @Override
     public CompletableFuture<Acknowledge> archiveExecutionGraph(
-            AccessExecutionGraph executionGraph) {
+            ExecutionGraphInfo executionGraphInfo) {
         return CompletableFuture.runAsync(
                         ThrowingRunnable.unchecked(
                                 () ->
                                         FsJobArchivist.archiveJob(
                                                 archivePath,
-                                                executionGraph.getJobID(),
-                                                jsonArchivist.archiveJsonWithPath(executionGraph))),
+                                                executionGraphInfo.getJobId(),
+                                                jsonArchivist.archiveJsonWithPath(
+                                                        executionGraphInfo))),
                         ioExecutor)
                 .thenApply(ignored -> Acknowledge.get());
     }

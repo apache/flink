@@ -55,15 +55,17 @@ The `HiveCatalog` serves two purposes; as persistent storage for pure Flink meta
 Flink's [Hive documentation]({{< ref "docs/connectors/table/hive/overview" >}}) provides full details on setting up the catalog and interfacing with an existing Hive installation.
 
 
-{% warn %} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
+{{< hint warning >}} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
+{{< /hint >}}
 
 ### User-Defined Catalog
 
 Catalogs are pluggable and users can develop custom catalogs by implementing the `Catalog` interface.
-To use custom catalogs in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing the `CatalogFactory` interface.
 
-The catalog factory defines a set of properties for configuring the catalog when the SQL CLI bootstraps.
-The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate a corresponding catalog instance.
+In order to use custom catalogs with Flink SQL, users should implement a corresponding catalog factory by implementing the `CatalogFactory` interface.
+The factory is discovered using Java's Service Provider Interfaces (SPI).
+Classes that implement this interface can be added to  `META_INF/services/org.apache.flink.table.factories.Factory` in JAR files.
+The provided factory identifier will be used for matching against the required `type` property in a SQL `CREATE CATALOG` DDL statement.
 
 ## How to Create and Register Flink Tables to Catalog
 
@@ -161,7 +163,7 @@ import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.descriptors.Kafka;
 
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
 // Create a HiveCatalog 
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
@@ -203,7 +205,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.hive.HiveCatalog
 import org.apache.flink.table.descriptors.Kafka
 
-val tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance.build)
+val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
 
 // Create a HiveCatalog 
 val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>")
@@ -243,8 +245,8 @@ from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, CatalogBaseTable
 from pyflink.table.descriptors import Kafka
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-t_env = BatchTableEnvironment.create(environment_settings=settings)
+settings = EnvironmentSettings.in_batch_mode()
+t_env = TableEnvironment.create(settings)
 
 # Create a HiveCatalog
 catalog = HiveCatalog("myhive", None, "<path_of_hive_conf>")

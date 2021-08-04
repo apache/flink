@@ -62,6 +62,7 @@ public class ValueDataTypeConverterTest {
                     {new byte[0], new AtomicDataType(BinaryType.ofEmptyLiteral())},
                     {BigDecimal.ZERO, DataTypes.DECIMAL(1, 0)},
                     {new BigDecimal("12.123"), DataTypes.DECIMAL(5, 3)},
+                    {new BigDecimal("1E+36"), DataTypes.DECIMAL(37, 0)},
                     {12, DataTypes.INT()},
                     {LocalTime.of(13, 24, 25, 1000), DataTypes.TIME(6)},
                     {LocalTime.of(13, 24, 25, 0), DataTypes.TIME(0)},

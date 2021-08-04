@@ -20,15 +20,19 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolServiceBuilder;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
@@ -63,8 +67,12 @@ public class JobMasterSchedulerTest extends TestLogger {
                 new JobMasterBuilder.TestingOnCompletionActions();
         final JobMaster jobMaster =
                 new JobMasterBuilder(
-                                new JobGraph(), TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
-                        .withSchedulerFactory(schedulerFactory)
+                                JobGraphTestUtils.emptyJobGraph(),
+                                TESTING_RPC_SERVICE_RESOURCE.getTestingRpcService())
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        schedulerFactory))
                         .withOnCompletionActions(onCompletionActions)
                         .createJobMaster();
 
@@ -103,6 +111,7 @@ public class JobMasterSchedulerTest extends TestLogger {
                 ExecutionDeploymentTracker executionDeploymentTracker,
                 long initializationTimestamp,
                 ComponentMainThreadExecutor mainThreadExecutor,
+                FatalErrorHandler fatalErrorHandler,
                 JobStatusListener jobStatusListener) {
             return TestingSchedulerNG.newBuilder()
                     .setStartSchedulingRunnable(
@@ -110,6 +119,11 @@ public class JobMasterSchedulerTest extends TestLogger {
                                 throw new FlinkRuntimeException("Could not start scheduling.");
                             })
                     .build();
+        }
+
+        @Override
+        public JobManagerOptions.SchedulerType getSchedulerType() {
+            return JobManagerOptions.SchedulerType.Ng;
         }
     }
 }

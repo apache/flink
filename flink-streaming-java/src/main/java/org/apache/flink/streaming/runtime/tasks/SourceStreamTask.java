@@ -26,12 +26,12 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -109,16 +109,16 @@ public class SourceStreamTask<
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
                                             configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignmentTimeout());
+                                            configuration.getAlignedCheckpointTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
-                                    new CheckpointMetaData(checkpointId, timestamp);
+                                    new CheckpointMetaData(checkpointId, timestamp, timestamp);
 
                             try {
                                 SourceStreamTask.super
                                         .triggerCheckpointAsync(
-                                                checkpointMetaData, checkpointOptions, false)
+                                                checkpointMetaData, checkpointOptions)
                                         .get();
                             } catch (RuntimeException e) {
                                 throw e;
@@ -158,7 +158,16 @@ public class SourceStreamTask<
         // compatibility reasons with the current source interface (source functions run as a loop,
         // not in steps).
         sourceThread.setTaskDescription(getName());
-        sourceThread.start();
+
+        if (operatorChain.isFinishedOnRestore()) {
+            LOG.debug(
+                    "Legacy source {} skip execution since the task is finished on restore",
+                    getTaskNameWithSubtaskAndId());
+            sourceThread.getCompletionFuture().complete(null);
+        } else {
+            sourceThread.start();
+        }
+
         sourceThread
                 .getCompletionFuture()
                 .whenComplete(
@@ -173,31 +182,61 @@ public class SourceStreamTask<
                             } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
-                                mailboxProcessor.allActionsCompleted();
+                                mailboxProcessor.suspend();
                             }
                         });
     }
 
     @Override
+    protected void cleanUpInvoke() throws Exception {
+        if (isFailing()) {
+            interruptSourceThread(true);
+        }
+        super.cleanUpInvoke();
+    }
+
+    @Override
     protected void cancelTask() {
+        cancelTask(true);
+    }
+
+    @Override
+    protected void finishTask() {
+        wasStoppedExternally = true;
+        /**
+         * Currently stop with savepoint relies on the EndOfPartitionEvents propagation and performs
+         * clean shutdown after the stop with savepoint (which can produce some records to process
+         * after the savepoint while stopping). If we interrupt source thread, we might leave the
+         * network stack in an inconsistent state. So, if we want to relay on the clean shutdown, we
+         * can not interrupt the source thread.
+         */
+        cancelTask(false);
+    }
+
+    private void cancelTask(boolean interrupt) {
         try {
             if (mainOperator != null) {
                 mainOperator.cancel();
             }
         } finally {
-            if (sourceThread.isAlive()) {
-                sourceThread.interrupt();
-            } else if (!sourceThread.getCompletionFuture().isDone()) {
-                // source thread didn't start
-                sourceThread.getCompletionFuture().complete(null);
-            }
+            interruptSourceThread(interrupt);
         }
     }
 
-    @Override
-    protected void finishTask() throws Exception {
-        wasStoppedExternally = true;
-        cancelTask();
+    private void interruptSourceThread(boolean interrupt) {
+        // Nothing need to do if the source is finished on restore
+        if (operatorChain != null && operatorChain.isFinishedOnRestore()) {
+            return;
+        }
+
+        if (sourceThread.isAlive()) {
+            if (interrupt) {
+                sourceThread.interrupt();
+            }
+        } else if (!sourceThread.getCompletionFuture().isDone()) {
+            // source thread didn't start
+            sourceThread.getCompletionFuture().complete(null);
+        }
     }
 
     @Override
@@ -211,12 +250,9 @@ public class SourceStreamTask<
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!externallyInducedCheckpoints) {
-            return super.triggerCheckpointAsync(
-                    checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
         } else {
             // we do not trigger checkpoints here, we simply state whether we can trigger them
             synchronized (lock) {
@@ -244,10 +280,10 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+                mainOperator.run(lock, operatorChain);
                 if (!wasStoppedExternally && !isCanceled()) {
                     synchronized (lock) {
-                        operatorChain.setIsStoppingBySyncSavepoint(false);
+                        operatorChain.setIgnoreEndOfInput(false);
                     }
                 }
                 completionFuture.complete(null);

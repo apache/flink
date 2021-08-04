@@ -23,7 +23,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
@@ -54,7 +54,7 @@ public enum JobDispatcherFactory implements DispatcherFactory {
                 fencingToken,
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobGraphStore,
-                        DefaultJobManagerRunnerFactory.INSTANCE),
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE),
                 jobGraph,
                 dispatcherBootstrapFactory,
                 executionMode);

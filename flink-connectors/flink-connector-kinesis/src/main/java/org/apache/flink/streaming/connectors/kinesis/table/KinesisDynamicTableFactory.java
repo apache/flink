@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -36,6 +37,8 @@ import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -57,8 +60,9 @@ public class KinesisDynamicTableFactory
     public DynamicTableSource createDynamicTableSource(Context context) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
-        Properties properties = KinesisOptions.getConsumerProperties(catalogTable.getOptions());
+        ResolvedCatalogTable catalogTable = context.getCatalogTable();
+        Properties properties =
+                KinesisConnectorOptionsUtil.getConsumerProperties(catalogTable.getOptions());
 
         // initialize the table format early in order to register its consumedOptionKeys
         // in the TableFactoryHelper, as those are needed for correct option validation
@@ -67,13 +71,15 @@ public class KinesisDynamicTableFactory
                         DeserializationFormatFactory.class, FactoryUtil.FORMAT);
 
         // Validate option data types
-        helper.validateExcept(KinesisOptions.NON_VALIDATED_PREFIXES);
+        helper.validateExcept(KinesisConnectorOptionsUtil.NON_VALIDATED_PREFIXES);
         // Validate option values
-        validateConsumerProperties(tableOptions.get(KinesisOptions.STREAM), properties);
+        validateConsumerProperties(tableOptions.get(KinesisConnectorOptions.STREAM), properties);
+
+        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
 
         return new KinesisDynamicSource(
-                catalogTable.getSchema().toPhysicalRowDataType(),
-                tableOptions.get(KinesisOptions.STREAM),
+                physicalDataType,
+                tableOptions.get(KinesisConnectorOptions.STREAM),
                 properties,
                 decodingFormat);
     }
@@ -86,8 +92,9 @@ public class KinesisDynamicTableFactory
     public DynamicTableSink createDynamicTableSink(Context context) {
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
-        Properties properties = KinesisOptions.getProducerProperties(catalogTable.getOptions());
+        ResolvedCatalogTable catalogTable = context.getCatalogTable();
+        Properties properties =
+                KinesisConnectorOptionsUtil.getProducerProperties(catalogTable.getOptions());
 
         // initialize the table format early in order to register its consumedOptionKeys
         // in the TableFactoryHelper, as those are needed for correct option validation
@@ -95,18 +102,23 @@ public class KinesisDynamicTableFactory
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, FactoryUtil.FORMAT);
 
         // validate the data types of the table options
-        helper.validateExcept(KinesisOptions.NON_VALIDATED_PREFIXES);
+        helper.validateExcept(KinesisConnectorOptionsUtil.NON_VALIDATED_PREFIXES);
         // Validate option values
         validateKinesisPartitioner(tableOptions, catalogTable);
         validateProducerProperties(properties);
 
+        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
+
         return new KinesisDynamicSink(
-                catalogTable.getSchema().toPhysicalRowDataType(),
-                tableOptions.get(KinesisOptions.STREAM),
+                physicalDataType,
+                tableOptions.get(KinesisConnectorOptions.STREAM),
                 properties,
                 encodingFormat,
-                KinesisOptions.getKinesisPartitioner(
-                        tableOptions, catalogTable, context.getClassLoader()));
+                KinesisConnectorOptionsUtil.getKinesisPartitioner(
+                        tableOptions,
+                        (RowType) physicalDataType.getLogicalType(),
+                        catalogTable.getPartitionKeys(),
+                        context.getClassLoader()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -121,7 +133,7 @@ public class KinesisDynamicTableFactory
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(KinesisOptions.STREAM);
+        options.add(KinesisConnectorOptions.STREAM);
         options.add(FactoryUtil.FORMAT);
         return options;
     }
@@ -129,8 +141,8 @@ public class KinesisDynamicTableFactory
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(KinesisOptions.SINK_PARTITIONER);
-        options.add(KinesisOptions.SINK_PARTITIONER_FIELD_DELIMITER);
+        options.add(KinesisConnectorOptions.SINK_PARTITIONER);
+        options.add(KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER);
         return options;
     }
 
@@ -151,14 +163,14 @@ public class KinesisDynamicTableFactory
     public static void validateKinesisPartitioner(
             ReadableConfig tableOptions, CatalogTable targetTable) {
         tableOptions
-                .getOptional(KinesisOptions.SINK_PARTITIONER)
+                .getOptional(KinesisConnectorOptions.SINK_PARTITIONER)
                 .ifPresent(
                         partitioner -> {
                             if (targetTable.isPartitioned()) {
                                 throw new ValidationException(
                                         String.format(
                                                 "Cannot set %s option for a table defined with a PARTITIONED BY clause",
-                                                KinesisOptions.SINK_PARTITIONER.key()));
+                                                KinesisConnectorOptions.SINK_PARTITIONER.key()));
                             }
                         });
     }

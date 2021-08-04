@@ -1,6 +1,6 @@
 ---
 title: "CREATE Statements"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/table/sql/create.html
@@ -69,8 +69,7 @@ The following examples show how to run a CREATE statement in SQL CLI.
 {{< tabs "0b1b298a-b92f-4f95-8d06-49544b487b75" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -89,8 +88,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // SQL query with a registered table
 // register a table named "Orders"
@@ -109,8 +107,7 @@ tableEnv.executeSql(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(...)
 
 # SQL query with a registered table
 # register a table named "Orders"
@@ -148,7 +145,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 The following grammar gives an overview about the available syntax:
 
 ```text
-CREATE TABLE [catalog_name.][db_name.]table_name
+CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   (
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
@@ -227,7 +224,7 @@ The following statement creates a table with an additional metadata column that 
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `record_time` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+  `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -235,7 +232,7 @@ CREATE TABLE MyTable (
 ```
 
 Every metadata field is identified by a string-based key and has a documented data type. For example,
-the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP(3) WITH LOCAL TIME ZONE`
+the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP_LTZ(3)`
 that can be used for both reading and writing records.
 
 In the example above, the metadata column `record_time` becomes part of the table's schema and can be
@@ -251,7 +248,7 @@ For convenience, the `FROM` clause can be omitted if the column name should be u
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA    -- use column name as metadata key
+  `timestamp` TIMESTAMP_LTZ(3) METADATA    -- use column name as metadata key
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -304,9 +301,9 @@ MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
 Computed columns are virtual columns that are generated using the syntax `column_name AS computed_column_expression`.
 
 A computed column evaluates an expression that can reference other columns declared in the same table.
-Both physical columns and metadata columns can be accessed if they preceed the computed column in the
-schema declaration. The column itself is not physically stored within the table. The column's data type
-is derived automatically from the given expression and does not have to be declared manually.
+Both physical columns and metadata columns can be accessed. The column itself is not physically stored
+within the table. The column's data type is derived automatically from the given expression and does
+not have to be declared manually.
 
 The planner will transform computed columns into a regular projection after the source. For optimization
 or [watermark strategy push down]({{< ref "docs/dev/table/sourcesSinks" >}}), the evaluation might be spread
@@ -559,7 +556,7 @@ The key and value of expression `key1=val1` should both be string literal.
 ## CREATE VIEW
 ```sql
 CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
-  [{columnName [, columnName ]* }] [COMMENT view_comment]
+  [( columnName [, columnName ]* )] [COMMENT view_comment]
   AS query_expression
 ```
 
@@ -588,7 +585,7 @@ If the language tag is JAVA/SCALA, the identifier is the full classpath of the U
 
 If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) for more details.
 
-If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-javascala-program).
+If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-javascala-program).
 
 **TEMPORARY**
 

@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType;
@@ -30,7 +30,9 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
@@ -64,10 +66,10 @@ final class SetOperationFactory {
 
     private void validateSetOperation(
             SetQueryOperationType operationType, QueryOperation left, QueryOperation right) {
-        TableSchema leftSchema = left.getTableSchema();
-        int leftFieldCount = leftSchema.getFieldCount();
-        TableSchema rightSchema = right.getTableSchema();
-        int rightFieldCount = rightSchema.getFieldCount();
+        ResolvedSchema leftSchema = left.getResolvedSchema();
+        int leftFieldCount = leftSchema.getColumnCount();
+        ResolvedSchema rightSchema = right.getResolvedSchema();
+        int rightFieldCount = rightSchema.getColumnCount();
 
         if (leftFieldCount != rightFieldCount) {
             throw new ValidationException(
@@ -78,8 +80,8 @@ final class SetOperationFactory {
                             rightFieldCount));
         }
 
-        final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
-        final DataType[] rightDataTypes = rightSchema.getFieldDataTypes();
+        final List<DataType> leftDataTypes = leftSchema.getColumnDataTypes();
+        final List<DataType> rightDataTypes = rightSchema.getColumnDataTypes();
 
         IntStream.range(0, leftFieldCount)
                 .forEach(
@@ -92,8 +94,8 @@ final class SetOperationFactory {
                                                         + "Could not find a common type at position %s for '%s' and '%s'.",
                                                 operationType.toString().toLowerCase(),
                                                 idx,
-                                                leftDataTypes[idx],
-                                                rightDataTypes[idx]));
+                                                leftDataTypes.get(idx),
+                                                rightDataTypes.get(idx)));
                             }
                         });
     }
@@ -109,26 +111,26 @@ final class SetOperationFactory {
         }
     }
 
-    private TableSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {
-        final TableSchema leftSchema = left.getTableSchema();
-        final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
-        final DataType[] rightDataTypes = right.getTableSchema().getFieldDataTypes();
+    private ResolvedSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {
+        final ResolvedSchema leftSchema = left.getResolvedSchema();
+        final List<DataType> leftDataTypes = leftSchema.getColumnDataTypes();
+        final List<DataType> rightDataTypes = right.getResolvedSchema().getColumnDataTypes();
 
-        final DataType[] resultDataTypes =
-                IntStream.range(0, leftSchema.getFieldCount())
+        final List<DataType> resultDataTypes =
+                IntStream.range(0, leftSchema.getColumnCount())
                         .mapToObj(
                                 idx ->
                                         findCommonColumnType(leftDataTypes, rightDataTypes, idx)
                                                 .orElseThrow(AssertionError::new))
                         .map(TypeConversions::fromLogicalToDataType)
-                        .toArray(DataType[]::new);
-        return TableSchema.builder().fields(leftSchema.getFieldNames(), resultDataTypes).build();
+                        .collect(Collectors.toList());
+        return ResolvedSchema.physical(leftSchema.getColumnNames(), resultDataTypes);
     }
 
     private Optional<LogicalType> findCommonColumnType(
-            DataType[] leftDataTypes, DataType[] rightDataTypes, int idx) {
-        final LogicalType leftType = leftDataTypes[idx].getLogicalType();
-        final LogicalType rightType = rightDataTypes[idx].getLogicalType();
+            List<DataType> leftDataTypes, List<DataType> rightDataTypes, int idx) {
+        final LogicalType leftType = leftDataTypes.get(idx).getLogicalType();
+        final LogicalType rightType = rightDataTypes.get(idx).getLogicalType();
         return LogicalTypeMerging.findCommonType(Arrays.asList(leftType, rightType));
     }
 }

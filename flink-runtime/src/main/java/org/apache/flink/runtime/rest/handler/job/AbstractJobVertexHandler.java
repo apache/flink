@@ -49,7 +49,7 @@ import java.util.concurrent.Executor;
  */
 public abstract class AbstractJobVertexHandler<
                 R extends ResponseBody, M extends JobVertexMessageParameters>
-        extends AbstractExecutionGraphHandler<R, M> {
+        extends AbstractAccessExecutionGraphHandler<R, M> {
 
     /**
      * Instantiates a new Abstract job vertex handler.

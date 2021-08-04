@@ -65,7 +65,7 @@ These two variants come with their respective builders that can be created with 
 When creating either a row or a bulk encoded sink we have to specify the base path where the buckets will be
 stored and the encoding logic for our data.
 
-Please check out the JavaDoc for [FileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/connector/file/sink/FileSink.html)
+Please check out the JavaDoc for {{< javadoc file="org/apache/flink/connector/file/sink/FileSink.html" name="FileSink">}}
 for all the configuration options and more documentation about the implementation of the different data formats.
 
 ### Row-encoded Formats
@@ -140,7 +140,7 @@ a rolling policy that rolls the in-progress part file on any of the following 3 
 ### Bulk-encoded Formats
 
 Bulk-encoded sinks are created similarly to the row-encoded ones, but instead of
-specifying an `Encoder`, we have to specify a [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
+specifying an `Encoder`, we have to specify a {{< javadoc file="org/apache/flink/api/common/serialization/BulkWriter.Factory.html" name="BulkWriter.Factory">}}.
 The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
 is finalized for further encoding purposes.
 
@@ -166,13 +166,7 @@ For writing to other Parquet compatible data formats, users need to create the P
 
 To use the Parquet bulk encoder in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-parquet{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-parquet withScalaVersion >}}
 
 A `FileSink` that writes Avro data to Parquet format can be created like this:
 
@@ -259,13 +253,7 @@ AvroWriters class.
 
 To use the Avro writers in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-avro withScalaVersion >}}
 
 A `FileSink` that writes data to Avro files can be created like this:
 
@@ -430,13 +418,8 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the ORC bulk encoder in an application, users need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-orc{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-orc withScalaVersion >}}
+
 
 And then a `FileSink` that writes data in ORC format can be created like this:
 
@@ -554,13 +537,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 To use the `SequenceFile` bulk encoder in your application you need to add the following dependency:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-sequence-file</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-sequence-file withScalaVersion >}}
 
 A simple `SequenceFile` writer can be created like this:
 

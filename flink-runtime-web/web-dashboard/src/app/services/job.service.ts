@@ -28,6 +28,7 @@ import {
   JobDetailCorrectInterface,
   JobDetailInterface,
   JobExceptionInterface,
+  JobFlameGraphInterface,
   JobOverviewInterface,
   JobSubTaskInterface,
   JobSubTaskTimeInterface,
@@ -169,6 +170,18 @@ export class JobService {
    */
   loadOperatorBackPressure(jobId: string, vertexId: string) {
     return this.httpClient.get<JobBackpressureInterface>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/backpressure`);
+  }
+
+  /**
+   * Get vertex flame graph
+   * @param jobId
+   * @param vertexId
+   * @param type
+   */
+  loadOperatorFlameGraph(jobId: string, vertexId: string, type: string) {
+    return this.httpClient.get<JobFlameGraphInterface>(
+      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/flamegraph?type=${type}`
+    );
   }
 
   /**

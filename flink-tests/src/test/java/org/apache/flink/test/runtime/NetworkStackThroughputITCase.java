@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -43,6 +44,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /** Manually test the throughput of the network stack. */
@@ -315,11 +318,11 @@ public class NetworkStackThroughputITCase extends TestLogger {
             boolean isSlowSender,
             boolean isSlowReceiver,
             int numSubtasks) {
-        JobGraph jobGraph = new JobGraph("Speed Test");
         SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
+        final List<JobVertex> jobVertices = new ArrayList<>();
+
         JobVertex producer = new JobVertex("Speed Test Producer");
-        jobGraph.addVertex(producer);
         producer.setSlotSharingGroup(sharingGroup);
 
         producer.setInvokableClass(SpeedTestProducer.class);
@@ -327,23 +330,26 @@ public class NetworkStackThroughputITCase extends TestLogger {
         producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
         producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
 
+        jobVertices.add(producer);
+
         JobVertex forwarder = null;
         if (useForwarder) {
             forwarder = new JobVertex("Speed Test Forwarder");
-            jobGraph.addVertex(forwarder);
             forwarder.setSlotSharingGroup(sharingGroup);
 
             forwarder.setInvokableClass(SpeedTestForwarder.class);
             forwarder.setParallelism(numSubtasks);
+            jobVertices.add(forwarder);
         }
 
         JobVertex consumer = new JobVertex("Speed Test Consumer");
-        jobGraph.addVertex(consumer);
         consumer.setSlotSharingGroup(sharingGroup);
 
         consumer.setInvokableClass(SpeedTestConsumer.class);
         consumer.setParallelism(numSubtasks);
         consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
+
+        jobVertices.add(consumer);
 
         if (useForwarder) {
             forwarder.connectNewDataSetAsInput(
@@ -355,7 +361,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
                     producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
         }
 
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(jobVertices.toArray(new JobVertex[0]));
     }
 
     public static void main(String[] args) throws Exception {

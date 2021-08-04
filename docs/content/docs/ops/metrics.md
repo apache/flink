@@ -352,7 +352,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardMeterWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard meters.
+Flink offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardMeterWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard meters.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>
@@ -1051,6 +1051,11 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### Availability
+
+{{< hint warning >}}
+If [Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) is enabled then these metrics, except `numRestarts`, do not work correctly.
+{{< /hint >}}
+
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1097,6 +1102,11 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### Checkpointing
+
+{{< hint warning >}}
+If [Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) is enabled then checkpointing metrics with the `Job` scope do not work correctly.
+{{< /hint >}}
+
 Note that for failed checkpoints, metrics are updated on a best efforts basis and may be not accurate.
 <table class="table table-bordered">
   <thead>
@@ -1465,6 +1475,28 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
   </tbody>
 </table>
 
+#### HBase Connectors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>lookupCacheHitRate</td>
+      <td>n/a</td>
+      <td>Cache hit ratio for lookup.</td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
 ### System resources
 
 System resources reporting is disabled by default. When `metrics.system-resource`
@@ -1609,7 +1641,7 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </tbody>
 </table>
 
-## Latency tracking
+## End-to-End latency tracking
 
 Flink allows to track the latency of records travelling through the system. This feature is disabled by default.
 To enable the latency tracking you must set the `latencyTrackingInterval` to a positive number in either the
@@ -1637,6 +1669,17 @@ up an automated clock synchronisation service (like NTP) to avoid false latency 
 <span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
 of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging 
 purposes.
+
+## State access latency tracking
+
+Flink also allows to track the keyed state access latency for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
+To enable this feature you must set the `state.backend.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
+
+Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.backend.latency-track.sample-interval`.
+This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
+
+As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
+A larger value of this configuration will require more memory, but will provide a more accurate result.
 
 ## REST API integration
 
@@ -1780,12 +1823,12 @@ Request specific aggregated values for specific metrics:
   {
     "id": "metric1",
     "min": 1,
-    "max": 34,
+    "max": 34
   },
   {
     "id": "metric2",
     "min": 2,
-    "max": 14,
+    "max": 14
   }
 ]
 ```

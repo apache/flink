@@ -62,9 +62,8 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
             throws Exception {
         checkpoints.addLast(checkpoint);
 
-        if (checkpoints.size() > maxRetainedCheckpoints) {
-            removeOldestCheckpoint();
-        }
+        CheckpointSubsumeHelper.subsume(
+                checkpoints, maxRetainedCheckpoints, CompletedCheckpoint::discardOnSubsume);
     }
 
     @VisibleForTesting

@@ -22,11 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
-import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper.LongRetrievableStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.Before;
@@ -36,11 +37,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link KubernetesStateHandleStore} operations. */
@@ -49,14 +51,16 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     private static final String PREFIX = "test-prefix-";
     private final String key = PREFIX + JobID.generate();
     private final Predicate<String> filter = k -> k.startsWith(PREFIX);
-    private final Long state = 12345L;
+    private final TestingLongStateHandleHelper.LongStateHandle state =
+            new TestingLongStateHandleHelper.LongStateHandle(12345L);
 
-    private TestingLongStateHandleHelper longStateStorage;
+    private final TestingLongStateHandleHelper longStateStorage =
+            new TestingLongStateHandleHelper();
 
     @Before
     public void setup() {
         super.setup();
-        longStateStorage = new TestingLongStateHandleHelper();
+        TestingLongStateHandleHelper.clearGlobalState();
     }
 
     @Test
@@ -67,13 +71,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
                             assertThat(store.getAllAndLock().size(), is(1));
                             assertThat(store.getAndLock(key).retrieveState(), is(state));
@@ -92,13 +98,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
 
                             getLeaderConfigMap().getData().put(key, "existing data");
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
 
                             try {
                                 store.addAndLock(key, state);
@@ -110,13 +118,49 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                                 key, LEADER_CONFIGMAP_NAME);
                                 assertThat(ex, FlinkMatchers.containsMessage(msg));
                             }
-                            assertThat(longStateStorage.getStateHandles().size(), is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(0)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
                                     is(1));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testAddWithPossiblyInconsistentStateHandling() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final FlinkKubeClient anotherFlinkKubeClient =
+                                    createFlinkKubeClientBuilder()
+                                            .setCheckAndUpdateConfigMapFunction(
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    new PossibleInconsistentStateException()))
+                                            .build();
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            try {
+                                store.addAndLock(key, state);
+                                fail("PossibleInconsistentStateException should have been thrown.");
+                            } catch (PossibleInconsistentStateException ex) {
+                                // PossibleInconsistentStateException is expected
+                            }
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
                         });
             }
         };
@@ -128,13 +172,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
             {
                 runTest(
                         () -> {
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
 
                             try {
                                 store.addAndLock(key, state);
@@ -146,12 +192,10 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                                 LEADER_CONFIGMAP_NAME);
                                 assertThat(ex, FlinkMatchers.containsMessage(msg));
                             }
-                            assertThat(longStateStorage.getStateHandles().size(), is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(1));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(0)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
                                     is(1));
                         });
             }
@@ -166,17 +210,20 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
 
                             store.addAndLock(key, state);
 
-                            final Long newState = 23456L;
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
                             final StringResourceVersion resourceVersion = store.exists(key);
                             store.replace(key, resourceVersion, newState);
 
@@ -195,14 +242,17 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
-                            final Long newState = 23456L;
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
 
                             try {
                                 assertThat(
@@ -230,14 +280,17 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
-                            final Long newState = 23456L;
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
 
                             store.addAndLock(key, state);
                             // Lost leadership
@@ -253,18 +306,14 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             // The state do not change
                             assertThat(store.getAndLock(key).retrieveState(), is(state));
 
-                            assertThat(longStateStorage.getStateHandles().size(), is(2));
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(0)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
                                     is(0));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(1)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(1),
                                     is(1));
                         });
             }
@@ -280,13 +329,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
 
                             final FlinkKubeClient anotherFlinkKubeClient =
@@ -296,15 +347,18 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                                                         throw updateException;
                                                     })
                                             .build();
-                            final KubernetesStateHandleStore<Long> anotherStore =
-                                    new KubernetesStateHandleStore<>(
-                                            anotherFlinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    anotherStore =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
 
-                            final Long newState = 23456L;
+                            final TestingLongStateHandleHelper.LongStateHandle newState =
+                                    new TestingLongStateHandleHelper.LongStateHandle(23456L);
                             final StringResourceVersion resourceVersion = anotherStore.exists(key);
                             assertThat(resourceVersion.isExisting(), is(true));
                             try {
@@ -318,19 +372,84 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             // The state do not change
                             assertThat(anotherStore.getAndLock(key).retrieveState(), is(state));
 
-                            assertThat(longStateStorage.getStateHandles().size(), is(2));
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(0)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
                                     is(0));
                             assertThat(
-                                    longStateStorage
-                                            .getStateHandles()
-                                            .get(1)
-                                            .getNumberOfDiscardCalls(),
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(1),
                                     is(1));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testReplaceFailedWithPossiblyInconsistentState() throws Exception {
+        final PossibleInconsistentStateException updateException =
+                new PossibleInconsistentStateException();
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            store.addAndLock(key, state);
+
+                            final FlinkKubeClient anotherFlinkKubeClient =
+                                    createFlinkKubeClientBuilder()
+                                            .setCheckAndUpdateConfigMapFunction(
+                                                    (configMapName, function) ->
+                                                            FutureUtils.completedExceptionally(
+                                                                    updateException))
+                                            .build();
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    anotherStore =
+                                            new KubernetesStateHandleStore<>(
+                                                    anotherFlinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+
+                            final StringResourceVersion resourceVersion = anotherStore.exists(key);
+                            assertThat(resourceVersion.isExisting(), is(true));
+                            try {
+                                anotherStore.replace(
+                                        key,
+                                        resourceVersion,
+                                        new TestingLongStateHandleHelper.LongStateHandle(23456L));
+                                fail(
+                                        "An exception having a PossibleInconsistentStateException as its cause should have been thrown.");
+                            } catch (Exception ex) {
+                                assertThat(ex, is(updateException));
+                            }
+                            assertThat(anotherStore.getAllAndLock().size(), is(1));
+                            // The state does not change
+                            assertThat(anotherStore.getAndLock(key).retrieveState(), is(state));
+
+                            assertThat(TestingLongStateHandleHelper.getGlobalStorageSize(), is(2));
+                            // no state was discarded
+                            assertThat(
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(0),
+                                    is(0));
+                            assertThat(
+                                    TestingLongStateHandleHelper
+                                            .getDiscardCallCountForStateHandleByIndex(1),
+                                    is(0));
                         });
             }
         };
@@ -344,13 +463,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
                             assertThat(
                                     store.exists(key),
@@ -369,13 +490,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             final String nonExistingKey = "non-existing-key";
                             store.addAndLock(key, state);
                             assertThat(
@@ -404,26 +527,37 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             final List<Long> expected = Arrays.asList(3L, 2L, 1L);
 
                             for (Long each : expected) {
-                                store.addAndLock(key + each, each);
+                                store.addAndLock(
+                                        key + each,
+                                        new TestingLongStateHandleHelper.LongStateHandle(each));
                             }
-                            final Long[] actual =
+                            final TestingLongStateHandleHelper.LongStateHandle[] actual =
                                     store.getAllAndLock().stream()
                                             .map(
                                                     FunctionUtils.uncheckedFunction(
                                                             e -> e.f0.retrieveState()))
-                                            .toArray(Long[]::new);
+                                            .toArray(
+                                                    TestingLongStateHandleHelper.LongStateHandle[]
+                                                            ::new);
                             assertThat(
-                                    Arrays.asList(actual), containsInAnyOrder(expected.toArray()));
+                                    Arrays.stream(actual)
+                                            .map(
+                                                    TestingLongStateHandleHelper.LongStateHandle
+                                                            ::getValue)
+                                            .collect(Collectors.toList()),
+                                    containsInAnyOrder(expected.toArray()));
                         });
             }
         };
@@ -437,13 +571,15 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                         () -> {
                             leaderCallbackGrantLeadership();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             final List<String> expected = Arrays.asList(key + 3, key + 2, key + 1);
 
                             for (String each : expected) {
@@ -465,24 +601,23 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                 runTest(
                         () -> {
                             leaderCallbackGrantLeadership();
-                            LongRetrievableStateHandle.clearNumberOfGlobalDiscardCalls();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
                             assertThat(store.getAllAndLock().size(), is(1));
                             assertThat(store.releaseAndTryRemove(key), is(true));
                             assertThat(store.getAllAndLock().size(), is(0));
 
                             // State should also be discarded.
-                            assertThat(
-                                    LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls(),
-                                    is(1));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(1));
                         });
             }
         };
@@ -495,15 +630,16 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                 runTest(
                         () -> {
                             leaderCallbackGrantLeadership();
-                            LongRetrievableStateHandle.clearNumberOfGlobalDiscardCalls();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
 
                             store.addAndLock(key, state);
                             // Lost leadership
@@ -516,9 +652,7 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             assertThat(store.releaseAndTryRemove(key), is(false));
                             assertThat(store.getAllAndLock().size(), is(1));
 
-                            assertThat(
-                                    LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls(),
-                                    is(0));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
                         });
             }
         };
@@ -531,23 +665,24 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                 runTest(
                         () -> {
                             leaderCallbackGrantLeadership();
-                            LongRetrievableStateHandle.clearNumberOfGlobalDiscardCalls();
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
-                            store.addAndLock(key + "1", 2L);
+                            store.addAndLock(
+                                    key + "1",
+                                    new TestingLongStateHandleHelper.LongStateHandle(2L));
                             assertThat(store.getAllAndLock().size(), is(2));
                             store.releaseAndTryRemoveAll();
                             assertThat(store.getAllAndLock().size(), is(0));
-                            assertThat(
-                                    LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls(),
-                                    is(2));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(2));
                         });
             }
         };
@@ -560,26 +695,27 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                 runTest(
                         () -> {
                             leaderCallbackGrantLeadership();
-                            LongRetrievableStateHandle.clearNumberOfGlobalDiscardCalls();
 
                             final String anotherKey = "key-not-with-prefix";
                             getLeaderConfigMap().getData().put(anotherKey, "value");
 
-                            final KubernetesStateHandleStore<Long> store =
-                                    new KubernetesStateHandleStore<>(
-                                            flinkKubeClient,
-                                            LEADER_CONFIGMAP_NAME,
-                                            longStateStorage,
-                                            filter,
-                                            LOCK_IDENTITY);
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
                             store.addAndLock(key, state);
-                            store.addAndLock(key + "1", 2L);
+                            store.addAndLock(
+                                    key + "1",
+                                    new TestingLongStateHandleHelper.LongStateHandle(2L));
                             assertThat(store.getAllAndLock().size(), is(2));
                             store.clearEntries();
                             assertThat(store.getAllAndLock().size(), is(0));
-                            assertThat(
-                                    LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls(),
-                                    is(0));
+                            assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(0));
 
                             // Should only remove the key with specified prefix.
                             assertThat(

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -48,8 +48,9 @@ import java.util.concurrent.Executor;
 
 /** Request handler that returns the aggregated accumulators of a job. */
 public class JobAccumulatorsHandler
-        extends AbstractExecutionGraphHandler<JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
-        implements JsonArchivist {
+        extends AbstractAccessExecutionGraphHandler<
+                JobAccumulatorsInfo, JobAccumulatorsMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
 
     public JobAccumulatorsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,

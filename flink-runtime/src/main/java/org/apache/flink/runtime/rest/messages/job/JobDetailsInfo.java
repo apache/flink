@@ -59,6 +59,8 @@ public class JobDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_DURATION = "duration";
 
+    public static final String FIELD_NAME_MAX_PARALLELISM = "maxParallelism";
+
     // TODO: For what do we need this???
     public static final String FIELD_NAME_NOW = "now";
 
@@ -92,6 +94,9 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_DURATION)
     private final long duration;
 
+    @JsonProperty(FIELD_NAME_MAX_PARALLELISM)
+    private final long maxParallelism;
+
     @JsonProperty(FIELD_NAME_NOW)
     private final long now;
 
@@ -118,6 +123,7 @@ public class JobDetailsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_START_TIME) long startTime,
             @JsonProperty(FIELD_NAME_END_TIME) long endTime,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
+            @JsonProperty(FIELD_NAME_MAX_PARALLELISM) long maxParallelism,
             @JsonProperty(FIELD_NAME_NOW) long now,
             @JsonProperty(FIELD_NAME_TIMESTAMPS) Map<JobStatus, Long> timestamps,
             @JsonProperty(FIELD_NAME_JOB_VERTEX_INFOS)
@@ -133,6 +139,7 @@ public class JobDetailsInfo implements ResponseBody {
         this.startTime = startTime;
         this.endTime = endTime;
         this.duration = duration;
+        this.maxParallelism = maxParallelism;
         this.now = now;
         this.timestamps = Preconditions.checkNotNull(timestamps);
         this.jobVertexInfos = Preconditions.checkNotNull(jobVertexInfos);
@@ -153,6 +160,7 @@ public class JobDetailsInfo implements ResponseBody {
                 && startTime == that.startTime
                 && endTime == that.endTime
                 && duration == that.duration
+                && maxParallelism == that.maxParallelism
                 && now == that.now
                 && Objects.equals(jobId, that.jobId)
                 && Objects.equals(name, that.name)
@@ -173,6 +181,7 @@ public class JobDetailsInfo implements ResponseBody {
                 startTime,
                 endTime,
                 duration,
+                maxParallelism,
                 now,
                 timestamps,
                 jobVertexInfos,
@@ -208,6 +217,11 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonIgnore
     public long getEndTime() {
         return endTime;
+    }
+
+    @JsonIgnore
+    public long getMaxParallelism() {
+        return maxParallelism;
     }
 
     @JsonIgnore
@@ -251,6 +265,8 @@ public class JobDetailsInfo implements ResponseBody {
 
         public static final String FIELD_NAME_JOB_VERTEX_NAME = "name";
 
+        public static final String FIELD_NAME_MAX_PARALLELISM = "maxParallelism";
+
         public static final String FIELD_NAME_PARALLELISM = "parallelism";
 
         public static final String FIELD_NAME_JOB_VERTEX_STATE = "status";
@@ -271,6 +287,9 @@ public class JobDetailsInfo implements ResponseBody {
 
         @JsonProperty(FIELD_NAME_JOB_VERTEX_NAME)
         private final String name;
+
+        @JsonProperty(FIELD_NAME_MAX_PARALLELISM)
+        private final int maxParallelism;
 
         @JsonProperty(FIELD_NAME_PARALLELISM)
         private final int parallelism;
@@ -299,6 +318,7 @@ public class JobDetailsInfo implements ResponseBody {
                         @JsonProperty(FIELD_NAME_JOB_VERTEX_ID)
                         JobVertexID jobVertexID,
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_NAME) String name,
+                @JsonProperty(FIELD_NAME_MAX_PARALLELISM) int maxParallelism,
                 @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_STATE) ExecutionState executionState,
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_START_TIME) long startTime,
@@ -309,6 +329,7 @@ public class JobDetailsInfo implements ResponseBody {
                 @JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) IOMetricsInfo jobVertexMetrics) {
             this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
             this.name = Preconditions.checkNotNull(name);
+            this.maxParallelism = maxParallelism;
             this.parallelism = parallelism;
             this.executionState = Preconditions.checkNotNull(executionState);
             this.startTime = startTime;
@@ -326,6 +347,11 @@ public class JobDetailsInfo implements ResponseBody {
         @JsonIgnore
         public String getName() {
             return name;
+        }
+
+        @JsonIgnore
+        public int getMaxParallelism() {
+            return maxParallelism;
         }
 
         @JsonIgnore
@@ -372,7 +398,8 @@ public class JobDetailsInfo implements ResponseBody {
                 return false;
             }
             JobVertexDetailsInfo that = (JobVertexDetailsInfo) o;
-            return parallelism == that.parallelism
+            return maxParallelism == that.maxParallelism
+                    && parallelism == that.parallelism
                     && startTime == that.startTime
                     && endTime == that.endTime
                     && duration == that.duration
@@ -388,6 +415,7 @@ public class JobDetailsInfo implements ResponseBody {
             return Objects.hash(
                     jobVertexID,
                     name,
+                    maxParallelism,
                     parallelism,
                     executionState,
                     startTime,

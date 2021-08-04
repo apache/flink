@@ -21,16 +21,16 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Test;
 
@@ -43,7 +43,6 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.se
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,7 +64,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -88,7 +87,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -123,7 +122,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertFalse(slot.isAlive());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -165,7 +164,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertFalse(slot.isAlive());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -197,7 +196,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 
             assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 
-            assertNull(vertex.getFailureCause());
+            assertFalse(vertex.getFailureInfo().isPresent());
 
             assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
             assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
@@ -242,7 +241,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     public void testSendCancelAndReceiveFail() throws Exception {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
-                        new JobGraph(createNoOpVertex(10)),
+                        JobGraphTestUtils.streamingJobGraph(createNoOpVertex(10)),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
         final ExecutionGraph graph = scheduler.getExecutionGraph();
 
@@ -265,9 +264,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
                         || exec.getState() == ExecutionState.CANCELED);
 
         assertFalse(exec.getAssignedResource().isAlive());
-        assertEquals(
-                vertices.length - 1,
-                exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
+        assertEquals(vertices.length - 1, graph.getRegisteredExecutions().size());
     }
 
     private static class CancelSequenceSimpleAckingTaskManagerGateway

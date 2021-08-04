@@ -61,8 +61,7 @@ The following examples show how to run a DESCRIBE statement in SQL CLI.
 {{< tabs "a5de1760-e363-4b8d-9d6f-0bacb35b9dcf" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // register a table named "Orders"
 tableEnv.executeSql(
@@ -79,12 +78,13 @@ tableEnv.executeSql(
 // print the schema
 tableEnv.executeSql("DESCRIBE Orders").print();
 
+// print the schema
+tableEnv.executeSql("DESC Orders").print();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // register a table named "Orders"
  tableEnv.executeSql(
@@ -101,12 +101,13 @@ val tableEnv = TableEnvironment.create(settings)
 // print the schema
 tableEnv.executeSql("DESCRIBE Orders").print()
 
+// print the schema
+tableEnv.executeSql("DESC Orders").print()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = TableEnvironment.create(...)
 
 # register a table named "Orders"
 table_env.execute_sql( \
@@ -123,6 +124,8 @@ table_env.execute_sql( \
 # print the schema
 table_env.execute_sql("DESCRIBE Orders").print()
 
+# print the schema
+table_env.execute_sql("DESC Orders").print()
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -142,6 +145,7 @@ Flink SQL> CREATE TABLE Orders (
 
 Flink SQL> DESCRIBE Orders;
 
+Flink SQL> DESC Orders;
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -218,5 +222,5 @@ root
 ## Syntax
 
 ```sql
-DESCRIBE [catalog_name.][db_name.]table_name
+{ DESCRIBE | DESC } [catalog_name.][db_name.]table_name
 ```

@@ -227,9 +227,7 @@ public class TwoInputStreamTaskTest {
 
         testHarness.waitForInputProcessing();
         expectedOutput.add(new Watermark(initialTime + 5));
-        // We don't expect to see Watermark(6) here because the idle status of one
-        // input doesn't propagate to the other input. That is, if input 1 is at WM 6 and input
-        // two was at WM 5 before going to IDLE then the output watermark will not jump to WM 6.
+        expectedOutput.add(new Watermark(initialTime + 6));
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -712,9 +710,11 @@ public class TwoInputStreamTaskTest {
                 new StreamRecord<>("[Operator0-1]: End of input"),
                 new StreamRecord<>("[Operator0-2]: Hello-2"),
                 new StreamRecord<>("[Operator0-2]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Operator0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -740,7 +740,7 @@ public class TwoInputStreamTaskTest {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 

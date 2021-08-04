@@ -44,6 +44,7 @@ import java.util.Optional;
  */
 @PublicEvolving
 public abstract class UserDefinedType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private final @Nullable ObjectIdentifier objectIdentifier;
 

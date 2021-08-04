@@ -43,28 +43,13 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
     }
 
     @Override
-    public final Counter counter(int name) {
-        return parentMetricGroup.counter(name);
-    }
-
-    @Override
     public final Counter counter(String name) {
         return parentMetricGroup.counter(name);
     }
 
     @Override
-    public final <C extends Counter> C counter(int name, C counter) {
-        return parentMetricGroup.counter(name, counter);
-    }
-
-    @Override
     public final <C extends Counter> C counter(String name, C counter) {
         return parentMetricGroup.counter(name, counter);
-    }
-
-    @Override
-    public final <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-        return parentMetricGroup.gauge(name, gauge);
     }
 
     @Override
@@ -78,23 +63,8 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
     }
 
     @Override
-    public final <H extends Histogram> H histogram(int name, H histogram) {
-        return parentMetricGroup.histogram(name, histogram);
-    }
-
-    @Override
     public <M extends Meter> M meter(String name, M meter) {
         return parentMetricGroup.meter(name, meter);
-    }
-
-    @Override
-    public <M extends Meter> M meter(int name, M meter) {
-        return parentMetricGroup.meter(name, meter);
-    }
-
-    @Override
-    public final MetricGroup addGroup(int name) {
-        return parentMetricGroup.addGroup(name);
     }
 
     @Override

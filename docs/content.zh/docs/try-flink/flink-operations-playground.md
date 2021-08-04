@@ -88,16 +88,28 @@ Job 监控以及资源管理。Flink TaskManager 运行 worker 进程，
 
 我们所使用的配置文件位于 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) 仓库中，
-检出该仓库并启动 docker 环境：
+首先检出该仓库并构建 docker 镜像：
 
 ```bash
-git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
+git clone https://github.com/apache/flink-playgrounds.git
 cd flink-playgrounds/operations-playground
 docker-compose build
+```
+
+接下来在开始运行之前先在 Docker 主机上创建检查点和保存点目录（这些卷由 jobmanager 和 taskmanager 挂载，如 docker-compose.yaml 中所指定的）：
+
+```bash
+mkdir -p /tmp/flink-checkpoints-directory
+mkdir -p /tmp/flink-savepoints-directory
+```
+
+然后启动环境：
+
+```bash
 docker-compose up -d
 ```
 
-接下来可以执行如下命令来查看 Docker 容器：
+接下来你可以执行如下命令来查看正在运行中的 Docker 容器：
 
 ```bash
 docker-compose ps
@@ -322,7 +334,7 @@ docker-compose up -d taskmanager
 由于我们使用的是 [FlinkKafkaProducer]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) "至少一次"模式，因此你可能会看到一些记录重复输出多次。
 
 {{< hint info >}}
-  **注意**：在大部分生产环境中都需要一个资源管理器 (Kubernetes、Yarn,、Mesos)对
+  **注意**：在大部分生产环境中都需要一个资源管理器 (Kubernetes、Yarn)对
   失败的 Job 进行自动重启。
 {{< /hint >}}
 
@@ -413,7 +425,7 @@ curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
   "operation": {
     "location": "<savepoint-path>"
   }
-
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -624,36 +636,6 @@ curl localhost:8081/jobs/<jod-id>
     },
     {
       "id": "<vertex-id>",
-      "name": "Timestamps/Watermarks",
-      "parallelism": 2,
-      "status": "RUNNING",
-      "start-time": 1564467066441,
-      "end-time": -1,
-      "duration": 374378,
-      "tasks": {
-        "CREATED": 0,
-        "FINISHED": 0,
-        "DEPLOYING": 0,
-        "RUNNING": 2,
-        "CANCELING": 0,
-        "FAILED": 0,
-        "CANCELED": 0,
-        "RECONCILING": 0,
-        "SCHEDULED": 0
-      },
-      "metrics": {
-        "read-bytes": 5066280,
-        "read-bytes-complete": true,
-        "write-bytes": 5033496,
-        "write-bytes-complete": true,
-        "read-records": 166349,
-        "read-records-complete": true,
-        "write-records": 166349,
-        "write-records-complete": true
-      }
-    },
-    {
-      "id": "<vertex-id>",
       "name": "ClickEvent Counter",
       "parallelism": 2,
       "status": "RUNNING",
@@ -727,6 +709,7 @@ curl localhost:8081/jobs/<jod-id>
   "plan": {
     "jid": "<job-id>",
     "name": "Click Event Count",
+    "type": "STREAMING",
     "nodes": [
       {
         "id": "<vertex-id>",
@@ -755,22 +738,6 @@ curl localhost:8081/jobs/<jod-id>
             "num": 0,
             "id": "<vertex-id>",
             "ship_strategy": "HASH",
-            "exchange": "pipelined_bounded"
-          }
-        ],
-        "optimizer_properties": {}
-      },
-      {
-        "id": "<vertex-id>",
-        "parallelism": 2,
-        "operator": "",
-        "operator_strategy": "",
-        "description": "Timestamps/Watermarks",
-        "inputs": [
-          {
-            "num": 0,
-            "id": "<vertex-id>",
-            "ship_strategy": "FORWARD",
             "exchange": "pipelined_bounded"
           }
         ],

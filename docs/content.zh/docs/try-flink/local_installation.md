@@ -48,11 +48,11 @@ under the License.
 java -version
 ```
 
-[下载](https://flink.apache.org/downloads.html) release {{ site.version }} 并解压。
+[下载](https://flink.apache.org/downloads.html) release {{< version >}} 并解压。
 
 ```bash
-$ tar -xzf flink-{{ site.version }}-bin-scala{{< scala_version >}}.tgz
-$ cd flink-{{ site.version }}-bin-scala{{< scala_version >}}
+$ tar -xzf flink-{{< version >}}-bin-scala{{< scala_version >}}.tgz
+$ cd flink-{{< version >}}-bin-scala{{< scala_version >}}
 ```
 
 <a name="step-2-start-a-cluster"></a>

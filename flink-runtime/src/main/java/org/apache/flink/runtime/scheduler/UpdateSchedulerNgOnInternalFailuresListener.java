@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -31,17 +30,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Calls {@link SchedulerNG#updateTaskExecutionState(TaskExecutionStateTransition)} on task failure.
  * Calls {@link SchedulerNG#handleGlobalFailure(Throwable)} on global failures.
  */
-class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
+public class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresListener {
 
     private final SchedulerNG schedulerNg;
 
-    private final JobID jobId;
-
-    public UpdateSchedulerNgOnInternalFailuresListener(
-            final SchedulerNG schedulerNg, final JobID jobId) {
+    public UpdateSchedulerNgOnInternalFailuresListener(final SchedulerNG schedulerNg) {
 
         this.schedulerNg = checkNotNull(schedulerNg);
-        this.jobId = checkNotNull(jobId);
     }
 
     @Override
@@ -52,7 +47,7 @@ class UpdateSchedulerNgOnInternalFailuresListener implements InternalFailuresLis
             final boolean releasePartitions) {
 
         final TaskExecutionState state =
-                new TaskExecutionState(jobId, attemptId, ExecutionState.FAILED, t);
+                new TaskExecutionState(attemptId, ExecutionState.FAILED, t);
         schedulerNg.updateTaskExecutionState(
                 new TaskExecutionStateTransition(state, cancelTask, releasePartitions));
     }

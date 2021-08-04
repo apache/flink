@@ -43,11 +43,14 @@ public final class UnknownCallContext implements CallContext {
 
     private final List<DataType> argumentDataTypes;
 
+    private final boolean isGroupedAggregation;
+
     public UnknownCallContext(
             DataTypeFactory typeFactory,
             String name,
             FunctionDefinition functionDefinition,
-            int argumentCount) {
+            int argumentCount,
+            boolean isGroupedAggregation) {
         this.typeFactory = typeFactory;
         this.name = name;
         this.functionDefinition = functionDefinition;
@@ -63,6 +66,7 @@ public final class UnknownCallContext implements CallContext {
                         return argumentCount;
                     }
                 };
+        this.isGroupedAggregation = isGroupedAggregation;
     }
 
     @Override
@@ -103,5 +107,10 @@ public final class UnknownCallContext implements CallContext {
     @Override
     public Optional<DataType> getOutputDataType() {
         return Optional.empty();
+    }
+
+    @Override
+    public boolean isGroupedAggregation() {
+        return isGroupedAggregation;
     }
 }

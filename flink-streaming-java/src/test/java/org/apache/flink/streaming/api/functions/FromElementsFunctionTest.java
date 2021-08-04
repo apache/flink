@@ -21,7 +21,9 @@ package org.apache.flink.streaming.api.functions;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,20 +35,41 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.InstantiationUtil;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link org.apache.flink.streaming.api.functions.source.FromElementsFunction}. */
 public class FromElementsFunctionTest {
+
+    private static final String[] STRING_ARRAY_DATA = {"Oh", "boy", "what", "a", "show", "!"};
+    private static final List<String> STRING_LIST_DATA = Arrays.asList(STRING_ARRAY_DATA);
+
+    @Rule public final ExpectedException thrown = ExpectedException.none();
+
+    private static <T> List<T> runSource(FromElementsFunction<T> source) throws Exception {
+        List<T> result = new ArrayList<>();
+        FromElementsFunction<T> clonedSource = InstantiationUtil.clone(source);
+        clonedSource.run(new ListSourceContext<>(result));
+        return result;
+    }
 
     @Test
     public void testStrings() {
@@ -69,6 +92,107 @@ public class FromElementsFunctionTest {
     }
 
     @Test
+    public void testNullElement() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("contains a null element");
+
+        new FromElementsFunction<>("a", null, "b");
+    }
+
+    @Test
+    public void testSetOutputTypeWithNoSerializer() throws Exception {
+        FromElementsFunction<String> source = new FromElementsFunction<>(STRING_ARRAY_DATA);
+
+        assertNull(source.getSerializer());
+
+        source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
+
+        assertNotNull(source.getSerializer());
+        assertEquals(
+                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                source.getSerializer());
+
+        List<String> result = runSource(source);
+
+        assertEquals(STRING_LIST_DATA, result);
+    }
+
+    @Test
+    public void testSetOutputTypeWithSameSerializer() throws Exception {
+        FromElementsFunction<String> source =
+                new FromElementsFunction<>(
+                        BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                        STRING_LIST_DATA);
+
+        TypeSerializer<String> existingSerializer = source.getSerializer();
+
+        source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
+
+        TypeSerializer<String> newSerializer = source.getSerializer();
+
+        assertEquals(existingSerializer, newSerializer);
+
+        List<String> result = runSource(source);
+
+        assertEquals(STRING_LIST_DATA, result);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testSetOutputTypeWithIncompatibleType() throws Exception {
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage("not all subclasses of java.lang.Integer");
+
+        FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
+        source.setOutputType((TypeInformation) BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
+    }
+
+    @Test
+    public void testSetOutputTypeWithExistingBrokenSerializer() throws Exception {
+        // the original serializer throws an exception
+        TypeInformation<DeserializeTooMuchType> info =
+                new ValueTypeInfo<>(DeserializeTooMuchType.class);
+
+        FromElementsFunction<DeserializeTooMuchType> source =
+                new FromElementsFunction<>(
+                        info.createSerializer(new ExecutionConfig()), new DeserializeTooMuchType());
+
+        TypeSerializer<DeserializeTooMuchType> existingSerializer = source.getSerializer();
+
+        source.setOutputType(
+                new GenericTypeInfo<>(DeserializeTooMuchType.class), new ExecutionConfig());
+
+        TypeSerializer<DeserializeTooMuchType> newSerializer = source.getSerializer();
+
+        assertNotEquals(existingSerializer, newSerializer);
+
+        List<DeserializeTooMuchType> result = runSource(source);
+
+        assertThat(result, hasSize(1));
+        assertThat(result.get(0), instanceOf(DeserializeTooMuchType.class));
+    }
+
+    @Test
+    public void testSetOutputTypeAfterTransferred() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(
+                "The output type should've been specified before shipping the graph to the cluster");
+
+        FromElementsFunction<String> source =
+                InstantiationUtil.clone(new FromElementsFunction<>(STRING_LIST_DATA));
+        source.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
+    }
+
+    @Test
+    public void testNoSerializer() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage("serializer not configured");
+
+        FromElementsFunction<String> source = new FromElementsFunction<>(STRING_LIST_DATA);
+        runSource(source);
+    }
+
+    @Test
     public void testNonJavaSerializableType() {
         try {
             MyPojo[] data = {new MyPojo(1, 2), new MyPojo(3, 4), new MyPojo(5, 6)};
@@ -79,14 +203,26 @@ public class FromElementsFunctionTest {
                                     .createSerializer(new ExecutionConfig()),
                             data);
 
-            List<MyPojo> result = new ArrayList<MyPojo>();
-            source.run(new ListSourceContext<MyPojo>(result));
+            List<MyPojo> result = runSource(source);
 
             assertEquals(Arrays.asList(data), result);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
         }
+    }
+
+    @Test
+    public void testNonJavaSerializableTypeWithSetOutputType() throws Exception {
+        MyPojo[] data = {new MyPojo(1, 2), new MyPojo(3, 4), new MyPojo(5, 6)};
+
+        FromElementsFunction<MyPojo> source = new FromElementsFunction<>(data);
+
+        source.setOutputType(TypeExtractor.getForClass(MyPojo.class), new ExecutionConfig());
+
+        List<MyPojo> result = runSource(source);
+
+        assertEquals(Arrays.asList(data), result);
     }
 
     @Test

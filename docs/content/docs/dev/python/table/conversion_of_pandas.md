@@ -26,7 +26,7 @@ under the License.
 
 # Conversions between PyFlink Table and Pandas DataFrame
 
-PyFlink Table API supports conversion to and from Pandas DataFrame.
+PyFlink Table API supports conversion between PyFlink Table and Pandas DataFrame.
 
 ## Convert Pandas DataFrame to PyFlink Table
 
@@ -67,7 +67,7 @@ The resulting rows will be serialized as multiple Arrow batches of Arrow columna
 The maximum Arrow batch size is configured via the option [python.fn-execution.arrow.batch.size]({{< ref "docs/dev/python/python_config" >}}#python-fn-execution-arrow-batch-size).
 The serialized data will then be converted to a Pandas DataFrame. 
 Because the contents of the table will be collected on the client, please ensure that the results of the table can fit in memory before calling this method.
-You can limit the number of rows collected to client side via <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.Table.limit">Table.limit</a>
+You can limit the number of rows collected to client side via {{< pythondoc file="pyflink.table.html#pyflink.table.Table.limit" name="Table.limit">}}
 
 The following example shows how to convert a PyFlink Table to a Pandas DataFrame:
 

@@ -21,9 +21,10 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
@@ -163,17 +164,17 @@ public class DataTypeUtilsTest {
                         FIELD("f1", STRING()),
                         FIELD("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
                         FIELD("f3", TIMESTAMP(3)));
-        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+        ResolvedSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
         assertThat(
                 schema,
                 equalTo(
-                        TableSchema.builder()
-                                .field("f0", INT())
-                                .field("f1", STRING())
-                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-                                .build()));
+                        ResolvedSchema.of(
+                                Column.physical("f0", INT()),
+                                Column.physical("f1", STRING()),
+                                Column.physical("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                                Column.physical(
+                                        "f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class)))));
     }
 
     @Test
@@ -181,16 +182,15 @@ public class DataTypeUtilsTest {
         DataType dataType =
                 TypeConversions.fromLegacyInfoToDataType(
                         new TupleTypeInfo<>(Types.STRING, Types.INT, Types.SQL_TIMESTAMP));
-        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+        ResolvedSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
         assertThat(
                 schema,
                 equalTo(
-                        TableSchema.builder()
-                                .field("f0", STRING())
-                                .field("f1", INT())
-                                .field("f2", TIMESTAMP(3).bridgedTo(Timestamp.class))
-                                .build()));
+                        ResolvedSchema.of(
+                                Column.physical("f0", STRING()),
+                                Column.physical("f1", INT()),
+                                Column.physical("f2", TIMESTAMP(3).bridgedTo(Timestamp.class)))));
     }
 
     @Test
@@ -217,17 +217,17 @@ public class DataTypeUtilsTest {
                         DataTypes.TIMESTAMP(3));
         FieldsDataType dataType = new FieldsDataType(logicalType, dataTypes);
 
-        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
+        ResolvedSchema schema = DataTypeUtils.expandCompositeTypeToSchema(dataType);
 
         assertThat(
                 schema,
                 equalTo(
-                        TableSchema.builder()
-                                .field("f0", INT())
-                                .field("f1", STRING())
-                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-                                .build()));
+                        ResolvedSchema.of(
+                                Column.physical("f0", INT()),
+                                Column.physical("f1", STRING()),
+                                Column.physical("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                                Column.physical(
+                                        "f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class)))));
     }
 
     @Test
@@ -248,17 +248,17 @@ public class DataTypeUtilsTest {
                         .build();
         DataType distinctDataType = new FieldsDataType(distinctLogicalType, dataType.getChildren());
 
-        TableSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
+        ResolvedSchema schema = DataTypeUtils.expandCompositeTypeToSchema(distinctDataType);
 
         assertThat(
                 schema,
                 equalTo(
-                        TableSchema.builder()
-                                .field("f0", INT())
-                                .field("f1", STRING())
-                                .field("f2", TIMESTAMP(5).bridgedTo(Timestamp.class))
-                                .field("f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class))
-                                .build()));
+                        ResolvedSchema.of(
+                                Column.physical("f0", INT()),
+                                Column.physical("f1", STRING()),
+                                Column.physical("f2", TIMESTAMP(5).bridgedTo(Timestamp.class)),
+                                Column.physical(
+                                        "f3", TIMESTAMP(3).bridgedTo(LocalDateTime.class)))));
     }
 
     @Test(expected = IllegalArgumentException.class)

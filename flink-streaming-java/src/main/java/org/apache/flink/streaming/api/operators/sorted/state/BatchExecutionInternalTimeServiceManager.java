@@ -83,11 +83,6 @@ public class BatchExecutionInternalTimeServiceManager<K>
         throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");
     }
 
-    @Override
-    public boolean isUsingLegacyRawKeyedStateSnapshots() {
-        throw new UnsupportedOperationException("Checkpoints are not supported in BATCH execution");
-    }
-
     public static <K> InternalTimeServiceManager<K> create(
             CheckpointableKeyedStateBackend<K> keyedStatedBackend,
             ClassLoader userClassloader,

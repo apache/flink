@@ -18,20 +18,27 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Filter;
+import org.rocksdb.IndexType;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.TableFormatConfig;
 import org.rocksdb.WriteOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -40,10 +47,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The container for RocksDB resources, including predefined options, option factory and shared
  * resource among instances.
  *
- * <p>This should be the only entrance for {@link RocksDBStateBackend} to get RocksDB options, and
- * should be properly (and necessarily) closed to prevent resource leak.
+ * <p>This should be the only entrance for {@link EmbeddedRocksDBStateBackend} to get RocksDB
+ * options, and should be properly (and necessarily) closed to prevent resource leak.
  */
 public final class RocksDBResourceContainer implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBResourceContainer.class);
 
     /** The pre-configured option settings. */
     private final PredefinedOptions predefinedOptions;
@@ -143,6 +151,12 @@ public final class RocksDBResourceContainer implements AutoCloseable {
                         "We currently only support BlockBasedTableConfig When bounding total memory.");
                 blockBasedTableConfig = (BlockBasedTableConfig) tableFormatConfig;
             }
+            if (rocksResources.isUsingPartitionedIndexFilters()
+                    && overwriteFilterIfExist(blockBasedTableConfig)) {
+                blockBasedTableConfig.setIndexType(IndexType.kTwoLevelIndexSearch);
+                blockBasedTableConfig.setPartitionFilters(true);
+                blockBasedTableConfig.setPinTopLevelIndexAndFilter(true);
+            }
             blockBasedTableConfig.setBlockCache(blockCache);
             blockBasedTableConfig.setCacheIndexAndFilterBlocks(true);
             blockBasedTableConfig.setCacheIndexAndFilterBlocksWithHighPriority(true);
@@ -206,5 +220,40 @@ public final class RocksDBResourceContainer implements AutoCloseable {
         if (sharedResources != null) {
             sharedResources.close();
         }
+    }
+
+    /**
+     * Overwrite configured {@link Filter} if enable partitioned filter. Partitioned filter only
+     * worked in full bloom filter, not blocked based.
+     */
+    private boolean overwriteFilterIfExist(BlockBasedTableConfig blockBasedTableConfig) {
+        Filter filter = null;
+        try {
+            filter = getFilterFromBlockBasedTableConfig(blockBasedTableConfig);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            LOG.warn(
+                    "Reflection exception occurred when getting filter from BlockBasedTableConfig, disable partition index filters!");
+            return false;
+        }
+        if (filter != null) {
+            // TODO Can get filter's config in the future RocksDB version, and build new filter use
+            // existing config.
+            BloomFilter newFilter = new BloomFilter(10, false);
+            LOG.info(
+                    "Existing filter has been overwritten to full filters since partitioned index filters is enabled.");
+            blockBasedTableConfig.setFilter(newFilter);
+            handlesToClose.add(newFilter);
+        }
+        return true;
+    }
+
+    @VisibleForTesting
+    static Filter getFilterFromBlockBasedTableConfig(BlockBasedTableConfig blockBasedTableConfig)
+            throws NoSuchFieldException, IllegalAccessException {
+        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filter_");
+        filterField.setAccessible(true);
+        Object filter = filterField.get(blockBasedTableConfig);
+        filterField.setAccessible(false);
+        return filter == null ? null : (Filter) filter;
     }
 }

@@ -132,12 +132,12 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after releaseAllResources() released all buffers from receivedBuffers.
                 if (isReleased) {
-                    return;
+                    wasEmpty = false;
+                } else {
+                    wasEmpty = receivedBuffers.isEmpty();
+                    receivedBuffers.add(buffer);
+                    recycleBuffer = false;
                 }
-
-                wasEmpty = receivedBuffers.isEmpty();
-                receivedBuffers.add(buffer);
-                recycleBuffer = false;
             }
 
             if (wasEmpty) {
@@ -203,6 +203,16 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     @Override
     public void resumeConsumption() {
         throw new UnsupportedOperationException("RecoveredInputChannel should never be blocked.");
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        // We should not receive the EndOfUserRecordsEvent since it would
+        // turn into real channel before requesting partition. Besides,
+        // the event would not be persist in the unaligned checkpoint
+        // case, thus this also cannot happen during restoring state.
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should not need acknowledge all records processed.");
     }
 
     @Override

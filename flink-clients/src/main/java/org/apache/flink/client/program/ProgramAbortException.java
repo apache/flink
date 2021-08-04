@@ -24,4 +24,17 @@ package org.apache.flink.client.program;
  */
 public class ProgramAbortException extends Error {
     private static final long serialVersionUID = 1L;
+
+    public ProgramAbortException() {
+        super();
+    }
+
+    /**
+     * Creates a <tt>ProgramAbortException</tt> for the given exception.
+     *
+     * @param cause The exception that causes the program to fail.
+     */
+    public ProgramAbortException(Throwable cause) {
+        super(cause);
+    }
 }

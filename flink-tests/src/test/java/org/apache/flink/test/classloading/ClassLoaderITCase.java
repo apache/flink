@@ -27,6 +27,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
@@ -104,7 +105,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening
         // again.
-        config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
+        config.setString(StateBackendOptions.STATE_BACKEND, "filesystem");
         config.setString(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 FOLDER.newFolder().getAbsoluteFile().toURI().toString());

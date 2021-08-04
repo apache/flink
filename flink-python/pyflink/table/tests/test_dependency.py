@@ -26,9 +26,7 @@ from pyflink.table import DataTypes
 from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
-                                             PyFlinkBlinkBatchTableTestCase,
-                                             PyFlinkStreamTableTestCase,
+from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase,
                                              PyFlinkBatchTableTestCase)
 
 
@@ -67,41 +65,12 @@ class DependencyTests(object):
         self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
-class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):
 
     pass
 
 
-class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
-
-    def test_add_python_file(self):
-        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
-        os.mkdir(python_file_dir)
-        python_file_path = os.path.join(python_file_dir, "test_dependency_manage_lib.py")
-        with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
-        self.t_env.add_python_file(python_file_path)
-
-        def plus_two(i):
-            from test_dependency_manage_lib import add_two
-            return add_two(i)
-
-        self.t_env.create_temporary_system_function(
-            "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
-
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t = t.select(expr.call('add_two', t.a), t.a)
-
-        result = self.collect(t)
-        self.assertEqual(result, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
-
-
-class BlinkBatchDependencyTests(DependencyTests, PyFlinkBlinkBatchTableTestCase):
-
-    pass
-
-
-class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCase):
+class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))

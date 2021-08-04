@@ -43,10 +43,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
 public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
@@ -109,7 +109,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
         final FlinkPod resultFlinkPod =
                 initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-        this.resultPod = resultFlinkPod.getPod();
+        this.resultPod = resultFlinkPod.getPodWithoutMainContainer();
         this.resultMainContainer = resultFlinkPod.getMainContainer();
     }
 
@@ -120,9 +120,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
     @Test
     public void testMainContainerName() {
-        assertEquals(
-                kubernetesTaskManagerParameters.getTaskManagerMainContainerName(),
-                this.resultMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, this.resultMainContainer.getName());
     }
 
     @Test

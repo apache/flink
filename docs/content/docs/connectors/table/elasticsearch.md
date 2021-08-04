@@ -80,8 +80,8 @@ Connector Options
       <td>String</td>
       <td>Specify what connector to use, valid values are:
       <ul>
-      <li><code>elasticsearch-6</code>: connect to Elasticsearch 6.x cluster</li>
-      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x and later versions cluster</li>
+      <li><code>elasticsearch-6</code>: connect to Elasticsearch 6.x cluster.</li>
+      <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x and later versions cluster.</li>
       </ul></td>
     </tr>
     <tr>
@@ -112,7 +112,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">_</td>
       <td>String</td>
-      <td>Delimiter for composite keys ("_" by default), e.g., "$" would result in IDs "KEY1$KEY2$KEY3"."</td>
+      <td>Delimiter for composite keys ("_" by default), e.g., "$" would result in IDs "KEY1$KEY2$KEY3".</td>
     </tr>
     <tr>
       <td><h5>username</h5></td>
@@ -219,7 +219,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Prefix string to be added to every REST communication, e.g., <code>'/v1'</code></td>
+      <td>Prefix string to be added to every REST communication, e.g., <code>'/v1'</code>.</td>
     </tr>
     <tr>
       <td><h5>format</h5></td>

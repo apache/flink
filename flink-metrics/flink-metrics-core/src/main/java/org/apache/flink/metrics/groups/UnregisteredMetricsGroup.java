@@ -36,18 +36,8 @@ import java.util.Map;
 public class UnregisteredMetricsGroup implements MetricGroup {
 
     @Override
-    public Counter counter(int name) {
-        return new SimpleCounter();
-    }
-
-    @Override
     public Counter counter(String name) {
         return new SimpleCounter();
-    }
-
-    @Override
-    public <C extends Counter> C counter(int name, C counter) {
-        return counter;
     }
 
     @Override
@@ -56,18 +46,8 @@ public class UnregisteredMetricsGroup implements MetricGroup {
     }
 
     @Override
-    public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-        return gauge;
-    }
-
-    @Override
     public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
         return gauge;
-    }
-
-    @Override
-    public <H extends Histogram> H histogram(int name, H histogram) {
-        return histogram;
     }
 
     @Override
@@ -76,18 +56,8 @@ public class UnregisteredMetricsGroup implements MetricGroup {
     }
 
     @Override
-    public <M extends Meter> M meter(int name, M meter) {
-        return meter;
-    }
-
-    @Override
     public <H extends Histogram> H histogram(String name, H histogram) {
         return histogram;
-    }
-
-    @Override
-    public MetricGroup addGroup(int name) {
-        return addGroup(String.valueOf(name));
     }
 
     @Override

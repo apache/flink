@@ -36,6 +36,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
+
 /**
  * Logical type of a user-defined object structured type. Structured types contain zero, one or more
  * attributes. Each attribute consists of a name and a type. A type cannot be defined so that one of
@@ -56,7 +59,7 @@ import java.util.stream.Collectors;
  * <p>A structured type can be declared {@code not instantiable} if a more specific type is required
  * or {@code instantiable} if instances can be created from this type (default behavior).
  *
- * <p>A structured type declares comparision properties of either {@code none} (no equality), {@code
+ * <p>A structured type declares comparison properties of either {@code none} (no equality), {@code
  * equals} (only equality and inequality), or {@code full} (greater, equals, less).
  *
  * <p>NOTE: Compared to the SQL standard, this class is incomplete. We might add new features such
@@ -77,8 +80,9 @@ import java.util.stream.Collectors;
  */
 @PublicEvolving
 public final class StructuredType extends UserDefinedType {
+    private static final long serialVersionUID = 1L;
 
-    public static final String FORMAT = "*%s*";
+    public static final String FORMAT = "*%s<%s>*";
 
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Row.class.getName(), RowData.class.getName());
@@ -87,6 +91,11 @@ public final class StructuredType extends UserDefinedType {
 
     /** Defines an attribute of a {@link StructuredType}. */
     public static final class StructuredAttribute implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        public static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
+
+        public static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
 
         private final String name;
 
@@ -120,6 +129,10 @@ public final class StructuredType extends UserDefinedType {
             return new StructuredAttribute(name, type.copy(), description);
         }
 
+        public String asSummaryString() {
+            return formatString(type.asSummaryString(), true);
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -138,17 +151,33 @@ public final class StructuredType extends UserDefinedType {
         public int hashCode() {
             return Objects.hash(name, type, description);
         }
+
+        private String formatString(String typeString, boolean excludeDescription) {
+            if (description == null) {
+                return String.format(
+                        FIELD_FORMAT_NO_DESCRIPTION, escapeIdentifier(name), typeString);
+            } else if (excludeDescription) {
+                return String.format(
+                        FIELD_FORMAT_WITH_DESCRIPTION, escapeIdentifier(name), typeString, "...");
+            } else {
+                return String.format(
+                        FIELD_FORMAT_WITH_DESCRIPTION,
+                        escapeIdentifier(name),
+                        typeString,
+                        escapeSingleQuotes(description));
+            }
+        }
     }
 
     /** Defines equality properties for scalar evaluation. */
-    public enum StructuredComparision {
+    public enum StructuredComparison {
         EQUALS(true, false),
         FULL(true, true),
         NONE(false, false);
         private final boolean equality;
         private final boolean comparison;
 
-        StructuredComparision(boolean equality, boolean comparison) {
+        StructuredComparison(boolean equality, boolean comparison) {
             this.equality = equality;
             this.comparison = comparison;
         }
@@ -177,7 +206,7 @@ public final class StructuredType extends UserDefinedType {
 
         private boolean isInstantiable = true;
 
-        private StructuredComparision comparision = StructuredComparision.NONE;
+        private StructuredComparison comparison = StructuredComparison.NONE;
 
         private @Nullable StructuredType superType;
 
@@ -236,9 +265,9 @@ public final class StructuredType extends UserDefinedType {
             return this;
         }
 
-        public Builder comparision(StructuredComparision comparision) {
-            this.comparision =
-                    Preconditions.checkNotNull(comparision, "Comparision must not be null.");
+        public Builder comparison(StructuredComparison comparison) {
+            this.comparison =
+                    Preconditions.checkNotNull(comparison, "Comparison must not be null.");
             return this;
         }
 
@@ -254,7 +283,7 @@ public final class StructuredType extends UserDefinedType {
                     attributes,
                     isFinal,
                     isInstantiable,
-                    comparision,
+                    comparison,
                     superType,
                     description,
                     implementationClass);
@@ -265,7 +294,7 @@ public final class StructuredType extends UserDefinedType {
 
     private final boolean isInstantiable;
 
-    private final StructuredComparision comparision;
+    private final StructuredComparison comparison;
 
     private final @Nullable StructuredType superType;
 
@@ -277,7 +306,7 @@ public final class StructuredType extends UserDefinedType {
             List<StructuredAttribute> attributes,
             boolean isFinal,
             boolean isInstantiable,
-            StructuredComparision comparision,
+            StructuredComparison comparison,
             @Nullable StructuredType superType,
             @Nullable String description,
             @Nullable Class<?> implementationClass) {
@@ -289,7 +318,7 @@ public final class StructuredType extends UserDefinedType {
 
         this.attributes = attributes;
         this.isInstantiable = isInstantiable;
-        this.comparision = comparision;
+        this.comparison = comparison;
         this.superType = superType;
         this.implementationClass = implementationClass;
     }
@@ -328,8 +357,8 @@ public final class StructuredType extends UserDefinedType {
         return isInstantiable;
     }
 
-    public StructuredComparision getComparision() {
-        return comparision;
+    public StructuredComparison getComparison() {
+        return comparison;
     }
 
     public Optional<StructuredType> getSuperType() {
@@ -348,7 +377,7 @@ public final class StructuredType extends UserDefinedType {
                 attributes,
                 isFinal(),
                 isInstantiable,
-                comparision,
+                comparison,
                 superType == null ? null : (StructuredType) superType.copy(),
                 getDescription().orElse(null),
                 implementationClass);
@@ -360,9 +389,14 @@ public final class StructuredType extends UserDefinedType {
             return asSerializableString();
         }
         assert implementationClass != null;
-        // we use *class* to make it visible that this type is unregistered and not confuse it
+        // we use *class<...>* to make it visible that this type is unregistered and not confuse it
         // with catalog types
-        return withNullability(FORMAT, implementationClass.getName());
+        return withNullability(
+                FORMAT,
+                implementationClass.getName(),
+                getAllAttributes().stream()
+                        .map(StructuredAttribute::asSummaryString)
+                        .collect(Collectors.joining(", ")));
     }
 
     @Override
@@ -394,15 +428,9 @@ public final class StructuredType extends UserDefinedType {
 
     @Override
     public List<LogicalType> getChildren() {
-        final List<LogicalType> children = new ArrayList<>();
-        // add super fields first
-        if (superType != null) {
-            children.addAll(superType.getChildren());
-        }
-        // then specific fields
-        children.addAll(
-                attributes.stream().map(StructuredAttribute::getType).collect(Collectors.toList()));
-        return Collections.unmodifiableList(children);
+        return getAllAttributes().stream()
+                .map(StructuredAttribute::getType)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -424,7 +452,7 @@ public final class StructuredType extends UserDefinedType {
         StructuredType that = (StructuredType) o;
         return isInstantiable == that.isInstantiable
                 && attributes.equals(that.attributes)
-                && comparision == that.comparision
+                && comparison == that.comparison
                 && Objects.equals(superType, that.superType)
                 && Objects.equals(implementationClass, that.implementationClass);
     }
@@ -435,8 +463,19 @@ public final class StructuredType extends UserDefinedType {
                 super.hashCode(),
                 attributes,
                 isInstantiable,
-                comparision,
+                comparison,
                 superType,
                 implementationClass);
+    }
+
+    private List<StructuredAttribute> getAllAttributes() {
+        final List<StructuredAttribute> allAttributes = new ArrayList<>();
+        // add super fields first
+        if (superType != null) {
+            allAttributes.addAll(superType.getAllAttributes());
+        }
+        // then specific fields
+        allAttributes.addAll(attributes);
+        return allAttributes;
     }
 }

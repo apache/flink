@@ -55,6 +55,9 @@
           "properties" : {
             "web-submit" : {
               "type" : "boolean"
+            },
+            "web-cancel" : {
+              "type" : "boolean"
             }
           }
         }
@@ -708,6 +711,9 @@
         "duration" : {
           "type" : "integer"
         },
+        "maxParallelism" : {
+          "type" : "integer"
+        },
         "now" : {
           "type" : "integer"
         },
@@ -729,12 +735,15 @@
               "name" : {
                 "type" : "string"
               },
+              "maxParallelism" : {
+                "type" : "integer"
+              },
               "parallelism" : {
                 "type" : "integer"
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"
@@ -919,7 +928,7 @@
           "properties" : {
             "state_size" : {
               "type" : "object",
-              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
               "properties" : {
                 "min" : {
                   "type" : "integer"
@@ -929,24 +938,39 @@
                 },
                 "avg" : {
                   "type" : "integer"
+                },
+                "p50" : {
+                  "type" : "number"
+                },
+                "p90" : {
+                  "type" : "number"
+                },
+                "p95" : {
+                  "type" : "number"
+                },
+                "p99" : {
+                  "type" : "number"
+                },
+                "p999" : {
+                  "type" : "number"
                 }
               }
             },
             "end_to_end_duration" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "alignment_buffered" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "processed_data" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "persisted_data" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             }
           }
         },
@@ -1248,6 +1272,9 @@
         },
         "tolerable_failed_checkpoints" : {
           "type" : "integer"
+        },
+        "aligned_checkpoint_timeout" : {
+          "type" : "integer"
         }
       }
     }
@@ -1417,7 +1444,7 @@
           "properties" : {
             "state_size" : {
               "type" : "object",
-              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
               "properties" : {
                 "min" : {
                   "type" : "integer"
@@ -1427,12 +1454,27 @@
                 },
                 "avg" : {
                   "type" : "integer"
+                },
+                "p50" : {
+                  "type" : "number"
+                },
+                "p90" : {
+                  "type" : "number"
+                },
+                "p95" : {
+                  "type" : "number"
+                },
+                "p99" : {
+                  "type" : "number"
+                },
+                "p999" : {
+                  "type" : "number"
                 }
               }
             },
             "end_to_end_duration" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             },
             "checkpoint_duration" : {
               "type" : "object",
@@ -1440,11 +1482,11 @@
               "properties" : {
                 "sync" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 },
                 "async" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 }
               }
             },
@@ -1454,25 +1496,25 @@
               "properties" : {
                 "buffered" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 },
                 "processed" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 },
                 "persisted" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 },
                 "duration" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
                 }
               }
             },
             "start_delay" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
             }
           }
         },
@@ -1566,7 +1608,7 @@
     },
     "response" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory",
       "properties" : {
         "root-exception" : {
           "type" : "string"
@@ -1597,6 +1639,63 @@
         },
         "truncated" : {
           "type" : "boolean"
+        },
+        "exceptionHistory" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:JobExceptionHistory",
+          "properties" : {
+            "entries" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:RootExceptionInfo",
+                "properties" : {
+                  "exceptionName" : {
+                    "type" : "string"
+                  },
+                  "stacktrace" : {
+                    "type" : "string"
+                  },
+                  "timestamp" : {
+                    "type" : "integer"
+                  },
+                  "taskName" : {
+                    "type" : "string"
+                  },
+                  "location" : {
+                    "type" : "string"
+                  },
+                  "concurrentExceptions" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
+                      "properties" : {
+                        "exceptionName" : {
+                          "type" : "string"
+                        },
+                        "stacktrace" : {
+                          "type" : "string"
+                        },
+                        "timestamp" : {
+                          "type" : "integer"
+                        },
+                        "taskName" : {
+                          "type" : "string"
+                        },
+                        "location" : {
+                          "type" : "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "truncated" : {
+              "type" : "boolean"
+            }
+          }
         }
       }
     }
@@ -1887,6 +1986,9 @@
         "parallelism" : {
           "type" : "integer"
         },
+        "maxParallelism" : {
+          "type" : "integer"
+        },
         "now" : {
           "type" : "integer"
         },
@@ -1901,7 +2003,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "attempt" : {
                 "type" : "integer"
@@ -2065,6 +2167,55 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/flamegraph",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "type",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph",
+      "properties" : {
+        "endTimestamp" : {
+          "type" : "integer"
+        },
+        "data" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node",
+          "properties" : {
+            "name" : {
+              "type" : "string"
+            },
+            "value" : {
+              "type" : "integer"
+            },
+            "children" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:threadinfo:JobVertexFlameGraph:Node"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -2213,7 +2364,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2299,7 +2450,7 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
         },
         "attempt" : {
           "type" : "integer"
@@ -2534,7 +2685,7 @@
               },
               "status" : {
                 "type" : "string",
-                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING", "INITIALIZING" ]
               },
               "start-time" : {
                 "type" : "integer"
@@ -3006,6 +3157,22 @@
             },
             "totalProcessMemory" : {
               "type" : "integer"
+            }
+          }
+        },
+        "allocatedSlots" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:SlotInfo",
+            "properties" : {
+              "jobId" : {
+                "type" : "any"
+              },
+              "resource" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+              }
             }
           }
         },

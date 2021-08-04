@@ -21,10 +21,11 @@ package org.apache.flink.runtime.jobgraph.topology;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -88,7 +89,7 @@ public class DefaultLogicalTopologyTest extends TestLogger {
         jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
         jobVertices[2].connectNewDataSetAsInput(jobVertices[1], ALL_TO_ALL, BLOCKING);
 
-        return new JobGraph(jobVertices);
+        return JobGraphTestUtils.streamingJobGraph(jobVertices);
     }
 
     private static void assertVertexAndConnectedResultsEquals(

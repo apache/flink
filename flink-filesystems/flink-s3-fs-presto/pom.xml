@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -215,12 +215,6 @@ under the License.
 
 	<dependencyManagement>
 		<dependencies>
-			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
@@ -285,9 +279,9 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<!-- Incompatible license -->
 										<exclude>org.openjdk.jol:*</exclude>
 									</excludes>
+									<message>Dependencies on org.openjdk.jol are not allowed due to licensing issues.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
@@ -401,19 +395,12 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.weakref/**</exclude>
-										<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
-										<exclude>META-INF/maven/joda-time/**</exclude>
-										<exclude>META-INF/maven/io.airlift/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>

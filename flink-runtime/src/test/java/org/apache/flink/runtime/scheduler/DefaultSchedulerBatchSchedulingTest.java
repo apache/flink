@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -28,15 +27,15 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -67,8 +66,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    private static final JobID jobId = new JobID();
-
     private static ScheduledExecutorService singleThreadScheduledExecutorService;
     private static ComponentMainThreadExecutor mainThreadExecutor;
 
@@ -95,10 +92,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     public void testSchedulingOfJobWithFewerSlotsThanParallelism() throws Exception {
         final int parallelism = 5;
         final Time batchSlotTimeout = Time.milliseconds(5L);
-        final JobGraph jobGraph = createJobGraph(parallelism);
-        jobGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
+        final JobGraph jobGraph = createBatchJobGraph(parallelism);
 
-        try (final SlotPoolImpl slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
+        try (final SlotPool slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
             final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =
                     new ArrayBlockingQueue<>(parallelism);
             TestingTaskExecutorGateway testingTaskExecutorGateway =
@@ -109,13 +105,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                                         return CompletableFuture.completedFuture(Acknowledge.get());
                                     })
                             .createTestingTaskExecutorGateway();
-
-            // register a single slot at the slot pool
-            SlotPoolUtils.offerSlots(
-                    slotPool,
-                    mainThreadExecutor,
-                    Collections.singletonList(ResourceProfile.ANY),
-                    new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
             final PhysicalSlotProvider slotProvider =
                     new PhysicalSlotProviderImpl(
@@ -131,6 +120,13 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                             jobStatusListener);
 
             CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
+
+            // register a single slot at the slot pool
+            SlotPoolUtils.offerSlots(
+                    slotPool,
+                    mainThreadExecutor,
+                    Collections.singletonList(ResourceProfile.ANY),
+                    new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
             // wait until the batch slot timeout has been reached
             Thread.sleep(batchSlotTimeout.toMilliseconds());
@@ -168,46 +164,31 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                         () -> {
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.RUNNING));
+                                            executionAttemptId, ExecutionState.INITIALIZING));
                             scheduler.updateTaskExecutionState(
                                     new TaskExecutionState(
-                                            jobId, executionAttemptId, ExecutionState.FINISHED));
+                                            executionAttemptId, ExecutionState.RUNNING));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(
+                                            executionAttemptId, ExecutionState.FINISHED));
                         },
                         mainThreadExecutor)
                 .join();
     }
 
-    private SlotPoolImpl createSlotPool(
+    private SlotPool createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
-        return new SlotPoolBuilder(mainThreadExecutor)
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setBatchSlotTimeout(batchSlotTimeout)
-                .build();
+                .buildAndStart(mainThreadExecutor);
     }
 
-    private JobGraph createJobGraph(int parallelism) {
+    private JobGraph createBatchJobGraph(int parallelism) {
         final JobVertex jobVertex = new JobVertex("testing task");
         jobVertex.setParallelism(parallelism);
         jobVertex.setInvokableClass(NoOpInvokable.class);
-        return new JobGraph(jobId, "test job", jobVertex);
-    }
-
-    private static class GloballyTerminalJobStatusListener implements JobStatusListener {
-
-        private final CompletableFuture<JobStatus> globallyTerminalJobStatusFuture =
-                new CompletableFuture<>();
-
-        @Override
-        public void jobStatusChanges(
-                JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
-            if (newJobStatus.isGloballyTerminalState()) {
-                globallyTerminalJobStatusFuture.complete(newJobStatus);
-            }
-        }
-
-        public CompletableFuture<JobStatus> getTerminationFuture() {
-            return globallyTerminalJobStatusFuture;
-        }
+        return JobGraphTestUtils.batchJobGraph(jobVertex);
     }
 
     private SchedulerNG createScheduler(

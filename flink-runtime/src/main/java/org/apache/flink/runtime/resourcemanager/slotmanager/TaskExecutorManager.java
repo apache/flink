@@ -21,7 +21,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,6 +199,11 @@ class TaskExecutorManager implements AutoCloseable {
         final Set<TaskManagerSlotId> matchingPendingSlots = new HashSet<>();
 
         for (SlotStatus slotStatus : slotReport) {
+            if (slotStatus.getAllocationID() != null) {
+                // only empty registered slots can match pending slots
+                continue;
+            }
+
             for (PendingTaskManagerSlot pendingTaskManagerSlot : pendingSlots.values()) {
                 if (!matchingPendingSlots.contains(pendingTaskManagerSlot.getTaskManagerSlotId())
                         && isPendingSlotExactlyMatchingResourceProfile(

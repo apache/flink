@@ -15,16 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.ExceptionUtils;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Optional;
 
+/** {@code ArchivedExecution} is a readonly representation of {@link Execution}. */
 public class ArchivedExecution implements AccessExecution, Serializable {
     private static final long serialVersionUID = 4817108757483345173L;
     // --------------------------------------------------------------------------------------------
@@ -37,7 +41,7 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 
     private final ExecutionState state;
 
-    private final String failureCause; // once assigned, never changes
+    @Nullable private final ErrorInfo failureInfo; // once assigned, never changes
 
     private final TaskManagerLocation assignedResourceLocation; // for the archived execution
 
@@ -57,7 +61,7 @@ public class ArchivedExecution implements AccessExecution, Serializable {
                 execution.getAttemptId(),
                 execution.getAttemptNumber(),
                 execution.getState(),
-                ExceptionUtils.stringifyException(execution.getFailureCause()),
+                execution.getFailureInfo().orElse(null),
                 execution.getAssignedResourceLocation(),
                 execution.getAssignedAllocationID(),
                 execution.getVertex().getParallelSubtaskIndex(),
@@ -70,14 +74,14 @@ public class ArchivedExecution implements AccessExecution, Serializable {
             ExecutionAttemptID attemptId,
             int attemptNumber,
             ExecutionState state,
-            String failureCause,
+            @Nullable ErrorInfo failureCause,
             TaskManagerLocation assignedResourceLocation,
             AllocationID assignedAllocationID,
             int parallelSubtaskIndex,
             long[] stateTimestamps) {
         this.userAccumulators = userAccumulators;
         this.ioMetrics = ioMetrics;
-        this.failureCause = failureCause;
+        this.failureInfo = failureCause;
         this.assignedResourceLocation = assignedResourceLocation;
         this.attemptNumber = attemptNumber;
         this.attemptId = attemptId;
@@ -121,8 +125,8 @@ public class ArchivedExecution implements AccessExecution, Serializable {
     }
 
     @Override
-    public String getFailureCauseAsString() {
-        return failureCause;
+    public Optional<ErrorInfo> getFailureInfo() {
+        return Optional.ofNullable(failureInfo);
     }
 
     @Override

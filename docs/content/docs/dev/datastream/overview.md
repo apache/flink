@@ -75,12 +75,11 @@ program consists of the same basic parts:
 {{< tabs "fa68701c-59e8-4509-858e-3e8a123eeacf" >}}
 {{< tab "Java" >}}
 
-
 We will now give an overview of each of those steps, please refer to the
 respective sections for more details. Note that all core classes of the Java
-DataStream API can be found in {% gh_link
-/flink-streaming-java/src/main/java/org/apache/flink/streaming/api
-"org.apache.flink.streaming.api" %}.
+DataStream API can be found in {{< gh_link
+file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api"
+name="org.apache.flink.streaming.api" >}}.
 
 The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:
@@ -147,9 +146,9 @@ print()
 
 We will now give an overview of each of those steps, please refer to the
 respective sections for more details. Note that all core classes of the Scala
-DataStream API can be found in {% gh_link
-/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala
-"org.apache.flink.streaming.api.scala" %}.
+DataStream API can be found in {{< gh_link
+file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala"
+name="org.apache.flink.streaming.api.scala" >}}.
 
 The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
 obtain one using these static methods on `StreamExecutionEnvironment`:

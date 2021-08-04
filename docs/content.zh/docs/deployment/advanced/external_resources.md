@@ -45,7 +45,7 @@ under the License.
 
 当 Flink 部署在资源管理系统（Kubernetes、Yarn）上时，扩展资源框架将确保分配的 Pod、Container 包含所需的扩展资源。目前，许多资源管理系统都支持扩展资源。
 例如，Kubernetes 从 v1.10 开始通过 [Device Plugin](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/) 机制支持 GPU、FPGA 等资源调度，Yarn 从 2.10 和 3.1 开始支持 GPU 和 FPGA 的调度。
-目前，扩展资源框架并不支持 Mesos 模式。在 Standalone 模式下，由用户负责确保扩展资源的可用性。
+在 Standalone 模式下，由用户负责确保扩展资源的可用性。
 
 扩展资源框架向算子提供扩展资源相关*信息*，这些信息由你配置的扩展资源 *Driver* 生成，包含了使用扩展资源所需要的基本属性。
 

@@ -1,5 +1,5 @@
 ---
-title: DataStream API用户指南
+title: DataStream API
 bookCollapseSection: true
 weight: 25
 ---

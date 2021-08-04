@@ -20,7 +20,6 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
@@ -30,7 +29,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,8 +54,8 @@ import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapU
  * reused later.
  *
  * <p>The memory segments are represented as off-heap unsafe memory regions (both via {@link
- * HybridMemorySegment}). Releasing a memory segment will make it re-claimable by the garbage
- * collector, but does not necessarily immediately releases the underlying memory.
+ * MemorySegment}). Releasing a memory segment will make it re-claimable by the garbage collector,
+ * but does not necessarily immediately releases the underlying memory.
  */
 public class MemoryManager {
 
@@ -91,14 +90,12 @@ public class MemoryManager {
      *
      * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
      * @param pageSize The size of the pages handed out by the memory manager.
-     * @param verifyEmptyWaitGcMaxSleeps defines how long to wait for GC of all allocated memory to
-     *     check for memory leaks, see {@link UnsafeMemoryBudget} for details.
      */
-    MemoryManager(long memorySize, int pageSize, int verifyEmptyWaitGcMaxSleeps) {
+    MemoryManager(long memorySize, int pageSize) {
         sanityCheck(memorySize, pageSize);
 
         this.pageSize = pageSize;
-        this.memoryBudget = new UnsafeMemoryBudget(memorySize, verifyEmptyWaitGcMaxSleeps);
+        this.memoryBudget = new UnsafeMemoryBudget(memorySize);
         this.totalNumberOfPages = memorySize / pageSize;
         this.allocatedSegments = new ConcurrentHashMap<>();
         this.reservedMemory = new ConcurrentHashMap<>();
@@ -282,8 +279,7 @@ public class MemoryManager {
             allocatedSegments.computeIfPresent(
                     segment.getOwner(),
                     (o, segsForOwner) -> {
-                        segment.free();
-                        segsForOwner.remove(segment);
+                        freeSegment(segment, segsForOwner);
                         return segsForOwner.isEmpty() ? null : segsForOwner;
                     });
         } catch (Throwable t) {
@@ -343,14 +339,14 @@ public class MemoryManager {
             MemorySegment firstSeg, Iterator<MemorySegment> segmentsIterator) {
         AtomicReference<MemorySegment> nextOwnerMemorySegment = new AtomicReference<>();
         Object owner = firstSeg.getOwner();
-        allocatedSegments.compute(
+        allocatedSegments.computeIfPresent(
                 owner,
                 (o, segsForOwner) -> {
                     freeSegment(firstSeg, segsForOwner);
                     while (segmentsIterator.hasNext()) {
                         MemorySegment segment = segmentsIterator.next();
                         try {
-                            if (segment == null || segment.isFreed()) {
+                            if (segment == null) {
                                 continue;
                             }
                             Object nextOwner = segment.getOwner();
@@ -365,16 +361,15 @@ public class MemoryManager {
                                     t);
                         }
                     }
-                    return segsForOwner == null || segsForOwner.isEmpty() ? null : segsForOwner;
+                    return segsForOwner.isEmpty() ? null : segsForOwner;
                 });
         return nextOwnerMemorySegment.get();
     }
 
     private static void freeSegment(
-            MemorySegment segment, @Nullable Collection<MemorySegment> segments) {
-        segment.free();
-        if (segments != null) {
-            segments.remove(segment);
+            MemorySegment segment, @Nonnull Collection<MemorySegment> segments) {
+        if (segments.remove(segment)) {
+            segment.free();
         }
     }
 
@@ -540,7 +535,12 @@ public class MemoryManager {
                                 e);
                     }
 
-                    return initializer.apply(size);
+                    try {
+                        return initializer.apply(size);
+                    } catch (Throwable t) {
+                        releaseMemory(type, size);
+                        throw t;
+                    }
                 };
 
         final Consumer<Long> releaser = (size) -> releaseMemory(type, size);
@@ -658,15 +658,14 @@ public class MemoryManager {
     /**
      * Creates a memory manager with the given capacity and given page size.
      *
-     * <p>This is a production version of MemoryManager which waits for longest time to check for
-     * memory leaks ({@link #verifyEmpty()}) once the owner of the MemoryManager is ready to
-     * dispose.
+     * <p>This is a production version of MemoryManager which checks for memory leaks ({@link
+     * #verifyEmpty()}) once the owner of the MemoryManager is ready to dispose.
      *
      * @param memorySize The total size of the off-heap memory to be managed by this memory manager.
      * @param pageSize The size of the pages handed out by the memory manager.
      */
     public static MemoryManager create(long memorySize, int pageSize) {
-        return new MemoryManager(memorySize, pageSize, UnsafeMemoryBudget.MAX_SLEEPS_VERIFY_EMPTY);
+        return new MemoryManager(memorySize, pageSize);
     }
 
     private static void validateFraction(double fraction) {

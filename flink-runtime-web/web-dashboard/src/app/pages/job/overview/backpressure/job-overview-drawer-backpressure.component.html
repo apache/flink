@@ -61,7 +61,7 @@
       <td>{{ subtask['subtask'] }}</td>
       <td>{{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} / {{ this.prettyPrint(subtask['busyRatio']) }}</td>
       <td>
-        <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
+        <flink-backpressure-badge [state]="subtask['backpressure-level']"></flink-backpressure-badge>
       </td>
     </tr>
   </tbody>

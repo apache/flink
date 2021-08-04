@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -28,7 +28,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal
@@ -69,7 +69,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
+    public DataInputStatus processInput() throws Exception {
         int readingInputIndex;
         if (isPrepared) {
             readingInputIndex = selectNextReadingInputIndex();
@@ -79,11 +79,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             readingInputIndex = selectFirstReadingInputIndex();
         }
         if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
 
         lastReadInputIndex = readingInputIndex;
-        InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
+        DataInputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
         inputSelectionHandler.nextSelection();
         return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
     }
@@ -117,7 +117,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         CompletableFuture<?>[] inputFutures = new CompletableFuture[inputProcessors.length];
         for (int index = 0; index < inputFutures.length; index++) {
             inputFutures[index] =

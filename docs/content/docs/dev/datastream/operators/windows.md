@@ -44,7 +44,7 @@ for the rest of the page.
           [.evictor(...)]            <-  optional: "evictor" (else no evictor)
           [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
           [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
-           .reduce/aggregate/fold/apply()      <-  required: "function"
+           .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
 **Non-Keyed Windows**
@@ -55,7 +55,7 @@ for the rest of the page.
           [.evictor(...)]            <-  optional: "evictor" (else no evictor)
           [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
           [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
-           .reduce/aggregate/fold/apply()      <-  required: "function"
+           .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
@@ -419,7 +419,7 @@ elements of each (possibly keyed) window once the system determines that a windo
 (see [triggers](#triggers) for how Flink determines when a window is ready).
 
 The window function can be one of `ReduceFunction`, `AggregateFunction`, or `ProcessWindowFunction`. The first
-two can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
+two can be executed more efficiently (see [State Size](#useful-state-size-considerations) section) because Flink can incrementally aggregate
 the elements for each window as they arrive. A `ProcessWindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
@@ -445,7 +445,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
-    .reduce(new ReduceFunction<Tuple2<String, Long>> {
+    .reduce(new ReduceFunction<Tuple2<String, Long>>() {
       public Tuple2<String, Long> reduce(Tuple2<String, Long> v1, Tuple2<String, Long> v2) {
         return new Tuple2<>(v1.f0, v1.f1 + v2.f1);
       }

@@ -47,7 +47,7 @@ If you get stuck, check out the [community support resources](https://flink.apac
 In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
 
 {{< hint info >}}
-If running docker on windows and your data generator container is failing to start, then please ensure that you're using the right shell.
+If running docker on Windows and your data generator container is failing to start, then please ensure that you're using the right shell.
 For example **docker-entrypoint.sh** for **table-walkthrough_data-generator_1** container requires bash.
 If unavailable, it will throw an error **standard_init_linux.go:211: exec user process caused "no such file or directory"**.
 A workaround is to switch the shell to **sh** on the first line of **docker-entrypoint.sh**.
@@ -75,7 +75,7 @@ The required configuration files are available in the [flink-playgrounds](https:
 Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 tEnv.executeSql("CREATE TABLE transactions (\n" +
@@ -118,7 +118,7 @@ The table environment is how you can set properties for your Job, specify whethe
 This walkthrough creates a standard table environment that uses the streaming execution.
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 
@@ -184,7 +184,7 @@ The project contains a secondary testing class `SpendReportTest` that validates 
 It creates a table environment in batch mode. 
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inBatchMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
 TableEnvironment tEnv = TableEnvironment.create(settings); 
 ```
 
@@ -200,7 +200,7 @@ This means the timestamp column needs be be rounded down from millisecond to hou
 Flink supports developing relational applications in pure [SQL]({{< ref "docs/dev/table/sql/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
 The Table API is a fluent DSL inspired by SQL, that can be written in Python, Java, or Scala and supports strong IDE integration.
 Just like a SQL query, Table programs can select the required fields and group by your keys.
-These features, allong with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, you can write this report.
+These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, you can write this report.
 
 ```java
 public static Table report(Table transactions) {
@@ -304,7 +304,7 @@ $ docker-compose up -d
 
 You can see information on the running job via the [Flink console](http://localhost:8082/).
 
-![Flink Console]({% link /fig/spend-report-console.png %}){:height="400px" width="800px"}
+{{< img src="/fig/spend-report-console.png" height="400px" width="800px" alt="Flink Console">}}
 
 Explore the results from inside MySQL.
 

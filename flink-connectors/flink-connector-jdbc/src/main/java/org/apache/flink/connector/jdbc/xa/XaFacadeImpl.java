@@ -18,6 +18,7 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -80,14 +81,14 @@ class XaFacadeImpl implements XaFacade {
     private transient Connection connection;
     private transient XAConnection xaConnection;
 
-    /** @return a non-serializable instance. */
+    @VisibleForTesting
     static XaFacadeImpl fromXaDataSource(XADataSource ds) {
-        return new XaFacadeImpl(() -> ds, empty());
+        return new XaFacadeImpl(() -> ds, null);
     }
 
-    XaFacadeImpl(Supplier<XADataSource> dataSourceSupplier, Optional<Integer> timeoutSec) {
+    XaFacadeImpl(Supplier<XADataSource> dataSourceSupplier, Integer timeoutSec) {
         this.dataSourceSupplier = Preconditions.checkNotNull(dataSourceSupplier);
-        this.timeoutSec = timeoutSec.orElse(null);
+        this.timeoutSec = timeoutSec;
     }
 
     @Override
@@ -112,12 +113,21 @@ class XaFacadeImpl implements XaFacade {
     @Override
     public void close() throws SQLException {
         if (connection != null) {
-            connection.close();
+            connection.close(); // close connection - likely a wrapper
             connection = null;
         }
-        if (xaConnection != null) {
-            xaConnection.close();
-            xaConnection = null;
+        try {
+            xaConnection.close(); // close likely a pooled AND the underlying connection
+        } catch (SQLException e) {
+            // Some databases (e.g. MySQL) rollback changes on normal client disconnect which
+            // causes an exception if an XA transaction was prepared. Note that resources are
+            // still released in case of an error. Pinning MySQL connections doesn't help as
+            // SuspendableXAConnection has the same close() logic.
+            // Other DBs don't rollback, e.g. for PgSql the previous connection.close() call
+            // disassociates the connection (and that call works because it has a check for XA)
+            // and rollback() is not called.
+            // In either case, not closing the XA connection here leads to the resource leak.
+            LOG.warn("unable to close XA connection", e);
         }
         xaResource = null;
     }
@@ -173,12 +183,15 @@ class XaFacadeImpl implements XaFacade {
     }
 
     @Override
-    public void failOrRollback(Xid xid) {
+    public void failAndRollback(Xid xid) {
         execute(
                 Command.fromRunnable(
                         "end (fail)",
                         xid,
-                        () -> xaResource.end(xid, XAResource.TMFAIL),
+                        () -> {
+                            xaResource.end(xid, XAResource.TMFAIL);
+                            xaResource.rollback(xid);
+                        },
                         err -> {
                             if (err.errorCode >= XA_RBBASE) {
                                 rollback(xid);

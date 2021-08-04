@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,7 +147,9 @@ public class SharedStateRegistry implements AutoCloseable {
             entry = registeredStates.get(registrationKey);
 
             Preconditions.checkState(
-                    entry != null, "Cannot unregister a state that is not registered.");
+                    entry != null,
+                    "Cannot unregister a state that is not registered: %s",
+                    registrationKey);
 
             entry.decreaseReferenceCount();
 

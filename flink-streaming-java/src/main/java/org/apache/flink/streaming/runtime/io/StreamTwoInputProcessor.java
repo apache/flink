@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -44,9 +44,9 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     private final StreamOneInputProcessor<IN2> processor2;
 
     /** Input status to keep track for determining whether the input is finished or not. */
-    private InputStatus firstInputStatus = InputStatus.MORE_AVAILABLE;
+    private DataInputStatus firstInputStatus = DataInputStatus.MORE_AVAILABLE;
 
-    private InputStatus secondInputStatus = InputStatus.MORE_AVAILABLE;
+    private DataInputStatus secondInputStatus = DataInputStatus.MORE_AVAILABLE;
 
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
@@ -74,7 +74,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
+    public DataInputStatus processInput() throws Exception {
         int readingInputIndex;
         if (isPrepared) {
             readingInputIndex = selectNextReadingInputIndex();
@@ -86,7 +86,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
         // In case of double notification (especially with priority notification), there may not be
         // an input after all.
         if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
 
         lastReadInputIndex = readingInputIndex;
@@ -103,7 +103,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         return CompletableFuture.allOf(
                 processor1.prepareSnapshot(channelStateWriter, checkpointId),
                 processor2.prepareSnapshot(channelStateWriter, checkpointId));
@@ -120,26 +120,26 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
         return selectNextReadingInputIndex();
     }
 
-    private InputStatus getInputStatus() {
-        if (firstInputStatus == InputStatus.END_OF_INPUT
-                && secondInputStatus == InputStatus.END_OF_INPUT) {
-            return InputStatus.END_OF_INPUT;
+    private DataInputStatus getInputStatus() {
+        if (firstInputStatus == DataInputStatus.END_OF_INPUT
+                && secondInputStatus == DataInputStatus.END_OF_INPUT) {
+            return DataInputStatus.END_OF_INPUT;
         }
 
         if (inputSelectionHandler.areAllInputsSelected()) {
-            if (firstInputStatus == InputStatus.MORE_AVAILABLE
-                    || secondInputStatus == InputStatus.MORE_AVAILABLE) {
-                return InputStatus.MORE_AVAILABLE;
+            if (firstInputStatus == DataInputStatus.MORE_AVAILABLE
+                    || secondInputStatus == DataInputStatus.MORE_AVAILABLE) {
+                return DataInputStatus.MORE_AVAILABLE;
             } else {
-                return InputStatus.NOTHING_AVAILABLE;
+                return DataInputStatus.NOTHING_AVAILABLE;
             }
         }
 
-        InputStatus selectedStatus =
+        DataInputStatus selectedStatus =
                 inputSelectionHandler.isFirstInputSelected() ? firstInputStatus : secondInputStatus;
-        InputStatus otherStatus =
+        DataInputStatus otherStatus =
                 inputSelectionHandler.isFirstInputSelected() ? secondInputStatus : firstInputStatus;
-        return selectedStatus == InputStatus.END_OF_INPUT ? otherStatus : selectedStatus;
+        return selectedStatus == DataInputStatus.END_OF_INPUT ? otherStatus : selectedStatus;
     }
 
     @Override
@@ -185,12 +185,12 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
             return;
         }
         if (inputSelectionHandler.isFirstInputSelected()
-                && firstInputStatus == InputStatus.END_OF_INPUT) {
+                && firstInputStatus == DataInputStatus.END_OF_INPUT) {
             throw new IOException(
                     "Can not make a progress: only first input is selected but it is already finished");
         }
         if (inputSelectionHandler.isSecondInputSelected()
-                && secondInputStatus == InputStatus.END_OF_INPUT) {
+                && secondInputStatus == DataInputStatus.END_OF_INPUT) {
             throw new IOException(
                     "Can not make a progress: only second input is selected but it is already finished");
         }
@@ -202,9 +202,9 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     }
 
     private void updateAvailability(
-            InputStatus status, StreamOneInputProcessor<?> input, int inputIdx) {
-        if (status == InputStatus.MORE_AVAILABLE
-                || (status != InputStatus.END_OF_INPUT && input.isApproximatelyAvailable())) {
+            DataInputStatus status, StreamOneInputProcessor<?> input, int inputIdx) {
+        if (status == DataInputStatus.MORE_AVAILABLE
+                || (status != DataInputStatus.END_OF_INPUT && input.isApproximatelyAvailable())) {
             inputSelectionHandler.setAvailableInput(inputIdx);
         } else {
             inputSelectionHandler.setUnavailableInput(inputIdx);
@@ -212,8 +212,8 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     }
 
     private void checkAndSetAvailable(int inputIndex) {
-        InputStatus status = (inputIndex == 0 ? firstInputStatus : secondInputStatus);
-        if (status == InputStatus.END_OF_INPUT) {
+        DataInputStatus status = (inputIndex == 0 ? firstInputStatus : secondInputStatus);
+        if (status == DataInputStatus.END_OF_INPUT) {
             return;
         }
 
@@ -227,11 +227,11 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
     }
 
     private CompletableFuture<?> isAnyInputAvailable() {
-        if (firstInputStatus == InputStatus.END_OF_INPUT) {
+        if (firstInputStatus == DataInputStatus.END_OF_INPUT) {
             return processor2.getAvailableFuture();
         }
 
-        if (secondInputStatus == InputStatus.END_OF_INPUT) {
+        if (secondInputStatus == DataInputStatus.END_OF_INPUT) {
             return processor1.getAvailableFuture();
         }
 

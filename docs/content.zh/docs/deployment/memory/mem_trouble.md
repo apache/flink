@@ -67,7 +67,7 @@ under the License.
 
 ## 容器（Container）内存超用
 
-如果 Flink 容器尝试分配超过其申请大小的内存（Yarn、Mesos 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
+如果 Flink 容器尝试分配超过其申请大小的内存（Yarn 或 Kubernetes），这通常说明 Flink 没有预留出足够的本地内存。
 可以通过外部监控系统或者容器被部署环境杀掉时的错误信息判断是否存在容器内存超用。
 
 对于 *JobManager* 进程，你还可以尝试启用 *JVM 直接内存限制*（[`jobmanager.memory.enable-jvm-direct-memory-limit`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-enable-jvm-direct-memory-limit)），以排除 *JVM 直接内存泄漏*的可能性。

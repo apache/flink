@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -76,7 +77,7 @@ public class ZooKeeperJobGraphStoreWatcherTest extends TestLogger {
             final ZooKeeperStateHandleStore<JobGraph> stateHandleStore =
                     createStateHandleStore(client);
 
-            final JobGraph jobGraph = new JobGraph();
+            final JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
             final JobID jobID = jobGraph.getJobID();
             stateHandleStore.addAndLock("/" + jobID, jobGraph);
 

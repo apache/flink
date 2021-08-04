@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.jar.JarFile;
@@ -59,39 +60,7 @@ public final class ClassLoaderUtil {
                 }
 
                 for (URL url : cl.getURLs()) {
-                    bld.append("\n    ");
-                    if (url == null) {
-                        bld.append("(null)");
-                    } else if ("file".equals(url.getProtocol())) {
-                        String filePath = url.getPath();
-                        File fileFile = new File(filePath);
-
-                        bld.append("file: '").append(filePath).append('\'');
-
-                        if (fileFile.exists()) {
-                            if (fileFile.isDirectory()) {
-                                bld.append(" (directory)");
-                            } else {
-                                JarFile jar = null;
-                                try {
-                                    jar = new JarFile(filePath);
-                                    bld.append(" (valid JAR)");
-                                } catch (Exception e) {
-                                    bld.append(" (invalid JAR: ")
-                                            .append(e.getMessage())
-                                            .append(')');
-                                } finally {
-                                    if (jar != null) {
-                                        jar.close();
-                                    }
-                                }
-                            }
-                        } else {
-                            bld.append(" (missing)");
-                        }
-                    } else {
-                        bld.append("url: ").append(url);
-                    }
+                    bld.append(formatURL(url));
                 }
 
                 return bld.toString();
@@ -106,6 +75,59 @@ public final class ClassLoaderUtil {
         } else {
             return "No user code ClassLoader";
         }
+    }
+
+    /**
+     * Returns the interpretation of URL in string format.
+     *
+     * <p>If the URL is null, it returns '(null)'.
+     *
+     * <p>If the URL protocol is file, prepend 'file:' flag before the formatted URL. Otherwise, use
+     * 'url: ' as the prefix instead.
+     *
+     * <p>Also, it checks whether the object that the URL directs to exists or not. If the object
+     * exists, some additional checks should be performed in order to determine that the object is a
+     * directory or a valid/invalid jar file. If the object does not exist, a missing flag should be
+     * appended.
+     *
+     * @param url URL that should be formatted
+     * @return The formatted URL
+     * @throws IOException When JarFile cannot be closed
+     */
+    public static String formatURL(URL url) throws IOException {
+        StringBuilder bld = new StringBuilder();
+        bld.append("\n    ");
+        if (url == null) {
+            bld.append("(null)");
+        } else if ("file".equals(url.getProtocol())) {
+            String filePath = url.getPath();
+            File fileFile = new File(filePath);
+
+            bld.append("file: '").append(filePath).append('\'');
+
+            if (fileFile.exists()) {
+                if (fileFile.isDirectory()) {
+                    bld.append(" (directory)");
+                } else {
+                    JarFile jar = null;
+                    try {
+                        jar = new JarFile(filePath);
+                        bld.append(" (valid JAR)");
+                    } catch (Exception e) {
+                        bld.append(" (invalid JAR: ").append(e.getMessage()).append(')');
+                    } finally {
+                        if (jar != null) {
+                            jar.close();
+                        }
+                    }
+                }
+            } else {
+                bld.append(" (missing)");
+            }
+        } else {
+            bld.append("url: ").append(url);
+        }
+        return bld.toString();
     }
 
     /**

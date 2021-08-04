@@ -74,13 +74,13 @@ public class SnapshotUtilsTest {
         }
 
         @Override
-        public void close() throws Exception {
-            ACTUAL_ORDER_TRACKING.add("close");
+        public void finish() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("finish");
         }
 
         @Override
-        public void dispose() throws Exception {
-            ACTUAL_ORDER_TRACKING.add("dispose");
+        public void close() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("close");
         }
 
         @Override

@@ -21,24 +21,25 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /** Tests for the memory manager. */
-public class MemoryManagerTest {
+public class MemoryManagerTest extends TestLogger {
 
     private static final long RANDOM_SEED = 643196033469871L;
 
@@ -191,6 +192,45 @@ public class MemoryManagerTest {
         this.memoryManager.releaseAll(mockInvoke);
     }
 
+    @Test
+    public void releaseCollectionAfterReleaseAll() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, 1);
+        MemorySegment segment = segs.iterator().next();
+
+        this.memoryManager.releaseAll(mockInvoke);
+        // the collection must be modifiable
+        this.memoryManager.release(new ArrayList<>(Collections.singletonList(segment)));
+        // there is no exception. see FLINK-21728
+    }
+
+    @Test
+    public void releaseAfterReleaseAll() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, 1);
+        MemorySegment segment = segs.iterator().next();
+
+        this.memoryManager.releaseAll(mockInvoke);
+        this.memoryManager.release(segment);
+        // there is no exception. see FLINK-21728
+    }
+
+    @Test
+    public void releaseSameSegmentFromTwoCollections() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
+
+        MemorySegment seg1 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+        MemorySegment seg2 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+        MemorySegment seg3 = this.memoryManager.allocatePages(mockInvoke, 1).get(0);
+
+        // the collection must be modifiable
+        this.memoryManager.release(new ArrayList<>(Arrays.asList(seg1, seg2)));
+        this.memoryManager.release(new ArrayList<>(Arrays.asList(seg2, seg3)));
+        // there is no exception. see FLINK-21728
+    }
+
     private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {
         for (MemorySegment seg : memSegs) {
             if (seg.isFreed()) {
@@ -291,57 +331,6 @@ public class MemoryManagerTest {
 
         memoryManager.releaseAll(owner1);
         memoryManager.releaseAllMemory(owner2);
-    }
-
-    @Test(expected = MemoryAllocationException.class)
-    public void testAllocationFailsIfSegmentsNotGced() throws MemoryAllocationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.allocatePages(new Object(), 1);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-    }
-
-    @Test(expected = MemoryReservationException.class)
-    public void testReservationFailsIfSegmentsNotGced()
-            throws MemoryAllocationException, MemoryReservationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-    }
-
-    @Test
-    public void testAllocationSuccessIfSegmentsGced() throws MemoryAllocationException {
-        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // no reference to the allocated segments at this point, so the memory should be released by
-        // GC
-        // and this allocation should be successful
-        memoryManager.release(memoryManager.allocatePages(new Object(), 1));
-    }
-
-    @Test
-    public void testReservationSuccessIfSegmentsGced()
-            throws MemoryAllocationException, MemoryReservationException {
-        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // no reference to the allocated segments at this point, so the memory should be released by
-        // GC
-        Object owner = new Object();
-        // and this reservation should be successful
-        memoryManager.reserveMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
-        memoryManager.releaseMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
-    }
-
-    private List<ByteBuffer> allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs()
-            throws MemoryAllocationException {
-        List<MemorySegment> segments = memoryManager.allocatePages(new Object(), NUM_PAGES);
-        List<ByteBuffer> buffers =
-                segments.stream().map(segment -> segment.wrap(0, 1)).collect(Collectors.toList());
-        memoryManager.release(segments);
-        return buffers;
     }
 
     @Test

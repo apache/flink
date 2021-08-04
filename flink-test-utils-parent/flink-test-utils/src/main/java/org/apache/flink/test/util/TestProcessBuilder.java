@@ -23,6 +23,9 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils.PipeForwarder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -35,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utility class wrapping {@link ProcessBuilder} and pre-configuring it with common options. */
 public class TestProcessBuilder {
+    private static final Logger LOG = LoggerFactory.getLogger(TestProcessBuilder.class);
+
     private final String javaCommand = checkNotNull(getJavaCommandPath());
 
     private final ArrayList<String> jvmArgs = new ArrayList<>();
@@ -43,6 +48,8 @@ public class TestProcessBuilder {
     private final String mainClass;
 
     private MemorySize jvmMemory = MemorySize.parse("80mb");
+
+    private boolean withCleanEnvironment = false;
 
     public TestProcessBuilder(String mainClass) throws IOException {
         File tempLogFile =
@@ -70,7 +77,12 @@ public class TestProcessBuilder {
 
         StringWriter processOutput = new StringWriter();
         StringWriter errorOutput = new StringWriter();
-        Process process = new ProcessBuilder(commands).start();
+        LOG.info("Starting process with commands {}", commands);
+        final ProcessBuilder processBuilder = new ProcessBuilder(commands);
+        if (withCleanEnvironment) {
+            processBuilder.environment().clear();
+        }
+        Process process = processBuilder.start();
         new PipeForwarder(process.getInputStream(), processOutput);
         new PipeForwarder(process.getErrorStream(), errorOutput);
 
@@ -97,6 +109,11 @@ public class TestProcessBuilder {
             addMainClassArg("--" + keyValue.getKey());
             addMainClassArg(keyValue.getValue());
         }
+        return this;
+    }
+
+    public TestProcessBuilder withCleanEnvironment() {
+        withCleanEnvironment = true;
         return this;
     }
 

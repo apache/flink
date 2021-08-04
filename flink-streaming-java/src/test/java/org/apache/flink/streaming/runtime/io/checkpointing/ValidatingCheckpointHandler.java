@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,13 +41,14 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
     private CheckpointFailureReason failureReason;
     private long lastCanceledCheckpointId = -1L;
     private long abortedCheckpointCounter = 0;
-    private final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
+    final List<Long> abortedCheckpoints = new ArrayList<>();
 
     long nextExpectedCheckpointId;
     long triggeredCheckpointCounter = 0;
     CompletableFuture<Long> lastAlignmentDurationNanos;
     CompletableFuture<Long> lastBytesProcessedDuringAlignment;
     final List<Long> triggeredCheckpoints = new ArrayList<>();
+    private final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
 
     ValidatingCheckpointHandler() {
         this(-1);
@@ -100,9 +102,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException("should never be called");
     }
 
@@ -122,6 +122,11 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
         lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
         lastBytesProcessedDuringAlignment = checkpointMetrics.getBytesProcessedDuringAlignment();
 
+        if (!checkpointOptions.isUnalignedCheckpoint()) {
+            Preconditions.checkCompletedNormally(lastAlignmentDurationNanos);
+            Preconditions.checkCompletedNormally(lastBytesProcessedDuringAlignment);
+        }
+
         triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
         triggeredCheckpointOptions.add(checkpointOptions);
     }
@@ -131,6 +136,7 @@ public class ValidatingCheckpointHandler extends AbstractInvokable {
         lastCanceledCheckpointId = checkpointId;
         failureReason = cause.getCheckpointFailureReason();
         abortedCheckpointCounter++;
+        abortedCheckpoints.add(checkpointId);
     }
 
     @Override

@@ -115,7 +115,6 @@ Yen       1
 
 时态表
 -----
-<span class="label label-danger">注意</span> 仅 Blink planner 支持此功能。
 
 Flink 使用主键约束和事件时间来定义一张版本表和版本视图。
 
@@ -181,7 +180,7 @@ currency_time currency  rate
 11:49:00      Pounds    108
 ```
 
-为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/dev/table/sql/queries" >}}#去重)定义版本视图，
+为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/dev/table/sql/queries/deduplication" >}}#去重)定义版本视图，
 去重查询可以产出一个有序的 changelog 流，去重查询能够推断主键并保留原始数据流的事件时间属性。
 
 ```sql
@@ -257,7 +256,7 @@ currency_time currency   rate
 
 时态表函数
 ------------------------
-时态表函数是一种过时的方式去定义时态表并关联时态表的数据，现在我们可以用时态表 DDL 去定义时态表，用[时态表 Join]({{< ref "docs/dev/table/concepts/joins" >}}#时态表-join) 语法去关联时态表。 
+时态表函数是一种过时的方式去定义时态表并关联时态表的数据，现在我们可以用时态表 DDL 去定义时态表，用[时态表 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#时态表-join) 语法去关联时态表。
 
 时态表函数和时态表 DDL 最大的区别在于，时态表 DDL 可以在纯 SQL 环境中使用但是时态表函数不支持，用时态表 DDL 声明的时态表支持 changelog 流和 append-only 流但时态表函数仅支持 append-only 流。
  
@@ -291,7 +290,7 @@ rowtime  currency  rate
 
 **注意**：当前 Flink 不支持使用常量时间属性参数直接查询时态表函数。目前，时态表函数只能在 join 中使用。上面的示例用于为函数 `Rates(timeAttribute)` 返回内容提供直观信息。
 
-另请参阅有关[用于持续查询的 join ]({{< ref "docs/dev/table/concepts/joins" >}})页面，以获取有关如何与时态表 join 的更多信息。
+另请参阅有关[用于持续查询的 join ]({{< ref "docs/dev/table/sql/queries/joins" >}})页面，以获取有关如何与时态表 join 的更多信息。
 
 ### 定义时态表函数
 
@@ -361,6 +360,6 @@ tEnv.registerFunction("Rates", rates)                                          /
 行`(1)`创建了一个 `rates` [时态表函数](#时态表函数)，
 这使我们可以在[ Table API ]({{< ref "docs/dev/table/tableApi" >}}#joins)中使用 `rates` 函数。
 
-行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{< ref "docs/dev/table/sql/queries" >}}#joins)中使用 `Rates` 函数。
+行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{< ref "docs/dev/table/sql/queries/joins" >}})中使用 `Rates` 函数。
 
 {{< top >}}

@@ -25,8 +25,9 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -85,21 +87,25 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+                        TernaryBoolean.UNDEFINED,
                         new SerializedValue<CheckpointStorage>(
                                 new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
 
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
-        jobGraph.setSnapshotSettings(checkpointingSettings);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .build();
 
         // to serialize/deserialize the job graph to see if the behavior is correct under
         // distributed execution
         final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
         final ExecutionGraph eg =
-                TestingExecutionGraphBuilder.newBuilder()
+                TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setJobGraph(copy)
                         .setUserClassLoader(classLoader)
                         .build();

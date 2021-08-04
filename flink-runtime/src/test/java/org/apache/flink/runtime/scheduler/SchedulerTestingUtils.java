@@ -32,8 +32,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -62,14 +60,17 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +163,7 @@ public class SchedulerTestingUtils {
                         false,
                         false,
                         false,
+                        0,
                         0);
 
         SerializedValue<StateBackend> serializedStateBackend = null;
@@ -184,13 +186,22 @@ public class SchedulerTestingUtils {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        config, serializedStateBackend, serializedCheckpointStorage, null));
+                        config,
+                        serializedStateBackend,
+                        TernaryBoolean.UNDEFINED,
+                        serializedCheckpointStorage,
+                        null));
     }
 
     public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(
             DefaultScheduler scheduler) {
         return StreamSupport.stream(
-                        scheduler.requestJob().getAllExecutionVertices().spliterator(), false)
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices()
+                                .spliterator(),
+                        false)
                 .map((vertex) -> vertex.getCurrentExecutionAttempt().getAttemptId())
                 .collect(Collectors.toList());
     }
@@ -205,10 +216,7 @@ public class SchedulerTestingUtils {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
-                        scheduler.getJobId(),
-                        attemptID,
-                        ExecutionState.FAILED,
-                        new Exception("test task failure")));
+                        attemptID, ExecutionState.FAILED, new Exception("test task failure")));
     }
 
     public static void canceledExecution(
@@ -216,35 +224,34 @@ public class SchedulerTestingUtils {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(
-                        scheduler.getJobId(),
-                        attemptID,
-                        ExecutionState.CANCELED,
-                        new Exception("test task failure")));
+                        attemptID, ExecutionState.CANCELED, new Exception("test task failure")));
     }
 
-    public static void setExecutionToRunning(
-            DefaultScheduler scheduler, JobVertexID jvid, int subtask) {
+    public static void setExecutionToState(
+            ExecutionState executionState,
+            DefaultScheduler scheduler,
+            JobVertexID jvid,
+            int subtask) {
         final ExecutionAttemptID attemptID = getAttemptId(scheduler, jvid, subtask);
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(scheduler.getJobId(), attemptID, ExecutionState.RUNNING));
+        scheduler.updateTaskExecutionState(new TaskExecutionState(attemptID, executionState));
     }
 
     public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
-        final JobID jid = scheduler.getJobId();
         getAllCurrentExecutionAttempts(scheduler)
                 .forEach(
-                        (attemptId) ->
-                                scheduler.updateTaskExecutionState(
-                                        new TaskExecutionState(
-                                                jid, attemptId, ExecutionState.RUNNING)));
+                        (attemptId) -> {
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.INITIALIZING));
+                            scheduler.updateTaskExecutionState(
+                                    new TaskExecutionState(attemptId, ExecutionState.RUNNING));
+                        });
     }
 
     public static void setAllExecutionsToCancelled(final DefaultScheduler scheduler) {
-        final JobID jid = scheduler.getJobId();
         for (final ExecutionAttemptID attemptId : getAllCurrentExecutionAttempts(scheduler)) {
             final boolean setToRunning =
                     scheduler.updateTaskExecutionState(
-                            new TaskExecutionState(jid, attemptId, ExecutionState.CANCELED));
+                            new TaskExecutionState(attemptId, ExecutionState.CANCELED));
 
             assertTrue("could not switch task to RUNNING", setToRunning);
         }
@@ -400,7 +407,7 @@ public class SchedulerTestingUtils {
         private BlobWriter blobWriter = VoidBlobWriter.getInstance();
         private JobManagerJobMetricGroup jobManagerJobMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-        private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+        private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
         private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
         private FailoverStrategy.Factory failoverStrategyFactory =
                 new RestartPipelinedRegionFailoverStrategy.Factory();
@@ -527,31 +534,41 @@ public class SchedulerTestingUtils {
         }
 
         public DefaultScheduler build() throws Exception {
+            final ExecutionGraphFactory executionGraphFactory =
+                    new DefaultExecutionGraphFactory(
+                            jobMasterConfiguration,
+                            userCodeLoader,
+                            new DefaultExecutionDeploymentTracker(),
+                            futureExecutor,
+                            ioExecutor,
+                            rpcTimeout,
+                            jobManagerJobMetricGroup,
+                            blobWriter,
+                            shuffleMaster,
+                            partitionTracker);
+
             return new DefaultScheduler(
                     log,
                     jobGraph,
                     ioExecutor,
                     jobMasterConfiguration,
                     componentMainThreadExecutor -> {},
-                    futureExecutor,
                     delayExecutor,
                     userCodeLoader,
                     checkpointRecoveryFactory,
-                    rpcTimeout,
-                    blobWriter,
                     jobManagerJobMetricGroup,
-                    shuffleMaster,
-                    partitionTracker,
                     schedulingStrategyFactory,
                     failoverStrategyFactory,
                     restartBackoffTimeStrategy,
                     executionVertexOperations,
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
-                    new DefaultExecutionDeploymentTracker(),
                     System.currentTimeMillis(),
                     mainThreadExecutor,
-                    jobStatusListener);
+                    jobStatusListener,
+                    executionGraphFactory,
+                    shuffleMaster,
+                    rpcTimeout);
         }
     }
 }

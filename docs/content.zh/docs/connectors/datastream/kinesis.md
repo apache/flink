@@ -31,13 +31,7 @@ The Kinesis connector provides access to [Amazon AWS Kinesis Streams](http://aws
 
 To use the connector, add the following Maven dependency to your project:
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-kinesis{{< scala_version >}}</artifactId>
-  <version>{{< version >}}</version>
-</dependency>
-```
+{{< artifact flink-connector-kinesis withScalaVersion >}}
 
 {{< hint warning >}}
 **Attention** Prior to Flink version 1.10.0 the `flink-connector-kinesis{{< scala_version >}}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
@@ -131,6 +125,40 @@ Also note that the assignment of shards to subtasks may not be optimal when
 shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
 For cases where skew in the assignment leads to significant imbalanced consumption,
 a custom implementation of `KinesisShardAssigner` can be set on the consumer.
+
+### The `DeserializationSchema`
+
+Flink Kinesis Consumer also needs a schema to know how to turn the binary data in a Kinesis Data Stream into Java objects.
+The `KinesisDeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId)` 
+method gets called for each Kinesis record.
+
+For convenience, Flink provides the following schemas out of the box:
+  
+1. `TypeInformationSerializationSchema` which creates a schema based on a Flink's `TypeInformation`. 
+    This is useful if the data is both written and read by Flink.
+    This schema is a performant Flink-specific alternative to other generic serialization approaches.
+
+2. `AvroDeserializationSchema` which reads data serialized with Avro format using a statically provided schema. It can
+    infer the schema from Avro generated classes (`AvroDeserializationSchema.forSpecific(...)`) or it can work with `GenericRecords`
+    with a manually provided schema (with `AvroDeserializationSchema.forGeneric(...)`). This deserialization schema expects that
+    the serialized records DO NOT contain embedded schema.
+
+    - You can use [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
+      to retrieve the writer’s schema. Similarly, the deserialization record will be read with the schema from AWS Glue Schema Registry and transformed
+      (either through `GlueSchemaRegistryAvroDeserializationSchema.forGeneric(...)` or `GlueSchemaRegistryAvroDeserializationSchema.forSpecific(...)`).
+      For more information on integrating the AWS Glue Schema Registry with Apache Flink see
+      [Use Case: Amazon Kinesis Data Analytics for Apache Flink](https://docs.aws.amazon.com/glue/latest/dg/schema-registry-integrations.html#schema-registry-integrations-kinesis-data-analytics-apache-flink).
+
+    <br>To use this deserialization schema one has to add the following additional dependency:
+    
+{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
+{{< tab "AvroDeserializationSchema" >}}
+{{< artifact flink-avro >}}
+{{< /tab >}}
+{{< tab "GlueSchemaRegistryAvroDeserializationSchema" >}}
+{{< artifact flink-avro-glue-schema-registry >}}
+{{< /tab >}}
+{{< /tabs >}}
 
 ### Configuring Starting Position
 

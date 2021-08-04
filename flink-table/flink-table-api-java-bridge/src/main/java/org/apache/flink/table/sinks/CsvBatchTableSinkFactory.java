@@ -19,7 +19,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.types.Row;
 
 import java.util.Map;
@@ -29,10 +29,10 @@ import java.util.Map;
  */
 @PublicEvolving
 public class CsvBatchTableSinkFactory extends CsvTableSinkFactoryBase
-        implements BatchTableSinkFactory<Row> {
+        implements StreamTableSinkFactory<Row> {
 
     @Override
-    public BatchTableSink<Row> createBatchTableSink(Map<String, String> properties) {
+    public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
         return createTableSink(false, properties);
     }
 }

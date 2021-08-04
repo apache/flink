@@ -33,13 +33,21 @@ public class CheckpointStatsSnapshot implements Serializable {
     private final CheckpointStatsCounts counts;
 
     /** Snapshot of the completed checkpoints summary stats. */
-    private final CompletedCheckpointStatsSummary summary;
+    private final CompletedCheckpointStatsSummarySnapshot summary;
 
     /** Snapshot of the checkpoint history. */
     private final CheckpointStatsHistory history;
 
     /** The latest restored checkpoint operation. */
     @Nullable private final RestoredCheckpointStats latestRestoredCheckpoint;
+
+    public static CheckpointStatsSnapshot empty() {
+        return new CheckpointStatsSnapshot(
+                new CheckpointStatsCounts(),
+                CompletedCheckpointStatsSummarySnapshot.empty(),
+                new CheckpointStatsHistory(0),
+                null);
+    }
 
     /**
      * Creates a stats snapshot.
@@ -51,7 +59,7 @@ public class CheckpointStatsSnapshot implements Serializable {
      */
     CheckpointStatsSnapshot(
             CheckpointStatsCounts counts,
-            CompletedCheckpointStatsSummary summary,
+            CompletedCheckpointStatsSummarySnapshot summary,
             CheckpointStatsHistory history,
             @Nullable RestoredCheckpointStats latestRestoredCheckpoint) {
 
@@ -75,7 +83,7 @@ public class CheckpointStatsSnapshot implements Serializable {
      *
      * @return Snapshotted completed checkpoint summary stats.
      */
-    public CompletedCheckpointStatsSummary getSummaryStats() {
+    public CompletedCheckpointStatsSummarySnapshot getSummaryStats() {
         return summary;
     }
 
