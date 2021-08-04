@@ -59,6 +59,7 @@ public class AsyncCheckpointRunnableTest {
                         env,
                         (msg, ex) -> {},
                         false,
+                        false,
                         () -> true)
                 .close();
         assertEquals(
@@ -140,10 +141,10 @@ public class AsyncCheckpointRunnableTest {
                 asyncCheckpointRunnable.getCheckpointId(),
                 testTaskStateManager.getReportedCheckpointId());
         assertEquals(
-                TaskStateSnapshot.FINISHED,
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
                 testTaskStateManager.getLastJobManagerTaskStateSnapshot());
         assertEquals(
-                TaskStateSnapshot.FINISHED,
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
                 testTaskStateManager.getLastTaskManagerTaskStateSnapshot());
         assertTrue(asyncCheckpointRunnable.getFinishedFuture().isDone());
     }
@@ -165,6 +166,7 @@ public class AsyncCheckpointRunnableTest {
                 environment,
                 (msg, ex) -> {},
                 isFinishedOnRestore,
+                false,
                 () -> isTaskRunning);
     }
 

@@ -25,31 +25,30 @@ from pyflink.common import Row
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import TimeCharacteristic, RuntimeContext, WindowAssigner, Trigger, \
-    TriggerResult, CountWindow, SlotSharingGroup
+from pyflink.datastream import (TimeCharacteristic, RuntimeContext, WindowAssigner, Trigger,
+                                TriggerResult, CountWindow, SlotSharingGroup)
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction, \
-    ReduceFunction, KeyedCoProcessFunction, WindowFunction, ProcessWindowFunction
-from pyflink.datastream.functions import FilterFunction, ProcessFunction, KeyedProcessFunction
-from pyflink.datastream.functions import KeySelector
-from pyflink.datastream.functions import MapFunction, FlatMapFunction
-from pyflink.datastream.state import ValueStateDescriptor, ListStateDescriptor, \
-    MapStateDescriptor, ReducingStateDescriptor, ReducingState, AggregatingState, \
-    AggregatingStateDescriptor
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
-from pyflink.datastream.window import CountWindowSerializer, MergingWindowAssigner, TimeWindow, \
-    TimeWindowSerializer
+from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
+                                          MapFunction, FilterFunction, FlatMapFunction,
+                                          KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
+                                          ProcessFunction, ProcessWindowFunction, ReduceFunction,
+                                          WindowFunction)
+from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
+                                      ReducingStateDescriptor, ReducingState, AggregatingState,
+                                      AggregatingStateDescriptor)
+from pyflink.datastream.window import (CountWindowSerializer, MergingWindowAssigner, TimeWindow,
+                                       TimeWindowSerializer)
 from pyflink.java_gateway import get_gateway
-from pyflink.testing.test_case_utils import invoke_java_object_method, \
-    PyFlinkBatchTestCase, PyFlinkStreamingTestCase
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class DataStreamTests(object):
 
     def setUp(self) -> None:
         super(DataStreamTests, self).setUp()
-        config = invoke_java_object_method(
-            self.env._j_stream_execution_environment, "getConfiguration")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("akka.ask.timeout", "20 s")
         self.test_sink = DataStreamTestSinkFunction()
 
@@ -561,7 +560,7 @@ class DataStreamTests(object):
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         ds.print()
         plan = eval(str(self.env.get_execution_plan()))
-        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][1]['type'])
+        self.assertEqual("Sink: Print to Std. Out", plan['nodes'][2]['type'])
 
     def test_print_with_align_output(self):
         # need to align output type before print, therefore the plan will contain three nodes

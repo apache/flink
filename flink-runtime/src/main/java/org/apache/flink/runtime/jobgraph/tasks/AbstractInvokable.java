@@ -282,9 +282,11 @@ public abstract class AbstractInvokable {
      * notification.
      *
      * @param checkpointId The ID of the checkpoint that is aborted.
+     * @param latestCompletedCheckpointId The ID of the latest completed checkpoint.
      * @return future that completes when the notification has been processed by the task.
      */
-    public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+    public Future<Void> notifyCheckpointAbortAsync(
+            long checkpointId, long latestCompletedCheckpointId) {
         throw new UnsupportedOperationException(
                 String.format(
                         "notifyCheckpointAbortAsync not supported by %s",

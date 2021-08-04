@@ -138,9 +138,12 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> abortCheckpoint(
-            ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) {
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long checkpointTimestamp) {
         return originalGateway.abortCheckpoint(
-                executionAttemptID, checkpointId, checkpointTimestamp);
+                executionAttemptID, checkpointId, latestCompletedCheckpointId, checkpointTimestamp);
     }
 
     @Override

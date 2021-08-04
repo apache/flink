@@ -402,12 +402,12 @@ class PunctuatedAssigner extends WatermarkGenerator[MyEvent] {
 {{< /tab >}}
 {{< /tabs >}}
 
-<div class="alert alert-warning">
-<strong>Note</strong>: It is possible to
+{{< hint warning >}}
+**Note:** It is possible to
 generate a watermark on every single event. However, because each watermark
 causes some computation downstream, an excessive number of watermarks degrades
 performance.
-</div>
+{{< /hint >}}
 
 ## Watermark Strategies and the Kafka Connector
 

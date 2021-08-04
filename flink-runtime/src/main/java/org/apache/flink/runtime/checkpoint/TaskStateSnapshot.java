@@ -57,34 +57,45 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    public static final TaskStateSnapshot FINISHED = new TaskStateSnapshot(new HashMap<>(), true);
+    public static final TaskStateSnapshot FINISHED_ON_RESTORE =
+            new TaskStateSnapshot(new HashMap<>(), true, true);
 
     /** Mapping from an operator id to the state of one subtask of this operator. */
     private final Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID;
 
-    private final boolean isFinished;
+    private final boolean isFinishedOnRestore;
+
+    private final boolean isOperatorsFinished;
 
     public TaskStateSnapshot() {
-        this(10);
+        this(10, false);
     }
 
-    public TaskStateSnapshot(int size) {
-        this(new HashMap<>(size));
+    public TaskStateSnapshot(int size, boolean isOperatorsFinished) {
+        this(new HashMap<>(size), false, isOperatorsFinished);
     }
 
     public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {
-        this(subtaskStatesByOperatorID, false);
+        this(subtaskStatesByOperatorID, false, false);
     }
 
     private TaskStateSnapshot(
-            Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID, boolean isFinished) {
+            Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID,
+            boolean isFinishedOnRestore,
+            boolean isOperatorsFinished) {
         this.subtaskStatesByOperatorID = Preconditions.checkNotNull(subtaskStatesByOperatorID);
-        this.isFinished = isFinished;
+        this.isFinishedOnRestore = isFinishedOnRestore;
+        this.isOperatorsFinished = isOperatorsFinished;
     }
 
-    /** Returns whether all the operators of the task are finished. */
-    public boolean isFinished() {
-        return isFinished;
+    /** Returns whether all the operators of the task are already finished on restoring. */
+    public boolean isFinishedOnRestore() {
+        return isFinishedOnRestore;
+    }
+
+    /** Returns whether all the operators of the task have called finished methods. */
+    public boolean isOperatorsFinished() {
+        return isOperatorsFinished;
     }
 
     /** Returns the subtask state for the given operator id (or null if not contained). */
@@ -118,7 +129,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                 return true;
             }
         }
-        return isFinished;
+        return isFinishedOnRestore;
     }
 
     /**
@@ -176,12 +187,13 @@ public class TaskStateSnapshot implements CompositeStateHandle {
         TaskStateSnapshot that = (TaskStateSnapshot) o;
 
         return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID)
-                && isFinished == that.isFinished;
+                && isFinishedOnRestore == that.isFinishedOnRestore
+                && isOperatorsFinished == that.isOperatorsFinished;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(subtaskStatesByOperatorID, isFinished);
+        return Objects.hash(subtaskStatesByOperatorID, isFinishedOnRestore, isOperatorsFinished);
     }
 
     @Override
@@ -190,7 +202,9 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                 + "subtaskStatesByOperatorID="
                 + subtaskStatesByOperatorID
                 + ", isFinished="
-                + isFinished
+                + isFinishedOnRestore
+                + ", isOperatorsFinished="
+                + isOperatorsFinished
                 + '}';
     }
 

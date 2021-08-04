@@ -70,14 +70,19 @@ Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // create and register a TableSink
-final Schema schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT());
+final Schema schema = Schema.newBuilder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build();
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders");
+final TableDescriptor sinkDescriptor = TableDescriptor.forConnector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.forFormat("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build();
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor);
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -105,14 +110,19 @@ val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // create and register a TableSink
-val schema = new Schema()
-    .field("product", DataTypes.STRING())
-    .field("amount", DataTypes.INT())
+val schema = Schema.newBuilder()
+  .column("product", DataTypes.STRING())
+  .column("amount", DataTypes.INT())
+  .build()
 
-tableEnv.connect(new FileSystem().path("/path/to/file"))
-    .withFormat(...)
-    .withSchema(schema)
-    .createTemporaryTable("RubberOrders")
+val sinkDescriptor = TableDescriptor.forConnector("filesystem")
+  .schema(schema)
+  .format(FormatDescriptor.forFormat("csv")
+    .option("field-delimiter", ",")
+    .build())
+  .build()
+
+tableEnv.createTemporaryTable("RubberOrders", sinkDescriptor)
 
 // run an INSERT SQL on the Table and emit the result to the TableSink
 tableEnv.executeSql(
@@ -131,14 +141,19 @@ result = table_env \
     .sql_query("SELECT SUM(amount) FROM %s WHERE product LIKE '%%Rubber%%'" % table)
 
 # create and register a TableSink
-t_env.connect(FileSystem().path("/path/to/file")))
-    .with_format(Csv()
-                 .field_delimiter(',')
-                 .deriveSchema())
-    .with_schema(Schema()
-                 .field("product", DataTypes.STRING())
-                 .field("amount", DataTypes.BIGINT()))
-    .create_temporary_table("RubberOrders")
+schema = Schema.new_builder()
+    .column("product", DataTypes.STRING())
+    .column("amount", DataTypes.INT())
+    .build()
+
+sink_descriptor = TableDescriptor.for_connector("filesystem")
+    .schema(schema)
+    .format(FormatDescriptor.for_format("csv")
+        .option("field-delimiter", ",")
+        .build())
+    .build()
+
+t_env.create_temporary_table("RubberOrders", sink_descriptor)
 
 # run an INSERT SQL on the Table and emit the result to the TableSink
 table_env \

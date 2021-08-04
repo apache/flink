@@ -436,13 +436,11 @@ to avoid the event time skew related problems described in [Event time synchroni
 
 To enable synchronization, set the watermark tracker on the consumer:
 
-<div data-lang="java" markdown="1">
 ```java
 JobManagerWatermarkTracker watermarkTracker =
     new JobManagerWatermarkTracker("myKinesisSource");
 consumer.setWatermarkTracker(watermarkTracker);
 ```
-</div>
 
 The `JobManagerWatermarkTracker` will use a global aggregate to synchronize the per subtask watermarks. Each subtask
 uses a per shard queue to control the rate at which records are emitted downstream based on how far ahead of the global

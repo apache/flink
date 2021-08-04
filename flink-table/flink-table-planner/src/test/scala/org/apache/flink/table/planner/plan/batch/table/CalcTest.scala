@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.batch.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
@@ -187,10 +186,6 @@ object CalcTest {
   object giveMeCaseClass extends ScalarFunction {
     def eval(): TestCaseClass = {
       TestCaseClass("hello", 42)
-    }
-
-    override def getResultType(argTypes: Array[Class[_]]): TypeInformation[TestCaseClass] = {
-      createTypeInformation[TestCaseClass]
     }
   }
 

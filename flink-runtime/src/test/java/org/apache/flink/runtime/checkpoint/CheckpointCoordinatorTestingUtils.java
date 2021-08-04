@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -54,6 +55,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -67,6 +69,7 @@ import org.junit.Assert;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -411,6 +414,27 @@ public class CheckpointCoordinatorTestingUtils {
         return new KeyGroupsStateHandle(keyGroupRangeOffsets, allSerializedStatesHandle);
     }
 
+    public static TaskStateSnapshot createSnapshotWithUnionListState(
+            File stateFile, OperatorID operatorId, boolean isOperatorsFinished) throws IOException {
+        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(1, isOperatorsFinished);
+
+        OperatorSubtaskState operatorSubtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                new OperatorStreamStateHandle(
+                                        Collections.singletonMap(
+                                                "test",
+                                                new OperatorStateHandle.StateMetaInfo(
+                                                        new long[0],
+                                                        OperatorStateHandle.Mode.UNION)),
+                                        new FileStateHandle(
+                                                new Path(stateFile.getAbsolutePath()), 0L)))
+                        .build();
+
+        taskStateSnapshot.putSubtaskStateByOperatorID(operatorId, operatorSubtaskState);
+        return taskStateSnapshot;
+    }
+
     static class TriggeredCheckpoint {
         final JobID jobId;
         final long checkpointId;
@@ -477,7 +501,11 @@ public class CheckpointCoordinatorTestingUtils {
 
         @Override
         public void notifyCheckpointAborted(
-                ExecutionAttemptID attemptId, JobID jobId, long checkpointId, long timestamp) {
+                ExecutionAttemptID attemptId,
+                JobID jobId,
+                long checkpointId,
+                long latestCompletedCheckpointId,
+                long timestamp) {
             notifiedAbortCheckpoints
                     .computeIfAbsent(attemptId, k -> new ArrayList<>())
                     .add(new NotifiedCheckpoint(jobId, checkpointId, timestamp));

@@ -621,7 +621,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
     private SerializationSchema<RowData> createDebeziumAvroSerSchema(
             RowType rowType, String subject) {
-        return new DebeziumAvroSerializationSchema(rowType, TEST_REGISTRY_URL, subject);
+        return new DebeziumAvroSerializationSchema(rowType, TEST_REGISTRY_URL, subject, null);
     }
 
     // --------------------------------------------------------------------------------------------

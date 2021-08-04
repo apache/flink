@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -203,6 +205,81 @@ public class StreamTaskFinalCheckpointsTest {
         }
     }
 
+    @Test
+    public void testReportOperatorsFinishedInCheckpoint() throws Exception {
+        ResultPartition[] partitionWriters = new ResultPartition[2];
+        try {
+            for (int i = 0; i < partitionWriters.length; ++i) {
+                partitionWriters[i] =
+                        PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+                partitionWriters[i].setup();
+            }
+
+            try (StreamTaskMailboxTestHarness<String> testHarness =
+                    new StreamTaskMailboxTestHarnessBuilder<>(
+                                    OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                            .addInput(BasicTypeInfo.STRING_TYPE_INFO, 1)
+                            .addAdditionalOutput(partitionWriters)
+                            .modifyStreamConfig(
+                                    config -> {
+                                        config.setCheckpointingEnabled(true);
+                                        config.getConfiguration()
+                                                .set(
+                                                        ExecutionCheckpointingOptions
+                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                        true);
+                                    })
+                            .setupOperatorChain(new StatefulOperator())
+                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .build()) {
+
+                // Trigger the first checkpoint before we call operators' finish method.
+                Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+                processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
+                assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
+                assertFalse(
+                        testHarness
+                                .getTaskStateManager()
+                                .getJobManagerTaskStateSnapshotsByCheckpointId()
+                                .get(2L)
+                                .isOperatorsFinished());
+
+                // Trigger the first checkpoint after we call operators' finish method.
+                // The checkpoint is added to the mailbox and will be processed in the
+                // mailbox loop after call operators' finish method in the afterInvoke()
+                // method.
+                testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+                checkpointFuture = triggerCheckpoint(testHarness, 4);
+                checkState(
+                        checkpointFuture instanceof CompletableFuture,
+                        "The trigger future should " + " be also CompletableFuture.");
+                ((CompletableFuture<?>) checkpointFuture)
+                        .thenAccept(
+                                (ignored) -> {
+                                    for (ResultPartition resultPartition : partitionWriters) {
+                                        resultPartition.onSubpartitionAllRecordsProcessed(0);
+                                    }
+                                });
+                testHarness.finishProcessing();
+                assertTrue(checkpointFuture.isDone());
+                testHarness.getTaskStateManager().getWaitForReportLatch().await();
+                assertTrue(
+                        testHarness
+                                .getTaskStateManager()
+                                .getJobManagerTaskStateSnapshotsByCheckpointId()
+                                .get(4L)
+                                .isOperatorsFinished());
+            }
+
+        } finally {
+            for (ResultPartitionWriter writer : partitionWriters) {
+                if (writer != null) {
+                    writer.close();
+                }
+            }
+        }
+    }
+
     static Future<Boolean> triggerCheckpoint(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
         testHarness.getTaskStateManager().getWaitForReportLatch().reset();
@@ -310,7 +387,7 @@ public class StreamTaskFinalCheckpointsTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
                         .setupOutputForSingletonOperatorChain(new LifeCycleMonitorOperator<>())
                         .build()) {
             // Finish the restore, including state initialization and open.
@@ -329,7 +406,7 @@ public class StreamTaskFinalCheckpointsTest {
 
             // Checkpoint notification.
             harness.streamTask.notifyCheckpointCompleteAsync(2);
-            harness.streamTask.notifyCheckpointAbortAsync(3);
+            harness.streamTask.notifyCheckpointAbortAsync(3, 2);
             harness.processAll();
 
             // Finish & close operators.
@@ -416,5 +493,22 @@ public class StreamTaskFinalCheckpointsTest {
         public LifeCycleMonitor getLifeCycleMonitor() {
             return lifeCycleMonitor;
         }
+    }
+
+    private static class StatefulOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+
+        private ListState<Integer> state;
+
+        @Override
+        public void initializeState(StateInitializationContext context) throws Exception {
+            super.initializeState(context);
+            state =
+                    context.getOperatorStateStore()
+                            .getUnionListState(new ListStateDescriptor<>("test", Integer.class));
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {}
     }
 }

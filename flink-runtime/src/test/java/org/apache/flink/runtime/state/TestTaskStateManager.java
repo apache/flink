@@ -149,7 +149,7 @@ public class TestTaskStateManager implements TaskStateManager {
     public boolean isFinishedOnRestore() {
         TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
         if (jmTaskStateSnapshot != null) {
-            return jmTaskStateSnapshot.isFinished();
+            return jmTaskStateSnapshot.isFinishedOnRestore();
         }
 
         return false;

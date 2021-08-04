@@ -52,6 +52,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -60,6 +61,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -190,7 +192,16 @@ public class StreamExecutionEnvironment {
 
     private final PipelineExecutorServiceLoader executorServiceLoader;
 
-    private final Configuration configuration;
+    /**
+     * Currently, configuration is split across multiple member variables and classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}. This architecture makes it quite difficult to
+     * handle/merge/enrich configuration or restrict access in other APIs.
+     *
+     * <p>In the long-term, this {@link Configuration} object should be the source of truth for
+     * newly added {@link ConfigOption}s that are relevant for DataStream API. Make sure to also
+     * update {@link #configure(ReadableConfig, ClassLoader)}.
+     */
+    protected final Configuration configuration;
 
     private final ClassLoader userClassloader;
 
@@ -260,10 +271,6 @@ public class StreamExecutionEnvironment {
         // other ways assume
         // that the env is already instantiated so they will overwrite the value passed here.
         this.configure(this.configuration, this.userClassloader);
-    }
-
-    protected Configuration getConfiguration() {
-        return this.configuration;
     }
 
     protected ClassLoader getUserClassloader() {
@@ -932,6 +939,21 @@ public class StreamExecutionEnvironment {
      * configuration}. If a key is not present, the current value of a field will remain untouched.
      *
      * @param configuration a configuration to read the values from
+     */
+    @PublicEvolving
+    public void configure(ReadableConfig configuration) {
+        configure(configuration, userClassloader);
+    }
+
+    /**
+     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
+     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+     *
+     * <p>It will change the value of a setting only if a corresponding option was set in the {@code
+     * configuration}. If a key is not present, the current value of a field will remain untouched.
+     *
+     * @param configuration a configuration to read the values from
      * @param classLoader a class loader to use when loading classes
      */
     @PublicEvolving
@@ -967,35 +989,35 @@ public class StreamExecutionEnvironment {
                                 this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
 
         configuration
-                .getOptional(ExecutionOptions.SHUFFLE_MODE)
+                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
                 .ifPresent(
                         shuffleMode ->
-                                this.configuration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode));
+                                this.configuration.set(
+                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
 
         configuration
                 .getOptional(ExecutionOptions.SORT_INPUTS)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.SORT_INPUTS, sortInputs));
+                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
         configuration
                 .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
+                                this.configuration.set(
+                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
         configuration
                 .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
+                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
+
         configuration
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
                 .ifPresent(
                         flag ->
-                                this.getConfiguration()
-                                        .set(
-                                                ExecutionCheckpointingOptions
-                                                        .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                flag));
+                                this.configuration.set(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                        flag));
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
@@ -2130,7 +2152,7 @@ public class StreamExecutionEnvironment {
 
         final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
 
-        return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
+        return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
@@ -2180,6 +2202,22 @@ public class StreamExecutionEnvironment {
     public void addOperator(Transformation<?> transformation) {
         Preconditions.checkNotNull(transformation, "transformation must not be null.");
         this.transformations.add(transformation);
+    }
+
+    /**
+     * Gives read-only access to the underlying configuration of this environment.
+     *
+     * <p>Note that the returned configuration might not be complete. It only contains options that
+     * have initialized the environment via {@link #StreamExecutionEnvironment(Configuration)} or
+     * options that are not represented in dedicated configuration classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}.
+     *
+     * <p>Use {@link #configure(ReadableConfig, ClassLoader)} to set options that are specific to
+     * this environment.
+     */
+    @Internal
+    public ReadableConfig getConfiguration() {
+        return new UnmodifiableConfiguration(configuration);
     }
 
     // --------------------------------------------------------------------------------------------

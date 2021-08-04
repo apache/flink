@@ -30,6 +30,7 @@ from typing import List, Union
 from cloudpickle import cloudpickle
 
 from pyflink.common import Row, RowKind
+from pyflink.common.time import Instant
 from pyflink.datastream.window import CountWindow, TimeWindow
 
 ROW_KIND_BIT_SIZE = 2
@@ -262,9 +263,10 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
         self._separated_with_end_message = separated_with_end_message
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
-        for item in value:
-            self._field_coder.encode_to_stream(item, self._data_out_stream)
-            self._write_data_to_output_stream(output_stream)
+        if value:
+            for item in value:
+                self._field_coder.encode_to_stream(item, self._data_out_stream)
+                self._write_data_to_output_stream(output_stream)
 
         # write end message
         if self._separated_with_end_message:
@@ -644,6 +646,34 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+
+cdef class InstantCoderImpl(FieldCoderImpl):
+    """
+    A coder for Instant.
+    """
+
+    def __init__(self):
+        self._null_seconds = -9223372036854775808
+        self._null_nanos = -2147483648
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int64(self._null_seconds)
+            out_stream.write_int32(self._null_nanos)
+        else:
+            out_stream.write_int64(value.seconds)
+            out_stream.write_int32(value.nanos)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        cdef int64_t seconds
+        cdef int32_t nanos
+        seconds = in_stream.read_int64()
+        nanos = in_stream.read_int32()
+        if seconds == self._null_seconds and nanos == self._null_nanos:
+            return None
+        else:
+            return Instant(seconds, nanos)
+
 
 cdef class CloudPickleCoderImpl(FieldCoderImpl):
     """

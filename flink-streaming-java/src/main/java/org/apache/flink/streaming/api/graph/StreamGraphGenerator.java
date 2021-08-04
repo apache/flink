@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
@@ -394,12 +394,11 @@ public class StreamGraphGenerator {
     }
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeBatch() {
-        final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
+        final BatchShuffleMode shuffleMode = configuration.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
         switch (shuffleMode) {
             case ALL_EXCHANGES_PIPELINED:
                 return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
             case ALL_EXCHANGES_BLOCKING:
-            case AUTOMATIC:
                 return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
             default:
                 throw new IllegalArgumentException(
@@ -410,21 +409,11 @@ public class StreamGraphGenerator {
     }
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeStreaming() {
-        final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
-        switch (shuffleMode) {
-            case ALL_EXCHANGES_PIPELINED:
-            case AUTOMATIC:
-                if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
-                    checkApproximateLocalRecoveryCompatibility();
-                    return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
-                }
-                return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
-            default:
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Unsupported shuffle mode '%s' in STREAMING runtime mode.",
-                                shuffleMode.toString()));
+        if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
+            checkApproximateLocalRecoveryCompatibility();
+            return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
         }
+        return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
     }
 
     private void checkApproximateLocalRecoveryCompatibility() {

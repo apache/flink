@@ -33,12 +33,10 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.types.Row;
 
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
@@ -85,21 +83,6 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
 
     protected transient Row reuseRow;
 
-    transient LinkedList<Long> bufferedTimestamp;
-
-    public TwoInputPythonFunctionOperator(
-            Configuration config,
-            TypeInformation<IN1> inputTypeInfo1,
-            TypeInformation<IN2> inputTypeInfo2,
-            TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        this(
-                config,
-                pythonFunctionInfo,
-                new RowTypeInfo(Types.BOOLEAN, inputTypeInfo1, inputTypeInfo2),
-                (TypeInformation<RUNNER_OUT>) outputTypeInfo);
-    }
-
     public TwoInputPythonFunctionOperator(
             Configuration config,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
@@ -120,8 +103,6 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
-
-        bufferedTimestamp = new LinkedList<>();
 
         collector = new TimestampedCollector<>(output);
         reuseRow = new Row(3);
@@ -168,26 +149,6 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
         return pythonFunctionInfo.getPythonFunction().getPythonEnv();
     }
 
-    @Override
-    public void processElement1(StreamRecord<IN1> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        // construct combined row.
-        reuseRow.setField(0, true);
-        reuseRow.setField(1, element.getValue());
-        reuseRow.setField(2, null); // need to set null since it is a reuse row.
-        processElementInternal();
-    }
-
-    @Override
-    public void processElement2(StreamRecord<IN2> element) throws Exception {
-        bufferedTimestamp.offer(element.getTimestamp());
-        // construct combined row.
-        reuseRow.setField(0, false);
-        reuseRow.setField(1, null); // need to set null since it is a reuse row.
-        reuseRow.setField(2, element.getValue());
-        processElementInternal();
-    }
-
     public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
             TypeInformation<?> runnerInputType);
 
@@ -210,12 +171,45 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
         return runnerOutputTypeSerializer;
     }
 
-    private void processElementInternal() throws Exception {
-        runnerInputTypeSerializer.serialize(reuseRow, baosWrapper);
-        pythonFunctionRunner.process(baos.toByteArray());
-        baos.reset();
-        elementCount++;
-        checkInvokeFinishBundleByCount();
-        emitResults();
+    /** RunnerInputHandler. */
+    public static final class RunnerInputHandler {
+
+        private final Row reusableElementData;
+        private final Row reusableRunnerInput;
+
+        public RunnerInputHandler() {
+            this.reusableElementData = new Row(3);
+            this.reusableRunnerInput = new Row(3);
+            this.reusableRunnerInput.setField(2, reusableElementData);
+        }
+
+        public Row buildRunnerInputData(
+                boolean isLeft, long timestamp, long watermark, Object elementData) {
+            reusableElementData.setField(0, isLeft);
+            if (isLeft) {
+                // The input row is a tuple of key and value.
+                reusableElementData.setField(1, elementData);
+                // need to set null since it is a reuse row.
+                reusableElementData.setField(2, null);
+            } else {
+                // need to set null since it is a reuse row.
+                reusableElementData.setField(1, null);
+                // The input row is a tuple of key and value.
+                reusableElementData.setField(2, elementData);
+            }
+
+            reusableRunnerInput.setField(0, timestamp);
+            reusableRunnerInput.setField(1, watermark);
+            return reusableRunnerInput;
+        }
+
+        public static TypeInformation<Row> getRunnerInputTypeInfo(
+                TypeInformation<?> leftInputType, TypeInformation<?> rightInputType) {
+            // structure: [timestamp, watermark, [isLeft, leftInput, rightInput]]
+            return Types.ROW(
+                    Types.LONG,
+                    Types.LONG,
+                    new RowTypeInfo(Types.BOOLEAN, leftInputType, rightInputType));
+        }
     }
 }

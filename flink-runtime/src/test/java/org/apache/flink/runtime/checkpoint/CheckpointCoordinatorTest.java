@@ -104,6 +104,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
@@ -523,6 +524,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                             ExecutionAttemptID executionAttemptID,
                                             JobID jobId,
                                             long checkpointId,
+                                            long latestCompletedCheckpointId,
                                             long timestamp) {
                                         checkpointAborted.set(true);
                                     }
@@ -3512,6 +3514,76 @@ public class CheckpointCoordinatorTest extends TestLogger {
         } finally {
             checkpointCoordinator.shutdown();
         }
+    }
+
+    @Test
+    public void testReportLatestCompletedCheckpointIdWithAbort() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTransitToRunning(false)
+                        .build();
+
+        ExecutionVertex task = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+
+        AtomicLong reportedCheckpointId = new AtomicLong(-1);
+        LogicalSlot slot =
+                new TestingLogicalSlotBuilder()
+                        .setTaskManagerGateway(
+                                new SimpleAckingTaskManagerGateway() {
+                                    @Override
+                                    public void notifyCheckpointAborted(
+                                            ExecutionAttemptID executionAttemptID,
+                                            JobID jobId,
+                                            long checkpointId,
+                                            long latestCompletedCheckpointId,
+                                            long timestamp) {
+                                        reportedCheckpointId.set(latestCompletedCheckpointId);
+                                    }
+                                })
+                        .createTestingLogicalSlot();
+        ExecutionGraphTestUtils.setVertexResource(task, slot);
+        task.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
+
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setAllowCheckpointsAfterTasksFinished(true)
+                        .build();
+
+        // Trigger a successful checkpoint
+        CompletableFuture<CompletedCheckpoint> result =
+                checkpointCoordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        long completedCheckpointId =
+                checkpointCoordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
+        checkpointCoordinator.receiveAcknowledgeMessage(
+                new AcknowledgeCheckpoint(
+                        graph.getJobID(),
+                        task.getCurrentExecutionAttempt().getAttemptId(),
+                        completedCheckpointId,
+                        new CheckpointMetrics(),
+                        new TaskStateSnapshot()),
+                "localhost");
+        assertTrue(result.isDone());
+        assertFalse(result.isCompletedExceptionally());
+
+        result = checkpointCoordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        long abortedCheckpointId =
+                checkpointCoordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
+        checkpointCoordinator.receiveDeclineMessage(
+                new DeclineCheckpoint(
+                        graph.getJobID(),
+                        task.getCurrentExecutionAttempt().getAttemptId(),
+                        abortedCheckpointId,
+                        new CheckpointException(CHECKPOINT_EXPIRED)),
+                "localhost");
+        assertTrue(result.isCompletedExceptionally());
+
+        assertEquals(completedCheckpointId, reportedCheckpointId.get());
     }
 
     private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {

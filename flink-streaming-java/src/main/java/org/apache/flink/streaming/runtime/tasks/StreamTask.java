@@ -241,6 +241,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      */
     private volatile boolean failing;
 
+    /** Flags indicating the finished method of all the operators are called. */
+    private boolean finishedOperators;
+
     private boolean closedOperators;
 
     /** Thread pool for async snapshot workers. */
@@ -257,6 +260,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private Long syncSavepointId = null;
     private Long activeSyncSavepointId = null;
+
+    private long latestReportCheckpointId = -1;
 
     private long latestAsyncCheckpointStartDelayNanos;
 
@@ -741,6 +746,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // close all operators in a chain effect way
         operatorChain.finishOperators(actionExecutor);
+        finishedOperators = true;
 
         // If checkpoints are enabled, waits for all the records get processed by the downstream
         // tasks. During this process, this task could coordinate with its downstream tasks to
@@ -1211,6 +1217,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                 checkpointOptions,
                                 checkpointMetrics,
                                 operatorChain,
+                                finishedOperators,
                                 this::isRunning);
                     });
 
@@ -1255,9 +1262,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     @Override
-    public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+    public Future<Void> notifyCheckpointAbortAsync(
+            long checkpointId, long latestCompletedCheckpointId) {
         return notifyCheckpointOperation(
                 () -> {
+                    if (latestCompletedCheckpointId > 0) {
+                        notifyCheckpointComplete(latestCompletedCheckpointId);
+                    }
+
                     resetSynchronousSavepointId(checkpointId, false);
                     subtaskCheckpointCoordinator.notifyCheckpointAborted(
                             checkpointId, operatorChain, this::isRunning);
@@ -1285,6 +1297,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (checkpointId <= latestReportCheckpointId) {
+            return;
+        }
+
+        latestReportCheckpointId = checkpointId;
+
         subtaskCheckpointCoordinator.notifyCheckpointComplete(
                 checkpointId, operatorChain, this::isRunning);
         if (isRunning && isSynchronousSavepointId(checkpointId)) {

@@ -94,6 +94,7 @@ import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -146,6 +147,7 @@ import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -267,13 +269,19 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointSuspendAbortedAsync() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_SUSPEND, true);
+                (streamTask, abortCheckpointId) ->
+                        streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
+                CheckpointType.SAVEPOINT_SUSPEND,
+                true);
     }
 
     @Test
     public void testSavepointTerminateAbortedAsync() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointAbortAsync, CheckpointType.SAVEPOINT_TERMINATE, true);
+                (streamTask, abortCheckpointId) ->
+                        streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
+                CheckpointType.SAVEPOINT_TERMINATE,
+                true);
     }
 
     /**
@@ -1218,7 +1226,8 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testFailToConfirmCheckpointAborted() throws Exception {
-        testFailToConfirmCheckpointMessage(streamTask -> streamTask.notifyCheckpointAbortAsync(1L));
+        testFailToConfirmCheckpointMessage(
+                streamTask -> streamTask.notifyCheckpointAbortAsync(1L, 0L));
     }
 
     private void testFailToConfirmCheckpointMessage(Consumer<StreamTask<?, ?>> consumer)
@@ -1779,6 +1788,39 @@ public class StreamTaskTest extends TestLogger {
 
             // then: The task successfully finishes because throughput calculation was called from
             // scheduler which leads to the finish of the task
+        }
+    }
+
+    @Test
+    public void testSkipRepeatCheckpointComplete() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .modifyStreamConfig(
+                                config -> {
+                                    config.setCheckpointingEnabled(true);
+                                    config.getConfiguration()
+                                            .set(
+                                                    ExecutionCheckpointingOptions
+                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                    true);
+                                })
+                        .setupOutputForSingletonOperatorChain(
+                                new CheckpointCompleteRecordOperator())
+                        .build()) {
+            testHarness.streamTask.notifyCheckpointCompleteAsync(3);
+            testHarness.streamTask.notifyCheckpointAbortAsync(5, 3);
+
+            testHarness.streamTask.notifyCheckpointAbortAsync(10, 8);
+            testHarness.streamTask.notifyCheckpointCompleteAsync(8);
+
+            testHarness.processAll();
+
+            CheckpointCompleteRecordOperator operator =
+                    (CheckpointCompleteRecordOperator)
+                            (AbstractStreamOperator<?>) testHarness.streamTask.getMainOperator();
+            assertEquals(Arrays.asList(3L, 8L), operator.getNotifiedCheckpoint());
         }
     }
 
@@ -2785,6 +2827,24 @@ public class StreamTaskTest extends TestLogger {
                 @Override
                 public void close() {}
             };
+        }
+    }
+
+    private static class CheckpointCompleteRecordOperator extends AbstractStreamOperator<Integer>
+            implements OneInputStreamOperator<Integer, Integer> {
+
+        private final List<Long> notifiedCheckpoint = new ArrayList<>();
+
+        @Override
+        public void processElement(StreamRecord<Integer> element) throws Exception {}
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            notifiedCheckpoint.add(checkpointId);
+        }
+
+        public List<Long> getNotifiedCheckpoint() {
+            return notifiedCheckpoint;
         }
     }
 }

@@ -84,11 +84,11 @@ def get_j_env_configuration(j_env):
     if is_instance_of(j_env, "org.apache.flink.api.java.ExecutionEnvironment"):
         return j_env.getConfiguration()
     else:
-        return invoke_method(
-            j_env,
-            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment",
-            "getConfiguration"
-        )
+        env_clazz = load_java_class(
+            "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+        field = env_clazz.getDeclaredField("configuration")
+        field.setAccessible(True)
+        return field.get(j_env)
 
 
 def invoke_method(obj, object_type, method_name, args=None, arg_types=None):

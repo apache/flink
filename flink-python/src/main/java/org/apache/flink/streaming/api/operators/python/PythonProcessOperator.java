@@ -31,6 +31,11 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
@@ -43,6 +48,10 @@ public class PythonProcessOperator<IN, OUT>
         extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
+
+    @Nullable private Integer numPartitions = null;
 
     /** Reusable row for normal data runner inputs. */
     private transient Row reusableInput;
@@ -115,5 +124,19 @@ public class PythonProcessOperator<IN, OUT>
             TypeInformation runnerOutType) {
         return createRawTypeCoderInfoDescriptorProto(
                 runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public Map<String, String> getInternalParameters() {
+        Map<String, String> internalParameters = super.getInternalParameters();
+        if (numPartitions != null) {
+            internalParameters = new HashMap<>(internalParameters);
+            internalParameters.put(NUM_PARTITIONS, String.valueOf(numPartitions));
+        }
+        return internalParameters;
+    }
+
+    public void setNumPartitions(int numPartitions) {
+        this.numPartitions = numPartitions;
     }
 }

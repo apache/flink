@@ -68,15 +68,6 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     fi
   done
 
-  # check for proper legacy table factory
-  # Kinesis connector does not support legacy Table API
-  if [[ $SQL_JAR == *"flink-sql-connector-kinesis"* ]]; then
-    echo "Skipping Legacy Table API for: $SQL_JAR"
-  elif [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
-    echo "No legacy table factory found in JAR: $SQL_JAR"
-    exit 1
-  fi
-
   # check for table factory
   if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.Factory ]; then
     echo "No table factory found in JAR: $SQL_JAR"

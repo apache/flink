@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
+import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
@@ -391,19 +392,21 @@ class TableFunc6 extends TableFunction[Row] {
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<f0 INT>")
 class TableFunc7 extends TableFunction[Row] {
 
-  def eval(row: Row): Unit = {
+  def eval(@DataTypeHint("ROW<f0 INT>") row: Row): Unit = {
   }
 
-  def eval(row: java.util.List[Row]): Unit = {
+  def eval(@DataTypeHint("ARRAY<ROW<f0 INT>>") row: java.util.List[Row]): Unit = {
   }
 }
 
 @SerialVersionUID(1L)
 class RF extends ScalarFunction {
 
-  def eval(x: Int): java.util.List[Row] = {
+  @DataTypeHint("ARRAY<ROW<f0 INT>>")
+  def eval(x: Integer): java.util.List[Row] = {
     java.util.Collections.emptyList()
   }
 }

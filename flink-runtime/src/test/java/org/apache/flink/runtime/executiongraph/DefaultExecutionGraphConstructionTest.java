@@ -27,7 +27,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -101,7 +100,7 @@ public class DefaultExecutionGraphConstructionTest {
     }
 
     /**
-     * Creates a JobGraph of the following form:
+     * Creates a JobGraph of the following form.
      *
      * <pre>
      *  v1--->v2-->\
@@ -178,10 +177,8 @@ public class DefaultExecutionGraphConstructionTest {
 
         // create results for v2 and v3
         IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_1 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_2 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3Result1 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
+        IntermediateDataSet v3Result2 = v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 
         JobVertex v4 = new JobVertex("vertex4");
         JobVertex v5 = new JobVertex("vertex5");
@@ -192,10 +189,10 @@ public class DefaultExecutionGraphConstructionTest {
         v5.setInvokableClass(AbstractInvokable.class);
 
         v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
-        v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
+        v4.connectDataSetAsInput(v3Result1, DistributionPattern.ALL_TO_ALL);
         v5.connectNewDataSetAsInput(
                 v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
+        v5.connectDataSetAsInput(v3Result2, DistributionPattern.ALL_TO_ALL);
 
         List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
 
@@ -214,73 +211,6 @@ public class DefaultExecutionGraphConstructionTest {
 
         // attach the second part of the graph
 
-        try {
-            eg.attachJobGraph(ordered2);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // verify
-        verifyTestGraph(eg, v1, v2, v3, v4, v5);
-    }
-
-    @Test
-    public void testAttachViaIds() throws Exception {
-        // construct part one of the execution graph
-        JobVertex v1 = new JobVertex("vertex1");
-        JobVertex v2 = new JobVertex("vertex2");
-        JobVertex v3 = new JobVertex("vertex3");
-
-        v1.setParallelism(5);
-        v2.setParallelism(7);
-        v3.setParallelism(2);
-
-        v1.setInvokableClass(AbstractInvokable.class);
-        v2.setInvokableClass(AbstractInvokable.class);
-        v3.setInvokableClass(AbstractInvokable.class);
-
-        // this creates an intermediate result for v1
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-
-        // create results for v2 and v3
-        IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_1 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-        IntermediateDataSet v3result_2 =
-                v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
-
-        // construct part two of the execution graph
-        JobVertex v4 = new JobVertex("vertex4");
-        JobVertex v5 = new JobVertex("vertex5");
-        v4.setParallelism(11);
-        v5.setParallelism(4);
-
-        v4.setInvokableClass(AbstractInvokable.class);
-        v5.setInvokableClass(AbstractInvokable.class);
-
-        v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
-        v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
-        v5.connectNewDataSetAsInput(
-                v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
-
-        List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
-        List<JobVertex> ordered2 = Arrays.asList(v4, v5);
-
-        ExecutionGraph eg =
-                createDefaultExecutionGraph(
-                        Stream.concat(ordered.stream(), ordered2.stream())
-                                .collect(Collectors.toList()));
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // attach the second part of the graph
         try {
             eg.attachJobGraph(ordered2);
         } catch (JobException e) {
@@ -309,41 +239,6 @@ public class DefaultExecutionGraphConstructionTest {
                 eg, v4, Arrays.asList(v2, v3), Collections.singletonList(v5));
         ExecutionGraphTestUtils.verifyGeneratedExecutionJobVertex(
                 eg, v5, Arrays.asList(v4, v3), null);
-    }
-
-    @Test
-    public void testCannotConnectMissingId() throws Exception {
-        // construct part one of the execution graph
-        JobVertex v1 = new JobVertex("vertex1");
-        v1.setParallelism(7);
-        v1.setInvokableClass(AbstractInvokable.class);
-
-        // construct part two of the execution graph
-        JobVertex v2 = new JobVertex("vertex2");
-        v2.setInvokableClass(AbstractInvokable.class);
-        v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
-
-        List<JobVertex> ordered = Arrays.asList(v1);
-        List<JobVertex> ordered2 = Arrays.asList(v2);
-
-        ExecutionGraph eg =
-                createDefaultExecutionGraph(
-                        Stream.concat(ordered.stream(), ordered2.stream())
-                                .collect(Collectors.toList()));
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // attach the second part of the graph
-        try {
-            eg.attachJobGraph(ordered2);
-            fail("Attached wrong jobgraph");
-        } catch (JobException e) {
-            // expected
-        }
     }
 
     @Test

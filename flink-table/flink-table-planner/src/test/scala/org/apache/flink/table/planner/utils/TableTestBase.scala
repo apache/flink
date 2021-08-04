@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.utils
 
-import org.apache.flink.api.common.ShuffleMode
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -37,8 +37,8 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
@@ -257,7 +257,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /**
    * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
+   *
+   * @deprecated Use [[addTemporarySystemFunction]].
    */
+  @deprecated
+  @Deprecated
   def addFunction(name: String, function: ScalarFunction): Unit = {
     getTableEnv.registerFunction(name, function)
   }
@@ -998,7 +1002,7 @@ abstract class TableTestUtil(
   val tableEnv: TableEnvironment = testingTableEnv
   tableEnv.getConfig
     .getConfiguration
-    .set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED)
+    .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
@@ -1352,12 +1356,8 @@ object TestTableSource {
       isBounded: Boolean,
       tableSchema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestTableSource", 1, false)
-        .property("is-bounded", if (isBounded) "true" else "false"))
-      .withSchema(new Schema().schema(tableSchema))
-      .createTemporaryTable(tableName)
-
+    val source = new TestTableSource(isBounded, tableSchema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 

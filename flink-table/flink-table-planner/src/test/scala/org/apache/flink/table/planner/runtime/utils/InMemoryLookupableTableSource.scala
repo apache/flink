@@ -18,11 +18,18 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import java.util
+import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
+import java.util.function.{Consumer, Supplier}
+
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{TableEnvironment, TableSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, FunctionContext, TableFunction}
@@ -32,12 +39,6 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
-
-import java.util
-import java.util.Collections
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
-import java.util.function.{Consumer, Supplier}
 
 import scala.annotation.varargs
 import scala.collection.JavaConverters._
@@ -133,13 +134,8 @@ object InMemoryLookupableTableSource {
       schema: TableSchema,
       tableName: String,
       isBounded: Boolean = false): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("InMemoryLookupableTable", 1, false)
-        .property("is-async", if (isAsync) "true" else "false")
-        .property("is-bounded", if (isBounded) "true" else "false")
-        .property("data", EncodingUtils.encodeObjectToString(data)))
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new InMemoryLookupableTableSource(schema, data, isAsync, isBounded)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 
   /**

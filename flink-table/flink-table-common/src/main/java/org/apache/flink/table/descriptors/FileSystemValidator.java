@@ -18,10 +18,18 @@
 
 package org.apache.flink.table.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.connector.file.src.FileSource;
 
-/** Validator for {@link FileSystem}. */
-@PublicEvolving
+/**
+ * Validator for the options of the filesystem connector.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@link FileSource} / {@link FileSink}.
+ *     It is kept only to support tests for the legacy connector stack.
+ */
+@Internal
+@Deprecated
 public class FileSystemValidator extends ConnectorDescriptorValidator {
 
     public static final String CONNECTOR_TYPE_VALUE = "filesystem";

@@ -41,11 +41,13 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -66,6 +68,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.createSnapshotWithUnionListState;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -114,6 +117,8 @@ public class PendingCheckpointTest {
     }
 
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
+    @Rule public final ExpectedException expectedException = ExpectedException.none();
 
     /** Tests that pending checkpoints can be subsumed iff they are forced. */
     @Test
@@ -639,7 +644,10 @@ public class PendingCheckpointTest {
         for (ExecutionAttemptID attemptId : runningTaskIds) {
             TaskAcknowledgeResult result =
                     pendingCheckpoint.acknowledgeTask(
-                            attemptId, TaskStateSnapshot.FINISHED, new CheckpointMetrics(), null);
+                            attemptId,
+                            TaskStateSnapshot.FINISHED_ON_RESTORE,
+                            new CheckpointMetrics(),
+                            null);
             assertEquals(TaskAcknowledgeResult.SUCCESS, result);
         }
 
@@ -655,6 +663,129 @@ public class PendingCheckpointTest {
                 containsInAnyOrder(operatorId1, operatorId2));
         assertTrue(completedCheckpoint.getOperatorStates().get(operatorId1).isFullyFinished());
         assertTrue(completedCheckpoint.getOperatorStates().get(operatorId2).isFullyFinished());
+    }
+
+    @Test
+    public void testAbortionIfPartlyFinishedVertexUsedUnionListState() throws Exception {
+        JobVertexID jobVertexId = new JobVertexID();
+        OperatorID operatorId = new OperatorID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(
+                                jobVertexId,
+                                2,
+                                2,
+                                Collections.singletonList(
+                                        OperatorIDPair.generatedIDOnly(operatorId)),
+                                true)
+                        .build();
+        ExecutionVertex[] tasks = executionGraph.getJobVertex(jobVertexId).getTaskVertices();
+        tasks[0].getCurrentExecutionAttempt().markFinished();
+
+        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
+        pendingCheckpoint.acknowledgeTask(
+                tasks[1].getCurrentExecutionAttempt().getAttemptId(),
+                createSnapshotWithUnionListState(tmpFolder.newFile(), operatorId, false),
+                new CheckpointMetrics(),
+                null);
+
+        assertTrue(pendingCheckpoint.isFullyAcknowledged());
+
+        expectedException.expect(FlinkRuntimeException.class);
+        expectedException.expectMessage(
+                String.format(
+                        "The vertex %s (id = %s) has "
+                                + "used UnionListState, but part of its tasks are FINISHED",
+                        executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId));
+        pendingCheckpoint.finalizeCheckpoint(
+                new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+    }
+
+    @Test
+    public void testAbortionIfPartlyOperatorsFinishedVertexUsedUnionListState() throws Exception {
+        JobVertexID jobVertexId = new JobVertexID();
+        OperatorID operatorId = new OperatorID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(
+                                jobVertexId,
+                                2,
+                                2,
+                                Collections.singletonList(
+                                        OperatorIDPair.generatedIDOnly(operatorId)),
+                                true)
+                        .build();
+        List<ExecutionAttemptID> runningTaskIds =
+                Arrays.stream(executionGraph.getJobVertex(jobVertexId).getTaskVertices())
+                        .map(task -> task.getCurrentExecutionAttempt().getAttemptId())
+                        .collect(Collectors.toList());
+        assertEquals(2, runningTaskIds.size());
+
+        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
+        pendingCheckpoint.acknowledgeTask(
+                runningTaskIds.get(0),
+                createSnapshotWithUnionListState(tmpFolder.newFile(), operatorId, true),
+                new CheckpointMetrics(),
+                null);
+        pendingCheckpoint.acknowledgeTask(
+                runningTaskIds.get(1),
+                createSnapshotWithUnionListState(tmpFolder.newFile(), operatorId, false),
+                new CheckpointMetrics(),
+                null);
+
+        assertTrue(pendingCheckpoint.isFullyAcknowledged());
+
+        expectedException.expect(FlinkRuntimeException.class);
+        expectedException.expectMessage(
+                String.format(
+                        "The vertex %s (id = %s) has "
+                                + "used UnionListState, but part of its tasks has called operators' finish method.",
+                        executionGraph.getJobVertex(jobVertexId).getName(), jobVertexId));
+        pendingCheckpoint.finalizeCheckpoint(
+                new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+    }
+
+    @Test
+    public void testPendingCheckpointCompletesIfAllReportsOperatorsFinished() throws Exception {
+        JobVertexID jobVertexId = new JobVertexID();
+        OperatorID operatorId = new OperatorID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(
+                                jobVertexId,
+                                2,
+                                2,
+                                Collections.singletonList(
+                                        OperatorIDPair.generatedIDOnly(operatorId)),
+                                true)
+                        .build();
+        List<ExecutionAttemptID> runningTaskIds =
+                Arrays.stream(executionGraph.getJobVertex(jobVertexId).getTaskVertices())
+                        .map(task -> task.getCurrentExecutionAttempt().getAttemptId())
+                        .collect(Collectors.toList());
+        assertEquals(2, runningTaskIds.size());
+
+        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
+        pendingCheckpoint.acknowledgeTask(
+                runningTaskIds.get(0),
+                createSnapshotWithUnionListState(tmpFolder.newFile(), operatorId, true),
+                new CheckpointMetrics(),
+                null);
+        pendingCheckpoint.acknowledgeTask(
+                runningTaskIds.get(1),
+                createSnapshotWithUnionListState(tmpFolder.newFile(), operatorId, true),
+                new CheckpointMetrics(),
+                null);
+
+        assertTrue(pendingCheckpoint.isFullyAcknowledged());
+
+        pendingCheckpoint.finalizeCheckpoint(
+                new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+        assertTrue(pendingCheckpoint.getCompletionFuture().isDone());
+        assertFalse(pendingCheckpoint.getCompletionFuture().isCompletedExceptionally());
     }
 
     // ------------------------------------------------------------------------
@@ -741,7 +872,8 @@ public class PendingCheckpointTest {
                         ackTasks,
                         tasksToCommit,
                         Collections.emptyList(),
-                        Collections.emptyList()),
+                        Collections.emptyList(),
+                        true),
                 operatorCoordinators,
                 masterStateIdentifiers,
                 props,

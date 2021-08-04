@@ -74,14 +74,17 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration()
     val planner = createDummyPlanner()
 
-    execGraph.getRootNodes.map {
+    val transformations = execGraph.getRootNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
+    cleanupInternalConfigurations()
+    transformations
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
@@ -164,9 +167,9 @@ class BatchPlanner(
   }
 
   override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration();
-    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
-      .equals(RuntimeExecutionMode.BATCH)) {
+    super.validateAndOverrideConfiguration()
+    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +

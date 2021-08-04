@@ -12,26 +12,31 @@ This project bundles the following dependencies under the Apache Software Licens
 - commons-io:commons-io:2.8.0
 - commons-lang:commons-lang:2.6
 - commons-logging:commons-logging:1.1.3
-- com.amazonaws:aws-java-sdk-core:1.11.788
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.788
-- com.amazonaws:aws-java-sdk-kms:1.11.788
-- com.amazonaws:aws-java-sdk-s3:1.11.788
-- com.amazonaws:aws-java-sdk-sts:1.11.788
-- com.amazonaws:jmespath-java:1.11.788
-- com.facebook.presto:presto-hive:0.187
+- com.amazonaws:aws-java-sdk-core:1.11.951
+- com.amazonaws:aws-java-sdk-dynamodb:1.11.951
+- com.amazonaws:aws-java-sdk-kms:1.11.951
+- com.amazonaws:aws-java-sdk-s3:1.11.951
+- com.amazonaws:aws-java-sdk-sts:1.11.951
+- com.amazonaws:jmespath-java:1.11.951
+- com.facebook.presto:presto-common:0.257
+- com.facebook.presto:presto-hive:0.257
+- com.facebook.presto:presto-hive-common:0.257
+- com.facebook.presto:presto-hive-metastore:0.257
 - com.facebook.presto.hadoop:hadoop-apache2:2.7.3-1
 - com.fasterxml.jackson.core:jackson-annotations:2.12.1
 - com.fasterxml.jackson.core:jackson-core:2.12.1
 - com.fasterxml.jackson.core:jackson-databind:2.12.1
 - com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.12.1
 - com.fasterxml.woodstox:woodstox-core:5.0.3
-- com.google.guava:guava:21.0
-- io.airlift:configuration:0.153
-- io.airlift:log:0.153
-- io.airlift:stats:0.153
-- io.airlift:units:1.0
-- io.airlift:slice:0.31
+- com.google.guava:guava:26.0-jre
+- com.google.inject:guice:4.2.2
+- com.facebook.airlift:configuration:0.201
+- com.facebook.airlift:log:0.201
+- com.facebook.airlift:stats:0.201
+- io.airlift:units:1.3
+- io.airlift:slice:0.38
 - joda-time:joda-time:2.5
+- org.alluxio:alluxio-shaded-client:2.5.0-3
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.hadoop:hadoop-annotations:3.1.0
@@ -63,3 +68,8 @@ This project bundles the following dependencies under BSD License (https://opens
 See bundled license files for details.
 
 - org.codehaus.woodstox:stax2-api:3.1.4 (https://github.com/FasterXML/stax2-api/tree/stax2-api-3.1.4)
+
+This project bundles the following dependencies under the Public Domain.
+See bundled license files for details.
+
+- aopalliance:aopalliance:1.0

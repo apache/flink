@@ -68,6 +68,7 @@ Important classes of Flink Table API:
 """
 from __future__ import absolute_import
 
+from pyflink.table.changelog_mode import ChangelogMode
 from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
@@ -125,5 +126,6 @@ __all__ = [
     'TableAggregateFunction',
     'UserDefinedType',
     'WindowGroupedTable',
-    'WriteMode'
+    'WriteMode',
+    'ChangelogMode'
 ]

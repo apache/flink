@@ -168,7 +168,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
     @Test
     public void testSkipExecutionIfFinishedOnRestore() throws Exception {
-        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
 
         LifeCycleMonitorSource testingSource =
                 new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);

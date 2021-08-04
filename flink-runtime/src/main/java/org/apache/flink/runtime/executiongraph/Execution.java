@@ -796,16 +796,22 @@ public class Execution
      * Notify the task of this execution about a aborted checkpoint.
      *
      * @param abortCheckpointId of the subsumed checkpoint
+     * @param latestCompletedCheckpointId of the latest completed checkpoint
      * @param timestamp of the subsumed checkpoint
      */
-    public void notifyCheckpointAborted(long abortCheckpointId, long timestamp) {
+    public void notifyCheckpointAborted(
+            long abortCheckpointId, long latestCompletedCheckpointId, long timestamp) {
         final LogicalSlot slot = assignedResource;
 
         if (slot != null) {
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             taskManagerGateway.notifyCheckpointAborted(
-                    attemptId, getVertex().getJobId(), abortCheckpointId, timestamp);
+                    attemptId,
+                    getVertex().getJobId(),
+                    abortCheckpointId,
+                    latestCompletedCheckpointId,
+                    timestamp);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is "

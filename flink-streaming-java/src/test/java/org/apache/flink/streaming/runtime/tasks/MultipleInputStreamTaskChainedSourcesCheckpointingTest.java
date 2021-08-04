@@ -384,7 +384,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 1),
                                         WatermarkStrategy.noWatermarks()),
                                 BasicTypeInfo.INT_TYPE_INFO)
-                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
                         .setupOperatorChain(
                                 nonSourceOperatorId,
                                 new LifeCycleMonitorMultipleInputOperatorFactory())

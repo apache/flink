@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ShuffleMode;
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
@@ -49,8 +49,8 @@ public class StreamExchangeModeUtils {
             return StreamExchangeMode.BATCH;
         }
 
-        final ShuffleMode shuffleMode = config.get(ExecutionOptions.SHUFFLE_MODE);
-        if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING) {
+        final BatchShuffleMode shuffleMode = config.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
+        if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
             return StreamExchangeMode.BATCH;
         }
 

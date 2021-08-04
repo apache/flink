@@ -23,7 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -137,11 +136,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Each Task is run by one dedicated thread.
  */
 public class Task
-        implements Runnable,
-                TaskSlotPayload,
-                TaskActions,
-                PartitionProducerStateProvider,
-                CheckpointListener {
+        implements Runnable, TaskSlotPayload, TaskActions, PartitionProducerStateProvider {
 
     /** The class logger. */
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -1356,7 +1351,6 @@ public class Task
         }
     }
 
-    @Override
     public void notifyCheckpointComplete(final long checkpointID) {
         final AbstractInvokable invokable = this.invokable;
 
@@ -1384,13 +1378,13 @@ public class Task
         }
     }
 
-    @Override
-    public void notifyCheckpointAborted(final long checkpointID) {
+    public void notifyCheckpointAborted(
+            final long checkpointID, final long latestCompletedCheckpointId) {
         final AbstractInvokable invokable = this.invokable;
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
-                invokable.notifyCheckpointAbortAsync(checkpointID);
+                invokable.notifyCheckpointAbortAsync(checkpointID, latestCompletedCheckpointId);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
