@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.connector.blackhole.table;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.types.RowKind;
 
 import java.util.HashSet;
@@ -36,7 +37,7 @@ import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHel
  * performance testing. - UDF to output, not substantive sink. Just like /dev/null device on
  * Unix-like operating systems.
  */
-@PublicEvolving
+@Internal
 public class BlackHoleTableSinkFactory implements DynamicTableSinkFactory {
 
     public static final String IDENTIFIER = "blackhole";
