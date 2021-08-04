@@ -16,25 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.utils;
+package org.apache.flink.streaming.api.functions.python.eventtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.java.tuple.Tuple2;
 
-/** Utilities used by Python operators. */
+/** TimestampAssigner which extracts timestamp from the second field of the input element. */
 @Internal
-public class PythonOperatorUtils {
+public class CustomTimestampAssigner<T> implements SerializableTimestampAssigner<Tuple2<T, Long>> {
 
-    /** Set the current key for streaming operator. */
-    public static <K> void setCurrentKeyForStreaming(
-            KeyedStateBackend<K> stateBackend, K currentKey) {
-        if (!inBatchExecutionMode(stateBackend)) {
-            stateBackend.setCurrentKey(currentKey);
-        }
-    }
+    private static final long serialVersionUID = 1L;
 
-    public static <K> boolean inBatchExecutionMode(KeyedStateBackend<K> stateBackend) {
-        return stateBackend instanceof BatchExecutionKeyedStateBackend;
+    @Override
+    public long extractTimestamp(Tuple2<T, Long> element, long recordTimestamp) {
+        return element.f1;
     }
 }

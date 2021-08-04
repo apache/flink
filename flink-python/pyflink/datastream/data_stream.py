@@ -24,7 +24,7 @@ from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
                                        Trigger, WindowOperationDescriptor)
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
-from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.connectors import Sink
 from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapFunction, Function,
                                           FunctionWrapper, SinkFunction, FilterFunction,
@@ -558,36 +558,39 @@ class DataStream(object):
         :return: The stream after the transformation, with assigned timestamps and watermarks.
         """
         if watermark_strategy._timestamp_assigner is not None:
-            # user implement a TimestampAssigner, we need to extracted and generate watermarks with
-            # a custom Operator.
-            from pyflink.fn_execution import flink_fn_execution_pb2 as ffpb2
-            gateway = get_gateway()
-            import cloudpickle
-            serialized_func = cloudpickle.dumps(watermark_strategy._timestamp_assigner)
-            JDataStreamPythonFunction = gateway.jvm.DataStreamPythonFunction
-            j_data_stream_python_function = JDataStreamPythonFunction(
-                bytearray(serialized_func),
-                _get_python_env())
+            # in case users have specified custom TimestampAssigner, we need to extract and
+            # generate watermark according to the specified TimestampAssigner.
 
-            JDataStreamPythonFunctionInfo = gateway.jvm.DataStreamPythonFunctionInfo
-            j_data_stream_python_function_info = JDataStreamPythonFunctionInfo(
-                j_data_stream_python_function,
-                ffpb2.UserDefinedDataStreamFunction.TIMESTAMP_ASSIGNER)  # type: ignore
-            j_conf = gateway.jvm.org.apache.flink.configuration.Configuration()
-            j_output_type = self._j_data_stream.getType()
-            j_operator = gateway.jvm\
-                .org.apache.flink.streaming.api.operators.python\
-                .PythonTimestampsAndWatermarksOperator(
-                    j_conf,
-                    j_output_type,
-                    j_data_stream_python_function_info,
-                    watermark_strategy._j_watermark_strategy)
-            operator_name = gateway.jvm.org.apache.flink.streaming.api.operators.python\
-                .PythonTimestampsAndWatermarksOperator.STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME
-            return DataStream(self._j_data_stream.transform(
-                operator_name,
-                j_output_type,
-                j_operator))
+            class TimestampAssignerProcessFunctionAdapter(ProcessFunction):
+
+                def __init__(self, timestamp_assigner: TimestampAssigner):
+                    self._extract_timestamp_func = timestamp_assigner.extract_timestamp
+
+                def process_element(self, value, ctx: 'ProcessFunction.Context'):
+                    yield value, self._extract_timestamp_func(value, ctx.timestamp())
+
+            # step 1: extract the timestamp according to the specified TimestampAssigner
+            timestamped_data_stream = self.process(
+                TimestampAssignerProcessFunctionAdapter(watermark_strategy._timestamp_assigner),
+                Types.TUPLE([self.get_type(), Types.LONG()]))
+            timestamped_data_stream.name("Extract-Timestamp")
+
+            # step 2: assign timestamp and watermark
+            gateway = get_gateway()
+            JCustomTimestampAssigner = gateway.jvm.org.apache.flink.streaming.api.functions.python \
+                .eventtime.CustomTimestampAssigner
+            j_watermarked_data_stream = (
+                timestamped_data_stream._j_data_stream.assignTimestampsAndWatermarks(
+                    watermark_strategy._j_watermark_strategy.withTimestampAssigner(
+                        JCustomTimestampAssigner())))
+
+            # step 3: remove the timestamp field which is added in step 1
+            JRemoveTimestampMapFunction = gateway.jvm.org.apache.flink.streaming.api.functions \
+                .python.eventtime.RemoveTimestampMapFunction
+            result = DataStream(j_watermarked_data_stream.map(
+                JRemoveTimestampMapFunction(), self._j_data_stream.getType()))
+            result.name("Remove-Timestamp")
+            return result
         else:
             # if user not specify a TimestampAssigner, then return directly assign the Java
             # watermark strategy.
@@ -1589,9 +1592,9 @@ def _get_one_input_stream_operator(data_stream: DataStream,
                 gateway.jvm.org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer()
         j_python_function_operator = gateway.jvm.PythonKeyedProcessOperator(
             j_conf,
+            j_data_stream_python_function_info,
             j_input_types,
             j_output_type_info,
-            j_data_stream_python_function_info,
             j_namespace_serializer)
         return j_python_function_operator, j_output_type_info
     else:
@@ -1599,9 +1602,9 @@ def _get_one_input_stream_operator(data_stream: DataStream,
 
     j_python_function_operator = JDataStreamPythonFunctionOperator(
         j_conf,
+        j_data_stream_python_function_info,
         j_input_types,
-        j_output_type_info,
-        j_data_stream_python_function_info)
+        j_output_type_info)
 
     return j_python_function_operator, j_output_type_info
 
@@ -1654,10 +1657,10 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
 
     j_python_data_stream_function_operator = JTwoInputPythonFunctionOperator(
         j_conf,
+        j_data_stream_python_function_info,
         j_input_types1,
         j_input_types2,
-        j_output_type_info,
-        j_data_stream_python_function_info)
+        j_output_type_info)
 
     return j_python_data_stream_function_operator, j_output_type_info
 

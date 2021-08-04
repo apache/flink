@@ -16,25 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.utils;
+package org.apache.flink.streaming.api.functions.python.eventtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 
-/** Utilities used by Python operators. */
+/** MapFunction which removes the timestamp field from the input element. */
 @Internal
-public class PythonOperatorUtils {
+public class RemoveTimestampMapFunction<T> implements MapFunction<Tuple2<T, Long>, T> {
 
-    /** Set the current key for streaming operator. */
-    public static <K> void setCurrentKeyForStreaming(
-            KeyedStateBackend<K> stateBackend, K currentKey) {
-        if (!inBatchExecutionMode(stateBackend)) {
-            stateBackend.setCurrentKey(currentKey);
-        }
-    }
+    private static final long serialVersionUID = 1L;
 
-    public static <K> boolean inBatchExecutionMode(KeyedStateBackend<K> stateBackend) {
-        return stateBackend instanceof BatchExecutionKeyedStateBackend;
+    @Override
+    public T map(Tuple2<T, Long> value) throws Exception {
+        return value.f0;
     }
 }

@@ -20,16 +20,14 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
@@ -37,15 +35,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * {@link PythonProcessOperator} is responsible for launching beam runner which will start a python
  * harness to execute user defined python ProcessFunction.
  */
 @Internal
-public class PythonProcessOperator<IN, OUT>
-        extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT> {
+public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -53,77 +51,66 @@ public class PythonProcessOperator<IN, OUT>
 
     @Nullable private Integer numPartitions = null;
 
-    /** Reusable row for normal data runner inputs. */
-    private transient Row reusableInput;
-
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
 
     public PythonProcessOperator(
             Configuration config,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
-            TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                Types.ROW(Types.LONG, Types.LONG, inputTypeInfo),
-                outputTypeInfo,
-                pythonFunctionInfo);
+            TypeInformation<OUT> outputTypeInfo) {
+        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        reusableInput = new Row(3);
         currentWatermark = Long.MIN_VALUE;
     }
 
     @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        if (PythonOperatorUtils.endOfLastFlatMap(length, rawResult)) {
-            bufferedTimestamp.poll();
-        } else {
-            bais.setBuffer(rawResult, 0, length);
-            OUT runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
-            collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-            collector.collect(runnerOutput);
-        }
+    public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
+        return new BeamDataStreamPythonFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                createPythonEnvironmentManager(),
+                STATELESS_FUNCTION_URN,
+                getUserDefinedDataStreamFunctionProto(
+                        getPythonFunctionInfo(),
+                        getRuntimeContext(),
+                        getInternalParameters(),
+                        inBatchExecutionMode(getKeyedStateBackend())),
+                getJobOptions(),
+                getFlinkMetricContainer(),
+                null,
+                null,
+                null,
+                null,
+                getContainingTask().getEnvironment().getMemoryManager(),
+                getOperatorConfig()
+                        .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                ManagedMemoryUseCase.PYTHON,
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getTaskManagerInfo()
+                                        .getConfiguration(),
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getUserCodeClassLoader()
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(),
+                createOutputCoderInfoDescriptor(),
+                null);
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        reusableInput.setField(0, element.getTimestamp());
-        reusableInput.setField(1, currentWatermark);
-        reusableInput.setField(2, element.getValue());
-        element.replace(reusableInput);
-        super.processElement(element);
+        processElement(element.getTimestamp(), currentWatermark, element.getValue());
     }
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
         currentWatermark = mark.getTimestamp();
-    }
-
-    @Override
-    public String getFunctionUrn() {
-        return STATELESS_FUNCTION_URN;
-    }
-
-    @Override
-    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
-            TypeInformation runnerInputType) {
-        return createRawTypeCoderInfoDescriptorProto(
-                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
-    }
-
-    @Override
-    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
-            TypeInformation runnerOutType) {
-        return createRawTypeCoderInfoDescriptorProto(
-                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 
     @Override
