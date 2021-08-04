@@ -179,7 +179,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                 initialThreadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
 
         // wait until the entry is refreshed, with generous buffer
-        assertTrue(cacheRefreshed.await(500, TimeUnit.MILLISECONDS));
+        assertTrue(cacheRefreshed.await());
 
         // verify that we get the second result on the next request
         Optional<JobVertexThreadInfoStats> result =
