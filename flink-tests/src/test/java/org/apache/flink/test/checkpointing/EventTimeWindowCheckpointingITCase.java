@@ -175,8 +175,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 break;
             case FILE:
                 {
-                    String backups = tempFolder.newFolder().getAbsolutePath();
-                    this.stateBackend = new FsStateBackend("file://" + backups);
+                    final File backups = tempFolder.newFolder().getAbsoluteFile();
+                    this.stateBackend = new FsStateBackend(Path.fromLocalFile(backups));
                     break;
                 }
             case ROCKSDB_FULL:
@@ -216,14 +216,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                 TaskManagerOptions.MANAGED_MEMORY_SIZE,
                 MemorySize.ofMebiBytes(PARALLELISM / NUM_OF_TASK_MANAGERS * 64));
 
-        String rocksDb = tempFolder.newFolder().getAbsolutePath();
-        String backups = tempFolder.newFolder().getAbsolutePath();
+        final String rocksDb = tempFolder.newFolder().getAbsolutePath();
+        final File backups = tempFolder.newFolder().getAbsoluteFile();
         // we use the fs backend with small threshold here to test the behaviour with file
         // references, not self contained byte handles
         RocksDBStateBackend rdb =
                 new RocksDBStateBackend(
-                        new FsStateBackend(
-                                new Path("file://" + backups).toUri(), fileSizeThreshold),
+                        new FsStateBackend(Path.fromLocalFile(backups).toUri(), fileSizeThreshold),
                         incrementalCheckpoints);
         rdb.setDbStoragePath(rocksDb);
         this.stateBackend = rdb;
