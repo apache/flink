@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.PythonFunctionRunner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;

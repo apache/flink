@@ -19,7 +19,7 @@
 package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.PythonFunctionRunner;
 
 /**
  * The base interface of python environment manager which is used to create the PythonEnvironment

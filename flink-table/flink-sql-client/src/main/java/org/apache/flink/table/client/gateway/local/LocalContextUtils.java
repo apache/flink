@@ -131,7 +131,7 @@ public class LocalContextUtils {
         try {
             URL location =
                     Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    "org.apache.flink.streaming.api.runners.python.beam.PythonFunctionRunner",
                                     false,
                                     Thread.currentThread().getContextClassLoader())
                             .getProtectionDomain()
