@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats.raw;
+package org.apache.flink.formats.raw;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -51,6 +52,7 @@ import java.util.stream.Collectors;
  * Format factory for raw format which allows to read and write raw (byte based) values as a single
  * column.
  */
+@Internal
 public class RawFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "raw";
@@ -124,7 +126,7 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
 
     // ------------------------------------------------------------------------------------------
 
-    private static Set<LogicalTypeRoot> supportedTypes =
+    private static final Set<LogicalTypeRoot> supportedTypes =
             Sets.newHashSet(
                     LogicalTypeRoot.CHAR,
                     LogicalTypeRoot.VARCHAR,
