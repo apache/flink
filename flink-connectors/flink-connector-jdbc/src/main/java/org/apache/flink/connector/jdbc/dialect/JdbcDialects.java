@@ -30,7 +30,7 @@ public final class JdbcDialects {
                     new DerbyDialect(),
                     new MySQLDialect(),
                     new PostgresDialect(),
-                    new ClinkHouseDialect());
+                    new ClickHouseDialect());
 
     /** Fetch the JdbcDialect class corresponding to a given database url. */
     public static Optional<JdbcDialect> get(String url) {

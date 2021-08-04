@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.connector.jdbc.internal.converter.ClinkHouseRowConverter;
+import org.apache.flink.connector.jdbc.internal.converter.ClickHouseRowConverter;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
@@ -28,18 +28,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** JDBC dialect for MySQL. */
-public class ClinkHouseDialect extends AbstractDialect {
+/** JDBC dialect for ClickHouse. */
+public class ClickHouseDialect extends AbstractDialect {
 
     private static final long serialVersionUID = 1L;
 
-    // Define MAX/MIN precision of TIMESTAMP type according to Mysql docs:
-    // https://dev.mysql.com/doc/refman/8.0/en/fractional-seconds.html
+    // Define MAX/MIN precision of TIMESTAMP type according to ClickHouse docs:
+    // https://clickhouse.tech/docs/en/sql-reference/functions/type-conversion-functions
     private static final int MAX_TIMESTAMP_PRECISION = 6;
     private static final int MIN_TIMESTAMP_PRECISION = 1;
 
-    // Define MAX/MIN precision of DECIMAL type according to Mysql docs:
-    // https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
+    // Define MAX/MIN precision of DECIMAL type according to ClickHouse docs:
+    // https://clickhouse.tech/docs/en/sql-reference/functions/type-conversion-functions/
     private static final int MAX_DECIMAL_PRECISION = 65;
     private static final int MIN_DECIMAL_PRECISION = 1;
 
@@ -50,7 +50,7 @@ public class ClinkHouseDialect extends AbstractDialect {
 
     @Override
     public JdbcRowConverter getRowConverter(RowType rowType) {
-        return new ClinkHouseRowConverter(rowType);
+        return new ClickHouseRowConverter(rowType);
     }
 
     @Override
@@ -64,9 +64,9 @@ public class ClinkHouseDialect extends AbstractDialect {
     }
 
     /**
-     * Mysql upsert query use DUPLICATE KEY UPDATE.
+     * clickhouse upsert query use DUPLICATE KEY UPDATE.
      *
-     * <p>NOTE: It requires Mysql's primary key to be consistent with pkFields.
+     * <p>NOTE: It requires clickhouse's primary key to be consistent with pkFields.
      *
      * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
      */
@@ -110,8 +110,8 @@ public class ClinkHouseDialect extends AbstractDialect {
 
     @Override
     public List<LogicalTypeRoot> unsupportedTypes() {
-        // The data types used in Mysql are list at:
-        // https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+        // The data types used in clickhouse are list at:
+        // https://clickhouse-driver.readthedocs.io/en/latest/types.htmls
 
         // TODO: We can't convert BINARY data type to
         //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in

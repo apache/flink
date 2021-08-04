@@ -28,18 +28,18 @@ import java.sql.SQLException;
 
 /**
  * Runtime converter that responsible to convert between JDBC object and Flink internal object for
- * ClinkHouse.
+ * ClickHouse.
  */
-public class ClinkHouseRowConverter extends AbstractJdbcRowConverter {
+public class ClickHouseRowConverter extends AbstractJdbcRowConverter {
 
     private static final long serialVersionUID = 1L;
 
     @Override
     public String converterName() {
-        return "ClinkHouseSQL";
+        return "ClickHouseSQL";
     }
 
-    public ClinkHouseRowConverter(RowType rowType) {
+    public ClickHouseRowConverter(RowType rowType) {
         super(rowType);
     }
 
