@@ -39,8 +39,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
@@ -511,7 +511,7 @@ public class StreamTaskTestHarness<OUT> {
     }
 
     static TaskMetricGroup createTaskMetricGroup(Map<String, Metric> metrics) {
-        return MetricUtils.createTaskManagerMetricGroup(
+        return TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
                 .addTaskForJob(
                         new JobID(),
