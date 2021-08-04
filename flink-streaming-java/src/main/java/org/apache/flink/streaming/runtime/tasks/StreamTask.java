@@ -712,13 +712,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 timestamp ->
                         mainMailboxExecutor.submit(
                                 () -> {
-                                    long throughput = throughputCalculator.calculateThroughput();
-                                    if (bufferDebloater != null) {
-                                        bufferDebloater.recalculateBufferSize(throughput);
-                                    }
+                                    debloat();
                                     scheduleBufferDebloater();
                                 },
                                 "Buffer size recalculation"));
+    }
+
+    @VisibleForTesting
+    void debloat() {
+        long throughput = throughputCalculator.calculateThroughput();
+        if (bufferDebloater != null) {
+            bufferDebloater.recalculateBufferSize(throughput);
+        }
     }
 
     private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
