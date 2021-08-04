@@ -1386,10 +1386,8 @@ public class DefaultSchedulerTest extends TestLogger {
             timeout = Time.milliseconds(1);
             createSchedulerAndStartScheduling(jobGraph, mainThreadExecutor);
 
-            Thread.sleep(100);
-
-            assertThat(testExecutionVertexOperations.getCanceledVertices(), hasSize(2));
-            assertThat(testExecutionVertexOperations.getFailedVertices(), hasSize(1));
+            testExecutionVertexOperations.awaitCanceledVertices(2);
+            testExecutionVertexOperations.awaitFailedVertices(1);
         } finally {
             if (scheduledExecutorService != null) {
                 scheduledExecutorService.shutdown();
