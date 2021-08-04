@@ -280,12 +280,6 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                new Thread(
-                                () -> {
-                                    synchronized (lock) {
-                                    }
-                                })
-                        .start();
                 mainOperator.run(lock, operatorChain);
                 if (!wasStoppedExternally && !isCanceled()) {
                     synchronized (lock) {
