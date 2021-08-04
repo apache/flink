@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories;
+package org.apache.flink.connector.datagen.table;
 
 import org.apache.flink.annotation.Internal;
 

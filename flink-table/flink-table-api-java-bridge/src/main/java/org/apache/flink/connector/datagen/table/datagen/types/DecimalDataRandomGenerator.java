@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories.datagen.types;
+package org.apache.flink.connector.datagen.table.datagen.types;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
@@ -30,6 +31,7 @@ import java.math.RoundingMode;
 import java.util.concurrent.ThreadLocalRandom;
 
 /** Generates random {@link DecimalData} values. */
+@Internal
 public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 
     private final int precision;
