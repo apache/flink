@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -271,7 +272,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private final ThroughputCalculator throughputCalculator;
 
-    private final BufferDebloater bufferDebloater;
+    private final @Nullable BufferDebloater bufferDebloater;
 
     private final long bufferDebloatPeriod;
 
@@ -397,11 +398,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         this.throughputCalculator = environment.getThroughputMeter();
         this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
 
-        this.bufferDebloater =
-                getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)
-                        ? new BufferDebloater(
-                                getTaskConfiguration(), getEnvironment().getAllInputGates())
-                        : null;
+        if (getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+            this.bufferDebloater =
+                    new BufferDebloater(
+                            getTaskConfiguration(), getEnvironment().getAllInputGates());
+            environment
+                    .getMetricGroup()
+                    .gauge(
+                            MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS,
+                            () ->
+                                    bufferDebloater
+                                            .getLastEstimatedTimeToConsumeBuffers()
+                                            .toMillis());
+            environment
+                    .getMetricGroup()
+                    .gauge(MetricNames.DEBLOATED_BUFFER_SIZE, bufferDebloater::getLastBufferSize);
+        } else {
+            this.bufferDebloater = null;
+        }
     }
 
     private TimerService createTimerService(String timerThreadName) {

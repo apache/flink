@@ -42,6 +42,7 @@ public class BufferDebloater {
     private final int bufferDebloatThresholdPercentages;
 
     private int lastBufferSize;
+    private Duration lastEstimatedTimeToConsumeBuffers = Duration.ZERO;
 
     public BufferDebloater(Configuration taskConfig, IndexedInputGate[] inputGates) {
         this.inputGates = inputGates;
@@ -78,6 +79,9 @@ public class BufferDebloater {
                                 Math.min(
                                         desiredTotalBufferSizeInBytes / totalNumber,
                                         maxBufferSize));
+        lastEstimatedTimeToConsumeBuffers =
+                Duration.ofMillis(
+                        newSize * totalNumber * MILLIS_IN_SECOND / Math.max(1, currentThroughput));
 
         boolean skipUpdate =
                 Math.abs(1 - ((double) lastBufferSize) / newSize) * 100
@@ -92,5 +96,13 @@ public class BufferDebloater {
         for (IndexedInputGate inputGate : inputGates) {
             inputGate.announceBufferSize(newSize);
         }
+    }
+
+    public int getLastBufferSize() {
+        return lastBufferSize;
+    }
+
+    public Duration getLastEstimatedTimeToConsumeBuffers() {
+        return lastEstimatedTimeToConsumeBuffers;
     }
 }
