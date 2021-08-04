@@ -206,7 +206,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
         // wait until one eviction was registered, with generous buffer
-        assertTrue(cacheExpired.await(1000, TimeUnit.MILLISECONDS));
+        assertTrue(cacheExpired.await());
 
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
