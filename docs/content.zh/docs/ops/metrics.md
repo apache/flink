@@ -1275,6 +1275,17 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Meter</td>
     </tr>
     <tr>
+      <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
+      <td>estimatedTimeToConsumerBuffersMs</td>
+      <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>debloatedBufferSize</td>
+      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the ammount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
