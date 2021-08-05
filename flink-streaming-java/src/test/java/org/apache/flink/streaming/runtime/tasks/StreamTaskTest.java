@@ -1510,7 +1510,7 @@ public class StreamTaskTest extends TestLogger {
                             .build();
             TaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
-            ThroughputCalculator throughputCalculator = environment.getThroughputMeter();
+            ThroughputCalculator throughputCalculator = environment.getThroughputCalculator();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
             final RunnableWithException completeFutureTask =
@@ -1791,7 +1791,7 @@ public class StreamTaskTest extends TestLogger {
                         .addInput(STRING_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
-                        .setThroughputMeter(
+                        .setThroughputCalculator(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
                                     public long calculateThroughput() {
@@ -1864,7 +1864,7 @@ public class StreamTaskTest extends TestLogger {
                         .addInput(STRING_TYPE_INFO, inputChannels)
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
-                        .setThroughputMeter(
+                        .setThroughputCalculator(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
                                     public long calculateThroughput() {

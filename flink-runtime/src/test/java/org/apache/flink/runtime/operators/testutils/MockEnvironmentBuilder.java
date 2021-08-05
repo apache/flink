@@ -163,7 +163,8 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
-    public MockEnvironmentBuilder setThroughputMeter(ThroughputCalculator throughputCalculator) {
+    public MockEnvironmentBuilder setThroughputCalculator(
+            ThroughputCalculator throughputCalculator) {
         this.throughputCalculator = throughputCalculator;
         return this;
     }
