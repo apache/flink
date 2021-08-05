@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.datagen.table.datagen.types;
+package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.table.data.DecimalData;
 

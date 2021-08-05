@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.datagen.table.datagen;
+package org.apache.flink.connector.datagen.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
-import org.apache.flink.connector.datagen.table.datagen.types.DataGeneratorMapper;
-import org.apache.flink.connector.datagen.table.datagen.types.DecimalDataRandomGenerator;
-import org.apache.flink.connector.datagen.table.datagen.types.RowDataGenerator;
+import org.apache.flink.connector.datagen.table.types.DataGeneratorMapper;
+import org.apache.flink.connector.datagen.table.types.DecimalDataRandomGenerator;
+import org.apache.flink.connector.datagen.table.types.RowDataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.table.api.ValidationException;

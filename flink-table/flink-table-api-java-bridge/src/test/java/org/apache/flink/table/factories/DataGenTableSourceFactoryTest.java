@@ -20,8 +20,8 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
 import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
+import org.apache.flink.connector.datagen.table.DataGenTableSource;
 import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
-import org.apache.flink.connector.datagen.table.datagen.DataGenTableSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
