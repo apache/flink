@@ -140,7 +140,7 @@ public class NettyMessageServerSideSerializationTest extends TestLogger {
     public void testNewBufferSize() {
         NettyMessage.NewBufferSize expected =
                 new NettyMessage.NewBufferSize(
-                        random.nextInt(Integer.MAX_VALUE) + 1L, new InputChannelID());
+                        random.nextInt(Integer.MAX_VALUE), new InputChannelID());
         NettyMessage.NewBufferSize actual = encodeAndDecode(expected, channel);
 
         assertEquals(expected.bufferSize, actual.bufferSize);
