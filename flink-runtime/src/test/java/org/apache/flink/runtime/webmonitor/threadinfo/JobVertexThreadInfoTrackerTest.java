@@ -178,8 +178,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
         assertExpectedEqualsReceived(
                 initialThreadInfoStats, tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX));
 
-        // wait until the entry is refreshed, with generous buffer
-        assertTrue(cacheRefreshed.await());
+        // wait until the entry is refreshed
+        cacheRefreshed.await();
 
         // verify that we get the second result on the next request
         Optional<JobVertexThreadInfoStats> result =
@@ -205,8 +205,8 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
 
         // no stats yet, but the request triggers async collection of stats
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
-        // wait until one eviction was registered, with generous buffer
-        assertTrue(cacheExpired.await());
+        // wait until one eviction was registered
+        cacheExpired.await();
 
         assertFalse(tracker.getVertexStats(JOB_ID, EXECUTION_JOB_VERTEX).isPresent());
     }
