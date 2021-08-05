@@ -191,11 +191,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                         connectionProvider.closeConnection();
                         establishConnectionAndStatement();
                     }
-                } catch (SQLException | ClassNotFoundException excpetion) {
+                } catch (SQLException | ClassNotFoundException exception) {
                     LOG.error(
                             "JDBC connection is not valid, and reestablish connection failed",
-                            excpetion);
-                    throw new RuntimeException("Reestablish JDBC connection failed", excpetion);
+                            exception);
+                    throw new RuntimeException("Reestablish JDBC connection failed", exception);
                 }
 
                 try {
