@@ -47,7 +47,7 @@ under the License.
 
 	    <!-- Have to use guava directly -->
 	    <suppress
-			files="OverConvertRule.java|CustomizedConvertRule.java"
+			files="OverConvertRule.java|InConverter.java"
 			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
