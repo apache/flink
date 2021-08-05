@@ -2265,7 +2265,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     @Test
-    public void testMaxConcurrentAttempsWithSubsumption() throws Exception {
+    public void testMaxConcurrentAttemptsWithSubsumption() throws Exception {
         final int maxConcurrentAttempts = 2;
         JobVertexID jobVertexID1 = new JobVertexID();
 
@@ -2801,15 +2801,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
 
-        EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(10);
-
+        final EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(10);
         final List<SharedStateRegistry> createdSharedStateRegistries = new ArrayList<>(2);
 
         // set up the coordinator and validate the initial state
-        CheckpointCoordinator checkpointCoordinator =
+        final CheckpointCoordinatorBuilder coordinatorBuilder =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(graph)
-                        .setCompletedCheckpointStore(store)
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .setSharedStateRegistryFactory(
                                 deleteExecutor -> {
@@ -2817,8 +2815,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                             new SharedStateRegistry(deleteExecutor);
                                     createdSharedStateRegistries.add(instance);
                                     return instance;
-                                })
-                        .build();
+                                });
+        final CheckpointCoordinator coordinator =
+                coordinatorBuilder.setCompletedCheckpointStore(store).build();
 
         final int numCheckpoints = 3;
 
@@ -2827,11 +2826,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         for (int i = 0; i < numCheckpoints; ++i) {
             performIncrementalCheckpoint(
-                    graph.getJobID(), checkpointCoordinator, jobVertex1, keyGroupPartitions1, i);
+                    graph.getJobID(), coordinator, jobVertex1, keyGroupPartitions1, i);
         }
 
-        List<CompletedCheckpoint> completedCheckpoints =
-                checkpointCoordinator.getSuccessfulCheckpoints();
+        List<CompletedCheckpoint> completedCheckpoints = coordinator.getSuccessfulCheckpoints();
         assertEquals(numCheckpoints, completedCheckpoints.size());
 
         int sharedHandleCount = 0;
@@ -2901,7 +2899,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // restore the store
         Set<ExecutionJobVertex> tasks = new HashSet<>();
         tasks.add(jobVertex1);
-        assertTrue(checkpointCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
+
+        assertEquals(JobStatus.SUSPENDED, store.getShutdownStatus().orElse(null));
+        final EmbeddedCompletedCheckpointStore secondStore =
+                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints());
+        final CheckpointCoordinator secondCoordinator =
+                coordinatorBuilder.setCompletedCheckpointStore(secondStore).build();
+        assertTrue(secondCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
 
         // validate that all shared states are registered again after the recovery.
         cp = 0;
@@ -2919,7 +2923,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
                         // check that all are registered with the new registry
                         verify(keyedStateHandle, verificationMode)
-                                .registerSharedStates(createdSharedStateRegistries.get(1));
+                                .registerSharedStates(
+                                        Iterables.getLast(createdSharedStateRegistries));
                     }
                 }
             }
@@ -2927,7 +2932,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
 
         // discard CP1
-        store.removeOldestCheckpoint();
+        secondStore.removeOldestCheckpoint();
 
         // we expect that all shared state from CP0 is no longer referenced and discarded. CP2 is
         // still live and also
@@ -2945,7 +2950,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         }
 
         // discard CP2
-        store.removeOldestCheckpoint();
+        secondStore.removeOldestCheckpoint();
 
         // we expect all shared state was discarded now, because all CPs are
         for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {

@@ -218,6 +218,15 @@ public class CheckpointCoordinatorTestingUtils {
         return new Tuple2<>(allSerializedValuesConcatenated, offsets);
     }
 
+    public static void verifyStateRestore(ExecutionJobVertex executionJobVertex) throws Exception {
+        verifyStateRestore(
+                executionJobVertex.getJobVertexId(),
+                executionJobVertex,
+                StateAssignmentOperation.createKeyGroupPartitions(
+                        executionJobVertex.getMaxParallelism(),
+                        executionJobVertex.getParallelism()));
+    }
+
     public static void verifyStateRestore(
             JobVertexID jobVertexID,
             ExecutionJobVertex executionJobVertex,

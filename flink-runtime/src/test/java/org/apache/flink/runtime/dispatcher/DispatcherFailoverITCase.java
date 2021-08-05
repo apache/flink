@@ -19,11 +19,9 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
@@ -58,6 +56,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
@@ -68,11 +67,18 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        final CompletedCheckpointStore completedCheckpointStore =
-                new EmbeddedCompletedCheckpointStore();
         haServices.setCheckpointRecoveryFactory(
-                PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter()));
+                new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
+                        (maxCheckpoints, previous) -> {
+                            if (previous != null) {
+                                // First job attempt failed before cleaning up the checkpoint store.
+                                assertFalse(previous.getShutdownStatus().isPresent());
+                                assertFalse(previous.getAllCheckpoints().isEmpty());
+                                return new EmbeddedCompletedCheckpointStore(
+                                        maxCheckpoints, previous.getAllCheckpoints());
+                            }
+                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                        }));
     }
 
     @After
