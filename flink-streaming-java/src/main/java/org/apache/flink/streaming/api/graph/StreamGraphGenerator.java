@@ -33,6 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -136,7 +137,9 @@ public class StreamGraphGenerator {
     public static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
             TimeCharacteristic.ProcessingTime;
 
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    public static final String DEFAULT_STREAMING_JOB_NAME = "Flink Streaming Job";
+
+    public static final String DEFAULT_BATCH_JOB_NAME = "Flink Batch Job";
 
     public static final String DEFAULT_SLOT_SHARING_GROUP = "default";
 
@@ -165,8 +168,6 @@ public class StreamGraphGenerator {
             Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
-
-    private String jobName = DEFAULT_JOB_NAME;
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
@@ -285,11 +286,6 @@ public class StreamGraphGenerator {
         return this;
     }
 
-    public StreamGraphGenerator setJobName(String jobName) {
-        this.jobName = jobName;
-        return this;
-    }
-
     /**
      * Specify fine-grained resource requirements for slot sharing groups.
      *
@@ -359,7 +355,6 @@ public class StreamGraphGenerator {
         graph.setChaining(chaining);
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
-        graph.setJobName(jobName);
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
@@ -371,6 +366,7 @@ public class StreamGraphGenerator {
 
     private void configureStreamGraphBatch(final StreamGraph graph) {
         graph.setJobType(JobType.BATCH);
+        graph.setJobName(deriveJobName(DEFAULT_BATCH_JOB_NAME));
 
         if (checkpointConfig.isCheckpointingEnabled()) {
             LOG.info(
@@ -385,12 +381,17 @@ public class StreamGraphGenerator {
 
     private void configureStreamGraphStreaming(final StreamGraph graph) {
         graph.setJobType(JobType.STREAMING);
+        graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
         graph.setStateBackend(stateBackend);
         graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
         graph.setCheckpointStorage(checkpointStorage);
         graph.setSavepointDirectory(savepointDir);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
+    }
+
+    private String deriveJobName(String defaultJobName) {
+        return configuration.getOptional(PipelineOptions.NAME).orElse(defaultJobName);
     }
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeBatch() {

@@ -22,7 +22,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -102,11 +101,7 @@ public class PythonConfigUtil {
             throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         configPythonOperator(env);
 
-        String jobName =
-                getEnvironmentConfig(env)
-                        .getString(
-                                PipelineOptions.NAME, StreamExecutionEnvironment.DEFAULT_JOB_NAME);
-        return env.getStreamGraph(jobName, clearTransformations);
+        return env.getStreamGraph(clearTransformations);
     }
 
     @SuppressWarnings("unchecked")

@@ -52,7 +52,8 @@ public class TestUtils {
     public static void tryExecute(StreamExecutionEnvironment see, String name) throws Exception {
         JobClient jobClient = null;
         try {
-            StreamGraph graph = see.getStreamGraph(name);
+            StreamGraph graph = see.getStreamGraph();
+            graph.setJobName(name);
             jobClient = see.executeAsync(graph);
             jobClient.getJobExecutionResult().get();
         } catch (Throwable root) {

@@ -25,7 +25,9 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -35,7 +37,9 @@ import org.apache.flink.table.delegation.Executor;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /** Test for {@link DefaultExecutor}. */
@@ -69,5 +73,39 @@ public class DefaultExecutorTest {
         final StreamGraph streamGraph = (StreamGraph) pipeline;
 
         assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
+    }
+
+    @Test
+    public void testJobName() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final Executor executor = new DefaultExecutor(env);
+        final List<Transformation<?>> dummyTransformations =
+                Collections.singletonList(
+                        env.fromElements(1, 2, 3)
+                                .addSink(new DiscardingSink<>())
+                                .getTransformation());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(PipelineOptions.NAME, "Custom Name");
+
+        // default
+        testJobName(
+                executor.createPipeline(dummyTransformations, new Configuration(), "Default Name"),
+                "Default Name");
+
+        // Table API specific
+        testJobName(
+                executor.createPipeline(dummyTransformations, configuration, "Default Name"),
+                "Custom Name");
+
+        // DataStream API specific
+        env.configure(configuration);
+        testJobName(
+                executor.createPipeline(dummyTransformations, new Configuration(), "Default Name"),
+                "Custom Name");
+    }
+
+    private void testJobName(Pipeline pipeline, String expectedJobName) {
+        assertEquals(expectedJobName, ((StreamGraph) pipeline).getJobName());
     }
 }
