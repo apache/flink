@@ -318,7 +318,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
     }
 
     @Override
-    public ThroughputCalculator getThroughputMeter() {
+    public ThroughputCalculator getThroughputCalculator() {
         return throughputCalculator;
     }
 

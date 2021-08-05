@@ -126,7 +126,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
-    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setThroughputMeter(
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setThroughputCalculator(
             ThroughputCalculator throughputCalculator) {
         this.throughputCalculator = throughputCalculator;
         return this;

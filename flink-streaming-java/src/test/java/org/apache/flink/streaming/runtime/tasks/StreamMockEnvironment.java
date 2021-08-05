@@ -309,7 +309,7 @@ public class StreamMockEnvironment implements Environment {
     }
 
     @Override
-    public ThroughputCalculator getThroughputMeter() {
+    public ThroughputCalculator getThroughputCalculator() {
         return throughputCalculator;
     }
 

@@ -288,7 +288,7 @@ public class SavepointEnvironment implements Environment {
     }
 
     @Override
-    public ThroughputCalculator getThroughputMeter() {
+    public ThroughputCalculator getThroughputCalculator() {
         // The throughput calculator doesn't make sense for savepoint but the not null value is
         // preferable when StreamTask is instantiated.
         return new ThroughputCalculator(SystemClock.getInstance(), 10);

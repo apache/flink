@@ -395,7 +395,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         injectChannelStateWriterIntoChannels();
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
-        this.throughputCalculator = environment.getThroughputMeter();
+        this.throughputCalculator = environment.getThroughputCalculator();
         this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
 
         if (getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
