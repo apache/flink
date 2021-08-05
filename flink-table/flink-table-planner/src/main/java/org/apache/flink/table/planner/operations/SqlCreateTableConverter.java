@@ -22,11 +22,10 @@ import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
@@ -37,7 +36,6 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +51,7 @@ class SqlCreateTableConverter {
     private final MergeTableLikeUtil mergeTableLikeUtil;
     private final CatalogManager catalogManager;
     private final Consumer<SqlTableConstraint> validateTableConstraint;
+    private final Function<SqlNode, String> escapeExpression;
 
     SqlCreateTableConverter(
             FlinkCalciteSqlValidator sqlValidator,
@@ -62,6 +61,7 @@ class SqlCreateTableConverter {
         this.mergeTableLikeUtil = new MergeTableLikeUtil(sqlValidator, escapeExpression);
         this.catalogManager = catalogManager;
         this.validateTableConstraint = validateTableConstraint;
+        this.escapeExpression = escapeExpression;
     }
 
     /** Convert the {@link SqlCreateTable} node. */
@@ -82,22 +82,19 @@ class SqlCreateTableConverter {
 
     private CatalogTable createCatalogTable(SqlCreateTable sqlCreateTable) {
 
-        final TableSchema sourceTableSchema;
+        final Schema sourceTableSchema;
         final List<String> sourcePartitionKeys;
         final List<SqlTableLike.SqlTableLikeOption> likeOptions;
         final Map<String, String> sourceProperties;
         if (sqlCreateTable.getTableLike().isPresent()) {
             SqlTableLike sqlTableLike = sqlCreateTable.getTableLike().get();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
-            sourceTableSchema =
-                    TableSchema.fromResolvedSchema(
-                            table.getUnresolvedSchema()
-                                    .resolve(catalogManager.getSchemaResolver()));
+            sourceTableSchema = table.getUnresolvedSchema();
             sourcePartitionKeys = table.getPartitionKeys();
             likeOptions = sqlTableLike.getOptions();
             sourceProperties = table.getOptions();
         } else {
-            sourceTableSchema = TableSchema.builder().build();
+            sourceTableSchema = Schema.newBuilder().build();
             sourcePartitionKeys = Collections.emptyList();
             likeOptions = Collections.emptyList();
             sourceProperties = Collections.emptyMap();
@@ -113,7 +110,7 @@ class SqlCreateTableConverter {
                 sqlCreateTable.getFullConstraints().stream()
                         .filter(SqlTableConstraint::isPrimaryKey)
                         .findAny();
-        TableSchema mergedSchema =
+        Schema mergedSchema =
                 mergeTableLikeUtil.mergeTables(
                         mergingStrategies,
                         sourceTableSchema,
@@ -129,15 +126,16 @@ class SqlCreateTableConverter {
                         sourcePartitionKeys,
                         sqlCreateTable.getPartitionKeyList(),
                         mergingStrategies);
-        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
+        //        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
 
+        //        Schema.newBuilder().fromSchema(sourceTableSchema, derivedSchema);
         String tableComment =
                 sqlCreateTable
                         .getComment()
                         .map(comment -> comment.getNlsString().getValue())
                         .orElse(null);
 
-        return new CatalogTableImpl(mergedSchema, partitionKeys, mergedOptions, tableComment);
+        return CatalogTable.of(mergedSchema, tableComment, partitionKeys, mergedOptions);
     }
 
     private CatalogTable lookupLikeSourceTable(SqlTableLike sqlTableLike) {
@@ -165,19 +163,20 @@ class SqlCreateTableConverter {
         return (CatalogTable) lookupResult.getTable();
     }
 
-    private void verifyPartitioningColumnsExist(
-            TableSchema mergedSchema, List<String> partitionKeys) {
-        for (String partitionKey : partitionKeys) {
-            if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
-                throw new ValidationException(
-                        String.format(
-                                "Partition column '%s' not defined in the table schema. Available columns: [%s]",
-                                partitionKey,
-                                Arrays.stream(mergedSchema.getFieldNames())
-                                        .collect(Collectors.joining("', '", "'", "'"))));
-            }
-        }
-    }
+    //        private void verifyPartitioningColumnsExist(
+    //                Schema mergedSchema, List<String> partitionKeys) {
+    //            for (String partitionKey : partitionKeys) {
+    //                if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
+    //                    throw new ValidationException(
+    //                            String.format(
+    //                                    "Partition column '%s' not defined in the table schema.
+    //     Available columns: [%s]",
+    //                                    partitionKey,
+    //                                    Arrays.stream(mergedSchema.getFieldNames())
+    //                                            .collect(Collectors.joining("', '", "'", "'"))));
+    //                }
+    //            }
+    //        }
 
     private List<String> mergePartitions(
             List<String> sourcePartitionKeys,
