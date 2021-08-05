@@ -131,6 +131,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
             } else if (msgClazz == NewBufferSize.class) {
                 NewBufferSize request = (NewBufferSize) msg;
 
+                outboundQueue.notifyNewBufferSize(request.receiverId, request.bufferSize);
             } else {
                 LOG.warn("Received unexpected client request: {}", msg);
             }

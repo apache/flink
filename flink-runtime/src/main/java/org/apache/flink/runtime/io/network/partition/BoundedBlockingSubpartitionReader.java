@@ -188,6 +188,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
+    }
+
+    @Override
     public String toString() {
         return String.format(
                 "Blocking Subpartition Reader: ID=%s, index=%d",
