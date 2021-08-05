@@ -333,7 +333,8 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       windowExpression: RexCall): RexNode = {
     val zeroLiteral = rexBuilder.makeZeroLiteral(windowExpression.getType)
     if (isTimeIndicatorType(windowExpression.getType)) {
-      // cast zero literal to time indicator field
+      // It's safe to simply cast the literal to time indicator type, because the window
+      // expression column in group key would be projected out in the successor Project node.
       rexBuilder.makeAbstractCast(windowExpression.getType, zeroLiteral)
     } else {
       zeroLiteral

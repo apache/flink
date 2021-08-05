@@ -615,7 +615,9 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
     // ----------------------------------------------------------------------------------------
 
     private RelNode materializeProcTime(RelNode node) {
-        // If input is empty values, ignore materialize
+        // there is no need to add a redundant calc to materialize proc-time if input is empty
+        // values. Otherwise we need add a PruneEmptyRules after the RelTimeIndicatorConverter to
+        // remove the redundant calc.
         if (node instanceof FlinkLogicalValues
                 && FlinkLogicalValues.isEmpty((FlinkLogicalValues) node)) {
             return node;
