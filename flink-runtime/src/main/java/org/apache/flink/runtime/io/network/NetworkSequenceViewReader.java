@@ -82,4 +82,6 @@ public interface NetworkSequenceViewReader {
     Throwable getFailureCause();
 
     InputChannelID getReceiverId();
+
+    void notifyNewBufferSize(int newBufferSize);
 }

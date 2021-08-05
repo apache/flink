@@ -154,6 +154,11 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
+    }
+
+    @Override
     public void notifyDataAvailable() {
         throw new UnsupportedOperationException("Method should never be called.");
     }

@@ -241,4 +241,7 @@ class SortMergeSubpartitionReader
             return buffersRead.size();
         }
     }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {}
 }

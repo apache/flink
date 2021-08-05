@@ -105,6 +105,11 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
+    }
+
+    @Override
     public String toString() {
         return String.format(
                 "%s(index: %d) of ResultPartition %s",

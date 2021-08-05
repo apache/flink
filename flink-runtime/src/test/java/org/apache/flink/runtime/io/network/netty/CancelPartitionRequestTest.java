@@ -247,6 +247,9 @@ public class CancelPartitionRequestTest {
         }
 
         @Override
+        public void notifyNewBufferSize(int newBufferSize) {}
+
+        @Override
         public Throwable getFailureCause() {
             return null;
         }

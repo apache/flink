@@ -63,6 +63,8 @@ public interface ResultSubpartitionView {
 
     int getNumberOfQueuedBuffers();
 
+    void notifyNewBufferSize(int newBufferSize);
+
     /**
      * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding
      * {@link ResultSubpartition}.
