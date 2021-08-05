@@ -65,6 +65,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -94,12 +95,77 @@ import static org.mockito.Mockito.verify;
 /** Tests for restoring checkpoint. */
 @SuppressWarnings("checkstyle:EmptyLineSeparator")
 public class CheckpointCoordinatorRestoringTest extends TestLogger {
+
     private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
     private enum TestScaleType {
         INCREASE_PARALLELISM,
         DECREASE_PARALLELISM,
         SAME_PARALLELISM;
+    }
+
+    private static void acknowledgeCheckpoint(
+            CheckpointCoordinator coordinator,
+            ExecutionGraph executionGraph,
+            ExecutionJobVertex jobVertex,
+            long checkpointId)
+            throws Exception {
+        final List<KeyGroupRange> partitions =
+                StateAssignmentOperation.createKeyGroupPartitions(
+                        jobVertex.getMaxParallelism(), jobVertex.getParallelism());
+        for (int partitionIdx = 0; partitionIdx < partitions.size(); partitionIdx++) {
+            TaskStateSnapshot subtaskState =
+                    mockSubtaskState(
+                            jobVertex.getJobVertexId(), partitionIdx, partitions.get(partitionIdx));
+            final AcknowledgeCheckpoint acknowledgeCheckpoint =
+                    new AcknowledgeCheckpoint(
+                            executionGraph.getJobID(),
+                            jobVertex
+                                    .getTaskVertices()[partitionIdx]
+                                    .getCurrentExecutionAttempt()
+                                    .getAttemptId(),
+                            checkpointId,
+                            new CheckpointMetrics(),
+                            subtaskState);
+            coordinator.receiveAcknowledgeMessage(
+                    acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+        }
+    }
+
+    private static ExecutionGraph createExecutionGraph(List<TestingVertex> vertices)
+            throws Exception {
+        final CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder builder =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder();
+        for (TestingVertex vertex : vertices) {
+            builder.addJobVertex(
+                    vertex.getId(), vertex.getParallelism(), vertex.getMaxParallelism());
+        }
+        return builder.build();
+    }
+
+    private static class TestingVertex {
+
+        private final JobVertexID id;
+        private final int parallelism;
+        private final int maxParallelism;
+
+        private TestingVertex(JobVertexID id, int parallelism, int maxParallelism) {
+            this.id = id;
+            this.parallelism = parallelism;
+            this.maxParallelism = maxParallelism;
+        }
+
+        public JobVertexID getId() {
+            return id;
+        }
+
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        public int getMaxParallelism() {
+            return maxParallelism;
+        }
     }
 
     private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
@@ -116,99 +182,80 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     /**
      * Tests that the checkpointed partitioned and non-partitioned state is assigned properly to the
      * {@link Execution} upon recovery.
-     *
-     * @throws Exception
      */
     @Test
     public void testRestoreLatestCheckpointedState() throws Exception {
-        final JobVertexID jobVertexID1 = new JobVertexID();
-        final JobVertexID jobVertexID2 = new JobVertexID();
-        int parallelism1 = 3;
-        int parallelism2 = 2;
-        int maxParallelism1 = 42;
-        int maxParallelism2 = 13;
+        final List<TestingVertex> vertices =
+                Arrays.asList(
+                        new TestingVertex(new JobVertexID(), 3, 42),
+                        new TestingVertex(new JobVertexID(), 2, 13));
+        testRestoreLatestCheckpointedState(
+                vertices,
+                testSuccessfulCheckpointsArePersistedToCompletedCheckpointStore(vertices));
+    }
 
-        final ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(jobVertexID1, parallelism1, maxParallelism1)
-                        .addJobVertex(jobVertexID2, parallelism2, maxParallelism2)
-                        .build();
-
-        final ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
-        final ExecutionJobVertex jobVertex2 = graph.getJobVertex(jobVertexID2);
-
-        CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
+    private Collection<CompletedCheckpoint>
+            testSuccessfulCheckpointsArePersistedToCompletedCheckpointStore(
+                    List<TestingVertex> vertices) throws Exception {
+        final ExecutionGraph executionGraph = createExecutionGraph(vertices);
+        final EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
 
         // set up the coordinator and validate the initial state
-        CheckpointCoordinator coord =
+        final CheckpointCoordinator coordinator =
                 new CheckpointCoordinatorBuilder()
-                        .setExecutionGraph(graph)
-                        .setCompletedCheckpointStore(store)
+                        .setExecutionGraph(executionGraph)
                         .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCompletedCheckpointStore(store)
                         .build();
 
         // trigger the checkpoint
-        coord.triggerCheckpoint(false);
+        coordinator.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
 
-        assertEquals(1, coord.getPendingCheckpoints().size());
-        long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
+        // we should have a single pending checkpoint
+        assertEquals(1, coordinator.getPendingCheckpoints().size());
+        final long checkpointId =
+                Iterables.getOnlyElement(coordinator.getPendingCheckpoints().keySet());
 
-        List<KeyGroupRange> keyGroupPartitions1 =
-                StateAssignmentOperation.createKeyGroupPartitions(maxParallelism1, parallelism1);
-        List<KeyGroupRange> keyGroupPartitions2 =
-                StateAssignmentOperation.createKeyGroupPartitions(maxParallelism2, parallelism2);
-
-        for (int index = 0; index < jobVertex1.getParallelism(); index++) {
-            TaskStateSnapshot subtaskState =
-                    mockSubtaskState(jobVertexID1, index, keyGroupPartitions1.get(index));
-
-            AcknowledgeCheckpoint acknowledgeCheckpoint =
-                    new AcknowledgeCheckpoint(
-                            graph.getJobID(),
-                            jobVertex1
-                                    .getTaskVertices()[index]
-                                    .getCurrentExecutionAttempt()
-                                    .getAttemptId(),
-                            checkpointId,
-                            new CheckpointMetrics(),
-                            subtaskState);
-
-            coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+        // acknowledge checkpoints from all vertex partitions
+        for (TestingVertex vertex : vertices) {
+            final ExecutionJobVertex executionVertex =
+                    Objects.requireNonNull(executionGraph.getJobVertex(vertex.getId()));
+            acknowledgeCheckpoint(coordinator, executionGraph, executionVertex, checkpointId);
         }
 
-        for (int index = 0; index < jobVertex2.getParallelism(); index++) {
-            TaskStateSnapshot subtaskState =
-                    mockSubtaskState(jobVertexID2, index, keyGroupPartitions2.get(index));
-
-            AcknowledgeCheckpoint acknowledgeCheckpoint =
-                    new AcknowledgeCheckpoint(
-                            graph.getJobID(),
-                            jobVertex2
-                                    .getTaskVertices()[index]
-                                    .getCurrentExecutionAttempt()
-                                    .getAttemptId(),
-                            checkpointId,
-                            new CheckpointMetrics(),
-                            subtaskState);
-
-            coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
-        }
-
-        List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
-
+        final List<CompletedCheckpoint> completedCheckpoints =
+                coordinator.getSuccessfulCheckpoints();
         assertEquals(1, completedCheckpoints.size());
 
         // shutdown the store
         store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
-        // restore the store
-        Set<ExecutionJobVertex> tasks = new HashSet<>();
+        return store.getAllCheckpoints();
+    }
 
-        tasks.add(jobVertex1);
-        tasks.add(jobVertex2);
+    private void testRestoreLatestCheckpointedState(
+            List<TestingVertex> vertices, Collection<CompletedCheckpoint> completedCheckpoints)
+            throws Exception {
+        final ExecutionGraph executionGraph = createExecutionGraph(vertices);
+        final EmbeddedCompletedCheckpointStore store =
+                new EmbeddedCompletedCheckpointStore(
+                        completedCheckpoints.size(), completedCheckpoints);
 
-        assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
+        // set up the coordinator and validate the initial state
+        final CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(executionGraph)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCompletedCheckpointStore(store)
+                        .build();
+
+        final Set<ExecutionJobVertex> executionVertices =
+                vertices.stream()
+                        .map(TestingVertex::getId)
+                        .map(executionGraph::getJobVertex)
+                        .collect(Collectors.toSet());
+        assertTrue(coordinator.restoreLatestCheckpointedStateToAll(executionVertices, false));
 
         // validate that all shared states are registered again after the recovery.
         for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
@@ -221,8 +268,9 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         }
 
         // verify the restored state
-        verifyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
-        verifyStateRestore(jobVertexID2, jobVertex2, keyGroupPartitions2);
+        for (ExecutionJobVertex executionVertex : executionVertices) {
+            verifyStateRestore(executionVertex);
+        }
     }
 
     @Test
@@ -393,8 +441,6 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     /**
      * Tests the checkpoint restoration with changing parallelism of job vertex with partitioned
      * state.
-     *
-     * @throws Exception
      */
     private void testRestoreLatestCheckpointedStateWithChangingParallelism(boolean scaleOut)
             throws Exception {

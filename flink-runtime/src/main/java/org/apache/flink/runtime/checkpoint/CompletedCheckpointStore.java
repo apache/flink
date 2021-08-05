@@ -33,14 +33,6 @@ public interface CompletedCheckpointStore {
     Logger LOG = LoggerFactory.getLogger(CompletedCheckpointStore.class);
 
     /**
-     * Recover available {@link CompletedCheckpoint} instances.
-     *
-     * <p>After a call to this method, {@link #getLatestCheckpoint(boolean)} returns the latest
-     * available checkpoint.
-     */
-    void recover() throws Exception;
-
-    /**
      * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
      *
      * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
@@ -107,7 +99,7 @@ public interface CompletedCheckpointStore {
      * or kept.
      *
      * @param jobStatus Job state on shut down
-     * @param checkpointsCleaner that will cleanup copmpleted checkpoints if needed
+     * @param checkpointsCleaner that will cleanup completed checkpoints if needed
      */
     void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) throws Exception;
 

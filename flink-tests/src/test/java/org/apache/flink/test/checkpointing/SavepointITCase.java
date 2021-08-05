@@ -45,13 +45,12 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -763,20 +762,6 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
-    private static class TestingHaServices extends EmbeddedHaServices {
-        private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
-        TestingHaServices(CheckpointRecoveryFactory checkpointRecoveryFactory, Executor executor) {
-            super(executor);
-            this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-        }
-
-        @Override
-        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-            return checkpointRecoveryFactory;
-        }
-    }
-
     /**
      * A factory for HA services used to inject {@link
      * FailingSyncSavepointCompletedCheckpointStore}.
@@ -784,12 +769,11 @@ public class SavepointITCase extends TestLogger {
     public static class FailingSyncSavepointHAFactory implements HighAvailabilityServicesFactory {
         @Override
         public HighAvailabilityServices createHAServices(
-                Configuration configuration, Executor executor) throws Exception {
-            return new TestingHaServices(
-                    PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
-                            new FailingSyncSavepointCompletedCheckpointStore(),
-                            new StandaloneCheckpointIDCounter()),
-                    executor);
+                Configuration configuration, Executor executor) {
+            final CheckpointRecoveryFactory checkpointRecoveryFactory =
+                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                            maxCheckpoints -> new FailingSyncSavepointCompletedCheckpointStore());
+            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 

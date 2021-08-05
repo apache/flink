@@ -41,9 +41,8 @@ import static org.junit.Assert.assertTrue;
 public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointStoreTest {
 
     @Override
-    protected CompletedCheckpointStore createCompletedCheckpoints(
+    protected CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             int maxNumberOfCheckpointsToRetain, Executor executor) throws Exception {
-
         return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
     }
 
@@ -51,7 +50,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
     @Test
     public void testShutdownDiscardsCheckpoints() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore store = createCompletedCheckpoints(1);
+        CompletedCheckpointStore store = createRecoveredCompletedCheckpointStore(1);
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> operatorStates = checkpoint.getOperatorStates().values();
 
@@ -72,7 +71,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
     @Test
     public void testSuspendDiscardsCheckpoints() throws Exception {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore store = createCompletedCheckpoints(1);
+        CompletedCheckpointStore store = createRecoveredCompletedCheckpointStore(1);
         TestCompletedCheckpoint checkpoint = createCheckpoint(0, sharedStateRegistry);
         Collection<OperatorState> taskStates = checkpoint.getOperatorStates().values();
 
@@ -95,7 +94,8 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
         final int numCheckpointsToRetain = 1;
         CompletedCheckpointStore store =
-                createCompletedCheckpoints(numCheckpointsToRetain, Executors.directExecutor());
+                createRecoveredCompletedCheckpointStore(
+                        numCheckpointsToRetain, Executors.directExecutor());
 
         CountDownLatch discardAttempted = new CountDownLatch(1);
         for (long i = 0; i < numCheckpointsToRetain + 1; ++i) {

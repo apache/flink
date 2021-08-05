@@ -1521,15 +1521,10 @@ public class CheckpointCoordinator {
             }
 
             // We create a new shared state registry object, so that all pending async disposal
-            // requests from previous
-            // runs will go against the old object (were they can do no harm).
-            // This must happen under the checkpoint lock.
+            // requests from previous runs will go against the old object (were they can do no
+            // harm). This must happen under the checkpoint lock.
             sharedStateRegistry.close();
             sharedStateRegistry = sharedStateRegistryFactory.create(executor);
-
-            // Recover the checkpoints, TODO this could be done only when there is a new leader, not
-            // on each recovery
-            completedCheckpointStore.recover();
 
             // Now, we re-register all (shared) states from the checkpoint store with the new
             // registry

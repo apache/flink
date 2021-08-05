@@ -33,6 +33,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
@@ -299,6 +300,8 @@ public class KubernetesUtils {
                 maxNumberOfCheckpointsToRetain,
                 stateHandleStore,
                 KubernetesCheckpointStoreUtil.INSTANCE,
+                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                        stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE),
                 executor);
     }
 
