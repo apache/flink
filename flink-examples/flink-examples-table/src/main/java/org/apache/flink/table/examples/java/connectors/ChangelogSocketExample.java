@@ -75,7 +75,8 @@ public final class ChangelogSocketExample {
         env.setParallelism(1); // source only supports parallelism of 1
 
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
-
+        tEnv.executeSql(
+                "create function ipMapper as 'org.apache.flink.table.examples.java.functions.IpMapper' 'driverClass = org.postgresql.Driver,dbUrl=jdbc:postgresql://172.16.1.191:5432/hb_data_integration,userName=postgres,passWord=botech123,query=SELECT * FROM t_ip_map' LANGUAGE JAVA ");
         // register a table in the catalog
         tEnv.executeSql(
                 "CREATE TABLE UserScores (name STRING, score INT)\n"
@@ -93,7 +94,9 @@ public final class ChangelogSocketExample {
                         + ")");
 
         // define a dynamic aggregating query
-        final Table result = tEnv.sqlQuery("SELECT name, SUM(score) FROM UserScores GROUP BY name");
+        final Table result =
+                tEnv.sqlQuery(
+                        "SELECT name, SUM(score), ipMapper(name) FROM UserScores GROUP BY name");
 
         // print the result to the console
         tEnv.toRetractStream(result, Row.class).print();

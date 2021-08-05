@@ -37,12 +37,10 @@ import org.apache.flink.util.InstantiationUtil;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
@@ -209,7 +207,9 @@ public final class UserDefinedFunctionHelper {
                 case SCALA:
                     final Class<?> functionClass =
                             classLoader.loadClass(catalogFunction.getClassName());
-                    return UserDefinedFunctionHelper.instantiateFunction((Class) functionClass);
+                    final Map<String, Object> parameter = catalogFunction.getParameter();
+                    return UserDefinedFunctionHelper.instantiateFunction(
+                            (Class) functionClass, parameter);
                 default:
                     throw new IllegalArgumentException(
                             "Unknown function language: " + catalogFunction.getFunctionLanguage());
@@ -223,6 +223,20 @@ public final class UserDefinedFunctionHelper {
     /**
      * Instantiates a {@link UserDefinedFunction} assuming a JVM function with default constructor.
      */
+    public static UserDefinedFunction instantiateFunction(
+            Class<? extends UserDefinedFunction> functionClass, Map<String, Object> parameter) {
+        try {
+            Constructor<?> ctor = functionClass.getConstructor(Object.class);
+            return (UserDefinedFunction) ctor.newInstance(parameter);
+        } catch (Exception e) {
+            throw new ValidationException(
+                    String.format(
+                            "Cannot instantiate user-defined function class '%s'.",
+                            functionClass.getName()),
+                    e);
+        }
+    }
+
     public static UserDefinedFunction instantiateFunction(
             Class<? extends UserDefinedFunction> functionClass) {
         validateClass(functionClass, true);

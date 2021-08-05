@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.13.0</version>
+		<version>1.13.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -82,6 +82,11 @@ under the License.
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.2.18</version>
 		</dependency>
 	</dependencies>
 

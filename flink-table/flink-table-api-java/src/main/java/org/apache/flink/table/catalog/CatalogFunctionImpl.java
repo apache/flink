@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -30,16 +31,27 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class CatalogFunctionImpl implements CatalogFunction {
     private final String className; // Fully qualified class name of the function
     private final FunctionLanguage functionLanguage;
+    private final Map<String, Object> parameter;
 
     public CatalogFunctionImpl(String className) {
-        this(className, FunctionLanguage.JAVA);
+        this(className, null, FunctionLanguage.JAVA);
     }
 
     public CatalogFunctionImpl(String className, FunctionLanguage functionLanguage) {
+        this(className, null, functionLanguage);
+    }
+
+    public CatalogFunctionImpl(String className, Map<String, Object> parameter) {
+        this(className, parameter, FunctionLanguage.JAVA);
+    }
+
+    public CatalogFunctionImpl(
+            String className, Map<String, Object> parameters, FunctionLanguage functionLanguage) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(className),
                 "className cannot be null or empty");
         this.className = className;
+        this.parameter = parameters;
         this.functionLanguage = checkNotNull(functionLanguage, "functionLanguage cannot be null");
     }
 
@@ -49,8 +61,13 @@ public class CatalogFunctionImpl implements CatalogFunction {
     }
 
     @Override
+    public Map<String, Object> getParameter() {
+        return this.parameter;
+    }
+
+    @Override
     public CatalogFunction copy() {
-        return new CatalogFunctionImpl(getClassName(), functionLanguage);
+        return new CatalogFunctionImpl(getClassName(), getParameter(), functionLanguage);
     }
 
     @Override

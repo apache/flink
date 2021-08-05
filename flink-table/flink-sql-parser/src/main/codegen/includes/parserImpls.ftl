@@ -267,6 +267,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 {
     SqlIdentifier functionIdentifier = null;
     SqlCharStringLiteral functionClassName = null;
+    SqlCharStringLiteral functionParameter = null;
     String functionLanguage = null;
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
@@ -294,6 +295,10 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         String p = SqlParserUtil.parseString(token.image);
         functionClassName = SqlLiteral.createCharString(p, getPos());
     }
+    <QUOTED_STRING>{
+        p = SqlParserUtil.parseString(token.image);
+        functionParameter = SqlLiteral.createCharString(p, getPos());
+    }
     [<LANGUAGE>
         (
             <JAVA>  { functionLanguage = "JAVA"; }
@@ -306,7 +311,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         )
     ]
     {
-        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionLanguage,
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, functionParameter, functionLanguage,
                 ifNotExists, isTemporary, isSystemFunction);
     }
 }

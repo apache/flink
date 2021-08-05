@@ -197,7 +197,7 @@ class TableEnvironment(object):
 
         :param module_names: Names of the modules to be used.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         j_module_names = to_jarray(get_gateway().jvm.String, module_names)
         self._j_tenv.useModules(j_module_names)
@@ -618,7 +618,7 @@ class TableEnvironment(object):
 
         :return: List of module names and use statuses.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         j_module_entry_array = self._j_tenv.listFullModules()
         return [ModuleEntry(entry.name(), entry.used()) for entry in j_module_entry_array]
