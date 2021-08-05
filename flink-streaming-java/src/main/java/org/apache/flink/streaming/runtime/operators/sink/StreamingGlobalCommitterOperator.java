@@ -97,6 +97,7 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
     public void close() throws Exception {
         super.close();
         globalCommitter.close();
+        super.close();
     }
 
     @Override

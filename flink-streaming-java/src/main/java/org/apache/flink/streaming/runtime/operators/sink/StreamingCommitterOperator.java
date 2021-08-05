@@ -71,5 +71,6 @@ final class StreamingCommitterOperator<CommT>
     public void close() throws Exception {
         super.close();
         committer.close();
+        super.close();
     }
 }
