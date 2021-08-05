@@ -264,61 +264,53 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<Boolean> checkAndUpdateConfigMap(
             String configMapName,
-            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> function) {
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
         return FutureUtils.retry(
-                () ->
-                        CompletableFuture.supplyAsync(
-                                () ->
-                                        getConfigMap(configMapName)
-                                                .map(
-                                                        configMap ->
-                                                                function.apply(configMap)
-                                                                        .map(
-                                                                                updatedConfigMap -> {
-                                                                                    try {
-                                                                                        this
-                                                                                                .internalClient
-                                                                                                .configMaps()
-                                                                                                .withName(
-                                                                                                        configMapName)
-                                                                                                .lockResourceVersion(
-                                                                                                        updatedConfigMap
-                                                                                                                .getResourceVersion())
-                                                                                                .replace(
-                                                                                                        updatedConfigMap
-                                                                                                                .getInternalResource());
-                                                                                    } catch (
-                                                                                            Throwable
-                                                                                                    throwable) {
-                                                                                        LOG.debug(
-                                                                                                "Failed to update ConfigMap {} with data {}. Trying again.",
-                                                                                                configMap
-                                                                                                        .getName(),
-                                                                                                configMap
-                                                                                                        .getData());
-                                                                                        // the
-                                                                                        // client
-                                                                                        // implementation does not expose the different kind of error causes to a degree that we could do a more fine-grained error handling here
-                                                                                        throw new CompletionException(
-                                                                                                new PossibleInconsistentStateException(
-                                                                                                        throwable));
-                                                                                    }
-                                                                                    return true;
-                                                                                })
-                                                                        .orElse(false))
-                                                .orElseThrow(
-                                                        () ->
-                                                                new CompletionException(
-                                                                        new KubernetesException(
-                                                                                "Cannot retry checkAndUpdateConfigMap with configMap "
-                                                                                        + configMapName
-                                                                                        + " because it does not exist."))),
-                                kubeClientExecutorService),
+                () -> attemptCheckAndUpdateConfigMap(configMapName, updateFunction),
                 maxRetryAttempts,
                 // Only KubernetesClientException is retryable
-                throwable ->
-                        ExceptionUtils.findThrowable(throwable, KubernetesClientException.class)
-                                .isPresent(),
+                t -> ExceptionUtils.findThrowable(t, KubernetesClientException.class).isPresent(),
+                kubeClientExecutorService);
+    }
+
+    private CompletableFuture<Boolean> attemptCheckAndUpdateConfigMap(
+            String configMapName,
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    final KubernetesConfigMap configMap =
+                            getConfigMap(configMapName)
+                                    .orElseThrow(
+                                            () ->
+                                                    new CompletionException(
+                                                            new KubernetesException(
+                                                                    "Cannot retry checkAndUpdateConfigMap with configMap "
+                                                                            + configMapName
+                                                                            + " because it does not exist.")));
+                    final Optional<KubernetesConfigMap> maybeUpdate =
+                            updateFunction.apply(configMap);
+                    if (maybeUpdate.isPresent()) {
+                        try {
+                            internalClient
+                                    .configMaps()
+                                    .withName(configMapName)
+                                    .lockResourceVersion(maybeUpdate.get().getResourceVersion())
+                                    .replace(maybeUpdate.get().getInternalResource());
+                            return true;
+                        } catch (Throwable throwable) {
+                            LOG.debug(
+                                    "Failed to update ConfigMap {} with data {}. Trying again.",
+                                    configMap.getName(),
+                                    configMap.getData());
+                            // the client implementation does not expose the different kind of error
+                            // causes to a degree that we could do a more fine-grained error
+                            // handling here
+                            throw new CompletionException(
+                                    new PossibleInconsistentStateException(throwable));
+                        }
+                    }
+                    return false;
+                },
                 kubeClientExecutorService);
     }
 
