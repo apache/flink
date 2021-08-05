@@ -53,9 +53,9 @@ import java.util.function.Function;
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A factory for {@link StreamTwoInputProcessor}. */
+/** A factory to create {@link StreamMultipleInputProcessor} for two input case. */
 public class StreamTwoInputProcessorFactory {
-    public static <IN1, IN2> StreamTwoInputProcessor<IN1, IN2> create(
+    public static <IN1, IN2> StreamMultipleInputProcessor create(
             AbstractInvokable ownerTask,
             CheckpointedInputGate[] checkpointedInputGates,
             IOManager ioManager,
@@ -189,8 +189,9 @@ public class StreamTwoInputProcessorFactory {
         StreamOneInputProcessor<IN2> processor2 =
                 new StreamOneInputProcessor<>(input2, output2, endOfInputAware);
 
-        return new StreamTwoInputProcessor<>(
-                new TwoInputSelectionHandler(inputSelectable), processor1, processor2);
+        return new StreamMultipleInputProcessor(
+                new MultipleInputSelectionHandler(inputSelectable, 2),
+                new StreamOneInputProcessor[] {processor1, processor2});
     }
 
     @SuppressWarnings("unchecked")

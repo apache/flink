@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -49,7 +48,7 @@ import java.util.stream.Stream;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode for {@link
- * StreamOneInputProcessor} and {@link StreamTwoInputProcessor}.
+ * StreamOneInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {
