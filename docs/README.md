@@ -52,7 +52,7 @@ In addition to Markdown, every page contains a Jekyll front matter, which specif
     ---
     title: "Title of the Page"
     ---
-
+    
     ---
     title: "Title of the Page" <-- Title rendered in the side nave
     weight: 1 <-- Weight controls the ordering of pages in the side nav. 
@@ -124,7 +124,7 @@ This will be replaced by a back to top link. It is recommended to use these link
 	{{< hint info >}}
 	Some interesting information
 	{{< /hint >}}
-	
+
 The hint will be rendered in a blue box. This hint is useful when providing 
 additional information for the user that does not fit into the flow of the documentation.
 
@@ -150,20 +150,20 @@ functionality.
 #### Label
 
     {{< label "My Label" >}}
-    
+
 The label will be rendered in an inlined blue box. This is useful for labeling functionality
 such as whether a SQL feature works for only batch or streaming execution. 
 
 #### Flink version 
 
     {{< version >}}
-    
+
 Interpolates the current Flink version
 
 #### Scala Version
 
     {{< scala_verison >}}
-    
+
 Interpolates the default scala version
 
 #### Stable
@@ -171,7 +171,7 @@ Interpolates the default scala version
     {{< stable >}}
      Some content
     {{< /stable >}}
-    
+
 This shortcode will only render its content if the site is marked as stable. 
 
 #### Unstable 
@@ -179,13 +179,13 @@ This shortcode will only render its content if the site is marked as stable.
     {{< unstable >}}
     Some content 
     {{< /unstable >}}
-    
+
 This shortcode will only render its content if the site is marked as unstable. 
 
 #### Query State Warning
 
     {{< query_state_warning >}}
-    
+
 Will render a warning the current SQL feature may have unbounded state requirements.
 
 #### tab
@@ -202,22 +202,22 @@ Will render a warning the current SQL feature may have unbounded state requireme
     ```
     {< /tab >}}
     {{< /tabs }}
-    
+
 Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must
 be unique for the page. 
 
 #### Github Repo
 
     {{< github_repo >}}
-    
+
 Renders a link to the apache flink repo. 
 
 #### Github Link
 
     {{< gh_link file="/some/file.java" name="Some file" >}}
-    
+
 Renders a link to a file in the Apache Flink repo with a given name. 
- 
+
 #### JavaDocs Link
     {{< javadoc file="some/file" name="Some file" >}}
 
@@ -227,3 +227,11 @@ Renders a link to a file in the Apache Flink Java Documentation.
     {< pythondoc file="some/file" name="Some file" >}}
 
 Renders a link to a file in the Apache Flink Python Documentation. 
+
+#### FlinkDownloads Link
+
+```
+{{< downloads >}}
+```
+
+Renders a link to the apache flink download page. 
