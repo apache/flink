@@ -310,6 +310,40 @@ under the License.
 							</target>
 						</configuration>
 					</execution>
+					<execution>
+						<id>build-test-jars</id>
+						<phase>package</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<jar destfile="${project.build.directory}/artifacts/testUdf1.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction1.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testUdf2.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestScalarFunction2.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testJavaDdl.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/PythonFunctionFactoryTest.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/testDataStream.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
+
+								<jar destfile="${project.build.directory}/artifacts/dummy.jar"
+									 basedir="${project.build.directory}/test-classes"
+									 includes="**/TestJob.class">
+									<manifest>
+										<attribute name="Main-Class" value="org.apache.flink.client.cli.TestJob" />
+									</manifest>
+								</jar>
+							</target>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<plugin>
@@ -429,46 +463,6 @@ under the License.
 					be set to true for JDK >= 9. Please refer to ARROW-5412 for more details. -->
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -Dio.netty.tryReflectionSetAccessible=true -XX:+UseG1GC</argLine>
 				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>build-test-jars</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<jar destfile="${project.build.directory}/artifacts/testUdf1.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/TestScalarFunction1.class"/>
-
-								<jar destfile="${project.build.directory}/artifacts/testUdf2.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/TestScalarFunction2.class"/>
-
-								<jar destfile="${project.build.directory}/artifacts/testJavaDdl.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/PythonFunctionFactoryTest.class"/>
-
-								<jar destfile="${project.build.directory}/artifacts/testDataStream.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/DataStreamTestCollectSink.class,**/MyCustomSourceFunction.class,**/PartitionCustomTestMapFunction.class"/>
-
-								<jar destfile="${project.build.directory}/artifacts/dummy.jar"
-									 basedir="${project.build.directory}/test-classes"
-									 includes="**/TestJob.class">
-									<manifest>
-										<attribute name="Main-Class" value="org.apache.flink.client.cli.TestJob" />
-									</manifest>
-								</jar>
-							</target>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
