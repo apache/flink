@@ -849,11 +849,11 @@ public abstract class NettyMessage {
 
         private static final byte ID = 10;
 
-        final long bufferSize;
+        final int bufferSize;
 
         final InputChannelID receiverId;
 
-        NewBufferSize(long bufferSize, InputChannelID receiverId) {
+        NewBufferSize(int bufferSize, InputChannelID receiverId) {
             checkArgument(bufferSize > 0, "The new buffer size should be greater than 0");
             this.bufferSize = bufferSize;
             this.receiverId = receiverId;
@@ -867,8 +867,8 @@ public abstract class NettyMessage {
             try {
                 result =
                         allocateBuffer(
-                                allocator, ID, Long.BYTES + InputChannelID.getByteBufLength());
-                result.writeLong(bufferSize);
+                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(bufferSize);
                 receiverId.writeTo(result);
 
                 out.write(result, promise);
@@ -878,7 +878,7 @@ public abstract class NettyMessage {
         }
 
         static NewBufferSize readFrom(ByteBuf buffer) {
-            long bufferSize = buffer.readLong();
+            int bufferSize = buffer.readInt();
             InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
             return new NewBufferSize(bufferSize, receiverId);
