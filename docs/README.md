@@ -227,3 +227,11 @@ Renders a link to a file in the Apache Flink Java Documentation.
     {< pythondoc file="some/file" name="Some file" >}}
 
 Renders a link to a file in the Apache Flink Python Documentation. 
+
+#### FlinkDownloads Link
+
+```
+{{< downloads >}}
+```
+
+Renders a link to the apache flink download page. 

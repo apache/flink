@@ -88,7 +88,7 @@ Convenience binaries that include hadoop are no longer released.
 If a deployment relies on `flink-shaded-hadoop2` being included in
 `flink-dist`, then you must manually download a pre-packaged Hadoop
 jar from the optional components section of the [download
-page](https://flink.apache.org/downloads.html) and copy it into the
+page]({{< downloads >}}) and copy it into the
 `/lib` directory.  Alternatively, a Flink distribution that includes
 hadoop can be built by packaging `flink-dist` and activating the
 `include-hadoop` maven profile.

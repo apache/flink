@@ -31,7 +31,7 @@ This page covers how to build Flink {{< version >}} from sources.
 
 ## Build Flink
 
-In order to build Flink you need the source code. Either [download the source of a release](https://flink.apache.org/downloads.html) or [clone the git repository]({{< github_repo >}}).
+In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
 In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **at least Java 8** to build.
 

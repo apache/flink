@@ -49,7 +49,7 @@ You can check the correct installation of Java by issuing the following command:
 java -version
 ```
 
-[Download](https://flink.apache.org/downloads.html) the {{< version >}} release and un-tar it. 
+[Download]({{< downloads >}}) the {{< version >}} release and un-tar it. 
 
 ```bash
 $ tar -xzf flink-{{< version >}}-bin-scala{{< scala_version >}}.tgz
