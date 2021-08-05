@@ -69,7 +69,7 @@ Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并
 
 ## Flink 设置
 
-前往 [下载页面]({{ site.zh_download_url }}) 获取可运行的软件包。
+前往 [下载页面]({{< downloads >}}) 获取可运行的软件包。
 
 在下载完最新的发布版本后，复制压缩文件到 master 节点并解压：
 

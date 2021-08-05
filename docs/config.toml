@@ -24,8 +24,8 @@ pygmentsUseClasses = true
 [params]
   # Flag whether this is a stable version or not.
   # Used for the quickstart page.
-  IsStable = false 
-  
+  IsStable = false
+
   # Flag to indicate whether an outdated warning should be shown.
   ShowOutDatedWarning = false
 
@@ -48,13 +48,17 @@ pygmentsUseClasses = true
 
   GithubRepo = "https://github.com/apache/flink.git"
 
-  # Flink training exercises 
+  # Flink training exercises
   TrainingExercises = "//github.com/apache/flink-training"
 
   # This suffix is appended to the Scala-dependent Maven artifact names
   ScalaVersion = "_2.11"
 
   ProjectHomepage = "//flink.apache.org"
+
+  DownloadPage = "//flink.apache.org/downloads.html"
+
+  ZhDownloadPage = "//flink.apache.org/zh/downloads.html"
 
   JavaDocs = "//ci.apache.org/projects/flink/flink-docs-master/api/java/"
 
