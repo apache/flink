@@ -244,12 +244,25 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         if (buffer == null) {
             buffer = requestNewUnicastBufferBuilder(targetSubpartition);
-            subpartitions[targetSubpartition].add(buffer.createBufferConsumerFromBeginning(), 0);
+            addToSubpartition(buffer, targetSubpartition, 0);
         }
 
         buffer.appendAndCommit(record);
 
         return buffer;
+    }
+
+    private void addToSubpartition(BufferBuilder buffer, int targetSubpartition, int i)
+            throws IOException {
+        int desirableBufferSize =
+                subpartitions[targetSubpartition].add(
+                        buffer.createBufferConsumerFromBeginning(), i);
+
+        if (desirableBufferSize > 0) {
+            // !! If some of partial data has written already to this buffer, the result size can
+            // not be less than written value.
+            buffer.trim(desirableBufferSize);
+        }
     }
 
     private BufferBuilder appendUnicastDataForRecordContinuation(
@@ -263,8 +276,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         // with a complete record.
         // !! The next two lines can not change order.
         final int partialRecordBytes = buffer.appendAndCommit(remainingRecordBytes);
-        subpartitions[targetSubpartition].add(
-                buffer.createBufferConsumerFromBeginning(), partialRecordBytes);
+        addToSubpartition(buffer, targetSubpartition, partialRecordBytes);
 
         return buffer;
     }
