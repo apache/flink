@@ -664,6 +664,76 @@ public class ResultPartitionTest {
         }
     }
 
+    @Test
+    public void testDifferentBufferSizeForSubpartitions() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(10);
+        subpartition1.bufferSize(6);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(12), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(12), 1);
+
+        // then: The buffer less or equal to configured.
+        assertEquals(10, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(2, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(6, subpartition1.pollBuffer().buffer().getSize());
+
+        // when: Reset the buffer size.
+        subpartition0.bufferSize(13);
+        subpartition1.bufferSize(5);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(20), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(9), 1);
+
+        // then: The buffer less or equal to configured.
+        // 8 bytes which fitted to the previous unfinished buffer(10 - 2).
+        assertEquals(8, subpartition0.pollBuffer().buffer().getSize());
+        // 12 rest bytes which fitted to a new buffer which has 13 bytes.
+        assertEquals(12, subpartition0.pollBuffer().buffer().getSize());
+        assertEquals(5, subpartition1.pollBuffer().buffer().getSize());
+        assertEquals(4, subpartition1.pollBuffer().buffer().getSize());
+    }
+
+    @Test
+    public void testBufferSizeNotChanged() throws IOException {
+        // given: Configured pipelined result with 2 subpartitions.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
+        assertEquals(2, subpartitions.length);
+
+        PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
+        PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];
+
+        // when: Set the different buffers size.
+        subpartition0.bufferSize(bufferSize + 1);
+        subpartition1.bufferSize(Integer.MAX_VALUE);
+
+        // and: Add the buffer.
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+        bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 1);
+
+        // then: The buffer has initial size because new buffer was greater than max.
+        assertEquals(bufferSize, subpartition0.pollBuffer().buffer().getSize());
+
+        // and: The buffer has initial size because new buffer was less than 0.
+        assertEquals(bufferSize, subpartition1.pollBuffer().buffer().getSize());
+    }
+
     private static class TestResultPartitionConsumableNotifier
             implements ResultPartitionConsumableNotifier {
         private JobID jobID;

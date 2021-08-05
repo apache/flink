@@ -365,4 +365,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
         return new PipelinedSubpartition(0, 2, parent);
     }
+
+    public static PipelinedSubpartition createPipelinedSubpartition(ResultPartition parent) {
+        return new PipelinedSubpartition(0, 2, parent);
+    }
 }
