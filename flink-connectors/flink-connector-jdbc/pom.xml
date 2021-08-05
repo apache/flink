@@ -19,7 +19,7 @@ under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
@@ -32,10 +32,10 @@ under the License.
 
 	<artifactId>flink-connector-jdbc_${scala.binary.version}</artifactId>
 	<name>Flink : Connectors : JDBC</name>
-
+	<groupId>com.botech.flink</groupId>
 	<packaging>jar</packaging>
-
 	<properties>
+		<flink-model.version>1.13.0</flink-model.version>
 		<postgres.version>42.2.10</postgres.version>
 		<otj-pg-embedded.version>0.13.3</otj-pg-embedded.version>
 	</properties>
@@ -46,7 +46,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
@@ -65,14 +65,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -80,7 +80,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -88,7 +88,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
@@ -104,14 +104,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -119,7 +119,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
+			<version>${flink-model.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -165,25 +165,34 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>postgresql</artifactId>
-			<version>1.15.1</version>
-			<scope>test</scope>
-		</dependency>
-
 	</dependencies>
 
 	<build>
 		<plugins>
-			<plugin>
+			<!--<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!-- Disable jvm process reuse to test driver class loading issues -->
+					&lt;!&ndash; Disable jvm process reuse to test driver class loading issues &ndash;&gt;
+					<reuseForks>false</reuseForks>
+				</configuration>
+			</plugin>-->
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
 					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
 		</plugins>
 	</build>
+	<distributionManagement>
+		<repository>
+			<id>botech-common-release</id>
+			<url>http://192.168.3.249:8081/repository/botech-common-release/</url>
+		</repository>
+		<snapshotRepository>
+			<id>botech-common-snapshots</id>
+			<url>http://192.168.3.249:8081/repository/botech-common-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 </project>
