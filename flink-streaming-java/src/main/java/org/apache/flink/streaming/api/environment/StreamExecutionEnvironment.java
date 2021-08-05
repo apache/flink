@@ -142,8 +142,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment {
 
-    /** The default name to use for a streaming job if no other name has been specified. */
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    /**
+     * The default name to use for a streaming job if no other name has been specified.
+     *
+     * @deprecated This constant does not fit well to batch runtime mode.
+     */
+    @Deprecated
+    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 
     /** The time characteristic that is used if none other is set. */
     private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
@@ -1944,7 +1949,7 @@ public class StreamExecutionEnvironment {
      * @throws Exception which occurs during job execution.
      */
     public JobExecutionResult execute() throws Exception {
-        return execute(getJobName());
+        return execute(getStreamGraph());
     }
 
     /**
@@ -1960,8 +1965,9 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
-        return execute(getStreamGraph(jobName));
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return execute(streamGraph);
     }
 
     /**
@@ -2036,7 +2042,7 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public final JobClient executeAsync() throws Exception {
-        return executeAsync(getJobName());
+        return executeAsync(getStreamGraph());
     }
 
     /**
@@ -2053,7 +2059,10 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        return executeAsync(getStreamGraph(checkNotNull(jobName)));
+        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return executeAsync(streamGraph);
     }
 
     /**
@@ -2110,19 +2119,7 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public StreamGraph getStreamGraph() {
-        return getStreamGraph(getJobName());
-    }
-
-    /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
-     *
-     * @param jobName Desired name of the job
-     * @return The streamgraph representing the transformations
-     */
-    @Internal
-    public StreamGraph getStreamGraph(String jobName) {
-        return getStreamGraph(jobName, true);
+        return getStreamGraph(true);
     }
 
     /**
@@ -2131,13 +2128,12 @@ public class StreamExecutionEnvironment {
      * transformations}. Clearing the transformations allows, for example, to not re-execute the
      * same operations when calling {@link #execute()} multiple times.
      *
-     * @param jobName Desired name of the job
      * @param clearTransformations Whether or not to clear previously registered transformations
      * @return The streamgraph representing the transformations
      */
     @Internal
-    public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
-        StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+    public StreamGraph getStreamGraph(boolean clearTransformations) {
+        final StreamGraph streamGraph = getStreamGraphGenerator().generate();
         if (clearTransformations) {
             this.transformations.clear();
         }
@@ -2172,7 +2168,7 @@ public class StreamExecutionEnvironment {
      * @return The execution plan of the program, as a JSON String.
      */
     public String getExecutionPlan() {
-        return getStreamGraph(getJobName(), false).getStreamingPlanAsJSON();
+        return getStreamGraph(false).getStreamingPlanAsJSON();
     }
 
     /**
@@ -2492,9 +2488,5 @@ public class StreamExecutionEnvironment {
             }
         }
         return (T) resolvedTypeInfo;
-    }
-
-    private String getJobName() {
-        return configuration.getString(PipelineOptions.NAME, DEFAULT_JOB_NAME);
     }
 }

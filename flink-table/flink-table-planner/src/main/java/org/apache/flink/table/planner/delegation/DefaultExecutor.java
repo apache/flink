@@ -24,6 +24,7 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -58,7 +59,9 @@ public class DefaultExecutor implements Executor {
 
     @Override
     public Pipeline createPipeline(
-            List<Transformation<?>> transformations, ReadableConfig configuration, String jobName) {
+            List<Transformation<?>> transformations,
+            ReadableConfig configuration,
+            String defaultJobName) {
 
         // reconfigure before a stream graph is generated
         executionEnvironment.configure(configuration);
@@ -77,7 +80,7 @@ public class DefaultExecutor implements Executor {
             default:
                 throw new TableException(String.format("Unsupported runtime mode: %s", mode));
         }
-        graph.setJobName(getNonEmptyJobName(jobName));
+        setJobName(graph, defaultJobName);
         return graph;
     }
 
@@ -104,11 +107,13 @@ public class DefaultExecutor implements Executor {
         return ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
     }
 
-    private static String getNonEmptyJobName(String jobName) {
-        if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
-            return DEFAULT_JOB_NAME;
-        } else {
-            return jobName;
-        }
+    private void setJobName(StreamGraph streamGraph, String defaultJobName) {
+        final String adjustedDefaultJobName =
+                StringUtils.isNullOrWhitespaceOnly(defaultJobName)
+                        ? DEFAULT_JOB_NAME
+                        : defaultJobName;
+        final String jobName =
+                getConfiguration().getOptional(PipelineOptions.NAME).orElse(adjustedDefaultJobName);
+        streamGraph.setJobName(jobName);
     }
 }

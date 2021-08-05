@@ -1040,7 +1040,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
 
         j_stream_nodes = list(j_generated_stream_graph.getStreamNodes().toArray())
         for j_stream_node in j_stream_nodes:
@@ -1082,7 +1082,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         # ship_strategy for map_operator_0 and map_operator_1 is FORWARD, so the map_operator_1
         # can be chained with map_operator_0 and map_operator_2.
         j_generated_stream_graph = self.env._j_stream_execution_environment\
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         assert_chainable(j_generated_stream_graph, True, True)
 
         ds = self.env.from_collection([1, 2, 3])
@@ -1093,7 +1093,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         # We start a new chain for map operator, therefore, it cannot be chained with upstream
         # operator, but can be chained with downstream operator.
         assert_chainable(j_generated_stream_graph, False, True)
@@ -1106,7 +1106,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         # We disable chaining for map_operator_1, therefore, it cannot be chained with
         # upstream and downstream operators.
         assert_chainable(j_generated_stream_graph, False, False)

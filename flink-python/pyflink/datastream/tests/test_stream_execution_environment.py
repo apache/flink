@@ -686,7 +686,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         j_resource_profile_1 = j_generated_stream_graph.getSlotSharingGroupResource(
             'slot_sharing_group_1').get()
         j_resource_profile_2 = j_generated_stream_graph.getSlotSharingGroupResource(

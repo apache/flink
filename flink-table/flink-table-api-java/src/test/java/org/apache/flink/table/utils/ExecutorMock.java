@@ -37,7 +37,9 @@ public class ExecutorMock implements Executor {
 
     @Override
     public Pipeline createPipeline(
-            List<Transformation<?>> transformations, ReadableConfig configuration, String jobName) {
+            List<Transformation<?>> transformations,
+            ReadableConfig configuration,
+            String defaultJobName) {
         return null;
     }
 

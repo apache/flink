@@ -167,7 +167,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
         // --------- the job graph ---------
 
-        StreamGraph streamGraph = env.getStreamGraph("test job");
+        StreamGraph streamGraph = env.getStreamGraph();
         JobGraph jobGraph = streamGraph.getJobGraph();
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 
