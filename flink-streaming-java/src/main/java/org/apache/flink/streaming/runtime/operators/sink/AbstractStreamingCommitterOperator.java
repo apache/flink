@@ -162,4 +162,10 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
             output.collect(new StreamRecord<>(committable));
         }
     }
+
+    @Override
+    public void close() throws Exception {
+        committablesPerCheckpoint.clear();
+        super.close();
+    }
 }
