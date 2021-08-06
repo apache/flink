@@ -224,6 +224,15 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     OperandTypes.or(OperandTypes.NUMERIC_INTEGER, OperandTypes.NUMERIC),
                     SqlFunctionCategory.NUMERIC);
 
+    public static final SqlFunction TRUNCATE =
+            new SqlFunction(
+                    "TRUNCATE",
+                    SqlKind.OTHER_FUNCTION,
+                    FlinkReturnTypes.ROUND_FUNCTION_NULLABLE,
+                    null,
+                    OperandTypes.or(OperandTypes.NUMERIC_INTEGER, OperandTypes.NUMERIC),
+                    SqlFunctionCategory.NUMERIC);
+
     public static final SqlFunction BIN =
             new SqlFunction(
                     "BIN",
@@ -1125,7 +1134,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction PI = SqlStdOperatorTable.PI;
     public static final SqlFunction RAND = SqlStdOperatorTable.RAND;
     public static final SqlFunction RAND_INTEGER = SqlStdOperatorTable.RAND_INTEGER;
-    public static final SqlFunction TRUNCATE = SqlStdOperatorTable.TRUNCATE;
 
     // TIME FUNCTIONS
     public static final SqlFunction YEAR = SqlStdOperatorTable.YEAR;
