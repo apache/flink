@@ -21,13 +21,11 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTemporalJoin
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{containsInitialTemporalJoinCondition, satisfyTemporalJoin}
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.JoinRelType
 
 /**
  * Rule that matches a temporal join node and converts it to [[StreamPhysicalTemporalJoin]],
@@ -38,26 +36,14 @@ class StreamPhysicalTemporalJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel[FlinkLogicalJoin](0)
-    if (!TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
+    if (!satisfyTemporalJoin(join)) {
       return false
     }
 
-    //INITIAL_TEMPORAL_JOIN_CONDITION should not appear in physical phase.
-    checkState(!TemporalJoinUtil.containsInitialTemporalJoinCondition(join.getCondition))
-
-    matchesTemporalTableJoin(join) || matchesTemporalTableFunctionJoin(join)
-  }
-
-  private def matchesTemporalTableJoin(join: FlinkLogicalJoin): Boolean = {
-    val supportedJoinTypes = Seq(JoinRelType.INNER, JoinRelType.LEFT)
-    supportedJoinTypes.contains(join.getJoinType)
-  }
-
-  private def matchesTemporalTableFunctionJoin(
-      join: FlinkLogicalJoin): Boolean = {
-    val (windowBounds, _) = extractWindowBounds(join)
-    windowBounds.isEmpty && join.getJoinType == JoinRelType.INNER &&
-      !satisfyWindowJoin(join)
+    // validate the join
+    // INITIAL_TEMPORAL_JOIN_CONDITION should not appear in physical phase.
+    checkState(!containsInitialTemporalJoinCondition(join.getCondition))
+    true
   }
 
   override protected def transform(

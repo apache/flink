@@ -55,6 +55,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggre
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowTableAggregate;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
+import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -285,7 +286,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         int leftFieldCount = newLeft.getRowType().getFieldCount();
 
         // temporal table join
-        if (TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition())) {
+        if (TemporalJoinUtil.satisfyTemporalJoin(join)) {
             RelNode rewrittenTemporalJoin =
                     join.copy(
                             join.getTraitSet(),
@@ -302,6 +303,11 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                             .collect(Collectors.toSet());
             return createCalcToMaterializeTimeIndicators(rewrittenTemporalJoin, rightIndices);
         } else {
+            if (JoinUtil.satisfyRegularJoin(join, join.getRight())) {
+                // materialize time attribute fields of regular join's inputs
+                newLeft = materializeTimeIndicators(newLeft);
+                newRight = materializeTimeIndicators(newRight);
+            }
             List<RelDataTypeField> leftRightFields = new ArrayList<>();
             leftRightFields.addAll(newLeft.getRowType().getFieldList());
             leftRightFields.addAll(newRight.getRowType().getFieldList());
@@ -626,6 +632,11 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         return materializeTimeIndicators(node, procTimeFieldIndices);
     }
 
+    private RelNode materializeTimeIndicators(RelNode node) {
+        Set<Integer> timeFieldIndices = gatherTimeAttributeIndices(node);
+        return materializeTimeIndicators(node, timeFieldIndices);
+    }
+
     private RelNode materializeTimeIndicators(RelNode node, Set<Integer> timeIndicatorIndices) {
         if (timeIndicatorIndices.isEmpty()) {
             return node;
@@ -754,8 +765,17 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
     }
 
     private Set<Integer> gatherProcTimeIndices(RelNode node) {
+        return gatherTimeAttributeIndices(node, f -> isProctimeIndicatorType(f.getType()));
+    }
+
+    private Set<Integer> gatherTimeAttributeIndices(RelNode node) {
+        return gatherTimeAttributeIndices(node, f -> isTimeIndicatorType(f.getType()));
+    }
+
+    private Set<Integer> gatherTimeAttributeIndices(
+            RelNode node, Predicate<RelDataTypeField> predicate) {
         return node.getRowType().getFieldList().stream()
-                .filter(f -> isProctimeIndicatorType(f.getType()))
+                .filter(predicate)
                 .map(RelDataTypeField::getIndex)
                 .collect(Collectors.toSet());
     }
