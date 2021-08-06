@@ -168,7 +168,8 @@ public abstract class YarnTestBase extends TestLogger {
 
         // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
         Pattern.compile("Exception on heartbeat"),
-        Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted")
+        Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted"),
+        Pattern.compile("java\\.lang\\.InterruptedException")
     };
 
     // Temp directory which is deleted after the unit test.
