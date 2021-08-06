@@ -91,6 +91,7 @@ class TableEnvironment(object):
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
         self._serializer = serializer
+        self._remote_mode = False
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
@@ -1744,6 +1745,26 @@ class TableEnvironment(object):
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        if not self._remote_mode and \
+                is_local_deployment(get_j_env_configuration(self._get_j_env())):
+            j_config = self.get_config().get_configuration()
+            parallelism = int(j_config.get_string("parallelism.default", "1"))
+
+            if parallelism > 1 and j_config.contains_key(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
+                import logging
+                logging.warning("Currently in MiniCluster mode, if you use the API "
+                                "add_python_archive of TableEnvironment and set the "
+                                "parallelism bigger than 1, the executed python "
+                                "function will be a separate python process. "
+                                "In this mode, you will need to take use of the remote debug way "
+                                "to debug your python function.")
+            else:
+                from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                    BeamFnLoopbackWorkerPoolServicer
+
+                self.get_config().get_configuration().set_string(
+                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):

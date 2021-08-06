@@ -103,6 +103,12 @@ public class PythonKeyedCoProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
+        if (getConfig().getConfig().containsKey("loopback.server.address")) {
+            getJobOptions()
+                    .put(
+                            "loopback.server.address",
+                            getConfig().getConfig().getString("loopback.server.address", null));
+        }
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),

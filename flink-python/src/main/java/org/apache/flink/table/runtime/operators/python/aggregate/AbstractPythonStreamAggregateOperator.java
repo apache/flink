@@ -283,6 +283,10 @@ public abstract class AbstractPythonStreamAggregateOperator
         jobOptions.put(
                 PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
                 String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
+        if (config.containsKey("loopback.server.address")) {
+            jobOptions.put(
+                    "loopback.server.address", config.getString("loopback.server.address", null));
+        }
         return jobOptions;
     }
 

@@ -179,6 +179,10 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
         if (config.containsKey("table.exec.timezone")) {
             jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
         }
+        if (config.containsKey("loopback.server.address")) {
+            jobOptions.put(
+                    "loopback.server.address", config.getString("loopback.server.address", null));
+        }
         return jobOptions;
     }
 }

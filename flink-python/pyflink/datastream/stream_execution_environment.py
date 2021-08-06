@@ -40,7 +40,7 @@ from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
 from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
-    invoke_method, get_field_value
+    invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -58,6 +58,7 @@ class StreamExecutionEnvironment(object):
 
     def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
+        self._remote_mode = False
         self.serializer = serializer
 
     def get_config(self) -> ExecutionConfig:
@@ -869,6 +870,27 @@ class StreamExecutionEnvironment(object):
             -> JavaObject:
         gateway = get_gateway()
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
+        if not self._remote_mode and is_local_deployment(j_configuration):
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            jvm = gateway.jvm
+            env_config = JPythonConfigUtil.getEnvironmentConfig(
+                self._j_stream_execution_environment)
+            parallelism = self.get_parallelism()
+            if parallelism > 1 and env_config.containsKey(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
+                import logging
+                logging.warning("Lookback mode is disabled as python archives are used and the "
+                                "parallelism of the job is greater than 1. The Python user-defined "
+                                "functions will be executed in an independent Python process.")
+            else:
+                config = Configuration(j_configuration=j_configuration)
+                config.set_string(
+                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
+
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
 
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
