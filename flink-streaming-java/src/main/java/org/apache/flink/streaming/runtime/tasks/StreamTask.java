@@ -799,8 +799,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             terminationConditions.add(finalCheckpointCompleted);
         }
 
+        LOG.debug("Waiting for termination conditions.");
         FutureUtils.waitForAll(terminationConditions)
                 .thenRun(mailboxProcessor::allActionsCompleted);
+        LOG.debug("All termination conditions met.");
 
         // Resumes the mailbox processor. The mailbox processor would be completed
         // after all records are processed by the downstream tasks.
@@ -1363,6 +1365,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void notifyCheckpointComplete(long checkpointId) throws Exception {
+        LOG.debug("Checkpoint completed: {}", checkpointId);
         if (checkpointId <= latestReportCheckpointId) {
             return;
         }
