@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
  * actor systems resides in this class.
  */
 class AkkaUtils {
-    public static final Logger LOG = LoggerFactory.getLogger(AkkaUtils.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AkkaUtils.class);
 
     private static final String FLINK_ACTOR_SYSTEM_NAME = "flink";
 
