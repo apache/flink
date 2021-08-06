@@ -85,7 +85,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
                     return prior;
                 } else {
                     TaskMetricGroup task =
-                            new TaskMetricGroup(
+                            TaskMetricGroup.createTaskMetricGroup(
                                     registry,
                                     this,
                                     jobVertexId,

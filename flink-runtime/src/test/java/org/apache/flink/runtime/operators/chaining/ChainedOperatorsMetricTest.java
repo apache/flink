@@ -75,7 +75,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
                         .setInputSplitProvider(this.inputSplitProvider)
                         .setBufferSize(NETWORK_BUFFER_SIZE)
                         .setMetricGroup(
-                                new TaskMetricGroup(
+                                TaskMetricGroup.createTaskMetricGroup(
                                         NoOpMetricRegistry.INSTANCE,
                                         UnregisteredMetricGroups
                                                 .createUnregisteredTaskManagerJobMetricGroup(),

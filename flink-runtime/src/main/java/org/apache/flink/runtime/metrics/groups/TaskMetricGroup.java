@@ -64,7 +64,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     // ------------------------------------------------------------------------
 
-    public TaskMetricGroup(
+    TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
             JobVertexID vertexId,
@@ -92,6 +92,18 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
         this.attemptNumber = attemptNumber;
 
         this.ioMetrics = new TaskIOMetricGroup(this);
+    }
+
+    public static TaskMetricGroup createTaskMetricGroup(
+            MetricRegistry registry,
+            TaskManagerJobMetricGroup parent,
+            JobVertexID vertexId,
+            ExecutionAttemptID executionId,
+            String taskName,
+            int subtaskIndex,
+            int attemptNumber) {
+        return new TaskMetricGroup(
+                registry, parent, vertexId, executionId, taskName, subtaskIndex, attemptNumber);
     }
 
     // ------------------------------------------------------------------------

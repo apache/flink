@@ -339,7 +339,8 @@ public class MetricGroupTest extends TestLogger {
         MetricRegistryImpl registry = new MetricRegistryImpl(defaultMetricRegistryConfiguration);
         TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
         TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
-        TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+        TaskMetricGroup task =
+                TaskMetricGroup.createTaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
         GenericMetricGroup userGroup1 = new GenericMetricGroup(registry, task, "hello");
         GenericMetricGroup userGroup2 = new GenericMetricGroup(registry, userGroup1, "world");
 
