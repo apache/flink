@@ -62,13 +62,7 @@ public class JMXReporter implements MetricReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
 
-    private static final CharacterFilter CHARACTER_FILTER =
-            new CharacterFilter() {
-                @Override
-                public String filterCharacters(String input) {
-                    return replaceInvalidChars(input);
-                }
-            };
+    private static final CharacterFilter CHARACTER_FILTER = JMXReporter::replaceInvalidChars;
 
     // ------------------------------------------------------------------------
 
@@ -120,7 +114,7 @@ public class JMXReporter implements MetricReporter {
         try {
             jmxName = new ObjectName(domain, table);
         } catch (MalformedObjectNameException e) {
-            /**
+            /*
              * There is an implementation error on our side if this occurs. Either the domain was
              * modified and no longer conforms to the JMX domain rules or the table wasn't properly
              * generated.
@@ -278,7 +272,7 @@ public class JMXReporter implements MetricReporter {
     }
 
     private static class JmxCounter extends AbstractBean implements JmxCounterMBean {
-        private Counter counter;
+        private final Counter counter;
 
         JmxCounter(Counter counter) {
             this.counter = counter;
@@ -310,6 +304,7 @@ public class JMXReporter implements MetricReporter {
     }
 
     /** The MBean interface for an exposed histogram. */
+    @SuppressWarnings("unused")
     public interface JmxHistogramMBean extends MetricMBean {
         long getCount();
 
