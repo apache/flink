@@ -87,6 +87,7 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -661,17 +662,21 @@ public class HiveParserSemanticAnalyzer {
                 valuesData.add(data);
             }
 
-            // Step 2, create a temp table, using the created file as the data
+            // Step 2, create a temp table
             Table table = db.newTable(tableName);
             table.setSerializationLib(conf.getVar(HiveConf.ConfVars.HIVEDEFAULTSERDE));
             HiveTableUtil.setStorageFormat(table.getSd(), "TextFile", conf);
             table.setFields(fields);
             // make up a path for this table
-            table.setDataLocation(
-                    new Path(FileUtils.getTempDirectory().toURI().toString(), tableName));
-            table.getTTable().setTemporary(true);
-            table.setStoredAsSubDirectories(false);
-            db.createTable(table, false);
+            File dataLocation = FileUtils.getTempDirectory();
+            try {
+                table.setDataLocation(new Path(dataLocation.toURI().toString(), tableName));
+                table.getTTable().setTemporary(true);
+                table.setStoredAsSubDirectories(false);
+                db.createTable(table, false);
+            } finally {
+                FileUtils.deleteQuietly(dataLocation);
+            }
             // remember the data for this table
             qb.getValuesTableToData().put(tableName, valuesData);
         } catch (Exception e) {
