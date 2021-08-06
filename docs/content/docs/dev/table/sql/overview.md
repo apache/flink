@@ -31,7 +31,7 @@ This page describes the SQL language supported in Flink, including Data Definiti
 This page lists all the supported statements supported in Flink SQL for now:
 
 - [SELECT (Queries)]({{< ref "docs/dev/table/sql/queries/overview" >}})
-- [CREATE TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/create" >}})
+- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/create" >}})
 - [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/drop" >}})
 - [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/dev/table/sql/alter" >}})
 - [INSERT]({{< ref "docs/dev/table/sql/insert" >}})

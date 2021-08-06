@@ -31,6 +31,7 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
+- CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
