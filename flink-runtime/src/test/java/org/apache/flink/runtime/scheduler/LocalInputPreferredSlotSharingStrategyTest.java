@@ -36,10 +36,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link LocalInputPreferredSlotSharingStrategy}. */
 public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
