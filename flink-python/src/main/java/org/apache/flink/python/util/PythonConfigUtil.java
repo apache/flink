@@ -23,7 +23,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -114,9 +113,9 @@ public class PythonConfigUtil {
                 AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                         getPythonOperator(transformation);
                 if (pythonFunctionOperator != null) {
-                    Configuration oldConfig = pythonFunctionOperator.getPythonConfig().getConfig();
+                    Configuration oldConfig = pythonFunctionOperator.getConfiguration();
                     // update dependency related configurations for Python operators
-                    pythonFunctionOperator.setPythonConfig(
+                    pythonFunctionOperator.setConfiguration(
                             generateNewPythonConfig(oldConfig, mergedConfig));
                 }
             }
@@ -268,14 +267,14 @@ public class PythonConfigUtil {
     }
 
     /**
-     * Generator a new {@link PythonConfig} with the combined config which is derived from
+     * Generator a new {@link Configuration} with the combined config which is derived from
      * oldConfig.
      */
-    private static PythonConfig generateNewPythonConfig(
+    private static Configuration generateNewPythonConfig(
             Configuration oldConfig, Configuration newConfig) {
         Configuration mergedConfig = newConfig.clone();
         mergedConfig.addAll(oldConfig);
-        return new PythonConfig(mergedConfig);
+        return mergedConfig;
     }
 
     public static void setPartitionCustomOperatorNumPartitions(

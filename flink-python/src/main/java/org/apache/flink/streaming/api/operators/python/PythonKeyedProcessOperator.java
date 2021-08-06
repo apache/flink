@@ -143,7 +143,7 @@ public class PythonKeyedProcessOperator<OUT>
                         getInternalParameters(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
@@ -237,7 +237,7 @@ public class PythonKeyedProcessOperator<OUT>
     public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new PythonKeyedProcessOperator<>(
-                getConfig().getConfig(),
+                config,
                 pythonFunctionInfo,
                 (RowTypeInfo) getInputTypeInfo(),
                 outputTypeInfo,

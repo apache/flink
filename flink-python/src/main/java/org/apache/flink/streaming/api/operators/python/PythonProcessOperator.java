@@ -71,7 +71,7 @@ public class PythonProcessOperator<IN, OUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 null,
                 null,
@@ -109,6 +109,6 @@ public class PythonProcessOperator<IN, OUT>
     public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new PythonProcessOperator<>(
-                getConfig().getConfig(), pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
+                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
     }
 }

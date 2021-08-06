@@ -58,7 +58,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     @Override
     public void open() throws Exception {
         super.open();
-        maxArrowBatchSize = Math.min(getPythonConfig().getMaxArrowBatchSize(), maxBundleSize);
+        maxArrowBatchSize = Math.min(pythonConfig.getMaxArrowBatchSize(), maxBundleSize);
         arrowSerializer =
                 new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
         arrowSerializer.open(bais, baos);

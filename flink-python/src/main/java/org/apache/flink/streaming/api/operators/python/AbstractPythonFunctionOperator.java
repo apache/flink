@@ -39,10 +39,10 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +59,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private static final long serialVersionUID = 1L;
 
+    protected Configuration config;
+
     /**
      * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
      * execution.
@@ -70,6 +72,12 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     /** Number of processed elements in the current bundle. */
     protected transient int elementCount;
+
+    /** The python config. */
+    protected transient PythonConfig pythonConfig;
+
+    /** The options used to configure the Python worker process. */
+    protected transient Map<String, String> jobOptions;
 
     /** Max duration of a bundle. */
     private transient long maxBundleTimeMills;
@@ -85,22 +93,17 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private transient ExecutorService flushThreadPool;
 
-    /** The python config. */
-    private PythonConfig config;
-
     public AbstractPythonFunctionOperator(Configuration config) {
-        this.config = new PythonConfig(Preconditions.checkNotNull(config));
+        this.config = Preconditions.checkNotNull(config);
         this.chainingStrategy = ChainingStrategy.ALWAYS;
-    }
-
-    public PythonConfig getPythonConfig() {
-        return config;
     }
 
     @Override
     public void open() throws Exception {
         try {
-            this.maxBundleSize = config.getMaxBundleSize();
+            this.pythonConfig = new PythonConfig(config);
+            this.jobOptions = config.toMap();
+            this.maxBundleSize = pythonConfig.getMaxBundleSize();
             if (this.maxBundleSize <= 0) {
                 this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
                 LOG.error(
@@ -111,7 +114,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                 LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
             }
 
-            this.maxBundleTimeMills = config.getMaxBundleTimeMills();
+            this.maxBundleTimeMills = pythonConfig.getMaxBundleTimeMills();
             if (this.maxBundleTimeMills <= 0L) {
                 this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
                 LOG.error(
@@ -125,7 +128,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             }
 
             this.pythonFunctionRunner = createPythonFunctionRunner();
-            this.pythonFunctionRunner.open(config);
+            this.pythonFunctionRunner.open(pythonConfig);
 
             this.elementCount = 0;
             this.lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
@@ -283,13 +286,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return elementCount == 0;
     }
 
-    /** Reset the {@link PythonConfig} if needed. */
-    public void setPythonConfig(PythonConfig pythonConfig) {
-        this.config = pythonConfig;
+    /** Reset the {@link Configuration} if needed. */
+    public void setConfiguration(Configuration config) {
+        this.config = config;
     }
 
-    /** Returns the {@link PythonConfig}. */
-    public PythonConfig getConfig() {
+    /** Returns the {@link Configuration}. */
+    public Configuration getConfiguration() {
         return config;
     }
 
@@ -369,9 +372,10 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         }
     }
 
-    protected PythonEnvironmentManager createPythonEnvironmentManager() throws IOException {
+    protected PythonEnvironmentManager createPythonEnvironmentManager() {
         PythonDependencyInfo dependencyInfo =
-                PythonDependencyInfo.create(config, getRuntimeContext().getDistributedCache());
+                PythonDependencyInfo.create(
+                        pythonConfig, getRuntimeContext().getDistributedCache());
         PythonEnv pythonEnv = getPythonEnv();
         if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
             return new ProcessPythonEnvironmentManager(
@@ -386,7 +390,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     }
 
     protected FlinkMetricContainer getFlinkMetricContainer() {
-        return this.config.isMetricEnabled()
+        return this.pythonConfig.isMetricEnabled()
                 ? new FlinkMetricContainer(getRuntimeContext().getMetricGroup())
                 : null;
     }
