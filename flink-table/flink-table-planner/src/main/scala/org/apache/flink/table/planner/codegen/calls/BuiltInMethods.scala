@@ -150,6 +150,12 @@ object BuiltInMethods {
     classOf[Int])
   val ROUND_INT = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Int], classOf[Int])
   val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Long], classOf[Int])
+  val ROUND_BYTE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Byte], classOf[Int])
+  val ROUND_SHORT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Short], classOf[Int])
+  val ROUND_FLOAT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
+    classOf[Float], classOf[Int])
   val ROUND_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
     classOf[DecimalData], classOf[Int])
 
@@ -159,6 +165,12 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Int])
   val ROUND_LONG_0 =
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Long])
+  val ROUND_BYTE_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Byte])
+  val ROUND_SHORT_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Short])
+  val ROUND_FLOAT_0 =
+    Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Float])
   val ROUND_DEC_0 =
     Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[DecimalData])
 

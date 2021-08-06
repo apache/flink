@@ -2367,6 +2367,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testRound(): Unit = {
+    // behavior test
     testAllApis(
       'f29.round('f30),
       "f29.round(f30)",
@@ -2394,6 +2395,122 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "ROUND(1.4, 1)",
       "1.4")
+
+    // type test
+    testAllApis(
+      123.cast(DataTypes.TINYINT).round(-2),
+      "123.cast(BYTE).round(-2)",
+      "ROUND(CAST(123 AS TINYINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS TINYINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.TINYINT).round(-2),
+      "nullOf(BYTE).round(-2)",
+      "ROUND(CAST(NULL AS TINYINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.TINYINT).round(nullOf(DataTypes.INT)),
+      "123.cast(BYTE).round(nullOf(INT))",
+      "ROUND(CAST(123 AS TINYINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS TINYINT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.SMALLINT).round(-2),
+      "123.cast(SHORT).round(-2)",
+      "ROUND(CAST(123 AS SMALLINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS SMALLINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.SMALLINT).round(-2),
+      "nullOf(SHORT).round(-2)",
+      "ROUND(CAST(NULL AS SMALLINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.SMALLINT).round(nullOf(DataTypes.INT)),
+      "123.cast(SHORT).round(nullOf(INT))",
+      "ROUND(CAST(123 AS SMALLINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS SMALLINT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.INT).round(-2),
+      "123.cast(INT).round(-2)",
+      "ROUND(CAST(123 AS INT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS INT))", "123")
+    testAllApis(
+      nullOf(DataTypes.INT).round(-2),
+      "nullOf(INT).round(-2)",
+      "ROUND(CAST(NULL AS INT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.INT).round(nullOf(DataTypes.INT)),
+      "123.cast(INT).round(nullOf(INT))",
+      "ROUND(CAST(123 AS INT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS INT))", "null")
+
+    testAllApis(
+      123.cast(DataTypes.BIGINT).round(-2),
+      "123.cast(LONG).round(-2)",
+      "ROUND(CAST(123 AS BIGINT), -2)",
+      "100")
+    testSqlApi("ROUND(CAST(123 AS BIGINT))", "123")
+    testAllApis(
+      nullOf(DataTypes.BIGINT).round(-2),
+      "nullOf(LONG).round(-2)",
+      "ROUND(CAST(NULL AS BIGINT), -2)",
+      "null")
+    testAllApis(
+      123.cast(DataTypes.BIGINT).round(nullOf(DataTypes.INT)),
+      "123.cast(LONG).round(nullOf(INT))",
+      "ROUND(CAST(123 AS BIGINT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS BIGINT))", "null")
+
+    testAllApis(
+      1.2345.cast(DataTypes.FLOAT).round(3),
+      "1.2345.cast(FLOAT).round(3)",
+      "ROUND(CAST(1.2345 AS FLOAT), 3)",
+      "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS FLOAT))", "1.0")
+    testAllApis(
+      nullOf(DataTypes.FLOAT).round(3),
+      "nullOf(FLOAT).round(3)",
+      "ROUND(CAST(NULL AS FLOAT), 3)",
+      "null")
+    testAllApis(
+      1.2345.cast(DataTypes.FLOAT).round(nullOf(DataTypes.INT)),
+      "1.2345.cast(FLOAT).round(nullOf(INT))",
+      "ROUND(CAST(1.2345 AS FLOAT), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS FLOAT))", "null")
+
+    testAllApis(
+      1.2345.cast(DataTypes.DOUBLE).round(3),
+      "1.2345.cast(DOUBLE).round(3)",
+      "ROUND(CAST(1.2345 AS DOUBLE), 3)",
+      "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS DOUBLE))", "1.0")
+    testAllApis(
+      nullOf(DataTypes.DOUBLE).round(3),
+      "nullOf(DOUBLE).round(3)",
+      "ROUND(CAST(NULL AS DOUBLE), 3)",
+      "null")
+    testAllApis(
+      1.2345.cast(DataTypes.DOUBLE).round(nullOf(DataTypes.INT)),
+      "1.2345.cast(DOUBLE).round(nullOf(INT))",
+      "ROUND(CAST(1.2345 AS DOUBLE), CAST(NULL AS INT))",
+      "null")
+    testSqlApi("ROUND(CAST(NULL AS DOUBLE))", "null")
+
+    // table api string currently does not support decimal type
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)), 3)", "1.235")
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)))", "1")
+    testSqlApi("ROUND(CAST(NULL AS DECIMAL(5, 4)), 3)", "null")
+    testSqlApi("ROUND(CAST(1.2345 AS DECIMAL(5, 4)), CAST(NULL AS INT))", "null")
+    testSqlApi("ROUND(CAST(NULL AS DECIMAL(5, 4)))", "null")
   }
 
   @Test

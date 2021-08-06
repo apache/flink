@@ -255,6 +255,16 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunctionMethod(
     ROUND,
+    Seq(TINYINT, INTEGER),
+    BuiltInMethods.ROUND_BYTE)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(SMALLINT, INTEGER),
+    BuiltInMethods.ROUND_SHORT)
+
+  addSqlFunctionMethod(
+    ROUND,
     Seq(BIGINT, INTEGER),
     BuiltInMethods.ROUND_LONG)
 
@@ -270,8 +280,23 @@ class FunctionGenerator private(config: TableConfig) {
 
   addSqlFunctionMethod(
     ROUND,
+    Seq(FLOAT, INTEGER),
+    BuiltInMethods.ROUND_FLOAT)
+
+  addSqlFunctionMethod(
+    ROUND,
     Seq(DOUBLE, INTEGER),
     BuiltInMethods.ROUND_DOUBLE)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(TINYINT),
+    BuiltInMethods.ROUND_BYTE_0)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(SMALLINT),
+    BuiltInMethods.ROUND_SHORT_0)
 
   addSqlFunctionMethod(
     ROUND,
@@ -287,6 +312,11 @@ class FunctionGenerator private(config: TableConfig) {
     ROUND,
     Seq(DECIMAL),
     BuiltInMethods.ROUND_DEC_0)
+
+  addSqlFunctionMethod(
+    ROUND,
+    Seq(FLOAT),
+    BuiltInMethods.ROUND_FLOAT_0)
 
   addSqlFunctionMethod(
     ROUND,
