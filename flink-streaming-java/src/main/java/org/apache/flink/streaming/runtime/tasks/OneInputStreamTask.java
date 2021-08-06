@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
@@ -43,6 +44,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
 
@@ -175,7 +177,24 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
     }
 
     private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
-        return new StreamTaskNetworkOutput<>(mainOperator, inputWatermarkGauge, numRecordsIn);
+        return new StreamTaskNetworkOutput<>(
+                mainOperator,
+                inputWatermarkGauge,
+                numRecordsIn,
+                operatorChain.isFinishedOnRestore()
+                        ? this::forwardMaxWatermarkOnRestore
+                        : mainOperator::processWatermark);
+    }
+
+    private void forwardMaxWatermarkOnRestore(Watermark watermark) {
+        if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
+            throw new IllegalStateException(
+                    "We should not receive any watermarks other than the MAX_WATERMARK if finished on restore");
+        }
+
+        for (RecordWriterOutput<?> output : getStreamOutputs()) {
+            output.emitWatermark(watermark);
+        }
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -210,15 +229,18 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         private final WatermarkGauge watermarkGauge;
         private final Counter numRecordsIn;
+        private final ThrowingConsumer<Watermark, Exception> watermarkHandler;
 
         private StreamTaskNetworkOutput(
                 OneInputStreamOperator<IN, ?> operator,
                 WatermarkGauge watermarkGauge,
-                Counter numRecordsIn) {
+                Counter numRecordsIn,
+                ThrowingConsumer<Watermark, Exception> watermarkHandler) {
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
             this.numRecordsIn = checkNotNull(numRecordsIn);
+            this.watermarkHandler = checkNotNull(watermarkHandler);
         }
 
         @Override
@@ -231,7 +253,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitWatermark(Watermark watermark) throws Exception {
             watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-            operator.processWatermark(watermark);
+            watermarkHandler.accept(watermark);
         }
 
         @Override

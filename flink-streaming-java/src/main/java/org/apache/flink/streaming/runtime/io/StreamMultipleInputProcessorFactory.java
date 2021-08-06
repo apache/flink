@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Arrays;
 import java.util.List;
@@ -194,15 +195,21 @@ public class StreamMultipleInputProcessorFactory {
             inputSelectable = selectableSortingInputs.getInputSelectable();
         }
 
+        final MaxWatermarkOnRestoreHandler watermarkHandler =
+                new MaxWatermarkOnRestoreHandler(operatorChain.getStreamOutputs(), inputsCount);
         for (int i = 0; i < inputsCount; i++) {
             StreamConfig.InputConfig configuredInput = configuredInputs[i];
             if (configuredInput instanceof StreamConfig.NetworkInputConfig) {
+                final Input input = operatorInputs.get(i);
                 StreamTaskNetworkOutput dataOutput =
                         new StreamTaskNetworkOutput<>(
-                                operatorInputs.get(i),
+                                input,
                                 inputWatermarkGauges[i],
                                 mainOperatorRecordsIn,
-                                networkRecordsIn);
+                                networkRecordsIn,
+                                operatorChain.isFinishedOnRestore()
+                                        ? watermarkHandler
+                                        : input::processWatermark);
 
                 inputProcessors[i] =
                         new StreamOneInputProcessor(inputs[i], dataOutput, operatorChain);
@@ -216,7 +223,11 @@ public class StreamMultipleInputProcessorFactory {
                         new StreamOneInputProcessor(
                                 inputs[i],
                                 new StreamTaskSourceOutput(
-                                        chainedSourceOutput, inputWatermarkGauges[i]),
+                                        chainedSourceOutput,
+                                        inputWatermarkGauges[i],
+                                        operatorChain.isFinishedOnRestore()
+                                                ? watermarkHandler
+                                                : chainedSourceOutput::emitWatermark),
                                 operatorChain);
             } else {
                 throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
@@ -225,6 +236,32 @@ public class StreamMultipleInputProcessorFactory {
 
         return new StreamMultipleInputProcessor(
                 new MultipleInputSelectionHandler(inputSelectable, inputsCount), inputProcessors);
+    }
+
+    private static class MaxWatermarkOnRestoreHandler
+            implements ThrowingConsumer<Watermark, Exception> {
+        private final RecordWriterOutput<?>[] streamOutputs;
+        private final int inputCount;
+        private int watermarksSeen = 0;
+
+        public MaxWatermarkOnRestoreHandler(RecordWriterOutput<?>[] streamOutputs, int inputCount) {
+            this.streamOutputs = checkNotNull(streamOutputs);
+            this.inputCount = inputCount;
+        }
+
+        @Override
+        public void accept(Watermark watermark) throws Exception {
+            if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
+                throw new IllegalStateException(
+                        "We should not receive any watermarks other than the MAX_WATERMARK if finished on restore");
+            }
+
+            if (watermarksSeen++ == inputCount) {
+                for (RecordWriterOutput<?> output : streamOutputs) {
+                    output.emitWatermark(watermark);
+                }
+            }
+        }
     }
 
     /**
@@ -239,16 +276,19 @@ public class StreamMultipleInputProcessorFactory {
         private final Counter mainOperatorRecordsIn;
 
         private final Counter networkRecordsIn;
+        private final ThrowingConsumer<Watermark, Exception> watermarkHandler;
 
         private StreamTaskNetworkOutput(
                 Input<T> input,
                 WatermarkGauge inputWatermarkGauge,
                 Counter mainOperatorRecordsIn,
-                Counter networkRecordsIn) {
+                Counter networkRecordsIn,
+                ThrowingConsumer<Watermark, Exception> watermarkHandler) {
             this.input = checkNotNull(input);
             this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
             this.mainOperatorRecordsIn = mainOperatorRecordsIn;
             this.networkRecordsIn = networkRecordsIn;
+            this.watermarkHandler = checkNotNull(watermarkHandler);
         }
 
         @Override
@@ -262,7 +302,7 @@ public class StreamMultipleInputProcessorFactory {
         @Override
         public void emitWatermark(Watermark watermark) throws Exception {
             inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-            input.processWatermark(watermark);
+            watermarkHandler.accept(watermark);
         }
 
         @Override
@@ -283,8 +323,9 @@ public class StreamMultipleInputProcessorFactory {
 
         public StreamTaskSourceOutput(
                 WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput,
-                WatermarkGauge inputWatermarkGauge) {
-            super(chainedSourceOutput, new SimpleCounter(), inputWatermarkGauge);
+                WatermarkGauge inputWatermarkGauge,
+                ThrowingConsumer<Watermark, Exception> watermarkHandler) {
+            super(chainedSourceOutput, new SimpleCounter(), inputWatermarkGauge, watermarkHandler);
             this.chainedOutput = chainedSourceOutput;
         }
 

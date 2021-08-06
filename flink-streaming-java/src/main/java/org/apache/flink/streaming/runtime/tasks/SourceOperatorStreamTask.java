@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskExternallyInducedSourceInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
@@ -41,6 +42,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
 
@@ -95,7 +97,12 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         // a WatermarkGauge on the input.
         output =
                 new AsyncDataOutputToOutput<>(
-                        operatorChain.getMainOperatorOutput(), numRecordsOut, null);
+                        operatorChain.getMainOperatorOutput(),
+                        numRecordsOut,
+                        null,
+                        operatorChain.isFinishedOnRestore()
+                                ? this::forwardMaxWatermarkOnRestore
+                                : operatorChain.getMainOperatorOutput()::emitWatermark);
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
 
@@ -105,6 +112,17 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                 .gauge(
                         MetricNames.CHECKPOINT_START_DELAY_TIME,
                         this::getAsyncCheckpointStartDelayNanos);
+    }
+
+    private void forwardMaxWatermarkOnRestore(Watermark watermark) {
+        if (watermark.getTimestamp() != Watermark.MAX_WATERMARK.getTimestamp()) {
+            throw new IllegalStateException(
+                    "We should not receive any watermarks other than the MAX_WATERMARK if finished on restore");
+        }
+
+        for (RecordWriterOutput<?> output : getStreamOutputs()) {
+            output.emitWatermark(watermark);
+        }
     }
 
     @Override
@@ -140,7 +158,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
-    protected void advanceToEndOfEventTime() {
+    protected void advanceToEndOfEventTime() throws Exception {
         output.emitWatermark(Watermark.MAX_WATERMARK);
     }
 
@@ -170,15 +188,18 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         private final Output<StreamRecord<T>> output;
         private final Counter numRecordsOut;
         @Nullable private final WatermarkGauge inputWatermarkGauge;
+        private final ThrowingConsumer<Watermark, Exception> watermarkHandler;
 
         public AsyncDataOutputToOutput(
                 Output<StreamRecord<T>> output,
                 Counter numRecordsOut,
-                @Nullable WatermarkGauge inputWatermarkGauge) {
+                @Nullable WatermarkGauge inputWatermarkGauge,
+                ThrowingConsumer<Watermark, Exception> watermarkHandler) {
 
             this.output = checkNotNull(output);
             this.numRecordsOut = numRecordsOut;
             this.inputWatermarkGauge = inputWatermarkGauge;
+            this.watermarkHandler = checkNotNull(watermarkHandler);
         }
 
         @Override
@@ -193,11 +214,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         }
 
         @Override
-        public void emitWatermark(Watermark watermark) {
+        public void emitWatermark(Watermark watermark) throws Exception {
             if (inputWatermarkGauge != null) {
                 inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
             }
-            output.emitWatermark(watermark);
+            watermarkHandler.accept(watermark);
         }
 
         @Override
