@@ -118,7 +118,7 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 
         public void await(int count) throws InterruptedException {
             synchronized (lock) {
-                while (vertices.size() != count) {
+                while (vertices.size() < count) {
                     lock.wait();
                 }
             }
