@@ -70,8 +70,7 @@ public class TaskMetricGroupTest extends TestLogger {
         TaskManagerJobMetricGroup jmGroup =
                 new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
         TaskMetricGroup taskGroup =
-                TaskMetricGroup.createTaskMetricGroup(registry, jmGroup, new JobVertexID(), new ExecutionAttemptID(), 
-                    "aTaskName", 13, 2);
+                jmGroup.addTask(new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 13, 2);
 
         assertArrayEquals(
                 new String[] {
@@ -102,8 +101,7 @@ public class TaskMetricGroupTest extends TestLogger {
                 new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
         TaskManagerJobMetricGroup jmGroup =
                 new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
-        TaskMetricGroup taskGroup =
-                TaskMetricGroup.createTaskMetricGroup(registry, jmGroup, vertexId, executionId, "aTaskName", 13, 2);
+        TaskMetricGroup taskGroup = jmGroup.addTask(vertexId, executionId, "aTaskName", 13, 2);
 
         assertArrayEquals(
                 new String[] {
@@ -132,8 +130,7 @@ public class TaskMetricGroupTest extends TestLogger {
                 new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
 
         TaskMetricGroup taskGroup =
-                TaskMetricGroup.createTaskMetricGroup(
-                        registry, jmGroup, new JobVertexID(), executionId, "aTaskName", 13, 1);
+                jmGroup.addTask(new JobVertexID(), executionId, "aTaskName", 13, 1);
 
         assertArrayEquals(
                 new String[] {
@@ -159,8 +156,7 @@ public class TaskMetricGroupTest extends TestLogger {
         ExecutionAttemptID eid = new ExecutionAttemptID();
         TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
         TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
-        TaskMetricGroup task =
-                TaskMetricGroup.createTaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+        TaskMetricGroup task = job.addTask(vid, eid, "taskName", 4, 5);
 
         QueryScopeInfo.TaskQueryScopeInfo info =
                 task.createQueryServiceMetricInfo(new DummyCharacterFilter());
@@ -178,14 +174,8 @@ public class TaskMetricGroupTest extends TestLogger {
         TaskManagerJobMetricGroup taskManagerJobMetricGroup =
                 new TaskManagerJobMetricGroup(registry, taskManagerMetricGroup, new JobID(), "job");
         TaskMetricGroup taskMetricGroup =
-                TaskMetricGroup.createTaskMetricGroup(
-                        registry,
-                        taskManagerJobMetricGroup,
-                        new JobVertexID(),
-                        new ExecutionAttemptID(),
-                        "task",
-                        0,
-                        0);
+                taskManagerJobMetricGroup.addTask(
+                        new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
 
         // the io metric should have registered predefined metrics
         assertTrue(registry.getNumberRegisteredMetrics() > 0);
@@ -208,8 +198,7 @@ public class TaskMetricGroupTest extends TestLogger {
         TaskManagerJobMetricGroup job =
                 new TaskManagerJobMetricGroup(registry, tm, new JobID(), "jobname");
         TaskMetricGroup taskMetricGroup =
-                TaskMetricGroup.createTaskMetricGroup(
-                        registry, job, new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
+                job.addTask(new JobVertexID(), new ExecutionAttemptID(), "task", 0, 0);
 
         String originalName = new String(new char[100]).replace("\0", "-");
         OperatorMetricGroup operatorMetricGroup = taskMetricGroup.getOrAddOperator(originalName);
