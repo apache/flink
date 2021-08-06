@@ -152,7 +152,7 @@ For this Flink comes with a collection of so called test harnesses, which can be
 To use the test harnesses a set of additional dependencies (test scoped) is needed.
 
 {{< artifact flink-test-utils withScalaVersion withTestScope >}}
-{{< artifact flink-runtime withScalaVersion withTestScope >}}
+{{< artifact flink-runtime withTestScope >}}
 {{< artifact flink-streaming-java withScalaVersion withTestScope withTestClassifier >}}
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
