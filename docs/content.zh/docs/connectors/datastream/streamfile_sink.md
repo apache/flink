@@ -513,7 +513,7 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 在应用中使用 SequenceFile 批量编码器，你需要添加以下依赖：
 
-{{< artifact flink-sequence-file withScalaVersion >}}
+{{< artifact flink-sequence-file >}}
 
 简单的 SequenceFile 写入示例：
 

@@ -40,7 +40,6 @@ under the License.
     {{ errorf "%q: Invalid use of artifact shortcode. Unknown flag `%s`" $path . }}
   {{ end }}
 {{ end }}
-{{ $scalaVersion := .Get 1 }}
 
 {{ $hash := md5 now }}
 
