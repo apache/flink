@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 
@@ -35,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class MultipleInputSelectionHandler {
-    public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE;
+    // if we directly use Long.SIZE, calculation of allSelectedMask will overflow
+    public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE - 1;
 
     @Nullable private final InputSelectable inputSelectable;
 
@@ -51,7 +51,7 @@ public class MultipleInputSelectionHandler {
             @Nullable InputSelectable inputSelectable, int inputCount) {
         checkSupportedInputCount(inputCount);
         this.inputSelectable = inputSelectable;
-        this.allSelectedMask = (1 << inputCount) - 1;
+        this.allSelectedMask = (1L << inputCount) - 1;
         this.availableInputsMask = allSelectedMask;
         this.notFinishedInputsMask = allSelectedMask;
     }
@@ -59,16 +59,17 @@ public class MultipleInputSelectionHandler {
     public static void checkSupportedInputCount(int inputCount) {
         checkArgument(
                 inputCount <= MAX_SUPPORTED_INPUT_COUNT,
-                "Only up to %d inputs are supported at once, while encountered %d",
+                "Only up to %s inputs are supported at once, while encountered %s",
                 MAX_SUPPORTED_INPUT_COUNT,
                 inputCount);
     }
 
-    public InputStatus updateStatus(InputStatus inputStatus, int inputIndex) throws IOException {
+    public DataInputStatus updateStatus(DataInputStatus inputStatus, int inputIndex)
+            throws IOException {
         switch (inputStatus) {
             case MORE_AVAILABLE:
                 checkState(checkBitMask(availableInputsMask, inputIndex));
-                return InputStatus.MORE_AVAILABLE;
+                return DataInputStatus.MORE_AVAILABLE;
             case NOTHING_AVAILABLE:
                 availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
                 break;
@@ -81,13 +82,13 @@ public class MultipleInputSelectionHandler {
         return calculateOverallStatus();
     }
 
-    public InputStatus calculateOverallStatus() throws IOException {
+    public DataInputStatus calculateOverallStatus() throws IOException {
         if (areAllInputsFinished()) {
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
 
         if (isAnyInputAvailable()) {
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         } else {
             long selectedNotFinishedInputMask =
                     inputSelection.getInputMask() & notFinishedInputsMask;
@@ -95,7 +96,7 @@ public class MultipleInputSelectionHandler {
                 throw new IOException(
                         "Can not make a progress: all selected inputs are already finished");
             }
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
     }
 

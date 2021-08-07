@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -27,7 +29,10 @@ import org.slf4j.Logger;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Heartbeat manager implementation. The heartbeat manager maintains a map of heartbeat monitors and
@@ -44,6 +49,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
     /** Heartbeat timeout interval in milli seconds. */
     private final long heartbeatTimeoutIntervalMs;
+
+    private final int failedRpcRequestsUntilUnreachable;
 
     /** Resource ID which is used to mark one own's heartbeat signals. */
     private final ResourceID ownResourceID;
@@ -66,12 +73,14 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
     public HeartbeatManagerImpl(
             long heartbeatTimeoutIntervalMs,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
             Logger log) {
         this(
                 heartbeatTimeoutIntervalMs,
+                failedRpcRequestsUntilUnreachable,
                 ownResourceID,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -81,6 +90,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
     public HeartbeatManagerImpl(
             long heartbeatTimeoutIntervalMs,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
@@ -91,6 +101,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                 heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout has to be larger than 0.");
 
         this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
+        this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
         this.ownResourceID = Preconditions.checkNotNull(ownResourceID);
         this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener, "heartbeatListener");
         this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
@@ -135,7 +146,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                                 heartbeatTarget,
                                 mainThreadExecutor,
                                 heartbeatListener,
-                                heartbeatTimeoutIntervalMs);
+                                heartbeatTimeoutIntervalMs,
+                                failedRpcRequestsUntilUnreachable);
 
                 heartbeatTargets.put(resourceID, heartbeatMonitor);
 
@@ -191,7 +203,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
     // ----------------------------------------------------------------------------------------------
 
     @Override
-    public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {
+    public CompletableFuture<Void> receiveHeartbeat(
+            ResourceID heartbeatOrigin, I heartbeatPayload) {
         if (!stopped) {
             log.debug("Received heartbeat from {}.", heartbeatOrigin);
             reportHeartbeat(heartbeatOrigin);
@@ -200,10 +213,13 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                 heartbeatListener.reportPayload(heartbeatOrigin, heartbeatPayload);
             }
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public void requestHeartbeat(final ResourceID requestOrigin, I heartbeatPayload) {
+    public CompletableFuture<Void> requestHeartbeat(
+            final ResourceID requestOrigin, I heartbeatPayload) {
         if (!stopped) {
             log.debug("Received heartbeat request from {}.", requestOrigin);
 
@@ -214,9 +230,47 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                     heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
                 }
 
-                heartbeatTarget.receiveHeartbeat(
-                        getOwnResourceID(), heartbeatListener.retrievePayload(requestOrigin));
+                heartbeatTarget
+                        .receiveHeartbeat(
+                                getOwnResourceID(),
+                                heartbeatListener.retrievePayload(requestOrigin))
+                        .whenCompleteAsync(handleHeartbeatRpc(requestOrigin), mainThreadExecutor);
             }
+        }
+
+        return FutureUtils.completedVoidFuture();
+    }
+
+    protected BiConsumer<Void, Throwable> handleHeartbeatRpc(ResourceID heartbeatTarget) {
+        return (unused, failure) -> {
+            if (failure != null) {
+                handleHeartbeatRpcFailure(heartbeatTarget, failure);
+            } else {
+                handleHeartbeatRpcSuccess(heartbeatTarget);
+            }
+        };
+    }
+
+    private void handleHeartbeatRpcSuccess(ResourceID heartbeatTarget) {
+        runIfHeartbeatMonitorExists(heartbeatTarget, HeartbeatMonitor::reportHeartbeatRpcSuccess);
+    }
+
+    private void handleHeartbeatRpcFailure(ResourceID heartbeatTarget, Throwable failure) {
+        if (failure instanceof RecipientUnreachableException) {
+            reportHeartbeatTargetUnreachable(heartbeatTarget);
+        }
+    }
+
+    private void reportHeartbeatTargetUnreachable(ResourceID heartbeatTarget) {
+        runIfHeartbeatMonitorExists(heartbeatTarget, HeartbeatMonitor::reportHeartbeatRpcFailure);
+    }
+
+    private void runIfHeartbeatMonitorExists(
+            ResourceID heartbeatTarget, Consumer<? super HeartbeatMonitor<?>> action) {
+        final HeartbeatMonitor<O> heartbeatMonitor = heartbeatTargets.get(heartbeatTarget);
+
+        if (heartbeatMonitor != null) {
+            action.accept(heartbeatMonitor);
         }
     }
 

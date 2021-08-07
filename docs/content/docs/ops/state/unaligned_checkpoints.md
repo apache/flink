@@ -37,23 +37,25 @@ backpressure. Then, checkpointing time becomes mostly independent of the end-to-
 aware unaligned checkpointing adds to I/O to the state storage, so you shouldn't use it when the
 I/O to the state storage is actually the bottleneck during checkpointing.
 
-### Alignment timeout
+### Aligned checkpoint timeout
 
-After enabling unaligned checkpoints, you can also specify the alignment timeout programmatically:
+After enabling unaligned checkpoints, you can also specify the aligned checkpoint timeout
+programmatically:
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.getCheckpointConfig().setAlignmentTimeout(Duration.ofSeconds(30));
+env.getCheckpointConfig().setAlignedCheckpointTimeout(Duration.ofSeconds(30));
 ```
 
 or in the `flink-conf.yml` configuration file:
 
 ```
-execution.checkpointing.alignment-timeout: 30 s
+execution.checkpointing.aligned-checkpoint-timeout: 30 s
 ```
 
-When activated, each checkpoint will still begin as an aligned checkpoint, but if the alignment time
-for some subtask exceeds this timeout, then the checkpoint will proceed as an unaligned checkpoint.
+When activated, each checkpoint will still begin as an aligned checkpoint, but if the time between
+the start of the global checkpoint and the start of the checkpoint on a subtask exceeds the aligned
+checkpoint timeout, then the checkpoint will proceed as an unaligned checkpoint.
 
 ## Limitations
 

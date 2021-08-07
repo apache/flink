@@ -68,6 +68,7 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
 
         RemoteRpcInvocation method =
                 new RemoteRpcInvocation(
+                        className,
                         "test",
                         new Class<?>[] {
                             int.class, Class.forName(className, false, userClassLoader)

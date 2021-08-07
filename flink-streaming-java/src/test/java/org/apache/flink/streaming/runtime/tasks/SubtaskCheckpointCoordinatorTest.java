@@ -78,7 +78,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
-import static org.apache.flink.shaded.guava18.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -160,7 +160,8 @@ public class SubtaskCheckpointCoordinatorTest {
             final OperatorChain<?, ?> operatorChain =
                     new OperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>()) {
+                            new NonRecordWriter<>(),
+                            false) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -175,6 +176,7 @@ public class SubtaskCheckpointCoordinatorTest {
                             SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> true);
 
             assertEquals(false, broadcastedPriorityEvent.get());
@@ -196,7 +198,8 @@ public class SubtaskCheckpointCoordinatorTest {
             final OperatorChain<?, ?> operatorChain =
                     new OperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>()) {
+                            new NonRecordWriter<>(),
+                            false) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -221,6 +224,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     forcedAlignedOptions,
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> true);
 
             assertEquals(true, broadcastedPriorityEvent.get());
@@ -244,7 +248,10 @@ public class SubtaskCheckpointCoordinatorTest {
                             SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     new OperatorChain<>(
-                            new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
+                            new NoOpStreamTask<>(new DummyEnvironment()),
+                            new NonRecordWriter<>(),
+                            false),
+                    false,
                     () -> true);
         }
     }
@@ -304,6 +311,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             assertFalse(checkpointOperator.isCheckpointed());
             assertEquals(-1, stateManager.getReportedCheckpointId());
@@ -347,7 +355,8 @@ public class SubtaskCheckpointCoordinatorTest {
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
                     new OperatorChain<>(
                             task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment),
+                            false);
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
@@ -357,6 +366,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
 
             assertEquals(1, recordOrEvents.size());
@@ -413,6 +423,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             rawKeyedStateHandleFuture.awaitRun();
             assertEquals(1, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
@@ -444,6 +455,7 @@ public class SubtaskCheckpointCoordinatorTest {
                     CheckpointOptions.forCheckpointWithDefaultLocation(),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
+                    false,
                     () -> false);
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
@@ -454,7 +466,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
     private OperatorChain<?, ?> getOperatorChain(MockEnvironment mockEnvironment) throws Exception {
         return new OperatorChain<>(
-                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>());
+                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>(), false);
     }
 
     private <T> OperatorChain<T, AbstractStreamOperator<T>> operatorChain(
@@ -547,10 +559,10 @@ public class SubtaskCheckpointCoordinatorTest {
         public void open() throws Exception {}
 
         @Override
-        public void close() throws Exception {}
+        public void finish() throws Exception {}
 
         @Override
-        public void dispose() {}
+        public void close() throws Exception {}
 
         @Override
         public void prepareSnapshotPreBarrier(long checkpointId) {}
@@ -626,6 +638,7 @@ public class SubtaskCheckpointCoordinatorTest {
                 (message, unused) -> fail(message),
                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                 0,
-                channelStateWriter);
+                channelStateWriter,
+                true);
     }
 }

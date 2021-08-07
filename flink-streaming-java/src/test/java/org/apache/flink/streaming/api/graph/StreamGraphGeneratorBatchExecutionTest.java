@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -72,7 +73,8 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for generating correct properties for sorting inputs in {@link RuntimeExecutionMode#BATCH}
@@ -83,11 +85,27 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
     @Test
+    public void testShuffleMode() {
+        testGlobalStreamExchangeMode(
+                RuntimeExecutionMode.AUTOMATIC,
+                BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING);
+
+        testGlobalStreamExchangeMode(
+                RuntimeExecutionMode.STREAMING,
+                BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
+
+        testGlobalStreamExchangeMode(
+                RuntimeExecutionMode.BATCH,
+                BatchShuffleMode.ALL_EXCHANGES_PIPELINED,
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
+    }
+
+    @Test
     public void testBatchJobType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
-        DataStreamSink<Integer> sink = process.addSink(new DiscardingSink<>());
+        DataStreamSink<Integer> sink = addDummyPipeline(env);
         StreamGraphGenerator graphGenerator =
                 new StreamGraphGenerator(
                         Collections.singletonList(sink.getTransformation()),
@@ -489,6 +507,34 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         expectedException.expect(UnsupportedOperationException.class);
         expectedException.expectMessage("Iterations are not supported in BATCH execution mode.");
         streamGraphGenerator.generate();
+    }
+
+    private void testGlobalStreamExchangeMode(
+            RuntimeExecutionMode runtimeExecutionMode,
+            BatchShuffleMode shuffleMode,
+            GlobalStreamExchangeMode expectedStreamExchangeMode) {
+        final Configuration configuration = new Configuration();
+        configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeExecutionMode);
+        configuration.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSink<Integer> sink = addDummyPipeline(env);
+        final StreamGraphGenerator graphGenerator =
+                new StreamGraphGenerator(
+                        Collections.singletonList(sink.getTransformation()),
+                        env.getConfig(),
+                        env.getCheckpointConfig(),
+                        configuration);
+        graphGenerator.setRuntimeExecutionMode(runtimeExecutionMode);
+        final StreamGraph graph = graphGenerator.generate();
+
+        assertEquals(expectedStreamExchangeMode, graph.getGlobalStreamExchangeMode());
+    }
+
+    private DataStreamSink<Integer> addDummyPipeline(StreamExecutionEnvironment env) {
+        return env.fromElements(1, 2)
+                .keyBy(Integer::intValue)
+                .process(DUMMY_PROCESS_FUNCTION)
+                .addSink(new DiscardingSink<>());
     }
 
     private static final KeyedProcessFunction<Integer, Integer, Integer> DUMMY_PROCESS_FUNCTION =

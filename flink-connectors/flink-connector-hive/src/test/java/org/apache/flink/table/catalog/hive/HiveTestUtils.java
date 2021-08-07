@@ -147,11 +147,11 @@ public class HiveTestUtils {
         throw new RuntimeException("Exhausted all ephemeral ports and didn't find a free one");
     }
 
-    public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode() {
-        return createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+    public static TableEnvironment createTableEnvInBatchMode() {
+        return createTableEnvInBatchMode(SqlDialect.DEFAULT);
     }
 
-    public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode(SqlDialect dialect) {
+    public static TableEnvironment createTableEnvInBatchMode(SqlDialect dialect) {
         TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tableEnv.getConfig()
                 .getConfiguration()
@@ -160,12 +160,12 @@ public class HiveTestUtils {
         return tableEnv;
     }
 
-    public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+    public static StreamTableEnvironment createTableEnvInStreamingMode(
             StreamExecutionEnvironment env) {
-        return createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.DEFAULT);
+        return createTableEnvInStreamingMode(env, SqlDialect.DEFAULT);
     }
 
-    public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
+    public static StreamTableEnvironment createTableEnvInStreamingMode(
             StreamExecutionEnvironment env, SqlDialect dialect) {
         StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         tableEnv.getConfig()
@@ -176,7 +176,7 @@ public class HiveTestUtils {
     }
 
     public static TableEnvironment createTableEnvWithHiveCatalog(HiveCatalog catalog) {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.registerCatalog(catalog.getName(), catalog);
         tableEnv.useCatalog(catalog.getName());
         return tableEnv;

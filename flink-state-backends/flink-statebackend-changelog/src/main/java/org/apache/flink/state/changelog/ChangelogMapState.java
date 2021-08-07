@@ -23,8 +23,12 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -45,10 +49,14 @@ class ChangelogMapState<K, N, UK, UV>
         extends AbstractChangelogState<K, N, Map<UK, UV>, InternalMapState<K, N, UK, UV>>
         implements InternalMapState<K, N, UK, UV> {
 
+    private final InternalKeyContext<K> keyContext;
+
     ChangelogMapState(
             InternalMapState<K, N, UK, UV> delegatedState,
-            KvStateChangeLogger<Map<UK, UV>, N> changeLogger) {
+            KvStateChangeLogger<Map<UK, UV>, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         super(delegatedState, changeLogger);
+        this.keyContext = keyContext;
     }
 
     private Map.Entry<UK, UV> loggingMapEntry(
@@ -115,22 +123,24 @@ class ChangelogMapState<K, N, UK, UV>
     private Iterator<Map.Entry<UK, UV>> getEntryIterator(Iterator<Map.Entry<UK, UV>> iterator) {
         final N currentNamespace = getCurrentNamespace();
         return StateChangeLoggingIterator.create(
-                new Iterator<Map.Entry<UK, UV>>() {
-                    @Override
-                    public Map.Entry<UK, UV> next() {
-                        return loggingMapEntry(iterator.next(), changeLogger, currentNamespace);
-                    }
+                CloseableIterator.adapterForIterator(
+                        new Iterator<Map.Entry<UK, UV>>() {
+                            @Override
+                            public Map.Entry<UK, UV> next() {
+                                return loggingMapEntry(
+                                        iterator.next(), changeLogger, currentNamespace);
+                            }
 
-                    @Override
-                    public boolean hasNext() {
-                        return iterator.hasNext();
-                    }
+                            @Override
+                            public boolean hasNext() {
+                                return iterator.hasNext();
+                            }
 
-                    @Override
-                    public void remove() {
-                        iterator.remove();
-                    }
-                },
+                            @Override
+                            public void remove() {
+                                iterator.remove();
+                            }
+                        }),
                 changeLogger,
                 (entry, out) -> serializeKey(entry.getKey(), out),
                 currentNamespace);
@@ -141,7 +151,7 @@ class ChangelogMapState<K, N, UK, UV>
         Iterable<UK> iterable = delegatedState.keys();
         return () ->
                 StateChangeLoggingIterator.create(
-                        iterable.iterator(),
+                        CloseableIterator.adapterForIterator(iterable.iterator()),
                         changeLogger,
                         this::serializeKey,
                         getCurrentNamespace());
@@ -210,10 +220,18 @@ class ChangelogMapState<K, N, UK, UV>
 
     @SuppressWarnings("unchecked")
     static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> mapState, KvStateChangeLogger<SV, N> changeLogger) {
+            InternalKvState<K, N, SV> mapState,
+            KvStateChangeLogger<SV, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         return (IS)
                 new ChangelogMapState<>(
                         (InternalMapState<K, N, UK, UV>) mapState,
-                        (KvStateChangeLogger<Map<UK, UV>, N>) changeLogger);
+                        (KvStateChangeLogger<Map<UK, UV>, N>) changeLogger,
+                        keyContext);
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forMap(delegatedState, keyContext);
     }
 }

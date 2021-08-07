@@ -54,9 +54,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
-import akka.pattern.AskTimeoutException;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -602,7 +601,7 @@ public class DeclarativeSlotManagerTest extends TestLogger {
         final BlockingQueue<Supplier<CompletableFuture<Acknowledge>>> responseQueue =
                 new ArrayBlockingQueue<>(2);
         responseQueue.add(
-                () -> FutureUtils.completedExceptionally(new AskTimeoutException("timeout")));
+                () -> FutureUtils.completedExceptionally(new TimeoutException("timeout")));
         responseQueue.add(
                 () -> {
                     secondSlotRequestFuture.complete(null);

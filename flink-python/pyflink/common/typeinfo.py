@@ -89,6 +89,7 @@ class BasicType(Enum):
     CHAR = "Char"
     BIG_INT = "BigInteger"
     BIG_DEC = "BigDecimal"
+    INSTANT = "Instant"
 
 
 class BasicTypeInfo(TypeInformation):
@@ -126,6 +127,8 @@ class BasicTypeInfo(TypeInformation):
                 self._j_typeinfo = JBasicTypeInfo.BIG_INT_TYPE_INFO
             elif self._basic_type == BasicType.BIG_DEC:
                 self._j_typeinfo = JBasicTypeInfo.BIG_DEC_TYPE_INFO
+            elif self._basic_type == BasicType.INSTANT:
+                self._j_typeinfo = JBasicTypeInfo.INSTANT_TYPE_INFO
             else:
                 raise TypeError("Invalid BasicType %s." % self._basic_type)
         return self._j_typeinfo
@@ -181,6 +184,28 @@ class BasicTypeInfo(TypeInformation):
     @staticmethod
     def BIG_DEC_TYPE_INFO():
         return BasicTypeInfo(BasicType.BIG_DEC)
+
+    @staticmethod
+    def INSTANT_TYPE_INFO():
+        return InstantTypeInfo(BasicType.INSTANT)
+
+
+class InstantTypeInfo(BasicTypeInfo):
+    """
+    InstantTypeInfo enables users to get Instant TypeInfo.
+    """
+    def __init__(self, basic_type: BasicType):
+        super(InstantTypeInfo, self).__init__(basic_type)
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, obj):
+        return obj.to_epoch_milli() * 1000
+
+    def from_internal_type(self, obj):
+        from pyflink.common.time import Instant
+        return Instant.of_epoch_milli(obj // 1000)
 
 
 class SqlTimeTypeInfo(TypeInformation):
@@ -404,31 +429,48 @@ class RowTypeInfo(TypeInformation):
     def to_internal_type(self, obj):
         if obj is None:
             return
-
+        from pyflink.common import Row, RowKind
         if self._need_serialize_any_field:
             # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, dict):
-                return tuple(f.to_internal_type(obj.get(n)) if c else obj.get(n)
-                             for n, f, c in zip(self.get_field_names(), self._field_types,
-                                                self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_internal_type(v) if c else v
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
             elif isinstance(obj, (tuple, list)):
-                return tuple(f.to_internal_type(v) if c else v
-                             for f, v, c in zip(self._field_types, obj, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(v) if c else v
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(f.to_internal_type(d.get(n)) if c else d.get(n)
-                             for n, f, c in zip(self.get_field_names(), self._field_types,
-                                                self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_internal_type(d.get(n)) if c else d.get(n)
+                    for n, f, c in
+                    zip(self.get_field_names(), self._field_types, self._need_conversion))
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
         else:
             if isinstance(obj, dict):
-                return tuple(obj.get(n) for n in self.get_field_names())
+                return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    obj.get(n) for n in self.get_field_names())
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
-                return tuple(obj)
+                return (RowKind.INSERT.value,) + tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(d.get(n) for n in self.get_field_names())
+                return (RowKind.INSERT.value,) + tuple(d.get(n) for n in self.get_field_names())
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
 
@@ -642,6 +684,30 @@ class MapTypeInfo(TypeInformation):
         return 'MapTypeInfo<{}, {}>'.format(self._key_type_info, self._value_type_info)
 
 
+class ExternalTypeInfo(TypeInformation):
+    def __init__(self, type_info: TypeInformation):
+        super(ExternalTypeInfo, self).__init__()
+        self._type_info = type_info
+
+    def get_java_type_info(self) -> JavaObject:
+        if not self._j_typeinfo:
+            gateway = get_gateway()
+            TypeInfoDataTypeConverter = \
+                gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+            JExternalTypeInfo = \
+                gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
+
+            j_data_type = TypeInfoDataTypeConverter.toDataType(self._type_info.get_java_type_info())
+            self._j_typeinfo = JExternalTypeInfo.of(j_data_type)
+        return self._j_typeinfo
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._type_info == other._type_info
+
+    def __repr__(self):
+        return 'ExternalTypeInfo<{}>'.format(self._type_info)
+
+
 class Types(object):
     """
     This class gives access to the type information of the most common types for which Flink has
@@ -724,6 +790,13 @@ class Types(object):
         Returns type information for BigDecimal. Supports a None value.
         """
         return BasicTypeInfo.BIG_DEC_TYPE_INFO()
+
+    @staticmethod
+    def INSTANT() -> TypeInformation:
+        """
+        Returns type information for Instant. Supports a None value.
+        """
+        return BasicTypeInfo.INSTANT_TYPE_INFO()
 
     @staticmethod
     def SQL_DATE() -> TypeInformation:
@@ -863,6 +936,8 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.BIG_INT()
     elif _is_instance_of(j_type_info, JBasicTypeInfo.BIG_DEC_TYPE_INFO):
         return Types.BIG_DEC()
+    elif _is_instance_of(j_type_info, JBasicTypeInfo.INSTANT_TYPE_INFO):
+        return Types.INSTANT()
 
     JSqlTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
     if _is_instance_of(j_type_info, JSqlTimeTypeInfo.DATE):
@@ -950,6 +1025,13 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     if _is_instance_of(j_type_info, JListTypeInfo):
         j_element_type_info = j_type_info.getElementTypeInfo()
         return ListTypeInfo(_from_java_type(j_element_type_info))
+
+    JExternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
+    if _is_instance_of(j_type_info, JExternalTypeInfo):
+        TypeInfoDataTypeConverter = \
+            gateway.jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
+        return ExternalTypeInfo(_from_java_type(
+            TypeInfoDataTypeConverter.toLegacyTypeInfo(j_type_info.getDataType())))
 
     raise TypeError("The java type info: %s is not supported in PyFlink currently." % j_type_info)
 

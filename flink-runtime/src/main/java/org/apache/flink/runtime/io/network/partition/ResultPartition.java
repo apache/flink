@@ -190,6 +190,25 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     // ------------------------------------------------------------------------
 
+    @Override
+    public void notifyEndOfUserRecords() throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<Void> getAllRecordsProcessedFuture() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * The subpartition notifies that the corresponding downstream task have processed all the user
+     * records.
+     *
+     * @see org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent
+     * @param subpartition The index of the subpartition sending the notification.
+     */
+    public void onSubpartitionAllRecordsProcessed(int subpartition) {}
+
     /**
      * Finishes the result partition.
      *

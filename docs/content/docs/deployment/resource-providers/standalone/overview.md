@@ -49,7 +49,7 @@ In the additional subpages of the standalone mode resource provider, we describe
 Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **Cygwin** (for Windows). Before you start to setup the system, make sure your system fulfils the following requirements.
 
 - **Java 1.8.x** or higher installed,
-- Downloaded a recent Flink distribution from the [download page]({{ site.download_url }}) and unpacked it.
+- Downloaded a recent Flink distribution from the [download page]({{< downloads >}}) and unpacked it.
 
 ### Starting a Standalone Cluster (Session Mode)
 

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
@@ -126,9 +127,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      * only later.
      */
     private TimestampsAndWatermarks<OUT> eventTimeLogic;
-
-    /** Indicating whether the source operator has been closed. */
-    private boolean closed;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -263,41 +261,49 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
+        super.finish();
+    }
+
+    @Override
+    public void close() throws Exception {
         if (sourceReader != null) {
             sourceReader.close();
         }
-        closed = true;
         super.close();
     }
 
     @Override
-    public void dispose() throws Exception {
-        // We also need to close the source reader to make sure the resources
-        // are released if the task does not finish normally.
-        if (!closed && sourceReader != null) {
-            sourceReader.close();
-        }
-    }
-
-    @Override
-    public InputStatus emitNext(DataOutput<OUT> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
         // guarding an assumptions we currently make due to the fact that certain classes
         // assume a constant output
         assert lastInvokedOutput == output || lastInvokedOutput == null;
 
         // short circuit the common case (every invocation except the first)
         if (currentMainOutput != null) {
-            return sourceReader.pollNext(currentMainOutput);
+            return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
         }
 
         // this creates a batch or streaming output based on the runtime mode
         currentMainOutput = eventTimeLogic.createMainOutput(output);
         lastInvokedOutput = output;
-        return sourceReader.pollNext(currentMainOutput);
+        return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+    }
+
+    private DataInputStatus convertToInternalStatus(InputStatus inputStatus) {
+        switch (inputStatus) {
+            case MORE_AVAILABLE:
+                return DataInputStatus.MORE_AVAILABLE;
+            case NOTHING_AVAILABLE:
+                return DataInputStatus.NOTHING_AVAILABLE;
+            case END_OF_INPUT:
+                return DataInputStatus.END_OF_INPUT;
+            default:
+                throw new IllegalArgumentException("Unknown input status: " + inputStatus);
+        }
     }
 
     @Override

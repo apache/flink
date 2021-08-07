@@ -42,19 +42,22 @@ public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
 
     @Override
     public void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster) {}
+
+    @Override
+    public void stopTrackingAndReleaseOrPromotePartitions(
             Collection<ResultPartitionID> resultPartitionIds) {}
+
+    @Override
+    public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
+        return Collections.emptyList();
+    }
 
     @Override
     public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>>
             stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
         return Collections.emptyList();
     }
-
-    @Override
-    public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {}
-
-    @Override
-    public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {}
 
     @Override
     public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {

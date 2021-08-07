@@ -190,6 +190,18 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
     }
 
     @Override
+    public void finish() {
+        if (batchCount > 0) {
+            try {
+                flush();
+            } catch (Exception e) {
+                LOG.warn("Writing records to kafka failed.", e);
+                throw new RuntimeException("Writing records to kafka failed.", e);
+            }
+        }
+    }
+
+    @Override
     public synchronized void close() throws Exception {
         if (!closed) {
             closed = true;
@@ -197,15 +209,6 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
             if (this.scheduledFuture != null) {
                 scheduledFuture.cancel(false);
                 this.scheduler.shutdown();
-            }
-
-            if (batchCount > 0) {
-                try {
-                    flush();
-                } catch (Exception e) {
-                    LOG.warn("Writing records to kafka failed.", e);
-                    throw new RuntimeException("Writing records to kafka failed.", e);
-                }
             }
 
             producer.close();

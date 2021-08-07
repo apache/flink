@@ -18,14 +18,15 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
@@ -126,7 +127,14 @@ public class InputProcessorUtil {
                         Arrays.stream(inputs)
                                 .mapToInt(CheckpointableInput::getNumberOfInputChannels)
                                 .sum();
-                return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint, clock);
+                return new CheckpointBarrierTracker(
+                        numInputChannels,
+                        toNotifyOnCheckpoint,
+                        clock,
+                        config.getConfiguration()
+                                .get(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
             default:
                 throw new UnsupportedOperationException(
                         "Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
@@ -143,6 +151,9 @@ public class InputProcessorUtil {
             CheckpointableInput[] inputs,
             Clock clock,
             int numberOfChannels) {
+        boolean enableCheckpointAfterTasksFinished =
+                config.getConfiguration()
+                        .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
         if (config.isUnalignedCheckpointsEnabled()) {
             return SingleCheckpointBarrierHandler.alternating(
                     taskName,
@@ -151,6 +162,7 @@ public class InputProcessorUtil {
                     clock,
                     numberOfChannels,
                     createRegisterTimerCallback(mailboxExecutor, timerService),
+                    enableCheckpointAfterTasksFinished,
                     inputs);
         } else {
             return SingleCheckpointBarrierHandler.aligned(
@@ -159,6 +171,7 @@ public class InputProcessorUtil {
                     clock,
                     numberOfChannels,
                     createRegisterTimerCallback(mailboxExecutor, timerService),
+                    enableCheckpointAfterTasksFinished,
                     inputs);
         }
     }

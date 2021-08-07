@@ -44,8 +44,10 @@ import static java.time.ZoneId.SHORT_IDS;
  * with detailed inline documentation.
  *
  * <p>For more advanced configuration, users can directly access the underlying key-value map via
- * {@link #getConfiguration()}. Currently, key-value options are only supported for the Blink
- * planner. Users can configure also underlying execution parameters via this object. E.g.
+ * {@link #getConfiguration()}. Users can configure also underlying execution parameters via this
+ * object.
+ *
+ * <p>For example:
  *
  * <pre>{@code
  * tEnv.getConfig().addConfiguration(
@@ -229,16 +231,21 @@ public class TableConfig {
     /**
      * Returns the current threshold where generated code will be split into sub-function calls.
      * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
-     * necessary. Default is 64000.
+     * necessary.
+     *
+     * <p>Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with
+     * more than 8K byte code.
      */
     public Integer getMaxGeneratedCodeLength() {
         return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
     }
 
     /**
-     * Returns the current threshold where generated code will be split into sub-function calls.
-     * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
-     * necessary. Default is 64000.
+     * Sets current threshold where generated code will be split into sub-function calls. Java has a
+     * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
+     *
+     * <p>Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with
+     * more than 8K byte code.
      */
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
         this.configuration.setInteger(

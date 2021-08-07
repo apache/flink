@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.factories.DataGenOptions;
+import org.apache.flink.table.factories.DataGenConnectorOptionsUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
@@ -63,8 +63,18 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
         this.config = config;
 
-        this.startKeyStr = DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.START;
-        this.endKeyStr = DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.END;
+        this.startKeyStr =
+                DataGenConnectorOptionsUtil.FIELDS
+                        + "."
+                        + name
+                        + "."
+                        + DataGenConnectorOptionsUtil.START;
+        this.endKeyStr =
+                DataGenConnectorOptionsUtil.FIELDS
+                        + "."
+                        + name
+                        + "."
+                        + DataGenConnectorOptionsUtil.END;
 
         ConfigOptions.OptionBuilder startKey = key(startKeyStr);
         ConfigOptions.OptionBuilder endKey = key(endKeyStr);
@@ -96,7 +106,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(CharType booleanType) {
+    public DataGeneratorContainer visit(CharType charType) {
         return DataGeneratorContainer.of(
                 getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
                 longStart,
@@ -104,7 +114,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(VarCharType booleanType) {
+    public DataGeneratorContainer visit(VarCharType varCharType) {
         return DataGeneratorContainer.of(
                 getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
                 longStart,
@@ -112,7 +122,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(TinyIntType booleanType) {
+    public DataGeneratorContainer visit(TinyIntType tinyIntType) {
         return DataGeneratorContainer.of(
                 SequenceGenerator.byteGenerator(
                         config.get(intStart).byteValue(), config.get(intEnd).byteValue()),
@@ -121,7 +131,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     }
 
     @Override
-    public DataGeneratorContainer visit(SmallIntType booleanType) {
+    public DataGeneratorContainer visit(SmallIntType smallIntType) {
         return DataGeneratorContainer.of(
                 SequenceGenerator.shortGenerator(
                         config.get(intStart).shortValue(), config.get(intEnd).shortValue()),

@@ -61,17 +61,6 @@ public class CliOptionsParser {
                     .desc("The identifier for a session. 'default' is the default identifier.")
                     .build();
 
-    public static final Option OPTION_ENVIRONMENT =
-            Option.builder("e")
-                    .required(false)
-                    .longOpt("environment")
-                    .numberOfArgs(1)
-                    .argName("environment file")
-                    .desc(
-                            "Deprecated feature: the environment properties to be imported into the session. "
-                                    + "It might overwrite default environment properties.")
-                    .build();
-
     public static final Option OPTION_INIT_FILE =
             Option.builder("i")
                     .required(false)
@@ -92,17 +81,6 @@ public class CliOptionsParser {
                     .desc(
                             "Script file that should be executed. In this mode, "
                                     + "the client will not open an interactive terminal.")
-                    .build();
-
-    public static final Option OPTION_DEFAULTS =
-            Option.builder("d")
-                    .required(false)
-                    .longOpt("defaults")
-                    .numberOfArgs(1)
-                    .argName("environment file")
-                    .desc(
-                            "Deprecated feature: the environment properties with which every new session is initialized. "
-                                    + "Properties might be overwritten by session properties.")
                     .build();
 
     public static final Option OPTION_JAR =
@@ -172,10 +150,8 @@ public class CliOptionsParser {
     public static Options getEmbeddedModeClientOptions(Options options) {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_ENVIRONMENT);
         options.addOption(OPTION_INIT_FILE);
         options.addOption(OPTION_FILE);
-        options.addOption(OPTION_DEFAULTS);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
         options.addOption(OPTION_UPDATE);
@@ -190,7 +166,6 @@ public class CliOptionsParser {
     public static Options getGatewayModeClientOptions(Options options) {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_ENVIRONMENT);
         options.addOption(OPTION_UPDATE);
         options.addOption(OPTION_HISTORY);
         options.addOption(PYFILES_OPTION);
@@ -202,7 +177,6 @@ public class CliOptionsParser {
 
     public static Options getGatewayModeGatewayOptions(Options options) {
         buildGeneralOptions(options);
-        options.addOption(OPTION_DEFAULTS);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
         options.addOption(PYFILES_OPTION);
@@ -289,8 +263,6 @@ public class CliOptionsParser {
             return new CliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
-                    checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
                     checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
                     checkUrl(line, CliOptionsParser.OPTION_FILE),
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
@@ -310,8 +282,6 @@ public class CliOptionsParser {
             return new CliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
-                    null,
                     null,
                     null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
@@ -331,8 +301,6 @@ public class CliOptionsParser {
             return new CliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     null,
-                    null,
-                    checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
                     null,
                     null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),

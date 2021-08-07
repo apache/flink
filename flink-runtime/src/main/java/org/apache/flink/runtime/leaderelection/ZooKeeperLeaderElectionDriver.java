@@ -26,8 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
@@ -53,10 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ZooKeeper.
  */
 public class ZooKeeperLeaderElectionDriver
-        implements LeaderElectionDriver,
-                LeaderLatchListener,
-                NodeCacheListener,
-                UnhandledErrorListener {
+        implements LeaderElectionDriver, LeaderLatchListener, UnhandledErrorListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionDriver.class);
 
@@ -67,7 +63,7 @@ public class ZooKeeperLeaderElectionDriver
     private final LeaderLatch leaderLatch;
 
     /** Curator recipe to watch a given ZooKeeper node for changes. */
-    private final NodeCache cache;
+    private final TreeCache cache;
 
     /** ZooKeeper path of the node which stores the current leader information. */
     private final String connectionInformationPath;
@@ -107,7 +103,11 @@ public class ZooKeeperLeaderElectionDriver
         this.leaderContenderDescription = checkNotNull(leaderContenderDescription);
 
         leaderLatch = new LeaderLatch(client, ZooKeeperUtils.generateLeaderLatchPath(path));
-        cache = new NodeCache(client, connectionInformationPath);
+        this.cache =
+                ZooKeeperUtils.createTreeCache(
+                        client,
+                        connectionInformationPath,
+                        this::retrieveLeaderInformationFromZooKeeper);
 
         client.getUnhandledErrorListenable().addListener(this);
 
@@ -116,7 +116,6 @@ public class ZooKeeperLeaderElectionDriver
         leaderLatch.addListener(this);
         leaderLatch.start();
 
-        cache.getListenable().addListener(this);
         cache.start();
 
         client.getConnectionStateListenable().addListener(listener);
@@ -171,10 +170,9 @@ public class ZooKeeperLeaderElectionDriver
         leaderElectionEventHandler.onRevokeLeadership();
     }
 
-    @Override
-    public void nodeChanged() throws Exception {
+    private void retrieveLeaderInformationFromZooKeeper() throws Exception {
         if (leaderLatch.hasLeadership()) {
-            ChildData childData = cache.getCurrentData();
+            ChildData childData = cache.getCurrentData(connectionInformationPath);
             if (childData != null) {
                 final byte[] data = childData.getData();
                 if (data != null && data.length > 0) {

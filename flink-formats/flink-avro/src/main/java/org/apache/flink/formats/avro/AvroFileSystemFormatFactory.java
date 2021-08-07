@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -42,9 +43,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.formats.avro.AvroFileFormatFactory.AVRO_OUTPUT_CODEC;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
 
 /** Avro format factory for file system. */
+@Internal
 public class AvroFileSystemFormatFactory implements FileSystemFormatFactory {
 
     public static final String IDENTIFIER = "avro";

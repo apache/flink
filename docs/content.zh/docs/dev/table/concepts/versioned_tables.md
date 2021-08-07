@@ -115,7 +115,6 @@ Yen       1
 
 时态表
 -----
-<span class="label label-danger">注意</span> 仅 Blink planner 支持此功能。
 
 Flink 使用主键约束和事件时间来定义一张版本表和版本视图。
 
@@ -181,7 +180,7 @@ currency_time currency  rate
 11:49:00      Pounds    108
 ```
 
-为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/dev/table/sql/queries" >}}#去重)定义版本视图，
+为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/dev/table/sql/queries/deduplication" >}}#去重)定义版本视图，
 去重查询可以产出一个有序的 changelog 流，去重查询能够推断主键并保留原始数据流的事件时间属性。
 
 ```sql
@@ -361,6 +360,6 @@ tEnv.registerFunction("Rates", rates)                                          /
 行`(1)`创建了一个 `rates` [时态表函数](#时态表函数)，
 这使我们可以在[ Table API ]({{< ref "docs/dev/table/tableApi" >}}#joins)中使用 `rates` 函数。
 
-行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{< ref "docs/dev/table/sql/queries" >}}#joins)中使用 `Rates` 函数。
+行`(2)`在表环境中注册名称为 `Rates` 的函数，这使我们可以在[ SQL ]({{< ref "docs/dev/table/sql/queries/joins" >}})中使用 `Rates` 函数。
 
 {{< top >}}

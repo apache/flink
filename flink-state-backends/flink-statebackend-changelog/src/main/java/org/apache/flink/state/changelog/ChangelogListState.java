@@ -22,8 +22,11 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -42,10 +45,14 @@ class ChangelogListState<K, N, V>
         extends AbstractChangelogState<K, N, List<V>, InternalListState<K, N, V>>
         implements InternalListState<K, N, V> {
 
+    private final InternalKeyContext<K> keyContext;
+
     ChangelogListState(
             InternalListState<K, N, V> delegatedState,
-            KvStateChangeLogger<List<V>, N> changeLogger) {
+            KvStateChangeLogger<List<V>, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         super(delegatedState, changeLogger);
+        this.keyContext = keyContext;
     }
 
     @Override
@@ -111,10 +118,18 @@ class ChangelogListState<K, N, V>
 
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> listState, KvStateChangeLogger<SV, N> changeLogger) {
+            InternalKvState<K, N, SV> listState,
+            KvStateChangeLogger<SV, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         return (IS)
                 new ChangelogListState<>(
                         (InternalListState<K, N, SV>) listState,
-                        (KvStateChangeLogger<List<SV>, N>) changeLogger);
+                        (KvStateChangeLogger<List<SV>, N>) changeLogger,
+                        keyContext);
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forList(delegatedState, keyContext);
     }
 }

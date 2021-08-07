@@ -110,9 +110,12 @@ public class TestingJobMasterGatewayBuilder {
                     (ignoredA, ignoredB, ignoredC) ->
                             CompletableFuture.completedFuture(
                                     new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
-    private BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-            taskManagerHeartbeatConsumer = (ignoredA, ignoredB) -> {};
-    private Consumer<ResourceID> resourceManagerHeartbeatConsumer = ignored -> {};
+    private BiFunction<
+                    ResourceID, TaskExecutorToJobManagerHeartbeatPayload, CompletableFuture<Void>>
+            taskManagerHeartbeatFunction =
+                    (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
+    private Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction =
+            ignored -> FutureUtils.completedVoidFuture();
     private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
@@ -248,16 +251,19 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatConsumer(
-            BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-                    taskManagerHeartbeatConsumer) {
-        this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
+    public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatFunction(
+            BiFunction<
+                            ResourceID,
+                            TaskExecutorToJobManagerHeartbeatPayload,
+                            CompletableFuture<Void>>
+                    taskManagerHeartbeatFunction) {
+        this.taskManagerHeartbeatFunction = taskManagerHeartbeatFunction;
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setResourceManagerHeartbeatConsumer(
-            Consumer<ResourceID> resourceManagerHeartbeatConsumer) {
-        this.resourceManagerHeartbeatConsumer = resourceManagerHeartbeatConsumer;
+    public TestingJobMasterGatewayBuilder setResourceManagerHeartbeatFunction(
+            Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction) {
+        this.resourceManagerHeartbeatFunction = resourceManagerHeartbeatFunction;
         return this;
     }
 
@@ -389,8 +395,8 @@ public class TestingJobMasterGatewayBuilder {
                 offerSlotsFunction,
                 failSlotConsumer,
                 registerTaskManagerFunction,
-                taskManagerHeartbeatConsumer,
-                resourceManagerHeartbeatConsumer,
+                taskManagerHeartbeatFunction,
+                resourceManagerHeartbeatFunction,
                 requestJobDetailsSupplier,
                 requestJobSupplier,
                 triggerSavepointFunction,

@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -385,7 +384,6 @@ public class CliClientTest extends TestLogger {
 
             DefaultContext defaultContext =
                     new DefaultContext(
-                            new Environment(),
                             Collections.emptyList(),
                             configuration,
                             Collections.singletonList(new DefaultCLI()));

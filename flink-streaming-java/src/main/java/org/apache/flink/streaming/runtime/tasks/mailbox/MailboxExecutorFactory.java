@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 
 /**
  * A factory for creating mailbox executors with a given priority. The factory is usually bound to a

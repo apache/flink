@@ -98,8 +98,9 @@ public class CheckpointConfig implements java.io.Serializable {
     private long checkpointIdOfIgnoredInFlightData =
             DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
 
-    private Duration alignmentTimeout =
-            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue();
+    /** The delay from the start of checkpoint after which AC switches to UC. */
+    private Duration alignedCheckpointTimeout =
+            ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT.defaultValue();
 
     /** Flag to enable approximate local recovery. */
     private boolean approximateLocalRecovery;
@@ -149,7 +150,7 @@ public class CheckpointConfig implements java.io.Serializable {
         this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
         this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
         this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
-        this.alignmentTimeout = checkpointConfig.alignmentTimeout;
+        this.alignedCheckpointTimeout = checkpointConfig.alignedCheckpointTimeout;
         this.approximateLocalRecovery = checkpointConfig.isApproximateLocalRecoveryEnabled();
         this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
         this.forceCheckpointing = checkpointConfig.forceCheckpointing;
@@ -540,26 +541,57 @@ public class CheckpointConfig implements java.io.Serializable {
     /**
      * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
      *
-     * <p>If {@link #alignmentTimeout} has value equal to <code>0</code>, checkpoints will always
-     * start unaligned.
+     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
+     * always start unaligned.
      *
-     * <p>If {@link #alignmentTimeout} has value greater then <code>0</code>, checkpoints will start
-     * aligned. If during checkpointing, checkpoint start delay exceeds this {@link
-     * #alignmentTimeout}, alignment will timeout and checkpoint will start working as unaligned
-     * checkpoint.
+     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
+     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
+     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
+     * unaligned checkpoint.
+     *
+     * @deprecated Use {@link #setAlignedCheckpointTimeout(Duration)} instead.
      */
+    @Deprecated
     @PublicEvolving
     public void setAlignmentTimeout(Duration alignmentTimeout) {
-        this.alignmentTimeout = alignmentTimeout;
+        this.alignedCheckpointTimeout = alignmentTimeout;
     }
 
     /**
      * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
      *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+     * @deprecated User {@link #getAlignedCheckpointTimeout()} instead.
      */
+    @Deprecated
     @PublicEvolving
     public Duration getAlignmentTimeout() {
-        return alignmentTimeout;
+        return alignedCheckpointTimeout;
+    }
+
+    /**
+     * @return value of alignment timeout, as configured via {@link
+     *     #setAlignedCheckpointTimeout(Duration)} or {@link
+     *     ExecutionCheckpointingOptions#ALIGNED_CHECKPOINT_TIMEOUT}.
+     */
+    @PublicEvolving
+    public Duration getAlignedCheckpointTimeout() {
+        return alignedCheckpointTimeout;
+    }
+
+    /**
+     * Only relevant if {@link #unalignedCheckpointsEnabled} is enabled.
+     *
+     * <p>If {@link #alignedCheckpointTimeout} has value equal to <code>0</code>, checkpoints will
+     * always start unaligned.
+     *
+     * <p>If {@link #alignedCheckpointTimeout} has value greater then <code>0</code>, checkpoints
+     * will start aligned. If during checkpointing, checkpoint start delay exceeds this {@link
+     * #alignedCheckpointTimeout}, alignment will timeout and checkpoint will start working as
+     * unaligned checkpoint.
+     */
+    @PublicEvolving
+    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
+        this.alignedCheckpointTimeout = alignedCheckpointTimeout;
     }
 
     /**
@@ -784,8 +816,8 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
                 .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);
         configuration
-                .getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
-                .ifPresent(this::setAlignmentTimeout);
+                .getOptional(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT)
+                .ifPresent(this::setAlignedCheckpointTimeout);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);

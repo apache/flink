@@ -92,8 +92,8 @@ project.
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{ site.scala_version_suffix }}</artifactId>
-  <version>{{ site.version }}</version>
+  <artifactId>flink-cep{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 
@@ -123,7 +123,7 @@ Every `MATCH_RECOGNIZE` query consists of the following clauses:
   satisfy.
 
 <span class="label label-danger">Attention</span> Currently, the `MATCH_RECOGNIZE` clause can only
-be applied to an [append table](dynamic_tables.html#update-and-append-queries). Furthermore, it
+be applied to an [append table]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#update-and-append-queries). Furthermore, it
 always produces an append table as well.
 
 ### Examples
@@ -234,14 +234,14 @@ Order of Events
 ---------------
 
 Apache Flink allows for searching for patterns based on time; either
-[processing time or event time](time_attributes.html).
+[processing time or event time]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
 
 In case of event time, the events are sorted before they are passed to the internal pattern state
 machine. As a consequence, the produced output will be correct regardless of the order in which
 rows are appended to the table. Instead, the pattern is evaluated in the order specified by the
 time contained in each row.
 
-The `MATCH_RECOGNIZE` clause assumes a [time attribute](time_attributes.html) with ascending
+The `MATCH_RECOGNIZE` clause assumes a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) with ascending
 ordering as the first argument to `ORDER BY` clause.
 
 For the example `Ticker` table, a definition like `ORDER BY rowtime ASC, price DESC` is valid but
@@ -1026,7 +1026,7 @@ Time attributes
 ---------------
 
 In order to apply some subsequent queries on top of the `MATCH_RECOGNIZE` it might be required to
-use [time attributes](time_attributes.html). To select those there are available two functions:
+use [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). To select those there are available two functions:
 
 <table class="table table-bordered">
   <thead>
@@ -1042,7 +1042,7 @@ use [time attributes](time_attributes.html). To select those there are available
         <code>MATCH_ROWTIME()</code><br/>
       </td>
       <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
-      <p>The resulting attribute is a <a href="time_attributes.html">rowtime attribute</a>
+      <p>The resulting attribute is a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a>
          that can be used in subsequent time-based operations such as
          <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
          window aggregations</a>.</p></td>
@@ -1051,9 +1051,9 @@ use [time attributes](time_attributes.html). To select those there are available
       <td>
         <code>MATCH_PROCTIME()</code><br/>
       </td>
-      <td><p>Returns a <a href="time_attributes.html#processing-time">proctime attribute</a>
+      <td><p>Returns a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">proctime attribute</a>
           that can be used in subsequent time-based operations such as
-          <a href="{{{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
+          <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
           window aggregations</a>.</p></td>
     </tr>
   </tbody>
@@ -1098,7 +1098,7 @@ DEFINE
 ```
 
 <span class="label label-danger">Attention</span> Please note that the `MATCH_RECOGNIZE` clause
-does not use a configured [state retention time](query_configuration.html#idle-state-retention-time).
+does not use a configured [state retention time]({{< ref "docs/dev/table/config" >}}#idle-state-retention-time).
 One may want to use the `WITHIN` [clause](#time-constraint) for this purpose.
 
 Known Limitations

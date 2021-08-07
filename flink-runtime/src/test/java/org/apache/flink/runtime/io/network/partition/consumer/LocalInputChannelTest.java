@@ -54,7 +54,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -520,6 +520,43 @@ public class LocalInputChannelTest {
 
         localChannel.releaseAllResources();
         localChannel.resumeConsumption();
+    }
+
+    @Test
+    public void testEnqueueAvailableChannelWhenResuming() throws IOException, InterruptedException {
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+        LocalInputChannel channel =
+                createLocalInputChannel(new SingleInputGateBuilder().build(), partitionManager);
+        channel.requestSubpartition(0);
+
+        // Block the subpartition
+        subpartition.add(
+                EventSerializer.toBufferConsumer(
+                        new CheckpointBarrier(
+                                1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                        false));
+        assertTrue(channel.getNextBuffer().isPresent());
+
+        // Add more data
+        subpartition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(4096));
+        subpartition.flush();
+
+        // No buffer since the subpartition is blocked.
+        assertFalse(channel.inputGate.pollNext().isPresent());
+
+        // Resumption makes the subpartition available.
+        channel.resumeConsumption();
+        Optional<BufferOrEvent> nextBuffer = channel.inputGate.pollNext();
+        assertTrue(nextBuffer.isPresent());
+        assertTrue(nextBuffer.get().isBuffer());
     }
 
     @Test

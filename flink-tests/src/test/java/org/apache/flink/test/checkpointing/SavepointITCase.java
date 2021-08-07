@@ -48,7 +48,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
@@ -75,7 +74,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
@@ -433,9 +431,8 @@ public class SavepointITCase extends TestLogger {
 
         try {
             client.submitJob(graph).get();
-            // triggerSavepoint is only available after job is initialized
-            TestUtils.waitUntilJobInitializationFinished(
-                    graph.getJobID(), cluster, ClassLoader.getSystemClassLoader());
+            // triggerSavepoint is only available after all tasks are running
+            waitForAllTaskRunning(cluster.getMiniCluster(), graph.getJobID());
 
             client.triggerSavepoint(graph.getJobID(), null).get();
 
@@ -761,8 +758,7 @@ public class SavepointITCase extends TestLogger {
         // ExecutionVertex
         final RestClient restClient =
                 new RestClient(
-                        RestClientConfiguration.fromConfiguration(
-                                new UnmodifiableConfiguration(new Configuration())),
+                        new UnmodifiableConfiguration(new Configuration()),
                         TestingUtils.defaultExecutor());
 
         final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
@@ -856,6 +852,7 @@ public class SavepointITCase extends TestLogger {
             JobID jobID = client.submitJob(originalJobGraph).get();
 
             // wait for the Tasks to be ready
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobID);
             assertTrue(
                     StatefulCounter.getProgressLatch()
                             .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
@@ -1195,6 +1192,9 @@ public class SavepointITCase extends TestLogger {
         String savepointPath = null;
         try {
             client.submitJob(jobGraph).get();
+
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+
             for (OneShotLatch latch : iterTestSnapshotWait) {
                 latch.await();
             }

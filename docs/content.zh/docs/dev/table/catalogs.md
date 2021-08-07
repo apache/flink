@@ -155,7 +155,6 @@ mytable
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.descriptors.Kafka;
 
 TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
@@ -169,24 +168,15 @@ tableEnv.registerCatalog("myhive", catalog);
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...));
 
 // Create a catalog table
-TableSchema schema = TableSchema.builder()
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
+final Schema schema = Schema.newBuilder()
+    .column("name", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build();
 
-catalog.createTable(
-        new ObjectPath("mydb", "mytable"),
-        new CatalogTableImpl(
-            schema,
-            new Kafka()
-                .version("0.11")
-                ....
-                .startFromEarlist()
-                .toProperties(),
-            "my comment"
-        ),
-        false
-    );
+tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
+    .schema(schema)
+    // …
+    .build());
 
 List<String> tables = catalog.listTables("mydb"); // tables should contain "mytable"
 ```
@@ -197,7 +187,6 @@ List<String> tables = catalog.listTables("mydb"); // tables should contain "myta
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.hive.HiveCatalog
-import org.apache.flink.table.descriptors.Kafka
 
 val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
 
@@ -211,24 +200,15 @@ tableEnv.registerCatalog("myhive", catalog)
 catalog.createDatabase("mydb", new CatalogDatabaseImpl(...))
 
 // Create a catalog table
-val schema = TableSchema.builder()
-    .field("name", DataTypes.STRING())
-    .field("age", DataTypes.INT())
+val schema = Schema.newBuilder()
+    .column("name", DataTypes.STRING())
+    .column("age", DataTypes.INT())
     .build()
 
-catalog.createTable(
-        new ObjectPath("mydb", "mytable"),
-        new CatalogTableImpl(
-            schema,
-            new Kafka()
-                .version("0.11")
-                ....
-                .startFromEarlist()
-                .toProperties(),
-            "my comment"
-        ),
-        false
-    )
+tableEnv.createTable("myhive.mydb.mytable", TableDescriptor.forConnector("kafka")
+    .schema(schema)
+    // …
+    .build())
 
 val tables = catalog.listTables("mydb") // tables should contain "mytable"
 ```
@@ -254,23 +234,15 @@ database = CatalogDatabase.create_instance({"k1": "v1"}, None)
 catalog.create_database("mydb", database)
 
 # Create a catalog table
-table_schema = TableSchema.builder() \
-    .field("name", DataTypes.STRING()) \
-    .field("age", DataTypes.INT()) \
+schema = Schema.new_builder() \
+    .column("name", DataTypes.STRING()) \
+    .column("age", DataTypes.INT()) \
     .build()
-
-table_properties = Kafka() \
-    .version("0.11") \
-    .start_from_earlist() \
-    .to_properties()
-
-catalog_table = CatalogBaseTable.create_table(
-    schema=table_schema, properties=table_properties, comment="my comment")
-
-catalog.create_table(
-    ObjectPath("mydb", "mytable"),
-    catalog_table,
-    False)
+    
+catalog_table = t_env.create_table("myhive.mydb.mytable", TableDescriptor.for_connector("kafka")
+    .schema(schema)
+    // …
+    .build())
 
 # tables should contain "mytable"
 tables = catalog.list_tables("mydb")

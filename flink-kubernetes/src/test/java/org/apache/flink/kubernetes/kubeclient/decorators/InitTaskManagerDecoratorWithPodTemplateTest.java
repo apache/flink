@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalToIgnoringCase;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link InitTaskManagerDecorator} with pod template. */
 public class InitTaskManagerDecoratorWithPodTemplateTest extends DecoratorWithPodTemplateTestBase {

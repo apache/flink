@@ -143,26 +143,26 @@ class PyFlinkTestCase(unittest.TestCase):
         return CsvTableSource(path, fields, data_types)
 
 
-class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
+class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     """
-    Base class for stream tests of blink planner.
+    Base class for table stream tests.
     """
 
     def setUp(self):
-        super(PyFlinkBlinkStreamTableTestCase, self).setUp()
+        super(PyFlinkStreamTableTestCase, self).setUp()
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
 
 
-class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
+class PyFlinkBatchTableTestCase(PyFlinkTestCase):
     """
-    Base class for batch tests of blink planner.
+    Base class for table batch tests.
     """
 
     def setUp(self):
-        super(PyFlinkBlinkBatchTableTestCase, self).setUp()
+        super(PyFlinkBatchTableTestCase, self).setUp()
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(

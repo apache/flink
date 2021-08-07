@@ -647,7 +647,10 @@ public class DeclarativeSlotManager implements SlotManager {
                     pendingSlots = allocationResult.getNewAvailableResources();
                     if (!allocationResult.isSuccessfulAllocating()
                             && sendNotEnoughResourceNotifications) {
-                        LOG.warn("Could not fulfill resource requirements of job {}.", jobId);
+                        LOG.warn(
+                                "Could not fulfill resource requirements of job {}. Free slots: {}",
+                                jobId,
+                                slotTracker.getFreeSlots().size());
                         resourceActions.notifyNotEnoughResourcesAvailable(
                                 jobId, resourceTracker.getAcquiredResources(jobId));
                         return pendingSlots;
@@ -750,12 +753,6 @@ public class DeclarativeSlotManager implements SlotManager {
     public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
         // This information is currently not supported for this slot manager.
         return Collections.emptyList();
-    }
-
-    @Override
-    public int getNumberPendingSlotRequests() {
-        // only exists for testing purposes
-        throw new UnsupportedOperationException();
     }
 
     // ---------------------------------------------------------------------------------------------

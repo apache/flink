@@ -60,7 +60,7 @@ public class HiveModuleTest {
         verifyNumBuiltInFunctions(hiveVersion, hiveModule);
 
         // creating functions shouldn't change the number of built in functions
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.executeSql("create function myudf as 'org.apache.hadoop.hive.ql.udf.UDFPI'");
         tableEnv.executeSql(
                 "create function mygenericudf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs'");
@@ -130,7 +130,7 @@ public class HiveModuleTest {
 
     @Test
     public void testConstantArguments() {
-        TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tEnv.unloadModule("core");
         tEnv.loadModule("hive", new HiveModule());
@@ -172,7 +172,7 @@ public class HiveModuleTest {
 
     @Test
     public void testDecimalReturnType() {
-        TableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tEnv.unloadModule("core");
         tEnv.loadModule("hive", new HiveModule());
@@ -195,7 +195,7 @@ public class HiveModuleTest {
 
     @Test
     public void testConstantReturnValue() {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tableEnv.unloadModule("core");
         tableEnv.loadModule("hive", new HiveModule());
@@ -211,7 +211,7 @@ public class HiveModuleTest {
 
     @Test
     public void testEmptyStringLiteralParameters() {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tableEnv.unloadModule("core");
         tableEnv.loadModule("hive", new HiveModule());
@@ -233,7 +233,7 @@ public class HiveModuleTest {
 
     @Test
     public void testFunctionsNeedSessionState() {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tableEnv.unloadModule("core");
         tableEnv.loadModule("hive", new HiveModule());
@@ -249,7 +249,7 @@ public class HiveModuleTest {
 
     @Test
     public void testCallUDFWithNoParam() {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
 
         tableEnv.unloadModule("core");
         tableEnv.loadModule("hive", new HiveModule());

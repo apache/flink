@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.base.CharSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
+import org.apache.flink.api.common.typeutils.base.InstantSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -55,13 +56,15 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
+import org.apache.flink.table.runtime.typeutils.ExternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
+import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -87,7 +90,8 @@ public class PythonTypeUtils {
                         FlinkFnApi.TypeInfo.TypeName.DOUBLE,
                         FlinkFnApi.TypeInfo.TypeName.CHAR,
                         FlinkFnApi.TypeInfo.TypeName.BIG_INT,
-                        FlinkFnApi.TypeInfo.TypeName.BIG_DEC);
+                        FlinkFnApi.TypeInfo.TypeName.BIG_DEC,
+                        FlinkFnApi.TypeInfo.TypeName.INSTANT);
 
         private static final Set<FlinkFnApi.TypeInfo.TypeName> primitiveArrayElementTypeNames =
                 Sets.newHashSet(
@@ -160,6 +164,12 @@ public class PythonTypeUtils {
 
             if (typeInformation instanceof ListTypeInfo) {
                 return buildListTypeProto((ListTypeInfo<?>) typeInformation);
+            }
+
+            if (typeInformation instanceof ExternalTypeInfo) {
+                return toTypeInfoProto(
+                        LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+                                ((ExternalTypeInfo<?>) typeInformation).getDataType()));
             }
 
             throw new UnsupportedOperationException(
@@ -336,6 +346,10 @@ public class PythonTypeUtils {
                 return FlinkFnApi.TypeInfo.TypeName.BIG_DEC;
             }
 
+            if (typeInfo.equals(BasicTypeInfo.INSTANT_TYPE_INFO)) {
+                return FlinkFnApi.TypeInfo.TypeName.INSTANT;
+            }
+
             if (typeInfo instanceof PrimitiveArrayTypeInfo) {
                 return FlinkFnApi.TypeInfo.TypeName.PRIMITIVE_ARRAY;
             }
@@ -413,6 +427,8 @@ public class PythonTypeUtils {
                     BasicTypeInfo.BIG_DEC_TYPE_INFO.getTypeClass(), BigDecSerializer.INSTANCE);
             typeInfoToSerializerMap.put(
                     BasicTypeInfo.BYTE_TYPE_INFO.getTypeClass(), ByteSerializer.INSTANCE);
+            typeInfoToSerializerMap.put(
+                    BasicTypeInfo.INSTANT_TYPE_INFO.getTypeClass(), InstantSerializer.INSTANCE);
 
             typeInfoToSerializerMap.put(
                     PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO.getTypeClass(),
@@ -448,16 +464,16 @@ public class PythonTypeUtils {
         }
 
         @SuppressWarnings("unchecked")
-        public static TypeSerializer typeInfoSerializerConverter(
-                TypeInformation<?> typeInformation) {
-            TypeSerializer<?> typeSerializer =
+        public static <T> TypeSerializer<T> typeInfoSerializerConverter(
+                TypeInformation<T> typeInformation) {
+            TypeSerializer<T> typeSerializer =
                     typeInfoToSerializerMap.get(typeInformation.getTypeClass());
             if (typeSerializer != null) {
                 return typeSerializer;
             } else {
 
                 if (typeInformation instanceof PickledByteArrayTypeInfo) {
-                    return BytePrimitiveArraySerializer.INSTANCE;
+                    return (TypeSerializer<T>) BytePrimitiveArraySerializer.INSTANCE;
                 }
 
                 if (typeInformation instanceof RowTypeInfo) {
@@ -466,7 +482,7 @@ public class PythonTypeUtils {
                             Arrays.stream(rowTypeInfo.getFieldTypes())
                                     .map(f -> typeInfoSerializerConverter(f))
                                     .toArray(TypeSerializer[]::new);
-                    return new RowSerializer(fieldTypeSerializers);
+                    return (TypeSerializer<T>) new RowSerializer(fieldTypeSerializers);
                 }
 
                 if (typeInformation instanceof TupleTypeInfo) {
@@ -479,40 +495,57 @@ public class PythonTypeUtils {
 
                     TypeSerializer<?>[] fieldTypeSerializers =
                             Arrays.stream(typeInformations)
-                                    .map(f -> typeInfoSerializerConverter(f))
+                                    .map(TypeInfoToSerializerConverter::typeInfoSerializerConverter)
                                     .toArray(TypeSerializer[]::new);
-                    return new TupleSerializer(
-                            Tuple.getTupleClass(tupleTypeInfo.getArity()), fieldTypeSerializers);
+                    return (TypeSerializer<T>)
+                            new TupleSerializer<>(
+                                    Tuple.getTupleClass(tupleTypeInfo.getArity()),
+                                    fieldTypeSerializers);
                 }
 
                 if (typeInformation instanceof BasicArrayTypeInfo) {
                     BasicArrayTypeInfo<?, ?> basicArrayTypeInfo =
                             (BasicArrayTypeInfo<?, ?>) typeInformation;
-                    return new GenericArraySerializer(
-                            basicArrayTypeInfo.getComponentTypeClass(),
-                            typeInfoSerializerConverter(basicArrayTypeInfo.getComponentInfo()));
+                    return (TypeSerializer<T>)
+                            new GenericArraySerializer(
+                                    basicArrayTypeInfo.getComponentTypeClass(),
+                                    typeInfoSerializerConverter(
+                                            basicArrayTypeInfo.getComponentInfo()));
                 }
 
                 if (typeInformation instanceof ObjectArrayTypeInfo) {
                     ObjectArrayTypeInfo<?, ?> objectArrayTypeInfo =
                             (ObjectArrayTypeInfo<?, ?>) typeInformation;
-                    return new GenericArraySerializer(
-                            objectArrayTypeInfo.getComponentInfo().getTypeClass(),
-                            typeInfoSerializerConverter(objectArrayTypeInfo.getComponentInfo()));
+                    return (TypeSerializer<T>)
+                            new GenericArraySerializer(
+                                    objectArrayTypeInfo.getComponentInfo().getTypeClass(),
+                                    typeInfoSerializerConverter(
+                                            objectArrayTypeInfo.getComponentInfo()));
                 }
 
                 if (typeInformation instanceof MapTypeInfo) {
-                    return new MapSerializer(
-                            typeInfoSerializerConverter(
-                                    ((MapTypeInfo<?, ?>) typeInformation).getKeyTypeInfo()),
-                            typeInfoSerializerConverter(
-                                    ((MapTypeInfo<?, ?>) typeInformation).getValueTypeInfo()));
+                    return (TypeSerializer<T>)
+                            new MapSerializer<>(
+                                    typeInfoSerializerConverter(
+                                            ((MapTypeInfo<?, ?>) typeInformation).getKeyTypeInfo()),
+                                    typeInfoSerializerConverter(
+                                            ((MapTypeInfo<?, ?>) typeInformation)
+                                                    .getValueTypeInfo()));
                 }
 
                 if (typeInformation instanceof ListTypeInfo) {
-                    return new ListSerializer(
+                    return (TypeSerializer<T>)
+                            new ListSerializer<>(
+                                    typeInfoSerializerConverter(
+                                            ((ListTypeInfo<?>) typeInformation)
+                                                    .getElementTypeInfo()));
+                }
+
+                if (typeInformation instanceof ExternalTypeInfo) {
+                    return (TypeSerializer<T>)
                             typeInfoSerializerConverter(
-                                    ((ListTypeInfo<?>) typeInformation).getElementTypeInfo()));
+                                    LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
+                                            ((ExternalTypeInfo<?>) typeInformation).getDataType()));
                 }
             }
 

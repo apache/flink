@@ -35,7 +35,6 @@ import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
@@ -568,9 +567,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
         private RestClient createRestClient() throws ConfigurationException {
             return new RestClient(
-                    RestClientConfiguration.fromConfiguration(
-                            new UnmodifiableConfiguration(new Configuration())),
-                    executorService);
+                    new UnmodifiableConfiguration(new Configuration()), executorService);
         }
 
         private List<InternalTaskInfo> getInternalTaskInfos() {

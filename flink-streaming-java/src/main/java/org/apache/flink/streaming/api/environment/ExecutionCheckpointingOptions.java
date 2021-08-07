@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -166,6 +167,30 @@ public class ExecutionCheckpointingOptions {
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
                                     .build());
 
+    public static final ConfigOption<Duration> ALIGNED_CHECKPOINT_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.aligned-checkpoint-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDeprecatedKeys("execution.checkpointing.alignment-timeout")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Only relevant if %s is enabled.",
+                                            TextElement.code(ENABLE_UNALIGNED.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout is 0, checkpoints will always start unaligned.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout has a positive value, checkpoints will start aligned. "
+                                                    + "If during checkpointing, checkpoint start delay exceeds this timeout, alignment "
+                                                    + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+                                    .build());
+
+    /** @deprecated Use {@link #ALIGNED_CHECKPOINT_TIMEOUT} instead. */
+    @Deprecated
     public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
             ConfigOptions.key("execution.checkpointing.alignment-timeout")
                     .durationType()
@@ -173,7 +198,8 @@ public class ExecutionCheckpointingOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Only relevant if %s is enabled.",
+                                            "Deprecated. %s should be used instead. Only relevant if %s is enabled.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()),
                                             TextElement.code(ENABLE_UNALIGNED.key()))
                                     .linebreak()
                                     .linebreak()
@@ -213,4 +239,12 @@ public class ExecutionCheckpointingOptions {
                                                     + "the specific checkpoint without in-flight data.")
                                     .linebreak()
                                     .build());
+
+    @Documentation.ExcludeFromDocumentation("This is a feature toggle")
+    public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Feature toggle for enabling checkpointing after tasks finish.");
 }

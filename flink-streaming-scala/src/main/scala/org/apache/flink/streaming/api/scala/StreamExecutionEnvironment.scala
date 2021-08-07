@@ -18,16 +18,15 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.net.URI
-import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
-import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.api.common.{ExecutionConfig, RuntimeExecutionMode}
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
+import org.apache.flink.api.common.operators.SlotSharingGroup
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.connector.source.{Source, SourceSplit}
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource
+import org.apache.flink.api.connector.source.{Source, SourceSplit}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala.ClosureCleaner
@@ -35,11 +34,15 @@ import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.core.execution.{JobClient, JobListener}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.state.StateBackend
-import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaEnv}
+import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.util.{SplittableIterator, TernaryBoolean}
+
+import com.esotericsoftware.kryo.Serializer
+
+import java.net.URI
 
 import _root_.scala.language.implicitConversions
 import scala.collection.JavaConverters._
@@ -104,6 +107,22 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     **/
   def setMaxParallelism(maxParallelism: Int): Unit = {
     javaEnv.setMaxParallelism(maxParallelism)
+  }
+
+  /**
+   * Register a slot sharing group with its resource spec.
+   *
+   * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+   * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+   * grouped operators together. In cases grouped operators are deployed into separate slots, the
+   * slot resources will be derived from the specified group requirements.
+   *
+   * @param slotSharingGroup which contains name and its resource spec.
+   */
+  @PublicEvolving
+  def registerSlotSharingGroup(slotSharingGroup: SlotSharingGroup): StreamExecutionEnvironment = {
+    javaEnv.registerSlotSharingGroup(slotSharingGroup)
+    this
   }
 
   /**
@@ -553,6 +572,24 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.configure(configuration, classLoader)
   }
 
+  /**
+   * Sets all relevant options contained in the [[ReadableConfig]] such as e.g.
+   * [[org.apache.flink.streaming.api.environment.StreamPipelineOptions#TIME_CHARACTERISTIC]].
+   * It will reconfigure [[StreamExecutionEnvironment]],
+   * [[org.apache.flink.api.common.ExecutionConfig]] and
+   * [[org.apache.flink.streaming.api.environment.CheckpointConfig]].
+   *
+   * It will change the value of a setting only if a corresponding option was set in the
+   * `configuration`. If a key is not present, the current value of a field will remain
+   * untouched.
+   *
+   * @param configuration a configuration to read the values from
+   */
+  @PublicEvolving
+  def configure(configuration: ReadableConfig): Unit = {
+    javaEnv.configure(configuration)
+  }
+
   // --------------------------------------------------------------------------------------------
   // Data stream creations
   // --------------------------------------------------------------------------------------------
@@ -942,8 +979,20 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     javaEnv.getStreamGraph(jobName, clearTransformations)
 
   /**
+   * Gives read-only access to the underlying configuration of this environment.
+   *
+   * Note that the returned configuration might not be complete. It only contains options that
+   * have initialized the environment or options that are not represented in dedicated configuration
+   * classes such as [[ExecutionConfig]] or [[CheckpointConfig]].
+   *
+   * Use [[configure]] to set options that are specific to this environment.
+   */
+  @Internal
+  def getConfiguration: ReadableConfig = javaEnv.getConfiguration
+
+  /**
    * Getter of the wrapped [[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment]]
- *
+   *
    * @return The encased ExecutionEnvironment
    */
   @Internal

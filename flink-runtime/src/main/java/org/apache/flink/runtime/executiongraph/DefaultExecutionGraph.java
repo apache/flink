@@ -444,7 +444,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        createCheckpointPlanCalculator(),
+                        createCheckpointPlanCalculator(
+                                chkConfig.isEnableCheckpointsAfterTasksFinish()),
                         new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
@@ -468,11 +469,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+            boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
-                getVerticesTopologically());
+                getVerticesTopologically(),
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override
@@ -1276,6 +1279,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private void releasePartitions(final List<IntermediateResultPartitionID> releasablePartitions) {
         if (releasablePartitions.size() > 0) {
+
+            // Remove cached ShuffleDescriptor when partition is released
+            releasablePartitions.stream()
+                    .map(IntermediateResultPartitionID::getIntermediateDataSetID)
+                    .distinct()
+                    .map(intermediateResults::get)
+                    .forEach(IntermediateResult::notifyPartitionChanged);
+
             final List<ResultPartitionID> partitionIds =
                     releasablePartitions.stream()
                             .map(this::createResultPartitionId)
@@ -1455,6 +1466,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             final boolean releasePartitions) {
         checkState(internalTaskFailuresListener != null);
         internalTaskFailuresListener.notifyTaskFailure(attemptId, t, cancelTask, releasePartitions);
+    }
+
+    @Override
+    public void deleteBlobs(List<PermanentBlobKey> blobKeys) {
+        CompletableFuture.runAsync(
+                () -> {
+                    for (PermanentBlobKey blobKey : blobKeys) {
+                        blobWriter.deletePermanent(getJobID(), blobKey);
+                    }
+                },
+                ioExecutor);
     }
 
     @Override

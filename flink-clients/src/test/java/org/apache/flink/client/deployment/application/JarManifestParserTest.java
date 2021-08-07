@@ -20,10 +20,11 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.testjar.TestJob;
+import org.apache.flink.client.testjar.TestJobInfo;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -155,6 +156,22 @@ public class JarManifestParserTest extends TestLogger {
         assertThat(
                 jarFileWithEntryClass.getEntryClass(),
                 is(equalTo(TestJob.class.getCanonicalName())));
+    }
+
+    @Test
+    public void testFindFirstManifestAttributeWithNoAttribute() throws IOException {
+        assertThat(
+                JarManifestParser.findFirstManifestAttribute(TestJob.getTestJobJar()).isPresent(),
+                is(false));
+    }
+
+    @Test
+    public void testFindFirstManifestAttributeWithAttributes() throws IOException {
+        Optional<String> optionalValue =
+                JarManifestParser.findFirstManifestAttribute(
+                        TestJob.getTestJobJar(), PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+        assertThat(optionalValue.isPresent(), is(true));
+        assertThat(optionalValue.get(), is(TestJobInfo.TEST_JAR_JOB_CLASS));
     }
 
     private File createJarFileWithManifest(Map<String, String> manifest) throws IOException {

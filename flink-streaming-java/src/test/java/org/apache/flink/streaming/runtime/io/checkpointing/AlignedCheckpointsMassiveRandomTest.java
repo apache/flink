@@ -27,8 +27,8 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
@@ -77,6 +77,7 @@ public class AlignedCheckpointsMassiveRandomTest {
                                     SystemClock.getInstance(),
                                     myIG.getNumberOfInputChannels(),
                                     (callable, duration) -> () -> {},
+                                    true,
                                     myIG),
                             new SyncMailboxExecutor());
 
@@ -233,6 +234,17 @@ public class AlignedCheckpointsMassiveRandomTest {
 
         @Override
         public void checkpointStopped(long cancelledCheckpointId) {}
+
+        @Override
+        public int getBuffersInUseCount() {
+            return 0;
+        }
+
+        @Override
+        public void announceBufferSize(int bufferSize) {}
+
+        public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)
+                throws IOException {}
 
         @Override
         public void setup() {}

@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <S> Type of originally wrapped state object
  */
 abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V>>
-        implements InternalKvState<K, N, V> {
+        implements InternalKvState<K, N, V>, ChangelogState {
 
     protected final S delegatedState;
     protected final KvStateChangeLogger<V, N> changeLogger;

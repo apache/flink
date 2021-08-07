@@ -25,10 +25,10 @@ from pyflink.table import DataTypes
 from pyflink.table.expressions import row
 from pyflink.table.tests.test_types import PythonOnlyPoint, PythonOnlyUDT
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class StreamTableCalcTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
     def test_select(self):
         t = self.t_env.from_elements([(1, 'hi', 'hello')], ['a', 'b', 'c'])

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -58,6 +59,8 @@ public class TestInputChannel extends InputChannel {
     private boolean isBlocked;
 
     private int sequenceNumber;
+
+    private int currentBufferSize;
 
     public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
         this(inputGate, channelIndex, true, false);
@@ -186,8 +189,27 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
+    void announceBufferSize(int newBufferSize) {
+        currentBufferSize = newBufferSize;
+    }
+
+    public int getCurrentBufferSize() {
+        return currentBufferSize;
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return buffers.size();
+    }
+
+    @Override
     public void resumeConsumption() {
         isBlocked = false;
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        throw new UnsupportedEncodingException();
     }
 
     @Override

@@ -26,28 +26,37 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import com.google.protobuf.GeneratedMessageV3;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
+import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.MAIN_INPUT_NAME;
+import static org.apache.flink.python.Constants.MAIN_OUTPUT_NAME;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.TRANSFORM_ID;
 
 /** A {@link BeamTablePythonFunctionRunner} used to execute Python functions in Table API. */
 @Internal
-public abstract class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
+public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
-    private final RowType inputType;
-    private final RowType outputType;
+    /** The urn which represents the function kind to be executed. */
+    private final String functionUrn;
 
-    BeamTablePythonFunctionRunner(
+    private final GeneratedMessageV3 userDefinedFunctionProto;
+
+    public BeamTablePythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            RowType inputType,
-            RowType outputType,
             String functionUrn,
+            GeneratedMessageV3 userDefinedFunctionProto,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
@@ -55,55 +64,56 @@ public abstract class BeamTablePythonFunctionRunner extends BeamPythonFunctionRu
             TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
+            FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         super(
                 taskName,
                 environmentManager,
-                functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,
                 namespaceSerializer,
+                null,
                 memoryManager,
                 managedMemoryFraction,
-                inputDataType,
-                outputDataType,
-                outputMode);
-        this.inputType = Preconditions.checkNotNull(inputType);
-        this.outputType = Preconditions.checkNotNull(outputType);
+                inputCoderDescriptor,
+                outputCoderDescriptor);
+        this.functionUrn = Preconditions.checkNotNull(functionUrn);
+        this.userDefinedFunctionProto = Preconditions.checkNotNull(userDefinedFunctionProto);
     }
 
     @Override
-    protected RunnerApi.Coder getInputCoderProto() {
-        return getRowCoderProto(inputType, inputDataType, outputMode);
+    protected Map<String, RunnerApi.PTransform> getTransforms() {
+        return Collections.singletonMap(
+                TRANSFORM_ID,
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(TRANSFORM_ID)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(functionUrn)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        userDefinedFunctionProto.toByteArray()))
+                                        .build())
+                        .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
+                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
+                        .build());
     }
 
     @Override
-    protected RunnerApi.Coder getOutputCoderProto() {
-        return getRowCoderProto(outputType, outputDataType, outputMode);
+    protected List<TimerReference> getTimers(RunnerApi.Components components) {
+        return Collections.emptyList();
     }
 
-    private static RunnerApi.Coder getRowCoderProto(
-            RowType rowType,
-            FlinkFnApi.CoderParam.DataType dataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
-        FlinkFnApi.Schema rowSchema = toProtoType(rowType).getRowSchema();
-        FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
-        coderParamBuilder.setDataType(dataType);
-        coderParamBuilder.setSchema(rowSchema);
-        coderParamBuilder.setOutputMode(outputMode);
-        return RunnerApi.Coder.newBuilder()
-                .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                                .setUrn(FLINK_CODER_URN)
-                                .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
-                                                .ByteString.copyFrom(
-                                                coderParamBuilder.build().toByteArray()))
-                                .build())
-                .build();
+    @Override
+    protected Optional<RunnerApi.Coder> getOptionalTimerCoderProto() {
+        return Optional.empty();
+    }
+
+    @Override
+    public void processTimer(byte[] timerData) throws Exception {
+        throw new UnsupportedOperationException();
     }
 }

@@ -23,11 +23,11 @@ from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, ResultKind
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkTestCase
 
 
-class StreamSqlTests(PyFlinkBlinkStreamTableTestCase):
+class StreamSqlTests(PyFlinkStreamTableTestCase):
 
     def test_sql_ddl(self):
         self.t_env.execute_sql("create temporary function func1 as "

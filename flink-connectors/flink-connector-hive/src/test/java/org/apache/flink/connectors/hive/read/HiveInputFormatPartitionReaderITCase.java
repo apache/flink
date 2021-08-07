@@ -43,8 +43,7 @@ public class HiveInputFormatPartitionReaderITCase {
     @Test
     public void testReadMultipleSplits() throws Exception {
         HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog();
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 

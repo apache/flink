@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -590,9 +589,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
         TestTaskStateManager taskStateManager = testHarness.taskStateManager;
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-
-        taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
 
         // reset number of restore calls
         TestingStreamOperator.numberRestoreCalls = 0;
@@ -613,7 +609,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         // since no state was set, there shouldn't be restore calls
         assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-        waitForAcknowledgeLatch.await();
+        taskStateManager.getWaitForReportLatch().await();
 
         assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
 
@@ -714,9 +710,11 @@ public class OneInputStreamTaskTest extends TestLogger {
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Operator0]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Operator0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -733,7 +731,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
 
             // verify that the timer service is still running
             Assert.assertTrue(
@@ -945,7 +943,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 

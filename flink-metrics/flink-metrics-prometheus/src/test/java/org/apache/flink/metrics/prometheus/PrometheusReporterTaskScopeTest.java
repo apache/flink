@@ -28,8 +28,8 @@ import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -113,7 +113,7 @@ public class PrometheusReporterTaskScopeTest {
     public void setupReporter() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(createReporterSetup("test1", "9400-9500")));
         reporter = (PrometheusReporter) registry.getReporters().get(0);
 

@@ -30,7 +30,7 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.hamcrest.Matcher;
 
@@ -58,7 +58,7 @@ public class SourceStreamTaskTestBase {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
 
         try (StreamTaskMailboxTestHarness<Integer> harness =
                 builder.setupOutputForSingletonOperatorChain(operatorFactory)

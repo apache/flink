@@ -106,7 +106,9 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
             mainOperator.processElement(streamRecord);
         } else {
             mainOperator.endInput();
-            controller.allActionsCompleted();
+            mainOperator.finish();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
     }
 
@@ -116,7 +118,6 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
     @Override
     protected void cleanup() throws Exception {
         mainOperator.close();
-        mainOperator.dispose();
     }
 
     private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {

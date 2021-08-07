@@ -35,6 +35,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -75,6 +76,7 @@ public class TaskManagerServices {
     private final JobTable jobTable;
     private final JobLeaderService jobLeaderService;
     private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
+    private final TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager;
     private final TaskEventDispatcher taskEventDispatcher;
     private final ExecutorService ioExecutor;
     private final LibraryCacheManager libraryCacheManager;
@@ -90,6 +92,7 @@ public class TaskManagerServices {
             JobTable jobTable,
             JobLeaderService jobLeaderService,
             TaskExecutorLocalStateStoresManager taskManagerStateStore,
+            TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager,
             TaskEventDispatcher taskEventDispatcher,
             ExecutorService ioExecutor,
             LibraryCacheManager libraryCacheManager) {
@@ -105,6 +108,7 @@ public class TaskManagerServices {
         this.jobTable = Preconditions.checkNotNull(jobTable);
         this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
         this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
+        this.taskManagerChangelogManager = Preconditions.checkNotNull(taskManagerChangelogManager);
         this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
         this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
@@ -152,6 +156,10 @@ public class TaskManagerServices {
 
     public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
         return taskManagerStateStore;
+    }
+
+    public TaskExecutorStateChangelogStoragesManager getTaskManagerChangelogManager() {
+        return taskManagerChangelogManager;
     }
 
     public TaskEventDispatcher getTaskEventDispatcher() {
@@ -324,6 +332,9 @@ public class TaskManagerServices {
                         stateRootDirectoryFiles,
                         ioExecutor);
 
+        final TaskExecutorStateChangelogStoragesManager changelogStoragesManager =
+                new TaskExecutorStateChangelogStoragesManager();
+
         final boolean failOnJvmMetaspaceOomError =
                 taskManagerServicesConfiguration
                         .getConfiguration()
@@ -353,6 +364,7 @@ public class TaskManagerServices {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                changelogStoragesManager,
                 taskEventDispatcher,
                 ioExecutor,
                 libraryCacheManager);

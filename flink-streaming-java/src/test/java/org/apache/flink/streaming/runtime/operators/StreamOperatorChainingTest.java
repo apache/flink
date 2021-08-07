@@ -280,7 +280,7 @@ public class StreamOperatorChainingTest {
     private <IN, OT extends StreamOperator<IN>> OperatorChain<IN, OT> createOperatorChain(
             StreamConfig streamConfig, Environment environment, StreamTask<IN, OT> task) {
         return new OperatorChain<>(
-                task, StreamTask.createRecordWriterDelegate(streamConfig, environment));
+                task, StreamTask.createRecordWriterDelegate(streamConfig, environment), false);
     }
 
     private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(

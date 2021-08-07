@@ -23,7 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapWatcher;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapSharedInformer;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -323,16 +323,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public KubernetesWatch watchConfigMaps(
-            String name, WatchCallbackHandler<KubernetesConfigMap> callbackHandler) {
-        return new KubernetesWatch(
-                this.internalClient
-                        .configMaps()
-                        .withName(name)
-                        .watch(new KubernetesConfigMapWatcher(callbackHandler)));
-    }
-
-    @Override
     public CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels) {
         return CompletableFuture.runAsync(
                 () -> this.internalClient.configMaps().withLabels(labels).delete(),
@@ -344,6 +334,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         return CompletableFuture.runAsync(
                 () -> this.internalClient.configMaps().withName(configMapName).delete(),
                 kubeClientExecutorService);
+    }
+
+    @Override
+    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(
+            Map<String, String> labels) {
+        return new KubernetesConfigMapSharedInformer(this.internalClient, labels);
     }
 
     @Override

@@ -18,6 +18,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -25,11 +26,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Iterator;
 
-class StateChangeLoggingIterator<State, StateElement, Namespace> implements Iterator<StateElement> {
+class StateChangeLoggingIterator<State, StateElement, Namespace>
+        implements CloseableIterator<StateElement> {
 
-    private final Iterator<StateElement> iterator;
+    private final CloseableIterator<StateElement> iterator;
     private final StateChangeLogger<State, Namespace> changeLogger;
     private final BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
             removalWriter;
@@ -37,7 +38,7 @@ class StateChangeLoggingIterator<State, StateElement, Namespace> implements Iter
     @Nullable private StateElement lastReturned;
 
     private StateChangeLoggingIterator(
-            Iterator<StateElement> iterator,
+            CloseableIterator<StateElement> iterator,
             StateChangeLogger<State, Namespace> changeLogger,
             BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
                     removalWriter,
@@ -69,12 +70,17 @@ class StateChangeLoggingIterator<State, StateElement, Namespace> implements Iter
     }
 
     @Nonnull
-    public static <Namespace, State, StateElement> Iterator<StateElement> create(
-            Iterator<StateElement> iterator,
+    public static <Namespace, State, StateElement> CloseableIterator<StateElement> create(
+            CloseableIterator<StateElement> iterator,
             StateChangeLogger<State, Namespace> changeLogger,
             BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
                     removalWriter,
             Namespace ns) {
         return new StateChangeLoggingIterator<>(iterator, changeLogger, removalWriter, ns);
+    }
+
+    @Override
+    public void close() throws Exception {
+        iterator.close();
     }
 }

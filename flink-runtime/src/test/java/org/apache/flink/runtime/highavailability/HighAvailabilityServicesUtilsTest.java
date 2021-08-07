@@ -23,6 +23,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -64,7 +65,11 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
         // when
         actualHaServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                        config, executor, AddressResolution.NO_ADDRESS_RESOLUTION);
+                        config,
+                        executor,
+                        AddressResolution.NO_ADDRESS_RESOLUTION,
+                        RpcSystem.load());
+
         // then
         assertSame(haServices, actualHaServices);
     }

@@ -267,6 +267,11 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
+    public int getNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    @Override
     protected long getTotalNumberOfBuffers() {
         return numBuffersAndEventsWritten;
     }
@@ -276,7 +281,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
         return data.getSize();
     }
 
-    int getBuffersInBacklog() {
+    int getBuffersInBacklogUnsafe() {
         return numDataBuffersWritten;
     }
 

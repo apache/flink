@@ -56,6 +56,7 @@ import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -251,12 +252,13 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                             slotOfferLatch.trigger();
                             return CompletableFuture.completedFuture(slotOffers);
                         })
-                .setTaskManagerHeartbeatConsumer(
+                .setTaskManagerHeartbeatFunction(
                         (resourceID, taskExecutorToJobManagerHeartbeatPayload) -> {
                             ExecutionDeploymentReport executionDeploymentReport =
                                     taskExecutorToJobManagerHeartbeatPayload
                                             .getExecutionDeploymentReport();
                             deployedExecutionsFuture.add(executionDeploymentReport.getExecutions());
+                            return FutureUtils.completedVoidFuture();
                         })
                 .setUpdateTaskExecutionStateFunction(
                         taskExecutionState -> {

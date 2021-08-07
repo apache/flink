@@ -50,18 +50,23 @@ class CheckpointPlan {
     /** The job vertices whose tasks are all finished when taking the checkpoint. */
     private final List<ExecutionJobVertex> fullyFinishedJobVertex;
 
+    /** Whether we support checkpoints after some tasks finished. */
+    private final boolean mayHaveFinishedTasks;
+
     CheckpointPlan(
             List<Execution> tasksToTrigger,
             List<Execution> tasksToWaitFor,
             List<ExecutionVertex> tasksToCommitTo,
             List<Execution> finishedTasks,
-            List<ExecutionJobVertex> fullyFinishedJobVertex) {
+            List<ExecutionJobVertex> fullyFinishedJobVertex,
+            boolean mayHaveFinishedTasks) {
 
         this.tasksToTrigger = checkNotNull(tasksToTrigger);
         this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
         this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
         this.finishedTasks = checkNotNull(finishedTasks);
         this.fullyFinishedJobVertex = checkNotNull(fullyFinishedJobVertex);
+        this.mayHaveFinishedTasks = mayHaveFinishedTasks;
     }
 
     List<Execution> getTasksToTrigger() {
@@ -82,5 +87,9 @@ class CheckpointPlan {
 
     public List<ExecutionJobVertex> getFullyFinishedJobVertex() {
         return fullyFinishedJobVertex;
+    }
+
+    public boolean isMayHaveFinishedTasks() {
+        return mayHaveFinishedTasks;
     }
 }

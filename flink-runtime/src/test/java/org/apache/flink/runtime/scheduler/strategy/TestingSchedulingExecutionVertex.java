@@ -90,8 +90,15 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
     }
 
     void addConsumedPartition(TestingSchedulingResultPartition consumedPartition) {
-        this.consumedPartitionGroups.add(
-                ConsumedPartitionGroup.fromSinglePartition(consumedPartition.getId()));
+        final ConsumedPartitionGroup consumedPartitionGroup =
+                ConsumedPartitionGroup.fromSinglePartition(consumedPartition.getId());
+
+        consumedPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
+        if (consumedPartition.getState() == ResultPartitionState.CONSUMABLE) {
+            consumedPartitionGroup.partitionFinished();
+        }
+
+        this.consumedPartitionGroups.add(consumedPartitionGroup);
         this.resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
     }
 

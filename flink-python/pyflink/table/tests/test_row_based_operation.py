@@ -22,8 +22,8 @@ from pyflink.table import expressions as expr, ListView
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udf, udtf, udaf, AggregateFunction, TableAggregateFunction, udtaf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
 class RowBasedOperationTests(object):
@@ -137,7 +137,7 @@ class RowBasedOperationTests(object):
              "+I[1, 5, 1, 5, 1, 5]", "+I[1, 6, 1, 6, 1, 6]", "+I[1, 7, 1, 7, 1, 7]"])
 
 
-class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
+class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTestCase):
     def test_aggregate_with_pandas_udaf(self):
         t = self.t_env.from_elements(
             [(1, 2, 3), (2, 1, 3), (1, 5, 4), (1, 8, 6), (2, 3, 4)],
@@ -237,7 +237,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
                             "+I[2018-03-11 04:59:59.999, 8.0, 8]"])
 
 
-class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamTableTestCase):
+class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkStreamTableTestCase):
     def test_aggregate(self):
         import pandas as pd
         t = self.t_env.from_elements(

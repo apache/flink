@@ -47,7 +47,7 @@ import java.util.UUID;
 
 import static org.apache.flink.runtime.util.StateHandleStoreUtils.deserialize;
 import static org.apache.flink.runtime.util.StateHandleStoreUtils.serializeOrDiscard;
-import static org.apache.flink.shaded.guava18.com.google.common.collect.Sets.newHashSet;
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Sets.newHashSet;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**

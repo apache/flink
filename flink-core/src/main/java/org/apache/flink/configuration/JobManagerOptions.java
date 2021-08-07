@@ -280,7 +280,7 @@ public class JobManagerOptions {
                                                     "'region': Restarts all tasks that could be affected by the task failure. "
                                                             + "More details can be found %s.",
                                                     link(
-                                                            "../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+                                                            "../../ops/state/task_failure_recovery/#restart-pipelined-region-failover-strategy",
                                                             "here")))
                                     .build());
 

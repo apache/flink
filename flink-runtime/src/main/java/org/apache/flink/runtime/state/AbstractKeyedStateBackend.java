@@ -53,7 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend<K> {
+                TestableKeyedStateBackend<K>,
+                InternalKeyContext<K> {
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -393,5 +394,10 @@ public abstract class AbstractKeyedStateBackend<K>
                 final TypeSerializer<N> namespaceSerializer,
                 final StateDescriptor<S, ?> stateDescriptor)
                 throws Exception;
+    }
+
+    @Override
+    public void setCurrentKeyGroupIndex(int currentKeyGroupIndex) {
+        keyContext.setCurrentKeyGroupIndex(currentKeyGroupIndex);
     }
 }

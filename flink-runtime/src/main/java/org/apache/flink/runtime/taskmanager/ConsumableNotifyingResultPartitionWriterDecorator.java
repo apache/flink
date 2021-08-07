@@ -149,6 +149,16 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
+        public void notifyEndOfUserRecords() throws IOException {
+            partitionWriter.notifyEndOfUserRecords();
+        }
+
+        @Override
+        public CompletableFuture<Void> getAllRecordsProcessedFuture() {
+            return partitionWriter.getAllRecordsProcessedFuture();
+        }
+
+        @Override
         public void setMetricGroup(TaskIOMetricGroup metrics) {
             partitionWriter.setMetricGroup(metrics);
         }

@@ -24,7 +24,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.PushSorter;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -50,8 +50,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * A {@link StreamTaskInput} which sorts in the incoming records from a chained input. It postpones
- * emitting the records until it receives {@link InputStatus#END_OF_INPUT} from the chained input.
- * After it is done it emits a single record at a time from the sorter.
+ * emitting the records until it receives {@link DataInputStatus#END_OF_INPUT} from the chained
+ * input. After it is done it emits a single record at a time from the sorter.
  *
  * <p>The sorter uses binary comparison of keys, which are extracted and serialized when received
  * from the chained input. Moreover the timestamps of incoming records are used for secondary
@@ -182,13 +182,13 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
         if (sortedInput != null) {
             return emitNextSortedRecord(output);
         }
 
-        InputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
-        if (inputStatus == InputStatus.END_OF_INPUT) {
+        DataInputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
+        if (inputStatus == DataInputStatus.END_OF_INPUT) {
             endSorting();
             return emitNextSortedRecord(output);
         }
@@ -197,21 +197,21 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
     }
 
     @Nonnull
-    private InputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
+    private DataInputStatus emitNextSortedRecord(DataOutput<T> output) throws Exception {
         if (emittedLast) {
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
 
         Tuple2<byte[], StreamRecord<T>> next = sortedInput.next();
         if (next != null) {
             output.emitRecord(next.f1);
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         } else {
             emittedLast = true;
             if (watermarkSeen > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(watermarkSeen));
             }
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
     }
 

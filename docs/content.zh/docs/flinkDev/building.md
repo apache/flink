@@ -33,7 +33,7 @@ under the License.
 
 ## 构建 Flink
 
-首先需要准备源码。可以[从发布版本下载源码](https://flink.apache.org/downloads.html) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
+首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
 还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8** 或更新的版本来进行构建。
 

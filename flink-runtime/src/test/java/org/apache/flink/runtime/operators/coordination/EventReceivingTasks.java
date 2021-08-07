@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -105,7 +106,11 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
 
     public OperatorCoordinator.SubtaskGateway createGatewayForSubtask(int subtask) {
         final SubtaskAccess sta = getAccessForSubtask(subtask);
-        return new SubtaskGatewayImpl(sta, new OperatorEventValve(), Executors.directExecutor());
+        return new SubtaskGatewayImpl(
+                sta,
+                new OperatorEventValve(),
+                Executors.directExecutor(),
+                new IncompleteFuturesTracker());
     }
 
     public void switchTaskToRunning(int subtask) {

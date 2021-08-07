@@ -30,8 +30,6 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocati
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionExpression;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionSpec;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitioningSpec;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
@@ -101,6 +99,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.util.ArrayDeque;
@@ -2392,6 +2391,124 @@ public class HiveParserBaseSemanticAnalyzer {
                         throw new AssertionError("Unkown Token: " + rowChild);
                 }
             }
+        }
+    }
+
+    /** Counterpart of hive's SQLPrimaryKey. */
+    public static class PrimaryKey implements Serializable {
+
+        private static final long serialVersionUID = 3036210046732750293L;
+
+        private final String dbName;
+        private final String tblName;
+        private final String pk;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public PrimaryKey(
+                String dbName,
+                String tblName,
+                String pk,
+                String constraintName,
+                boolean enable,
+                boolean validate,
+                boolean rely) {
+            this.dbName = dbName;
+            this.tblName = tblName;
+            this.pk = pk;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getDbName() {
+            return dbName;
+        }
+
+        public String getTblName() {
+            return tblName;
+        }
+
+        public String getPk() {
+            return pk;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
+        }
+    }
+
+    /** Counterpart of hive's SQLNotNullConstraint. */
+    public static class NotNullConstraint implements Serializable {
+
+        private static final long serialVersionUID = 7642343368203203950L;
+
+        private final String dbName;
+        private final String tblName;
+        private final String colName;
+        private final String constraintName;
+        private final boolean enable;
+        private final boolean validate;
+        private final boolean rely;
+
+        public NotNullConstraint(
+                String dbName,
+                String tblName,
+                String colName,
+                String constraintName,
+                boolean enable,
+                boolean validate,
+                boolean rely) {
+            this.dbName = dbName;
+            this.tblName = tblName;
+            this.colName = colName;
+            this.constraintName = constraintName;
+            this.enable = enable;
+            this.validate = validate;
+            this.rely = rely;
+        }
+
+        public String getDbName() {
+            return dbName;
+        }
+
+        public String getTblName() {
+            return tblName;
+        }
+
+        public String getColName() {
+            return colName;
+        }
+
+        public String getConstraintName() {
+            return constraintName;
+        }
+
+        public boolean isEnable() {
+            return enable;
+        }
+
+        public boolean isValidate() {
+            return validate;
+        }
+
+        public boolean isRely() {
+            return rely;
         }
     }
 }

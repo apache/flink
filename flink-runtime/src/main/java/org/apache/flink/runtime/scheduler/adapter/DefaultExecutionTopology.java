@@ -216,7 +216,8 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                                                                 : ResultPartitionState.CREATED,
                                                 partitionConsumerVertexGroups.apply(
                                                         irp.getPartitionId()),
-                                                executionVertexRetriever)));
+                                                executionVertexRetriever,
+                                                irp::getConsumedPartitionGroups)));
 
         return producedSchedulingPartitions;
     }

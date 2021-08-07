@@ -137,7 +137,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
         assertNotNull(subpartitionReader.getFailureCause());
         assertTrue(subpartitionReader.isReleased());
         assertEquals(0, subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers());
-        assertTrue(subpartitionReader.isAvailable(0));
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
 
         readScheduler.getReleaseFuture().get();
         assertAllResourcesReleased();
@@ -173,7 +173,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
 
         waitUntilReadFinish();
         assertNotNull(subpartitionReader.getFailureCause());
-        assertTrue(subpartitionReader.isAvailable(0));
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
         assertAllResourcesReleased();
     }
 
@@ -188,7 +188,7 @@ public class SortMergeResultPartitionReadSchedulerTest extends TestLogger {
 
         assertTrue(subpartitionReader.isReleased());
         assertNotNull(subpartitionReader.getFailureCause());
-        assertTrue(subpartitionReader.isAvailable(0));
+        assertTrue(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable());
         assertAllResourcesReleased();
     }
 

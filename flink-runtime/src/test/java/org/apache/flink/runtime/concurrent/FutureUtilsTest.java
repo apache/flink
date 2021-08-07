@@ -68,6 +68,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -337,7 +338,8 @@ public class FutureUtilsTest extends TestLogger {
 
         assertFalse(retryFuture.isDone());
 
-        final Collection<ScheduledFuture<?>> scheduledTasks = scheduledExecutor.getScheduledTasks();
+        final Collection<ScheduledFuture<?>> scheduledTasks =
+                scheduledExecutor.getActiveScheduledTasks();
 
         assertFalse(scheduledTasks.isEmpty());
 
@@ -380,7 +382,7 @@ public class FutureUtilsTest extends TestLogger {
                         noOpRunnable, TestingUtils.infiniteTime(), scheduledExecutor);
 
         final ScheduledFuture<?> scheduledFuture =
-                scheduledExecutor.getScheduledTasks().iterator().next();
+                scheduledExecutor.getActiveScheduledTasks().iterator().next();
 
         completableFuture.cancel(false);
 
@@ -822,6 +824,64 @@ public class FutureUtilsTest extends TestLogger {
 
         Assert.assertFalse(runWithExecutor.get());
         Assert.assertTrue(continuationFuture.isDone());
+    }
+
+    @Test
+    public void testHandleExceptionWithCompletedFuture() {
+        final CompletableFuture<String> future = CompletableFuture.completedFuture("foobar");
+        final CompletableFuture<String> handled =
+                FutureUtils.handleException(future, Exception.class, exception -> "handled");
+        assertEquals("foobar", handled.join());
+    }
+
+    @Test
+    public void testHandleExceptionWithNormalCompletion() {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final CompletableFuture<String> handled =
+                FutureUtils.handleException(future, Exception.class, exception -> "handled");
+        future.complete("foobar");
+        assertEquals("foobar", handled.join());
+    }
+
+    @Test
+    public void testHandleExceptionWithMatchingExceptionallyCompletedFuture() {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final CompletableFuture<String> handled =
+                FutureUtils.handleException(
+                        future, UnsupportedOperationException.class, exception -> "handled");
+        future.completeExceptionally(new UnsupportedOperationException("foobar"));
+        assertEquals("handled", handled.join());
+    }
+
+    @Test
+    public void testHandleExceptionWithNotMatchingExceptionallyCompletedFuture() {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final CompletableFuture<String> handled =
+                FutureUtils.handleException(
+                        future, UnsupportedOperationException.class, exception -> "handled");
+        final IllegalArgumentException futureException = new IllegalArgumentException("foobar");
+        future.completeExceptionally(futureException);
+        final CompletionException completionException =
+                assertThrows(CompletionException.class, handled::join);
+        assertEquals(futureException, completionException.getCause());
+    }
+
+    @Test
+    public void testHandleExceptionWithThrowingExceptionHandler() {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final IllegalStateException handlerException =
+                new IllegalStateException("something went terribly wrong");
+        final CompletableFuture<String> handled =
+                FutureUtils.handleException(
+                        future,
+                        UnsupportedOperationException.class,
+                        exception -> {
+                            throw handlerException;
+                        });
+        future.completeExceptionally(new UnsupportedOperationException("foobar"));
+        final CompletionException completionException =
+                assertThrows(CompletionException.class, handled::join);
+        assertEquals(handlerException, completionException.getCause());
     }
 
     @Test

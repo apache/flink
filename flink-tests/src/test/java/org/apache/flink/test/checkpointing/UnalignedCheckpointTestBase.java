@@ -60,13 +60,14 @@ import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
 import org.junit.Rule;
@@ -81,9 +82,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -96,9 +94,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
-import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
-import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -165,33 +161,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             miniCluster.after();
         }
         if (settings.generateCheckpoint) {
-            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                    .max(Comparator.comparing(Path::toString))
-                    .map(Path::toFile)
-                    .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+            return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir);
         }
         return null;
-    }
-
-    private boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
-        return attr.isDirectory()
-                && path.getFileName().toString().startsWith(CHECKPOINT_DIR_PREFIX)
-                && hasMetadata(path);
-    }
-
-    private boolean hasMetadata(Path file) {
-        try {
-            return Files.find(
-                            file.toAbsolutePath(),
-                            1,
-                            (path, attrs) ->
-                                    path.getFileName().toString().equals(METADATA_FILE_NAME))
-                    .findAny()
-                    .isPresent();
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
-            return false; // should never happen
-        }
     }
 
     private StreamGraph getStreamGraph(UnalignedSettings settings, Configuration conf) {
@@ -684,6 +656,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private Duration checkpointTimeout = CHECKPOINTING_TIMEOUT.defaultValue();
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
+        private int buffersPerChannel = 1;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -734,6 +707,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setBuffersPerChannel(int buffersPerChannel) {
+            this.buffersPerChannel = buffersPerChannel;
+            return this;
+        }
+
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig().setAlignmentTimeout(Duration.ofMillis(alignmentTimeout));
@@ -770,8 +748,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                         restoreCheckpoint.toURI().toString());
             }
 
-            conf.set(
-                    NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
+            conf.set(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
             conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;

@@ -51,7 +51,7 @@ Alternatively, users can create a `StreamTableEnvironment` from an existing `Str
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment
+# create a streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 ```
@@ -260,18 +260,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_update" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>connect(connector_descriptor)</strong>
-      </td>
-      <td>
-        Creates a temporary table from a descriptor. 
-        Currently the recommended way is using <strong>execute_sql</strong> to register temporary tables.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.connect" name="link">}}
       </td>
     </tr>
   </tbody>

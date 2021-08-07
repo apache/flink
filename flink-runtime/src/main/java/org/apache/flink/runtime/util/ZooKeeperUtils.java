@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -47,12 +48,17 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFa
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheSelector;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -532,6 +538,65 @@ public class ZooKeeperUtils {
                 // Curator prepends a '/' manually and throws an Exception if the
                 // namespace starts with a '/'.
                 trimStartingSlash(newNamespace));
+    }
+
+    /**
+     * Creates a {@link TreeCache} that only observes a specific node.
+     *
+     * @param client ZK client
+     * @param pathToNode full path of the node to observe
+     * @param nodeChangeCallback callback to run if the node has changed
+     * @return tree cache
+     */
+    public static TreeCache createTreeCache(
+            final CuratorFramework client,
+            final String pathToNode,
+            final RunnableWithException nodeChangeCallback) {
+        final TreeCache cache =
+                TreeCache.newBuilder(client, pathToNode)
+                        .setCacheData(true)
+                        .setCreateParentNodes(false)
+                        .setSelector(ZooKeeperUtils.treeCacheSelectorForPath(pathToNode))
+                        .setExecutor(Executors.newDirectExecutorService())
+                        .build();
+
+        cache.getListenable().addListener(createTreeCacheListener(nodeChangeCallback));
+
+        return cache;
+    }
+
+    @VisibleForTesting
+    static TreeCacheListener createTreeCacheListener(RunnableWithException nodeChangeCallback) {
+        return (ignored, event) -> {
+            // only notify listener if nodes have changed
+            // connection issues are handled separately from the cache
+            switch (event.getType()) {
+                case NODE_ADDED:
+                case NODE_UPDATED:
+                case NODE_REMOVED:
+                    nodeChangeCallback.run();
+            }
+        };
+    }
+
+    /**
+     * Returns a {@link TreeCacheSelector} that only accepts a specific node.
+     *
+     * @param fullPath node to accept
+     * @return tree cache selector
+     */
+    private static TreeCacheSelector treeCacheSelectorForPath(String fullPath) {
+        return new TreeCacheSelector() {
+            @Override
+            public boolean traverseChildren(String childPath) {
+                return false;
+            }
+
+            @Override
+            public boolean acceptChild(String childPath) {
+                return fullPath.equals(childPath);
+            }
+        };
     }
 
     /** Secure {@link ACLProvider} implementation. */

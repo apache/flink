@@ -109,7 +109,7 @@ public class SourceStreamTask<
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
                                             configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignmentTimeout().toMillis());
+                                            configuration.getAlignedCheckpointTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
@@ -158,7 +158,16 @@ public class SourceStreamTask<
         // compatibility reasons with the current source interface (source functions run as a loop,
         // not in steps).
         sourceThread.setTaskDescription(getName());
-        sourceThread.start();
+
+        if (operatorChain.isFinishedOnRestore()) {
+            LOG.debug(
+                    "Legacy source {} skip execution since the task is finished on restore",
+                    getTaskNameWithSubtaskAndId());
+            sourceThread.getCompletionFuture().complete(null);
+        } else {
+            sourceThread.start();
+        }
+
         sourceThread
                 .getCompletionFuture()
                 .whenComplete(
@@ -173,7 +182,7 @@ public class SourceStreamTask<
                             } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
-                                mailboxProcessor.allActionsCompleted();
+                                mailboxProcessor.suspend();
                             }
                         });
     }
@@ -215,6 +224,11 @@ public class SourceStreamTask<
     }
 
     private void interruptSourceThread(boolean interrupt) {
+        // Nothing need to do if the source is finished on restore
+        if (operatorChain != null && operatorChain.isFinishedOnRestore()) {
+            return;
+        }
+
         if (sourceThread.isAlive()) {
             if (interrupt) {
                 sourceThread.interrupt();

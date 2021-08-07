@@ -114,6 +114,30 @@ public class CheckpointingOptions {
                                     + "if no value set (job or cluster), the change log will not be "
                                     + "enabled.");
 
+    /**
+     * Which storage to use to store state changelog.
+     *
+     * <p>Recognized shortcut name is 'memory' from {@code
+     * InMemoryStateChangelogStorageFactory.getIdentifier()}, which is also the default value.
+     */
+    @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<String> STATE_CHANGE_LOG_STORAGE =
+            ConfigOptions.key("state.backend.changelog.storage")
+                    .stringType()
+                    .defaultValue("memory")
+                    .withDescription(
+                            Description.builder()
+                                    .text("The storage to be used to store state changelog.")
+                                    .linebreak()
+                                    .text(
+                                            "The implementation can be specified via their"
+                                                    + " shortcut name.")
+                                    .linebreak()
+                                    .text(
+                                            "The list of recognized shortcut names currently includes"
+                                                    + " 'memory' only.")
+                                    .build());
+
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS =

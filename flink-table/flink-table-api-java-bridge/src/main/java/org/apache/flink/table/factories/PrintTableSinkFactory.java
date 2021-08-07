@@ -95,7 +95,7 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
         helper.validate();
         ReadableConfig options = helper.getOptions();
         return new PrintSink(
-                context.getCatalogTable().getSchema().toPhysicalRowDataType(),
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
                 options.get(PRINT_IDENTIFIER),
                 options.get(STANDARD_ERROR),
                 options.getOptional(FactoryUtil.SINK_PARALLELISM).orElse(null));

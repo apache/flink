@@ -22,7 +22,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
-import org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation;
 
 import org.junit.Test;
 
@@ -33,7 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.COMMON_KEY_GROUP;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.METADATA;
+import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
 import static org.junit.Assert.assertEquals;
 
 abstract class StateChangeLoggerTestBase<Namespace> {
@@ -106,6 +105,11 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         @Override
         public void append(int keyGroup, byte[] value) {
             appends.add(Tuple2.of(keyGroup, StateChangeOperation.byCode(value[0])));
+        }
+
+        @Override
+        public SequenceNumber initialSequenceNumber() {
+            throw new UnsupportedOperationException();
         }
 
         @Override

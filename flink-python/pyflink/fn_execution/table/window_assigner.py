@@ -144,8 +144,7 @@ class CountTumblingWindowAssigner(WindowAssigner[CountWindow]):
         self._count = None  # type: ValueState
 
     def open(self, ctx: Context[Any, CountWindow]):
-        value_state_descriptor = ValueStateDescriptor('tumble-count-assigner',
-                                                      Types.PICKLED_BYTE_ARRAY())
+        value_state_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
         self._count = ctx.get_partitioned_state(value_state_descriptor)
 
     def assign_windows(self, element: List, timestamp: int) -> Iterable[CountWindow]:
@@ -218,7 +217,7 @@ class CountSlidingWindowAssigner(WindowAssigner[CountWindow]):
         self._count = None  # type: ValueState
 
     def open(self, ctx: Context[Any, CountWindow]):
-        count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.PICKLED_BYTE_ARRAY())
+        count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.LONG())
         self._count = ctx.get_partitioned_state(count_descriptor)
 
     def assign_windows(self, element: List, timestamp: int) -> Iterable[W]:

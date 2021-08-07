@@ -92,11 +92,15 @@ public class Elasticsearch6DynamicSinkFactoryTest {
                 "'sink.bulk-flush.max-size' must be in MB granularity. Got: 1024 bytes");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
-                        .withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1kb")
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION.key(),
+                                "1kb")
                         .build());
     }
 
@@ -108,12 +112,15 @@ public class Elasticsearch6DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.backoff.max-retries' must be at least 1. Got: 0");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
-                        .withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(),
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION
+                                        .key(),
                                 "0")
                         .build());
     }
@@ -126,11 +133,15 @@ public class Elasticsearch6DynamicSinkFactoryTest {
         thrown.expectMessage("'sink.bulk-flush.max-actions' must be at least 1. Got: -2");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
-                        .withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "-2")
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(),
+                                "-2")
                         .build());
     }
 
@@ -142,12 +153,15 @@ public class Elasticsearch6DynamicSinkFactoryTest {
         thrown.expectMessage("Invalid value for option 'sink.bulk-flush.backoff.delay'.");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
-                        .withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "-1s")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(),
+                                "-1s")
                         .build());
     }
 
@@ -203,11 +217,13 @@ public class Elasticsearch6DynamicSinkFactoryTest {
                                         UniqueConstraint.primaryKey(
                                                 "name",
                                                 Arrays.asList("a", "b", "c", "d", "e", "f", "g"))))
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
                         .withOption(
-                                ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "1s")
+                                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(),
+                                "1s")
                         .build());
     }
 
@@ -220,12 +236,14 @@ public class Elasticsearch6DynamicSinkFactoryTest {
                 "'username' and 'password' must be set at the same time. Got: username 'username' and password ''");
         sinkFactory.createDynamicTableSink(
                 context()
-                        .withOption(ElasticsearchOptions.INDEX_OPTION.key(), "MyIndex")
+                        .withOption(ElasticsearchConnectorOptions.INDEX_OPTION.key(), "MyIndex")
                         .withOption(
-                                ElasticsearchOptions.HOSTS_OPTION.key(), "http://localhost:1234")
-                        .withOption(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
-                        .withOption(ElasticsearchOptions.USERNAME_OPTION.key(), "username")
-                        .withOption(ElasticsearchOptions.PASSWORD_OPTION.key(), "")
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                                "http://localhost:1234")
+                        .withOption(
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), "MyType")
+                        .withOption(ElasticsearchConnectorOptions.USERNAME_OPTION.key(), "username")
+                        .withOption(ElasticsearchConnectorOptions.PASSWORD_OPTION.key(), "")
                         .build());
     }
 }

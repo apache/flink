@@ -68,12 +68,14 @@ Important classes of Flink Table API:
 """
 from __future__ import absolute_import
 
+from pyflink.table.changelog_mode import ChangelogMode
 from pyflink.table.data_view import DataView, ListView, MapView
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expression import Expression
 from pyflink.table.module import Module, ModuleEntry
 from pyflink.table.result_kind import ResultKind
+from pyflink.table.schema import Schema
 from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
 from pyflink.table.sources import CsvTableSource, TableSource
 from pyflink.table.sql_dialect import SqlDialect
@@ -109,6 +111,7 @@ __all__ = [
     'Row',
     'RowKind',
     'ScalarFunction',
+    'Schema',
     'SqlDialect',
     'StatementSet',
     'StreamTableEnvironment',
@@ -123,5 +126,6 @@ __all__ = [
     'TableAggregateFunction',
     'UserDefinedType',
     'WindowGroupedTable',
-    'WriteMode'
+    'WriteMode',
+    'ChangelogMode'
 ]

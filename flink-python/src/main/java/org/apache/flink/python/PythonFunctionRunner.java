@@ -40,6 +40,9 @@ public interface PythonFunctionRunner {
      */
     void process(byte[] data) throws Exception;
 
+    /** Send the triggered timer to the Python function. */
+    void processTimer(byte[] timerData) throws Exception;
+
     /**
      * Retrieves the Python function result.
      *

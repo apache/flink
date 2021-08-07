@@ -18,18 +18,24 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Group of consumed {@link IntermediateResultPartitionID}s. */
 public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartitionID> {
+
     private final List<IntermediateResultPartitionID> resultPartitions;
+
+    private final AtomicInteger unfinishedPartitions;
 
     private ConsumedPartitionGroup(List<IntermediateResultPartitionID> resultPartitions) {
         this.resultPartitions = resultPartitions;
+        this.unfinishedPartitions = new AtomicInteger(resultPartitions.size());
     }
 
     public static ConsumedPartitionGroup fromMultiplePartitions(
@@ -57,5 +63,22 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     public IntermediateResultPartitionID getFirst() {
         return iterator().next();
+    }
+
+    public int partitionUnfinished() {
+        return unfinishedPartitions.incrementAndGet();
+    }
+
+    public int partitionFinished() {
+        return unfinishedPartitions.decrementAndGet();
+    }
+
+    @VisibleForTesting
+    public int getNumberOfUnfinishedPartitions() {
+        return unfinishedPartitions.get();
+    }
+
+    public boolean areAllPartitionsFinished() {
+        return unfinishedPartitions.get() == 0;
     }
 }

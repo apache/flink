@@ -23,7 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{TimestampAssigner, WatermarkGenerator, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
-import org.apache.flink.api.common.operators.ResourceSpec
+import org.apache.flink.api.common.operators.{ResourceSpec, SlotSharingGroup}
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -319,6 +319,29 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def slotSharingGroup(slotSharingGroup: String): DataStream[T] = {
+    stream match {
+      case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+
+  /**
+   * Sets the slot sharing group of this operation. Parallel instances of
+   * operations that are in the same slot sharing group will be co-located in the same
+   * TaskManager slot, if possible.
+   *
+   * Operations inherit the slot sharing group of input operations if all input operations
+   * are in the same slot sharing group and no slot sharing group was explicitly specified.
+   *
+   * Initially an operation is in the default slot sharing group. An operation can be put into
+   * the default group explicitly by setting the slot sharing group to `"default"`.
+   *
+   * @param slotSharingGroup Which contains name and its resource spec.
+   */
+  @PublicEvolving
+  def slotSharingGroup(slotSharingGroup: SlotSharingGroup): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
       case _ =>

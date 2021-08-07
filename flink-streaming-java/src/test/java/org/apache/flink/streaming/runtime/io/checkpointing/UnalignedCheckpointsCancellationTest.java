@@ -99,11 +99,13 @@ public class UnalignedCheckpointsCancellationTest {
                         "test",
                         invokable,
                         SystemClock.getInstance(),
+                        true,
                         inputGate);
 
         for (RuntimeEvent e : events) {
             if (e instanceof CancelCheckpointMarker) {
-                unaligner.processCancellationBarrier((CancelCheckpointMarker) e);
+                unaligner.processCancellationBarrier(
+                        (CancelCheckpointMarker) e, new InputChannelInfo(0, channel));
             } else if (e instanceof CheckpointBarrier) {
                 unaligner.processBarrier((CheckpointBarrier) e, new InputChannelInfo(0, channel));
             } else {

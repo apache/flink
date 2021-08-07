@@ -18,14 +18,17 @@
 package org.apache.flink.connector.jdbc.xa;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExactlyOnceOptions;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.xa.XaFacade.EmptyXaTransactionException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -129,14 +132,18 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
  */
 @Internal
 public class JdbcXaSinkFunction<T> extends AbstractRichFunction
-        implements CheckpointedFunction, CheckpointListener, SinkFunction<T>, AutoCloseable {
+        implements CheckpointedFunction,
+                CheckpointListener,
+                SinkFunction<T>,
+                AutoCloseable,
+                InputTypeConfigurable {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcXaSinkFunction.class);
 
     private final XaFacade xaFacade;
     private final XaGroupOps xaGroupOps;
     private final XidGenerator xidGenerator;
-    private final JdbcBatchingOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat;
+    private final JdbcOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat;
     private final XaSinkStateHandler stateHandler;
     private final JdbcExactlyOnceOptions options;
 
@@ -163,17 +170,13 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
             JdbcExecutionOptions executionOptions,
             JdbcExactlyOnceOptions options) {
         this(
-                new JdbcBatchingOutputFormat<>(
+                new JdbcOutputFormat<>(
                         xaFacade,
                         executionOptions,
-                        context -> {
-                            Preconditions.checkState(
-                                    !context.getExecutionConfig().isObjectReuseEnabled(),
-                                    "objects can not be reused with JDBC sink function");
-                            return JdbcBatchStatementExecutor.simple(
-                                    sql, statementBuilder, Function.identity());
-                        },
-                        JdbcBatchingOutputFormat.RecordExtractor.identity()),
+                        context ->
+                                JdbcBatchStatementExecutor.simple(
+                                        sql, statementBuilder, Function.identity()),
+                        JdbcOutputFormat.RecordExtractor.identity()),
                 xaFacade,
                 XidGenerator.semanticXidGenerator(),
                 new XaSinkStateHandlerImpl(),
@@ -186,12 +189,12 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
      *
      * <p>All parameters must be {@link java.io.Serializable serializable}.
      *
-     * @param outputFormat {@link JdbcBatchingOutputFormat} to write records with
+     * @param outputFormat {@link JdbcOutputFormat} to write records with
      * @param xaFacade {@link XaFacade} to manage XA transactions
      * @param xidGenerator {@link XidGenerator} to generate new transaction ids
      */
     public JdbcXaSinkFunction(
-            JdbcBatchingOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat,
+            JdbcOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat,
             XaFacade xaFacade,
             XidGenerator xidGenerator,
             XaSinkStateHandler stateHandler,
@@ -353,5 +356,10 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                     }
                 });
         return new Tuple2<>(lo, hi);
+    }
+
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        outputFormat.setInputType(type, executionConfig);
     }
 }

@@ -42,23 +42,25 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BASIC_AUTH_USER_INFO;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.BEARER_AUTH_TOKEN;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.PROPERTIES;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_KEYSTORE_LOCATION;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_KEYSTORE_PASSWORD;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_TRUSTSTORE_LOCATION;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SSL_TRUSTSTORE_PASSWORD;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SUBJECT;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.URL;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
 
 /**
  * Table format factory for providing configured instances of Schema Registry Avro to RowData {@link
@@ -85,14 +87,10 @@ public class RegistryAvroFormatFactory
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        optionalPropertiesMap.isEmpty()
-                                ? ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL)
-                                : ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL,
-                                        optionalPropertiesMap),
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
                         AvroToRowDataConverters.createRowConverter(rowType),
                         rowDataTypeInfo);
             }
@@ -127,16 +125,11 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new AvroRowDataSerializationSchema(
                         rowType,
-                        optionalPropertiesMap.isEmpty()
-                                ? ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                        subject.get(),
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL)
-                                : ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                        subject.get(),
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL,
-                                        optionalPropertiesMap),
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                subject.get(),
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -175,7 +168,8 @@ public class RegistryAvroFormatFactory
         return options;
     }
 
-    private Map<String, String> buildOptionalPropertiesMap(ReadableConfig formatOptions) {
+    public static @Nullable Map<String, String> buildOptionalPropertiesMap(
+            ReadableConfig formatOptions) {
         final Map<String, String> properties = new HashMap<>();
 
         formatOptions.getOptional(PROPERTIES).ifPresent(properties::putAll);
@@ -205,6 +199,9 @@ public class RegistryAvroFormatFactory
                 .getOptional(BEARER_AUTH_TOKEN)
                 .ifPresent(v -> properties.put("bearer.auth.token", v));
 
+        if (properties.isEmpty()) {
+            return null;
+        }
         return properties;
     }
 }

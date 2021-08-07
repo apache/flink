@@ -64,13 +64,14 @@ import java.io.IOException;
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -81,6 +82,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/** Test for {@link CreditBasedPartitionRequestClientHandler}. */
 public class CreditBasedPartitionRequestClientHandlerTest {
 
     /**
@@ -241,6 +243,51 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             assertNotNull(receivedBuffer);
             assertTrue(receivedBuffer.isCompressed());
             receivedBuffer.recycleBuffer();
+        } finally {
+            releaseResource(inputGate, networkBufferPool);
+        }
+    }
+
+    /** Verifies that {@link NettyMessage.BacklogAnnouncement} can be handled correctly. */
+    @Test
+    public void testReceiveBacklogAnnouncement() throws Exception {
+        int bufferSize = 1024;
+        int numBuffers = 10;
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, bufferSize);
+        SingleInputGate inputGate =
+                new SingleInputGateBuilder().setSegmentProvider(networkBufferPool).build();
+        RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, null);
+        inputGate.setInputChannels(inputChannel);
+
+        try {
+            BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
+            inputGate.setBufferPool(bufferPool);
+            inputGate.setupChannels();
+
+            CreditBasedPartitionRequestClientHandler handler =
+                    new CreditBasedPartitionRequestClientHandler();
+            handler.addInputChannel(inputChannel);
+
+            assertEquals(2, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(0, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+
+            int backlog = 5;
+            NettyMessage.BacklogAnnouncement announcement =
+                    new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
+            handler.channelRead(null, announcement);
+            assertEquals(7, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(7, inputChannel.getNumberOfRequiredBuffers());
+            assertEquals(backlog, inputChannel.getSenderBacklog());
+            assertEquals(5, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+
+            backlog = 12;
+            announcement =
+                    new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
+            handler.channelRead(null, announcement);
+            assertEquals(10, inputChannel.getNumberOfAvailableBuffers());
+            assertEquals(14, inputChannel.getNumberOfRequiredBuffers());
+            assertEquals(backlog, inputChannel.getSenderBacklog());
+            assertEquals(8, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
         } finally {
             releaseResource(inputGate, networkBufferPool);
         }
@@ -626,6 +673,53 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                             cause, expectedClass));
         } catch (IOException e) {
             assertThat(e, instanceOf(expectedClass));
+        }
+    }
+
+    @Test
+    public void testAnnounceBufferSize() throws Exception {
+        final CreditBasedPartitionRequestClientHandler handler =
+                new CreditBasedPartitionRequestClientHandler();
+        final EmbeddedChannel channel = new EmbeddedChannel(handler);
+        final PartitionRequestClient client =
+                new NettyPartitionRequestClient(
+                        channel,
+                        handler,
+                        mock(ConnectionID.class),
+                        mock(PartitionRequestClientFactory.class));
+
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+        final SingleInputGate inputGate = createSingleInputGate(2, networkBufferPool);
+        final RemoteInputChannel[] inputChannels = new RemoteInputChannel[2];
+        inputChannels[0] = createRemoteInputChannel(inputGate, client);
+        inputChannels[1] = createRemoteInputChannel(inputGate, client);
+        try {
+            inputGate.setInputChannels(inputChannels);
+            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            inputGate.setBufferPool(bufferPool);
+            inputGate.setupChannels();
+
+            inputChannels[0].requestSubpartition(0);
+            inputChannels[1].requestSubpartition(0);
+            channel.readOutbound();
+            channel.readOutbound();
+
+            inputGate.announceBufferSize(333);
+
+            channel.runPendingTasks();
+
+            NettyMessage.NewBufferSize readOutbound = channel.readOutbound();
+            assertThat(readOutbound, instanceOf(NettyMessage.NewBufferSize.class));
+            assertThat(readOutbound.receiverId, is(inputChannels[0].getInputChannelId()));
+            assertThat(readOutbound.bufferSize, is(333L));
+
+            readOutbound = channel.readOutbound();
+            assertThat(readOutbound.receiverId, is(inputChannels[1].getInputChannelId()));
+            assertThat(readOutbound.bufferSize, is(333L));
+
+        } finally {
+            releaseResource(inputGate, networkBufferPool);
+            channel.close();
         }
     }
 

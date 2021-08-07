@@ -229,12 +229,20 @@ public class CancelPartitionRequestTest {
         public void resumeConsumption() {}
 
         @Override
-        public boolean isAvailable(int numCreditsAvailable) {
-            return true;
+        public void acknowledgeAllRecordsProcessed() {}
+
+        @Override
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+            return new AvailabilityWithBacklog(true, 0);
         }
 
         @Override
         public int unsynchronizedGetNumberOfQueuedBuffers() {
+            return 0;
+        }
+
+        @Override
+        public int getNumberOfQueuedBuffers() {
             return 0;
         }
 

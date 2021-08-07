@@ -296,7 +296,7 @@ public class SingleInputGate extends IndexedInputGate {
     }
 
     @VisibleForTesting
-    void convertRecoveredInputChannels() {
+    public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
         for (Map.Entry<IntermediateResultPartitionID, InputChannel> entry :
                 inputChannels.entrySet()) {
@@ -364,6 +364,22 @@ public class SingleInputGate extends IndexedInputGate {
         }
 
         return unfinishedChannels;
+    }
+
+    @Override
+    public int getBuffersInUseCount() {
+        int total = 0;
+        for (InputChannel channel : channels) {
+            total += Math.max(1, channel.getBuffersInUseCount());
+        }
+        return total;
+    }
+
+    @Override
+    public void announceBufferSize(int newBufferSize) {
+        for (InputChannel channel : channels) {
+            channel.announceBufferSize(newBufferSize);
+        }
     }
 
     /**
@@ -820,6 +836,12 @@ public class SingleInputGate extends IndexedInputGate {
         // is safe to not synchronize the requestLock here. We will refactor the code to not
         // rely on this assumption in the future.
         channels[channelInfo.getInputChannelIdx()].resumeConsumption();
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        checkState(!isFinished(), "InputGate already finished.");
+        channels[channelInfo.getInputChannelIdx()].acknowledgeAllRecordsProcessed();
     }
 
     // ------------------------------------------------------------------------

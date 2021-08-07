@@ -31,7 +31,6 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -44,6 +43,7 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -166,6 +166,33 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
         }
     }
 
+    @Test
+    public void testSkipExecutionIfFinishedOnRestore() throws Exception {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
+
+        LifeCycleMonitorSource testingSource =
+                new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(testingSource, WatermarkStrategy.noWatermarks());
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, taskStateSnapshot)
+                        .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
+                        .build()) {
+
+            testHarness.getStreamTask().invoke();
+            testHarness.waitForTaskCompletion();
+
+            LifeCycleMonitorSourceReader sourceReader =
+                    (LifeCycleMonitorSourceReader)
+                            ((SourceOperator<?, ?>) testHarness.getStreamTask().getMainOperator())
+                                    .getSourceReader();
+            sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+        }
+    }
+
     private TaskStateSnapshot executeAndWaitForCheckpoint(
             long checkpointId, TaskStateSnapshot initialSnapshot, IntStream expectedRecords)
             throws Exception {
@@ -206,8 +233,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             CheckpointOptions checkpointOptions)
             throws Exception {
         // Trigger a checkpoint.
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-        testHarness.taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
+        testHarness.taskStateManager.getWaitForReportLatch().reset();
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
         Future<Boolean> checkpointFuture =
                 testHarness
@@ -223,7 +249,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
         Future<Void> checkpointNotified =
                 testHarness.getStreamTask().notifyCheckpointCompleteAsync(checkpointId);
         processUntil(testHarness, checkpointNotified::isDone);
-        waitForAcknowledgeLatch.await();
+        testHarness.taskStateManager.getWaitForReportLatch().await();
     }
 
     private void processUntil(StreamTaskMailboxTestHarness testHarness, Supplier<Boolean> condition)
@@ -380,5 +406,44 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public void close() throws Exception {}
+    }
+
+    static class LifeCycleMonitorSource extends MockSource {
+
+        public LifeCycleMonitorSource(Boundedness boundedness, int numSplits) {
+            super(boundedness, numSplits);
+        }
+
+        @Override
+        public SourceReader<Integer, MockSourceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new LifeCycleMonitorSourceReader();
+        }
+    }
+
+    static class LifeCycleMonitorSourceReader extends MockSourceReader {
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void start() {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+            super.start();
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+            return super.pollNext(sourceOutput);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+            super.close();
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
     }
 }

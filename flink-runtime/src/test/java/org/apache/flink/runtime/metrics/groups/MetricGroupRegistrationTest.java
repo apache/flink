@@ -25,8 +25,8 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
@@ -45,7 +45,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
     public void testMetricInstantiation() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("test", new TestReporter1())));
 
@@ -113,7 +113,7 @@ public class MetricGroupRegistrationTest extends TestLogger {
         Configuration config = new Configuration();
 
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
 
         MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
 

@@ -81,8 +81,8 @@ public final class PythonTypeUtils {
         return logicalType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
     }
 
-    public static TypeSerializer toBlinkTypeSerializer(LogicalType logicalType) {
-        return logicalType.accept(new LogicalTypeToBlinkTypeSerializerConverter());
+    public static TypeSerializer toInternalSerializer(LogicalType logicalType) {
+        return logicalType.accept(new LogicalTypetoInternalSerializerConverter());
     }
 
     /**
@@ -137,7 +137,7 @@ public final class PythonTypeUtils {
         return time + LOCAL_TZ.getOffset(time);
     }
 
-    private static class LogicalTypeToBlinkTypeSerializerConverter
+    private static class LogicalTypetoInternalSerializerConverter
             extends LogicalTypeDefaultVisitor<TypeSerializer> {
         @Override
         public TypeSerializer visit(BooleanType booleanType) {

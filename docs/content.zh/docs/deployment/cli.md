@@ -30,7 +30,7 @@ under the License.
 Flink provides a Command-Line Interface (CLI) `bin/flink` to run programs that 
 are packaged as JAR files and to control their execution. The CLI is part of any 
 Flink setup, available in local single node setups and in distributed setups. 
-It connects to the running JobManager specified in `conf/flink-config.yaml`.
+It connects to the running JobManager specified in `conf/flink-conf.yaml`.
 
 
 
@@ -290,7 +290,7 @@ Here's an overview of actions supported by Flink's CLI tool:
                 This action can be used to create or disposing savepoints for a given job. It might be
                 necessary to specify a savepoint directory besides the JobID, if the 
                 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
-                parameter was not specified in <code class="highlighter-rouge">conf/flink-config.yaml</code>.
+                parameter was not specified in <code class="highlighter-rouge">conf/flink-conf.yaml</code>.
             </td>
         </tr>
         <tr>
@@ -348,7 +348,7 @@ parameter combinations:
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the `config/flink-config.yaml`.
+specified in the `conf/flink-conf.yaml`.
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.

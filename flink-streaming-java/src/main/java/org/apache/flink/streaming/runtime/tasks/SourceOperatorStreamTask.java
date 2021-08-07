@@ -77,7 +77,9 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final SourceReader<T, ?> sourceReader = sourceOperator.getSourceReader();
         final StreamTaskInput<T> input;
 
-        if (sourceReader instanceof ExternallyInducedSourceReader) {
+        if (operatorChain.isFinishedOnRestore()) {
+            input = new StreamTaskFinishedOnRestoreSourceInput<>(sourceOperator, 0, 0);
+        } else if (sourceReader instanceof ExternallyInducedSourceReader) {
             isExternallyInducedSource = true;
 
             input =
@@ -148,7 +150,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                         CheckpointStorageLocationReference.getDefault(),
                         configuration.isExactlyOnceCheckpointMode(),
                         configuration.isUnalignedCheckpointsEnabled(),
-                        configuration.getAlignmentTimeout().toMillis());
+                        configuration.getAlignedCheckpointTimeout().toMillis());
         final long timestamp = System.currentTimeMillis();
 
         final CheckpointMetaData checkpointMetaData =

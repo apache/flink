@@ -39,17 +39,26 @@ public interface JobMasterPartitionTracker
             ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor);
 
     /** Releases the given partitions and stop the tracking of partitions that were released. */
-    void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds);
+    default void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndReleasePartitions(resultPartitionIds, true);
+    }
 
     /**
-     * Releases all partitions for the given task executor ID, and stop the tracking of partitions
-     * that were released.
+     * Releases the given partitions and stop the tracking of partitions that were released. The
+     * boolean flag indicates whether we need to notify the ShuffleMaster to release all external
+     * resources or not.
      */
-    void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
+    void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster);
 
     /**
-     * Releases all job partitions and promotes all cluster partitions for the given task executor
-     * ID, and stops the tracking of partitions that were released/promoted.
+     * Releases the job partitions and promotes the cluster partitions, and stops the tracking of
+     * partitions that were released/promoted.
      */
-    void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId);
+    void stopTrackingAndReleaseOrPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds);
+
+    /** Get all the partitions under tracking. */
+    Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions();
 }

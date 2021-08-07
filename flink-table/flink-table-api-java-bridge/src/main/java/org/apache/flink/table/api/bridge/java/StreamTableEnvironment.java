@@ -37,8 +37,6 @@ import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImp
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -1089,46 +1087,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @return The converted {@link DataStream}.
      */
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
-
-    /**
-     * Creates a table source and/or table sink from a descriptor.
-     *
-     * <p>Descriptors allow for declaring the communication to external systems in an
-     * implementation-agnostic way. The classpath is scanned for suitable table factories that match
-     * the desired configuration.
-     *
-     * <p>The following example shows how to read from a Kafka connector using a JSON format and
-     * registering a table source "MyTable" in append mode:
-     *
-     * <pre>{@code
-     * tableEnv
-     *   .connect(
-     *     new Kafka()
-     *       .version("0.11")
-     *       .topic("clicks")
-     *       .property("group.id", "click-group")
-     *       .startFromEarliest())
-     *   .withFormat(
-     *     new Json()
-     *       .jsonSchema("{...}")
-     *       .failOnMissingField(false))
-     *   .withSchema(
-     *     new Schema()
-     *       .field("user-name", "VARCHAR").from("u_name")
-     *       .field("count", "DECIMAL")
-     *       .field("proc-time", "TIMESTAMP").proctime())
-     *   .inAppendMode()
-     *   .createTemporaryTable("MyTable")
-     * }</pre>
-     *
-     * @param connectorDescriptor connector descriptor describing the external system
-     * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
-     *     might be refactored in the next versions. Please use {@link #executeSql(String)
-     *     executeSql(ddl)} to register a table instead.
-     */
-    @Override
-    @Deprecated
-    StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
     /**
      * Triggers the program execution. The environment will execute all parts of the program.
