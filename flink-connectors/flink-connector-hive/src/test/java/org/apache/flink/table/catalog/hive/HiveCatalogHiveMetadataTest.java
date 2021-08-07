@@ -91,6 +91,17 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     public void testCreateTable_Streaming() throws Exception {}
 
     @Test
+    public void testCreateTable_SetOwner() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogTable table = createTable();
+        table.getOptions().put("properties.hive.user.name", "test");
+        catalog.createTable(path1, table, false);
+
+        Table hiveTable = ((HiveCatalog) catalog).getHiveTable(path1);
+        assertEquals("test", hiveTable.getOwner());
+    }
+
+    @Test
     // verifies that input/output formats and SerDe are set for Hive tables
     public void testCreateTable_StorageFormatSet() throws Exception {
         catalog.createDatabase(db1, createDb(), false);

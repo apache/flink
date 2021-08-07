@@ -113,6 +113,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -151,6 +152,8 @@ public class HiveCatalog extends AbstractCatalog {
     // Prefix used to distinguish scala/python functions
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
     private static final String FLINK_PYTHON_FUNCTION_PREFIX = "flink:python:";
+
+    private static final String PROPERTIES_PREFIX = "properties.hive.";
 
     private final HiveConf hiveConf;
     private final String hiveVersion;
@@ -463,6 +466,20 @@ public class HiveCatalog extends AbstractCatalog {
         return instantiateCatalogTable(hiveTable, hiveConf);
     }
 
+    private HiveConf getHiveProperties(CatalogBaseTable table) {
+        HiveConf hiveConf = new HiveConf(this.hiveConf);
+        Map<String, String> options = table.getOptions();
+        Iterator<Map.Entry<String, String>> iterator = options.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, String> next = iterator.next();
+            if (next.getKey().startsWith(PROPERTIES_PREFIX)) {
+                hiveConf.set(next.getKey().substring(PROPERTIES_PREFIX.length()), next.getValue());
+                iterator.remove();
+            }
+        }
+        return hiveConf;
+    }
+
     @Override
     public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
@@ -473,7 +490,11 @@ public class HiveCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
         }
 
+        HiveConf hiveConf = getHiveProperties(table);
+
         Table hiveTable = HiveTableUtil.instantiateHiveTable(tablePath, table, hiveConf);
+
+        HiveTableUtil.setTableOwner(hiveTable, table, hiveConf);
 
         UniqueConstraint pkConstraint = null;
         List<String> notNullCols = new ArrayList<>();

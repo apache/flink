@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -46,6 +47,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -59,8 +62,10 @@ import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -338,7 +343,28 @@ public class HiveTableUtil {
         if (!newHiveTable.getSd().isSetLocation()) {
             newHiveTable.getSd().setLocation(oldHiveTable.getSd().getLocation());
         }
+        if (oldHiveTable.isSetOwner()) {
+            newHiveTable.setOwner(oldHiveTable.getOwner());
+        }
         return newHiveTable;
+    }
+
+    public static void setTableOwner(Table hiveTable, CatalogBaseTable table, HiveConf hiveConf) {
+        try {
+            if (UserGroupInformation.isSecurityEnabled()) {
+                hiveTable.setOwner(UserGroupInformation.getCurrentUser().getShortUserName());
+                return;
+            }
+        } catch (IOException e) {
+            throw new CatalogException(
+                    String.format("Failed to setOwner for table %s", hiveTable.getTableName()), e);
+        }
+
+        String userName = hiveConf.get("user.name", "").trim();
+        if (!Strings.isNullOrEmpty(userName)) {
+            hiveTable.setOwner(userName);
+            return;
+        }
     }
 
     public static Table instantiateHiveTable(
