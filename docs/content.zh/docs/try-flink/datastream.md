@@ -71,7 +71,7 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 这些已包含的依赖包括 `flink-streaming-java`、`flink-walkthrough-common` 等，他们分别是 Flink 应用程序的核心依赖项和这个代码练习需要的数据生成器，当然还包括其他本代码练习所依赖的类。
 
 {{< hint info >}}
-**说明:** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#final-application) 中找到。
+**说明：** 为简洁起见，本练习中的代码块中可能不包含完整的类路径。完整的类路径可以在文档底部 [链接](#final-application) 中找到。
 {{< /hint >}}
 
 {{< tabs "archetype" >}}
@@ -105,7 +105,7 @@ $ mvn archetype:generate \
 
 {{< unstable >}}
 {{< hint warning >}}
-    **注意** Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
+    Maven 3.0 及更高版本，不再支持通过命令行指定仓库（-DarchetypeCatalog）。有关这个改动的详细信息，
     请参阅 [Maven 官方文档](http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html)
     如果你希望使用快照仓库，则需要在 settings.xml 文件中添加一个仓库条目。例如：
 ```xml
