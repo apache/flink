@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobManagerMetricsHeaders;
@@ -94,9 +93,7 @@ public class MetricsAvailabilityITCase extends TestLogger {
     public void testReporter() throws Exception {
         try (ClusterController ignored = dist.startCluster(1)) {
             final RestClient restClient =
-                    new RestClient(
-                            RestClientConfiguration.fromConfiguration(new Configuration()),
-                            scheduledExecutorService);
+                    new RestClient(new Configuration(), scheduledExecutorService);
 
             checkJobManagerMetricAvailability(restClient);
 

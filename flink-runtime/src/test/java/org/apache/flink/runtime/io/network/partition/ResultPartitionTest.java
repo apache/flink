@@ -600,7 +600,7 @@ public class ResultPartitionTest {
             // emit the second record, record length = bufferSize
             bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } finally {
-            assertEquals(2, pipelinedSubpartition.getCurrentNumberOfBuffers());
+            assertEquals(2, pipelinedSubpartition.getNumberOfQueuedBuffers());
             assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
             assertEquals(
                     partialLength, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
@@ -623,7 +623,7 @@ public class ResultPartitionTest {
                     bufferWritingResultPartition.subpartitions) {
                 PipelinedSubpartition pipelinedSubpartition =
                         (PipelinedSubpartition) resultSubpartition;
-                assertEquals(2, pipelinedSubpartition.getCurrentNumberOfBuffers());
+                assertEquals(2, pipelinedSubpartition.getNumberOfQueuedBuffers());
                 assertEquals(0, pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
                 assertEquals(
                         partialLength,

@@ -48,7 +48,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
@@ -759,8 +758,7 @@ public class SavepointITCase extends TestLogger {
         // ExecutionVertex
         final RestClient restClient =
                 new RestClient(
-                        RestClientConfiguration.fromConfiguration(
-                                new UnmodifiableConfiguration(new Configuration())),
+                        new UnmodifiableConfiguration(new Configuration()),
                         TestingUtils.defaultExecutor());
 
         final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();

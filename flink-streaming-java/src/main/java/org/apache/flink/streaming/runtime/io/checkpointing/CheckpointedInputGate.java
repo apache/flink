@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 
 import org.slf4j.Logger;

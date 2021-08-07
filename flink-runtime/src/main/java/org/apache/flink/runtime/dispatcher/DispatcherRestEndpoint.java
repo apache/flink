@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.WebMonitorExtension;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -53,7 +53,6 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
     private WebMonitorExtension webSubmissionExtension;
 
     public DispatcherRestEndpoint(
-            RestServerEndpointConfiguration endpointConfiguration,
             GatewayRetriever<DispatcherGateway> leaderRetriever,
             Configuration clusterConfiguration,
             RestHandlerConfiguration restConfiguration,
@@ -64,10 +63,9 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
             LeaderElectionService leaderElectionService,
             ExecutionGraphCache executionGraphCache,
             FatalErrorHandler fatalErrorHandler)
-            throws IOException {
+            throws IOException, ConfigurationException {
 
         super(
-                endpointConfiguration,
                 leaderRetriever,
                 clusterConfiguration,
                 restConfiguration,

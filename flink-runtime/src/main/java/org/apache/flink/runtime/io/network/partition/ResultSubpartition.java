@@ -106,6 +106,9 @@ public abstract class ResultSubpartition {
      */
     public abstract int unsynchronizedGetNumberOfQueuedBuffers();
 
+    /** Get the current size of the queue. */
+    public abstract int getNumberOfQueuedBuffers();
+
     // ------------------------------------------------------------------------
 
     /**

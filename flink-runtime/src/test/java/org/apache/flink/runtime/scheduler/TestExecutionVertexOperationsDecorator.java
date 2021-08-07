@@ -23,6 +23,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,11 +40,9 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 
     private final ExecutionVertexOperations delegate;
 
-    private final List<ExecutionVertexID> deployedVertices = new ArrayList<>();
-
-    private final List<ExecutionVertexID> canceledVertices = new ArrayList<>();
-
-    private final List<ExecutionVertexID> failedVertices = new ArrayList<>();
+    private final CountLatch deployedVertices = new CountLatch();
+    private final CountLatch canceledVertices = new CountLatch();
+    private final CountLatch failedVertices = new CountLatch();
 
     private boolean failDeploy;
 
@@ -82,14 +82,52 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
     }
 
     public List<ExecutionVertexID> getDeployedVertices() {
-        return Collections.unmodifiableList(deployedVertices);
+        return deployedVertices.getVertices();
     }
 
     public List<ExecutionVertexID> getCanceledVertices() {
-        return Collections.unmodifiableList(canceledVertices);
+        return canceledVertices.getVertices();
     }
 
     public List<ExecutionVertexID> getFailedVertices() {
-        return Collections.unmodifiableList(failedVertices);
+        return failedVertices.getVertices();
+    }
+
+    /** Waits until the given number of vertices have been canceled. */
+    public void awaitCanceledVertices(int count) throws InterruptedException {
+        canceledVertices.await(count);
+    }
+
+    /** Waits until the given number of vertices have been failed. */
+    public void awaitFailedVertices(int count) throws InterruptedException {
+        failedVertices.await(count);
+    }
+
+    private static class CountLatch {
+        @GuardedBy("lock")
+        private final List<ExecutionVertexID> vertices = new ArrayList<>();
+
+        private final Object lock = new Object();
+
+        public void add(ExecutionVertexID executionVertexId) {
+            synchronized (lock) {
+                vertices.add(executionVertexId);
+                lock.notifyAll();
+            }
+        }
+
+        public void await(int count) throws InterruptedException {
+            synchronized (lock) {
+                while (vertices.size() < count) {
+                    lock.wait();
+                }
+            }
+        }
+
+        public List<ExecutionVertexID> getVertices() {
+            synchronized (lock) {
+                return Collections.unmodifiableList(vertices);
+            }
+        }
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -244,6 +245,12 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
         config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
+
+        // Configure DFS DSTL for this test as it might produce too much GC pressure if
+        // ChangelogStateBackend is used.
+        // Doing it on cluster level unconditionally as randomization currently happens on the job
+        // level (environment); while this factory can only be set on the cluster level.
+        FsStateChangelogStorageFactory.configure(config, temporaryFolder.newFolder());
 
         // ZooKeeper recovery mode?
         if (zooKeeperQuorum != null) {

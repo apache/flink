@@ -131,6 +131,16 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
+    void announceBufferSize(int newBufferSize) {
+        // Not supported.
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return 0;
+    }
+
+    @Override
     public String toString() {
         return "UnknownInputChannel [" + partitionId + "]";
     }

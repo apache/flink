@@ -243,6 +243,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         try {
             partition.add(buffer1);
             partition.add(buffer2);
+            assertEquals(2, partition.getNumberOfQueuedBuffers());
+
             // create the read view first
             ResultSubpartitionView view = null;
             if (createView) {
@@ -250,6 +252,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             }
 
             partition.release();
+            assertEquals(0, partition.getNumberOfQueuedBuffers());
 
             assertTrue(partition.isReleased());
             if (createView) {
@@ -280,6 +283,21 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     public void testReleaseParent() throws Exception {
         final ResultSubpartition partition = createSubpartition();
         verifyViewReleasedAfterParentRelease(partition);
+    }
+
+    @Test
+    public void testNumberOfQueueBuffers() throws Exception {
+        final PipelinedSubpartition subpartition = createSubpartition();
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(2, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.getNextBuffer();
+
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
     }
 
     private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)

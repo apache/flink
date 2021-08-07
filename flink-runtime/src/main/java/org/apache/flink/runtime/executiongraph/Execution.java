@@ -460,7 +460,8 @@ public class Execution
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
-                            .registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+                            .registerPartitionWithProducer(
+                                    vertex.getJobId(), partitionDescriptor, producerDescriptor);
 
             CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration =
                     shuffleDescriptorFuture.thenApply(
