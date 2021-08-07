@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -27,16 +28,19 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -471,14 +475,16 @@ public class TwoInputStreamTaskTest {
                 .finish();
 
         final TaskMetricGroup taskMetricGroup =
-                new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
-                    @Override
-                    public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID operatorID, String name) {
-                        return new InternalOperatorMetricGroup(
-                                NoOpMetricRegistry.INSTANCE, this, operatorID, name);
-                    }
-                };
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                NoOpMetricRegistry.INSTANCE, "host", ResourceID.generate())
+                        .addTaskForJob(
+                                new JobID(),
+                                "jobname",
+                                new JobVertexID(),
+                                new ExecutionAttemptID(),
+                                "task",
+                                0,
+                                0);
 
         final StreamMockEnvironment env =
                 new StreamMockEnvironment(

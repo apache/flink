@@ -71,7 +71,7 @@ public class InternalOperatorGroupTest extends TestLogger {
         TaskMetricGroup taskGroup =
                 jmGroup.addTask(new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 11, 0);
         InternalOperatorMetricGroup opGroup =
-                new InternalOperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
+                taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
 
         assertArrayEquals(
                 new String[] {
@@ -141,7 +141,7 @@ public class InternalOperatorGroupTest extends TestLogger {
         TaskMetricGroup taskGroup =
                 jmGroup.addTask(new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 11, 0);
         InternalOperatorMetricGroup opGroup =
-                new InternalOperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
+                taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
 
         assertNotNull(opGroup.getIOMetricGroup());
         assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
@@ -161,8 +161,7 @@ public class InternalOperatorGroupTest extends TestLogger {
         TaskManagerJobMetricGroup jmGroup =
                 new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
         TaskMetricGroup taskGroup = jmGroup.addTask(tid, eid, "aTaskName", 11, 0);
-        InternalOperatorMetricGroup opGroup =
-                new InternalOperatorMetricGroup(registry, taskGroup, oid, "myOpName");
+        InternalOperatorMetricGroup opGroup = taskGroup.getOrAddOperator(oid, "myOpName");
 
         Map<String, String> variables = opGroup.getAllVariables();
 
@@ -197,8 +196,7 @@ public class InternalOperatorGroupTest extends TestLogger {
                         registry, "host", new ResourceID("id"));
         TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
         TaskMetricGroup task = job.addTask(vid, eid, "taskName", 4, 5);
-        InternalOperatorMetricGroup operator =
-                new InternalOperatorMetricGroup(registry, task, oid, "operator");
+        InternalOperatorMetricGroup operator = task.getOrAddOperator(oid, "operator");
 
         QueryScopeInfo.OperatorQueryScopeInfo info =
                 operator.createQueryServiceMetricInfo(new DummyCharacterFilter());

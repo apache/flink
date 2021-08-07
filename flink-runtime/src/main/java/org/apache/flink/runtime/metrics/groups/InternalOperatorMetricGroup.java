@@ -41,7 +41,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
 
     private final InternalOperatorIOMetricGroup ioMetrics;
 
-    public InternalOperatorMetricGroup(
+    InternalOperatorMetricGroup(
             MetricRegistry registry,
             TaskMetricGroup parent,
             OperatorID operatorID,
