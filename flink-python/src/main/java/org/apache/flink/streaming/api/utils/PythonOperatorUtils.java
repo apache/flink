@@ -22,17 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 
-import java.util.Arrays;
-
 /** Utilities used by Python operators. */
 @Internal
 public class PythonOperatorUtils {
-
-    private static final byte[] RECORD_SPLITTER = new byte[] {0x00};
-
-    public static boolean endOfLastFlatMap(int length, byte[] rawData) {
-        return length == 1 && Arrays.equals(rawData, RECORD_SPLITTER);
-    }
 
     /** Set the current key for streaming operator. */
     public static <K> void setCurrentKeyForStreaming(

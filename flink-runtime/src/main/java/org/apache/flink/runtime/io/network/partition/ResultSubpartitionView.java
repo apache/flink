@@ -61,6 +61,8 @@ public interface ResultSubpartitionView {
 
     int unsynchronizedGetNumberOfQueuedBuffers();
 
+    int getNumberOfQueuedBuffers();
+
     /**
      * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding
      * {@link ResultSubpartition}.

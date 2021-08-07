@@ -103,7 +103,8 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
     }
 
     @Override
-    public void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds) {
+    public void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster) {
         stopTrackingAndReleasePartitionsConsumer.accept(resultPartitionIds);
     }
 

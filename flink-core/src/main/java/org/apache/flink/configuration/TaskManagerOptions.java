@@ -277,6 +277,16 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Size of memory buffers used by the network stack and the memory manager.");
 
+    /** Minimum possible size of memory buffers used by the network stack and the memory manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> MIN_MEMORY_SEGMENT_SIZE =
+            key("taskmanager.memory.min-segment-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1kb"))
+                    .withDescription(
+                            "Minimum possible size of memory buffers used by the network stack and the memory manager. "
+                                    + "ex. can be used for automatic buffer size adjustment.");
+
     /**
      * The config parameter for automatically defining the TaskManager's binding address, if {@link
      * #HOST} configuration option is not set.
@@ -514,22 +524,53 @@ public class TaskManagerOptions {
 
     /** The period between recalculation the relevant size of the buffer. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD =
-            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.period")
-                    .intType()
-                    .defaultValue(500)
+    public static final ConfigOption<Duration> BUFFER_DEBLOAT_PERIOD =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(500))
                     .withDescription(
-                            "The minimum period of time after which the buffer size will be automatically adjusted to a new value if required. "
+                            "The minimum period of time after which the buffer size will be debloated if required. "
                                     + "The low value provides a fast reaction to the load fluctuation but can influence the performance.");
 
     /** The number of samples requires for the buffer size adjustment. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
-    public static final ConfigOption<Integer> AUTOMATIC_BUFFER_ADJUSTMENT_SAMPLES =
-            ConfigOptions.key("taskmanager.network.memory.automatic-buffer-adjustment.samples")
+    public static final ConfigOption<Integer> BUFFER_DEBLOAT_SAMPLES =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.samples")
                     .intType()
                     .defaultValue(20)
                     .withDescription(
                             "The number of the last buffer size values that will be taken for the correct calculation of the new one.");
+
+    /** The total time for which automated adjusted buffers should be fully consumed. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Duration> BUFFER_DEBLOAT_TARGET =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.target")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "The target total time after which buffered in-flight data should be fully consumed. "
+                                    + "This configuration option will be used, in combination with the measured throughput, to adjust the amount of in-flight data.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Boolean> BUFFER_DEBLOAT_ENABLED =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "The switch of the automatic buffered debloating feature. "
+                                    + "If enabled the amount of in-flight data will be adjusted automatically accordingly to the measured throughput.");
+
+    /**
+     * Difference between the new and the old buffer size for applying the new value(in percent).
+     */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
+    public static final ConfigOption<Integer> BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES =
+            ConfigOptions.key("taskmanager.network.memory.buffer-debloat.threshold-percentages")
+                    .intType()
+                    .defaultValue(50)
+                    .withDescription(
+                            "The minimum difference in percentage between the newly calculated buffer size and the old one to announce the new value. "
+                                    + "Can be used to avoid constant back and forth small adjustments.");
 
     /**
      * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by

@@ -213,7 +213,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
                                 JdbcExecutionOptions.builder().build(),
-                                JdbcExactlyOnceOptions.defaults(),
+                                JdbcExactlyOnceOptions.builder()
+                                        .withTransactionPerConnection(true)
+                                        .build(),
                                 this.dbEnv.getDataSourceSupplier()));
 
         env.execute();

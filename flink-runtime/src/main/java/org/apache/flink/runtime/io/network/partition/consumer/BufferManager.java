@@ -367,6 +367,12 @@ public class BufferManager implements BufferListener, BufferRecycler {
         return numRequiredBuffers;
     }
 
+    int getNumberOfRequiredBuffers() {
+        synchronized (bufferQueue) {
+            return numRequiredBuffers;
+        }
+    }
+
     @VisibleForTesting
     boolean unsynchronizedIsWaitingForFloatingBuffers() {
         return isWaitingForFloatingBuffers;

@@ -234,4 +234,11 @@ class SortMergeSubpartitionReader
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return Math.max(0, buffersRead.size());
     }
+
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (lock) {
+            return buffersRead.size();
+        }
+    }
 }

@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -45,11 +47,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertNotNull;
 
 /** A {@link Sink TestSink} for all the sink related tests. */
-public class TestSink implements Sink<Integer, String, String, String> {
+public class TestSink<T> implements Sink<T, String, String, String> {
 
     public static final String END_OF_INPUT_STR = "end of input";
 
-    private final DefaultSinkWriter writer;
+    private final DefaultSinkWriter<T> writer;
 
     @Nullable private final SimpleVersionedSerializer<String> writerStateSerializer;
 
@@ -61,24 +63,28 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
     @Nullable private final SimpleVersionedSerializer<String> globalCommittableSerializer;
 
+    private final Collection<String> compatibleStateNames;
+
     private TestSink(
-            DefaultSinkWriter writer,
+            DefaultSinkWriter<T> writer,
             @Nullable SimpleVersionedSerializer<String> writerStateSerializer,
             @Nullable Committer<String> committer,
             @Nullable SimpleVersionedSerializer<String> committableSerializer,
             @Nullable GlobalCommitter<String, String> globalCommitter,
-            @Nullable SimpleVersionedSerializer<String> globalCommittableSerializer) {
+            @Nullable SimpleVersionedSerializer<String> globalCommittableSerializer,
+            Collection<String> compatibleStateNames) {
         this.writer = writer;
         this.writerStateSerializer = writerStateSerializer;
         this.committer = committer;
         this.committableSerializer = committableSerializer;
         this.globalCommitter = globalCommitter;
         this.globalCommittableSerializer = globalCommittableSerializer;
+        this.compatibleStateNames = compatibleStateNames;
     }
 
     @Override
-    public SinkWriter<Integer, String, String> createWriter(
-            InitContext context, List<String> states) {
+    public SinkWriter<T, String, String> createWriter(InitContext context, List<String> states) {
+        writer.init(context);
         writer.restoredFrom(states);
         writer.setProcessingTimerService(context.getProcessingTimeService());
         return writer;
@@ -109,12 +115,17 @@ public class TestSink implements Sink<Integer, String, String, String> {
         return Optional.ofNullable(writerStateSerializer);
     }
 
-    public static Builder newBuilder() {
-        return new Builder();
+    @Override
+    public Collection<String> getCompatibleStateNames() {
+        return compatibleStateNames;
+    }
+
+    public static Builder<Integer> newBuilder() {
+        return new Builder<>();
     }
 
     /** A builder class for {@link TestSink}. */
-    public static class Builder {
+    public static class Builder<T> {
 
         private DefaultSinkWriter writer = new DefaultSinkWriter();
 
@@ -128,77 +139,89 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
         private SimpleVersionedSerializer<String> globalCommittableSerializer;
 
-        public Builder setWriter(DefaultSinkWriter writer) {
+        private Collection<String> compatibleStateNames = Collections.emptyList();
+
+        public <W> Builder<W> setWriter(DefaultSinkWriter<W> writer) {
             this.writer = checkNotNull(writer);
-            return this;
+            return (Builder<W>) this;
         }
 
-        public Builder withWriterState() {
+        public Builder<T> withWriterState() {
             this.writerStateSerializer = StringCommittableSerializer.INSTANCE;
             return this;
         }
 
-        public Builder setCommitter(Committer<String> committer) {
+        public Builder<T> setCommitter(Committer<String> committer) {
             this.committer = committer;
             return this;
         }
 
-        public Builder setCommittableSerializer(
+        public Builder<T> setCommittableSerializer(
                 SimpleVersionedSerializer<String> committableSerializer) {
             this.committableSerializer = committableSerializer;
             return this;
         }
 
-        public Builder setDefaultCommitter() {
+        public Builder<T> setDefaultCommitter() {
             this.committer = new DefaultCommitter();
             this.committableSerializer = StringCommittableSerializer.INSTANCE;
             return this;
         }
 
-        public Builder setDefaultCommitter(Supplier<Queue<String>> queueSupplier) {
+        public Builder<T> setDefaultCommitter(Supplier<Queue<String>> queueSupplier) {
             this.committer = new DefaultCommitter(queueSupplier);
             this.committableSerializer = StringCommittableSerializer.INSTANCE;
             return this;
         }
 
-        public Builder setGlobalCommitter(GlobalCommitter<String, String> globalCommitter) {
+        public Builder<T> setGlobalCommitter(GlobalCommitter<String, String> globalCommitter) {
             this.globalCommitter = globalCommitter;
             return this;
         }
 
-        public Builder setGlobalCommittableSerializer(
+        public Builder<T> setGlobalCommittableSerializer(
                 SimpleVersionedSerializer<String> globalCommittableSerializer) {
             this.globalCommittableSerializer = globalCommittableSerializer;
             return this;
         }
 
-        public Builder setDefaultGlobalCommitter() {
+        public Builder<T> setDefaultGlobalCommitter() {
             this.globalCommitter = new DefaultGlobalCommitter("");
             this.globalCommittableSerializer = StringCommittableSerializer.INSTANCE;
             return this;
         }
 
-        public Builder setGlobalCommitter(Supplier<Queue<String>> queueSupplier) {
+        public Builder<T> setGlobalCommitter(Supplier<Queue<String>> queueSupplier) {
             this.globalCommitter = new DefaultGlobalCommitter(queueSupplier);
             this.globalCommittableSerializer = StringCommittableSerializer.INSTANCE;
             return this;
         }
 
-        public TestSink build() {
-            return new TestSink(
+        public Builder<T> setCompatibleStateNames(Collection<String> compatibleStateNames) {
+            this.compatibleStateNames = compatibleStateNames;
+            return this;
+        }
+
+        public Builder<T> setCompatibleStateNames(String... compatibleStateNames) {
+            return setCompatibleStateNames(Arrays.asList(compatibleStateNames));
+        }
+
+        public TestSink<T> build() {
+            return new TestSink<>(
                     writer,
                     writerStateSerializer,
                     committer,
                     committableSerializer,
                     globalCommitter,
-                    globalCommittableSerializer);
+                    globalCommittableSerializer,
+                    compatibleStateNames);
         }
     }
 
     // -------------------------------------- Sink Writer ------------------------------------------
 
     /** Base class for out testing {@link SinkWriter Writers}. */
-    static class DefaultSinkWriter implements SinkWriter<Integer, String, String>, Serializable {
+    static class DefaultSinkWriter<T> implements SinkWriter<T, String, String>, Serializable {
 
         protected List<String> elements;
 
@@ -212,7 +235,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
         }
 
         @Override
-        public void write(Integer element, Context context) {
+        public void write(T element, Context context) {
             elements.add(
                     Tuple3.of(element, context.timestamp(), context.currentWatermark()).toString());
         }
@@ -242,6 +265,8 @@ public class TestSink implements Sink<Integer, String, String, String> {
         void setProcessingTimerService(ProcessingTimeService processingTimerService) {
             this.processingTimerService = processingTimerService;
         }
+
+        public void init(InitContext context) {}
     }
 
     // -------------------------------------- Sink Committer ---------------------------------------
@@ -391,7 +416,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
         }
 
         @Override
-        public byte[] serialize(String obj) throws IOException {
+        public byte[] serialize(String obj) {
             return SimpleVersionedStringSerializer.INSTANCE.serialize(obj);
         }
 

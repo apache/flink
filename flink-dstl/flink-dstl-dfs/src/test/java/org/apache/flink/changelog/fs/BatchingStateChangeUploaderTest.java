@@ -18,6 +18,7 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.changelog.fs.StateChangeUploader.UploadTask;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -34,11 +35,13 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -94,14 +97,23 @@ public class BatchingStateChangeUploaderTest {
     @Test
     public void testDelay() throws Exception {
         int delayMs = 50;
+        ManuallyTriggeredScheduledExecutorService scheduler =
+                new ManuallyTriggeredScheduledExecutorService();
         withStore(
                 delayMs,
                 Integer.MAX_VALUE,
+                scheduler,
                 (store, probe) -> {
+                    scheduler.triggerAll();
                     List<StateChangeSet> changeSets = getChanges(4);
                     upload(store, changeSets);
                     assertTrue(probe.getUploaded().isEmpty());
-                    Thread.sleep(delayMs * 2);
+                    assertTrue(
+                            scheduler.getAllNonPeriodicScheduledTask().stream()
+                                    .anyMatch(
+                                            scheduled ->
+                                                    scheduled.getDelay(MILLISECONDS) == delayMs));
+                    scheduler.triggerAllNonPeriodicTasks();
                     assertEquals(changeSets, probe.getUploaded());
                 });
     }
@@ -196,15 +208,25 @@ public class BatchingStateChangeUploaderTest {
                             BatchingStateChangeUploader, TestingStateChangeUploader, Exception>
                     test)
             throws Exception {
-        TestingStateChangeUploader probe = new TestingStateChangeUploader();
+        withStore(delayMs, sizeThreshold, new DirectScheduledExecutorService(), test);
+    }
 
+    private static void withStore(
+            int delayMs,
+            int sizeThreshold,
+            ScheduledExecutorService scheduler,
+            BiConsumerWithException<
+                            BatchingStateChangeUploader, TestingStateChangeUploader, Exception>
+                    test)
+            throws Exception {
+        TestingStateChangeUploader probe = new TestingStateChangeUploader();
         try (BatchingStateChangeUploader store =
                 new BatchingStateChangeUploader(
                         delayMs,
                         sizeThreshold,
                         RetryPolicy.NONE,
                         probe,
-                        new DirectScheduledExecutorService(),
+                        scheduler,
                         new RetryingExecutor(new DirectScheduledExecutorService()),
                         10_000)) {
             test.accept(store, probe);

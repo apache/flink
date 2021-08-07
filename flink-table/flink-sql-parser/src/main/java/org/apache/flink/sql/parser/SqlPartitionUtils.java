@@ -49,7 +49,7 @@ public class SqlPartitionUtils {
         }
         for (SqlNode node : partitionSpec.getList()) {
             SqlProperty sqlProperty = (SqlProperty) node;
-            Comparable comparable = SqlLiteral.value(sqlProperty.getValue());
+            Comparable<?> comparable = SqlLiteral.value(sqlProperty.getValue());
             String value =
                     comparable instanceof NlsString
                             ? ((NlsString) comparable).getValue()

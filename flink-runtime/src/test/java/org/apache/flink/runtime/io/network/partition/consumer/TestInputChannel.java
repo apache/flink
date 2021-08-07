@@ -60,6 +60,8 @@ public class TestInputChannel extends InputChannel {
 
     private int sequenceNumber;
 
+    private int currentBufferSize;
+
     public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
         this(inputGate, channelIndex, true, false);
     }
@@ -184,6 +186,20 @@ public class TestInputChannel extends InputChannel {
     @Override
     void releaseAllResources() throws IOException {
         isReleased = true;
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        currentBufferSize = newBufferSize;
+    }
+
+    public int getCurrentBufferSize() {
+        return currentBufferSize;
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return buffers.size();
     }
 
     @Override

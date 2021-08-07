@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -49,7 +50,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -79,6 +80,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.bufferdebloat.BufferDebloater;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
@@ -118,7 +120,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
-import static org.apache.flink.configuration.TaskManagerOptions.AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD;
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -180,7 +182,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     /**
      * All actions outside of the task {@link #mailboxProcessor mailbox} (i.e. performed by another
      * thread) must be executed through this executor to ensure that we don't have concurrent method
-     * calls that void consistent checkpoints.
+     * calls that void consistent checkpoints. The execution will always be performed in the task
+     * thread.
      *
      * <p>CheckpointLock is superseded by {@link MailboxExecutor}, with {@link
      * StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor
@@ -268,6 +271,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     private final ThroughputCalculator throughputCalculator;
+
+    private final @Nullable BufferDebloater bufferDebloater;
+
+    private final long bufferDebloatPeriod;
 
     // ------------------------------------------------------------------------
 
@@ -389,6 +396,26 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
         this.throughputCalculator = environment.getThroughputMeter();
+        this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
+
+        if (getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+            this.bufferDebloater =
+                    new BufferDebloater(
+                            getTaskConfiguration(), getEnvironment().getAllInputGates());
+            environment
+                    .getMetricGroup()
+                    .gauge(
+                            MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS,
+                            () ->
+                                    bufferDebloater
+                                            .getLastEstimatedTimeToConsumeBuffers()
+                                            .toMillis());
+            environment
+                    .getMetricGroup()
+                    .gauge(MetricNames.DEBLOATED_BUFFER_SIZE, bufferDebloater::getLastBufferSize);
+        } else {
+            this.bufferDebloater = null;
+        }
     }
 
     private TimerService createTimerService(String timerThreadName) {
@@ -673,7 +700,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // final check to exit early before starting to run
         ensureNotCanceled();
 
-        throughputCalculationSetup();
+        scheduleBufferDebloater();
 
         // let the task do its work
         runMailboxLoop();
@@ -685,17 +712,32 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         afterInvoke();
     }
 
-    private void throughputCalculationSetup() {
+    private void scheduleBufferDebloater() {
+        // See https://issues.apache.org/jira/browse/FLINK-23560
+        // If there are no input gates, there is no point of calculating the throughput and running
+        // the debloater. At the same time, for SourceStreamTask using legacy sources and checkpoint
+        // lock, enqueuing even a single mailbox action can cause performance regression. This is
+        // especially visible in batch, with disabled checkpointing and no processing time timers.
+        if (getEnvironment().getAllInputGates().length == 0) {
+            return;
+        }
         systemTimerService.registerTimer(
-                systemTimerService.getCurrentProcessingTime()
-                        + getTaskConfiguration().get(AUTOMATIC_BUFFER_ADJUSTMENT_PERIOD),
+                systemTimerService.getCurrentProcessingTime() + bufferDebloatPeriod,
                 timestamp ->
                         mainMailboxExecutor.submit(
                                 () -> {
-                                    throughputCalculator.calculateThroughput();
-                                    throughputCalculationSetup();
+                                    debloat();
+                                    scheduleBufferDebloater();
                                 },
-                                "Throughput recalculation"));
+                                "Buffer size recalculation"));
+    }
+
+    @VisibleForTesting
+    void debloat() {
+        long throughput = throughputCalculator.calculateThroughput();
+        if (bufferDebloater != null) {
+            bufferDebloater.recalculateBufferSize(throughput);
+        }
     }
 
     private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
@@ -741,9 +783,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         LOG.debug("Finished task {}", getName());
         getCompletionFuture().exceptionally(unused -> null).join();
 
-        final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> systemTimersFinishedFuture = new CompletableFuture<>();
-
         // close all operators in a chain effect way
         operatorChain.finishOperators(actionExecutor);
         finishedOperators = true;
@@ -775,10 +814,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // at the same time, this makes sure that during any "regular" exit where still
         actionExecutor.runThrowing(
                 () -> {
-
                     // make sure no new timers can come
-                    FutureUtils.forward(timerService.quiesce(), timersFinishedFuture);
-                    FutureUtils.forward(systemTimerService.quiesce(), systemTimersFinishedFuture);
+                    timerService.quiesce().get();
+                    systemTimerService.quiesce().get();
 
                     // let mailbox execution reject all new letters from this point
                     mailboxProcessor.prepareClose();
@@ -795,10 +833,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                     // See FLINK-7430
                     isRunning = false;
                 });
-
-        // make sure all timers finish
-        timersFinishedFuture.get();
-        systemTimersFinishedFuture.get();
 
         LOG.debug("Closed operators for task {}", getName());
 

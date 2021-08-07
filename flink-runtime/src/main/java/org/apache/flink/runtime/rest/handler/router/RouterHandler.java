@@ -123,7 +123,7 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
         HandlerUtils.sendErrorResponse(
                 channelHandlerContext,
                 request,
-                new ErrorResponseBody("Not found."),
+                new ErrorResponseBody("Not found: " + request.uri()),
                 HttpResponseStatus.NOT_FOUND,
                 responseHeaders);
     }

@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;

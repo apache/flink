@@ -158,6 +158,14 @@ public class MockInputGate extends IndexedInputGate {
         }
     }
 
+    @Override
+    public int getBuffersInUseCount() {
+        return 0;
+    }
+
+    @Override
+    public void announceBufferSize(int bufferSize) {}
+
     public Set<Integer> getBlockedChannels() {
         return blockedChannels;
     }

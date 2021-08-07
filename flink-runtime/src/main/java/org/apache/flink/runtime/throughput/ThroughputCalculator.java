@@ -29,7 +29,6 @@ public class ThroughputCalculator {
     private long currentAccumulatedDataSize;
     private long currentMeasurementTime;
     private long measurementStartTime = NOT_TRACKED;
-    private long lastThroughput;
 
     public ThroughputCalculator(Clock clock, int numberOfSamples) {
         this.clock = clock;
@@ -62,13 +61,13 @@ public class ThroughputCalculator {
             currentMeasurementTime += clock.relativeTimeMillis() - measurementStartTime;
         }
 
-        lastThroughput =
+        long throughput =
                 throughputEMA.calculateThroughput(
                         currentAccumulatedDataSize, currentMeasurementTime);
 
         measurementStartTime = clock.relativeTimeMillis();
         currentAccumulatedDataSize = currentMeasurementTime = 0;
 
-        return lastThroughput;
+        return throughput;
     }
 }

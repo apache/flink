@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;

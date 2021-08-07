@@ -17,14 +17,11 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
@@ -35,12 +32,10 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
-import org.apache.flink.streaming.api.operators.python.PythonTimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -119,8 +114,6 @@ public class PythonConfigUtil {
             throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         Configuration mergedConfig = getEnvConfigWithDependencies(env);
 
-        boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
-
         Field transformationsField =
                 StreamExecutionEnvironment.class.getDeclaredField("transformations");
         transformationsField.setAccessible(true);
@@ -140,13 +133,6 @@ public class PythonConfigUtil {
                     // update dependency related configurations for Python operators
                     pythonFunctionOperator.setPythonConfig(
                             generateNewPythonConfig(oldConfig, mergedConfig));
-
-                    // set the emitProgressiveWatermarks flag for
-                    // PythonTimestampsAndWatermarksOperator
-                    if (pythonFunctionOperator instanceof PythonTimestampsAndWatermarksOperator) {
-                        ((PythonTimestampsAndWatermarksOperator<?>) pythonFunctionOperator)
-                                .configureEmitProgressiveWatermarks(!executedInBatchMode);
-                    }
                 }
             }
         }
@@ -286,31 +272,6 @@ public class PythonConfigUtil {
         Configuration mergedConfig = newConfig.clone();
         mergedConfig.addAll(oldConfig);
         return new PythonConfig(mergedConfig);
-    }
-
-    /** Return is executed in batch mode according to the configured RuntimeExecutionMode. */
-    private static boolean isExecuteInBatchMode(
-            StreamExecutionEnvironment env, Configuration configuration)
-            throws NoSuchFieldException, IllegalAccessException {
-
-        final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
-        if (executionMode != RuntimeExecutionMode.AUTOMATIC) {
-            return executionMode == RuntimeExecutionMode.BATCH;
-        }
-
-        Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        boolean existsUnboundedSource = false;
-        for (Transformation<?> transform :
-                (List<Transformation<?>>) transformationsField.get(env)) {
-            existsUnboundedSource =
-                    existsUnboundedSource
-                            || (transform instanceof WithBoundedness
-                                    && ((WithBoundedness) transform).getBoundedness()
-                                            != Boundedness.BOUNDED);
-        }
-        return !existsUnboundedSource;
     }
 
     private static void setPartitionCustomOperatorNumPartitions(

@@ -50,6 +50,14 @@ public interface PartitionRequestClient {
     void notifyCreditAvailable(RemoteInputChannel inputChannel);
 
     /**
+     * Notifies new buffer size from one remote input channel.
+     *
+     * @param inputChannel The remote input channel who announces the new buffer size.
+     * @param bufferSize The new buffer size.
+     */
+    void notifyNewBufferSize(RemoteInputChannel inputChannel, int bufferSize);
+
+    /**
      * Requests to resume data consumption from one remote input channel.
      *
      * @param inputChannel The remote input channel who is ready to resume data consumption.

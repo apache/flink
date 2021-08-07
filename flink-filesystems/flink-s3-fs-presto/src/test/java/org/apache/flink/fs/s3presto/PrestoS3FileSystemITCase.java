@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
+import com.amazonaws.SdkClientException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -90,7 +91,7 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
             try {
                 path.getFileSystem().exists(path);
                 fail("should fail with an exception");
-            } catch (IOException ignored) {
+            } catch (SdkClientException ignored) {
             }
         }
 
