@@ -31,7 +31,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 
@@ -121,14 +120,24 @@ public class PrometheusReporterTaskScopeTest {
         TaskManagerMetricGroup tmMetricGroup =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, TASK_MANAGER_HOST, new ResourceID(TASK_MANAGER_ID));
-        TaskManagerJobMetricGroup tmJobMetricGroup =
-                new TaskManagerJobMetricGroup(registry, tmMetricGroup, jobId, JOB_NAME);
         taskMetricGroup1 =
-                tmJobMetricGroup.addTask(
-                        taskId1, taskAttemptId1, TASK_NAME, SUBTASK_INDEX_1, ATTEMPT_NUMBER);
+                tmMetricGroup.addTaskForJob(
+                        jobId,
+                        JOB_NAME,
+                        taskId1,
+                        taskAttemptId1,
+                        TASK_NAME,
+                        SUBTASK_INDEX_1,
+                        ATTEMPT_NUMBER);
         taskMetricGroup2 =
-                tmJobMetricGroup.addTask(
-                        taskId2, taskAttemptId2, TASK_NAME, SUBTASK_INDEX_2, ATTEMPT_NUMBER);
+                tmMetricGroup.addTaskForJob(
+                        jobId,
+                        JOB_NAME,
+                        taskId2,
+                        taskAttemptId2,
+                        TASK_NAME,
+                        SUBTASK_INDEX_2,
+                        ATTEMPT_NUMBER);
     }
 
     @After
