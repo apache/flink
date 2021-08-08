@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.track.SharedTaskStateRegistry;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
@@ -38,8 +39,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
@@ -56,14 +60,20 @@ class StateChangeFsUploader implements StateChangeUploader {
     private final StateChangeFormat format;
     private final boolean compression;
     private final int bufferSize;
+    private final SharedTaskStateRegistry registry;
 
     public StateChangeFsUploader(
-            Path basePath, FileSystem fileSystem, boolean compression, int bufferSize) {
+            Path basePath,
+            FileSystem fileSystem,
+            boolean compression,
+            int bufferSize,
+            SharedTaskStateRegistry stateRegistry) {
         this.basePath = basePath;
         this.fileSystem = fileSystem;
         this.format = new StateChangeFormat();
         this.compression = compression;
         this.bufferSize = bufferSize;
+        this.registry = stateRegistry;
     }
 
     @Override
@@ -73,11 +83,17 @@ class StateChangeFsUploader implements StateChangeUploader {
 
     public void upload(Collection<UploadTask> tasks) throws IOException {
         final String fileName = generateFileName();
-        LOG.debug("upload {} tasks to {}", tasks.size(), fileName);
+        Set<String> backendIds =
+                tasks.stream()
+                        .flatMap(task -> task.changeSets.stream())
+                        .map(changeSet -> changeSet.getLogId().toString())
+                        .collect(Collectors.toSet());
+        LOG.debug("upload {} tasks to {}, backends: {}", tasks.size(), fileName, backendIds);
         Path path = new Path(basePath, fileName);
 
         try {
             LocalResult result = upload(path, tasks);
+            registry.stateUsed(backendIds, singleton(result.handle));
             result.tasksOffsets.forEach(
                     (task, offsets) -> task.complete(buildResults(result.handle, offsets)));
         } catch (IOException e) {

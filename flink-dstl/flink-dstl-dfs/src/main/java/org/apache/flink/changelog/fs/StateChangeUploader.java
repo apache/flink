@@ -20,6 +20,7 @@ package org.apache.flink.changelog.fs;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
+import org.apache.flink.runtime.state.track.SharedTaskStateRegistry;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -67,7 +68,8 @@ interface StateChangeUploader extends AutoCloseable {
         }
     }
 
-    static StateChangeUploader fromConfig(ReadableConfig config) throws IOException {
+    static StateChangeUploader fromConfig(
+            ReadableConfig config, SharedTaskStateRegistry stateRegistry) throws IOException {
         Path basePath = new Path(config.get(BASE_PATH));
         long bytes = config.get(UPLOAD_BUFFER_SIZE).getBytes();
         checkArgument(bytes <= Integer.MAX_VALUE);
@@ -77,7 +79,8 @@ interface StateChangeUploader extends AutoCloseable {
                         basePath,
                         basePath.getFileSystem(),
                         config.get(COMPRESSION_ENABLED),
-                        bufferSize);
+                        bufferSize,
+                        stateRegistry);
         BatchingStateChangeUploader batchingStore =
                 new BatchingStateChangeUploader(
                         config.get(PERSIST_DELAY).toMillis(),
