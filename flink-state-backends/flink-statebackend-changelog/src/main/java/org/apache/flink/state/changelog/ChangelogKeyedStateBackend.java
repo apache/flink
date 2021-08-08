@@ -84,6 +84,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.state.SnapshotResult.empty;
+import static org.apache.flink.runtime.state.SnapshotResult.of;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -191,6 +193,9 @@ public class ChangelogKeyedStateBackend<K>
 
     private final ExecutorService asyncOperationsThreadPool;
 
+    // todo: call on subsumption (requires FLINK-21504)
+    // todo: call on materialization (in FLINK-23344; requires FLINK-21357) WARN: use the same
+    // backend ID
     private final TaskStateRegistry taskStateRegistry;
 
     public ChangelogKeyedStateBackend(
@@ -342,13 +347,15 @@ public class ChangelogKeyedStateBackend<K>
                 checkpointId,
                 lastUploadedFrom,
                 lastUploadedTo);
+        taskStateRegistry.checkpointStarting(checkpointId);
         return toRunnableFuture(
                 stateChangelogWriter
                         .persist(lastUploadedFrom)
-                        .thenApply(this::buildSnapshotResult));
+                        .thenApply(delta -> buildSnapshotResult(delta, checkpointId)));
     }
 
-    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(ChangelogStateHandle delta) {
+    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
+            ChangelogStateHandle delta, long checkpointId) {
         // Can be called by either task thread during the sync checkpoint phase (if persist future
         // was already completed); or by the writer thread otherwise. So need to synchronize.
         // todo: revisit after FLINK-21357 - use mailbox action?
@@ -358,13 +365,14 @@ public class ChangelogKeyedStateBackend<K>
             if (delta != null && delta.getStateSize() > 0) {
                 prevDeltaCopy.add(delta);
             }
-            if (prevDeltaCopy.isEmpty() && materialized.isEmpty()) {
-                return SnapshotResult.empty();
-            } else {
-                return SnapshotResult.of(
-                        new ChangelogStateBackendHandleImpl(
-                                materialized, prevDeltaCopy, getKeyGroupRange()));
-            }
+            SnapshotResult<KeyedStateHandle> result =
+                    prevDeltaCopy.isEmpty() && materialized.isEmpty()
+                            ? empty()
+                            : of(
+                                    new ChangelogStateBackendHandleImpl(
+                                            materialized, prevDeltaCopy, getKeyGroupRange()));
+            taskStateRegistry.stateSnapshotCreated(result, checkpointId);
+            return result;
         }
     }
 
@@ -436,6 +444,7 @@ public class ChangelogKeyedStateBackend<K>
             stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo);
         }
         keyedStateBackend.notifyCheckpointAborted(checkpointId);
+        taskStateRegistry.checkpointAborted(checkpointId);
     }
 
     // -------- Methods not simply delegating to wrapped state backend ---------
