@@ -105,7 +105,7 @@ Flink fully supports evolving schema of Avro type state, as long as the schema c
 One limitation is that Avro generated classes used as the state type cannot be relocated or have different
 namespaces when the job is restored.
 
-## Schema Migration Limiations
+## Schema Migration Limitations
 
 Flink's schema migration has some limitations that are required to ensure correctness. For users that need to work
 around these limitations, and understand them to be safe in their specific use-case, consider using
