@@ -251,7 +251,7 @@ class AkkaUtils {
                 .add("    transport-failure-detector{")
                 .add("      acceptable-heartbeat-pause = 6000 s")
                 .add("      heartbeat-interval = 1000 s")
-                .add("        threshold = 300")
+                .add("      threshold = 300")
                 .add("    }")
                 .add("    enabled-transports = [\"akka.remote.classic.netty.tcp\"]")
                 .add("    netty {")
