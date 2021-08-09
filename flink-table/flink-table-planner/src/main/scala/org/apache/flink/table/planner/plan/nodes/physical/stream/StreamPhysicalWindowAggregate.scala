@@ -109,13 +109,8 @@ class StreamPhysicalWindowAggregate(
       case windowSpec: SessionWindowSpec =>
         windowing match {
           case timeWindowStrategy: TimeAttributeWindowingStrategy =>
-            val (timeAttributeFieldName, timeAttributeIdx) = if (timeWindowStrategy.isRowtime) {
-              val timeAttributeIdx = timeWindowStrategy.getTimeAttributeIndex
-              val timeAttributeName = getInput.getRowType.getFieldNames.get(timeAttributeIdx)
-              (timeAttributeName, timeAttributeIdx)
-            } else {
-              ("", -1)
-            }
+            val timeAttributeFieldName = getInput.getRowType.getFieldNames.get(
+              timeWindowStrategy.getTimeAttributeIndex)
             val timeAttributeType = windowing.getTimeAttributeType
             val logicalWindow = SessionGroupWindow(
               new PlannerWindowReference("w$", timeAttributeType),
@@ -123,7 +118,7 @@ class StreamPhysicalWindowAggregate(
                 timeAttributeFieldName,
                 fromLogicalTypeToDataType(timeAttributeType),
                 0,
-                timeAttributeIdx),
+                timeWindowStrategy.getTimeAttributeIndex),
               intervalOfMillis(windowSpec.getGap.toMillis)
             )
             new StreamExecGroupWindowAggregate(
