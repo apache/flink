@@ -47,7 +47,7 @@ Apache Flink 支持下列文件系统：
 
   - **MapR FS** 文件系统适配器已在 Flink 的主发行版中通过 *maprfs://* URI Scheme 支持。MapR 库需要在 classpath 中指定（例如在 `lib` 目录中）。
 
-  - **[阿里云对象存储]({{< ref "docs/deployment/filesystems/oss" >}})**由 `flink-oss-fs-hadoop` 支持，并通过 *oss://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+  - **[阿里云对象存储]({{< ref "docs/deployment/filesystems/oss" >}})** 由 `flink-oss-fs-hadoop` 支持，并通过 *oss://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
   - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
