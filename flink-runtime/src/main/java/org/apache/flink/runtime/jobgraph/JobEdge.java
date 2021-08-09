@@ -145,23 +145,6 @@ public class JobEdge implements java.io.Serializable {
 
     // --------------------------------------------------------------------------------------------
 
-    public void connectDataSet(IntermediateDataSet dataSet) {
-        if (dataSet == null) {
-            throw new NullPointerException();
-        }
-        if (this.source != null) {
-            throw new IllegalStateException("The edge is already connected.");
-        }
-        if (!dataSet.getId().equals(sourceId)) {
-            throw new IllegalArgumentException(
-                    "The data set to connect does not match the sourceId.");
-        }
-
-        this.source = dataSet;
-    }
-
-    // --------------------------------------------------------------------------------------------
-
     /**
      * Gets the name of the ship strategy for the represented input, like "forward", "partition
      * hash", "rebalance", "broadcast", ...
