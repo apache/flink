@@ -97,6 +97,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -1846,20 +1847,21 @@ public class StreamTaskTest extends TestLogger {
     public void testBufferSizeRecalculationStartSuccessfully() throws Exception {
         int expectedThroughput = 13333;
         int inputChannels = 3;
-        Consumer<StreamConfig> configuration =
-                (config) -> {
-                    // debloat period doesn't matter, we will schedule debloating manually
-                    config.getConfiguration().set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10));
-                    config.getConfiguration().set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1));
-                    config.getConfiguration().set(BUFFER_DEBLOAT_ENABLED, true);
-                };
+
+        // debloat period doesn't matter, we will schedule debloating manually
+        Configuration config =
+                new Configuration()
+                        .set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10))
+                        .set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1))
+                        .set(BUFFER_DEBLOAT_ENABLED, true);
+
         Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
                 StreamTaskTestHarness.createTaskMetricGroup(metrics);
 
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(configuration)
+                        .setTaskManagerRuntimeInfo(new TestingTaskManagerRuntimeInfo(config))
                         .setTaskMetricGroup(taskMetricGroup)
                         .addInput(STRING_TYPE_INFO, inputChannels)
                         .setupOutputForSingletonOperatorChain(

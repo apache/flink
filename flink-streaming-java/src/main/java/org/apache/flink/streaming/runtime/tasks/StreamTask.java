@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -406,12 +407,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
         this.throughputCalculator = environment.getThroughputCalculator();
-        this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
+        Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
 
-        if (getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+        this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+
+        if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             this.bufferDebloater =
-                    new BufferDebloater(
-                            getTaskConfiguration(), getEnvironment().getAllInputGates());
+                    new BufferDebloater(taskManagerConf, getEnvironment().getAllInputGates());
             environment
                     .getMetricGroup()
                     .gauge(
