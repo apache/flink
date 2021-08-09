@@ -35,7 +35,7 @@ class UserDefinedTableFunctionTests(object):
         multi_num = udf(MultiNum(), result_type=DataTypes.BIGINT())
 
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
-        t = t.join_lateral(multi_emit(t.a, multi_num(t.b)).alias('x', 'y'))
+        t = t.join_lateral(multi_emit((t.a + t.a) / 2, multi_num(t.b)).alias('x', 'y'))
         t = t.left_outer_join_lateral(condition_multi_emit(t.x, t.y).alias('m')) \
             .select("x, y, m")
         t = t.left_outer_join_lateral(identity(t.m).alias('n')) \
