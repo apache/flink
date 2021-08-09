@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
 import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
@@ -52,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
@@ -191,7 +191,7 @@ class MergeTableLikeUtil {
         // build watermark
         for (SqlWatermark sqlWatermark : derivedWatermarkSpecs) {
             builder.watermark(
-                    sqlWatermark.getEventTimeColumnName().getSimple(),
+                    sqlWatermark.getEventTimeColumnName().toString(),
                     escapeExpression.apply(sqlWatermark.getWatermarkStrategy()));
         }
 
@@ -332,6 +332,23 @@ class MergeTableLikeUtil {
                         "The base table already has a primary key. You might "
                                 + "want to specify EXCLUDING CONSTRAINTS.");
             } else if (derivedPrimaryKey != null) {
+                List<String> primaryKeyColumns = new ArrayList<>();
+                for (String primaryKey : derivedPrimaryKey.getColumnNames()) {
+                    if (!columns.containsKey(primaryKey)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Primary key column '%s' is not defined in the schema",
+                                        primaryKey));
+                    }
+                    if (!(columns.get(primaryKey) instanceof UnresolvedPhysicalColumn)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Could not create a PRIMARY KEY with column '%s'.\n"
+                                                + "A PRIMARY KEY constraint must be declared on physical columns.",
+                                        primaryKey));
+                    }
+                    primaryKeyColumns.add(primaryKey);
+                }
                 primaryKey = derivedPrimaryKey;
             }
         }
@@ -363,20 +380,17 @@ class MergeTableLikeUtil {
                                 fullRowtimeExpression));
             }
 
-            //            List<String> components = eventTimeColumnName;
-            //            if (!allFieldsTypes.containsKey(components.get(0))) {
-            //                throw new ValidationException(
-            //                        String.format(
-            //                                "The rowtime attribute field '%s' is not defined in
-            // the table schema, at %s\n"
-            //                                        + "Available fields: [%s]",
-            //                                fullRowtimeExpression,
-            //                                eventTimeColumnName.getParserPosition(),
-            //                                allFieldsTypes.keySet().stream()
-            //                                        .collect(Collectors.joining("', '", "'",
-            // "'"))));
-            //            }
-            //
+            List<String> components = Arrays.asList(eventTimeColumnName.split("\\."));
+            if (!columns.containsKey(components.get(0))) {
+                throw new ValidationException(
+                        String.format(
+                                "The rowtime attribute field '%s' is not defined in the table schema, \n"
+                                        + "Available fields: [%s]",
+                                fullRowtimeExpression,
+                                columns.keySet().stream()
+                                        .collect(Collectors.joining("', '", "'", "'"))));
+            }
+
             //            if (components.size() > 1) {
             //                RelDataType componentType = allFieldsTypes.get(components.get(0));
             //                for (int i = 1; i < components.size(); i++) {
@@ -406,8 +420,6 @@ class MergeTableLikeUtil {
                 Map<FeatureOption, MergingStrategy> mergingStrategies,
                 List<UnresolvedColumn> derivedColumns) {
 
-            //            collectPhysicalFieldsTypes(derivedColumns);
-
             for (UnresolvedColumn derivedColumn : derivedColumns) {
                 final String name = derivedColumn.getName();
                 if (derivedColumn instanceof UnresolvedPhysicalColumn) {
@@ -418,17 +430,7 @@ class MergeTableLikeUtil {
                                                 + "Computed columns can only overwrite other computed columns.",
                                         name));
                     }
-                    //                    final LogicalType logicalType =
-                    //
-                    // FlinkTypeFactory.toLogicalType(physicalFieldNamesToTypes.get(name));
-                    //                    column =
-                    //                            TableColumn.physical(
-                    //                                    name,
-                    // TypeConversions.fromLogicalToDataType(logicalType));
-                    //                    new UnresolvedPhysicalColumn();
                 } else if (derivedColumn instanceof UnresolvedComputedColumn) {
-                    final UnresolvedComputedColumn computedColumn =
-                            (UnresolvedComputedColumn) derivedColumn;
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof UnresolvedComputedColumn)) {
                             throw new ValidationException(
@@ -447,30 +449,7 @@ class MergeTableLikeUtil {
                                             name));
                         }
                     }
-
-                    //                    final Map<String, RelDataType> accessibleFieldNamesToTypes
-                    // = new HashMap<>();
-                    //
-                    // accessibleFieldNamesToTypes.putAll(physicalFieldNamesToTypes);
-                    //
-                    // accessibleFieldNamesToTypes.putAll(metadataFieldNamesToTypes);
-                    //
-                    //                    final SqlNode validatedExpr =
-                    //                            sqlValidator.validateParameterizedExpression(
-                    //                                    computedColumn.getExpr(),
-                    // accessibleFieldNamesToTypes);
-                    //                    final RelDataType validatedType =
-                    //                            sqlValidator.getValidatedNodeType(validatedExpr);
-                    //                    column =
-                    //                            UnresolvedColumn.computed(
-                    //                                    name,
-                    //
-                    // fromLogicalToDataType(toLogicalType(validatedType)),
-                    //                                    escapeExpressions.apply(validatedExpr));
-                    //                    computedFieldNamesToTypes.put(name, validatedType);
                 } else if (derivedColumn instanceof UnresolvedMetadataColumn) {
-                    final UnresolvedMetadataColumn metadataColumn =
-                            (UnresolvedMetadataColumn) derivedColumn;
                     if (columns.containsKey(name)) {
                         if (!(columns.get(name) instanceof UnresolvedMetadataColumn)) {
                             throw new ValidationException(
@@ -489,45 +468,10 @@ class MergeTableLikeUtil {
                                             name));
                         }
                     }
-
-                    //                    SqlDataTypeSpec type = metadataColumn.getType();
-                    //                    boolean nullable = type.getNullable() == null ? true :
-                    // type.getNullable();
-                    //                    RelDataType relType = type.deriveType(sqlValidator,
-                    // nullable);
-                    //                    column =
-                    //                            TableColumn.metadata(
-                    //                                    name,
-                    //
-                    // fromLogicalToDataType(toLogicalType(relType)),
-                    //
-                    // metadataColumn.getMetadataAlias().orElse(null),
-                    //                                    metadataColumn.isVirtual());
-                    //                    metadataFieldNamesToTypes.put(name, relType);
                 } else {
                     throw new ValidationException("Unsupported column type: " + derivedColumn);
                 }
                 columns.put(derivedColumn.getName(), derivedColumn);
-            }
-        }
-
-        private void collectPhysicalFieldsTypes(List<SqlNode> derivedColumns) {
-            for (SqlNode derivedColumn : derivedColumns) {
-                if (derivedColumn instanceof SqlRegularColumn) {
-                    SqlRegularColumn regularColumn = (SqlRegularColumn) derivedColumn;
-                    String name = regularColumn.getName().getSimple();
-                    if (columns.containsKey(name)) {
-                        throw new ValidationException(
-                                String.format(
-                                        "A column named '%s' already exists in the base table.",
-                                        name));
-                    }
-                    SqlDataTypeSpec type = regularColumn.getType();
-                    boolean nullable = type.getNullable() == null ? true : type.getNullable();
-                    RelDataType relType = type.deriveType(sqlValidator, nullable);
-                    // add field name and field type to physical field list
-                    //                    physicalFieldNamesToTypes.put(name, relType);
-                }
             }
         }
 

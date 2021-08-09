@@ -372,11 +372,11 @@ abstract class PlannerBase(
         }
         val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val isTemporary = lookupResult.isTemporary
-        if (isLegacyConnectorOptions(objectIdentifier, resolvedTable.getOrigin, isTemporary)) {
+        if (isLegacyConnectorOptions(objectIdentifier, resolvedTable, isTemporary)) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
             catalog.orElse(null),
             objectIdentifier,
-            tableToFind.getOrigin,
+            tableToFind,
             getTableConfig.getConfiguration,
             isStreamingMode,
             isTemporary)

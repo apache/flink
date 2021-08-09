@@ -126,7 +126,7 @@ class SqlCreateTableConverter {
                         sourcePartitionKeys,
                         sqlCreateTable.getPartitionKeyList(),
                         mergingStrategies);
-        //        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
+        verifyPartitioningColumnsExist(mergedSchema, partitionKeys);
 
         //        Schema.newBuilder().fromSchema(sourceTableSchema, derivedSchema);
         String tableComment =
@@ -163,20 +163,21 @@ class SqlCreateTableConverter {
         return (CatalogTable) lookupResult.getTable();
     }
 
-    //        private void verifyPartitioningColumnsExist(
-    //                Schema mergedSchema, List<String> partitionKeys) {
-    //            for (String partitionKey : partitionKeys) {
-    //                if (!mergedSchema.getTableColumn(partitionKey).isPresent()) {
-    //                    throw new ValidationException(
-    //                            String.format(
-    //                                    "Partition column '%s' not defined in the table schema.
-    //     Available columns: [%s]",
-    //                                    partitionKey,
-    //                                    Arrays.stream(mergedSchema.getFieldNames())
-    //                                            .collect(Collectors.joining("', '", "'", "'"))));
-    //                }
-    //            }
-    //        }
+    private void verifyPartitioningColumnsExist(Schema mergedSchema, List<String> partitionKeys) {
+        List<String> fieldNames =
+                mergedSchema.getColumns().stream()
+                        .map(c -> c.getName())
+                        .collect(Collectors.toList());
+        for (String partitionKey : partitionKeys) {
+            if (!fieldNames.contains(partitionKey)) {
+                throw new ValidationException(
+                        String.format(
+                                "Partition column '%s' not defined in the table schema. Available columns: [%s]",
+                                partitionKey,
+                                fieldNames.stream().collect(Collectors.joining("', '", "'", "'"))));
+            }
+        }
+    }
 
     private List<String> mergePartitions(
             List<String> sourcePartitionKeys,

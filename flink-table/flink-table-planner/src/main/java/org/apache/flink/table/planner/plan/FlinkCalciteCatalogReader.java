@@ -199,9 +199,9 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
             RelDataType rowType,
             ResolvedCatalogTable catalogTable,
             CatalogSchemaTable schemaTable) {
-        if (isLegacySourceOptions(catalogTable.getOrigin(), schemaTable)) {
+        if (isLegacySourceOptions(catalogTable, schemaTable)) {
             return new LegacyCatalogSourceTable<>(
-                    relOptSchema, names, rowType, schemaTable, catalogTable.getOrigin());
+                    relOptSchema, names, rowType, schemaTable, catalogTable);
         } else {
             return new CatalogSourceTable(relOptSchema, names, rowType, schemaTable, catalogTable);
         }

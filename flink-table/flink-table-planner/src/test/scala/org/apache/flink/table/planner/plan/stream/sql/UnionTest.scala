@@ -43,7 +43,6 @@ class UnionTest extends TableTestBase {
          |  name string,
          |  timestamp_col timestamp(3),
          |  val bigint,
-         |  name varchar(32),
          |  timestamp_ltz_col as TO_TIMESTAMP_LTZ(ts, 3),
          |  watermark for timestamp_col as timestamp_col
          |) WITH (

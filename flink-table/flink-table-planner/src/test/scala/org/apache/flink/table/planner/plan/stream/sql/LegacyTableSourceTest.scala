@@ -155,10 +155,9 @@ class LegacyTableSourceTest extends TableTestBase {
         |  id INT,
         |  val BIGINT,
         |  name STRING,
-        |  `proctime` TIMESTAMP_LTZ(3)
+        |  `proctime` AS PROCTIME()
         |) WITH (
-        |  'connector.type' = 'TestTableSourceWithTime',
-        |  'schema.3.proctime' = 'true'
+        |  'connector.type' = 'TestTableSourceWithTime'
         |)
         |""".stripMargin)
 
