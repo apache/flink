@@ -63,7 +63,6 @@ under the License.
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>testcontainers</artifactId>
-			<version>1.15.1</version>
 		</dependency>
 		<dependency>
 			<!-- To ensure that flink-dist is built beforehand -->
