@@ -136,8 +136,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final CompletableFuture<Void> forcedStop = new CompletableFuture<>();
 
     private enum OperatingMode {
-        OUTPUT_NOT_INITIALIZED,
         READING,
+        OUTPUT_NOT_INITIALIZED,
         SOURCE_STOPPED,
         DATA_FINISHED
     }
@@ -313,21 +313,27 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 || lastInvokedOutput == null
                 || this.operatingMode == OperatingMode.DATA_FINISHED;
 
+        // short circuit the hot path. Without this short circuit (READING handled in the
+        // switch/case) InputBenchmark.mapSink was showing a performance regression.
+        if (operatingMode == OperatingMode.READING) {
+            return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+        }
+        return emitNextNotReading(output);
+    }
+
+    private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
-                // this creates a batch or streaming output based on the runtime mode
                 currentMainOutput = eventTimeLogic.createMainOutput(output);
                 lastInvokedOutput = output;
                 this.operatingMode = OperatingMode.READING;
-                return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
-            case READING:
-                // short circuit the common case (every invocation except the first)
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
             case SOURCE_STOPPED:
                 this.operatingMode = OperatingMode.DATA_FINISHED;
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
                 return DataInputStatus.END_OF_INPUT;
+            case READING:
             default:
                 throw new IllegalStateException("Unknown operating mode: " + operatingMode);
         }
