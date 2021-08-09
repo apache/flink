@@ -50,6 +50,7 @@ Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**, and **
 
 - **Java 1.8.x** or higher installed,
 - Downloaded a recent Flink distribution from the [download page]({{ site.download_url }}) and unpacked it.
+- // And in the chrome, I can't see the url.
 
 ### Starting a Standalone Cluster (Session Mode)
 
