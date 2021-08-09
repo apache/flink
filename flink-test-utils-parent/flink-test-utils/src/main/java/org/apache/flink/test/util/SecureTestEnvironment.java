@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
@@ -34,6 +35,9 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Helper {@link SecureTestEnvironment} to handle MiniKDC lifecycle. This class can be used to
@@ -75,11 +79,13 @@ public class SecureTestEnvironment {
 
     protected static final Logger LOG = LoggerFactory.getLogger(SecureTestEnvironment.class);
 
+    public static final String HOST_NAME = "localhost";
+
     private static MiniKdc kdc;
 
-    private static String testKeytab = null;
+    private static File keytabFile;
 
-    private static String testPrincipal = null;
+    private static String testKeytab = null;
 
     private static String testZkServerPrincipal = null;
 
@@ -89,43 +95,44 @@ public class SecureTestEnvironment {
 
     private static String hadoopServicePrincipal = null;
 
+    private static String testPrincipal = null;
+
     public static void prepare(TemporaryFolder tempFolder) {
 
         try {
             File baseDirForSecureRun = tempFolder.newFolder();
             LOG.info("Base Directory for Secure Environment: {}", baseDirForSecureRun);
 
-            String hostName = "localhost";
             Properties kdcConf = MiniKdc.createConf();
             if (LOG.isDebugEnabled()) {
                 kdcConf.setProperty(MiniKdc.DEBUG, "true");
             }
-            kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, hostName);
+            kdcConf.setProperty(MiniKdc.KDC_BIND_ADDRESS, HOST_NAME);
             kdc = new MiniKdc(kdcConf, baseDirForSecureRun);
             kdc.start();
             LOG.info("Started Mini KDC");
 
-            File keytabFile = new File(baseDirForSecureRun, "test-users.keytab");
+            keytabFile = new File(baseDirForSecureRun, "test-users.keytab");
             testKeytab = keytabFile.getAbsolutePath();
-            testZkServerPrincipal = "zookeeper/" + hostName;
-            testZkClientPrincipal = "zk-client/" + hostName;
-            testKafkaServerPrincipal = "kafka/" + hostName;
-            hadoopServicePrincipal = "hadoop/" + hostName;
-            testPrincipal = "client/" + hostName;
+            testZkServerPrincipal = "zookeeper/" + HOST_NAME;
+            testZkClientPrincipal = "zk-client/" + HOST_NAME;
+            testKafkaServerPrincipal = "kafka/" + HOST_NAME;
+            hadoopServicePrincipal = "hadoop/" + HOST_NAME;
+            testPrincipal = "client/" + HOST_NAME;
 
             kdc.createPrincipal(
                     keytabFile,
-                    testPrincipal,
                     testZkServerPrincipal,
-                    hadoopServicePrincipal,
                     testZkClientPrincipal,
-                    testKafkaServerPrincipal);
+                    testKafkaServerPrincipal,
+                    hadoopServicePrincipal,
+                    testPrincipal);
 
-            testPrincipal = testPrincipal + "@" + kdc.getRealm();
             testZkServerPrincipal = testZkServerPrincipal + "@" + kdc.getRealm();
             testZkClientPrincipal = testZkClientPrincipal + "@" + kdc.getRealm();
             testKafkaServerPrincipal = testKafkaServerPrincipal + "@" + kdc.getRealm();
             hadoopServicePrincipal = hadoopServicePrincipal + "@" + kdc.getRealm();
+            testPrincipal = testPrincipal + "@" + kdc.getRealm();
 
             LOG.info("-------------------------------------------------------------------");
             LOG.info("Test Principal: {}", testPrincipal);
@@ -168,10 +175,13 @@ public class SecureTestEnvironment {
 
         resetSystemEnvVariables();
 
+        keytabFile = null;
         testKeytab = null;
-        testPrincipal = null;
         testZkServerPrincipal = null;
+        testZkClientPrincipal = null;
+        testKafkaServerPrincipal = null;
         hadoopServicePrincipal = null;
+        testPrincipal = null;
     }
 
     private static void populateJavaPropertyVariables() {
@@ -243,6 +253,15 @@ public class SecureTestEnvironment {
         }
 
         return clientSecurityConfigurationMap;
+    }
+
+    public static String createPrincipal(String principal) throws Exception {
+        checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(principal), "Valid principal must be provided");
+        checkNotNull(kdc, "KDC must be initialized");
+        checkNotNull(keytabFile, "KDC must be initialized");
+        kdc.createPrincipal(keytabFile, principal);
+        return principal + "@" + kdc.getRealm();
     }
 
     public static String getTestKeytab() {
