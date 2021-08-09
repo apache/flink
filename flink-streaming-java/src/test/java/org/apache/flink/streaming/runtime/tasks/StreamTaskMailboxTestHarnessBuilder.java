@@ -38,8 +38,10 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManagerBuilder;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
@@ -100,6 +102,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     private ThroughputCalculator throughputCalculator =
             new ThroughputCalculator(SystemClock.getInstance(), 10);
 
+    private TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
+
     public StreamTaskMailboxTestHarnessBuilder(
             FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
             TypeInformation<OUT> outputType) {
@@ -129,6 +133,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setThroughputCalculator(
             ThroughputCalculator throughputCalculator) {
         this.throughputCalculator = throughputCalculator;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setTaskManagerRuntimeInfo(
+            TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
+        this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
         return this;
     }
 
@@ -217,6 +227,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
         streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
         initializeInputs(streamMockEnvironment);
+        streamMockEnvironment.setTaskManagerInfo(taskManagerRuntimeInfo);
 
         checkState(inputGates != null, "InputGates hasn't been initialised");
 
