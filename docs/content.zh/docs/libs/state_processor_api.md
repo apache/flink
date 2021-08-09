@@ -107,7 +107,7 @@ The state name and type information should match those used to define the `ListS
 The framework will return a _single_ copy of the state, equivalent to restoring a DataStream with parallelism 1.
 
 ```java
-DataSet<Integer> listState  = savepoint.readUnionState<>(
+DataSet<Integer> unionState  = savepoint.readUnionState<>(
     "my-uid",
     "union-state",
     Types.INT);
