@@ -47,6 +47,7 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     private final TypeSerializer<T> elementSerializer;
 
     private final boolean hasNullMask;
+    private transient boolean[] reuseMask;
 
     /**
      * Creates a list serializer that uses the given serializer to serialize the list's elements.
@@ -86,10 +87,7 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
 
     @Override
     public TypeSerializer<LinkedList<T>> duplicate() {
-        TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-        return duplicateElement == elementSerializer
-                ? this
-                : new LinkedListSerializer<>(duplicateElement, hasNullMask);
+        return new LinkedListSerializer<>(elementSerializer.duplicate(), hasNullMask);
     }
 
     @Override
@@ -135,13 +133,15 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     }
 
     private boolean[] getNullMask(LinkedList<T> list) {
-        boolean[] mask = new boolean[list.size()];
+        if (reuseMask == null || reuseMask.length != list.size()) {
+            reuseMask = new boolean[list.size()];
+        }
         int idx = 0;
         for (T item : list) {
-            mask[idx] = item == null;
+            reuseMask[idx] = item == null;
             idx++;
         }
-        return mask;
+        return reuseMask;
     }
 
     @Override
