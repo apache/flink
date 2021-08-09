@@ -148,6 +148,7 @@ public class SourceOperatorTest {
         assertTrue(operator.isAvailable());
         assertFalse(sourceStopped.isDone());
         assertEquals(DataInputStatus.END_OF_DATA, operator.emitNext(dataOutput));
+        operator.finish();
         assertTrue(sourceStopped.isDone());
     }
 
