@@ -313,7 +313,7 @@ public class KafkaSinkITCase extends TestLogger {
             DeliveryGuarantee deliveryGuarantee, SharedReference<AtomicLong> expectedRecords)
             throws Exception {
         final StreamExecutionEnvironment env = new LocalStreamEnvironment();
-        env.enableCheckpointing(1000L);
+        env.enableCheckpointing(100L);
         final DataStream<Long> source =
                 env.addSource(
                         new InfiniteIntegerSource(
@@ -334,7 +334,7 @@ public class KafkaSinkITCase extends TestLogger {
         assertEquals(collectedRecords.size(), recordsCount);
         assertEquals(
                 deserializeValues(collectedRecords),
-                LongStream.range(0, recordsCount).boxed().collect(Collectors.toList()));
+                LongStream.range(1, recordsCount + 1).boxed().collect(Collectors.toList()));
         checkProducerLeak();
     }
 
@@ -556,6 +556,7 @@ public class KafkaSinkITCase extends TestLogger {
                 failed.get().set(true);
                 throw new RuntimeException("Planned exception.");
             }
+            // Delay execution to ensure that at-least one checkpoint is triggered before finish
             Thread.sleep(50);
             emittedBetweenCheckpoint.incrementAndGet();
             return value;
@@ -586,8 +587,8 @@ public class KafkaSinkITCase extends TestLogger {
     }
 
     /**
-     * Exposes information about how man records have been emitted overall and at the beginning of a
-     * checkpoint.
+     * Exposes information about how man records have been emitted overall and finishes after
+     * receiving the checkpoint completed event.
      */
     private static final class InfiniteIntegerSource
             implements SourceFunction<Long>, CheckpointListener, CheckpointedFunction {
@@ -596,7 +597,8 @@ public class KafkaSinkITCase extends TestLogger {
         private final SharedReference<AtomicLong> emittedRecordsWithCheckpoint;
 
         private volatile boolean running = true;
-        private long counter = 0;
+        private volatile long temp;
+        private Object lock;
 
         InfiniteIntegerSource(
                 SharedReference<AtomicLong> emittedRecordsCount,
@@ -607,9 +609,11 @@ public class KafkaSinkITCase extends TestLogger {
 
         @Override
         public void run(SourceContext<Long> ctx) throws Exception {
+            lock = ctx.getCheckpointLock();
             while (running) {
-                emittedRecordsCount.get().addAndGet(1);
-                ctx.collect(counter++);
+                synchronized (lock) {
+                    ctx.collect(emittedRecordsCount.get().addAndGet(1));
+                }
             }
         }
 
@@ -620,12 +624,18 @@ public class KafkaSinkITCase extends TestLogger {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            emittedRecordsWithCheckpoint.get().set(temp);
             running = false;
+            LOG.info("notifyCheckpointCompleted {}", checkpointId);
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            emittedRecordsWithCheckpoint.get().set(counter - 1);
+            temp = emittedRecordsCount.get().get();
+            LOG.info(
+                    "snapshotState, {}, {}",
+                    context.getCheckpointId(),
+                    emittedRecordsCount.get().get());
         }
 
         @Override
