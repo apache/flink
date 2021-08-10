@@ -83,7 +83,7 @@ input.flatMap((Integer number, Collector<String> out) -> {
 .print();
 ```
 
-当使用 `map()` 函数返回泛型类型的时候也会发生类似的问题。下例中的方法签名 `Tuple2<Integer, Integer> map(Integer value)` 被擦除为 `Tuple2 map(Integer value)`。
+当使用 `map()` 函数返回泛型类型的时候也会发生类似的问题。下面示例中的方法签名 `Tuple2<Integer, Integer> map(Integer value)` 被擦除为 `Tuple2 map(Integer value)`。
 
 ```java
 import org.apache.flink.api.common.functions.MapFunction;
