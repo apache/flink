@@ -49,7 +49,7 @@ env.fromElements(1, 2, 3)
 
 由于 `OUT` 是 `Integer` 而不是泛型，所以 Flink 可以从方法签名 `OUT map(IN value)` 的实现中自动提取出结果的类型信息。
 
-不幸的是，`flatMap()` 这样的函数，它的签名 `void flatMap(IN value, Collector<OUT> out)` 被 Java 编译器编译为 `void flatMap(IN value, Collector out)`。这样 Flink 就无法自动推断输出的类型信息了。
+不幸的是，像 `flatMap()` 这样的函数，它的签名 `void flatMap(IN value, Collector<OUT> out)` 被 Java 编译器编译为 `void flatMap(IN value, Collector out)`。这样 Flink 就无法自动推断输出的类型信息了。
 
 Flink 很可能抛出类似如下的异常：
 
