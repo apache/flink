@@ -18,11 +18,19 @@
 
 package org.apache.flink.fs.azurefs;
 
-/** A factory for the Azure file system over HTTPs. */
-public class SecureAzureFSFactory extends AbstractAzureFSFactory {
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
+
+/** Secure ABFS AzureFS implementation. */
+public class SecureAzureDataLakeStoreGen2FSFactory extends AbstractAzureFSFactory {
 
     @Override
     public String getScheme() {
-        return "wasbs";
+        return "abfss";
+    }
+
+    @Override
+    FileSystem createAzureFS() {
+        return new AzureBlobFileSystem();
     }
 }
