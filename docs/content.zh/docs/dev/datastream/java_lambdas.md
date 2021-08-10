@@ -32,7 +32,7 @@ Java 8 引入了几种新的语言特性，旨在实现更快、更清晰的编�
 Flink 支持对 Java API 的所有算子使用 Lambda 表达式，但是，当 Lambda 表达式使用 Java 泛型时，你需要 *显式* 地声明类型信息。
 {{< /hint >}}
 
-本文档介绍了如何使用 Lambda 表达式并描述了其在当前应用中的限制。有关 Flink API 的通用介绍， 请参阅[DataStream API 编程指南]({{< ref "docs/dev/datastream/overview" >}})。
+本文档介绍如何使用 Lambda 表达式并描述了其（Lambda 表达式）当前的限制。有关 Flink API 的通用介绍，请参阅 [DataStream API 编程指南]({{< ref "docs/dev/datastream/overview" >}})。
 
 ## 示例和限制
 
