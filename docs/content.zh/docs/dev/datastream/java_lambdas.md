@@ -128,7 +128,7 @@ env.fromElements(1, 2, 3)
     })
     .print();
 
-// 或者在这个例子中用 Tuple 的子类来替代
+// 也可以像这个示例中使用 Tuple 的子类来替代
 env.fromElements(1, 2, 3)
     .map(i -> new DoubleTuple(i, i))
     .print();
