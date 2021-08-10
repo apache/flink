@@ -89,12 +89,12 @@ comparison:
   - sql: value1 IN (value2 [, value3]* )
     table: value1.in(valu2)
     description: |
-      在给定列表(value2,value3, ...)中存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则返回
+      在给定列表 (value2, value3, ...) 中存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则返回
       `TRUE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL` 则始终返回 `UNKNOWN`。例如 `4 IN (1, 2, 3)` 返回
       `FALSE`；`1 IN (1, 2, NULL)` 返回 `TRUE`；`4 IN (1, 2, NULL)` 返回 `UNKNOWN`。
   - sql: value1 NOT IN (value2 [, value3]* )
     description: |
-      在给定列表(value2,value3, ...)中不存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则
+      在给定列表 (value2, value3, ...) 中不存在 value1 返回 `TRUE`。当列表包含 `NULL`，如果可以找到 value1 则
       返回 `FALSE`，否则返回 `UNKNOWN`。如果 value1 为 `NULL`，则始终返回 `UNKNOWN`。例如 `4 NOT IN (1, 2, 3)`
       返回 `TRUE`；`1 NOT IN (1, 2, NULL)` 返回 `FALSE`；`4 NOT IN (1, 2, NULL)` 返回 `UNKNOWN`。
   - sql: EXISTS (sub-query)
@@ -446,7 +446,7 @@ string:
       如果有任一参数为 `NULL`，则返回 `NULL`。例如
       `parse_url(' http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')` 返回 `'facebook.com'`。
       还可以通过提供关键词 string3 作为第三个参数来提取 QUERY 中特定键的值。例如
-      `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY','k1')` 返回 `'v1'`。
+      `parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')` 返回 `'v1'`。
   - sql: REGEXP(string1, string2)
     description: |
       如果 string1 的任何（可能为空）子字符串与 Java 正则表达式 string2 匹配，则返回 TRUE，否则返回 FALSE。
