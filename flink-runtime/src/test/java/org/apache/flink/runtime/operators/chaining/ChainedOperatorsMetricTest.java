@@ -32,8 +32,8 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.FlatMapDriver;
@@ -78,7 +78,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
                         .setInputSplitProvider(this.inputSplitProvider)
                         .setBufferSize(NETWORK_BUFFER_SIZE)
                         .setMetricGroup(
-                                MetricUtils.createTaskManagerMetricGroup(
+                                TaskManagerMetricGroup.createTaskManagerMetricGroup(
                                                 NoOpMetricRegistry.INSTANCE,
                                                 "host",
                                                 ResourceID.generate())
