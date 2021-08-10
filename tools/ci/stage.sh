@@ -127,8 +127,6 @@ flink-connectors/flink-sql-connector-kafka,"
 MODULES_TESTS="\
 flink-tests"
 
-MODULES_LEGACY_SLOT_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
-
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
 
 # we can only build the Scala Shell when building for Scala 2.11
