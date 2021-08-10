@@ -21,6 +21,7 @@ package org.apache.flink.test.util;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.security.KerberosUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -154,7 +155,9 @@ public class SecureTestEnvironment {
             flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
             flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
             flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
-            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Client,KafkaClient");
+            flinkConfig.setString(
+                    SecurityOptions.KERBEROS_LOGIN_CONTEXTS,
+                    "Client,KafkaClient," + KerberosUtils.getDefaultKerberosInitAppEntryName());
             SecurityConfiguration ctx = new SecurityConfiguration(flinkConfig);
             TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
