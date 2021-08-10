@@ -273,7 +273,8 @@ public abstract class Transformation<T> {
      * @param managedMemoryUseCase The use case that this transformation declares needing managed
      *     memory for.
      * @param weight Use-case-specific weights for this transformation. Used for sharing managed
-     *     memory across transformations for OPERATOR scope use cases.
+     *     memory across transformations for OPERATOR scope use cases. Check the individual {@link
+     *     ManagedMemoryUseCase} for the specific weight definition.
      * @return The previous weight, if exist.
      */
     public Optional<Integer> declareManagedMemoryUseCaseAtOperatorScope(
@@ -313,7 +314,8 @@ public abstract class Transformation<T> {
     /**
      * Get operator scope use cases that this transformation needs managed memory for, and the
      * use-case-specific weights for this transformation. The weights are used for sharing managed
-     * memory across transformations for the use cases.
+     * memory across transformations for the use cases. Check the individual {@link
+     * ManagedMemoryUseCase} for the specific weight definition.
      */
     public Map<ManagedMemoryUseCase, Integer> getManagedMemoryOperatorScopeUseCaseWeights() {
         return Collections.unmodifiableMap(managedMemoryOperatorScopeUseCaseWeights);

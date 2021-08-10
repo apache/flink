@@ -35,19 +35,16 @@ import java.util.stream.Collectors;
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
     /**
-     * Set memoryBytes to {@link
-     * Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
+     * Sets {Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}
+     * using the given bytes for {@link ManagedMemoryUseCase#OPERATOR}.
      */
     public static <T> void setManagedMemoryWeight(
             Transformation<T> transformation, long memoryBytes) {
-        // Using Bytes can easily overflow
-        // Using KibiBytes to cast to int
-        // Careful about zero
         if (memoryBytes > 0) {
-            int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
-            Optional<Integer> previousWeight =
+            final int weightInMebibyte = Math.max(1, (int) (memoryBytes >> 20));
+            final Optional<Integer> previousWeight =
                     transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                            ManagedMemoryUseCase.OPERATOR, memoryKibiBytes);
+                            ManagedMemoryUseCase.OPERATOR, weightInMebibyte);
             if (previousWeight.isPresent()) {
                 throw new TableException(
                         "Managed memory weight has been set, this should not happen.");

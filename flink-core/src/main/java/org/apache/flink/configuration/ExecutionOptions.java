@@ -99,7 +99,7 @@ public class ExecutionOptions {
                                     .build());
 
     @Documentation.ExcludeFromDocumentation(
-            "This is an expert option, that we do not want to expose in" + " the documentation")
+            "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =
             ConfigOptions.key("execution.sorted-inputs.enabled")
                     .booleanType()
@@ -109,7 +109,21 @@ public class ExecutionOptions {
                                     + "NOTE: It takes effect only in the BATCH runtime mode.");
 
     @Documentation.ExcludeFromDocumentation(
-            "This is an expert option, that we do not want to expose in" + " the documentation")
+            "This is an expert option, that we do not want to expose in the documentation")
+    public static final ConfigOption<MemorySize> SORTED_INPUTS_MEMORY =
+            ConfigOptions.key("execution.sorted-inputs.memory")
+                    .memoryType()
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
+                    .withDescription(
+                            "Sets the managed memory size for sorting inputs of keyed operators in "
+                                    + "BATCH runtime mode. The memory size is only a weight hint. "
+                                    + "Thus, it will affect the operator's memory weight within a "
+                                    + "task, but the actual memory used depends on the running "
+                                    + "environment.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> USE_BATCH_STATE_BACKEND =
             ConfigOptions.key("execution.batch-state-backend.enabled")
                     .booleanType()

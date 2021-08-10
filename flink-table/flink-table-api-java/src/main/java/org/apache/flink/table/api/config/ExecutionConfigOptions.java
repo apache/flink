@@ -234,7 +234,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
             key("table.exec.resource.hash-join.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed memory for hash join operator. It defines the lower"
                                     + " limit. Note: memory size is only a weight hint, it will affect the weight of"
@@ -247,7 +248,8 @@ public class ExecutionConfigOptions {
     public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_SORT_MEMORY =
             key("table.exec.resource.sort.memory")
                     .memoryType()
-                    .defaultValue(MemorySize.parse("128 mb"))
+                    // in sync with other weights from Table API and DataStream API
+                    .defaultValue(MemorySize.ofMebiBytes(128))
                     .withDescription(
                             "Sets the managed buffer memory size for sort operator. Note: memory"
                                     + " size is only a weight hint, it will affect the weight of memory that can be"
