@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
@@ -195,12 +195,6 @@ public class KafkaConnectorOptions {
                                                     "custom class name (use custom FlinkKafkaPartitioner subclass)"))
                                     .build());
 
-    public static final ConfigOption<SinkSemantic> SINK_SEMANTIC =
-            ConfigOptions.key("sink.semantic")
-                    .enumType(SinkSemantic.class)
-                    .defaultValue(SinkSemantic.AT_LEAST_ONCE)
-                    .withDescription("Optional semantic when committing.");
-
     // Disable this feature by default
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
@@ -240,6 +234,21 @@ public class KafkaConnectorOptions {
                                                     + "must be set to be greater than zero to enable sink buffer flushing.")
                                     .build());
 
+    public static final ConfigOption<DeliveryGuarantee> DELIVERY_GUARANTEE =
+            ConfigOptions.key("sink.delivery-guarantee")
+                    .enumType(DeliveryGuarantee.class)
+                    .defaultValue(DeliveryGuarantee.AT_LEAST_ONCE)
+                    .withDescription("Optional delivery guarantee when committing.");
+
+    public static final ConfigOption<String> TRANSACTIONAL_ID_PREFIX =
+            ConfigOptions.key("sink.transactional-id-prefix")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "If the delivery guarantee is configured as "
+                                    + DeliveryGuarantee.EXACTLY_ONCE
+                                    + " this value is used a prefix for the identifier of all opened Kafka transactions.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------
@@ -274,50 +283,6 @@ public class KafkaConnectorOptions {
         @Override
         public String toString() {
             return value;
-        }
-
-        @Override
-        public InlineElement getDescription() {
-            return description;
-        }
-    }
-
-    /** Sink semantic, see {@link #SINK_SEMANTIC}. */
-    public enum SinkSemantic implements DescribedEnum {
-        EXACTLY_ONCE(
-                FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
-                "exactly-once",
-                text(
-                        "Writes all messages in a Kafka transaction that will be committed to Kafka on a checkpoint.")),
-        AT_LEAST_ONCE(
-                FlinkKafkaProducer.Semantic.AT_LEAST_ONCE,
-                "at-least-once",
-                text(
-                        "Waits for all outstanding messages in the kafka buffers to be acknowledged by the Kafka producer on a checkpoint.")),
-        NONE(
-                FlinkKafkaProducer.Semantic.NONE,
-                "none",
-                text(
-                        "No guarantees are made. Messages can be lost and/or duplicated in case of failure."));
-
-        private final FlinkKafkaProducer.Semantic semantic;
-        private final String value;
-        private final InlineElement description;
-
-        SinkSemantic(
-                FlinkKafkaProducer.Semantic semantic, String value, InlineElement description) {
-            this.semantic = semantic;
-            this.value = value;
-            this.description = description;
-        }
-
-        @Override
-        public String toString() {
-            return value;
-        }
-
-        FlinkKafkaProducer.Semantic getSemantic() {
-            return semantic;
         }
 
         @Override
