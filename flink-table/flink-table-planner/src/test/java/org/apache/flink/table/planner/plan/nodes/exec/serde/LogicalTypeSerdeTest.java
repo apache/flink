@@ -95,7 +95,7 @@ public class LogicalTypeSerdeTest {
     public void testLogicalTypeSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        new FlinkContextImpl(false, TableConfig.getDefault(), null, null, null),
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());

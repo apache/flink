@@ -61,6 +61,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val functionCatalog = new FunctionCatalog(config, catalogManager, new ModuleManager)
   val plannerContext = new PlannerContext(
+    false,
     config,
     functionCatalog,
     catalogManager,

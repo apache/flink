@@ -56,6 +56,7 @@ public class LookupKeySerdeTest {
                         .build();
         FlinkContext flinkContext =
                 new FlinkContextImpl(
+                        false,
                         tableConfig,
                         new FunctionCatalog(tableConfig, catalogManager, new ModuleManager()),
                         catalogManager,

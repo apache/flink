@@ -139,6 +139,7 @@ public class SqlToOperationConverterTest {
                                     catalogManager.getCurrentDatabase());
     private final PlannerContext plannerContext =
             new PlannerContext(
+                    false,
                     tableConfig,
                     functionCatalog,
                     catalogManager,
