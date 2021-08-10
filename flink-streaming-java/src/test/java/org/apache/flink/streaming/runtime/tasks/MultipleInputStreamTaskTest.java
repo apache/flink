@@ -41,6 +41,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -79,6 +80,7 @@ import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskChainedSourcesCheckpointingTest.LifeCycleMonitorMultipleInputOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -999,6 +1001,31 @@ public class MultipleInputStreamTaskTest {
                     writer.close();
                 }
             }
+        }
+    }
+
+    @Test
+    public void testSkipExecutionsIfFinishedOnRestore() throws Exception {
+        OperatorID nonSourceOperatorId = new OperatorID();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(
+                                nonSourceOperatorId,
+                                new LifeCycleMonitorMultipleInputOperatorFactory())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            testHarness.waitForTaskCompletion();
+            assertThat(testHarness.getOutput(), contains(EndOfData.INSTANCE));
         }
     }
 
