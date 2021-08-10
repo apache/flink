@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -58,6 +59,8 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -721,9 +724,12 @@ public class StreamTaskFinalCheckpointsTest {
 
             // Try trigger a checkpoint.
             harness.getTaskStateManager().getWaitForReportLatch().reset();
+            CheckpointMetaData checkpointMetaData = new CheckpointMetaData(2, 2);
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault());
             harness.streamTask.triggerCheckpointOnBarrier(
-                    new CheckpointMetaData(2, 2),
-                    new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault()),
+                    checkpointMetaData,
+                    checkpointOptions,
                     new CheckpointMetricsBuilder()
                             .setBytesProcessedDuringAlignment(0)
                             .setAlignmentDurationNanos(0));
@@ -738,6 +744,15 @@ public class StreamTaskFinalCheckpointsTest {
             // Finish & close operators.
             harness.waitForTaskCompletion();
             harness.finishProcessing();
+
+            assertThat(
+                    harness.getOutput(),
+                    contains(
+                            new CheckpointBarrier(
+                                    checkpointMetaData.getCheckpointId(),
+                                    checkpointMetaData.getTimestamp(),
+                                    checkpointOptions),
+                            EndOfData.INSTANCE));
         }
     }
 

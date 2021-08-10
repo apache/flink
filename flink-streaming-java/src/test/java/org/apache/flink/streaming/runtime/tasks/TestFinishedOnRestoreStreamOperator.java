@@ -19,25 +19,31 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
-/** A bounded one-input stream operator for test. */
+import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup;
+
+/** A bounded one-input or two-input stream operator for test. */
 public class TestFinishedOnRestoreStreamOperator
-        implements OneInputStreamOperator<String, String>, BoundedOneInput {
+        implements OneInputStreamOperator<String, String>,
+                TwoInputStreamOperator<String, String, String>,
+                BoundedOneInput,
+                BoundedMultiInput {
     private static final long serialVersionUID = 1L;
 
-    private static final String MESSAGE = "This should never be called";
+    protected static final String MESSAGE = "This should never be called";
 
     @Override
     public void open() {
@@ -111,7 +117,7 @@ public class TestFinishedOnRestoreStreamOperator
     @Override
     public MetricGroup getMetricGroup() {
         // TODO: Should this be allowed to access for finished tasks?
-        return new UnregisteredMetricsGroup();
+        return createUnregisteredOperatorMetricGroup();
     }
 
     @Override
@@ -131,6 +137,51 @@ public class TestFinishedOnRestoreStreamOperator
 
     @Override
     public Object getCurrentKey() {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void endInput(int inputId) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processElement1(StreamRecord<String> element) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processElement2(StreamRecord<String> element) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processWatermark1(Watermark mark) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processWatermark2(Watermark mark) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processLatencyMarker1(LatencyMarker latencyMarker) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processLatencyMarker2(LatencyMarker latencyMarker) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processStreamStatus1(StreamStatus streamStatus) throws Exception {
+        throw new IllegalStateException(MESSAGE);
+    }
+
+    @Override
+    public void processStreamStatus2(StreamStatus streamStatus) throws Exception {
         throw new IllegalStateException(MESSAGE);
     }
 }

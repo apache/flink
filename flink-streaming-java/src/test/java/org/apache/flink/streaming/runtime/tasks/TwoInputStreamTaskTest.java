@@ -20,11 +20,13 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -66,6 +68,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -516,6 +519,28 @@ public class TwoInputStreamTaskTest {
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
+    }
+
+    @Test
+    public void testSkipExecutionsIfFinishedOnRestore() throws Exception {
+        OperatorID nonSourceOperatorId = new OperatorID();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(
+                                nonSourceOperatorId, new TestFinishedOnRestoreStreamOperator())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            testHarness.waitForTaskCompletion();
+            assertThat(testHarness.getOutput(), contains(EndOfData.INSTANCE));
+        }
     }
 
     static class DuplicatingOperator extends AbstractStreamOperator<String>
