@@ -88,6 +88,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -668,7 +669,7 @@ public class HiveParserSemanticAnalyzer {
             HiveTableUtil.setStorageFormat(table.getSd(), "TextFile", conf);
             table.setFields(fields);
             // make up a path for this table
-            File dataLocation = FileUtils.getTempDirectory();
+            File dataLocation = Files.createTempDirectory(tableName).toFile();
             try {
                 table.setDataLocation(new Path(dataLocation.toURI().toString(), tableName));
                 table.getTTable().setTemporary(true);
