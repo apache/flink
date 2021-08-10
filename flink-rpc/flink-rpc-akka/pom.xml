@@ -158,11 +158,6 @@ under the License.
 				<version>${akka.scala.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-xml_${akka.scala.binary.version}</artifactId>
-				<version>1.0.6</version>
-			</dependency>
-			<dependency>
 				<groupId>com.typesafe</groupId>
 				<artifactId>config</artifactId>
 				<version>1.4.0</version>
