@@ -426,22 +426,21 @@ public class CheckpointCoordinatorTestingUtils {
     public static TaskStateSnapshot createSnapshotWithUnionListState(
             File stateFile, OperatorID operatorId, boolean isOperatorsFinished) throws IOException {
         TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(1, isOperatorsFinished);
-
-        OperatorSubtaskState operatorSubtaskState =
-                OperatorSubtaskState.builder()
-                        .setManagedOperatorState(
-                                new OperatorStreamStateHandle(
-                                        Collections.singletonMap(
-                                                "test",
-                                                new OperatorStateHandle.StateMetaInfo(
-                                                        new long[0],
-                                                        OperatorStateHandle.Mode.UNION)),
-                                        new FileStateHandle(
-                                                new Path(stateFile.getAbsolutePath()), 0L)))
-                        .build();
-
-        taskStateSnapshot.putSubtaskStateByOperatorID(operatorId, operatorSubtaskState);
+        taskStateSnapshot.putSubtaskStateByOperatorID(
+                operatorId, createSubtaskStateWithUnionListState(stateFile));
         return taskStateSnapshot;
+    }
+
+    public static OperatorSubtaskState createSubtaskStateWithUnionListState(File stateFile) {
+        return OperatorSubtaskState.builder()
+                .setManagedOperatorState(
+                        new OperatorStreamStateHandle(
+                                Collections.singletonMap(
+                                        "test",
+                                        new OperatorStateHandle.StateMetaInfo(
+                                                new long[0], OperatorStateHandle.Mode.UNION)),
+                                new FileStateHandle(new Path(stateFile.getAbsolutePath()), 0L)))
+                .build();
     }
 
     static class TriggeredCheckpoint {

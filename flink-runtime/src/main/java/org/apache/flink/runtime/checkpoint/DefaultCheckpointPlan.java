@@ -18,13 +18,25 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.util.FlinkRuntimeException;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The default implementation of he {@link CheckpointPlan}. */
 public class DefaultCheckpointPlan implements CheckpointPlan {
@@ -37,9 +49,11 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
 
     private final List<Execution> finishedTasks;
 
-    private final List<ExecutionJobVertex> fullyFinishedJobVertex;
-
     private final boolean mayHaveFinishedTasks;
+
+    private final Map<JobVertexID, ExecutionJobVertex> fullyFinishedOrFinishedOnRestoreVertices;
+
+    private final IdentityHashMap<ExecutionJobVertex, Integer> vertexOperatorsFinishedTasksCount;
 
     DefaultCheckpointPlan(
             List<Execution> tasksToTrigger,
@@ -53,8 +67,15 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
         this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
         this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
         this.finishedTasks = checkNotNull(finishedTasks);
-        this.fullyFinishedJobVertex = checkNotNull(fullyFinishedJobVertex);
         this.mayHaveFinishedTasks = mayHaveFinishedTasks;
+
+        this.fullyFinishedOrFinishedOnRestoreVertices = new HashMap<>();
+        fullyFinishedJobVertex.forEach(
+                jobVertex ->
+                        fullyFinishedOrFinishedOnRestoreVertices.put(
+                                jobVertex.getJobVertexId(), jobVertex));
+
+        this.vertexOperatorsFinishedTasksCount = new IdentityHashMap<>();
     }
 
     @Override
@@ -78,12 +99,149 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
     }
 
     @Override
-    public List<ExecutionJobVertex> getFullyFinishedJobVertex() {
-        return fullyFinishedJobVertex;
+    public Collection<ExecutionJobVertex> getFullyFinishedJobVertex() {
+        return fullyFinishedOrFinishedOnRestoreVertices.values();
     }
 
     @Override
     public boolean mayHaveFinishedTasks() {
         return mayHaveFinishedTasks;
+    }
+
+    @Override
+    public void reportTaskFinishedOnRestore(ExecutionVertex task) {
+        fullyFinishedOrFinishedOnRestoreVertices.putIfAbsent(
+                task.getJobvertexId(), task.getJobVertex());
+    }
+
+    @Override
+    public void reportTaskHasFinishedOperators(ExecutionVertex task) {
+        vertexOperatorsFinishedTasksCount.compute(
+                task.getJobVertex(), (k, v) -> v == null ? 1 : v + 1);
+    }
+
+    @Override
+    public void fulfillFinishedTaskStatus(Map<OperatorID, OperatorState> operatorStates) {
+        if (!mayHaveFinishedTasks) {
+            return;
+        }
+
+        Map<JobVertexID, ExecutionJobVertex> partlyFinishedVertex = new HashMap<>();
+        for (Execution task : finishedTasks) {
+            JobVertexID jobVertexId = task.getVertex().getJobvertexId();
+            if (!fullyFinishedOrFinishedOnRestoreVertices.containsKey(jobVertexId)) {
+                partlyFinishedVertex.put(jobVertexId, task.getVertex().getJobVertex());
+            }
+        }
+
+        checkNoPartlyFinishedVertexUsedUnionListState(partlyFinishedVertex, operatorStates);
+        checkNoPartlyOperatorsFinishedVertexUsedUnionListState(
+                partlyFinishedVertex, operatorStates);
+
+        fulfillFullyFinishedOrFinishedOnRestoreOperatorStates(operatorStates);
+    }
+
+    /**
+     * If a job vertex using {@code UnionListState} has part of tasks FINISHED where others are
+     * still in RUNNING state, the checkpoint would be aborted since it might cause incomplete
+     * {@code UnionListState}.
+     */
+    private void checkNoPartlyFinishedVertexUsedUnionListState(
+            Map<JobVertexID, ExecutionJobVertex> partlyFinishedVertex,
+            Map<OperatorID, OperatorState> operatorStates) {
+        for (ExecutionJobVertex vertex : partlyFinishedVertex.values()) {
+            if (hasUsedUnionListState(vertex, operatorStates)) {
+                throw new FlinkRuntimeException(
+                        String.format(
+                                "The vertex %s (id = %s) has used"
+                                        + " UnionListState, but part of its tasks are FINISHED.",
+                                vertex.getName(), vertex.getJobVertexId()));
+            }
+        }
+    }
+
+    /**
+     * If a job vertex using {@code UnionListState} has all the tasks in RUNNING state, but part of
+     * the tasks have reported that the operators are finished, the checkpoint would be aborted.
+     * This is to force the fast tasks wait for the slow tasks so that their final checkpoints would
+     * be the same one, otherwise if the fast tasks finished, the slow tasks would be blocked
+     * forever since all the following checkpoints would be aborted.
+     */
+    private void checkNoPartlyOperatorsFinishedVertexUsedUnionListState(
+            Map<JobVertexID, ExecutionJobVertex> partlyFinishedVertex,
+            Map<OperatorID, OperatorState> operatorStates) {
+        for (Map.Entry<ExecutionJobVertex, Integer> entry :
+                vertexOperatorsFinishedTasksCount.entrySet()) {
+            ExecutionJobVertex vertex = entry.getKey();
+
+            // If the vertex is partly finished, then it must not used UnionListState
+            // due to it passed the previous check.
+            if (partlyFinishedVertex.containsKey(vertex.getJobVertexId())) {
+                continue;
+            }
+
+            if (entry.getValue() != vertex.getParallelism()
+                    && hasUsedUnionListState(vertex, operatorStates)) {
+                throw new FlinkRuntimeException(
+                        String.format(
+                                "The vertex %s (id = %s) has used"
+                                        + " UnionListState, but part of its tasks has called operators' finish method.",
+                                vertex.getName(), vertex.getJobVertexId()));
+            }
+        }
+    }
+
+    private boolean hasUsedUnionListState(
+            ExecutionJobVertex vertex, Map<OperatorID, OperatorState> operatorStates) {
+        for (OperatorIDPair operatorIDPair : vertex.getOperatorIDs()) {
+            OperatorState operatorState =
+                    operatorStates.get(operatorIDPair.getGeneratedOperatorID());
+            if (operatorState == null) {
+                continue;
+            }
+
+            for (OperatorSubtaskState operatorSubtaskState : operatorState.getStates()) {
+                boolean hasUnionListState =
+                        Stream.concat(
+                                        operatorSubtaskState.getManagedOperatorState().stream(),
+                                        operatorSubtaskState.getRawOperatorState().stream())
+                                .filter(Objects::nonNull)
+                                .flatMap(
+                                        operatorStateHandle ->
+                                                operatorStateHandle.getStateNameToPartitionOffsets()
+                                                        .values().stream())
+                                .anyMatch(
+                                        stateMetaInfo ->
+                                                stateMetaInfo.getDistributionMode()
+                                                        == OperatorStateHandle.Mode.UNION);
+
+                if (hasUnionListState) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void fulfillFullyFinishedOrFinishedOnRestoreOperatorStates(
+            Map<OperatorID, OperatorState> operatorStates) {
+        // Completes the operator state for the fully finished operators
+        for (ExecutionJobVertex jobVertex : fullyFinishedOrFinishedOnRestoreVertices.values()) {
+            for (OperatorIDPair operatorID : jobVertex.getOperatorIDs()) {
+                OperatorState operatorState =
+                        operatorStates.get(operatorID.getGeneratedOperatorID());
+                checkState(
+                        operatorState == null,
+                        "There should be no states reported for fully finished or finished on restore operators");
+
+                operatorState =
+                        new FullyFinishedOperatorState(
+                                operatorID.getGeneratedOperatorID(),
+                                jobVertex.getParallelism(),
+                                jobVertex.getMaxParallelism());
+                operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
+            }
+        }
     }
 }

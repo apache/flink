@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
  * The plan of one checkpoint, indicating which tasks to trigger, waiting for acknowledge or commit
  * for one specific checkpoint.
  */
-public interface CheckpointPlan {
+public interface CheckpointPlan extends PendingCheckpointFinishedTaskStateProvider {
 
     /** Returns the tasks who need to be sent a message when a checkpoint is started. */
     List<Execution> getTasksToTrigger();
@@ -46,7 +48,8 @@ public interface CheckpointPlan {
     List<Execution> getFinishedTasks();
 
     /** Returns the job vertices whose tasks are all finished when taking the checkpoint. */
-    List<ExecutionJobVertex> getFullyFinishedJobVertex();
+    @VisibleForTesting
+    Collection<ExecutionJobVertex> getFullyFinishedJobVertex();
 
     /** Returns whether we support checkpoints after some tasks finished. */
     boolean mayHaveFinishedTasks();
