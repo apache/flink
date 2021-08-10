@@ -24,8 +24,9 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -102,11 +103,12 @@ public class SourceTaskTerminationTest extends TestLogger {
                                             CheckpointStorageLocationReference.getDefault()))
                             ::isDone);
 
-        if (shouldTerminate) {
-            // if we are in TERMINATE mode, we expect the source task
-            // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
-            verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
-        }
+            if (shouldTerminate) {
+                // if we are in TERMINATE mode, we expect the source task
+                // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
+                verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
+                verifyEvent(srcTaskTestHarness.getOutput(), EndOfData.INSTANCE);
+            }
 
             verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), syncSavepointId);
 
@@ -128,6 +130,7 @@ public class SourceTaskTerminationTest extends TestLogger {
         StreamTaskMailboxTestHarness<Long> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 SourceStreamTask::new, BasicTypeInfo.LONG_TYPE_INFO)
+                        .setCollectNetworkEvents()
                         .modifyExecutionConfig((config) -> config.setLatencyTrackingInterval(-1))
                         .setupOutputForSingletonOperatorChain(
                                 new StreamSource<>(new LockStepSourceWithOneWmPerElement()))
@@ -164,6 +167,12 @@ public class SourceTaskTerminationTest extends TestLogger {
         Object next = output.remove();
         assertTrue("next element is not a watermark", next instanceof Watermark);
         assertEquals("wrong watermark", expectedWatermark, next);
+    }
+
+    private void verifyEvent(Queue<Object> output, AbstractEvent expectedEvent) {
+        Object next = output.remove();
+        assertTrue(expectedEvent.getClass().isInstance(next));
+        assertEquals(expectedEvent, next);
     }
 
     private void verifyCheckpointBarrier(Queue<Object> output, long checkpointId) {

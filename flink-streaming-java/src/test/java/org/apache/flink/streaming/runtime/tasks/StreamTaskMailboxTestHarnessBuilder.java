@@ -91,6 +91,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
     protected Map<Long, TaskStateSnapshot> taskStateSnapshots;
     protected CheckpointResponder checkpointResponder = new TestCheckpointResponder();
+    protected boolean collectNetworkEvents;
 
     protected final ArrayList<InputConfig> inputs = new ArrayList<>();
     protected final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
@@ -139,6 +140,11 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setTaskManagerRuntimeInfo(
             TaskManagerRuntimeInfo taskManagerRuntimeInfo) {
         this.taskManagerRuntimeInfo = taskManagerRuntimeInfo;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCollectNetworkEvents() {
+        this.collectNetworkEvents = true;
         return this;
     }
 
@@ -223,7 +229,8 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
                         new MockInputSplitProvider(),
                         bufferSize,
                         taskStateManager,
-                        throughputCalculator);
+                        throughputCalculator,
+                        collectNetworkEvents);
 
         streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
         initializeInputs(streamMockEnvironment);

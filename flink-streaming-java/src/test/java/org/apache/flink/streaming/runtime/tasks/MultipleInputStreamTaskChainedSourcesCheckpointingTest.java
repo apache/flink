@@ -255,6 +255,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
@@ -306,8 +307,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     actualOutput.subList(0, expectedOutput.size()),
                     containsInAnyOrder(expectedOutput.toArray()));
             assertThat(
-                    actualOutput.subList(actualOutput.size() - 2, actualOutput.size()),
-                    contains(new StreamRecord<>("FINISH"), barrier));
+                    actualOutput.subList(actualOutput.size() - 3, actualOutput.size()),
+                    contains(new StreamRecord<>("FINISH"), EndOfData.INSTANCE, barrier));
         }
     }
 
