@@ -29,6 +29,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -376,6 +378,14 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                         others,
                         kafkaSinkContext.getNumberOfParallelInstances())) {
             return log.getTransactionsToAbort();
+        } catch (KafkaException e) {
+            LOG.warn(
+                    "Cannot abort transactions before startup e.g. the job has no access to the "
+                            + "__transaction_state topic. Lingering transactions may hold new "
+                            + "data back from downstream consumers. Please abort these "
+                            + "transactions manually.",
+                    e);
+            return Collections.emptyList();
         }
     }
 }

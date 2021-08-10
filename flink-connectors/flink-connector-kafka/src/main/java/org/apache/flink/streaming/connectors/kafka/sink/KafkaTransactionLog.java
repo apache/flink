@@ -24,6 +24,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -117,8 +118,10 @@ class KafkaTransactionLog implements AutoCloseable {
      * <li>Applies the rules from {@link TransactionsToAbortChecker}
      *
      * @return all transactionIds which must be aborted before starting new transactions.
+     * @throws KafkaException if no transaction information can be fetched. (e.g. no access rights
+     *     to __transaction_state topic)
      */
-    public List<String> getTransactionsToAbort() {
+    public List<String> getTransactionsToAbort() throws KafkaException {
         final Map<Integer, Map<Long, String>> openTransactions = new HashMap<>();
         final List<TopicPartition> partitions = getAllPartitions();
         final Map<TopicPartition, Long> endOffsets = consumer.endOffsets(partitions);
