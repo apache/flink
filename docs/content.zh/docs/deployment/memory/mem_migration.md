@@ -80,7 +80,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                请参考新配置参数 <a href="{%link deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
+                请参考新配置参数 <a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
                 新的配置参数与被移除的配置参数在语义上有所差别，因此其配置值通常也需要做出适当调整。
                 请参考<a href="#managed-memory">如何升级托管内存</a>。
             </td>
@@ -110,27 +110,27 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{%link deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
-                  <li>容器化部署模式（Containerized Deployement）下：<a href="{%link deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
+                  <li><a href="{{< ref "docs/deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li>容器化部署模式（Containerized Deployement）下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.size</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.min</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.max</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.fraction</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
         </tr>
     </tbody>
 </table>
