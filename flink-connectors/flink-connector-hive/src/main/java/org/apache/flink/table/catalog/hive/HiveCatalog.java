@@ -77,6 +77,8 @@ import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
@@ -98,6 +100,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,7 +116,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,11 +155,10 @@ public class HiveCatalog extends AbstractCatalog {
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
     private static final String FLINK_PYTHON_FUNCTION_PREFIX = "flink:python:";
 
-    private static final String PROPERTIES_PREFIX = "properties.hive.";
-
     private final HiveConf hiveConf;
     private final String hiveVersion;
     private final HiveShim hiveShim;
+    private String userName;
 
     @VisibleForTesting HiveMetastoreClientWrapper client;
 
@@ -307,6 +308,16 @@ public class HiveCatalog extends AbstractCatalog {
                     String.format(
                             "Configured default database %s doesn't exist in catalog %s.",
                             getDefaultDatabase(), getName()));
+        }
+
+        try {
+            if (UserGroupInformation.isSecurityEnabled()) {
+                userName = UserGroupInformation.getCurrentUser().getShortUserName();
+            } else {
+                userName = hiveConf.get("user.name", "").trim();
+            }
+        } catch (IOException e) {
+            throw new CatalogException("Failed to get userName", e);
         }
     }
 
@@ -466,20 +477,6 @@ public class HiveCatalog extends AbstractCatalog {
         return instantiateCatalogTable(hiveTable, hiveConf);
     }
 
-    private HiveConf getHiveProperties(CatalogBaseTable table) {
-        HiveConf hiveConf = new HiveConf(this.hiveConf);
-        Map<String, String> options = table.getOptions();
-        Iterator<Map.Entry<String, String>> iterator = options.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<String, String> next = iterator.next();
-            if (next.getKey().startsWith(PROPERTIES_PREFIX)) {
-                hiveConf.set(next.getKey().substring(PROPERTIES_PREFIX.length()), next.getValue());
-                iterator.remove();
-            }
-        }
-        return hiveConf;
-    }
-
     @Override
     public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
@@ -490,11 +487,11 @@ public class HiveCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
         }
 
-        HiveConf hiveConf = getHiveProperties(table);
-
         Table hiveTable = HiveTableUtil.instantiateHiveTable(tablePath, table, hiveConf);
 
-        HiveTableUtil.setTableOwner(hiveTable, table, hiveConf);
+        if (!Strings.isNullOrEmpty(userName)) {
+            hiveTable.setOwner(userName);
+        }
 
         UniqueConstraint pkConstraint = null;
         List<String> notNullCols = new ArrayList<>();

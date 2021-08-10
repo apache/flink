@@ -53,6 +53,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -80,7 +81,9 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
     @BeforeClass
     public static void init() {
-        catalog = HiveTestUtils.createHiveCatalog();
+        HiveConf conf = HiveTestUtils.createHiveConf();
+        conf.set("user.name", "test");
+        catalog = HiveTestUtils.createHiveCatalog(conf);
         catalog.open();
     }
 
@@ -94,7 +97,6 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     public void testCreateTable_SetOwner() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
         CatalogTable table = createTable();
-        table.getOptions().put("properties.hive.user.name", "test");
         catalog.createTable(path1, table, false);
 
         Table hiveTable = ((HiveCatalog) catalog).getHiveTable(path1);
