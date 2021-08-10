@@ -29,6 +29,11 @@ import org.apache.calcite.plan.Context
 trait FlinkContext extends Context {
 
   /**
+   * Returns whether the planner runs in batch mode.
+   */
+  def isBatchMode: Boolean
+
+  /**
     * Gets [[TableConfig]] instance defined in [[org.apache.flink.table.api.TableEnvironment]].
     */
   def getTableConfig: TableConfig
