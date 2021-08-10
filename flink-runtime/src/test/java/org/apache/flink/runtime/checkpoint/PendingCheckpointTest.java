@@ -867,7 +867,7 @@ public class PendingCheckpointTest {
                 new JobID(),
                 0,
                 1,
-                new CheckpointPlan(
+                new DefaultCheckpointPlan(
                         Collections.emptyList(),
                         ackTasks,
                         tasksToCommit,

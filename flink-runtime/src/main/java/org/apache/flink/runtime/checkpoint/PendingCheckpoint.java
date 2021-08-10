@@ -333,7 +333,7 @@ public class PendingCheckpoint implements Checkpoint {
 
             // make sure we fulfill the promise with an exception if something fails
             try {
-                if (checkpointPlan.isMayHaveFinishedTasks()) {
+                if (checkpointPlan.mayHaveFinishedTasks()) {
                     Map<JobVertexID, ExecutionJobVertex> partlyFinishedVertex = new HashMap<>();
                     for (Execution task : checkpointPlan.getFinishedTasks()) {
                         JobVertexID jobVertexId = task.getVertex().getJobvertexId();
