@@ -39,14 +39,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -714,7 +712,8 @@ public class StreamTaskFinalCheckpointsTest {
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
-                        .setupOutputForSingletonOperatorChain(new LifeCycleMonitorOperator<>())
+                        .setupOutputForSingletonOperatorChain(
+                                new TestFinishedOnRestoreStreamOperator())
                         .build()) {
             // Finish the restore, including state initialization and open.
             harness.processAll();
@@ -738,10 +737,6 @@ public class StreamTaskFinalCheckpointsTest {
             // Finish & close operators.
             harness.waitForTaskCompletion();
             harness.finishProcessing();
-
-            LifeCycleMonitorOperator<String> operator =
-                    (LifeCycleMonitorOperator<String>) harness.getStreamTask().getMainOperator();
-            operator.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
         }
     }
 
@@ -775,62 +770,6 @@ public class StreamTaskFinalCheckpointsTest {
         @Override
         public void finish() throws Exception {
             finished = true;
-        }
-    }
-
-    /** A special one-input operator that monitors the lifecycle of the operator. */
-    static class LifeCycleMonitorOperator<T> extends AbstractStreamOperator<T>
-            implements OneInputStreamOperator<T, T> {
-
-        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
-
-        @Override
-        public void open() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
-        }
-
-        @Override
-        public void initializeState(StateInitializationContext context) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.INITIALIZE_STATE);
-        }
-
-        @Override
-        public void processElement(StreamRecord<T> element) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
-        }
-
-        @Override
-        public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PREPARE_SNAPSHOT_PRE_BARRIER);
-        }
-
-        @Override
-        public void snapshotState(StateSnapshotContext context) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.SNAPSHOT_STATE);
-        }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_COMPLETE);
-        }
-
-        @Override
-        public void notifyCheckpointAborted(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_ABORT);
-        }
-
-        @Override
-        public void finish() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.FINISH);
-        }
-
-        @Override
-        public void close() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
-        }
-
-        public LifeCycleMonitor getLifeCycleMonitor() {
-            return lifeCycleMonitor;
         }
     }
 

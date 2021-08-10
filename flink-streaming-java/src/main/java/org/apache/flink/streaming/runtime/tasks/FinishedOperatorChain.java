@@ -64,11 +64,7 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void prepareSnapshotPreBarrier(long checkpointId) {}
 
     @Override
-    public void endInput(int inputId) throws Exception {
-        if (mainOperatorWrapper != null) {
-            mainOperatorWrapper.endOperatorInput(inputId);
-        }
-    }
+    public void endInput(int inputId) throws Exception {}
 
     @Override
     public void initializeStateAndOpenOperators(
