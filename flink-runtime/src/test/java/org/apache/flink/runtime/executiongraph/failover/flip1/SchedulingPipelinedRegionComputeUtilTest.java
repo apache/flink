@@ -35,8 +35,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
-/** Unit tests for {@link PipelinedRegionComputeUtil}. */
-public class PipelinedRegionComputeUtilTest extends TestLogger {
+/** Unit tests for {@link SchedulingPipelinedRegionComputeUtil}. */
+public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
 
     /**
      * Tests that validates that a graph with single unconnected vertices works correctly.
@@ -506,7 +506,8 @@ public class PipelinedRegionComputeUtilTest extends TestLogger {
     private static Map<ExecutionVertexID, Set<SchedulingExecutionVertex>>
             computePipelinedRegionByVertex(final TestingSchedulingTopology topology) {
         final Set<Set<SchedulingExecutionVertex>> regions =
-                PipelinedRegionComputeUtil.computePipelinedRegions(topology.getVertices());
+                SchedulingPipelinedRegionComputeUtil.computePipelinedRegions(
+                        topology.getVertices(), topology::getVertex, topology::getResultPartition);
         return computePipelinedRegionByVertex(regions);
     }
 
