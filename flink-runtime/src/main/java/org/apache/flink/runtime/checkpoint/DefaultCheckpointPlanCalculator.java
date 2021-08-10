@@ -165,7 +165,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
 
         List<Execution> tasksToWaitFor = createTaskToWaitFor(allTasks);
 
-        return new CheckpointPlan(
+        return new DefaultCheckpointPlan(
                 Collections.unmodifiableList(executionsToTrigger),
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(allTasks),
@@ -233,7 +233,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
             }
         }
 
-        return new CheckpointPlan(
+        return new DefaultCheckpointPlan(
                 Collections.unmodifiableList(tasksToTrigger),
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(tasksToCommitTo),
