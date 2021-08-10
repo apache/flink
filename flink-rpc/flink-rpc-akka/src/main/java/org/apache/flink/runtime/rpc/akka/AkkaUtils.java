@@ -72,9 +72,9 @@ class AkkaUtils {
     private static Config getBasicAkkaConfig(Configuration configuration) {
         final int akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT);
         final String jvmExitOnFatalError =
-                booleanToString(configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
+                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
         final String logLifecycleEvents =
-                booleanToString(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
         final String supervisorStrategy = EscalatingSupervisorStrategy.class.getCanonicalName();
 
         return new AkkaConfigBuilder()
@@ -235,7 +235,7 @@ class AkkaUtils {
                 configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
 
         final String logLifecycleEvents =
-                booleanToString(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
 
         final long retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR);
 
@@ -311,7 +311,7 @@ class AkkaUtils {
                 configuration.getBoolean(AkkaOptions.SSL_ENABLED)
                         && SecurityOptions.isInternalSSLEnabled(configuration);
 
-        final String akkaEnableSSL = booleanToString(akkaEnableSSLConfig);
+        final String akkaEnableSSL = booleanToOnOrOff(akkaEnableSSLConfig);
 
         final String akkaSSLKeyStore =
                 configuration.getString(
@@ -579,7 +579,7 @@ class AkkaUtils {
         return AkkaFutureUtils.toJava(actorSystem.terminate()).thenAccept(FunctionUtils.ignoreFn());
     }
 
-    private static String booleanToString(boolean flag) {
+    private static String booleanToOnOrOff(boolean flag) {
         return flag ? "on" : "off";
     }
 
