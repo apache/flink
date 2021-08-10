@@ -30,7 +30,7 @@ import java.util.List;
  * The plan of one checkpoint, indicating which tasks to trigger, waiting for acknowledge or commit
  * for one specific checkpoint.
  */
-public interface CheckpointPlan extends PendingCheckpointFinishedTaskStateProvider {
+public interface CheckpointPlan extends FinishedTaskStateProvider {
 
     /** Returns the tasks who need to be sent a message when a checkpoint is started. */
     List<Execution> getTasksToTrigger();

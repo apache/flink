@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import java.util.Map;
 
 /** Collects and fulfills the finished state for the subtasks or operators. */
-public interface PendingCheckpointFinishedTaskStateProvider {
+public interface FinishedTaskStateProvider {
 
     /** Reports the {@code task} is finished on restoring. */
     void reportTaskFinishedOnRestore(ExecutionVertex task);

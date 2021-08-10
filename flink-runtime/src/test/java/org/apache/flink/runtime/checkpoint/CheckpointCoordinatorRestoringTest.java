@@ -1261,7 +1261,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         + jobVertexID1
                         + ")"
                         + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]");
-        coord.restoreLatestCheckpointedStateToAll(vertices, false);
+        coord.restoreInitialCheckpointIfPresent(vertices);
     }
 
     @Test
@@ -1468,7 +1468,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
         thrown.expect(expectedExceptionalClass);
         thrown.expectMessage(expectedMessage);
-        coord.restoreLatestCheckpointedStateToAll(vertices, false);
+
+        coord.restoreInitialCheckpointIfPresent(vertices);
     }
 
     private OperatorState createOperatorState(
