@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph.topology;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
+import org.apache.flink.runtime.executiongraph.failover.flip1.LogicalPipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -106,7 +106,7 @@ public class DefaultLogicalTopology implements LogicalTopology {
     @Override
     public Iterable<DefaultLogicalPipelinedRegion> getAllPipelinedRegions() {
         final Set<Set<LogicalVertex>> regionsRaw =
-                PipelinedRegionComputeUtil.computePipelinedRegions(verticesSorted);
+                LogicalPipelinedRegionComputeUtil.computePipelinedRegions(verticesSorted);
 
         final Set<DefaultLogicalPipelinedRegion> regions = new HashSet<>();
         for (Set<LogicalVertex> regionVertices : regionsRaw) {
