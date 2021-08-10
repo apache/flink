@@ -71,14 +71,15 @@ public class ThroughputCalculator {
     /** @return Calculated throughput based on the collected data for the last period. */
     public long calculateThroughput() {
         if (measurementStartTime != NOT_TRACKED) {
-            currentMeasurementTime += clock.absoluteTimeMillis() - measurementStartTime;
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            currentMeasurementTime += absoluteTimeMillis - measurementStartTime;
+            measurementStartTime = absoluteTimeMillis;
         }
 
         long throughput =
                 throughputEMA.calculateThroughput(
                         currentAccumulatedDataSize, currentMeasurementTime);
 
-        measurementStartTime = clock.absoluteTimeMillis();
         currentAccumulatedDataSize = currentMeasurementTime = 0;
 
         return throughput;
