@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -742,6 +743,9 @@ public class StreamTaskFinalCheckpointsTest {
             harness.processAll();
 
             // Finish & close operators.
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 0);
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 1);
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 2);
             harness.waitForTaskCompletion();
             harness.finishProcessing();
 
@@ -752,6 +756,7 @@ public class StreamTaskFinalCheckpointsTest {
                                     checkpointMetaData.getCheckpointId(),
                                     checkpointMetaData.getTimestamp(),
                                     checkpointOptions),
+                            Watermark.MAX_WATERMARK,
                             EndOfData.INSTANCE));
         }
     }
