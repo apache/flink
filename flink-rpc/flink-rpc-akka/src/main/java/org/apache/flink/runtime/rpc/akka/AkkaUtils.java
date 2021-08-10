@@ -408,6 +408,7 @@ class AkkaUtils {
     /**
      * Creates an actor system with the given akka config.
      *
+     * @param actorSystemName name of the actor system
      * @param akkaConfig configuration for the actor system
      * @return created actor system
      */
