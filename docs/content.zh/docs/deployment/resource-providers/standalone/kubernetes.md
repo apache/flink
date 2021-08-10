@@ -25,61 +25,59 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Kubernetes Setup
+# Kubernetes 安装
 
-## Getting Started
+<a name="getting-started"> </a>
 
-This *Getting Started* guide describes how to deploy a *Session cluster* on [Kubernetes](https://kubernetes.io).
+## 入门
 
-### Introduction
+本 *入门* 指南描述了如何在 Kubernetes 上部署 *Flink Seesion 集群*。
 
-This page describes deploying a [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) Flink cluster on top of Kubernetes, using Flink's standalone deployment.
-We generally recommend new users to deploy Flink on Kubernetes using [native Kubernetes deployments]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}).
+### 介绍
 
-### Preparation
+本页面描述了如何使用 Flink [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 部署模式在 Kubernetes 上部署 standalone 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}) 模式在 Kubernetes上部署 Flink。
 
-This guide expects a Kubernetes environment to be present. You can ensure that your Kubernetes setup is working by running a command like `kubectl get nodes`, which lists all connected Kubelets. 
+### 准备
 
-If you want to run Kubernetes locally, we recommend using [MiniKube](https://minikube.sigs.k8s.io/docs/start/).
+本指南假设存在一个 Kubernets 的运行环境。可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
+
+如果想在本地运行 Kubernetes，建议使用 [MiniKube](https://minikube.sigs.k8s.io/docs/start/)。
 
 {{< hint info >}}
-If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. Otherwise Flink components are not able to reference themselves through a Kubernetes service.
+如果使用 MiniKube，请确保在部署 Flink 集群之前先执行 `minikube ssh 'sudo ip link set docker0 promisc on'`，否则 Flink 组件不能自动地将自己映射到 Kubernetes Service 中。
 {{< /hint >}}
 
-### Starting a Kubernetes Cluster (Session Mode)
+### Kubernetes 上的 Flink session 集群
 
-A *Flink Session cluster* is executed as a long-running Kubernetes Deployment. You can run multiple Flink jobs on a *Session cluster*.
-Each job needs to be submitted to the cluster after the cluster has been deployed.
+*Flink session 集群* 是以一种长期运行的 Kubernetes Deployment 形式执行的。可以在一个 *session 集群* 上运行多个 Flink 作业。当然，只有 session 集群部署好以后才可以在上面提交 Flink 作业。
 
-A *Flink Session cluster* deployment in Kubernetes has at least three components:
+在 Kubernetes 上部署一个基本的 *Flink session 集群* 时，一般包括下面三个组件：
 
-* a *Deployment* which runs a [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager)
-* a *Deployment* for a pool of [TaskManagers]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager)
-* a *Service* exposing the *JobManager's* REST and UI ports
+* 运行 [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) 的 *Deployment*；
+* 运行 [TaskManagers]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager) 的 *Deployment*；
+* 暴露了 *JobManager* 上 REST 和 UI 端口的 *Service*；
 
-Using the file contents provided in the [the common resource definitions](#common-cluster-resource-definitions), create the following files, and create the respective components with the `kubectl` command:
+使用 [通用集群资源定义](#common-cluster-resource-definitions)中提供的文件内容来创建以下文件，并使用 `kubectl` 命令来创建相应的组件：
 
 ```sh
-    # Configuration and service definition
+    # 配置和 service 的定义
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
-    # Create the deployments for the cluster
+    # 为集群创建 deployments
     $ kubectl create -f jobmanager-session-deployment.yaml
     $ kubectl create -f taskmanager-session-deployment.yaml
 ```
 
-Next, we set up a port forward to access the Flink UI and submit jobs:
+接下来，我们设置端口转发以访问 Flink UI 页面并提交作业：
 
-1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
-3. Moreover, you could use the following command below to submit jobs to the cluster:
+1. 运行 `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` 将 jobmanager 的 web ui 端口映射到本地 8081。
+2. 在浏览器中导航到 [http://localhost:8081](http://localhost:8081) 页面。
+3. 此后，也可以使用以下命令向集群提交作业：
 ```bash
 $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 ```
 
-
-
-You can tear down the cluster using the following commands:
+可以使用以下命令停止运行 flink 集群：
 
 ```sh
     $ kubectl delete -f jobmanager-service.yaml
@@ -88,20 +86,21 @@ You can tear down the cluster using the following commands:
     $ kubectl delete -f jobmanager-session-deployment.yaml
 ```
 
-
 {{< top >}}
 
-## Deployment Modes
+<a name="deployment-modes"> </a>
 
-### Deploy Application Cluster
+## 部署模式
 
-A *Flink Application cluster* is a dedicated cluster which runs a single application, which needs to be available at deployment time.
+### Application 集群模式
 
-A basic *Flink Application cluster* deployment in Kubernetes has three components:
+*Flink Application 集群* 是运行单个应用的专用集群，需要保证部署应用时该集群可用。
 
-* an *Application* which runs a *JobManager*
-* a *Deployment* for a pool of *TaskManagers*
-* a *Service* exposing the *JobManager's* REST and UI ports
+在 Kubernetes 上部署一个基本的 *Flink Application 集群* 时，一般包括下面三个组件：
+
+*  *Application* 作业，同时在该 *Application* 中运行 *JobManager*；
+* 运行若干个 TaskManager 的 Deployment；
+* 暴露了 JobManager 上 REST 和 UI 端口的 Service；
 
 Check [the Application cluster specific resource definitions](#application-cluster-resource-definitions) and adjust them accordingly:
 
@@ -129,16 +128,21 @@ with the `kubectl` command:
     $ kubectl delete -f jobmanager-job.yaml
 ```
 
-### Per-Job Cluster Mode
-Flink on Standalone Kubernetes does not support the Per-Job Cluster Mode.
+### Per-Job 集群模式
 
-### Session Mode
+在 Kubernetes 上部署 Standalone 集群时不支持 Per-Job 集群模式。
 
-Deployment of a Session cluster is explained in the [Getting Started](#getting-started) guide at the top of this page.
+### Session 集群模式
+
+本页面顶部的[入门](#getting-started)指南中描述了 Session 集群模式的部署。
 
 {{< top >}}
 
-## Flink on Standalone Kubernetes Reference
+<a name="flink-on-standalone-kubernetes-reference"> </a>
+
+## Kubernetes 上运行 Standalone 集群指南
+
+<a name="configuration"> </a>
 
 ### Configuration
 
@@ -241,12 +245,15 @@ To use Reactive Mode on Kubernetes, follow the same steps as for [deploying a jo
 
 Once you have deployed the *Application Cluster*, you can scale your job up or down by changing the replica count in the `flink-taskmanager` deployment.
 
-
 {{< top >}}
 
-## Appendix
+<a name="appendix"> </a>
 
-### Common cluster resource definitions
+## 附录
+
+<a name="common-cluster-resource-definitions"> </a>
+
+### 通用集群资源定义
 
 `flink-configuration-configmap.yaml`
 ```yaml
@@ -440,7 +447,9 @@ spec:
     component: taskmanager
 ```
 
-### Session cluster resource definitions
+<a name="session-cluster-resource-definitions"> </a>
+
+### Session 集群资源定义
 
 `jobmanager-session-deployment-non-ha.yaml`
 ```yaml
@@ -598,7 +607,9 @@ spec:
             path: log4j-console.properties
 ```
 
-### Application cluster resource definitions
+<a name="application-cluster-resource-definitions"> </a>
+
+### Application 集群资源定义
 
 `jobmanager-application-non-ha.yaml`
 ```yaml
