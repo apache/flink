@@ -99,6 +99,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -1705,6 +1707,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      * combine signal for metric and the throughput.
      */
     private static class ThroughputPeriodTimer implements PeriodTimer {
+        private final Clock clock = SystemClock.getInstance();
         private final TimerGauge idleTimerGauge;
         private final ThroughputCalculator throughputCalculator;
 
@@ -1716,14 +1719,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         @Override
         public void markStart() {
-            idleTimerGauge.markStart();
-            throughputCalculator.pauseMeasurement();
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            idleTimerGauge.markStart(absoluteTimeMillis);
+            throughputCalculator.pauseMeasurement(absoluteTimeMillis);
         }
 
         @Override
         public void markEnd() {
-            idleTimerGauge.markEnd();
-            throughputCalculator.resumeMeasurement();
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            idleTimerGauge.markEnd(absoluteTimeMillis);
+            throughputCalculator.resumeMeasurement(absoluteTimeMillis);
         }
     }
 

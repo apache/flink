@@ -75,7 +75,7 @@ public class ThroughputCalculatorTest extends TestCase {
 
         throughputCalculator.incomingDataSize(7);
         clock.advanceTime(Duration.ofMillis(1));
-        throughputCalculator.pauseMeasurement();
+        throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
         // This will be ignored because it is in idle now.
         clock.advanceTime(Duration.ofMillis(9));
         // This should resume the measurement time.
@@ -94,7 +94,7 @@ public class ThroughputCalculatorTest extends TestCase {
 
         throughputCalculator.incomingDataSize(10);
         clock.advanceTime(Duration.ofMillis(1));
-        throughputCalculator.pauseMeasurement();
+        throughputCalculator.pauseMeasurement(clock.absoluteTimeMillis());
         // This will be ignored because it is in idle now.
         clock.advanceTime(Duration.ofMillis(9));
 
@@ -112,13 +112,13 @@ public class ThroughputCalculatorTest extends TestCase {
         throughputCalculator.incomingDataSize(10);
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement();
+        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement();
+        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
         // It won't be ignored.
         clock.advanceTime(Duration.ofMillis(3));
-        throughputCalculator.resumeMeasurement();
+        throughputCalculator.resumeMeasurement(clock.absoluteTimeMillis());
 
         clock.advanceTime(Duration.ofMillis(1));
 
