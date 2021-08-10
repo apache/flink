@@ -67,6 +67,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -83,7 +84,7 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -705,7 +706,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         testHarness.waitForTaskCompletion();
 
-        ArrayList<StreamRecord<String>> expected = new ArrayList<>();
+        ArrayDeque<Object> expected = new ArrayDeque<>();
         Collections.addAll(
                 expected,
                 new StreamRecord<>("Hello"),
@@ -716,8 +717,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 new StreamRecord<>("[Operator1]: Bye"),
                 new StreamRecord<>("[Operator0]: Bye"));
 
-        final Object[] output = testHarness.getOutput().toArray();
-        assertArrayEquals("Output was not correct.", expected.toArray(), output);
+        assertThat(testHarness.getOutput(), containsInAnyOrder(expected.toArray()));
     }
 
     private static class TestOperator extends AbstractStreamOperator<String>
