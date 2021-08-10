@@ -1410,7 +1410,8 @@ public class CheckpointCoordinator {
                 OperatorCoordinatorRestoreBehavior
                         .SKIP, // local/regional recovery does not reset coordinators
                 false, // recovery might come before first successful checkpoint
-                true); // see explanation above
+                true,
+                false); // see explanation above
     }
 
     /**
@@ -1445,7 +1446,8 @@ public class CheckpointCoordinator {
                                 .RESTORE_OR_RESET, // global recovery restores coordinators, or
                         // resets them to empty
                         false, // recovery might come before first successful checkpoint
-                        allowNonRestoredState);
+                        allowNonRestoredState,
+                        false);
 
         return restoredCheckpointId.isPresent();
     }
@@ -1467,7 +1469,8 @@ public class CheckpointCoordinator {
                         OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
                         false, // initial checkpoints exist only on JobManager failover. ok if not
                         // present.
-                        false); // JobManager failover means JobGraphs match exactly.
+                        false,
+                        true); // JobManager failover means JobGraphs match exactly.
 
         return restoredCheckpointId.isPresent();
     }
@@ -1482,7 +1485,8 @@ public class CheckpointCoordinator {
             final Set<ExecutionJobVertex> tasks,
             final OperatorCoordinatorRestoreBehavior operatorCoordinatorRestoreBehavior,
             final boolean errorIfNoCheckpoint,
-            final boolean allowNonRestoredState)
+            final boolean allowNonRestoredState,
+            final boolean checkForPartiallyFinishedOperators)
             throws Exception {
 
         synchronized (lock) {
@@ -1539,9 +1543,11 @@ public class CheckpointCoordinator {
             // re-assign the task states
             final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
-            VertexFinishedStateChecker vertexFinishedStateChecker =
-                    new VertexFinishedStateChecker(tasks, operatorStates);
-            vertexFinishedStateChecker.validateOperatorsFinishedState();
+            if (checkForPartiallyFinishedOperators) {
+                VertexFinishedStateChecker vertexFinishedStateChecker =
+                        new VertexFinishedStateChecker(tasks, operatorStates);
+                vertexFinishedStateChecker.validateOperatorsFinishedState();
+            }
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
@@ -1667,7 +1673,8 @@ public class CheckpointCoordinator {
                         new HashSet<>(tasks.values()),
                         OperatorCoordinatorRestoreBehavior.RESTORE_IF_CHECKPOINT_PRESENT,
                         true,
-                        allowNonRestored);
+                        allowNonRestored,
+                        true);
 
         return restoredCheckpointId.isPresent();
     }
