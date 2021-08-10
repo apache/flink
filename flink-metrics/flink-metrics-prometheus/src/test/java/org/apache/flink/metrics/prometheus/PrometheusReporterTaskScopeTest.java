@@ -124,23 +124,11 @@ public class PrometheusReporterTaskScopeTest {
         TaskManagerJobMetricGroup tmJobMetricGroup =
                 new TaskManagerJobMetricGroup(registry, tmMetricGroup, jobId, JOB_NAME);
         taskMetricGroup1 =
-                new TaskMetricGroup(
-                        registry,
-                        tmJobMetricGroup,
-                        taskId1,
-                        taskAttemptId1,
-                        TASK_NAME,
-                        SUBTASK_INDEX_1,
-                        ATTEMPT_NUMBER);
+                tmJobMetricGroup.addTask(
+                        taskId1, taskAttemptId1, TASK_NAME, SUBTASK_INDEX_1, ATTEMPT_NUMBER);
         taskMetricGroup2 =
-                new TaskMetricGroup(
-                        registry,
-                        tmJobMetricGroup,
-                        taskId2,
-                        taskAttemptId2,
-                        TASK_NAME,
-                        SUBTASK_INDEX_2,
-                        ATTEMPT_NUMBER);
+                tmJobMetricGroup.addTask(
+                        taskId2, taskAttemptId2, TASK_NAME, SUBTASK_INDEX_2, ATTEMPT_NUMBER);
     }
 
     @After

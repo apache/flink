@@ -64,7 +64,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     // ------------------------------------------------------------------------
 
-    public TaskMetricGroup(
+    TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
             JobVertexID vertexId,
