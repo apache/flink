@@ -115,7 +115,7 @@ public class OperatorChainTest {
                     (StreamOperatorWrapper<T, OP>)
                             operatorWrappers.get(operatorWrappers.size() - 1);
 
-            return new OperatorChain<>(
+            return new RegularOperatorChain<>(
                     operatorWrappers,
                     new RecordWriterOutput<?>[0],
                     lastWriter,
