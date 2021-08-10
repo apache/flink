@@ -76,7 +76,7 @@ public class KafkaSinkBuilder<IN> {
      * @param deliveryGuarantee
      * @return {@link KafkaSinkBuilder}
      */
-    KafkaSinkBuilder<IN> setDeliverGuarantee(DeliveryGuarantee deliveryGuarantee) {
+    public KafkaSinkBuilder<IN> setDeliverGuarantee(DeliveryGuarantee deliveryGuarantee) {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee, "deliveryGuarantee");
         return this;
     }
