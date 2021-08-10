@@ -35,5 +35,6 @@ public class PartitionReleaseInBatchJobBenchmarkTest extends TestLogger {
         PartitionReleaseInBatchJobBenchmark benchmark = new PartitionReleaseInBatchJobBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.partitionRelease();
+        benchmark.teardown();
     }
 }

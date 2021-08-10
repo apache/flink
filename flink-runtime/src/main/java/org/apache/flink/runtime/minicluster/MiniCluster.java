@@ -30,7 +30,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -39,8 +38,6 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ExponentialBackoffRetryStrategy;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
@@ -50,6 +47,7 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -75,11 +73,11 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
@@ -89,6 +87,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
@@ -198,6 +199,9 @@ public class MiniCluster implements AutoCloseableAsync {
     /** Flag marking the mini cluster as started/running. */
     private volatile boolean running;
 
+    @GuardedBy("lock")
+    private RpcSystem rpcSystem;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -274,8 +278,13 @@ public class MiniCluster implements AutoCloseableAsync {
             try {
                 initializeIOFormatClasses(configuration);
 
+                rpcSystem = RpcSystem.load(configuration);
+
                 LOG.info("Starting Metrics Registry");
-                metricRegistry = createMetricRegistry(configuration);
+                metricRegistry =
+                        createMetricRegistry(
+                                configuration,
+                                rpcSystem.getMaximumMessageSizeInBytes(configuration));
 
                 // bring up all the RPC services
                 LOG.info("Starting RPC Service(s)");
@@ -285,13 +294,13 @@ public class MiniCluster implements AutoCloseableAsync {
 
                 if (useSingleRpcService) {
                     // we always need the 'commonRpcService' for auxiliary calls
-                    commonRpcService = createLocalRpcService(configuration);
+                    commonRpcService = createLocalRpcService(configuration, rpcSystem);
                     final CommonRpcServiceFactory commonRpcServiceFactory =
                             new CommonRpcServiceFactory(commonRpcService);
                     taskManagerRpcServiceFactory = commonRpcServiceFactory;
                     dispatcherResourceManagerComponentRpcServiceFactory = commonRpcServiceFactory;
                     metricQueryServiceRpcService =
-                            MetricUtils.startLocalMetricsRpcService(configuration);
+                            MetricUtils.startLocalMetricsRpcService(configuration, rpcSystem);
                 } else {
 
                     // start a new service per component, possibly with custom bind addresses
@@ -313,21 +322,24 @@ public class MiniCluster implements AutoCloseableAsync {
                                     configuration,
                                     jobManagerExternalAddress,
                                     jobManagerExternalPortRange,
-                                    jobManagerBindAddress);
+                                    jobManagerBindAddress,
+                                    rpcSystem);
                     taskManagerRpcServiceFactory =
                             new DedicatedRpcServiceFactory(
                                     configuration,
                                     taskManagerExternalAddress,
                                     taskManagerExternalPortRange,
-                                    taskManagerBindAddress);
+                                    taskManagerBindAddress,
+                                    rpcSystem);
 
                     // we always need the 'commonRpcService' for auxiliary calls
                     // bind to the JobManager address with port 0
                     commonRpcService =
-                            createRemoteRpcService(configuration, jobManagerBindAddress, 0);
+                            createRemoteRpcService(
+                                    configuration, jobManagerBindAddress, 0, rpcSystem);
                     metricQueryServiceRpcService =
                             MetricUtils.startRemoteMetricsRpcService(
-                                    configuration, commonRpcService.getAddress());
+                                    configuration, commonRpcService.getAddress(), rpcSystem);
                 }
 
                 metricRegistry.startQueryService(metricQueryServiceRpcService, null);
@@ -646,6 +658,11 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getNumTaskManagers() == 1;
     }
 
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return miniClusterConfiguration.getConfiguration();
+    }
+
     @GuardedBy("lock")
     private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
         final Collection<CompletableFuture<Void>> terminationFutures =
@@ -678,6 +695,14 @@ public class MiniCluster implements AutoCloseableAsync {
     // ------------------------------------------------------------------------
     //  Accessing jobs
     // ------------------------------------------------------------------------
+
+    public CompletableFuture<ArchivedExecutionGraph> getArchivedExecutionGraph(JobID jobId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway
+                                .requestExecutionGraphInfo(jobId, rpcTimeout)
+                                .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph));
+    }
 
     public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
         return runDispatcherCommand(
@@ -893,10 +918,12 @@ public class MiniCluster implements AutoCloseableAsync {
      * Factory method to create the metric registry for the mini cluster.
      *
      * @param config The configuration of the mini cluster
+     * @param maximumMessageSizeInBytes the maximum message size
      */
-    protected MetricRegistryImpl createMetricRegistry(Configuration config) {
+    protected MetricRegistryImpl createMetricRegistry(
+            Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
-                MetricRegistryConfiguration.fromConfiguration(config),
+                MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
                 ReporterSetup.fromConfiguration(config, null));
     }
 
@@ -906,15 +933,17 @@ public class MiniCluster implements AutoCloseableAsync {
      * @param configuration Flink configuration.
      * @param bindAddress The address to bind the RPC service to.
      * @param bindPort The port range to bind the RPC service to.
+     * @param rpcSystem
      * @return The instantiated RPC service
      */
     protected RpcService createRemoteRpcService(
-            Configuration configuration, String bindAddress, int bindPort) throws Exception {
-        return AkkaRpcServiceUtils.remoteServiceBuilder(
-                        configuration, bindAddress, String.valueOf(bindPort))
+            Configuration configuration, String bindAddress, int bindPort, RpcSystem rpcSystem)
+            throws Exception {
+        return rpcSystem
+                .remoteServiceBuilder(configuration, bindAddress, String.valueOf(bindPort))
                 .withBindAddress(bindAddress)
                 .withBindPort(bindPort)
-                .withCustomConfig(AkkaUtils.testDispatcherConfig())
+                .withExecutorConfiguration(RpcUtils.getTestForkJoinExecutorConfiguration())
                 .createAndStart();
     }
 
@@ -925,18 +954,20 @@ public class MiniCluster implements AutoCloseableAsync {
      * @param externalAddress The external address to access the RPC service.
      * @param externalPortRange The external port range to access the RPC service.
      * @param bindAddress The address to bind the RPC service to.
+     * @param rpcSystem
      * @return The instantiated RPC service
      */
     protected RpcService createRemoteRpcService(
             Configuration configuration,
             String externalAddress,
             String externalPortRange,
-            String bindAddress)
+            String bindAddress,
+            RpcSystem rpcSystem)
             throws Exception {
-        return AkkaRpcServiceUtils.remoteServiceBuilder(
-                        configuration, externalAddress, externalPortRange)
+        return rpcSystem
+                .remoteServiceBuilder(configuration, externalAddress, externalPortRange)
                 .withBindAddress(bindAddress)
-                .withCustomConfig(AkkaUtils.testDispatcherConfig())
+                .withExecutorConfiguration(RpcUtils.getTestForkJoinExecutorConfiguration())
                 .createAndStart();
     }
 
@@ -944,11 +975,14 @@ public class MiniCluster implements AutoCloseableAsync {
      * Factory method to instantiate the local RPC service.
      *
      * @param configuration Flink configuration.
+     * @param rpcSystem
      * @return The instantiated RPC service
      */
-    protected RpcService createLocalRpcService(Configuration configuration) throws Exception {
-        return AkkaRpcServiceUtils.localServiceBuilder(configuration)
-                .withCustomConfig(AkkaUtils.testDispatcherConfig())
+    protected RpcService createLocalRpcService(Configuration configuration, RpcSystem rpcSystem)
+            throws Exception {
+        return rpcSystem
+                .localServiceBuilder(configuration)
+                .withExecutorConfiguration(RpcUtils.getTestForkJoinExecutorConfiguration())
                 .createAndStart();
     }
 
@@ -1048,6 +1082,12 @@ public class MiniCluster implements AutoCloseableAsync {
                 haServices = null;
             }
 
+            try {
+                rpcSystem.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
+
             if (exception != null) {
                 throw exception;
             }
@@ -1113,23 +1153,30 @@ public class MiniCluster implements AutoCloseableAsync {
         private final String externalAddress;
         private final String externalPortRange;
         private final String bindAddress;
+        private final RpcSystem rpcSystem;
 
         DedicatedRpcServiceFactory(
                 Configuration configuration,
                 String externalAddress,
                 String externalPortRange,
-                String bindAddress) {
+                String bindAddress,
+                RpcSystem rpcSystem) {
             this.configuration = configuration;
             this.externalAddress = externalAddress;
             this.externalPortRange = externalPortRange;
             this.bindAddress = bindAddress;
+            this.rpcSystem = rpcSystem;
         }
 
         @Override
         public RpcService createRpcService() throws Exception {
             final RpcService rpcService =
                     MiniCluster.this.createRemoteRpcService(
-                            configuration, externalAddress, externalPortRange, bindAddress);
+                            configuration,
+                            externalAddress,
+                            externalPortRange,
+                            bindAddress,
+                            rpcSystem);
 
             synchronized (lock) {
                 rpcServices.add(rpcService);

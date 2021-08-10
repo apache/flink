@@ -169,8 +169,7 @@ The Kubernetes-specific configuration options are listed on the [configuration p
 Flink uses [Fabric8 Kubernetes client](https://github.com/fabric8io/kubernetes-client) to communicate with Kubernetes APIServer to create/delete Kubernetes resources(e.g. Deployment, Pod, ConfigMap, Service, etc.), as well as watch the Pods and ConfigMaps.
 Except for the above Flink config options, some [expert options](https://github.com/fabric8io/kubernetes-client#configuring-the-client) of Fabric8 Kubernetes client could be configured via system properties or environment variables.
 
-For example, users could use the following Flink config options to set the concurrent max requests, which allows running more jobs in a session cluster when [Kubernetes HA Services]({{< ref "docs/deployment/ha/kubernetes_ha" >}}) are used.
-Please note that, each Flink job will consume `3` concurrent requests.
+For example, users could use the following Flink config options to set the concurrent max requests.
 
 ```yaml
 containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
@@ -291,6 +290,10 @@ For more details see the [official Kubernetes documentation](https://kubernetes.
 ### High-Availability on Kubernetes
 
 For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
+
+Configure the value of <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-replicas">kubernetes.jobmanager.replicas</a> to greater than 1 to start standby JobManagers.
+It will help to achieve faster recovery.
+Notice that high availability should be enabled when starting standby JobManagers.
 
 ### Manual Resource Cleanup
 

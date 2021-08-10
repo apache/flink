@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.AfterClass;
@@ -243,6 +243,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         try {
             partition.add(buffer1);
             partition.add(buffer2);
+            assertEquals(2, partition.getNumberOfQueuedBuffers());
+
             // create the read view first
             ResultSubpartitionView view = null;
             if (createView) {
@@ -250,6 +252,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             }
 
             partition.release();
+            assertEquals(0, partition.getNumberOfQueuedBuffers());
 
             assertTrue(partition.isReleased());
             if (createView) {
@@ -282,6 +285,21 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         verifyViewReleasedAfterParentRelease(partition);
     }
 
+    @Test
+    public void testNumberOfQueueBuffers() throws Exception {
+        final PipelinedSubpartition subpartition = createSubpartition();
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.add(createFilledFinishedBufferConsumer(4096));
+        assertEquals(2, subpartition.getNumberOfQueuedBuffers());
+
+        subpartition.getNextBuffer();
+
+        assertEquals(1, subpartition.getNumberOfQueuedBuffers());
+    }
+
     private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)
             throws Exception {
         // Add a bufferConsumer
@@ -309,6 +327,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     public static PipelinedSubpartition createPipelinedSubpartition() {
         final ResultPartition parent = PartitionTestUtils.createPartition();
 
-        return new PipelinedSubpartition(0, parent);
+        return new PipelinedSubpartition(0, 2, parent);
     }
 }

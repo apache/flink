@@ -164,13 +164,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(
-                                        groupingSet.length,
-                                        outputType.getFieldCount() - namedProperties.length));
+        super.open();
         windowSerializer = windowAssigner.getWindowSerializer(new ExecutionConfig());
 
         internalTimerService = getInternalTimerService("window-timers", windowSerializer, this);
@@ -194,7 +188,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
 
         WindowContext windowContext = new WindowContext();
         windowAssigner.open(windowContext);
-        super.open();
     }
 
     @Override
@@ -218,6 +211,16 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperator<K, W extends 
                 windowRetractData.add(input);
             }
         }
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(
+                                groupingSet.length,
+                                outputType.getFieldCount() - namedProperties.length));
     }
 
     @Override

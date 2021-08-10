@@ -74,8 +74,10 @@ class NeverCompletingChannelFuture implements ChannelFuture {
     }
 
     @Override
-    public ChannelFuture sync() {
-        throw new UnsupportedOperationException();
+    public ChannelFuture sync() throws InterruptedException {
+        while (true) {
+            Thread.sleep(50);
+        }
     }
 
     @Override

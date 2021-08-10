@@ -22,8 +22,8 @@ from pyflink.table import expressions as expr, ListView
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udf, udtf, udaf, AggregateFunction, TableAggregateFunction, udtaf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
 class RowBasedOperationTests(object):
@@ -40,17 +40,22 @@ class RowBasedOperationTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        func = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.ROW(
+        func = udf(lambda x: Row(a=x + 1, b=x * x), result_type=DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())]))
+
+        func2 = udf(lambda x: Row(x.a + 1, x.b * 2), result_type=DataTypes.ROW(
             [DataTypes.FIELD("a", DataTypes.BIGINT()),
              DataTypes.FIELD("b", DataTypes.BIGINT())]))
 
         t.map(func(t.b)).alias("a", "b") \
-            .map(func(t.a)).alias("a", "b") \
+            .map(func(t.a)) \
+            .map(func2) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
-            actual, ["+I[4, 9]", "+I[3, 4]", "+I[7, 36]", "+I[10, 81]", "+I[5, 16]"])
+            actual, ["+I[5, 18]", "+I[4, 8]", "+I[8, 72]", "+I[11, 162]", "+I[6, 32]"])
 
     def test_map_with_pandas_udf(self):
         t = self.t_env.from_elements(
@@ -116,13 +121,13 @@ class RowBasedOperationTests(object):
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
         def split(x):
-            for s in x[1].split(","):
-                yield x[0], s
+            for s in x.b.split(","):
+                yield x.a, s
 
-        t.flat_map(split) \
-            .flat_map(split) \
-            .join_lateral(split.alias("a", "b")) \
-            .left_outer_join_lateral(split.alias("c", "d")) \
+        t.flat_map(split).alias("a", "b") \
+            .flat_map(split).alias("a", "b") \
+            .join_lateral(split.alias("c", "d")) \
+            .left_outer_join_lateral(split.alias("e", "f")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -132,7 +137,7 @@ class RowBasedOperationTests(object):
              "+I[1, 5, 1, 5, 1, 5]", "+I[1, 6, 1, 6, 1, 6]", "+I[1, 7, 1, 7, 1, 7]"])
 
 
-class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTableTestCase):
+class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBatchTableTestCase):
     def test_aggregate_with_pandas_udaf(self):
         t = self.t_env.from_elements(
             [(1, 2, 3), (2, 1, 3), (1, 5, 4), (1, 8, 6), (2, 3, 4)],
@@ -232,7 +237,7 @@ class BatchRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkBatchTab
                             "+I[2018-03-11 04:59:59.999, 8.0, 8]"])
 
 
-class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamTableTestCase):
+class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkStreamTableTestCase):
     def test_aggregate(self):
         import pandas as pd
         t = self.t_env.from_elements(
@@ -312,13 +317,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
         from pyflink.common import Row
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row: Row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row: Row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.a
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -345,13 +350,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def retract(self, accumulator, *args):
         accumulator[0] = accumulator[0] - 1

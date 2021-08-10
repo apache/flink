@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
@@ -59,9 +58,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
     @Before
     public void before() throws ClassNotFoundException, SQLException {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tEnv = StreamTableEnvironment.create(env, envSettings);
+        tEnv = StreamTableEnvironment.create(env);
 
         System.setProperty(
                 "derby.stream.error.field", JdbcTestBase.class.getCanonicalName() + ".DEV_NULL");

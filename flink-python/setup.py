@@ -116,12 +116,12 @@ else:
                 sources=["pyflink/fn_execution/table/window_aggregate_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/table/"]),
             Extension(
-                name="pyflink.fn_execution.stream",
-                sources=["pyflink/fn_execution/stream.pyx"],
+                name="pyflink.fn_execution.stream_fast",
+                sources=["pyflink/fn_execution/stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.beam.beam_stream",
-                sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
+                name="pyflink.fn_execution.beam.beam_stream_fast",
+                sources=["pyflink/fn_execution/beam/beam_stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
             Extension(
                 name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -148,12 +148,12 @@ else:
                     sources=["pyflink/fn_execution/table/window_aggregate_fast.c"],
                     include_dirs=["pyflink/fn_execution/table/"]),
                 Extension(
-                    name="pyflink.fn_execution.stream",
-                    sources=["pyflink/fn_execution/stream.c"],
+                    name="pyflink.fn_execution.stream_fast",
+                    sources=["pyflink/fn_execution/stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
-                    name="pyflink.fn_execution.beam.beam_stream",
-                    sources=["pyflink/fn_execution/beam/beam_stream.c"],
+                    name="pyflink.fn_execution.beam.beam_stream_fast",
+                    sources=["pyflink/fn_execution/beam/beam_stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
                 Extension(
                     name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -273,6 +273,7 @@ try:
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.datastream.window',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',

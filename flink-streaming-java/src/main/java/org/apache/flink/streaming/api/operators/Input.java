@@ -42,6 +42,15 @@ public interface Input<IN> {
     void processWatermark(Watermark mark) throws Exception;
 
     /**
+     * Processes a {@link StreamStatus} that arrived on this input of the {@link
+     * MultipleInputStreamOperator}. This method is guaranteed to not be called concurrently with
+     * other methods of the operator.
+     *
+     * @see StreamStatus
+     */
+    void processStreamStatus(StreamStatus streamStatus) throws Exception;
+
+    /**
      * Processes a {@link LatencyMarker} that arrived on the first input of this two-input operator.
      * This method is guaranteed to not be called concurrently with other methods of the operator.
      *
@@ -50,6 +59,4 @@ public interface Input<IN> {
     void processLatencyMarker(LatencyMarker latencyMarker) throws Exception;
 
     void setKeyContextElement(StreamRecord<IN> record) throws Exception;
-
-    void emitStreamStatus(StreamStatus streamStatus) throws Exception;
 }

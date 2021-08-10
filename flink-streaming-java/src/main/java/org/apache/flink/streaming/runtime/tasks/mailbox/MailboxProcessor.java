@@ -19,8 +19,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.ExceptionUtils;
@@ -312,15 +311,10 @@ public class MailboxProcessor implements Closeable {
         // Doing this check is an optimization to only have a volatile read in the expected hot
         // path, locks are only
         // acquired after this point.
-        if (!mailbox.createBatch()) {
-            // We can also directly return true because all changes to #isMailboxLoopRunning must be
-            // connected to
-            // mailbox.hasMail() == true.
-            return false;
-        }
+        boolean isBatchAvailable = mailbox.createBatch();
 
         // Take mails in a non-blockingly and execute them.
-        boolean processed = processMailsNonBlocking(singleStep);
+        boolean processed = isBatchAvailable && processMailsNonBlocking(singleStep);
         if (singleStep) {
             return processed;
         }
@@ -386,7 +380,7 @@ public class MailboxProcessor implements Closeable {
      * default action, e.g. because there is currently no input available.
      */
     private MailboxDefaultAction.Suspension suspendDefaultAction(
-            @Nullable TimerGauge suspensionTimer) {
+            @Nullable PeriodTimer suspensionTimer) {
 
         checkState(
                 mailbox.isMailboxThread(),
@@ -395,7 +389,6 @@ public class MailboxProcessor implements Closeable {
         checkState(suspendedDefaultAction == null, "Default action has already been suspended");
         if (suspendedDefaultAction == null) {
             suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
-            ensureControlFlowSignalCheck();
         }
 
         return suspendedDefaultAction;
@@ -422,18 +415,6 @@ public class MailboxProcessor implements Closeable {
     }
 
     /**
-     * Helper method to make sure that the mailbox loop will check the control flow flags in the
-     * next iteration.
-     */
-    private void ensureControlFlowSignalCheck() {
-        // Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is
-        // noticed.
-        if (!mailbox.hasMail()) {
-            sendControlMail(() -> {}, "signal check");
-        }
-    }
-
-    /**
      * Implementation of {@link MailboxDefaultAction.Controller} that is connected to a {@link
      * MailboxProcessor} instance.
      */
@@ -452,8 +433,8 @@ public class MailboxProcessor implements Closeable {
 
         @Override
         public MailboxDefaultAction.Suspension suspendDefaultAction(
-                TimerGauge suspensionIdleTimer) {
-            return mailboxProcessor.suspendDefaultAction(suspensionIdleTimer);
+                PeriodTimer suspensionPeriodTimer) {
+            return mailboxProcessor.suspendDefaultAction(suspensionPeriodTimer);
         }
 
         @Override
@@ -467,9 +448,9 @@ public class MailboxProcessor implements Closeable {
      * resume execution.
      */
     private final class DefaultActionSuspension implements MailboxDefaultAction.Suspension {
-        @Nullable private final TimerGauge suspensionTimer;
+        @Nullable private final PeriodTimer suspensionTimer;
 
-        public DefaultActionSuspension(@Nullable TimerGauge suspensionTimer) {
+        public DefaultActionSuspension(@Nullable PeriodTimer suspensionTimer) {
             this.suspensionTimer = suspensionTimer;
         }
 

@@ -75,6 +75,11 @@ export interface CheckPointMinMaxAvgStatisticsInterface {
   min: number;
   max: number;
   avg: number;
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  p999: number;
 }
 
 export interface CheckPointCompletedStatisticsInterface {
@@ -119,7 +124,7 @@ export interface CheckPointConfigInterface {
   checkpoint_storage: string;
   unaligned_checkpoints: boolean;
   tolerable_failed_checkpoints: number;
-  alignment_timeout: number;
+  aligned_checkpoint_timeout: number;
 }
 
 export interface CheckPointDetailInterface {

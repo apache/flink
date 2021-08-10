@@ -87,18 +87,23 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public void notifyCheckpointAborted(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-        taskExecutorGateway.abortCheckpoint(executionAttemptID, checkpointId, timestamp);
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long timestamp) {
+        taskExecutorGateway.abortCheckpoint(
+                executionAttemptID, checkpointId, latestCompletedCheckpointId, timestamp);
     }
 
     @Override
-    public void triggerCheckpoint(
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
             long timestamp,
             CheckpointOptions checkpointOptions) {
-        taskExecutorGateway.triggerCheckpoint(
+        return taskExecutorGateway.triggerCheckpoint(
                 executionAttemptID, checkpointId, timestamp, checkpointOptions);
     }
 

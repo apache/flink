@@ -34,8 +34,7 @@ def word_count():
               "License you may not use this file except in compliance " \
               "with the License"
 
-    env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-    t_env = TableEnvironment.create(environment_settings=env_settings)
+    t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()

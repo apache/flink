@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,6 +155,39 @@ public class TaskExecutorResourceUtils {
         return resourceSpecFromConfig(adjustForLocalExecution(config));
     }
 
+    public static long calculateTotalFlinkMemoryFromComponents(Configuration config) {
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.TASK_HEAP_MEMORY));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.TASK_OFF_HEAP_MEMORY));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.NETWORK_MEMORY_MAX));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.NETWORK_MEMORY_MIN));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY));
+        Preconditions.checkArgument(
+                config.get(TaskManagerOptions.NETWORK_MEMORY_MAX)
+                        .equals(config.get(TaskManagerOptions.NETWORK_MEMORY_MIN)));
+        return config.get(TaskManagerOptions.TASK_HEAP_MEMORY)
+                .add(config.get(TaskManagerOptions.TASK_OFF_HEAP_MEMORY))
+                .add(config.get(TaskManagerOptions.NETWORK_MEMORY_MAX))
+                .add(config.get(TaskManagerOptions.MANAGED_MEMORY_SIZE))
+                .add(config.get(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY))
+                .add(config.get(TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY))
+                .getBytes();
+    }
+
+    public static long calculateTotalProcessMemoryFromComponents(Configuration config) {
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_METASPACE));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_OVERHEAD_MAX));
+        Preconditions.checkArgument(config.contains(TaskManagerOptions.JVM_OVERHEAD_MIN));
+        Preconditions.checkArgument(
+                config.get(TaskManagerOptions.JVM_OVERHEAD_MAX)
+                        .equals(config.get(TaskManagerOptions.JVM_OVERHEAD_MIN)));
+        return calculateTotalFlinkMemoryFromComponents(config)
+                + config.get(TaskManagerOptions.JVM_METASPACE)
+                        .add(config.get(TaskManagerOptions.JVM_OVERHEAD_MAX))
+                        .getBytes();
+    }
+
     public static Configuration adjustForLocalExecution(Configuration config) {
         UNUSED_CONFIG_OPTIONS.forEach(option -> warnOptionHasNoEffectIfSet(config, option));
 
@@ -167,6 +201,26 @@ public class TaskExecutorResourceUtils {
         adjustNetworkMemoryForLocalExecution(config);
         setConfigOptionToDefaultIfNotSet(
                 config, TaskManagerOptions.MANAGED_MEMORY_SIZE, DEFAULT_MANAGED_MEMORY_SIZE);
+        silentlySetConfigOptionIfNotSet(
+                config,
+                TaskManagerOptions.FRAMEWORK_HEAP_MEMORY,
+                TaskManagerOptions.FRAMEWORK_HEAP_MEMORY.defaultValue());
+        silentlySetConfigOptionIfNotSet(
+                config,
+                TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY,
+                TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY.defaultValue());
+        silentlySetConfigOptionIfNotSet(
+                config,
+                TaskManagerOptions.JVM_METASPACE,
+                TaskManagerOptions.JVM_METASPACE.defaultValue());
+        silentlySetConfigOptionIfNotSet(
+                config,
+                TaskManagerOptions.JVM_OVERHEAD_MAX,
+                TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
+        silentlySetConfigOptionIfNotSet(
+                config,
+                TaskManagerOptions.JVM_OVERHEAD_MIN,
+                TaskManagerOptions.JVM_OVERHEAD_MAX.defaultValue());
 
         return config;
     }
@@ -197,6 +251,13 @@ public class TaskExecutorResourceUtils {
                             + "only the following options matter for the resource configuration: {}",
                     option,
                     UNUSED_CONFIG_OPTIONS);
+        }
+    }
+
+    private static <T> void silentlySetConfigOptionIfNotSet(
+            Configuration config, ConfigOption<T> option, T value) {
+        if (!config.contains(option)) {
+            config.set(option, value);
         }
     }
 

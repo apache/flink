@@ -347,8 +347,13 @@ public class JsonToRowDataConverters implements Serializable {
             for (int i = 0; i < arity; i++) {
                 String fieldName = fieldNames[i];
                 JsonNode field = node.get(fieldName);
-                Object convertedField = convertField(fieldConverters[i], fieldName, field);
-                row.setField(i, convertedField);
+                try {
+                    Object convertedField = convertField(fieldConverters[i], fieldName, field);
+                    row.setField(i, convertedField);
+                } catch (Throwable t) {
+                    throw new JsonParseException(
+                            String.format("Fail to deserialize at field: %s.", fieldName), t);
+                }
             }
             return row;
         };

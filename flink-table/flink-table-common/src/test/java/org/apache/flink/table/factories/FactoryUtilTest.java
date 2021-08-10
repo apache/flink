@@ -21,11 +21,8 @@ package org.apache.flink.table.factories;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogBaseTable;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -33,6 +30,7 @@ import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSink
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,9 +39,7 @@ import org.junit.rules.ExpectedException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -155,18 +151,24 @@ public class FactoryUtilTest {
                         + "Supported options:\n\n"
                         + "buffer-size\n"
                         + "connector\n"
+                        + "deprecated-target (deprecated)\n"
+                        + "fallback-buffer-size\n"
                         + "format\n"
                         + "key.format\n"
                         + "key.test-format.changelog-mode\n"
                         + "key.test-format.delimiter\n"
+                        + "key.test-format.deprecated-delimiter (deprecated)\n"
                         + "key.test-format.fail-on-missing\n"
+                        + "key.test-format.fallback-fail-on-missing\n"
                         + "key.test-format.readable-metadata\n"
                         + "property-version\n"
                         + "target\n"
                         + "value.format\n"
                         + "value.test-format.changelog-mode\n"
                         + "value.test-format.delimiter\n"
+                        + "value.test-format.deprecated-delimiter (deprecated)\n"
                         + "value.test-format.fail-on-missing\n"
+                        + "value.test-format.fallback-fail-on-missing\n"
                         + "value.test-format.readable-metadata");
         testError(
                 options -> {
@@ -286,6 +288,11 @@ public class FactoryUtilTest {
     public void testRequiredPlaceholderOption() {
         final Set<ConfigOption<?>> requiredOptions = new HashSet<>();
         requiredOptions.add(ConfigOptions.key("fields.#.min").intType().noDefaultValue());
+        requiredOptions.add(
+                ConfigOptions.key("no.placeholder.anymore")
+                        .intType()
+                        .noDefaultValue()
+                        .withFallbackKeys("old.fields.#.min"));
 
         FactoryUtil.validateFactoryOptions(requiredOptions, new HashSet<>(), new Configuration());
     }
@@ -334,16 +341,72 @@ public class FactoryUtilTest {
                                 null,
                                 Thread.currentThread().getContextClassLoader()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(containsMessage("Unsupported options found for 'test-catalog'"));
+        expectError("Unsupported options found for 'test-catalog'");
         helper2.validate();
     }
 
+    @Test
+    public void testFactoryHelperWithDeprecatedOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("deprecated-target", "MyTarget");
+        options.put("fallback-buffer-size", "1000");
+        options.put("value.format", "test-format");
+        options.put("value.test-format.deprecated-delimiter", "|");
+        options.put("value.test-format.fallback-fail-on-missing", "true");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestDynamicTableFactory(),
+                        FactoryMocks.createTableContext(SCHEMA, options));
+        helper.discoverDecodingFormat(
+                DeserializationFormatFactory.class, TestDynamicTableFactory.VALUE_FORMAT);
+        helper.validate();
+    }
+
+    @Test
+    public void testFactoryHelperWithMapOption() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("properties.prop-1", "value-1");
+        options.put("properties.prop-2", "value-2");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestFactoryWithMap(), FactoryMocks.createTableContext(SCHEMA, options));
+
+        helper.validate();
+    }
+
+    @Test
+    public void testInvalidFactoryHelperWithMapOption() {
+        expectError(
+                "Unsupported options found for 'test-factory-with-map'.\n\n"
+                        + "Unsupported options:\n\n"
+                        + "unknown\n\n"
+                        + "Supported options:\n\n"
+                        + "connector\n"
+                        + "properties\n"
+                        + "properties.prop-1\n"
+                        + "properties.prop-2\n"
+                        + "property-version");
+
+        final Map<String, String> options = new HashMap<>();
+        options.put("properties.prop-1", "value-1");
+        options.put("properties.prop-2", "value-2");
+        options.put("unknown", "value-3");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestFactoryWithMap(), FactoryMocks.createTableContext(SCHEMA, options));
+        helper.validate();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
     // --------------------------------------------------------------------------------------------
 
     private void expectError(String message) {
         thrown.expect(ValidationException.class);
-        thrown.expect(containsCause(new ValidationException(message)));
+        thrown.expect(containsMessage(message));
     }
 
     private static void testError(Consumer<Map<String, String>> optionModifier) {
@@ -367,62 +430,28 @@ public class FactoryUtilTest {
         return options;
     }
 
-    private static class CatalogTableMock implements CatalogTable {
+    // --------------------------------------------------------------------------------------------
+    // Helper classes
+    // --------------------------------------------------------------------------------------------
 
-        final Map<String, String> options;
+    private static class TestFactoryWithMap implements DynamicTableFactory {
 
-        CatalogTableMock(Map<String, String> options) {
-            this.options = options;
+        public static final ConfigOption<Map<String, String>> PROPERTIES =
+                ConfigOptions.key("properties").mapType().noDefaultValue();
+
+        @Override
+        public String factoryIdentifier() {
+            return "test-factory-with-map";
         }
 
         @Override
-        public boolean isPartitioned() {
-            return false;
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
         }
 
         @Override
-        public List<String> getPartitionKeys() {
-            return null;
-        }
-
-        @Override
-        public CatalogTable copy(Map<String, String> options) {
-            return null;
-        }
-
-        @Override
-        public Map<String, String> toProperties() {
-            return null;
-        }
-
-        @Override
-        public Map<String, String> getOptions() {
-            return options;
-        }
-
-        @Override
-        public TableSchema getSchema() {
-            return null;
-        }
-
-        @Override
-        public String getComment() {
-            return null;
-        }
-
-        @Override
-        public CatalogBaseTable copy() {
-            return null;
-        }
-
-        @Override
-        public Optional<String> getDescription() {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<String> getDetailedDescription() {
-            return Optional.empty();
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.singleton(PROPERTIES);
         }
     }
 }

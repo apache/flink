@@ -32,7 +32,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -46,8 +45,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -89,7 +86,6 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDisposalTr
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
@@ -100,6 +96,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -154,8 +152,6 @@ public class RestClusterClientTest extends TestLogger {
 
     private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 
-    private RestServerEndpointConfiguration restServerEndpointConfiguration;
-
     private volatile FailHttpRequestPredicate failHttpRequest = FailHttpRequestPredicate.never();
 
     private ExecutorService executor;
@@ -177,8 +173,6 @@ public class RestClusterClientTest extends TestLogger {
 
     @Before
     public void setUp() throws Exception {
-        restServerEndpointConfiguration =
-                RestServerEndpointConfiguration.fromConfiguration(restConfig);
         mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
         executor =
@@ -209,7 +203,7 @@ public class RestClusterClientTest extends TestLogger {
 
     @Nonnull
     private RestClient createRestClient() throws ConfigurationException {
-        return new RestClient(RestClientConfiguration.fromConfiguration(restConfig), executor) {
+        return new RestClient(restConfig, executor) {
             @Override
             public <
                             M extends MessageHeaders<R, P, U>,
@@ -1048,8 +1042,7 @@ public class RestClusterClientTest extends TestLogger {
 
     private TestRestServerEndpoint createRestServerEndpoint(
             final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
-        TestRestServerEndpoint.Builder builder =
-                TestRestServerEndpoint.builder(restServerEndpointConfiguration);
+        TestRestServerEndpoint.Builder builder = TestRestServerEndpoint.builder(restConfig);
         Arrays.stream(abstractRestHandlers).forEach(builder::withHandler);
 
         return builder.buildAndStart();

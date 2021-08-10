@@ -222,6 +222,6 @@ The [Flink Operations Playground]({{< ref "docs/try-flink/flink-operations-playg
 - [Savepoints]({{< ref "docs/ops/state/savepoints" >}})
 - [Tuning Checkpoints and Large State]({{< ref "docs/ops/state/large_state_tuning" >}})
 - [Monitoring Checkpointing]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}})
-- [Task Failure Recovery]({{< ref "docs/dev/execution/task_failure_recovery" >}})
+- [Task Failure Recovery]({{< ref "docs/ops/state/task_failure_recovery" >}})
 
 {{< top >}}

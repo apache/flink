@@ -267,7 +267,7 @@ public class StreamMultipleInputProcessorFactory {
 
         @Override
         public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            input.emitStreamStatus(streamStatus);
+            input.processStreamStatus(streamStatus);
         }
 
         @Override

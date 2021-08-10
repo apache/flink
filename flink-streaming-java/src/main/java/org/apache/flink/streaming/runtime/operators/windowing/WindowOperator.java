@@ -288,15 +288,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        timestampedCollector = null;
-        triggerContext = null;
-        processContext = null;
-        windowAssignerContext = null;
-    }
-
-    @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         final Collection<W> elementWindows =
                 windowAssigner.assignWindows(

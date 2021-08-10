@@ -54,11 +54,14 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -85,13 +89,16 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     operator.
  */
 @Internal
-public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements BoundedMultiInput {
+public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
+        implements BoundedMultiInput, Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 
     private final RecordWriterOutput<?>[] streamOutputs;
 
     private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
+
+    private final boolean finishedOnRestore;
 
     /**
      * For iteration, {@link StreamIterationHead} and {@link StreamIterationTail} used for executing
@@ -126,11 +133,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
 
     private final OperatorEventDispatcherImpl operatorEventDispatcher;
 
-    private boolean ignoreEndOfInput;
+    private final Closer closer = Closer.create();
 
     public OperatorChain(
             StreamTask<OUT, OP> containingTask,
-            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate,
+            boolean finishedOnRestore) {
 
         this.operatorEventDispatcher =
                 new OperatorEventDispatcherImpl(
@@ -153,6 +161,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
         Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap =
                 new HashMap<>(outEdgesInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
+        this.finishedOnRestore = finishedOnRestore;
 
         // from here on, we need to make sure that the output writers are shut down again on failure
         boolean success = false;
@@ -254,6 +263,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
         this.chainedSources = Collections.emptyMap();
 
         firstOperatorWrapper = linkOperatorWrappers(allOperatorWrappers);
+        finishedOnRestore = false;
     }
 
     private void createChainOutputs(
@@ -315,6 +325,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
             WatermarkGaugeExposingOutput chainedSourceOutput =
                     createChainedSourceOutput(
                             containingTask,
+                            sourceInputConfig,
+                            userCodeClassloader,
                             operatorInputs.get(inputId),
                             (OperatorMetricGroup) multipleInputOperator.getMetricGroup(),
                             outputTag);
@@ -333,27 +345,42 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
                     sourceInput,
                     new ChainedSource(
                             chainedSourceOutput,
-                            new StreamTaskSourceInput<>(
-                                    sourceOperator, sourceInputGateIndex++, inputId)));
+                            finishedOnRestore
+                                    ? new StreamTaskFinishedOnRestoreSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)
+                                    : new StreamTaskSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)));
         }
         return chainedSourceInputs;
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private WatermarkGaugeExposingOutput<StreamRecord> createChainedSourceOutput(
             StreamTask<?, OP> containingTask,
+            StreamConfig sourceInputConfig,
+            ClassLoader userCodeClassloader,
             Input input,
             OperatorMetricGroup metricGroup,
             OutputTag outputTag) {
-        if (!containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            throw new UnsupportedOperationException(
-                    "Currently chained sources are supported only with objectReuse enabled");
+
+        WatermarkGaugeExposingOutput<StreamRecord> chainedSourceOutput;
+        if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+            chainedSourceOutput = new ChainingOutput(input, metricGroup, outputTag);
+        } else {
+            TypeSerializer<?> inSerializer =
+                    sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
+            chainedSourceOutput =
+                    new CopyingChainingOutput(input, inSerializer, metricGroup, outputTag);
         }
         /**
          * Chained sources are closed when {@link
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
-        return new ChainingOutput<>(input, metricGroup, outputTag, null);
+        return closer.register(chainedSourceOutput);
+    }
+
+    public boolean isFinishedOnRestore() {
+        return finishedOnRestore;
     }
 
     public OperatorEventDispatcher getOperatorEventDispatcher() {
@@ -376,6 +403,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
     }
 
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         // go forward through the operator chain and tell each operator
         // to prepare the checkpoint
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
@@ -392,7 +423,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
      */
     @Override
     public void endInput(int inputId) throws Exception {
-        if (mainOperatorWrapper != null && !ignoreEndOfInput) {
+        if (mainOperatorWrapper != null) {
             mainOperatorWrapper.endOperatorInput(inputId);
         }
     }
@@ -400,10 +431,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
     /**
      * Initialize state and open all operators in the chain from <b>tail to heads</b>, contrary to
      * {@link StreamOperator#close()} which happens <b>heads to tail</b> (see {@link
-     * #closeOperators(StreamTaskActionExecutor)}).
+     * #finishOperators(StreamTaskActionExecutor)}).
      */
     protected void initializeStateAndOpenOperators(
             StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
             operator.initializeState(streamTaskStateInitializer);
@@ -416,9 +451,35 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
      * operator in the chain, contrary to {@link StreamOperator#open()} which happens <b>tail to
      * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
      */
-    protected void closeOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+    protected void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         if (firstOperatorWrapper != null) {
-            firstOperatorWrapper.close(actionExecutor, ignoreEndOfInput);
+            firstOperatorWrapper.finish(actionExecutor);
+        }
+    }
+
+    /**
+     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
+     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
+     */
+    protected void closeAllOperators() throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
+        Exception closingException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.close();
+            } catch (Exception e) {
+                closingException = firstOrSuppressed(e, closingException);
+            }
+        }
+        if (closingException != null) {
+            throw closingException;
         }
     }
 
@@ -497,10 +558,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
      *
      * <p>This method should never fail.
      */
-    public void releaseOutputs() {
-        for (RecordWriterOutput<?> streamOutput : streamOutputs) {
-            streamOutput.close();
-        }
+    public void close() throws IOException {
+        closer.close();
     }
 
     @Nullable
@@ -564,9 +623,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
             // If the chaining output does not copy we need to copy in the broadcast output,
             // otherwise multi-chaining would not work correctly.
             if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-                return new CopyingBroadcastingOutputCollector<>(asArray);
+                return closer.register(new CopyingBroadcastingOutputCollector<>(asArray));
             } else {
-                return new BroadcastingOutputCollector<>(asArray);
+                return closer.register(new BroadcastingOutputCollector<>(asArray));
             }
         }
     }
@@ -669,7 +728,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
                         MetricNames.IO_CURRENT_INPUT_WATERMARK,
                         currentOperatorOutput.getWatermarkGauge()::getValue);
 
-        return currentOperatorOutput;
+        return closer.register(currentOperatorOutput);
     }
 
     private RecordWriterOutput<OUT> createStreamOutput(
@@ -679,7 +738,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
             Environment taskEnvironment) {
         OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
 
-        TypeSerializer outSerializer = null;
+        TypeSerializer outSerializer;
 
         if (edge.getOutputTag() != null) {
             // side output
@@ -694,8 +753,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
                             taskEnvironment.getUserCodeClassLoader().asClassLoader());
         }
 
-        return new RecordWriterOutput<>(
-                recordWriter, outSerializer, sideOutputTag, edge.supportsUnalignedCheckpoints());
+        return closer.register(
+                new RecordWriterOutput<OUT>(
+                        recordWriter,
+                        outSerializer,
+                        sideOutputTag,
+                        edge.supportsUnalignedCheckpoints()));
     }
 
     /**
@@ -734,10 +797,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Bound
     @Nullable
     StreamOperator<?> getTailOperator() {
         return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
-    }
-
-    public void setIgnoreEndOfInput(boolean ignoreEndOfInput) {
-        this.ignoreEndOfInput = ignoreEndOfInput;
     }
 
     /** Wrapper class to access the chained sources and their's outputs. */

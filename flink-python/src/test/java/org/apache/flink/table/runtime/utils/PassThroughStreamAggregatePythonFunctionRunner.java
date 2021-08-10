@@ -23,7 +23,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -34,13 +34,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughStreamAggregatePythonFunctionRunner} runner that help to test the Python
  * stream group aggregate operators. It will process the input data with the provided
  * `processFunction`.
  */
-public class PassThroughStreamAggregatePythonFunctionRunner
-        extends BeamTableStatefulPythonFunctionRunner {
+public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTablePythonFunctionRunner {
 
     private final List<byte[]> buffer;
 
@@ -53,7 +54,6 @@ public class PassThroughStreamAggregatePythonFunctionRunner
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
@@ -62,11 +62,8 @@ public class PassThroughStreamAggregatePythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
-                coderUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
@@ -74,7 +71,10 @@ public class PassThroughStreamAggregatePythonFunctionRunner
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                createRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false));
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;
     }

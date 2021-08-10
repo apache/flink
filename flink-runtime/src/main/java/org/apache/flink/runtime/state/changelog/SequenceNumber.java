@@ -27,7 +27,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A logical timestamp to draw a boundary between the materialized and non-materialized changes.
  * Maintained by the state backend but implementations may choose to move its generation to {@link
- * StateChangelogWriterFactory} as an optimization.
+ * StateChangelogStorage} as an optimization.
  */
 @Internal
 public interface SequenceNumber extends Comparable<SequenceNumber> {

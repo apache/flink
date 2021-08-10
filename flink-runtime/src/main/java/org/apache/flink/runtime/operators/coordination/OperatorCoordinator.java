@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * A coordinator for runtime operators. The OperatorCoordinator runs on the master, associated with
- * the job vertex of the operator. It communicated with operators via sending operator events.
+ * the job vertex of the operator. It communicates with operators via sending operator events.
  *
  * <p>Operator coordinators are for example source and sink coordinators that discover and assign
  * work, or aggregate and commit metadata.
@@ -62,7 +62,7 @@ import java.util.concurrent.CompletableFuture;
  *       scheduler determined which checkpoint to restore, these methods notify the coordinator of
  *       that. The former method is called in case of a regional failure/recovery (affecting
  *       possible a subset of subtasks), the later method in case of a global failure/recovery. This
- *       method should be used to determine which actions to recover, because it tells you with
+ *       method should be used to determine which actions to recover, because it tells you which
  *       checkpoint to fall back to. The coordinator implementation needs to recover the
  *       interactions with the relevant tasks since the checkpoint that is restored.
  *   <li>{@link #subtaskReady(int, SubtaskGateway)}: Called again, once the recovered tasks are
@@ -133,7 +133,7 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
      *       checkpoint.
      * </ul>
      *
-     * @throws Exception Any exception thrown by this method results in a full job failure and *
+     * @throws Exception Any exception thrown by this method results in a full job failure and
      *     recovery.
      */
     void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> resultFuture)

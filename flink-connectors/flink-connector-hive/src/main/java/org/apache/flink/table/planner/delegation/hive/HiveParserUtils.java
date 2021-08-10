@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
+import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
@@ -42,8 +43,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunction
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeCheckCtx;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTranslator;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
@@ -99,6 +100,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
@@ -714,6 +716,7 @@ public class HiveParserUtils {
             throws SemanticException {
         final MutableBoolean visited = new MutableBoolean(false);
         final MutableBoolean found = new MutableBoolean(false);
+        final boolean legacyGrouping = legacyGrouping();
 
         TreeVisitorAction action =
                 new TreeVisitorAction() {
@@ -725,58 +728,24 @@ public class HiveParserUtils {
 
                     @Override
                     public Object post(Object t) {
-                        HiveParserASTNode root = (HiveParserASTNode) t;
-                        if (root.getType() == HiveASTParser.TOK_FUNCTION
-                                && root.getChildCount() == 2) {
-                            HiveParserASTNode func =
-                                    (HiveParserASTNode)
-                                            HiveASTParseDriver.ADAPTOR.getChild(root, 0);
+                        HiveParserASTNode current = (HiveParserASTNode) t;
+                        // rewrite grouping function
+                        if (current.getType() == HiveASTParser.TOK_FUNCTION
+                                && current.getChildCount() >= 2) {
+                            HiveParserASTNode func = (HiveParserASTNode) current.getChild(0);
                             if (func.getText().equals("grouping")) {
-                                HiveParserASTNode c =
-                                        (HiveParserASTNode)
-                                                HiveASTParseDriver.ADAPTOR.getChild(root, 1);
                                 visited.setValue(true);
-                                for (int i = 0; i < grpByAstExprs.size(); i++) {
-                                    HiveParserASTNode grpByExpr = grpByAstExprs.get(i);
-                                    if (grpByExpr.toStringTree().equals(c.toStringTree())) {
-                                        HiveParserASTNode child1;
-                                        if (noneSet) {
-                                            // Query does not contain CUBE, ROLLUP, or GROUPING
-                                            // SETS, and thus, grouping should return 0
-                                            child1 =
-                                                    (HiveParserASTNode)
-                                                            HiveASTParseDriver.ADAPTOR.create(
-                                                                    HiveASTParser.IntegralLiteral,
-                                                                    String.valueOf(0));
-                                        } else {
-                                            // We refer to grouping_id column
-                                            child1 =
-                                                    (HiveParserASTNode)
-                                                            HiveASTParseDriver.ADAPTOR.create(
-                                                                    HiveASTParser.TOK_TABLE_OR_COL,
-                                                                    "TOK_TABLE_OR_COL");
-                                            HiveASTParseDriver.ADAPTOR.addChild(
-                                                    child1,
-                                                    HiveASTParseDriver.ADAPTOR.create(
-                                                            HiveASTParser.Identifier,
-                                                            VirtualColumn.GROUPINGID.getName()));
-                                        }
-                                        HiveParserASTNode child2 =
-                                                (HiveParserASTNode)
-                                                        HiveASTParseDriver.ADAPTOR.create(
-                                                                HiveASTParser.IntegralLiteral,
-                                                                String.valueOf(
-                                                                        com.google.common.math
-                                                                                .IntMath.mod(
-                                                                                -i - 1,
-                                                                                grpByAstExprs
-                                                                                        .size())));
-                                        root.setChild(1, child1);
-                                        root.addChild(child2);
-                                        found.setValue(true);
-                                        break;
-                                    }
-                                }
+                                convertGrouping(
+                                        current, grpByAstExprs, noneSet, legacyGrouping, found);
+                            }
+                        } else if (legacyGrouping
+                                && current.getType() == HiveASTParser.TOK_TABLE_OR_COL
+                                && current.getChildCount() == 1) {
+                            // rewrite grouping__id
+                            HiveParserASTNode child = (HiveParserASTNode) current.getChild(0);
+                            if (child.getText()
+                                    .equalsIgnoreCase(VirtualColumn.GROUPINGID.getName())) {
+                                return convertToLegacyGroupingId(current, grpByAstExprs.size());
                             }
                         }
                         return t;
@@ -789,6 +758,92 @@ public class HiveParserUtils {
             throw new SemanticException("Expression in GROUPING function not present in GROUP BY");
         }
         return newTargetNode;
+    }
+
+    private static HiveParserASTNode convertToLegacyGroupingId(
+            HiveParserASTNode groupingId, int numGBExprs) {
+        HiveParserASTNode converterFunc =
+                (HiveParserASTNode)
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.TOK_FUNCTION, "TOK_FUNCTION");
+        // function name
+        converterFunc.addChild(
+                (Tree)
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.StringLiteral, GenericUDFLegacyGroupingID.NAME));
+        // origin grouping__id
+        converterFunc.addChild(groupingId);
+        // num of group by expressions
+        converterFunc.addChild(
+                (Tree)
+                        HiveASTParseDriver.ADAPTOR.create(
+                                HiveASTParser.IntegralLiteral, String.valueOf(numGBExprs)));
+        return converterFunc;
+    }
+
+    private static void convertGrouping(
+            HiveParserASTNode function,
+            List<HiveParserASTNode> grpByAstExprs,
+            boolean noneSet,
+            boolean legacyGrouping,
+            MutableBoolean found) {
+        HiveParserASTNode col = (HiveParserASTNode) function.getChild(1);
+        for (int i = 0; i < grpByAstExprs.size(); i++) {
+            HiveParserASTNode grpByExpr = grpByAstExprs.get(i);
+            if (grpByExpr.toStringTree().equals(col.toStringTree())) {
+                HiveParserASTNode child1;
+                if (noneSet) {
+                    // Query does not contain CUBE, ROLLUP, or GROUPING
+                    // SETS, and thus, grouping should return 0
+                    child1 =
+                            (HiveParserASTNode)
+                                    HiveASTParseDriver.ADAPTOR.create(
+                                            HiveASTParser.IntegralLiteral, String.valueOf(0));
+                } else {
+                    // We refer to grouping_id column
+                    child1 =
+                            (HiveParserASTNode)
+                                    HiveASTParseDriver.ADAPTOR.create(
+                                            HiveASTParser.TOK_TABLE_OR_COL, "TOK_TABLE_OR_COL");
+                    HiveASTParseDriver.ADAPTOR.addChild(
+                            child1,
+                            HiveASTParseDriver.ADAPTOR.create(
+                                    HiveASTParser.Identifier, VirtualColumn.GROUPINGID.getName()));
+                    if (legacyGrouping) {
+                        child1 = convertToLegacyGroupingId(child1, grpByAstExprs.size());
+                    }
+                }
+                HiveParserASTNode child2 =
+                        (HiveParserASTNode)
+                                HiveASTParseDriver.ADAPTOR.create(
+                                        HiveASTParser.IntegralLiteral,
+                                        String.valueOf(
+                                                nonNegativeMod(
+                                                        legacyGrouping ? i : -i - 1,
+                                                        grpByAstExprs.size())));
+                function.setChild(1, child1);
+                function.addChild(child2);
+                found.setValue(true);
+                break;
+            }
+        }
+    }
+
+    public static boolean legacyGrouping(Configuration conf) {
+        String hiveVersion = conf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key());
+        return hiveVersion != null && hiveVersion.compareTo("2.3.0") < 0;
+    }
+
+    private static boolean legacyGrouping() {
+        return legacyGrouping(SessionState.get().getConf());
+    }
+
+    private static int nonNegativeMod(int x, int m) {
+        if (m <= 0) {
+            throw new ArithmeticException("Modulus " + m + " must be > 0");
+        }
+        int result = x % m;
+        return (result >= 0) ? result : result + m;
     }
 
     public static SqlOperator getAnySqlOperator(String funcName, SqlOperatorTable opTable) {
@@ -1208,7 +1263,7 @@ public class HiveParserUtils {
 
     public static void saveViewDefinition(
             List<FieldSchema> resultSchema,
-            HiveParserCreateViewDesc desc,
+            HiveParserCreateViewInfo createViewInfo,
             TokenRewriteStream tokenRewriteStream,
             HiveParserUnparseTranslator unparseTranslator,
             HiveConf conf)
@@ -1218,23 +1273,24 @@ public class HiveParserUtils {
         List<FieldSchema> derivedSchema = new ArrayList<>(resultSchema);
         ParseUtils.validateColumnNameUniqueness(derivedSchema);
 
-        List<FieldSchema> imposedSchema = desc.getSchema();
+        List<FieldSchema> imposedSchema = createViewInfo.getSchema();
         if (imposedSchema != null) {
             int explicitColCount = imposedSchema.size();
             int derivedColCount = derivedSchema.size();
             if (explicitColCount != derivedColCount) {
                 throw new SemanticException(
-                        generateErrorMessage(desc.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
+                        generateErrorMessage(
+                                createViewInfo.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
             }
         }
 
         // Preserve the original view definition as specified by the user.
-        if (desc.getOriginalText() == null) {
+        if (createViewInfo.getOriginalText() == null) {
             String originalText =
                     tokenRewriteStream.toString(
-                            desc.getQuery().getTokenStartIndex(),
-                            desc.getQuery().getTokenStopIndex());
-            desc.setOriginalText(originalText);
+                            createViewInfo.getQuery().getTokenStartIndex(),
+                            createViewInfo.getQuery().getTokenStopIndex());
+            createViewInfo.setOriginalText(originalText);
         }
 
         // Now expand the view definition with extras such as explicit column
@@ -1243,7 +1299,8 @@ public class HiveParserUtils {
         unparseTranslator.applyTranslations(tokenRewriteStream);
         String expandedText =
                 tokenRewriteStream.toString(
-                        desc.getQuery().getTokenStartIndex(), desc.getQuery().getTokenStopIndex());
+                        createViewInfo.getQuery().getTokenStartIndex(),
+                        createViewInfo.getQuery().getTokenStopIndex());
 
         if (imposedSchema != null) {
             // Merge the names from the imposed schema into the types
@@ -1277,15 +1334,15 @@ public class HiveParserUtils {
             sb.append(" FROM (");
             sb.append(expandedText);
             sb.append(") ");
-            sb.append(HiveUtils.unparseIdentifier(desc.getCompoundName(), conf));
+            sb.append(HiveUtils.unparseIdentifier(createViewInfo.getCompoundName(), conf));
             expandedText = sb.toString();
         }
 
-        desc.setSchema(derivedSchema);
-        if (!desc.isMaterialized()) {
+        createViewInfo.setSchema(derivedSchema);
+        if (!createViewInfo.isMaterialized()) {
             // materialized views don't store the expanded text as they won't be rewritten at query
             // time.
-            desc.setExpandedText(expandedText);
+            createViewInfo.setExpandedText(expandedText);
         }
     }
 

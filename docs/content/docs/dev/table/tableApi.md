@@ -58,7 +58,7 @@ EnvironmentSettings settings = EnvironmentSettings
     .inStreamingMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(env);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // register Orders table in table environment
 // ...
@@ -117,7 +117,7 @@ from pyflink.table import *
 
 # environment configuration
 t_env = TableEnvironment.create(
-    environment_settings=EnvironmentSettings.new_instance().in_batch_mode().build())
+    environment_settings=EnvironmentSettings.in_batch_mode())
 
 # register Orders table and Result table sink in table environment
 source_data_path = "/path/to/source/directory/"
@@ -1006,7 +1006,7 @@ from pyflink.table.expressions import col
 left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
   
-joined_table = left.join(right).where(left.a == right.d & left.rowtime1 >= right.rowtime2 - lit(1).second & left.rowtime1 <= right.rowtime2 + lit(2).seconds)
+joined_table = left.join(right).where((left.a == right.d) & (left.rowtime1 >= right.rowtime2 - lit(1).second) & (left.rowtime1 <= right.rowtime2 + lit(2).seconds))
 result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
 ```
 {{< /tab >}}
@@ -2205,7 +2205,7 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 
 def map_function(a: Row) -> Row:
-    return Row(a[0] + 1, a[1] * a[1])
+    return Row(a.a + 1, a.b * a.b)
 
 # map operation with a python general scalar function
 func = udf(map_function, result_type=DataTypes.ROW(
@@ -2297,8 +2297,8 @@ from pyflink.common import Row
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x[1].split(","):
-        yield x[0], s
+    for s in x.b.split(","):
+        yield x.a, s
 
 input.flat_map(split)
 ```
@@ -2418,13 +2418,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
     def create_accumulator(self):
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row: Row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row: Row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.b
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -2675,16 +2675,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
-
-    def retract(self, accumulator, *args):
-        accumulator[0] = accumulator[0] - 1
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:

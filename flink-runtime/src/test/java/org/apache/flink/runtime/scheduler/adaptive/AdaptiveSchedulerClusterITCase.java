@@ -19,19 +19,26 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testtasks.OnceBlockingNoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -39,7 +46,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -51,6 +57,7 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 2;
     private static final int NUMBER_TASK_MANAGERS = 2;
     private static final int PARALLELISM = NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS;
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
 
     private final Configuration configuration = createConfiguration();
 
@@ -73,8 +80,13 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         return configuration;
     }
 
+    @Before
+    public void setUp() {
+        OnceBlockingNoOpInvokable.reset();
+    }
+
     @Test
-    public void testAutomaticScaleDownInCaseOfLostSlots() throws InterruptedException, IOException {
+    public void testAutomaticScaleDownInCaseOfLostSlots() throws Exception {
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
 
@@ -82,9 +94,18 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         final CompletableFuture<JobResult> resultFuture =
                 miniCluster.requestJobResult(jobGraph.getJobID());
 
-        OnceBlockingNoOpInvokable.waitUntilOpsAreRunning();
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(),
+                JOB_VERTEX_ID,
+                NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS);
 
         miniCluster.terminateTaskManager(0);
+
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(),
+                JOB_VERTEX_ID,
+                NUMBER_SLOTS_PER_TASK_MANAGER * (NUMBER_TASK_MANAGERS - 1));
+        OnceBlockingNoOpInvokable.unblock();
 
         final JobResult jobResult = resultFuture.join();
 
@@ -94,11 +115,9 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
     @Test
     public void testAutomaticScaleUp() throws Exception {
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
-        int targetInstanceCount = NUMBER_SLOTS_PER_TASK_MANAGER * (NUMBER_TASK_MANAGERS + 1);
+        int initialInstanceCount = NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS;
+        int targetInstanceCount = initialInstanceCount + NUMBER_SLOTS_PER_TASK_MANAGER;
         final JobGraph jobGraph = createBlockingJobGraph(targetInstanceCount);
-
-        // initially only expect NUMBER_TASK_MANAGERS
-        OnceBlockingNoOpInvokable.resetFor(NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS);
 
         log.info(
                 "Submitting job with parallelism of "
@@ -108,25 +127,23 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         final CompletableFuture<JobResult> jobResultFuture =
                 miniCluster.requestJobResult(jobGraph.getJobID());
 
-        OnceBlockingNoOpInvokable.waitUntilOpsAreRunning();
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(), JOB_VERTEX_ID, initialInstanceCount);
 
         log.info("Start additional TaskManager to scale up to the full parallelism.");
-        OnceBlockingNoOpInvokable.resetInstanceCount(); // we expect a restart
-        OnceBlockingNoOpInvokable.resetFor(targetInstanceCount);
         miniCluster.startTaskManager();
 
         log.info("Waiting until Invokable is running with higher parallelism");
-        OnceBlockingNoOpInvokable.waitUntilOpsAreRunning();
-
-        assertEquals(targetInstanceCount, OnceBlockingNoOpInvokable.getInstanceCount());
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(), JOB_VERTEX_ID, targetInstanceCount);
+        OnceBlockingNoOpInvokable.unblock();
 
         assertTrue(jobResultFuture.join().isSuccess());
     }
 
     private JobGraph createBlockingJobGraph(int parallelism) throws IOException {
-        final JobVertex blockingOperator = new JobVertex("Blocking operator");
+        final JobVertex blockingOperator = new JobVertex("Blocking operator", JOB_VERTEX_ID);
 
-        OnceBlockingNoOpInvokable.resetFor(parallelism);
         blockingOperator.setInvokableClass(OnceBlockingNoOpInvokable.class);
 
         blockingOperator.setParallelism(parallelism);
@@ -138,5 +155,27 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         jobGraph.setExecutionConfig(executionConfig);
 
         return jobGraph;
+    }
+
+    private void waitUntilParallelismForVertexReached(
+            JobID jobId, JobVertexID jobVertexId, int targetParallelism) throws Exception {
+
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final ArchivedExecutionGraph archivedExecutionGraph =
+                            miniClusterResource
+                                    .getMiniCluster()
+                                    .getArchivedExecutionGraph(jobId)
+                                    .get();
+
+                    if (archivedExecutionGraph.getState() == JobStatus.INITIALIZING) {
+                        // parallelism was not yet determined
+                        return false;
+                    }
+
+                    return archivedExecutionGraph.getAllVertices().get(jobVertexId).getParallelism()
+                            == targetParallelism;
+                },
+                Deadline.fromNow(Duration.ofSeconds(10)));
     }
 }

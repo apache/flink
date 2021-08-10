@@ -19,20 +19,14 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -51,25 +45,16 @@ import static org.junit.Assert.fail;
 public class RpcEndpointTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
-    private static ActorSystem actorSystem = null;
     private static RpcService rpcService = null;
 
     @BeforeClass
-    public static void setup() {
-        actorSystem = AkkaUtils.createDefaultActorSystem();
-        rpcService =
-                new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    public static void setup() throws Exception {
+        rpcService = RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
     }
 
     @AfterClass
     public static void teardown() throws Exception {
-
-        final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
-        final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                FutureUtils.toJava(actorSystem.terminate());
-
-        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        rpcService.stopService().get();
     }
 
     /**

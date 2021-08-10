@@ -31,7 +31,6 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -62,13 +61,14 @@ import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.PermanentlyFencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -152,7 +152,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
             throws Exception {
-        super(rpcService, AkkaRpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
+        super(rpcService, RpcServiceUtils.createRandomName(DISPATCHER_NAME), fencingToken);
         checkNotNull(dispatcherServices);
 
         this.configuration = dispatcherServices.getConfiguration();
@@ -301,8 +301,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         try {
             if (isDuplicateJob(jobGraph.getJobID())) {
-                return FutureUtils.completedExceptionally(
-                        new DuplicateJobSubmissionException(jobGraph.getJobID()));
+                final DuplicateJobSubmissionException exception =
+                        isInGloballyTerminalState(jobGraph.getJobID())
+                                ? DuplicateJobSubmissionException.ofGloballyTerminated(
+                                        jobGraph.getJobID())
+                                : DuplicateJobSubmissionException.of(jobGraph.getJobID());
+                return FutureUtils.completedExceptionally(exception);
             } else if (isPartialResourceConfigured(jobGraph)) {
                 return FutureUtils.completedExceptionally(
                         new JobSubmissionException(
@@ -325,18 +329,26 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      * @throws FlinkException if the job scheduling status cannot be retrieved
      */
     private boolean isDuplicateJob(JobID jobId) throws FlinkException {
-        final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus;
+        return isInGloballyTerminalState(jobId) || runningJobs.containsKey(jobId);
+    }
 
+    /**
+     * Checks whether the given job has already been executed.
+     *
+     * @param jobId identifying the submitted job
+     * @return true if the job has already finished, either successfully or as a failure
+     * @throws FlinkException if the job scheduling status cannot be retrieved
+     */
+    private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
         try {
-            jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
+            final RunningJobsRegistry.JobSchedulingStatus schedulingStatus =
+                    runningJobsRegistry.getJobSchedulingStatus(jobId);
+            return schedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE;
         } catch (IOException e) {
             throw new FlinkException(
                     String.format("Failed to retrieve job scheduling status for job %s.", jobId),
                     e);
         }
-
-        return jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE
-                || runningJobs.containsKey(jobId);
     }
 
     private boolean isPartialResourceConfigured(JobGraph jobGraph) {
@@ -368,8 +380,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
         return persistAndRunFuture.handleAsync(
                 (acknowledge, throwable) -> {
                     if (throwable != null) {
-                        cleanUpJobData(jobGraph.getJobID(), true);
-
+                        cleanUpHighAvailabilityJobData(jobGraph.getJobID());
                         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(throwable);
                         final Throwable strippedThrowable =
                                 ExceptionUtils.stripCompletionException(throwable);
@@ -425,7 +436,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         .thenApply(cleanupJobState -> removeJob(jobId, cleanupJobState))
                         .thenCompose(Function.identity());
 
-        FutureUtils.assertNoException(jobTerminationFuture);
+        FutureUtils.handleUncaughtException(
+                jobTerminationFuture,
+                (thread, throwable) -> fatalErrorHandler.onFatalError(throwable));
         registerJobManagerRunnerTerminationFuture(jobId, jobTerminationFuture);
     }
 
@@ -731,31 +744,48 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
     private CompletableFuture<Void> removeJob(JobID jobId, CleanupJobState cleanupJobState) {
         final JobManagerRunner job = checkNotNull(runningJobs.remove(jobId));
-
-        final CompletableFuture<Void> jobTerminationFuture = job.closeAsync();
-
-        return jobTerminationFuture.thenRunAsync(
-                () -> cleanUpJobData(jobId, cleanupJobState.cleanupHAData), ioExecutor);
+        return CompletableFuture.supplyAsync(
+                        () -> cleanUpJobGraph(jobId, cleanupJobState.cleanupHAData), ioExecutor)
+                .thenCompose(
+                        jobGraphRemoved -> job.closeAsync().thenApply(ignored -> jobGraphRemoved))
+                .thenAcceptAsync(
+                        jobGraphRemoved -> cleanUpRemainingJobData(jobId, jobGraphRemoved),
+                        ioExecutor);
     }
 
-    private void cleanUpJobData(JobID jobId, boolean cleanupHA) {
-        jobManagerMetricGroup.removeJob(jobId);
-
-        boolean jobGraphRemoved = false;
+    /**
+     * Clean up job graph from {@link org.apache.flink.runtime.jobmanager.JobGraphStore}.
+     *
+     * @param jobId Reference to the job that we want to clean.
+     * @param cleanupHA Flag signalling whether we should remove (we're done with the job) or just
+     *     release the job graph.
+     * @return True if we have removed the job graph. This means we can clean other HA-related
+     *     services as well.
+     */
+    private boolean cleanUpJobGraph(JobID jobId, boolean cleanupHA) {
         if (cleanupHA) {
             try {
                 jobGraphWriter.removeJobGraph(jobId);
-
-                // only clean up the HA blobs and ha service data for the particular job
-                // if we could remove the job from HA storage
-                jobGraphRemoved = true;
+                return true;
             } catch (Exception e) {
                 log.warn(
                         "Could not properly remove job {} from submitted job graph store.",
                         jobId,
                         e);
+                return false;
             }
+        }
+        try {
+            jobGraphWriter.releaseJobGraph(jobId);
+        } catch (Exception e) {
+            log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
+        }
+        return false;
+    }
 
+    private void cleanUpRemainingJobData(JobID jobId, boolean jobGraphRemoved) {
+        jobManagerMetricGroup.removeJob(jobId);
+        if (jobGraphRemoved) {
             try {
                 runningJobsRegistry.clearJob(jobId);
             } catch (IOException e) {
@@ -764,29 +794,19 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                         jobId,
                         e);
             }
-
-            if (jobGraphRemoved) {
-                try {
-                    highAvailabilityServices.cleanupJobData(jobId);
-                } catch (Exception e) {
-                    log.warn(
-                            "Could not properly clean data for job {} stored by ha services",
-                            jobId,
-                            e);
-                }
-            }
-        } else {
             try {
-                jobGraphWriter.releaseJobGraph(jobId);
+                highAvailabilityServices.cleanupJobData(jobId);
             } catch (Exception e) {
                 log.warn(
-                        "Could not properly release job {} from submitted job graph store.",
-                        jobId,
-                        e);
+                        "Could not properly clean data for job {} stored by ha services", jobId, e);
             }
         }
-
         blobServer.cleanupJob(jobId, jobGraphRemoved);
+    }
+
+    private void cleanUpHighAvailabilityJobData(JobID jobId) {
+        final boolean jobGraphRemoved = cleanUpJobGraph(jobId, true);
+        cleanUpRemainingJobData(jobId, jobGraphRemoved);
     }
 
     /** Terminate all currently running {@link JobManagerRunner}s. */

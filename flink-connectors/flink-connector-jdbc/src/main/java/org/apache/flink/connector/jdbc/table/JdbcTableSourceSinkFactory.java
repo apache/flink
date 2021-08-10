@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -188,10 +188,10 @@ public class JdbcTableSourceSinkFactory
         return descriptorProperties;
     }
 
-    private JdbcOptions getJdbcOptions(DescriptorProperties descriptorProperties) {
+    private JdbcConnectorOptions getJdbcOptions(DescriptorProperties descriptorProperties) {
         final String url = descriptorProperties.getString(CONNECTOR_URL);
-        final JdbcOptions.Builder builder =
-                JdbcOptions.builder()
+        final JdbcConnectorOptions.Builder builder =
+                JdbcConnectorOptions.builder()
                         .setDBUrl(url)
                         .setTableName(descriptorProperties.getString(CONNECTOR_TABLE))
                         .setDialect(JdbcDialects.get(url).get());

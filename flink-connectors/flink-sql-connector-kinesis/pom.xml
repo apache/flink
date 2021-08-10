@@ -35,17 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<!-- Bumped for security purposes to a common version in the Hadoop ecosystem -->
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>27.0-jre</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -82,6 +71,7 @@ under the License.
 									<include>commons-logging:commons-logging</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 								</includes>
 							</artifactSet>
 							<filters>

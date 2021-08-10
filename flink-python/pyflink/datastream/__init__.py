@@ -72,10 +72,17 @@ from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFunction,
                                           CoFlatMapFunction, ReduceFunction, RuntimeContext,
                                           KeySelector, FilterFunction, Partitioner, SourceFunction,
-                                          SinkFunction)
+                                          SinkFunction, CoProcessFunction, KeyedProcessFunction,
+                                          KeyedCoProcessFunction, AggregateFunction, WindowFunction,
+                                          ProcessWindowFunction)
+from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
-                                              PredefinedOptions)
+                                              PredefinedOptions, HashMapStateBackend,
+                                              EmbeddedRocksDBStateBackend)
+from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
+                                                   FileSystemCheckpointStorage,
+                                                   CustomCheckpointStorage)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
@@ -88,28 +95,40 @@ __all__ = [
     'StreamExecutionEnvironment',
     'CheckpointConfig',
     'CheckpointingMode',
-    'CoMapFunction',
-    'CoFlatMapFunction',
     'DataStream',
-    'FlatMapFunction',
-    'FilterFunction',
     'KeySelector',
     'Partitioner',
-    'ReduceFunction',
     'RuntimeContext',
-    'SinkFunction',
     'SourceFunction',
+    'SinkFunction',
     'StateBackend',
-    'MapFunction',
+    'HashMapStateBackend',
+    'EmbeddedRocksDBStateBackend',
     'MemoryStateBackend',
     'FsStateBackend',
     'RocksDBStateBackend',
     'CustomStateBackend',
     'PredefinedOptions',
+    'CheckpointStorage',
+    'JobManagerCheckpointStorage',
+    'FileSystemCheckpointStorage',
+    'CustomCheckpointStorage',
     'ExternalizedCheckpointCleanup',
     'TimeCharacteristic',
     'TimeDomain',
+    'MapFunction',
+    'FlatMapFunction',
+    'ReduceFunction',
+    'FilterFunction',
     'ProcessFunction',
+    'KeyedProcessFunction',
+    'AggregateFunction',
+    'WindowFunction',
+    'ProcessWindowFunction',
+    'CoMapFunction',
+    'CoFlatMapFunction',
+    'CoProcessFunction',
+    'KeyedCoProcessFunction',
     'TimerService',
     'Window',
     'TimeWindow',
@@ -117,5 +136,6 @@ __all__ = [
     'WindowAssigner',
     'MergingWindowAssigner',
     'TriggerResult',
-    'Trigger'
+    'Trigger',
+    'SlotSharingGroup'
 ]

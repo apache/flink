@@ -136,6 +136,9 @@ public class InputChannelTest {
         public void resumeConsumption() {}
 
         @Override
+        public void acknowledgeAllRecordsProcessed() throws IOException {}
+
+        @Override
         void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {}
 
         @Override
@@ -153,5 +156,13 @@ public class InputChannelTest {
 
         @Override
         void releaseAllResources() throws IOException {}
+
+        @Override
+        void announceBufferSize(int newBufferSize) {}
+
+        @Override
+        int getBuffersInUseCount() {
+            return 0;
+        }
     }
 }

@@ -47,9 +47,6 @@ import org.apache.flink.runtime.checkpoint.ExecutionAttemptMappingProvider;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -82,6 +79,9 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -444,7 +444,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        createCheckpointPlanCalculator(),
+                        createCheckpointPlanCalculator(
+                                chkConfig.isEnableCheckpointsAfterTasksFinish()),
                         new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
@@ -468,11 +469,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+            boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
-                getVerticesTopologically());
+                getVerticesTopologically(),
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override
@@ -1276,6 +1279,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private void releasePartitions(final List<IntermediateResultPartitionID> releasablePartitions) {
         if (releasablePartitions.size() > 0) {
+
+            // Remove cached ShuffleDescriptor when partition is released
+            releasablePartitions.stream()
+                    .map(IntermediateResultPartitionID::getIntermediateDataSetID)
+                    .distinct()
+                    .map(intermediateResults::get)
+                    .forEach(IntermediateResult::notifyPartitionChanged);
+
             final List<ResultPartitionID> partitionIds =
                     releasablePartitions.stream()
                             .map(this::createResultPartitionId)
@@ -1455,6 +1466,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             final boolean releasePartitions) {
         checkState(internalTaskFailuresListener != null);
         internalTaskFailuresListener.notifyTaskFailure(attemptId, t, cancelTask, releasePartitions);
+    }
+
+    @Override
+    public void deleteBlobs(List<PermanentBlobKey> blobKeys) {
+        CompletableFuture.runAsync(
+                () -> {
+                    for (PermanentBlobKey blobKey : blobKeys) {
+                        blobWriter.deletePermanent(getJobID(), blobKey);
+                    }
+                },
+                ioExecutor);
     }
 
     @Override

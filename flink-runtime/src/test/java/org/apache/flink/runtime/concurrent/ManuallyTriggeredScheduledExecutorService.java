@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+
 import java.util.concurrent.ScheduledExecutorService;
 
 /**

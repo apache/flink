@@ -70,6 +70,7 @@
     "org.apache.flink.sql.parser.ddl.SqlDropPartitions"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
+    "org.apache.flink.sql.parser.ddl.SqlRemoveJar"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"
     "org.apache.flink.sql.parser.ddl.SqlTableOption"
     "org.apache.flink.sql.parser.ddl.SqlUseCatalog"
@@ -146,6 +147,7 @@
     "PARTITIONS"
     "RAW"
     "RELY"
+    "REMOVE"
     "RENAME"
     "SCALA"
     "SERDE"
@@ -344,6 +346,7 @@
     "QUARTER"
     "READ"
     "RELATIVE"
+    "REMOVE"
     "REPEATABLE"
     "REPLACE"
     "RESPECT"
@@ -546,6 +549,7 @@
     "SqlUseModules()"
     "SqlRichExplain()"
     "SqlAddJar()"
+    "SqlRemoveJar()"
     "SqlShowJars()"
   ]
 

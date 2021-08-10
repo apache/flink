@@ -26,13 +26,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,8 +132,8 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
                 consumedRowDataTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
         this.valueCopier =
                 getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()
-                        ? Function.identity()
-                        : typeSerializer::copy;
+                        ? typeSerializer::copy
+                        : Function.identity();
 
         // register timer
         this.scheduler =
@@ -190,6 +190,18 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
     }
 
     @Override
+    public void finish() {
+        if (batchCount > 0) {
+            try {
+                flush();
+            } catch (Exception e) {
+                LOG.warn("Writing records to kafka failed.", e);
+                throw new RuntimeException("Writing records to kafka failed.", e);
+            }
+        }
+    }
+
+    @Override
     public synchronized void close() throws Exception {
         if (!closed) {
             closed = true;
@@ -197,15 +209,6 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
             if (this.scheduledFuture != null) {
                 scheduledFuture.cancel(false);
                 this.scheduler.shutdown();
-            }
-
-            if (batchCount > 0) {
-                try {
-                    flush();
-                } catch (Exception e) {
-                    LOG.warn("Writing records to kafka failed.", e);
-                    throw new RuntimeException("Writing records to kafka failed.", e);
-                }
             }
 
             producer.close();

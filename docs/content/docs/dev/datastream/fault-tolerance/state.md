@@ -283,7 +283,7 @@ class CountWindowAverage(FlatMapFunction):
     def open(self, runtime_context: RuntimeContext):
         descriptor = ValueStateDescriptor(
             "average",  # the state name
-            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+            Types.PICKLED_BYTE_ARRAY()  # type information
         )
         self.sum = runtime_context.get_state(descriptor)
 
@@ -796,7 +796,7 @@ class BufferingSink(threshold: Int = 0)
     checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
     if(context.isRestored) {
-      for(element <- checkpointedState.get()) {
+      for(element <- checkpointedState.get().asScala) {
         bufferedElements += element
       }
     }

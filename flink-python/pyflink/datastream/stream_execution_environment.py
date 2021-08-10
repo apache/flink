@@ -18,7 +18,7 @@
 import os
 import tempfile
 
-from typing import List, Any
+from typing import List, Any, Optional
 
 from py4j.java_gateway import JavaObject
 
@@ -28,6 +28,7 @@ from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import TypeInformation, Types
+from pyflink.datastream import SlotSharingGroup
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.connectors import Source
@@ -98,6 +99,24 @@ class StreamExecutionEnvironment(object):
         """
         self._j_stream_execution_environment = \
             self._j_stream_execution_environment.setMaxParallelism(max_parallelism)
+        return self
+
+    def register_slot_sharing_group(self, slot_sharing_group: SlotSharingGroup) \
+            -> 'StreamExecutionEnvironment':
+        """
+        Register a slot sharing group with its resource spec.
+
+        Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+        deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+        grouped operators together. In cases grouped operators are deployed into separate slots, the
+        slot resources will be derived from the specified group requirements.
+
+        :param slot_sharing_group: Which contains name and its resource spec.
+        :return: This object.
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.registerSlotSharingGroup(
+                slot_sharing_group.get_java_slot_sharing_group())
         return self
 
     def get_parallelism(self) -> int:
@@ -293,7 +312,7 @@ class StreamExecutionEnvironment(object):
         Example:
         ::
 
-            >>> env.set_state_backend(RocksDBStateBackend("file://var/checkpoints/"))
+            >>> env.set_state_backend(EmbeddedRocksDBStateBackend())
 
         :param state_backend: The :class:`StateBackend`.
         :return: This object.
@@ -301,6 +320,83 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment = \
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
+
+    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
+        """
+        Enable the change log for current state backend. This change log allows operators to persist
+        state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+        state, so non-keyed operator state and channel state are persisted as usual. The 'state'
+        here refers to 'keyed state'. Details are as follows:
+
+        * Stateful operators write the state changes to that log (logging the state), in addition \
+        to applying them to the state tables in RocksDB or the in-mem Hashtable.
+        * An operator can acknowledge a checkpoint as soon as the changes in the log have reached \
+        the durable checkpoint storage.
+        * The state tables are persisted periodically, independent of the checkpoints. We call \
+        this the materialization of the state on the checkpoint storage.
+        * Once the state is materialized on checkpoint storage, the state changelog can be \
+        truncated to the corresponding point.
+
+        It establish a way to drastically reduce the checkpoint interval for streaming
+        applications across state backends. For more details please check the FLIP-158.
+
+        If this method is not called explicitly, it means no preference for enabling the change
+        log. Configs for change log enabling will override in different config levels
+        (job/local/cluster).
+
+        .. seealso:: :func:`is_changelog_state_backend_enabled`
+
+
+        :param enabled: True if enable the change log for state backend explicitly, otherwise
+                        disable the change log.
+        :return: This object.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
+        return self
+
+    def is_changelog_state_backend_enabled(self) -> Optional[bool]:
+        """
+        Gets the enable status of change log for state backend.
+
+        .. seealso:: :func:`enable_changelog_state_backend`
+
+        :return: An :class:`Optional[bool]` for the enable status of change log for state backend.
+                 Could be None if user never specify this by calling
+                 :func:`enable_changelog_state_backend`.
+
+        .. versionadded:: 1.14.0
+        """
+        j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
+        return j_ternary_boolean.getAsBoolean()
+
+    def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
+        """
+        Sets the default savepoint directory, where savepoints will be written to if none
+        is explicitly provided when triggered.
+
+        Example:
+        ::
+
+            >>> env.set_default_savepoint_directory("hdfs://savepoints")
+
+        :param directory The savepoint directory
+        :return: This object.
+        """
+        self._j_stream_execution_environment.setDefaultSavepointDirectory(directory)
+        return self
+
+    def get_default_savepoint_directory(self) -> Optional[str]:
+        """
+        Gets the default savepoint directory for this Job.
+        """
+        j_path = self._j_stream_execution_environment.getDefaultSavepointDirectory()
+        if j_path is None:
+            return None
+        else:
+            return j_path.toString()
 
     def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
         """

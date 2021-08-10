@@ -28,8 +28,9 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
@@ -85,13 +86,14 @@ public class PrometheusReporterTest extends TestLogger {
     public void setupReporter() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 createReporterSetup("test1", portRangeProvider.next())));
         metricGroup =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
+                        TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                registry, HOST_NAME, new ResourceID(TASK_MANAGER)));
         reporter = (PrometheusReporter) registry.getReporters().get(0);
     }
 
@@ -214,7 +216,8 @@ public class PrometheusReporterTest extends TestLogger {
     @Test
     public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
         TaskManagerMetricGroup tmMetricGroup =
-                new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER);
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, HOST_NAME, new ResourceID(TASK_MANAGER));
 
         String metricName = "metric";
 

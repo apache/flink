@@ -87,7 +87,7 @@ and will be ignored if explicitly set, either on individual operators or the ent
 The only way of influencing the parallelism is by setting a max parallelism for an operator
 (which will be respected by the scheduler). The maxParallelism is bounded by 2^15 (32768).
 If you do not set a max parallelism for individual operators or the entire job, the
-[default parallelism rules]({{< ref "docs/dev/execution/parallel" >}}#setting-the-maximum-parallelism) will be applied,
+[default parallelism rules]({{< ref "docs/dev/datastream/execution/parallel" >}}#setting-the-maximum-parallelism) will be applied,
 potentially applying lower bounds than the max possible value. As with the default scheduling mode, please take
 the [best practices for parallelism]({{< ref "docs/ops/production_ready" >}}#set-an-explicit-max-parallelism) into consideration.
 
@@ -113,7 +113,7 @@ Additionally, one can configure [`jobmanager.adaptive-scheduler.min-parallelism-
 
 Since Reactive Mode is a new, experimental feature, not all features supported by the default scheduler are also available with Reactive Mode (and its adaptive scheduler). The Flink community is working on addressing these limitations.
 
-- **Deployment is only supported as a standalone application deployment**. Active resource providers (such as native Kubernetes, YARN or Mesos) are explicitly not supported. Standalone session clusters are not supported either. The application deployment is limited to single job applications. 
+- **Deployment is only supported as a standalone application deployment**. Active resource providers (such as native Kubernetes, YARN) are explicitly not supported. Standalone session clusters are not supported either. The application deployment is limited to single job applications. 
 
   The only supported deployment options are [Standalone in Application Mode]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}#application-mode) ([described](#getting-started) on this page), [Docker in Application Mode]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#application-mode-on-docker) and [Standalone Kubernetes Application Cluster]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#deploy-application-cluster).
 

@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -75,9 +74,9 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link CliClient}. */
@@ -385,7 +384,6 @@ public class CliClientTest extends TestLogger {
 
             DefaultContext defaultContext =
                     new DefaultContext(
-                            new Environment(),
                             Collections.emptyList(),
                             configuration,
                             Collections.singletonList(new DefaultCLI()));
@@ -521,6 +519,11 @@ public class CliClientTest extends TestLogger {
 
         @Override
         public void addJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public void removeJar(String sessionId, String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
         }
 

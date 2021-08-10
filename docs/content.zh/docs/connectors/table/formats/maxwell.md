@@ -113,6 +113,74 @@ INSERT INTO elasticsearch_products
 SELECT * FROM topic_products;
 ```
 
+Available Metadata
+------------------
+
+The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+
+{{< hint info >}}
+Format metadata fields are only available if the
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
+{{< /hint >}}
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 40%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>database</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database. Corresponds to the <code>database</code> field in the
+      Maxwell record if available.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database table. Corresponds to the <code>table</code> field in the
+      Maxwell record if available.</td>
+    </tr>
+    <tr>
+      <td><code>primary-key-columns</code></td>
+      <td><code>ARRAY&lt;STRING&gt; NULL</code></td>
+      <td>Array of primary key names. Corresponds to the <code>primary_key_columns</code> field in the 
+      Maxwell record if available.</td>
+    </tr>
+    <tr>
+      <td><code>ingestion-timestamp</code></td>
+      <td><code>TIMESTAMP_LTZ(3) NULL</code></td>
+      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
+      field in the Maxwell record.</td>
+    </tr>
+    </tbody>
+</table>
+
+The following example shows how to access Maxwell metadata fields in Kafka:
+
+```sql
+CREATE TABLE KafkaTable (
+  origin_database STRING METADATA FROM 'value.database' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.table' VIRTUAL,
+  origin_primary_key_columns ARRAY<STRING> METADATA FROM 'value.primary-key-columns' VIRTUAL,
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'maxwell-json'
+);
+```
+
 Format Options
 ----------------
 

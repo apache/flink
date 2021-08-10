@@ -53,19 +53,23 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     private final boolean isDeterministic;
 
-    private @Nullable String runtimeClass;
+    private final boolean isRuntimeProvided;
+
+    private final @Nullable String runtimeClass;
 
     private BuiltInFunctionDefinition(
             String name,
             FunctionKind kind,
             TypeInference typeInference,
             boolean isDeterministic,
+            boolean isRuntimeProvided,
             String runtimeClass) {
         this.name = Preconditions.checkNotNull(name, "Name must not be null.");
         this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
         this.typeInference =
                 Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
         this.isDeterministic = isDeterministic;
+        this.isRuntimeProvided = isRuntimeProvided;
         this.runtimeClass = runtimeClass;
     }
 
@@ -80,6 +84,10 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     public Optional<String> getRuntimeClass() {
         return Optional.ofNullable(runtimeClass);
+    }
+
+    public boolean hasRuntimeImplementation() {
+        return isRuntimeProvided || runtimeClass != null;
     }
 
     @Override
@@ -140,9 +148,11 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
         private FunctionKind kind;
 
-        private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
+        private final TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
 
         private boolean isDeterministic = true;
+
+        private boolean isRuntimeProvided = false;
 
         private String runtimeClass;
 
@@ -185,6 +195,11 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             return this;
         }
 
+        public Builder runtimeProvided() {
+            this.isRuntimeProvided = true;
+            return this;
+        }
+
         public Builder runtimeClass(String runtimeClass) {
             this.runtimeClass = runtimeClass;
             return this;
@@ -192,7 +207,12 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
         public BuiltInFunctionDefinition build() {
             return new BuiltInFunctionDefinition(
-                    name, kind, typeInferenceBuilder.build(), isDeterministic, runtimeClass);
+                    name,
+                    kind,
+                    typeInferenceBuilder.build(),
+                    isDeterministic,
+                    isRuntimeProvided,
+                    runtimeClass);
         }
     }
 }

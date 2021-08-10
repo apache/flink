@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -58,6 +59,8 @@ public class TestInputChannel extends InputChannel {
     private boolean isBlocked;
 
     private int sequenceNumber;
+
+    private int currentBufferSize;
 
     public TestInputChannel(SingleInputGate inputGate, int channelIndex) {
         this(inputGate, channelIndex, true, false);
@@ -99,6 +102,16 @@ public class TestInputChannel extends InputChannel {
 
     TestInputChannel readBuffer(Buffer.DataType nextType) throws IOException, InterruptedException {
         return read(createBuffer(1), nextType);
+    }
+
+    TestInputChannel readEndOfData() throws IOException {
+        addBufferAndAvailability(
+                new BufferAndAvailability(
+                        EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                        Buffer.DataType.EVENT_BUFFER,
+                        0,
+                        sequenceNumber++));
+        return this;
     }
 
     TestInputChannel readEndOfPartitionEvent() {
@@ -186,9 +199,26 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
+    void announceBufferSize(int newBufferSize) {
+        currentBufferSize = newBufferSize;
+    }
+
+    public int getCurrentBufferSize() {
+        return currentBufferSize;
+    }
+
+    @Override
+    int getBuffersInUseCount() {
+        return buffers.size();
+    }
+
+    @Override
     public void resumeConsumption() {
         isBlocked = false;
     }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {}
 
     @Override
     protected void notifyChannelNonEmpty() {

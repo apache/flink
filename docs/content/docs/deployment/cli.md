@@ -30,7 +30,7 @@ under the License.
 Flink provides a Command-Line Interface (CLI) `bin/flink` to run programs that 
 are packaged as JAR files and to control their execution. The CLI is part of any 
 Flink setup, available in local single node setups and in distributed setups. 
-It connects to the running JobManager specified in `conf/flink-config.yaml`.
+It connects to the running JobManager specified in `conf/flink-conf.yaml`.
 
 ## Job Lifecycle Management
 
@@ -77,6 +77,14 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 There is another action called `run-application` available to run the job in 
 [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode). This documentation does not address
 this action individually as it works similarly to the `run` action in terms of the CLI frontend.
+
+The `run` and `run-application` commands support passing additional configuration parameters via the
+`-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
+for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
+configuring per-job or application mode clusters, because you can pass any configuration parameter 
+to the cluster, without changing the configuration file.
+
+When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
 
 ### Job Monitoring
 
@@ -280,7 +288,7 @@ Here's an overview of actions supported by Flink's CLI tool:
                 This action can be used to create or disposing savepoints for a given job. It might be
                 necessary to specify a savepoint directory besides the JobID, if the 
                 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
-                parameter was not specified in <code class="highlighter-rouge">conf/flink-config.yaml</code>.
+                parameter was not specified in <code class="highlighter-rouge">conf/flink-conf.yaml</code>.
             </td>
         </tr>
         <tr>
@@ -333,14 +341,12 @@ parameter combinations:
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
   * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
-* Mesos
-  * `./bin/flink run --target remote`: Submission to an already running Flink on Mesos cluster
 * Standalone:
   * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the `config/flink-config.yaml`.
+specified in the `conf/flink-conf.yaml`.
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.

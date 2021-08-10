@@ -67,6 +67,20 @@ public class RegistryAvroFormatFactoryTest {
     private static final String SUBJECT = "test-subject";
     private static final String REGISTRY_URL = "http://localhost:8081";
 
+    private static final Map<String, String> EXPECTED_OPTIONAL_PROPERTIES = new HashMap<>();
+
+    static {
+        EXPECTED_OPTIONAL_PROPERTIES.put(
+                "schema.registry.ssl.keystore.location", getAbsolutePath("/test-keystore.jks"));
+        EXPECTED_OPTIONAL_PROPERTIES.put("schema.registry.ssl.keystore.password", "123456");
+        EXPECTED_OPTIONAL_PROPERTIES.put(
+                "schema.registry.ssl.truststore.location", getAbsolutePath("/test-keystore.jks"));
+        EXPECTED_OPTIONAL_PROPERTIES.put("schema.registry.ssl.truststore.password", "123456");
+        EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.credentials.source", "USER_INFO");
+        EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.user.info", "user:pwd");
+        EXPECTED_OPTIONAL_PROPERTIES.put("bearer.auth.token", "CUSTOM");
+    }
+
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -118,13 +132,58 @@ public class RegistryAvroFormatFactoryTest {
         thrown.expect(
                 containsCause(
                         new ValidationException(
-                                "Option avro-confluent.schema-registry.subject "
-                                        + "is required for serialization")));
+                                "Option avro-confluent.subject is required for serialization")));
 
         final Map<String, String> options =
-                getModifiedOptions(opts -> opts.remove("avro-confluent.schema-registry.subject"));
+                getModifiedOptions(opts -> opts.remove("avro-confluent.subject"));
 
         createTableSink(SCHEMA, options);
+    }
+
+    @Test
+    public void testDeserializationSchemaWithOptionalProperties() {
+        final AvroRowDataDeserializationSchema expectedDeser =
+                new AvroRowDataDeserializationSchema(
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL,
+                                EXPECTED_OPTIONAL_PROPERTIES),
+                        AvroToRowDataConverters.createRowConverter(ROW_TYPE),
+                        InternalTypeInfo.of(ROW_TYPE));
+
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, getOptionalProperties());
+        assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
+
+        assertEquals(expectedDeser, actualDeser);
+    }
+
+    @Test
+    public void testSerializationSchemaWithOptionalProperties() {
+        final AvroRowDataSerializationSchema expectedSer =
+                new AvroRowDataSerializationSchema(
+                        ROW_TYPE,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                SUBJECT,
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL,
+                                EXPECTED_OPTIONAL_PROPERTIES),
+                        RowDataToAvroConverters.createConverter(ROW_TYPE));
+
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, getOptionalProperties());
+        assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+
+        assertEquals(expectedSer, actualSer);
     }
 
     // ------------------------------------------------------------------------
@@ -149,8 +208,43 @@ public class RegistryAvroFormatFactoryTest {
         options.put("buffer-size", "1000");
 
         options.put("format", RegistryAvroFormatFactory.IDENTIFIER);
-        options.put("avro-confluent.schema-registry.subject", SUBJECT);
-        options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
+        options.put("avro-confluent.subject", SUBJECT);
+        options.put("avro-confluent.url", REGISTRY_URL);
         return options;
+    }
+
+    private Map<String, String> getOptionalProperties() {
+        final Map<String, String> properties = new HashMap<>();
+        // defined via Flink maintained options
+        properties.put(
+                AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION.key(),
+                getAbsolutePath("/test-keystore.jks"));
+        properties.put(AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD.key(), "123456");
+        properties.put(
+                AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION.key(),
+                getAbsolutePath("/test-keystore.jks"));
+        properties.put(AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD.key(), "123456");
+        properties.put(AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE.key(), "USER_INFO");
+        properties.put(AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO.key(), "user:pwd");
+        // defined via general property map
+        properties.put("properties.bearer.auth.token", "CUSTOM");
+
+        return getModifiedOptions(
+                opts ->
+                        properties.forEach(
+                                (k, v) ->
+                                        opts.put(
+                                                String.format(
+                                                        "%s.%s",
+                                                        RegistryAvroFormatFactory.IDENTIFIER, k),
+                                                v)));
+    }
+
+    private static String getAbsolutePath(String path) {
+        try {
+            return CachedSchemaCoderProviderTest.class.getResource(path).toURI().getPath();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }

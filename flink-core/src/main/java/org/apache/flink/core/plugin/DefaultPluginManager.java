@@ -21,7 +21,7 @@ package org.apache.flink.core.plugin;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import javax.annotation.concurrent.ThreadSafe;
 

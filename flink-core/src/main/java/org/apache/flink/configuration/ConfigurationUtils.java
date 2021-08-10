@@ -490,6 +490,60 @@ public class ConfigurationUtils {
         return Double.parseDouble(o.toString());
     }
 
+    // --------------------------------------------------------------------------------------------
+    //  Prefix map handling
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Maps can be represented in two ways.
+     *
+     * <p>With constant key space:
+     *
+     * <pre>
+     *     avro-confluent.properties = schema: 1, other-prop: 2
+     * </pre>
+     *
+     * <p>Or with variable key space (i.e. prefix notation):
+     *
+     * <pre>
+     *     avro-confluent.properties.schema = 1
+     *     avro-confluent.properties.other-prop = 2
+     * </pre>
+     */
+    public static boolean canBePrefixMap(ConfigOption<?> configOption) {
+        return configOption.getClazz() == Map.class && !configOption.isList();
+    }
+
+    /** Filter condition for prefix map keys. */
+    public static boolean filterPrefixMapKey(String key, String candidate) {
+        final String prefixKey = key + ".";
+        return candidate.startsWith(prefixKey);
+    }
+
+    static Map<String, String> convertToPropertiesPrefixed(
+            Map<String, Object> confData, String key) {
+        final String prefixKey = key + ".";
+        return confData.keySet().stream()
+                .filter(k -> k.startsWith(prefixKey))
+                .collect(
+                        Collectors.toMap(
+                                k -> k.substring(prefixKey.length()),
+                                k -> convertToString(confData.get(k))));
+    }
+
+    static boolean containsPrefixMap(Map<String, Object> confData, String key) {
+        return confData.keySet().stream().anyMatch(candidate -> filterPrefixMapKey(key, candidate));
+    }
+
+    static boolean removePrefixMap(Map<String, Object> confData, String key) {
+        final List<String> prefixKeys =
+                confData.keySet().stream()
+                        .filter(candidate -> filterPrefixMapKey(key, candidate))
+                        .collect(Collectors.toList());
+        prefixKeys.forEach(confData::remove);
+        return !prefixKeys.isEmpty();
+    }
+
     // Make sure that we cannot instantiate this class
     private ConfigurationUtils() {}
 }

@@ -97,7 +97,8 @@ public class StreamSourceContextIdleDetectionTests {
                         new Object(),
                         new CollectorOutput<>(output),
                         0,
-                        idleTimeout);
+                        idleTimeout,
+                        true);
 
         // -------------------------- begin test scenario --------------------------
 
@@ -196,7 +197,8 @@ public class StreamSourceContextIdleDetectionTests {
                         new Object(),
                         new CollectorOutput<String>(output),
                         watermarkInterval,
-                        idleTimeout);
+                        idleTimeout,
+                        true);
 
         // -------------------------- begin test scenario --------------------------
 

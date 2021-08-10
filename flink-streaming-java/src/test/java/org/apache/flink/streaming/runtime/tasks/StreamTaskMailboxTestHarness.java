@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 import java.util.Queue;
 
@@ -133,23 +133,25 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
     }
 
     public void endInput() {
+        endInput(true);
+    }
+
+    public void endInput(boolean allDataProcessed) {
         for (int i = 0; i < inputGates.length; i++) {
-            endInput(i);
+            endInput(i, allDataProcessed);
         }
     }
 
-    public void endInput(int inputIndex) {
+    public void endInput(int inputIndex, boolean emitEndOfData) {
         if (!inputGateEnded[inputIndex]) {
-            inputGates[inputIndex].endInput();
+            inputGates[inputIndex].endInput(emitEndOfData);
             inputGateEnded[inputIndex] = true;
         }
     }
 
     public void waitForTaskCompletion() throws Exception {
         endInput();
-        while (streamTask.isMailboxLoopRunning()) {
-            streamTask.runMailboxStep();
-        }
+        processAll();
     }
 
     public void finishProcessing() throws Exception {

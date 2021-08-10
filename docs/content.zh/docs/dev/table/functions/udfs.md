@@ -313,7 +313,7 @@ class SumFunction extends ScalarFunction {
 
 ### 类型推导
 
-Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({%link dev/table/types.zh.md %})。
+Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({{< ref "docs/dev/table/types.zh.md" >}})。
 
 从逻辑角度看，Planner 需要知道数据类型、精度和小数位数；从 JVM 角度来看，Planner 在调用自定义函数时需要知道如何将内部数据结构表示为 JVM 对象。
 
@@ -328,7 +328,7 @@ Flink 自定义函数实现了自动的类型推导提取，通过反射从函�
 
 自动类型推导会检查函数的类和求值方法，派生出函数参数和结果的数据类型， `@DataTypeHint` 和 `@FunctionHint` 注解支持自动类型推导。
 
-有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({%link dev/table/types.zh.md %}#数据类型注解)。
+有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({{< ref "docs/dev/table/types.zh.md" >}}#数据类型注解)。
 
 **`@DataTypeHint`**
 
@@ -678,7 +678,7 @@ env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
 标量函数
 ----------------
 
-自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({%link dev/table/types.zh.md %})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
+自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({{< ref "docs/dev/table/types.zh.md" >}})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
 
 想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法必须是 `public` 的，而且名字必须是 `eval`。
 
@@ -912,7 +912,7 @@ env.sqlQuery(
 
 自定义聚合函数（UDAGG）是把一个表（一行或者多行，每行可以有一列或者多列）聚合成一个标量值。
 
-<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">}}
 
 上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
 
@@ -1387,7 +1387,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 
 自定义表值聚合函数（UDTAGG）可以把一个表（一行或者多行，每行有一列或者多列）聚合成另一张表，结果中可以有多行多列。
 
-<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">}}
 
 上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
 

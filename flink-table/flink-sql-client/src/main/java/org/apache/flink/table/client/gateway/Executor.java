@@ -140,8 +140,11 @@ public interface Executor {
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
 
-    /** Add the JAR resource to into the classloader with specified session. */
+    /** Add the JAR resource into the classloader with specified session. */
     void addJar(String sessionId, String jarPath);
+
+    /** Remove the JAR resource from the classloader with specified session. */
+    void removeJar(String sessionId, String jarPath);
 
     /** List the JAR resources of the classloader with specified session. */
     List<String> listJars(String sessionId);

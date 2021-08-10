@@ -29,8 +29,9 @@ import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
  */
 public class DeployingTasksInStreamingJobBenchmark extends DeployingTasksBenchmarkBase {
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createAndSetupExecutionGraph(jobConfiguration);
+        super.setup(jobConfiguration);
     }
 
     public void deployAllTasks() throws Exception {

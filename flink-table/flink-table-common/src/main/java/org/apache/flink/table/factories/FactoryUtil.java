@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.configuration.FallbackKey;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
@@ -44,7 +45,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +58,10 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
+import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -370,7 +377,10 @@ public final class FactoryUtil {
                 requiredOptions.stream()
                         // Templated options will never appear with their template key, so we need
                         // to ignore them as required properties here
-                        .filter(option -> !option.key().contains(PLACEHOLDER_SYMBOL))
+                        .filter(
+                                option ->
+                                        allKeys(option)
+                                                .noneMatch(k -> k.contains(PLACEHOLDER_SYMBOL)))
                         .filter(option -> readOption(options, option) == null)
                         .map(ConfigOption::key)
                         .sorted()
@@ -390,7 +400,10 @@ public final class FactoryUtil {
 
     /** Validates unconsumed option keys. */
     public static void validateUnconsumedKeys(
-            String factoryIdentifier, Set<String> allOptionKeys, Set<String> consumedOptionKeys) {
+            String factoryIdentifier,
+            Set<String> allOptionKeys,
+            Set<String> consumedOptionKeys,
+            Set<String> deprecatedOptionKeys) {
         final Set<String> remainingOptionKeys = new HashSet<>(allOptionKeys);
         remainingOptionKeys.removeAll(consumedOptionKeys);
         if (!remainingOptionKeys.isEmpty()) {
@@ -404,8 +417,42 @@ public final class FactoryUtil {
                             factoryIdentifier,
                             remainingOptionKeys.stream().sorted().collect(Collectors.joining("\n")),
                             consumedOptionKeys.stream()
+                                    .map(
+                                            k -> {
+                                                if (deprecatedOptionKeys.contains(k)) {
+                                                    return String.format("%s (deprecated)", k);
+                                                }
+                                                return k;
+                                            })
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
+        }
+    }
+
+    /** Validates unconsumed option keys. */
+    public static void validateUnconsumedKeys(
+            String factoryIdentifier, Set<String> allOptionKeys, Set<String> consumedOptionKeys) {
+        validateUnconsumedKeys(
+                factoryIdentifier, allOptionKeys, consumedOptionKeys, Collections.emptySet());
+    }
+
+    /** Returns the required option prefix for options of the given format. */
+    public static String getFormatPrefix(
+            ConfigOption<String> formatOption, String formatIdentifier) {
+        final String formatOptionKey = formatOption.key();
+        if (formatOptionKey.equals(FORMAT.key())) {
+            return formatIdentifier + ".";
+        } else if (formatOptionKey.endsWith(FORMAT_SUFFIX)) {
+            // extract the key prefix, e.g. extract 'key' from 'key.format'
+            String keyPrefix =
+                    formatOptionKey.substring(0, formatOptionKey.length() - FORMAT_SUFFIX.length());
+            return keyPrefix + "." + formatIdentifier + ".";
+        } else {
+            throw new ValidationException(
+                    "Format identifier key should be 'format' or suffix with '.format', "
+                            + "don't support format identifier key '"
+                            + formatOptionKey
+                            + "'.");
         }
     }
 
@@ -523,50 +570,92 @@ public final class FactoryUtil {
         }
     }
 
+    private static Set<String> allKeysExpanded(ConfigOption<?> option, Set<String> actualKeys) {
+        return allKeysExpanded("", option, actualKeys);
+    }
+
+    private static Set<String> allKeysExpanded(
+            String prefix, ConfigOption<?> option, Set<String> actualKeys) {
+        final Set<String> staticKeys =
+                allKeys(option).map(k -> prefix + k).collect(Collectors.toSet());
+        if (!canBePrefixMap(option)) {
+            return staticKeys;
+        }
+        // include all prefix keys of a map option by considering the actually provided keys
+        return Stream.concat(
+                        staticKeys.stream(),
+                        staticKeys.stream()
+                                .flatMap(
+                                        k ->
+                                                actualKeys.stream()
+                                                        .filter(c -> filterPrefixMapKey(k, c))))
+                .collect(Collectors.toSet());
+    }
+
+    private static Stream<String> allKeys(ConfigOption<?> option) {
+        return Stream.concat(Stream.of(option.key()), fallbackKeys(option));
+    }
+
+    private static Stream<String> fallbackKeys(ConfigOption<?> option) {
+        return StreamSupport.stream(option.fallbackKeys().spliterator(), false)
+                .map(FallbackKey::getKey);
+    }
+
+    private static Stream<String> deprecatedKeys(ConfigOption<?> option) {
+        return StreamSupport.stream(option.fallbackKeys().spliterator(), false)
+                .filter(FallbackKey::isDeprecated)
+                .map(FallbackKey::getKey);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * Helper utility for catalog implementations to validate options provided by {@link
-     * CatalogFactory}.
-     */
-    @PublicEvolving
-    public static class CatalogFactoryHelper {
+    private static class FactoryHelper<F extends Factory> {
 
-        private final CatalogFactory catalogFactory;
-        private final CatalogFactory.Context context;
-        private final Configuration configuration;
+        protected final F factory;
 
-        private final Set<String> consumedOptionKeys;
+        protected final Configuration allOptions;
 
-        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
-            this.catalogFactory = catalogFactory;
-            this.context = context;
-            this.configuration = Configuration.fromMap(context.getOptions());
+        protected final Set<String> consumedOptionKeys;
 
-            consumedOptionKeys = new HashSet<>();
-            consumedOptionKeys.add(PROPERTY_VERSION.key());
-            Stream.concat(
-                            catalogFactory.requiredOptions().stream(),
-                            catalogFactory.optionalOptions().stream())
-                    .map(ConfigOption::key)
-                    .forEach(consumedOptionKeys::add);
+        protected final Set<String> deprecatedOptionKeys;
+
+        FactoryHelper(
+                F factory, Map<String, String> configuration, ConfigOption<?>... implicitOptions) {
+            this.factory = factory;
+            this.allOptions = Configuration.fromMap(configuration);
+
+            final List<ConfigOption<?>> consumedOptions = new ArrayList<>();
+            consumedOptions.addAll(Arrays.asList(implicitOptions));
+            consumedOptions.addAll(factory.requiredOptions());
+            consumedOptions.addAll(factory.optionalOptions());
+
+            consumedOptionKeys =
+                    consumedOptions.stream()
+                            .flatMap(
+                                    option -> allKeysExpanded(option, allOptions.keySet()).stream())
+                            .collect(Collectors.toSet());
+
+            deprecatedOptionKeys =
+                    consumedOptions.stream()
+                            .flatMap(FactoryUtil::deprecatedKeys)
+                            .collect(Collectors.toSet());
         }
 
-        /**
-         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option
-         * keys.
-         */
+        /** Validates the options of the factory. It checks for unconsumed option keys. */
         public void validate() {
-            validateFactoryOptions(catalogFactory, configuration);
+            validateFactoryOptions(factory, allOptions);
             validateUnconsumedKeys(
-                    catalogFactory.factoryIdentifier(), configuration.keySet(), consumedOptionKeys);
+                    factory.factoryIdentifier(),
+                    allOptions.keySet(),
+                    consumedOptionKeys,
+                    deprecatedOptionKeys);
         }
 
         /**
-         * Validates the options of the {@link CatalogFactory}. It checks for unconsumed option keys
-         * while ignoring the options with given prefixes.
+         * Validates the options of the factory. It checks for unconsumed option keys while ignoring
+         * the options with given prefixes.
          *
          * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
          * validation.
@@ -578,15 +667,27 @@ public final class FactoryUtil {
                     prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
             final List<String> prefixesList = Arrays.asList(prefixesToSkip);
             consumedOptionKeys.addAll(
-                    configuration.keySet().stream()
+                    allOptions.keySet().stream()
                             .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
                             .collect(Collectors.toSet()));
             validate();
         }
 
-        /** Returns all options of the catalog. */
+        /** Returns all options currently being consumed by the factory. */
         public ReadableConfig getOptions() {
-            return configuration;
+            return allOptions;
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link CatalogFactory}.
+     *
+     * @see #createCatalogFactoryHelper(CatalogFactory, CatalogFactory.Context)
+     */
+    public static class CatalogFactoryHelper extends FactoryHelper<CatalogFactory> {
+
+        public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
+            super(catalogFactory, context.getOptions(), PROPERTY_VERSION);
         }
     }
 
@@ -596,32 +697,18 @@ public final class FactoryUtil {
      *
      * @see #createTableFactoryHelper(DynamicTableFactory, DynamicTableFactory.Context)
      */
-    public static class TableFactoryHelper {
-
-        private final DynamicTableFactory tableFactory;
+    public static class TableFactoryHelper extends FactoryHelper<DynamicTableFactory> {
 
         private final DynamicTableFactory.Context context;
 
-        private final Configuration allOptions;
-
-        private final Set<String> consumedOptionKeys;
-
         private TableFactoryHelper(
                 DynamicTableFactory tableFactory, DynamicTableFactory.Context context) {
-            this.tableFactory = tableFactory;
+            super(
+                    tableFactory,
+                    context.getCatalogTable().getOptions(),
+                    PROPERTY_VERSION,
+                    CONNECTOR);
             this.context = context;
-            this.allOptions = Configuration.fromMap(context.getCatalogTable().getOptions());
-            this.consumedOptionKeys = new HashSet<>();
-            this.consumedOptionKeys.add(PROPERTY_VERSION.key());
-            this.consumedOptionKeys.add(CONNECTOR.key());
-            this.consumedOptionKeys.addAll(
-                    tableFactory.requiredOptions().stream()
-                            .map(ConfigOption::key)
-                            .collect(Collectors.toSet()));
-            this.consumedOptionKeys.addAll(
-                    tableFactory.optionalOptions().stream()
-                            .map(ConfigOption::key)
-                            .collect(Collectors.toSet()));
         }
 
         /**
@@ -704,41 +791,6 @@ public final class FactoryUtil {
                             });
         }
 
-        /**
-         * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
-         * keys.
-         */
-        public void validate() {
-            validateFactoryOptions(tableFactory, allOptions);
-            validateUnconsumedKeys(
-                    tableFactory.factoryIdentifier(), allOptions.keySet(), consumedOptionKeys);
-        }
-
-        /**
-         * Validates the options of the {@link DynamicTableFactory}. It checks for unconsumed option
-         * keys while ignoring the options with given prefixes.
-         *
-         * <p>The option keys that have given prefix {@code prefixToSkip} would just be skipped for
-         * validation.
-         *
-         * @param prefixesToSkip Set of option key prefixes to skip validation
-         */
-        public void validateExcept(String... prefixesToSkip) {
-            Preconditions.checkArgument(
-                    prefixesToSkip.length > 0, "Prefixes to skip can not be empty.");
-            final List<String> prefixesList = Arrays.asList(prefixesToSkip);
-            consumedOptionKeys.addAll(
-                    allOptions.keySet().stream()
-                            .filter(key -> prefixesList.stream().anyMatch(key::startsWith))
-                            .collect(Collectors.toSet()));
-            validate();
-        }
-
-        /** Returns all options of the table. */
-        public ReadableConfig getOptions() {
-            return allOptions;
-        }
-
         // ----------------------------------------------------------------------------------------
 
         private <F extends Factory> Optional<F> discoverOptionalFormatFactory(
@@ -750,38 +802,30 @@ public final class FactoryUtil {
             final F factory =
                     discoverFactory(context.getClassLoader(), formatFactoryClass, identifier);
             String formatPrefix = formatPrefix(factory, formatOption);
+
             // log all used options of other factories
-            consumedOptionKeys.addAll(
-                    factory.requiredOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
-            consumedOptionKeys.addAll(
-                    factory.optionalOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
+            final List<ConfigOption<?>> consumedOptions = new ArrayList<>();
+            consumedOptions.addAll(factory.requiredOptions());
+            consumedOptions.addAll(factory.optionalOptions());
+
+            consumedOptions.stream()
+                    .flatMap(
+                            option ->
+                                    allKeysExpanded(formatPrefix, option, allOptions.keySet())
+                                            .stream())
+                    .forEach(consumedOptionKeys::add);
+
+            consumedOptions.stream()
+                    .flatMap(FactoryUtil::deprecatedKeys)
+                    .map(k -> formatPrefix + k)
+                    .forEach(deprecatedOptionKeys::add);
+
             return Optional.of(factory);
         }
 
         private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
             String identifier = formatFactory.factoryIdentifier();
-            if (formatOption.key().equals(FORMAT.key())) {
-                return identifier + ".";
-            } else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
-                // extract the key prefix, e.g. extract 'key' from 'key.format'
-                String keyPrefix =
-                        formatOption
-                                .key()
-                                .substring(0, formatOption.key().length() - FORMAT_SUFFIX.length());
-                return keyPrefix + "." + identifier + ".";
-            } else {
-                throw new ValidationException(
-                        "Format identifier key should be 'format' or suffix with '.format', "
-                                + "don't support format identifier key '"
-                                + formatOption.key()
-                                + "'.");
-            }
+            return getFormatPrefix(formatOption, identifier);
         }
 
         private ReadableConfig projectOptions(String formatPrefix) {

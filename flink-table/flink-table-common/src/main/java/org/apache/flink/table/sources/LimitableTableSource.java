@@ -30,8 +30,8 @@ import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
  * but does not need to guarantee that the number must be less than or equal to the limit.
  *
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use {@link
- *     SupportsLimitPushDown} instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use {@link SupportsLimitPushDown} instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @Experimental

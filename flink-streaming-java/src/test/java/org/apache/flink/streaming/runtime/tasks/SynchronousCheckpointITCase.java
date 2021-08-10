@@ -145,18 +145,19 @@ public class SynchronousCheckpointITCase {
                 eventQueue.put(Event.TASK_IS_RUNNING);
             }
             if (isCanceled()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             } else {
                 controller.suspendDefaultAction();
             }
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             try {
                 eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
-                Future<Boolean> result =
+                CompletableFuture<Boolean> result =
                         super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
                 eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
                 return result;
@@ -180,7 +181,8 @@ public class SynchronousCheckpointITCase {
         }
 
         @Override
-        public Future<Void> notifyCheckpointAbortAsync(long checkpointId) {
+        public Future<Void> notifyCheckpointAbortAsync(
+                long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
 

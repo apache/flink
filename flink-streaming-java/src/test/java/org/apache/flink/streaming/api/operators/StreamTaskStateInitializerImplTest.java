@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -281,6 +282,7 @@ public class StreamTaskStateInitializerImplTest {
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
                 TaskStateManagerImplTest.taskStateManager(
@@ -288,7 +290,8 @@ public class StreamTaskStateInitializerImplTest {
                         executionAttemptID,
                         checkpointResponderMock,
                         jobManagerTaskRestore,
-                        taskLocalStateStore);
+                        taskLocalStateStore,
+                        changelogStorage);
 
         DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
         dummyEnvironment.setTaskStateManager(taskStateManager);

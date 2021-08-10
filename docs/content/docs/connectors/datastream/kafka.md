@@ -153,6 +153,8 @@ KafkaSource has following options for configuration:
 - ```partition.discovery.interval.ms``` defines the interval im milliseconds for Kafka source
   to discover new partitions. See <a href="#dynamic-partition-discovery">Dynamic Partition Discovery</a>
   below for more details.
+- ```register.consumer.metrics``` specifies whether to register metrics of KafkaConsumer in Flink
+metric group
 
 For configurations of KafkaConsumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka documentation</a>
@@ -209,6 +211,40 @@ the properties of Kafka consumer.
 
 Note that Kafka source does **NOT** rely on committed offsets for fault tolerance. Committing offset
 is only for exposing the progress of consumer and consuming group for monitoring.
+
+### Monitoring
+Kafka source exposes metrics in Flink's metric group for monitoring and diagnosing.
+#### Scope of Metric
+All metrics of Kafka source reader are registered under group ```KafkaSourceReader```, which is a 
+child group of operator metric group. Metrics related to a specific topic partition will be registered
+in the group ```KafkaSourceReader.topic.<topic_name>.partition.<partition_id>```.
+
+For example, current consuming offset of topic "my-topic" and partition 1 will be reported in metric: 
+```<some_parent_groups>.operator.KafkaSourceReader.topic.my-topic.partition.1.currentOffset``` ,
+
+and number of successful commits will be reported in metric:
+```<some_parent_groups>.operator.KafkaSourceReader.commitsSucceeded``` .
+
+#### List of Metrics
+
+|    Metric Name   |                   Description                   |       Scope       |
+|:----------------:|:-----------------------------------------------:|:-----------------:|
+|   currentOffset  | Current consuming offset of the topic partition |   TopicPartition  |
+|  committedOffset | Committed offset of the topic partition         |   TopicPartition  |
+| commitsSucceeded | Number of successful commits                    | KafkaSourceReader |
+|   commitsFailed  | Number of failed commits                        | KafkaSourceReader |
+
+#### Kafka Consumer Metrics
+All metrics of Kafka consumer are also registered under group ```KafkaSourceReader.KafkaConsumer```.
+For example, Kafka consumer metric "records-consumed-total" will be reported in metric:
+```<some_parent_groups>.operator.KafkaSourceReader.KafkaConsumer.records-consumed-total``` .
+
+You can configure whether to register Kafka consumer's metric by configuring option 
+```register.consumer.metrics```. This option will be set as true by default. 
+
+For metrics of Kafka consumer, you can refer to 
+<a href="http://kafka.apache.org/documentation/#consumer_monitoring">Apache Kafka Documentation</a>
+for more details.
 
 ### Behind the Scene
 {{< hint info >}}
@@ -575,7 +611,7 @@ val stream = env.addSource(myConsumer)
 (which is commonly the case), all topics and partitions need to have a continuous stream of records.
 Otherwise, the watermarks of the whole application cannot advance and all time-based operations,
 such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior.
-Consider setting appropriate [idelness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) to mitigate this issue.
+Consider setting appropriate [idleness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) to mitigate this issue.
  
 ## Kafka Producer
 
@@ -727,7 +763,6 @@ configured for Kerberos. Simply configure Flink in `flink-conf.yaml` to enable K
 1. Configure Kerberos credentials by setting the following -
  - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`.
  Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work.
- This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments.
  - `security.kerberos.login.keytab` and `security.kerberos.login.principal`: To use Kerberos keytabs instead, set values for both of these properties.
  
 2. Append `KafkaClient` to `security.kerberos.login.contexts`: This tells Flink to provide the configured Kerberos credentials to the Kafka login context to be used for Kafka authentication.

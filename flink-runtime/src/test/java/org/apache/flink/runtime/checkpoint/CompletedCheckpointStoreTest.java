@@ -20,11 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -196,6 +196,21 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             checkpoint.awaitDiscard();
             assertTrue(checkpoint.isDiscarded());
         }
+    }
+
+    @Test
+    public void testAcquireLatestCompletedCheckpointId() throws Exception {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        CompletedCheckpointStore checkpoints = createCompletedCheckpoints(1);
+        assertEquals(0, checkpoints.getLatestCheckpointId());
+
+        checkpoints.addCheckpoint(
+                createCheckpoint(2, sharedStateRegistry), new CheckpointsCleaner(), () -> {});
+        assertEquals(2, checkpoints.getLatestCheckpointId());
+
+        checkpoints.addCheckpoint(
+                createCheckpoint(4, sharedStateRegistry), new CheckpointsCleaner(), () -> {});
+        assertEquals(4, checkpoints.getLatestCheckpointId());
     }
 
     // ---------------------------------------------------------------------------------------------

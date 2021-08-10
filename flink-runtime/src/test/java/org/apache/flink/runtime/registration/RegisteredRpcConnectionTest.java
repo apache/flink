@@ -78,7 +78,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
                     new TestRpcConnection(
                             testRpcConnectionEndpointAddress,
                             leaderId,
-                            rpcService.getExecutor(),
+                            rpcService.getScheduledExecutor(),
                             rpcService);
             connection.start();
 
@@ -125,7 +125,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
                 new TestRpcConnection(
                         testRpcConnectionEndpointAddress,
                         leaderId,
-                        rpcService.getExecutor(),
+                        rpcService.getScheduledExecutor(),
                         rpcService);
         connection.start();
 
@@ -162,7 +162,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
                 new TestRpcConnection(
                         testRegistrationGateway.getAddress(),
                         UUID.randomUUID(),
-                        rpcService.getExecutor(),
+                        rpcService.getScheduledExecutor(),
                         rpcService);
         connection.start();
 
@@ -194,7 +194,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
                     new TestRpcConnection(
                             testRpcConnectionEndpointAddress,
                             leaderId,
-                            rpcService.getExecutor(),
+                            rpcService.getScheduledExecutor(),
                             rpcService);
             connection.start();
             // close the connection
@@ -226,7 +226,7 @@ public class RegisteredRpcConnectionTest extends TestLogger {
                 new TestRpcConnection(
                         testRpcConnectionEndpointAddress,
                         leaderId,
-                        rpcService.getExecutor(),
+                        rpcService.getScheduledExecutor(),
                         rpcService);
         connection.start();
 

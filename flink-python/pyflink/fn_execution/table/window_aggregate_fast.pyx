@@ -19,10 +19,8 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
-import os
-
-import pytz
 from libc.stdlib cimport free, malloc
+
 from pyflink.fn_execution.table.aggregate_fast cimport DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.coder_impl_fast cimport InternalRowKind
 
@@ -30,9 +28,10 @@ import datetime
 import sys
 from typing import List, Dict
 
-from apache_beam.coders import PickleCoder, Coder
+import pytz
 
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -58,19 +57,19 @@ cdef class NamespaceAggsHandleFunctionBase:
         """
         pass
 
-    cdef void accumulate(self, list input_data):
+    cdef void accumulate(self, InternalRow input_data):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a InternalRow.
         """
         pass
 
-    cdef void retract(self, list input_data):
+    cdef void retract(self, InternalRow input_data):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a InternalRow.
         """
 
     cpdef void merge(self, object namespace, list accumulators):
@@ -170,13 +169,13 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
-                            PickleCoder())
+                            data_view_spec.element_coder)
                 elif isinstance(data_view_spec, MapViewSpec):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
-                            PickleCoder(),
-                            PickleCoder())
+                            data_view_spec.key_coder,
+                            data_view_spec.value_coder)
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
@@ -184,13 +183,14 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                 PickleCoder(),
                 PickleCoder())
 
-    cdef void accumulate(self, list input_data):
+    cdef void accumulate(self, InternalRow input_data):
         cdef size_t i, j, filter_length
         cdef int distinct_index, filter_arg
         cdef int*filter_args
         cdef bint filtered
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
+        cdef InternalRow internal_row
         for i in range(self._udf_num):
             if i in self._distinct_data_views:
                 distinct_view_descriptor = self._distinct_view_descriptors[i]
@@ -225,14 +225,19 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                 else:
                     raise Exception(
                         "The args are not in the distinct data view, this should not happen.")
+            # Transfer InternalRow to Row in row-based operations
+            if len(args) == 1 and isinstance(args[0], InternalRow):
+                internal_row = <InternalRow> args[0]
+                args[0] = internal_row.to_row()
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    cdef void retract(self, list input_data):
+    cdef void retract(self, InternalRow input_data):
         cdef size_t i, j, filter_length
         cdef int distinct_index, filter_arg
         cdef bint filtered
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
+        cdef InternalRow internal_row
         for i in range(self._udf_num):
             if i in self._distinct_data_views:
                 distinct_view_descriptor = self._distinct_view_descriptors[i]
@@ -260,6 +265,10 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
             distinct_index = self._distinct_indexes[i]
             if distinct_index >= 0 and args in self._distinct_data_views[distinct_index]:
                 continue
+            # Transfer InternalRow to Row in row-based operations
+            if len(args) == 1 and isinstance(args[0], InternalRow):
+                internal_row = <InternalRow> args[0]
+                args[0] = internal_row.to_row()
             self._udfs[i].retract(self._accumulators[i], *args)
 
     cpdef void merge(self, object namespace, list accumulators):
@@ -321,7 +330,7 @@ cdef class GroupWindowAggFunctionBase:
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase,
                  trigger: Trigger[W],
@@ -336,14 +345,14 @@ cdef class GroupWindowAggFunctionBase:
         self._rowtime_index = rowtime_index
         self._shift_timezone = shift_timezone
         self._window_function = None  # type: InternalWindowProcessFunction[K, W]
-        self._internal_timer_service = None  # type: InternalTimerServiceImpl
+        self._internal_timer_service = None  # type: LegacyInternalTimerServiceImpl
         self._window_context = None  # type: WindowContext
         self._trigger = trigger
         self._trigger_context = None  # type: TriggerContext
         self._window_state = self._state_backend.get_value_state("window_state", state_value_coder)
 
     cpdef void open(self, object function_context):
-        self._internal_timer_service = InternalTimerServiceImpl(self._state_backend)
+        self._internal_timer_service = LegacyInternalTimerServiceImpl(self._state_backend)
         self._window_aggregator.open(
             PerWindowStateDataViewStore(function_context, self._state_backend))
 
@@ -367,7 +376,7 @@ cdef class GroupWindowAggFunctionBase:
 
     cpdef list process_element(self, InternalRow input_row):
         cdef list input_value, current_key, affected_windows, acc, actual_windows, result
-        cdef libc.stdint.int64_t timestamp, seconds, microseconds_of_second, milliseconds
+        cdef int64_t timestamp, seconds, microseconds_of_second, milliseconds
         cdef object date_time, window
         cdef bint trigger_result
         input_value = input_row.values
@@ -394,9 +403,9 @@ cdef class GroupWindowAggFunctionBase:
             self._window_aggregator.set_accumulators(window, acc)
 
             if input_row.is_accumulate_msg():
-                self._window_aggregator.accumulate(input_value)
+                self._window_aggregator.accumulate(input_row)
             else:
-                self._window_aggregator.retract(input_value)
+                self._window_aggregator.retract(input_row)
             acc = self._window_aggregator.get_accumulators()
             self._window_state.update(acc)
 
@@ -411,12 +420,12 @@ cdef class GroupWindowAggFunctionBase:
             self._register_cleanup_timer(window)
         return result
 
-    cpdef void process_watermark(self, libc.stdint.int64_t watermark):
+    cpdef void process_watermark(self, int64_t watermark):
         self._internal_timer_service.advance_watermark(watermark)
 
     cpdef list on_event_time(self, object timer):
         cdef list result, key
-        cdef libc.stdint.int64_t timestamp
+        cdef int64_t timestamp
         cdef object window
         result = []
         timestamp = timer.get_timestamp()
@@ -434,7 +443,7 @@ cdef class GroupWindowAggFunctionBase:
 
     cpdef list on_processing_time(self, object timer):
         cdef list result, key
-        cdef libc.stdint.int64_t timestamp
+        cdef int64_t timestamp
         cdef object window
         result = []
         timestamp = timer.get_timestamp()
@@ -450,7 +459,7 @@ cdef class GroupWindowAggFunctionBase:
             self._window_function.clean_window_if_needed(window, timestamp)
         return result
 
-    cpdef libc.stdint.int64_t to_utc_timestamp_mills(self, libc.stdint.int64_t epoch_mills):
+    cpdef int64_t to_utc_timestamp_mills(self, int64_t epoch_mills):
         if self._shift_timezone == "UTC":
             return epoch_mills
         else:
@@ -473,7 +482,7 @@ cdef class GroupWindowAggFunctionBase:
         self._window_aggregator.close()
 
     cdef void _register_cleanup_timer(self, object window):
-        cdef libc.stdint.int64_t cleanup_time
+        cdef int64_t cleanup_time
         cleanup_time = self.cleanup_time(window)
         if cleanup_time == MAX_LONG_VALUE:
             return
@@ -483,8 +492,8 @@ cdef class GroupWindowAggFunctionBase:
         else:
             self._trigger_context.register_processing_time_timer(cleanup_time)
 
-    cpdef libc.stdint.int64_t cleanup_time(self, object window):
-        cdef libc.stdint.int64_t cleanup_time
+    cpdef int64_t cleanup_time(self, object window):
+        cdef int64_t cleanup_time
         if self._window_assigner.is_event_time():
             cleanup_time = max(0, window.max_timestamp() + self._allowed_lateness)
             if cleanup_time >= window.max_timestamp():
@@ -502,7 +511,7 @@ cdef class GroupWindowAggFunction(GroupWindowAggFunctionBase):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],

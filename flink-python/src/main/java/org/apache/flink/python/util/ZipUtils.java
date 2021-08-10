@@ -25,11 +25,13 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
@@ -39,46 +41,60 @@ import java.util.Set;
 
 /** Utils used to extract zip files and try to restore the origin permissions of files. */
 @Internal
-public class ZipUtils {
+public final class ZipUtils {
 
     public static void extractZipFileWithPermissions(String zipFilePath, String targetPath)
             throws IOException {
         try (ZipFile zipFile = new ZipFile(zipFilePath)) {
             Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
             boolean isUnix = isUnix();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            String canonicalTargetPath = new File(targetPath).getCanonicalPath() + File.separator;
 
             while (entries.hasMoreElements()) {
                 ZipArchiveEntry entry = entries.nextElement();
-                File file;
+                File outputFile = new File(canonicalTargetPath, entry.getName());
+                if (!outputFile.getCanonicalPath().startsWith(canonicalTargetPath)) {
+                    throw new IOException(
+                            "Expand "
+                                    + entry.getName()
+                                    + " would create a file outside of "
+                                    + targetPath);
+                }
+
                 if (entry.isDirectory()) {
-                    file = new File(targetPath, entry.getName());
-                    if (!file.exists()) {
-                        if (!file.mkdirs()) {
+                    if (!outputFile.exists()) {
+                        if (!outputFile.mkdirs()) {
                             throw new IOException(
-                                    "Create dir: " + file.getAbsolutePath() + " failed!");
+                                    "Create dir: " + outputFile.getAbsolutePath() + " failed!");
                         }
                     }
                 } else {
-                    file = new File(targetPath, entry.getName());
-                    File parentDir = file.getParentFile();
+                    File parentDir = outputFile.getParentFile();
                     if (!parentDir.exists()) {
                         if (!parentDir.mkdirs()) {
                             throw new IOException(
-                                    "Create dir: " + file.getAbsolutePath() + " failed!");
+                                    "Create dir: " + outputFile.getAbsolutePath() + " failed!");
                         }
                     }
-                    if (file.createNewFile()) {
-                        OutputStream output = new FileOutputStream(file);
+                    if (entry.isUnixSymlink()) {
+                        // the content of the file is the target path of the symlink
+                        baos.reset();
+                        IOUtils.copyBytes(zipFile.getInputStream(entry), baos);
+                        Files.createSymbolicLink(
+                                outputFile.toPath(), new File(parentDir, baos.toString()).toPath());
+                    } else if (outputFile.createNewFile()) {
+                        OutputStream output = new FileOutputStream(outputFile);
                         IOUtils.copyBytes(zipFile.getInputStream(entry), output);
                     } else {
                         throw new IOException(
-                                "Create file: " + file.getAbsolutePath() + " failed!");
+                                "Create file: " + outputFile.getAbsolutePath() + " failed!");
                     }
                 }
                 if (isUnix) {
                     int mode = entry.getUnixMode();
                     if (mode != 0) {
-                        Path path = Paths.get(file.toURI());
+                        Path outputPath = Paths.get(outputFile.toURI());
                         Set<PosixFilePermission> permissions = new HashSet<>();
                         addIfBitSet(mode, 8, permissions, PosixFilePermission.OWNER_READ);
                         addIfBitSet(mode, 7, permissions, PosixFilePermission.OWNER_WRITE);
@@ -89,7 +105,15 @@ public class ZipUtils {
                         addIfBitSet(mode, 2, permissions, PosixFilePermission.OTHERS_READ);
                         addIfBitSet(mode, 1, permissions, PosixFilePermission.OTHERS_WRITE);
                         addIfBitSet(mode, 0, permissions, PosixFilePermission.OTHERS_EXECUTE);
-                        Files.setPosixFilePermissions(path, permissions);
+                        // the permission of the target file will be set to be the same as the
+                        // symlink
+                        // TODO: support setting the permission without following links
+                        try {
+                            Files.setPosixFilePermissions(outputPath, permissions);
+                        } catch (NoSuchFileException e) {
+                            // this may happens when the target file of the symlink is still not
+                            // extracted
+                        }
                     }
                 }
             }

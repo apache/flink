@@ -36,17 +36,15 @@ public class TableConfigOptions {
     private TableConfigOptions() {}
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    @Deprecated
     public static final ConfigOption<PlannerType> TABLE_PLANNER =
             key("table.planner")
                     .enumType(PlannerType.class)
                     .defaultValue(PlannerType.BLINK)
                     .withDescription(
-                            "Use either 'blink' planner or 'old' planner. Default is blink planner. "
-                                    + "For TableEnvironment, this option is used to construct a TableEnvironment, "
-                                    + "but this option can't be changed after that. "
-                                    + "However, there is no such limitation for SQL Client. "
-                                    + "Note: The old planner will be removed in Flink 1.14, "
-                                    + "so this option will become obsolete.");
+                            "The old planner has been removed in Flink 1.14. "
+                                    + "Since there is only one planner left (previously called the 'blink' planner), "
+                                    + "this option is obsolete and will be removed in future versions.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DML_SYNC =
@@ -96,8 +94,18 @@ public class TableConfigOptions {
     public static final ConfigOption<Integer> MAX_LENGTH_GENERATED_CODE =
             key("table.generated-code.max-length")
                     .intType()
-                    .defaultValue(64000)
+                    .defaultValue(4000)
                     .withDescription(
                             "Specifies a threshold where generated code will be split into sub-function calls. "
-                                    + "Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary.");
+                                    + "Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary. "
+                                    + "Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with more than 8K byte code.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This option is rarely used. The default value is good enough for almost all cases.")
+    public static final ConfigOption<Integer> MAX_MEMBERS_GENERATED_CODE =
+            key("table.generated-code.max-members")
+                    .intType()
+                    .defaultValue(10000)
+                    .withDescription(
+                            "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
 }

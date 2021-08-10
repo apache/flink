@@ -36,7 +36,7 @@ public class PythonConfigUtilTest {
 
     @Test
     public void testGetEnvironmentConfig()
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+            throws IllegalAccessException, NoSuchFieldException, InvocationTargetException {
         StreamExecutionEnvironment executionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration envConfig =
@@ -46,8 +46,7 @@ public class PythonConfigUtilTest {
 
     @Test
     public void testJobName()
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         String jobName = "MyTestJob";
         Configuration config = new Configuration();
         config.set(PipelineOptions.NAME, jobName);

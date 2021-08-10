@@ -17,8 +17,12 @@
 ################################################################################
 from abc import abstractmethod
 
+from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
+
+from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 
 class FunctionOperation(Operation):
@@ -35,6 +39,10 @@ class FunctionOperation(Operation):
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     def setup(self):
         super(FunctionOperation, self).setup()
@@ -42,11 +50,15 @@ class FunctionOperation(Operation):
     def start(self):
         with self.scoped_start_state:
             super(FunctionOperation, self).start()
+            if self._profiler:
+                self._profiler.start()
 
     def finish(self):
         with self.scoped_finish_state:
             super(FunctionOperation, self).finish()
             self.operation.finish()
+            if self._profiler:
+                self._profiler.close()
 
     def needs_finalization(self):
         return False
@@ -70,10 +82,17 @@ class FunctionOperation(Operation):
     def process(self, o: WindowedValue):
         with self.scoped_process_state:
             output_stream = self.consumer.output_stream
-            for value in o.value:
+            if isinstance(self.operation, BundleOperation):
+                for value in o.value:
+                    self.process_element(value)
                 self._value_coder_impl.encode_to_stream(
-                    self.process_element(value), output_stream, True)
+                    self.operation.finish_bundle(), output_stream, True)
                 output_stream.maybe_flush()
+            else:
+                for value in o.value:
+                    self._value_coder_impl.encode_to_stream(
+                        self.process_element(value), output_stream, True)
+                    output_stream.maybe_flush()
 
     def monitoring_infos(self, transform_id, tag_to_pcollection_id):
         """
@@ -105,3 +124,14 @@ class StatefulFunctionOperation(FunctionOperation):
 
     def generate_operation(self):
         return self.operation_cls(self.spec, self.keyed_state_backend)
+
+    def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
+        # ignore timer_family_id
+        self.operation.add_timer_info(timer_info)
+
+    def process_timer(self, tag, timer_data):
+        output_stream = self.consumer.output_stream
+        self._value_coder_impl.encode_to_stream(
+            # the field user_key holds the timer data
+            self.operation.process_timer(timer_data.user_key), output_stream, True)
+        output_stream.maybe_flush()

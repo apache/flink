@@ -26,9 +26,14 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** Describes a {@link org.apache.flink.table.module.Module}. */
+/**
+ * Describes a {@link org.apache.flink.table.module.Module}.
+ *
+ * @deprecated See {@link Descriptor} for details.
+ */
 @PublicEvolving
-public abstract class ModuleDescriptor extends DescriptorBase {
+@Deprecated
+public abstract class ModuleDescriptor implements Descriptor {
 
     private final String type;
 
@@ -50,6 +55,11 @@ public abstract class ModuleDescriptor extends DescriptorBase {
 
         properties.putProperties(toModuleProperties());
         return properties.asMap();
+    }
+
+    @Override
+    public String toString() {
+        return DescriptorProperties.toString(toProperties());
     }
 
     /** Converts this descriptor into a set of module properties. */

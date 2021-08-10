@@ -123,6 +123,12 @@ public class CsvRowDeSerializationSchemaTest {
         testField(Types.INT, "       12          ", 12, deserConfig, ";");
         testField(Types.INT, "12", 12, serConfig, deserConfig, ";");
         testField(
+                Types.LOCAL_DATE_TIME,
+                "    2018-10-12 12:12:12     ",
+                LocalDateTime.parse("2018-10-12T12:12:12"),
+                deserConfig,
+                ";");
+        testField(
                 Types.ROW(Types.STRING, Types.STRING),
                 "1:hello",
                 Row.of("1", "hello"),

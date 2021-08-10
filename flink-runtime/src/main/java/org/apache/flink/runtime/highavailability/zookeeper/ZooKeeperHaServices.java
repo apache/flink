@@ -87,10 +87,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The "cluster_id" part identifies the data stored for a specific Flink "cluster". This
  * "cluster" can be either a standalone or containerized Flink cluster, or it can be job on a
- * framework like YARN or Mesos (in a "per-job-cluster" mode).
+ * framework like YARN (in a "per-job-cluster" mode).
  *
- * <p>In case of a "per-job-cluster" on YARN or Mesos, the cluster-id is generated and configured
- * automatically by the client or dispatcher that submits the Job to YARN or Mesos.
+ * <p>In case of a "per-job-cluster" on YARN, the cluster-id is generated and configured
+ * automatically by the client or dispatcher that submits the Job to YARN.
  *
  * <p>In the case of a standalone cluster, that cluster-id needs to be configured via {@link
  * HighAvailabilityOptions#HA_CLUSTER_ID}. All nodes with the same cluster id will join the same

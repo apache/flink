@@ -24,8 +24,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -34,41 +32,30 @@ import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
 import org.apache.flink.runtime.dispatcher.runner.TestingDispatcherRunner;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
-import org.apache.flink.runtime.io.network.partition.NoOpResourceManagerPartitionTracker;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ArbitraryWorkerResourceSpecFactory;
-import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
-import org.apache.flink.runtime.resourcemanager.TestingJobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.TestingResourceManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
+import org.apache.flink.runtime.resourcemanager.TestingResourceManagerFactory;
 import org.apache.flink.runtime.rest.SessionRestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.testutils.TestingClusterEntrypointProcess;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,10 +64,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -88,7 +74,7 @@ import static org.junit.Assume.assumeTrue;
 /** Tests for the {@link ClusterEntrypoint}. */
 public class ClusterEntrypointTest extends TestLogger {
 
-    private static final long TIMEOUT_MS = 3000;
+    private static final long TIMEOUT_MS = 10000;
 
     private Configuration flinkConfig;
 
@@ -142,7 +128,7 @@ public class ClusterEntrypointTest extends TestLogger {
         final TestingResourceManagerFactory testingResourceManagerFactory =
                 new TestingResourceManagerFactory.Builder()
                         .setInternalDeregisterApplicationConsumer(
-                                (ignored1, ignored2) -> deregisterFuture.complete(null))
+                                (ignored1, ignored2, ignore3) -> deregisterFuture.complete(null))
                         .build();
         final TestingEntryPoint testingEntryPoint =
                 new TestingEntryPoint.Builder()
@@ -174,7 +160,11 @@ public class ClusterEntrypointTest extends TestLogger {
         final TestingResourceManagerFactory testingResourceManagerFactory =
                 new TestingResourceManagerFactory.Builder()
                         .setInternalDeregisterApplicationConsumer(
-                                (ignored1, ignored2) -> deregisterFuture.complete(null))
+                                (ignored1, ignored2, ignore3) -> deregisterFuture.complete(null))
+                        .setInitializeConsumer(
+                                (ignore) ->
+                                        dispatcherShutDownFuture.complete(
+                                                ApplicationStatus.SUCCEEDED))
                         .build();
         final TestingDispatcherRunnerFactory testingDispatcherRunnerFactory =
                 new TestingDispatcherRunnerFactory.Builder()
@@ -192,8 +182,6 @@ public class ClusterEntrypointTest extends TestLogger {
         final CompletableFuture<ApplicationStatus> appStatusFuture =
                 startClusterEntrypoint(testingEntryPoint);
 
-        dispatcherShutDownFuture.complete(ApplicationStatus.SUCCEEDED);
-
         assertThat(
                 appStatusFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS),
                 is(ApplicationStatus.SUCCEEDED));
@@ -209,8 +197,11 @@ public class ClusterEntrypointTest extends TestLogger {
         final File markerFile = new File(TEMPORARY_FOLDER.getRoot(), UUID.randomUUID() + ".marker");
         final TestingClusterEntrypointProcess clusterEntrypointProcess =
                 new TestingClusterEntrypointProcess(markerFile);
+
+        clusterEntrypointProcess.startProcess();
+
+        boolean success = false;
         try {
-            clusterEntrypointProcess.startProcess();
             final long pid = clusterEntrypointProcess.getProcessId();
             assertTrue("Cannot determine process ID", pid != -1);
 
@@ -229,7 +220,12 @@ public class ClusterEntrypointTest extends TestLogger {
                     "markerFile should be deleted in closeAsync shutdownHook",
                     markerFile.exists(),
                     is(false));
+            success = true;
         } finally {
+            if (!success) {
+                clusterEntrypointProcess.printProcessLog();
+            }
+
             clusterEntrypointProcess.destroy();
         }
     }
@@ -280,7 +276,7 @@ public class ClusterEntrypointTest extends TestLogger {
 
         @Override
         protected HighAvailabilityServices createHaServices(
-                Configuration configuration, Executor executor) {
+                Configuration configuration, Executor executor, RpcSystemUtils rpcSystemUtils) {
             return haService;
         }
 
@@ -361,77 +357,6 @@ public class ClusterEntrypointTest extends TestLogger {
 
             public TestingDispatcherRunnerFactory build() {
                 return new TestingDispatcherRunnerFactory(shutDownFuture);
-            }
-        }
-    }
-
-    private static class TestingResourceManagerFactory extends ResourceManagerFactory<ResourceID> {
-
-        private final BiConsumer<ApplicationStatus, String> deregisterAppConsumer;
-
-        private TestingResourceManagerFactory(
-                BiConsumer<ApplicationStatus, String> deregisterAppConsumer) {
-            this.deregisterAppConsumer = deregisterAppConsumer;
-        }
-
-        @Override
-        protected ResourceManager<ResourceID> createResourceManager(
-                Configuration configuration,
-                ResourceID resourceId,
-                RpcService rpcService,
-                HighAvailabilityServices highAvailabilityServices,
-                HeartbeatServices heartbeatServices,
-                FatalErrorHandler fatalErrorHandler,
-                ClusterInformation clusterInformation,
-                @Nullable String webInterfaceUrl,
-                ResourceManagerMetricGroup resourceManagerMetricGroup,
-                ResourceManagerRuntimeServices resourceManagerRuntimeServices,
-                Executor ioExecutor)
-                throws Exception {
-            final SlotManager slotManager =
-                    SlotManagerBuilder.newBuilder()
-                            .setScheduledExecutor(rpcService.getScheduledExecutor())
-                            .build();
-            final JobLeaderIdService jobLeaderIdService =
-                    new TestingJobLeaderIdService.Builder().build();
-            return new TestingResourceManager(
-                    rpcService,
-                    resourceId,
-                    highAvailabilityServices,
-                    heartbeatServices,
-                    slotManager,
-                    NoOpResourceManagerPartitionTracker::get,
-                    jobLeaderIdService,
-                    fatalErrorHandler,
-                    resourceManagerMetricGroup) {
-                @Override
-                protected void internalDeregisterApplication(
-                        ApplicationStatus finalStatus, @Nullable String diagnostics) {
-                    deregisterAppConsumer.accept(finalStatus, diagnostics);
-                }
-            };
-        }
-
-        @Override
-        protected ResourceManagerRuntimeServicesConfiguration
-                createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
-                        throws ConfigurationException {
-            return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-                    configuration, ArbitraryWorkerResourceSpecFactory.INSTANCE);
-        }
-
-        public static final class Builder {
-            private BiConsumer<ApplicationStatus, String> deregisterAppConsumer =
-                    (ignore1, ignore2) -> {};
-
-            public Builder setInternalDeregisterApplicationConsumer(
-                    BiConsumer<ApplicationStatus, String> biConsumer) {
-                this.deregisterAppConsumer = biConsumer;
-                return this;
-            }
-
-            public TestingResourceManagerFactory build() {
-                return new TestingResourceManagerFactory(deregisterAppConsumer);
             }
         }
     }

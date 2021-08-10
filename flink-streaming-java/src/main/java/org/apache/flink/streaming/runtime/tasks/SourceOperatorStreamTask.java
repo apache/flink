@@ -45,7 +45,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,11 +60,6 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
-    protected CompletableFuture<Void> getCompletionFuture() {
-        return super.getCompletionFuture();
-    }
-
-    @Override
     public void init() throws Exception {
         final SourceOperator<T, ?> sourceOperator = this.mainOperator;
         // reader initialization, which cannot happen in the constructor due to the
@@ -77,7 +71,9 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final SourceReader<T, ?> sourceReader = sourceOperator.getSourceReader();
         final StreamTaskInput<T> input;
 
-        if (sourceReader instanceof ExternallyInducedSourceReader) {
+        if (operatorChain.isFinishedOnRestore()) {
+            input = new StreamTaskFinishedOnRestoreSourceInput<>(sourceOperator, 0, 0);
+        } else if (sourceReader instanceof ExternallyInducedSourceReader) {
             isExternallyInducedSource = true;
 
             input =
@@ -117,26 +113,35 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
-    public Future<Boolean> triggerCheckpointAsync(
+    public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         if (!isExternallyInducedSource) {
-            return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
+            if (checkpointOptions.getCheckpointType().shouldDrain()) {
+                return triggerStopWithSavepointWithDrainAsync(
+                        checkpointMetaData, checkpointOptions);
+            } else {
+                return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
+            }
         } else {
             return CompletableFuture.completedFuture(isRunning());
         }
     }
 
-    @Override
-    protected void advanceToEndOfEventTime() {
-        output.emitWatermark(Watermark.MAX_WATERMARK);
+    private CompletableFuture<Boolean> triggerStopWithSavepointWithDrainAsync(
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+        return assertTriggeringCheckpointExceptions(
+                mainOperator
+                        .stop()
+                        .thenCompose(
+                                (ignore) ->
+                                        super.triggerCheckpointAsync(
+                                                checkpointMetaData, checkpointOptions)),
+                checkpointMetaData.getCheckpointId());
     }
 
     @Override
-    protected void afterInvoke() throws Exception {
-        if (!isCanceled()) {
-            advanceToEndOfEventTime();
-        }
-        super.afterInvoke();
+    protected void advanceToEndOfEventTime() {
+        output.emitWatermark(Watermark.MAX_WATERMARK);
     }
 
     // --------------------------
@@ -148,7 +153,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                         CheckpointStorageLocationReference.getDefault(),
                         configuration.isExactlyOnceCheckpointMode(),
                         configuration.isUnalignedCheckpointsEnabled(),
-                        configuration.getAlignmentTimeout().toMillis());
+                        configuration.getAlignedCheckpointTimeout().toMillis());
         final long timestamp = System.currentTimeMillis();
 
         final CheckpointMetaData checkpointMetaData =

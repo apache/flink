@@ -690,7 +690,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
         public void setKeyContextElement(StreamRecord<Tuple2<Integer, byte[]>> record) {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void processStreamStatus(StreamStatus streamStatus) throws Exception {}
     }
 
     private static class InputGenerator extends SplittableIterator<Tuple2<Integer, byte[]>> {

@@ -21,6 +21,8 @@ package org.apache.flink.connector.kafka.source.reader;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
@@ -31,6 +33,8 @@ import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.testutils.MetricListener;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -52,6 +56,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.COMMITTED_OFFSET_METRIC_GAUGE;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.CURRENT_OFFSET_METRIC_GAUGE;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.INITIAL_OFFSET;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_CONSUMER_METRIC_GROUP;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
+import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -221,6 +233,69 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         }
     }
 
+    @Test
+    public void testKafkaSourceMetrics() throws Exception {
+        final MetricListener metricListener = new MetricListener();
+        final String groupId = "testKafkaSourceMetrics";
+        final TopicPartition tp = new TopicPartition(TOPIC, 0);
+
+        try (KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.CONTINUOUS_UNBOUNDED,
+                                groupId,
+                                metricListener.getMetricGroup())) {
+
+            KafkaPartitionSplit split =
+                    new KafkaPartitionSplit(tp, KafkaPartitionSplit.EARLIEST_OFFSET);
+            reader.addSplits(Collections.singletonList(split));
+
+            TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
+            pollUntil(
+                    reader,
+                    output,
+                    () -> output.getEmittedRecords().size() == NUM_RECORDS_PER_SPLIT,
+                    String.format(
+                            "Failed to poll %d records until timeout", NUM_RECORDS_PER_SPLIT));
+
+            // Metric "records-consumed-total" of KafkaConsumer should be NUM_RECORDS_PER_SPLIT
+            assertEquals(
+                    NUM_RECORDS_PER_SPLIT,
+                    getKafkaConsumerMetric("records-consumed-total", metricListener));
+
+            // Current consuming offset should be NUM_RECORD_PER_SPLIT - 1
+            assertEquals(NUM_RECORDS_PER_SPLIT - 1, getCurrentOffsetMetric(tp, metricListener));
+
+            // No offset is committed till now
+            assertEquals(INITIAL_OFFSET, getCommittedOffsetMetric(tp, metricListener));
+
+            // Trigger offset commit
+            reader.snapshotState(15213L);
+            reader.notifyCheckpointComplete(15213L);
+            waitUtil(
+                    () -> reader.getOffsetsToCommit().isEmpty(),
+                    Duration.ofSeconds(60),
+                    String.format(
+                            "Offsets are not committed successfully. Dangling offsets: %s",
+                            reader.getOffsetsToCommit()));
+
+            // Metric "commit-total" of KafkaConsumer should be 1
+            assertEquals(1, getKafkaConsumerMetric("commit-total", metricListener));
+
+            // Committed offset should be NUM_RECORD_PER_SPLIT
+            assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp, metricListener));
+
+            // Number of successful commits should be 1
+            assertEquals(
+                    1L,
+                    metricListener
+                            .getCounter(
+                                    KAFKA_SOURCE_READER_METRIC_GROUP,
+                                    COMMITS_SUCCEEDED_METRIC_COUNTER)
+                            .getCount());
+        }
+    }
+
     // ------------------------------------------
 
     @Override
@@ -256,6 +331,17 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
             Boundedness boundedness, String groupId) throws Exception {
+        return createReader(boundedness, groupId, new TestingReaderContext());
+    }
+
+    private SourceReader<Integer, KafkaPartitionSplit> createReader(
+            Boundedness boundedness, String groupId, MetricGroup metricGroup) throws Exception {
+        return createReader(
+                boundedness, groupId, new TestingReaderContext(new Configuration(), metricGroup));
+    }
+
+    private SourceReader<Integer, KafkaPartitionSplit> createReader(
+            Boundedness boundedness, String groupId, SourceReaderContext context) throws Exception {
         KafkaSourceBuilder<Integer> builder =
                 KafkaSource.<Integer>builder()
                         .setClientIdPrefix("KafkaSourceReaderTest")
@@ -273,7 +359,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             builder.setBounded(OffsetsInitializer.latest());
         }
 
-        return builder.build().createReader(new TestingReaderContext());
+        return builder.build().createReader(context);
     }
 
     private void pollUntil(
@@ -296,6 +382,40 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 },
                 Duration.ofSeconds(60),
                 errorMessage);
+    }
+
+    private long getKafkaConsumerMetric(String name, MetricListener listener) {
+        return ((Double)
+                        listener.getGauge(
+                                        KAFKA_SOURCE_READER_METRIC_GROUP,
+                                        KAFKA_CONSUMER_METRIC_GROUP,
+                                        name)
+                                .getValue())
+                .longValue();
+    }
+
+    private long getCurrentOffsetMetric(TopicPartition tp, MetricListener listener) {
+        return (long)
+                listener.getGauge(
+                                KAFKA_SOURCE_READER_METRIC_GROUP,
+                                TOPIC_GROUP,
+                                tp.topic(),
+                                PARTITION_GROUP,
+                                String.valueOf(tp.partition()),
+                                CURRENT_OFFSET_METRIC_GAUGE)
+                        .getValue();
+    }
+
+    private long getCommittedOffsetMetric(TopicPartition tp, MetricListener listener) {
+        return (long)
+                listener.getGauge(
+                                KAFKA_SOURCE_READER_METRIC_GROUP,
+                                TOPIC_GROUP,
+                                tp.topic(),
+                                PARTITION_GROUP,
+                                String.valueOf(tp.partition()),
+                                COMMITTED_OFFSET_METRIC_GAUGE)
+                        .getValue();
     }
 
     // ---------------------

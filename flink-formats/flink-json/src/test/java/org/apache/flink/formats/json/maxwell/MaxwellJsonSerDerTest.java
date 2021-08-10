@@ -19,10 +19,14 @@
 package org.apache.flink.formats.json.maxwell;
 
 import org.apache.flink.formats.common.TimestampFormat;
-import org.apache.flink.formats.json.JsonOptions;
+import org.apache.flink.formats.json.JsonFormatOptions;
+import org.apache.flink.formats.json.maxwell.MaxwellJsonDecodingFormat.ReadableMetadata;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -35,7 +39,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -43,27 +49,67 @@ import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link MaxwellJsonSerializationSchema} and {@link MaxwellJsonDeserializationSchema}.
  */
 public class MaxwellJsonSerDerTest {
-    private static final RowType SCHEMA =
-            (RowType)
-                    ROW(
-                                    FIELD("id", INT().notNull()),
-                                    FIELD("name", STRING()),
-                                    FIELD("description", STRING()),
-                                    FIELD("weight", FLOAT()))
-                            .getLogicalType();
+
+    private static final DataType PHYSICAL_DATA_TYPE =
+            ROW(
+                    FIELD("id", INT().notNull()),
+                    FIELD("name", STRING()),
+                    FIELD("description", STRING()),
+                    FIELD("weight", FLOAT()));
+
+    @Test
+    public void testDeserializationWithMetadata() throws Exception {
+        // we only read the first line for keeping the test simple
+        final String firstLine = readLines("maxwell-data.txt").get(0);
+        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        final DataType producedDataType =
+                DataTypeUtils.appendRowFields(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata.stream()
+                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
+                                .collect(Collectors.toList()));
+        final MaxwellJsonDeserializationSchema deserializationSchema =
+                new MaxwellJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata,
+                        InternalTypeInfo.of(producedDataType.getLogicalType()),
+                        false,
+                        TimestampFormat.ISO_8601);
+        final SimpleCollector collector = new SimpleCollector();
+        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
+        assertEquals(1, collector.list.size());
+        Consumer<RowData> consumer =
+                row -> {
+                    assertThat(row.getInt(0), equalTo(101));
+                    assertThat(row.getString(1).toString(), equalTo("scooter"));
+                    assertThat(row.getString(2).toString(), equalTo("Small 2-wheel scooter"));
+                    assertThat(row.getFloat(3), equalTo(3.14f));
+                    assertThat(row.getString(4).toString(), equalTo("test"));
+                    assertThat(row.getString(5).toString(), equalTo("product"));
+                    assertThat(row.getArray(6).getString(0).toString(), equalTo("id"));
+                    assertThat(row.getTimestamp(7, 3).getMillisecond(), equalTo(1596684883000L));
+                };
+        consumer.accept(collector.list.get(0));
+    }
 
     @Test
     public void testSerializationDeserialization() throws Exception {
         List<String> lines = readLines("maxwell-data.txt");
         MaxwellJsonDeserializationSchema deserializationSchema =
                 new MaxwellJsonDeserializationSchema(
-                        SCHEMA, InternalTypeInfo.of(SCHEMA), false, TimestampFormat.ISO_8601);
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        false,
+                        TimestampFormat.ISO_8601);
 
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
@@ -135,9 +181,9 @@ public class MaxwellJsonSerDerTest {
 
         MaxwellJsonSerializationSchema serializationSchema =
                 new MaxwellJsonSerializationSchema(
-                        SCHEMA,
+                        (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
         serializationSchema.open(null);

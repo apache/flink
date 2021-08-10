@@ -22,22 +22,22 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableBuilder;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
-import org.apache.flink.table.descriptors.FileSystem;
-import org.apache.flink.table.descriptors.FormatDescriptor;
-import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -62,8 +62,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -105,9 +107,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCsvTableViaSQL() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -148,46 +148,34 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCsvTableViaAPI() throws Exception {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tableEnv.getConfig()
                 .addConfiguration(new Configuration().set(CoreOptions.DEFAULT_PARALLELISM, 1));
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
 
-        TableSchema schema =
+        final TableSchema schema =
                 TableSchema.builder()
                         .field("name", DataTypes.STRING())
                         .field("age", DataTypes.INT())
                         .build();
 
-        FormatDescriptor format =
-                new OldCsv().field("name", Types.STRING()).field("age", Types.INT());
+        final Map<String, String> sourceOptions = new HashMap<>();
+        sourceOptions.put("connector.type", "filesystem");
+        sourceOptions.put("connector.path", getClass().getResource("/csv/test.csv").getPath());
+        sourceOptions.put("format.type", "csv");
 
-        CatalogTable source =
-                new CatalogTableBuilder(
-                                new FileSystem()
-                                        .path(
-                                                this.getClass()
-                                                        .getResource("/csv/test.csv")
-                                                        .getPath()),
-                                schema)
-                        .withFormat(format)
-                        .inAppendMode()
-                        .withComment("Comment.")
-                        .build();
+        CatalogTable source = new CatalogTableImpl(schema, sourceOptions, "Comment.");
 
         Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
 
-        CatalogTable sink =
-                new CatalogTableBuilder(
-                                new FileSystem().path(p.toAbsolutePath().toString()), schema)
-                        .withFormat(format)
-                        .inAppendMode()
-                        .withComment("Comment.")
-                        .build();
+        final Map<String, String> sinkOptions = new HashMap<>();
+        sinkOptions.put("connector.type", "filesystem");
+        sinkOptions.put("connector.path", p.toAbsolutePath().toString());
+        sinkOptions.put("format.type", "csv");
+
+        CatalogTable sink = new CatalogTableImpl(schema, sinkOptions, "Comment.");
 
         hiveCatalog.createTable(
                 new ObjectPath(HiveCatalog.DEFAULT_DB, sourceTableName), source, false);
@@ -229,9 +217,7 @@ public class HiveCatalogITCase {
     @Test
     public void testReadWriteCsv() throws Exception {
         // similar to CatalogTableITCase::testReadWriteCsvUsingDDL but uses HiveCatalog
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -311,13 +297,12 @@ public class HiveCatalogITCase {
     }
 
     private TableEnvironment prepareTable(boolean isStreaming) {
-        EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
+        EnvironmentSettings settings;
         if (isStreaming) {
-            builder = builder.inStreamingMode();
+            settings = EnvironmentSettings.inStreamingMode();
         } else {
-            builder = builder.inBatchMode();
+            settings = EnvironmentSettings.inBatchMode();
         }
-        EnvironmentSettings settings = builder.build();
         TableEnvironment tableEnv = TableEnvironment.create(settings);
         tableEnv.getConfig()
                 .getConfiguration()
@@ -349,9 +334,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testTableWithPrimaryKey() {
-        EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
-        EnvironmentSettings settings = builder.build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -454,9 +437,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testTemporaryGenericTable() throws Exception {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 
@@ -489,7 +470,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCreateTableLike() throws Exception {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
@@ -507,5 +488,58 @@ public class HiveCatalogITCase {
         assertEquals(1, catalogTable.getSchema().getFieldCount());
         assertEquals("x", catalogTable.getSchema().getFieldNames()[0]);
         assertEquals(DataTypes.INT(), catalogTable.getSchema().getFieldDataTypes()[0]);
+    }
+
+    @Test
+    public void testViewSchema() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.DEFAULT);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql(
+                    "create table src(x int,ts timestamp(3)) with ('connector'='datagen','number-of-rows'='10')");
+            tableEnv.executeSql("create view v1 as select x,ts from src order by x limit 3");
+
+            CatalogView catalogView =
+                    (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v1"));
+            Schema viewSchema = catalogView.getUnresolvedSchema();
+            assertEquals(
+                    Schema.newBuilder()
+                            .fromFields(
+                                    new String[] {"x", "ts"},
+                                    new AbstractDataType[] {
+                                        DataTypes.INT(), DataTypes.TIMESTAMP(3)
+                                    })
+                            .build(),
+                    viewSchema);
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x from v1").collect());
+            assertEquals(3, results.size());
+
+            tableEnv.executeSql(
+                    "create view v2 (v2_x,v2_ts) comment 'v2 comment' as select x,cast(ts as timestamp_ltz(3)) from v1");
+            catalogView = (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v2"));
+            assertEquals(
+                    Schema.newBuilder()
+                            .fromFields(
+                                    new String[] {"v2_x", "v2_ts"},
+                                    new AbstractDataType[] {
+                                        DataTypes.INT(), DataTypes.TIMESTAMP_LTZ(3)
+                                    })
+                            .build(),
+                    catalogView.getUnresolvedSchema());
+            assertEquals("v2 comment", catalogView.getComment());
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from v2").collect());
+            assertEquals(3, results.size());
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
     }
 }

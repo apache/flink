@@ -278,7 +278,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     true);

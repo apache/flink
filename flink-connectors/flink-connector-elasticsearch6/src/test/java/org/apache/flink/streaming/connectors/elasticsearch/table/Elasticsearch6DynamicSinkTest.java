@@ -95,10 +95,11 @@ public class Elasticsearch6DynamicSinkTest {
     public void testDefaultConfig() {
         final TableSchema schema = createTestSchema();
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
 
         BuilderProvider provider = new BuilderProvider();
         final Elasticsearch6DynamicSink testSink =
@@ -125,12 +126,13 @@ public class Elasticsearch6DynamicSinkTest {
     public void testAuthConfig() {
         final TableSchema schema = createTestSchema();
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
-        configuration.setString(ElasticsearchOptions.USERNAME_OPTION.key(), USERNAME);
-        configuration.setString(ElasticsearchOptions.PASSWORD_OPTION.key(), PASSWORD);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
+        configuration.setString(ElasticsearchConnectorOptions.USERNAME_OPTION.key(), USERNAME);
+        configuration.setString(ElasticsearchConnectorOptions.PASSWORD_OPTION.key(), PASSWORD);
 
         BuilderProvider provider = new BuilderProvider();
         final Elasticsearch6DynamicSink testSink =
@@ -157,23 +159,30 @@ public class Elasticsearch6DynamicSinkTest {
 
     private Configuration getConfig() {
         Configuration configuration = new Configuration();
-        configuration.setString(ElasticsearchOptions.INDEX_OPTION.key(), INDEX);
-        configuration.setString(ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
+        configuration.setString(ElasticsearchConnectorOptions.INDEX_OPTION.key(), INDEX);
+        configuration.setString(ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), DOC_TYPE);
         configuration.setString(
-                ElasticsearchOptions.HOSTS_OPTION.key(), SCHEMA + "://" + HOSTNAME + ":" + PORT);
+                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
+                SCHEMA + "://" + HOSTNAME + ":" + PORT);
         configuration.setString(
-                ElasticsearchOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(), "exponential");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "123");
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_TYPE_OPTION.key(), "exponential");
         configuration.setString(
-                ElasticsearchOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(), "3");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_INTERVAL_OPTION.key(), "100");
-        configuration.setString(ElasticsearchOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "1000");
-        configuration.setString(ElasticsearchOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1mb");
-        configuration.setString(ElasticsearchOptions.CONNECTION_PATH_PREFIX.key(), "/myapp");
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_DELAY_OPTION.key(), "123");
         configuration.setString(
-                ElasticsearchOptions.FAILURE_HANDLER_OPTION.key(),
+                ElasticsearchConnectorOptions.BULK_FLUSH_BACKOFF_MAX_RETRIES_OPTION.key(), "3");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLUSH_INTERVAL_OPTION.key(), "100");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLUSH_MAX_ACTIONS_OPTION.key(), "1000");
+        configuration.setString(
+                ElasticsearchConnectorOptions.BULK_FLASH_MAX_SIZE_OPTION.key(), "1mb");
+        configuration.setString(
+                ElasticsearchConnectorOptions.CONNECTION_PATH_PREFIX.key(), "/myapp");
+        configuration.setString(
+                ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION.key(),
                 DummyFailureHandler.class.getName());
-        configuration.setString(ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false");
+        configuration.setString(
+                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false");
         return configuration;
     }
 

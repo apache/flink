@@ -72,7 +72,7 @@ is not big enough. You can try to increase the *network memory* by adjusting the
 
 ## Container Memory Exceeded
 
-If a Flink container tries to allocate memory beyond its requested size (Yarn, Mesos or Kubernetes),
+If a Flink container tries to allocate memory beyond its requested size (Yarn or Kubernetes),
 this usually indicates that Flink has not reserved enough native memory. You can observe this either by using an external
 monitoring system or from the error messages when a container gets killed by the deployment environment.
 

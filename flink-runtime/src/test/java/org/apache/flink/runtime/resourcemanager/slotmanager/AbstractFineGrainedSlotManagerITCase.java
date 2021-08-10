@@ -315,7 +315,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                                 .registerTaskManager(
                                                         taskManagerConnection,
                                                         slotReport,
-                                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                        DEFAULT_SLOT_RESOURCE_PROFILE,
                                                         DEFAULT_SLOT_RESOURCE_PROFILE);
                                         getSlotManager()
                                                 .processResourceRequirements(resourceRequirements1);

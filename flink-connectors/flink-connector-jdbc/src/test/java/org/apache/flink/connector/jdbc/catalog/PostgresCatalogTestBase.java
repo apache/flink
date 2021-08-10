@@ -260,7 +260,7 @@ public class PostgresCatalogTestBase {
                         + "500");
     }
 
-    // TODO: add back timestamptz once blink planner supports timestamp with timezone
+    // TODO: add back timestamptz once planner supports timestamp with timezone
     public static TestTable getArrayTable() {
         return new TestTable(
                 TableSchema.builder()

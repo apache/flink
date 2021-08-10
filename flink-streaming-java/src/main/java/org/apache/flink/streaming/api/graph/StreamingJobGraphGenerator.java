@@ -56,13 +56,14 @@ import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -720,14 +721,19 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
+        config.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
         config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+        config.getConfiguration()
+                .set(
+                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                        streamGraph.isEnableCheckpointsAfterTasksFinish());
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
-        config.setAlignmentTimeout(checkpointCfg.getAlignmentTimeout());
+        config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
@@ -779,7 +785,7 @@ public class StreamingJobGraphGenerator {
         StreamPartitioner<?> partitioner = edge.getPartitioner();
 
         ResultPartitionType resultPartitionType;
-        switch (edge.getShuffleMode()) {
+        switch (edge.getExchangeMode()) {
             case PIPELINED:
                 resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
                 break;
@@ -791,7 +797,7 @@ public class StreamingJobGraphGenerator {
                 break;
             default:
                 throw new UnsupportedOperationException(
-                        "Data exchange mode " + edge.getShuffleMode() + " is not supported yet.");
+                        "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
 
         checkAndResetBufferTimeout(resultPartitionType, edge);
@@ -837,7 +843,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private ResultPartitionType determineResultPartitionType(StreamPartitioner<?> partitioner) {
-        switch (streamGraph.getGlobalDataExchangeMode()) {
+        switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;
             case FORWARD_EDGES_PIPELINED:
@@ -859,7 +865,7 @@ public class StreamingJobGraphGenerator {
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
-                                + streamGraph.getGlobalDataExchangeMode());
+                                + streamGraph.getGlobalStreamExchangeMode());
         }
     }
 
@@ -876,7 +882,7 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && (edge.getPartitioner() instanceof ForwardPartitioner)
-                && edge.getShuffleMode() != ShuffleMode.BATCH
+                && edge.getExchangeMode() != StreamExchangeMode.BATCH
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 
@@ -1314,9 +1320,13 @@ public class StreamingJobGraphGenerator {
                                 .setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
                                 .setCheckpointIdOfIgnoredInFlightData(
                                         cfg.getCheckpointIdOfIgnoredInFlightData())
-                                .setAlignmentTimeout(cfg.getAlignmentTimeout().toMillis())
+                                .setAlignedCheckpointTimeout(
+                                        cfg.getAlignedCheckpointTimeout().toMillis())
+                                .setEnableCheckpointsAfterTasksFinish(
+                                        streamGraph.isEnableCheckpointsAfterTasksFinish())
                                 .build(),
                         serializedStateBackend,
+                        streamGraph.isChangelogStateBackendEnabled(),
                         serializedCheckpointStorage,
                         serializedHooks);
 

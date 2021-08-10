@@ -22,13 +22,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
@@ -38,9 +37,8 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import akka.actor.ActorSystem;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -54,7 +52,6 @@ import java.util.List;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MEMORY;
-import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -70,8 +67,8 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     /**
-     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)}
-     * respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
+     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String,
+     * RpcSystem)} respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
      */
     @Test
     public void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
@@ -81,21 +78,15 @@ public class MetricUtilsTest extends TestLogger {
                 MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
         final RpcService rpcService =
-                MetricUtils.startRemoteMetricsRpcService(configuration, "localhost");
-        assertThat(rpcService, instanceOf(AkkaRpcService.class));
-
-        final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+                MetricUtils.startRemoteMetricsRpcService(
+                        configuration, "localhost", RpcSystem.load());
 
         try {
             final int threadPriority =
-                    actorSystem
-                            .settings()
-                            .config()
-                            .getInt("akka.actor.default-dispatcher.thread-priority");
-
+                    rpcService.execute(() -> Thread.currentThread().getPriority()).get();
             assertThat(threadPriority, is(expectedThreadPriority));
         } finally {
-            AkkaUtils.terminateActorSystem(actorSystem).get();
+            rpcService.stopService().get();
         }
     }
 

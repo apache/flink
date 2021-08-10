@@ -56,7 +56,7 @@ public class KubernetesConfigOptions {
                     .enumType(ServiceExposedType.class)
                     .defaultValue(ServiceExposedType.LoadBalancer)
                     .withDescription(
-                            "The exposed type of the rest service (ClusterIP or NodePort or LoadBalancer). "
+                            "The exposed type of the rest service. "
                                     + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
 
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
@@ -134,7 +134,7 @@ public class KubernetesConfigOptions {
                     .enumType(ImagePullPolicy.class)
                     .defaultValue(ImagePullPolicy.IfNotPresent)
                     .withDescription(
-                            "The Kubernetes container image pull policy (IfNotPresent or Always or Never). "
+                            "The Kubernetes container image pull policy. "
                                     + "The default policy is IfNotPresent to avoid putting pressure to image repository.");
 
     public static final ConfigOption<List<String>> CONTAINER_IMAGE_PULL_SECRETS =
@@ -421,6 +421,16 @@ public class KubernetesConfigOptions {
                             "The size of the IO executor pool used by the Kubernetes client to execute blocking IO operations "
                                     + "(e.g. start/stop TaskManager pods, update leader related ConfigMaps, etc.). "
                                     + "Increasing the pool size allows to run more IO operations concurrently.");
+
+    public static final ConfigOption<Integer> KUBERNETES_JOBMANAGER_REPLICAS =
+            key("kubernetes.jobmanager.replicas")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "Specify how many JobManager pods will be started simultaneously. "
+                                    + "Configure the value to greater than 1 to start standby JobManagers. "
+                                    + "It will help to achieve faster recovery. "
+                                    + "Notice that high availability should be enabled when starting standby JobManagers.");
 
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and

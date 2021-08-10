@@ -154,9 +154,7 @@ trait ImplicitExpressionConversions {
       * Calls a scalar function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      unresolvedCall(
-        new ScalarFunctionDefinition(s.getClass.getName, s),
-        params.map(ApiExpressionUtils.objectToExpression): _*)
+      unresolvedCall(s, params.map(ApiExpressionUtils.objectToExpression): _*)
     }
   }
 
@@ -443,6 +441,26 @@ trait ImplicitExpressionConversions {
     */
   def currentTimestamp(): Expression = {
     Expressions.currentTimestamp()
+  }
+
+  /**
+   * Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark
+   * of all upstream operations is available at the current operation in the pipeline.
+   *
+   * The function returns the watermark with the same type as the rowtime attribute, but with
+   * an adjusted precision of 3. For example, if the rowtime attribute is
+   * [[DataTypes.TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(9)]], the function will return
+   * [[DataTypes.TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(3)]].
+   *
+   * If no watermark has been emitted yet, the function will return `NULL`. Users must take care of
+   * this when comparing against it, e.g. in order to filter out late data you can use
+   *
+   * {{{
+   * WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+   * }}}
+   */
+  def currentWatermark(rowtimeAttribute: Expression): Expression = {
+    Expressions.currentWatermark(rowtimeAttribute)
   }
 
   /**

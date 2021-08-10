@@ -44,11 +44,11 @@ public class CheckpointingStatisticsTest
                 new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
         final CheckpointingStatistics.Summary summary =
                 new CheckpointingStatistics.Summary(
-                        new MinMaxAvgStatistics(1L, 1L, 1L),
-                        new MinMaxAvgStatistics(2L, 2L, 2L),
-                        new MinMaxAvgStatistics(3L, 3L, 3L),
-                        new MinMaxAvgStatistics(4L, 4L, 4L),
-                        new MinMaxAvgStatistics(5L, 5L, 5L));
+                        new StatsSummaryDto(1L, 1L, 1L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(2L, 2L, 2L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(3L, 3L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(4L, 4L, 4L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(5L, 5L, 5L, 0, 0, 0, 0, 0));
 
         final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask =
                 new HashMap<>(2);

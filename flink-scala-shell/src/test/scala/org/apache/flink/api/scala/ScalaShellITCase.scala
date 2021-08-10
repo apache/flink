@@ -177,55 +177,29 @@ class ScalaShellITCase extends TestLogger {
   }
 
   @Test
-  def testSimpleSelectWithFilterBatchTableAPIQuery: Unit = {
-    val input =
-      """
-        |val data = Seq(
-        |    (1, 1L, "Hi"),
-        |    (2, 2L, "Hello"),
-        |    (3, 2L, "Hello world"))
-        |val t = benv.fromCollection(data).toTable(btenv, 'a, 'b, 'c).select('a,'c).where(
-        |'a% 2 === 1 )
-        |val results = t.toDataSet[Row].collect()
-        |results.foreach(println)
-        |:q
-      """.stripMargin
-    val output = processInShell(input)
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
-    Assert.assertTrue(output.contains("+I[1, Hi]"))
-    Assert.assertTrue(output.contains("+I[3, Hello world]"))
-  }
-
-  @Test
-  def testGroupedAggregationStreamTableAPIQuery: Unit = {
+  def testTableAPIQuery(): Unit = {
     val input =
       """
         |  val data = List(
         |    ("Hello", 1),
         |    ("word", 1),
-        |    ("Hello", 1),
         |    ("bark", 1),
-        |    ("bark", 1),
-        |    ("bark", 1),
-        |    ("bark", 1),
-        |    ("bark", 1),
-        |    ("bark", 1),
-        |    ("flink", 1)
+        |    ("bark", 1)
         |  )
         | val stream = senv.fromCollection(data)
-        | val table = stream.toTable(stenv, 'word, 'num)
-        | val resultTable = table.groupBy('word).select('num.sum as 'count).groupBy('count).select(
-        | 'count,'count.count as 'frequency)
-        | val results = resultTable.toRetractStream[Row]
+        | val tenv = StreamTableEnvironment.create(senv)
+        | val table = tenv.fromDataStream(stream).as("word", "count")
+        | val resultTable = table.groupBy($"word").select($"word", $"count".sum as "count")
+        | val results = tenv.toChangelogStream(resultTable)
         | results.print
         | senv.execute
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("+I[6, 1]"))
-    Assert.assertTrue(output.contains("+I[1, 2]"))
-    Assert.assertTrue(output.contains("+I[2, 1]"))
+    Assert.assertTrue(output.contains("+I[Hello, 1]"))
+    Assert.assertTrue(output.contains("+I[word, 1]"))
+    Assert.assertTrue(output.contains("+I[bark, 1]"))
+    Assert.assertTrue(output.contains("-U[bark, 1]"))
+    Assert.assertTrue(output.contains("+U[bark, 2]"))
     Assert.assertFalse(output.toLowerCase.contains("failed"))
     Assert.assertFalse(output.toLowerCase.contains("error"))
     Assert.assertFalse(output.toLowerCase.contains("exception"))

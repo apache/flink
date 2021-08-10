@@ -247,7 +247,7 @@ callback typically does minimal work, and a `DirectExecutor` avoids an additiona
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.
 
-A `DirectExecutor` can be obtained via `org.apache.flink.runtime.concurrent.Executors.directExecutor()` or
+A `DirectExecutor` can be obtained via `org.apache.flink.util.concurrent.Executors.directExecutor()` or
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()`.
 
 

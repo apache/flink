@@ -25,6 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -76,9 +78,11 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ARBITRARY;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
@@ -682,6 +686,36 @@ public class StateAssignmentOperationTest extends TestLogger {
                         .getInputRescalingDescriptor());
     }
 
+    @Test
+    public void testStateWithFullyFinishedOperators() throws JobException, JobExecutionException {
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states =
+                buildOperatorStates(Collections.singletonList(operatorIds.get(1)), 3);
+
+        // Create an operator state marked as finished
+        OperatorState operatorState = new FullyFinishedOperatorState(operatorIds.get(0), 3, 256);
+        states.put(operatorIds.get(0), operatorState);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 2, RANGE, ROUND_ROBIN);
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // Check the job vertex with only finished operator.
+        ExecutionJobVertex jobVertexWithFinishedOperator = vertices.get(operatorIds.get(0));
+        for (ExecutionVertex task : jobVertexWithFinishedOperator.getTaskVertices()) {
+            JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
+            Assert.assertTrue(taskRestore.getTaskStateSnapshot().isFinishedOnRestore());
+        }
+
+        // Check the job vertex without finished operator.
+        ExecutionJobVertex jobVertexWithoutFinishedOperator = vertices.get(operatorIds.get(1));
+        for (ExecutionVertex task : jobVertexWithoutFinishedOperator.getTaskVertices()) {
+            JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
+            Assert.assertFalse(taskRestore.getTaskStateSnapshot().isFinishedOnRestore());
+        }
+    }
+
     private void assertState(
             Map<OperatorID, ExecutionJobVertex> vertices,
             OperatorID operatorId,
@@ -723,6 +757,20 @@ public class StateAssignmentOperationTest extends TestLogger {
         Assert.assertEquals(
                 states.get(userDefinedOperatorId).getState(0),
                 getAssignedState(executionJobVertex, operatorId, 0));
+    }
+
+    @Test
+    public void assigningStateHandlesCanNotBeNull() {
+        OperatorState state = new OperatorState(new OperatorID(), 1, MAX_P);
+
+        List<KeyedStateHandle> managedKeyedStateHandles =
+                StateAssignmentOperation.getManagedKeyedStateHandles(state, KeyGroupRange.of(0, 1));
+
+        List<KeyedStateHandle> rawKeyedStateHandles =
+                StateAssignmentOperation.getRawKeyedStateHandles(state, KeyGroupRange.of(0, 1));
+
+        assertThat(managedKeyedStateHandles, is(empty()));
+        assertThat(rawKeyedStateHandles, is(empty()));
     }
 
     private List<OperatorID> buildOperatorIds(int numOperators) {

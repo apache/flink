@@ -344,4 +344,152 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
         tableResult.getJobClient().get().cancel().get(); // stop the job
         deleteTestTopic(topic);
     }
+
+    @Test
+    public void testKafkaMaxwellChangelogSource() throws Exception {
+        final String topic = "changelog_maxwell";
+        createTestTopic(topic, 1, 1);
+
+        // configure time zone of  the Maxwell Json metadata "ingestion-timestamp"
+        tEnv.getConfig().setLocalTimeZone(ZoneId.of("UTC"));
+        // enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
+        Configuration tableConf = tEnv.getConfig().getConfiguration();
+        tableConf.setString("table.exec.mini-batch.enabled", "true");
+        tableConf.setString("table.exec.mini-batch.allow-latency", "1s");
+        tableConf.setString("table.exec.mini-batch.size", "5000");
+        tableConf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE");
+
+        // ---------- Write the Maxwell json into Kafka -------------------
+        List<String> lines = readLines("maxwell-data.txt");
+        DataStreamSource<String> stream = env.fromCollection(lines);
+        SerializationSchema<String> serSchema = new SimpleStringSchema();
+        FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
+
+        // the producer must not produce duplicates
+        Properties producerProperties = getStandardProps();
+        producerProperties.setProperty("retries", "0");
+        try {
+            stream.addSink(
+                    new FlinkKafkaProducer<>(
+                            topic,
+                            serSchema,
+                            producerProperties,
+                            partitioner,
+                            EXACTLY_ONCE,
+                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
+            env.execute("Write sequence");
+        } catch (Exception e) {
+            throw new Exception("Failed to write maxwell data to Kafka.", e);
+        }
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String bootstraps = getBootstrapServers();
+        String sourceDDL =
+                String.format(
+                        "CREATE TABLE maxwell_source ("
+                                // test format metadata
+                                + " origin_database STRING METADATA FROM 'value.database' VIRTUAL,"
+                                + " origin_table STRING METADATA FROM 'value.table' VIRTUAL,"
+                                + " origin_primary_key_columns ARRAY<STRING> METADATA FROM 'value.primary-key-columns' VIRTUAL,"
+                                + " origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,"
+                                + " id INT NOT NULL,"
+                                + " name STRING,"
+                                + " description STRING,"
+                                + " weight DECIMAL(10,3),"
+                                // test connector metadata
+                                + " origin_topic STRING METADATA FROM 'topic' VIRTUAL,"
+                                + " origin_partition STRING METADATA FROM 'partition' VIRTUAL" // unused
+                                + ") WITH ("
+                                + " 'connector' = 'kafka',"
+                                + " 'topic' = '%s',"
+                                + " 'properties.bootstrap.servers' = '%s',"
+                                + " 'scan.startup.mode' = 'earliest-offset',"
+                                + " 'value.format' = 'maxwell-json'"
+                                + ")",
+                        topic, bootstraps);
+        String sinkDDL =
+                "CREATE TABLE sink ("
+                        + " origin_topic STRING,"
+                        + " origin_database STRING,"
+                        + " origin_table STRING,"
+                        + " origin_primary_key_columns ARRAY<STRING>,"
+                        + " origin_ts TIMESTAMP(3),"
+                        + " name STRING,"
+                        + " PRIMARY KEY (name) NOT ENFORCED"
+                        + ") WITH ("
+                        + " 'connector' = 'values',"
+                        + " 'sink-insert-only' = 'false'"
+                        + ")";
+        tEnv.executeSql(sourceDDL);
+        tEnv.executeSql(sinkDDL);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "INSERT INTO sink "
+                                + "SELECT origin_topic, origin_database, origin_table, origin_primary_key_columns, "
+                                + "origin_ts, name "
+                                + "FROM maxwell_source");
+
+        /*
+         * Maxwell captures change data on the `products` table:
+         *
+         * <pre>
+         * CREATE TABLE products (
+         *  id INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+         *  name VARCHAR(255),
+         *  description VARCHAR(512),
+         *  weight FLOAT
+         * );
+         * ALTER TABLE products AUTO_INCREMENT = 101;
+         *
+         * INSERT INTO products
+         * VALUES (default,"scooter","Small 2-wheel scooter",3.14),
+         *        (default,"car battery","12V car battery",8.1),
+         *        (default,"12-pack drill bits","12-pack of drill bits with sizes ranging from #40 to #3",0.8),
+         *        (default,"hammer","12oz carpenter's hammer",0.75),
+         *        (default,"hammer","14oz carpenter's hammer",0.875),
+         *        (default,"hammer","16oz carpenter's hammer",1.0),
+         *        (default,"rocks","box of assorted rocks",5.3),
+         *        (default,"jacket","water resistent black wind breaker",0.1),
+         *        (default,"spare tire","24 inch spare tire",22.2);
+         * UPDATE products SET description='18oz carpenter hammer' WHERE id=106;
+         * UPDATE products SET weight='5.1' WHERE id=107;
+         * INSERT INTO products VALUES (default,"jacket","water resistent white wind breaker",0.2);
+         * INSERT INTO products VALUES (default,"scooter","Big 2-wheel scooter ",5.18);
+         * UPDATE products SET description='new water resistent white wind breaker', weight='0.5' WHERE id=110;
+         * UPDATE products SET weight='5.17' WHERE id=111;
+         * DELETE FROM products WHERE id=111;
+         *
+         * > SELECT * FROM products;
+         * +-----+--------------------+---------------------------------------------------------+--------+
+         * | id  | name               | description                                             | weight |
+         * +-----+--------------------+---------------------------------------------------------+--------+
+         * | 101 | scooter            | Small 2-wheel scooter                                   |   3.14 |
+         * | 102 | car battery        | 12V car battery                                         |    8.1 |
+         * | 103 | 12-pack drill bits | 12-pack of drill bits with sizes ranging from #40 to #3 |    0.8 |
+         * | 104 | hammer             | 12oz carpenter's hammer                                 |   0.75 |
+         * | 105 | hammer             | 14oz carpenter's hammer                                 |  0.875 |
+         * | 106 | hammer             | 18oz carpenter hammer                                   |      1 |
+         * | 107 | rocks              | box of assorted rocks                                   |    5.1 |
+         * | 108 | jacket             | water resistent black wind breaker                      |    0.1 |
+         * | 109 | spare tire         | 24 inch spare tire                                      |   22.2 |
+         * | 110 | jacket             | new water resistent white wind breaker                  |    0.5 |
+         * +-----+--------------------+---------------------------------------------------------+--------+
+         * </pre>
+         */
+
+        List<String> expected =
+                Arrays.asList(
+                        "+I[changelog_maxwell, test, product, null, 2020-08-06T03:34:43, spare tire]",
+                        "+I[changelog_maxwell, test, product, null, 2020-08-06T03:34:53, hammer]",
+                        "+I[changelog_maxwell, test, product, null, 2020-08-06T03:34:57, rocks]",
+                        "+I[changelog_maxwell, test, product, null, 2020-08-06T03:35:06, jacket]",
+                        "+I[changelog_maxwell, test, product, null, 2020-08-06T03:35:28, scooter]");
+
+        waitingExpectedResults("sink", expected, Duration.ofSeconds(10));
+
+        // ------------- cleanup -------------------
+
+        tableResult.getJobClient().get().cancel().get(); // stop the job
+        deleteTestTopic(topic);
+    }
 }

@@ -117,8 +117,7 @@ tableResult.print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
 t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
@@ -185,5 +184,5 @@ Union(all=[true], union all=[count, word])
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 ```
 
-For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries" >}}#supported-syntax) page.
+For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}) page.
 For INSERT, please refer to [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) page.

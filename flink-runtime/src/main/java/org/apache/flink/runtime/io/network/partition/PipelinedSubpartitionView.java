@@ -80,8 +80,13 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
-        return parent.isAvailable(numCreditsAvailable);
+    public void acknowledgeAllDataProcessed() {
+        parent.acknowledgeAllDataProcessed();
+    }
+
+    @Override
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        return parent.getAvailabilityAndBacklog(numCreditsAvailable);
     }
 
     @Override
@@ -92,6 +97,11 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return parent.unsynchronizedGetNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        return parent.getNumberOfQueuedBuffers();
     }
 
     @Override

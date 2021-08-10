@@ -30,18 +30,19 @@ from pyflink.common import ExecutionConfig, RestartStrategies
 from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic)
+                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic,
+                                SlotSharingGroup)
 from pyflink.datastream.connectors import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
+from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
     EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
-    invoke_java_object_method
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 from pyflink.util.java_utils import get_j_env_configuration
 
 
@@ -127,8 +128,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_runtime_mode(self):
         self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
-        config = invoke_java_object_method(
-            self.env._j_stream_execution_environment, "getConfiguration")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
         runtime_mode = config.getValue(
             get_gateway().jvm.org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE)
 
@@ -177,6 +177,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(output_backend._j_memory_state_backend,
                          input_backend._j_memory_state_backend)
+
+    def test_is_changelog_state_backend_enabled(self):
+        self.assertIsNone(self.env.is_changelog_state_backend_enabled())
+
+    def test_enable_changelog_state_backend(self):
+
+        self.env.enable_changelog_state_backend(True)
+
+        self.assertTrue(self.env.is_changelog_state_backend_enabled())
+
+        self.env.enable_changelog_state_backend(False)
+
+        self.assertFalse(self.env.is_changelog_state_backend_enabled())
 
     def test_get_set_stream_time_characteristic(self):
         default_time_characteristic = self.env.get_stream_time_characteristic()
@@ -366,7 +379,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         t_env = StreamTableEnvironment.create(
             stream_execution_environment=self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+            environment_settings=EnvironmentSettings.in_streaming_mode())
         self.env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
@@ -381,6 +394,52 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.execute("test add_python_file")
         result = self.test_sink.get_results(True)
         expected = ['6', '7', '8', '9', '10']
+        result.sort()
+        expected.sort()
+        self.assertEqual(expected, result)
+
+    def test_add_python_file_2(self):
+        import uuid
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_dep1.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+
+        def plus_two_map(value):
+            from test_dep1 import add_two
+            return add_two(value)
+
+        get_j_env_configuration(self.env._j_stream_execution_environment).\
+            setString("taskmanager.numberOfTaskSlots", "10")
+        self.env.add_python_file(python_file_path)
+        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = ds.map(plus_two_map, Types.LONG()) \
+               .slot_sharing_group("data_stream") \
+               .map(lambda i: i, Types.LONG()) \
+               .slot_sharing_group("table")
+
+        python_file_path = os.path.join(python_file_dir, "test_dep2.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_three(a):\n    return a + 3")
+
+        def plus_three(value):
+            from test_dep2 import add_three
+            return add_three(value)
+
+        t_env = StreamTableEnvironment.create(
+            stream_execution_environment=self.env,
+            environment_settings=EnvironmentSettings.in_streaming_mode())
+        self.env.add_python_file(python_file_path)
+
+        from pyflink.table.udf import udf
+        from pyflink.table.expressions import col
+        add_three = udf(plus_three, result_type=DataTypes.BIGINT())
+
+        tab = t_env.from_data_stream(ds, 'a') \
+                   .select(add_three(col('a')))
+        result = [i[0] for i in tab.execute().collect()]
+        expected = [6, 7, 8, 9, 10]
         result.sort()
         expected.sort()
         self.assertEqual(expected, result)
@@ -610,6 +669,37 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
+
+    def test_register_slot_sharing_group(self):
+        slot_sharing_group_1 = SlotSharingGroup.builder('slot_sharing_group_1') \
+            .set_cpu_cores(1.0).set_task_heap_memory_mb(100).build()
+        slot_sharing_group_2 = SlotSharingGroup.builder('slot_sharing_group_2') \
+            .set_cpu_cores(2.0).set_task_heap_memory_mb(200).build()
+        slot_sharing_group_3 = SlotSharingGroup.builder('slot_sharing_group_3').build()
+        self.env.register_slot_sharing_group(slot_sharing_group_1)
+        self.env.register_slot_sharing_group(slot_sharing_group_2)
+        self.env.register_slot_sharing_group(slot_sharing_group_3)
+        ds = self.env.from_collection([1, 2, 3]).slot_sharing_group(
+            'slot_sharing_group_1')
+        ds.map(lambda x: x + 1).set_parallelism(3) \
+            .slot_sharing_group('slot_sharing_group_2') \
+            .add_sink(self.test_sink)
+
+        j_generated_stream_graph = self.env._j_stream_execution_environment \
+            .getStreamGraph("test start new_chain", True)
+        j_resource_profile_1 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_1').get()
+        j_resource_profile_2 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_2').get()
+        j_resource_profile_3 = j_generated_stream_graph.getSlotSharingGroupResource(
+            'slot_sharing_group_3')
+        self.assertEqual(j_resource_profile_1.getCpuCores().getValue(), 1.0)
+        self.assertEqual(MemorySize(j_memory_size=j_resource_profile_1.getTaskHeapMemory()),
+                         MemorySize.of_mebi_bytes(100))
+        self.assertEqual(j_resource_profile_2.getCpuCores().getValue(), 2.0)
+        self.assertEqual(MemorySize(j_memory_size=j_resource_profile_2.getTaskHeapMemory()),
+                         MemorySize.of_mebi_bytes(200))
+        self.assertFalse(j_resource_profile_3.isPresent())
 
     def tearDown(self) -> None:
         self.test_sink.clear()

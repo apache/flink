@@ -44,14 +44,12 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
-import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -64,7 +62,7 @@ public class StreamSourceOperatorWatermarksTest {
 
     @Test
     public void testEmitMaxWatermarkForFiniteSource() throws Exception {
-        StreamSource<String, ?> sourceOperator = new StreamSource<>(new FiniteSource());
+        StreamSource<String, ?> sourceOperator = new StreamSource<>(new FiniteSource<>());
         StreamTaskTestHarness<String> testHarness =
                 setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -76,20 +74,22 @@ public class StreamSourceOperatorWatermarksTest {
     }
 
     @Test
-    public void testMaxWatermarkIsForwardedLastForFiniteSource() throws Exception {
-        StreamSource<String, ?> sourceOperator = new StreamSource<>(new FiniteSource(true));
+    public void testDisabledProgressiveWatermarksForFiniteSource() throws Exception {
+        StreamSource<String, ?> sourceOperator =
+                new StreamSource<>(new FiniteSourceWithWatermarks<>(), false);
         StreamTaskTestHarness<String> testHarness =
                 setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(new StreamRecord<>("Hello"));
-        expectedOutput.add(Watermark.MAX_WATERMARK);
+        // sent by source function
+        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
 
-        TestHarnessUtil.assertOutputEquals(
-                "Output was not correct.", expectedOutput, testHarness.getOutput());
+        // sent by framework
+        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
+
+        assertTrue(testHarness.getOutput().isEmpty());
     }
 
     @Test
@@ -156,7 +156,8 @@ public class StreamSourceOperatorWatermarksTest {
                 task.getCheckpointLock(),
                 new CollectorOutput<String>(output),
                 operator.getExecutionConfig().getAutoWatermarkInterval(),
-                -1);
+                -1,
+                true);
 
         // periodically emit the watermarks
         // even though we start from 1 the watermark are still
@@ -245,38 +246,28 @@ public class StreamSourceOperatorWatermarksTest {
 
     // ------------------------------------------------------------------------
 
-    private static final class FiniteSource extends RichSourceFunction<String> {
-
-        private transient volatile boolean canceled = false;
-
-        private transient SourceContext<String> context;
-
-        private final boolean outputingARecordWhenClosing;
-
-        public FiniteSource() {
-            this(false);
-        }
-
-        public FiniteSource(boolean outputingARecordWhenClosing) {
-            this.outputingARecordWhenClosing = outputingARecordWhenClosing;
-        }
+    private static final class FiniteSource<T> extends RichSourceFunction<T> {
 
         @Override
-        public void run(SourceContext<String> ctx) {
-            context = ctx;
-        }
+        public void run(SourceContext<T> ctx) {}
 
         @Override
-        public void close() {
-            if (!canceled && outputingARecordWhenClosing) {
-                context.collect("Hello");
+        public void cancel() {}
+    }
+
+    private static final class FiniteSourceWithWatermarks<T> extends RichSourceFunction<T> {
+
+        @Override
+        public void run(SourceContext<T> ctx) {
+            synchronized (ctx.getCheckpointLock()) {
+                ctx.emitWatermark(new Watermark(1000));
+                ctx.emitWatermark(new Watermark(2000));
+                ctx.emitWatermark(Watermark.MAX_WATERMARK);
             }
         }
 
         @Override
-        public void cancel() {
-            canceled = true;
-        }
+        public void cancel() {}
     }
 
     private static final class InfiniteSource<T> implements SourceFunction<T> {

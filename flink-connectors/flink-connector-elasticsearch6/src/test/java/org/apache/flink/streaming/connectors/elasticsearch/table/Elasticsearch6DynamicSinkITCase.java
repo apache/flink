@@ -36,6 +36,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
@@ -68,9 +69,7 @@ public class Elasticsearch6DynamicSinkITCase {
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(
-                    DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
-                            .withTag("6.3.1"));
+            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_6));
 
     @SuppressWarnings("deprecation")
     protected final Client getClient() {
@@ -117,17 +116,20 @@ public class Elasticsearch6DynamicSinkITCase {
                                         context()
                                                 .withSchema(schema)
                                                 .withOption(
-                                                        ElasticsearchOptions.INDEX_OPTION.key(),
+                                                        ElasticsearchConnectorOptions.INDEX_OPTION
+                                                                .key(),
                                                         index)
                                                 .withOption(
-                                                        ElasticsearchOptions.DOCUMENT_TYPE_OPTION
+                                                        ElasticsearchConnectorOptions
+                                                                .DOCUMENT_TYPE_OPTION
                                                                 .key(),
                                                         myType)
                                                 .withOption(
-                                                        ElasticsearchOptions.HOSTS_OPTION.key(),
+                                                        ElasticsearchConnectorOptions.HOSTS_OPTION
+                                                                .key(),
                                                         elasticsearchContainer.getHttpHostAddress())
                                                 .withOption(
-                                                        ElasticsearchOptions
+                                                        ElasticsearchConnectorOptions
                                                                 .FLUSH_ON_CHECKPOINT_OPTION
                                                                 .key(),
                                                         "false")
@@ -160,11 +162,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsFromTableApi() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "table-api";
         String myType = "MyType";
@@ -183,17 +181,19 @@ public class Elasticsearch6DynamicSinkITCase {
                         + "WITH (\n"
                         + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
                         + String.format(
-                                "'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index)
+                                "'%s'='%s',\n",
+                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), myType)
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.HOSTS_OPTION.key(),
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
                                 elasticsearchContainer.getHttpHostAddress())
                         + String.format(
                                 "'%s'='%s'\n",
-                                ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
+                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
+                                "false")
                         + ")");
 
         tableEnvironment
@@ -228,11 +228,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsNoPrimaryKey() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "no-primary-key";
         String myType = "MyType";
@@ -249,17 +245,19 @@ public class Elasticsearch6DynamicSinkITCase {
                         + "WITH (\n"
                         + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
                         + String.format(
-                                "'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index)
+                                "'%s'='%s',\n",
+                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), myType)
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.HOSTS_OPTION.key(),
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
                                 elasticsearchContainer.getHttpHostAddress())
                         + String.format(
                                 "'%s'='%s'\n",
-                                ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
+                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
+                                "false")
                         + ")");
 
         tableEnvironment
@@ -328,11 +326,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsWithDynamicIndex() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "dynamic-index-{b|yyyy-MM-dd}";
         String myType = "MyType";
@@ -345,17 +339,19 @@ public class Elasticsearch6DynamicSinkITCase {
                         + "WITH (\n"
                         + String.format("'%s'='%s',\n", "connector", "elasticsearch-6")
                         + String.format(
-                                "'%s'='%s',\n", ElasticsearchOptions.INDEX_OPTION.key(), index)
+                                "'%s'='%s',\n",
+                                ElasticsearchConnectorOptions.INDEX_OPTION.key(), index)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.DOCUMENT_TYPE_OPTION.key(), myType)
+                                ElasticsearchConnectorOptions.DOCUMENT_TYPE_OPTION.key(), myType)
                         + String.format(
                                 "'%s'='%s',\n",
-                                ElasticsearchOptions.HOSTS_OPTION.key(),
+                                ElasticsearchConnectorOptions.HOSTS_OPTION.key(),
                                 elasticsearchContainer.getHttpHostAddress())
                         + String.format(
                                 "'%s'='%s'\n",
-                                ElasticsearchOptions.FLUSH_ON_CHECKPOINT_OPTION.key(), "false")
+                                ElasticsearchConnectorOptions.FLUSH_ON_CHECKPOINT_OPTION.key(),
+                                "false")
                         + ")");
 
         tableEnvironment

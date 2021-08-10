@@ -60,20 +60,17 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
 
     private final List<ExecutionVertex> sourceTasks = new ArrayList<>();
 
-    /**
-     * TODO Temporary flag to allow checkpoints after tasks finished. This is disabled for regular
-     * jobs to keep the current behavior but we want to allow it in tests. This should be removed
-     * once all parts of the stack support checkpoints after some tasks finished.
-     */
-    private boolean allowCheckpointsAfterTasksFinished;
+    private final boolean allowCheckpointsAfterTasksFinished;
 
     public DefaultCheckpointPlanCalculator(
             JobID jobId,
             CheckpointPlanCalculatorContext context,
-            Iterable<ExecutionJobVertex> jobVerticesInTopologyOrderIterable) {
+            Iterable<ExecutionJobVertex> jobVerticesInTopologyOrderIterable,
+            boolean allowCheckpointsAfterTasksFinished) {
 
         this.jobId = checkNotNull(jobId);
         this.context = checkNotNull(context);
+        this.allowCheckpointsAfterTasksFinished = allowCheckpointsAfterTasksFinished;
 
         checkNotNull(jobVerticesInTopologyOrderIterable);
         jobVerticesInTopologyOrderIterable.forEach(
@@ -85,10 +82,6 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                         sourceTasks.addAll(Arrays.asList(jobVertex.getTaskVertices()));
                     }
                 });
-    }
-
-    public void setAllowCheckpointsAfterTasksFinished(boolean allowCheckpointsAfterTasksFinished) {
-        this.allowCheckpointsAfterTasksFinished = allowCheckpointsAfterTasksFinished;
     }
 
     @Override
@@ -150,7 +143,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
             if (execution.getState() != ExecutionState.RUNNING) {
                 throw new CheckpointException(
                         String.format(
-                                "Checkpoint triggering task %s of job %s has not being executed at the moment. "
+                                "Checkpoint triggering task %s of job %s is not being executed at the moment. "
                                         + "Aborting checkpoint.",
                                 execution.getVertex().getTaskNameWithSubtaskIndex(), jobId),
                         CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
@@ -177,7 +170,8 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(allTasks),
                 Collections.emptyList(),
-                Collections.emptyList());
+                Collections.emptyList(),
+                allowCheckpointsAfterTasksFinished);
     }
 
     /**
@@ -244,7 +238,8 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                 Collections.unmodifiableList(tasksToWaitFor),
                 Collections.unmodifiableList(tasksToCommitTo),
                 Collections.unmodifiableList(finishedTasks),
-                Collections.unmodifiableList(fullyFinishedJobVertex));
+                Collections.unmodifiableList(fullyFinishedJobVertex),
+                allowCheckpointsAfterTasksFinished);
     }
 
     private boolean someTasksMustBeTriggered(

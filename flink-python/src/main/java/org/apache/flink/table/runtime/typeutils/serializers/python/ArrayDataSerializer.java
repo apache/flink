@@ -38,7 +38,7 @@ import java.io.IOException;
 /**
  * A {@link TypeSerializer} for {@link ArrayData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryArrayData natively, so we can't use
- * BaseArraySerializer in blink directly.
+ * BaseArraySerializer directly.
  */
 @Internal
 public class ArrayDataSerializer

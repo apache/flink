@@ -39,9 +39,9 @@ public class JdbcConnectionOptions implements Serializable {
 
     protected JdbcConnectionOptions(
             String url,
-            String driverName,
-            String username,
-            String password,
+            @Nullable String driverName,
+            @Nullable String username,
+            @Nullable String password,
             int connectionCheckTimeoutSeconds) {
         Preconditions.checkArgument(connectionCheckTimeoutSeconds > 0);
         this.url = Preconditions.checkNotNull(url, "jdbc url is empty");

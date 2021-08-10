@@ -32,7 +32,7 @@ import java.util.List;
 /** A testing implementation of the {@link SourceReaderContext}. */
 public class TestingReaderContext implements SourceReaderContext {
 
-    private final UnregisteredMetricsGroup metrics = new UnregisteredMetricsGroup();
+    private final MetricGroup metrics;
 
     private final Configuration config;
 
@@ -41,11 +41,12 @@ public class TestingReaderContext implements SourceReaderContext {
     private int numSplitRequests;
 
     public TestingReaderContext() {
-        this(new Configuration());
+        this(new Configuration(), new UnregisteredMetricsGroup());
     }
 
-    public TestingReaderContext(Configuration config) {
+    public TestingReaderContext(Configuration config, MetricGroup metricGroup) {
         this.config = config;
+        this.metrics = metricGroup;
     }
 
     // ------------------------------------------------------------------------

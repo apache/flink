@@ -36,6 +36,7 @@ import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumStateSe
 import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumerator;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
+import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.reader.KafkaRecordEmitter;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
@@ -133,11 +134,16 @@ public class KafkaSource<OUT>
                         return readerContext.getUserCodeClassLoader();
                     }
                 });
+        final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
+                new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
         Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
                 () ->
                         new KafkaPartitionSplitReader<>(
-                                props, deserializationSchema, readerContext.getIndexOfSubtask());
+                                props,
+                                deserializationSchema,
+                                readerContext.getIndexOfSubtask(),
+                                kafkaSourceReaderMetrics);
         KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
 
         return new KafkaSourceReader<>(
@@ -145,7 +151,8 @@ public class KafkaSource<OUT>
                 splitReaderSupplier,
                 recordEmitter,
                 toConfiguration(props),
-                readerContext);
+                readerContext,
+                kafkaSourceReaderMetrics);
     }
 
     @Override

@@ -705,7 +705,6 @@ public class HiveCatalog extends AbstractCatalog {
             Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
             boolean isHiveTable;
             if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-                // check is_generic to be backward compatible
                 isHiveTable =
                         !Boolean.parseBoolean(
                                 table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));
@@ -771,7 +770,6 @@ public class HiveCatalog extends AbstractCatalog {
             properties = retrieveFlinkProperties(properties);
             DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
             tableSchemaProps.putProperties(properties);
-            ObjectPath tablePath = new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName());
             // try to get table schema with both new and old (1.10) key, in order to support tables
             // created in old version
             tableSchema =
@@ -781,11 +779,8 @@ public class HiveCatalog extends AbstractCatalog {
                                     () ->
                                             tableSchemaProps
                                                     .getOptionalTableSchema("generic.table.schema")
-                                                    .orElseThrow(
-                                                            () ->
-                                                                    new CatalogException(
-                                                                            "Failed to get table schema from properties for generic table "
-                                                                                    + tablePath)));
+                                                    .orElseGet(
+                                                            () -> TableSchema.builder().build()));
             partitionKeys = tableSchemaProps.getPartitionKeys();
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
@@ -1762,7 +1757,6 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
-        Map<String, String> params = hiveDB.getParameters();
         Map<String, String> newParams = newDatabase.getProperties();
         String opStr = newParams.remove(ALTER_DATABASE_OP);
         if (opStr == null) {
@@ -1774,11 +1768,7 @@ public class HiveCatalog extends AbstractCatalog {
                 SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
         switch (op) {
             case CHANGE_PROPS:
-                if (params == null) {
-                    hiveDB.setParameters(newParams);
-                } else {
-                    params.putAll(newParams);
-                }
+                hiveDB.setParameters(newParams);
                 break;
             case CHANGE_LOCATION:
                 hiveDB.setLocationUri(newLocation);
