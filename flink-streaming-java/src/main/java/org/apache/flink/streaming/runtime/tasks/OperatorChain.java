@@ -135,6 +135,8 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     protected final Closer closer = Closer.create();
 
+    protected final @Nullable FinishedOnRestoreInput finishedOnRestoreInput;
+
     protected boolean isClosed;
 
     public OperatorChain(
@@ -162,6 +164,11 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap =
                 new HashMap<>(outEdgesInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
+        this.finishedOnRestoreInput =
+                this.isFinishedOnRestore()
+                        ? new FinishedOnRestoreInput(
+                                streamOutputs, configuration.getInputs(userCodeClassloader).length)
+                        : null;
 
         // from here on, we need to make sure that the output writers are shut down again on failure
         boolean success = false;
@@ -253,6 +260,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput,
             StreamOperatorWrapper<OUT, OP> mainOperatorWrapper) {
         this.streamOutputs = streamOutputs;
+        this.finishedOnRestoreInput = null;
         this.mainOperatorOutput = checkNotNull(mainOperatorOutput);
         this.operatorEventDispatcher = null;
 
@@ -347,6 +355,10 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return reverse
                 ? new StreamOperatorWrapper.ReadIterator(tailOperatorWrapper, true)
                 : new StreamOperatorWrapper.ReadIterator(mainOperatorWrapper, false);
+    }
+
+    public Input getFinishedOnRestoreInputOrDefault(Input defaultInput) {
+        return finishedOnRestoreInput == null ? defaultInput : finishedOnRestoreInput;
     }
 
     public int getNumberOfOperators() {
@@ -535,7 +547,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                             containingTask,
                             sourceInputConfig,
                             userCodeClassloader,
-                            operatorInputs.get(inputId),
+                            getFinishedOnRestoreInputOrDefault(operatorInputs.get(inputId)),
                             (OperatorMetricGroup) multipleInputOperator.getMetricGroup(),
                             outputTag);
 

@@ -199,7 +199,8 @@ public class StreamMultipleInputProcessorFactory {
             if (configuredInput instanceof StreamConfig.NetworkInputConfig) {
                 StreamTaskNetworkOutput dataOutput =
                         new StreamTaskNetworkOutput<>(
-                                operatorInputs.get(i),
+                                operatorChain.getFinishedOnRestoreInputOrDefault(
+                                        operatorInputs.get(i)),
                                 inputWatermarkGauges[i],
                                 mainOperatorRecordsIn,
                                 networkRecordsIn);
@@ -289,7 +290,7 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+        public void emitStreamStatus(StreamStatus streamStatus) {
             chainedOutput.emitStreamStatus(streamStatus);
         }
     }

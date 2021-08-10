@@ -1024,8 +1024,12 @@ public class MultipleInputStreamTaskTest {
                         .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                         .build()) {
 
+            testHarness.processElement(Watermark.MAX_WATERMARK, 0);
+            testHarness.processElement(Watermark.MAX_WATERMARK, 1);
+            testHarness.processElement(Watermark.MAX_WATERMARK, 2);
             testHarness.waitForTaskCompletion();
-            assertThat(testHarness.getOutput(), contains(EndOfData.INSTANCE));
+            assertThat(
+                    testHarness.getOutput(), contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
         }
     }
 

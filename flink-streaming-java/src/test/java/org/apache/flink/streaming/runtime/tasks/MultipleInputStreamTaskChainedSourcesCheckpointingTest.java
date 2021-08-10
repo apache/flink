@@ -58,7 +58,6 @@ import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -454,7 +453,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
-    @Ignore("Enable after fixing emitting watermarks in FLINK-23698")
     @Test
     public void testSkipExecutionsIfFinishedOnRestoreWithSourceChained() throws Exception {
         OperatorID firstSourceOperatorId = new OperatorID();
