@@ -62,7 +62,7 @@ findFlinkDistJar() {
 # "cygpath" can do the conversion.
 manglePath() {
     UNAME=$(uname -s)
-    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
+    if [ "${UNAME:0:6}" == "CYGWIN" ] || [ "$OSTYPE" = "msys" ]; then
         echo `cygpath -w "$1"`
     else
         echo $1
@@ -72,7 +72,7 @@ manglePath() {
 manglePathList() {
     UNAME=$(uname -s)
     # a path list, for example a java classpath
-    if [ "${UNAME:0:6}" == "CYGWIN" ]; then
+    if [ "${UNAME:0:6}" == "CYGWIN" ] || [ "$OSTYPE" = "msys" ]; then
         echo `cygpath -wp "$1"`
     else
         echo $1
