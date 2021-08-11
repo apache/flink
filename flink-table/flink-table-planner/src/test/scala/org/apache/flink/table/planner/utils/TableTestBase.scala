@@ -1125,9 +1125,7 @@ abstract class JavaTableTestUtil(
   // java env
   val env = new LocalStreamEnvironment()
   // java tableEnv
-  // use impl class instead of interface class to avoid
-  // "Static methods in interface require -target:jvm-1.8"
-  val tableEnv: JavaStreamTableEnv = JavaStreamTableEnvImpl.create(env, setting, new TableConfig)
+  val tableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
 

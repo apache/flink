@@ -461,13 +461,6 @@ object StreamTableEnvironmentImpl {
       tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
 
-    tableConfig.addConfiguration(settings.toConfiguration)
-
-    if (!settings.isStreamingMode) {
-      throw new TableException(
-        "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.")
-    }
-
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
 

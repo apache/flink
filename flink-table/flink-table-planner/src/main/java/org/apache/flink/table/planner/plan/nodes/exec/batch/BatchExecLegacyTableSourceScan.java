@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -57,6 +58,15 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
             RowType outputType,
             String description) {
         super(tableSource, qualifiedName, outputType, description);
+    }
+
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+        // the boundedness has been checked via the stream table source already, so we can safely
+        // declare all legacy transformations as bounded to make the stream graph generator happy
+        ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
+        return transformation;
     }
 
     @SuppressWarnings("unchecked")
@@ -98,7 +108,7 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
         // paths. If read partitioned source, after partition pruning, we need let InputFormat
         // to read multiple partitions which are multiple paths.
         // We can use InputFormatSourceFunction directly to support InputFormat.
-        InputFormatSourceFunction<IN> function =
+        final InputFormatSourceFunction<IN> function =
                 new InputFormatSourceFunction<>(inputFormat, typeInfo);
         return env.addSource(function, tableSource.explainSource(), typeInfo).getTransformation();
     }

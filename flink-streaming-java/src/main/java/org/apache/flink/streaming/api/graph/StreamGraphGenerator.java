@@ -173,8 +173,6 @@ public class StreamGraphGenerator {
 
     private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
-    private RuntimeExecutionMode runtimeExecutionMode = RuntimeExecutionMode.STREAMING;
-
     private boolean shouldExecuteInBatchMode;
 
     @SuppressWarnings("rawtypes")
@@ -243,12 +241,6 @@ public class StreamGraphGenerator {
         this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
-    public StreamGraphGenerator setRuntimeExecutionMode(
-            final RuntimeExecutionMode runtimeExecutionMode) {
-        this.runtimeExecutionMode = checkNotNull(runtimeExecutionMode);
-        return this;
-    }
-
     public StreamGraphGenerator setSavepointDir(Path savepointDir) {
         this.savepointDir = savepointDir;
         return this;
@@ -314,7 +306,7 @@ public class StreamGraphGenerator {
         streamGraph.setEnableCheckpointsAfterTasksFinish(
                 configuration.get(
                         ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
-        shouldExecuteInBatchMode = shouldExecuteInBatchMode(runtimeExecutionMode);
+        shouldExecuteInBatchMode = shouldExecuteInBatchMode();
         configureStreamGraph(streamGraph);
 
         alreadyTransformed = new HashMap<>();
@@ -460,7 +452,10 @@ public class StreamGraphGenerator {
         }
     }
 
-    private boolean shouldExecuteInBatchMode(final RuntimeExecutionMode configuredMode) {
+    private boolean shouldExecuteInBatchMode() {
+        final RuntimeExecutionMode configuredMode =
+                configuration.get(ExecutionOptions.RUNTIME_MODE);
+
         final boolean existsUnboundedSource = existsUnboundedSource();
 
         checkState(
