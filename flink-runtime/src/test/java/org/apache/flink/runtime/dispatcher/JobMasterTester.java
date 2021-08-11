@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -117,8 +116,6 @@ public class JobMasterTester implements Closeable {
     private final JobMasterGateway jobMasterGateway;
     private final TaskExecutorGateway taskExecutorGateway;
 
-    private final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture;
-
     private final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
             new CompletableFuture<>();
 
@@ -131,7 +128,6 @@ public class JobMasterTester implements Closeable {
         this.jobId = jobId;
         this.jobMasterGateway = jobMasterGateway;
         this.taskExecutorGateway = createTaskExecutorGateway();
-        executionGraphInfoFuture = jobMasterGateway.requestJob(TIMEOUT);
     }
 
     public CompletableFuture<Acknowledge> transitionTo(
@@ -239,21 +235,23 @@ public class JobMasterTester implements Closeable {
 
     private CompletableFuture<Acknowledge> onSubmitTaskConsumer(
             TaskDeploymentDescriptor taskDeploymentDescriptor, JobMasterId jobMasterId) {
-        return executionGraphInfoFuture.thenCompose(
-                executionGraphInfo -> {
-                    final int numVertices =
-                            Iterables.size(
-                                    executionGraphInfo
-                                            .getArchivedExecutionGraph()
-                                            .getAllExecutionVertices());
-                    descriptors.put(
-                            taskDeploymentDescriptor.getExecutionAttemptId(),
-                            taskDeploymentDescriptor);
-                    if (descriptors.size() == numVertices) {
-                        descriptorsFuture.complete(new ArrayList<>(descriptors.values()));
-                    }
-                    return CompletableFuture.completedFuture(Acknowledge.get());
-                });
+        return jobMasterGateway
+                .requestJob(TIMEOUT)
+                .thenCompose(
+                        executionGraphInfo -> {
+                            final int numVertices =
+                                    Iterables.size(
+                                            executionGraphInfo
+                                                    .getArchivedExecutionGraph()
+                                                    .getAllExecutionVertices());
+                            descriptors.put(
+                                    taskDeploymentDescriptor.getExecutionAttemptId(),
+                                    taskDeploymentDescriptor);
+                            if (descriptors.size() == numVertices) {
+                                descriptorsFuture.complete(new ArrayList<>(descriptors.values()));
+                            }
+                            return CompletableFuture.completedFuture(Acknowledge.get());
+                        });
     }
 
     private CompletableFuture<Acknowledge> completeAttemptCheckpoint(

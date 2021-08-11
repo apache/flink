@@ -19,7 +19,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
@@ -63,8 +62,6 @@ import static org.junit.Assert.assertTrue;
 
 /** An integration test for various fail-over scenarios of the {@link Dispatcher} component. */
 public class DispatcherFailoverITCase extends AbstractDispatcherTest {
-
-    private static final Time TIMEOUT = Time.seconds(1);
 
     private final BlockingQueue<RpcEndpoint> toTerminate = new LinkedBlockingQueue<>();
 
@@ -134,18 +131,19 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
 
         // Run vertices, checkpoint and finish.
         final JobMasterGateway jobMasterGateway =
                 connectToLeadingJobMaster(leaderElectionService).get();
         try (final JobMasterTester tester =
                 new JobMasterTester(rpcService, jobId, jobMasterGateway)) {
-            final List<TaskDeploymentDescriptor> descriptors = tester.deployVertices(2).get();
-            tester.transitionTo(descriptors, ExecutionState.INITIALIZING).get();
-            tester.transitionTo(descriptors, ExecutionState.RUNNING).get();
+            final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
+                    tester.deployVertices(2);
+            awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
+            tester.transitionTo(descriptorsFuture.get(), ExecutionState.INITIALIZING).get();
+            tester.transitionTo(descriptorsFuture.get(), ExecutionState.RUNNING).get();
             tester.getCheckpointFuture(1L).get();
-            tester.transitionTo(descriptors, ExecutionState.FINISHED).get();
+            tester.transitionTo(descriptorsFuture.get(), ExecutionState.FINISHED).get();
         }
         awaitStatus(dispatcherGateway, jobId, JobStatus.FINISHED);
         jobGraphRemovalErrorReceived.await();
@@ -161,18 +159,18 @@ public class DispatcherFailoverITCase extends AbstractDispatcherTest {
         toTerminate.add(secondDispatcher);
         final DispatcherGateway secondDispatcherGateway =
                 secondDispatcher.getSelfGateway(DispatcherGateway.class);
-        UUID uuid = UUID.randomUUID();
-        leaderElectionService.isLeader(uuid);
-        awaitStatus(secondDispatcherGateway, jobId, JobStatus.RUNNING);
+        leaderElectionService.isLeader(UUID.randomUUID());
 
         // Now make sure that restored job started from checkpoint.
         final JobMasterGateway secondJobMasterGateway =
                 connectToLeadingJobMaster(leaderElectionService).get();
         try (final JobMasterTester tester =
                 new JobMasterTester(rpcService, jobId, secondJobMasterGateway)) {
-            final List<TaskDeploymentDescriptor> descriptors = tester.deployVertices(2).get();
+            final CompletableFuture<List<TaskDeploymentDescriptor>> descriptorsFuture =
+                    tester.deployVertices(2);
+            awaitStatus(secondDispatcherGateway, jobId, JobStatus.RUNNING);
             final Optional<JobManagerTaskRestore> maybeRestore =
-                    descriptors.stream()
+                    descriptorsFuture.get().stream()
                             .map(TaskDeploymentDescriptor::getTaskRestore)
                             .filter(Objects::nonNull)
                             .findAny();
