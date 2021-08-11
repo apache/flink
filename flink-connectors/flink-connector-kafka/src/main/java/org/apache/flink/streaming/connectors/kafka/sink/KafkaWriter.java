@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricMutableWrapper;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
@@ -106,11 +107,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         this.kafkaProducerConfig = checkNotNull(kafkaProducerConfig, "kafkaProducerConfig");
         this.transactionalIdPrefix = checkNotNull(transactionalIdPrefix, "transactionalIdPrefix");
         this.recordSerializer = checkNotNull(recordSerializer, "recordSerializer");
-        try {
-            recordSerializer.open(schemaContext);
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot initialize schema.", e);
-        }
         this.deliveryCallback =
                 (metadata, exception) -> {
                     if (exception != null && producerAsyncException == null) {
@@ -125,6 +121,11 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                         sinkInitContext.getSubtaskId(),
                         sinkInitContext.getNumberOfParallelSubtasks(),
                         kafkaProducerConfig);
+        try {
+            recordSerializer.open(schemaContext, kafkaSinkContext);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Cannot initialize schema.", e);
+        }
         this.kafkaWriterState =
                 recoverAndInitializeState(checkNotNull(recoveredStates, "recoveredStates"));
         this.currentProducer = beginTransaction();
