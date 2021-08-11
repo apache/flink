@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 
 import java.util.Queue;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertTrue;
@@ -113,6 +114,13 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
     private void maybeProcess() throws Exception {
         if (autoProcess) {
+            processAll();
+        }
+    }
+
+    /** Process until {@code condition} is met. */
+    public void processUntil(Supplier<Boolean> condition) throws Exception {
+        while (!condition.get()) {
             processAll();
         }
     }
