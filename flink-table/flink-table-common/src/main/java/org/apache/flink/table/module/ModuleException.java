@@ -16,28 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.catalog.exceptions;
+package org.apache.flink.table.module;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/** A catalog-related, runtime exception. */
+/** Exception related to modules. */
 @PublicEvolving
-public class CatalogException extends RuntimeException {
-    /** @param message the detail message. */
-    public CatalogException(String message) {
+public class ModuleException extends RuntimeException {
+    /** Creates a new {@link ModuleException}. */
+    public ModuleException(String message) {
         super(message);
     }
 
-    /** @param cause the cause. */
-    public CatalogException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * @param message the detail message.
-     * @param cause the cause.
-     */
-    public CatalogException(String message, Throwable cause) {
-        super(message, cause);
+    /** Creates a new {@link ModuleException}. */
+    public ModuleException(String message, Throwable throwable) {
+        super(message, throwable);
     }
 }

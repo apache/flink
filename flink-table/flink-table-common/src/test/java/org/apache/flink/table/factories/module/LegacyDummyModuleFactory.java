@@ -16,38 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.module;
+package org.apache.flink.table.factories.module;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.ModuleFactory;
+import org.apache.flink.table.module.CommonModuleOptions;
+import org.apache.flink.table.module.Module;
 
 import java.util.Collections;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
-/** Factory for {@link CoreModule}. */
-@Internal
-public class CoreModuleFactory implements ModuleFactory {
+/** Test implementation of a {@link ModuleFactory} using the legacy stack. */
+@Deprecated
+public class LegacyDummyModuleFactory implements ModuleFactory {
 
-    public static final String IDENTIFIER = "core";
+    public static final String IDENTIFIER = "LegacyModule";
 
     @Override
-    public String factoryIdentifier() {
-        return IDENTIFIER;
+    public Map<String, String> requiredContext() {
+        return Collections.singletonMap(CommonModuleOptions.MODULE_TYPE.key(), IDENTIFIER);
     }
 
     @Override
-    public Set<ConfigOption<?>> requiredOptions() {
-        return Collections.emptySet();
+    public List<String> supportedProperties() {
+        return Collections.emptyList();
     }
 
     @Override
-    public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
-    }
-
-    @Override
-    public Module createModule(Context context) {
-        return CoreModule.INSTANCE;
+    public Module createModule(Map<String, String> options) {
+        return new Module() {};
     }
 }

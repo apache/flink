@@ -16,20 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.module.hive;
+package org.apache.flink.table.module;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.factories.Factory;
 
-/** Validator for {@link HiveModuleDescriptor}. */
-public class HiveModuleDescriptorValidator extends ModuleDescriptorValidator {
-    public static final String MODULE_TYPE_HIVE = "hive";
-    public static final String MODULE_HIVE_VERSION = "hive-version";
+/** A collection of {@link ConfigOption} which are consistently used in multiple modules. */
+@Internal
+public class CommonModuleOptions {
 
-    @Override
-    public void validate(DescriptorProperties properties) {
-        super.validate(properties);
-        properties.validateValue(MODULE_TYPE, MODULE_TYPE_HIVE, false);
-        properties.validateString(MODULE_HIVE_VERSION, true, 1);
-    }
+    /**
+     * {@link ConfigOption} which is used during module discovery to match it against {@link
+     * Factory#factoryIdentifier()}.
+     *
+     * @deprecated This is only required for the legacy factory stack
+     */
+    @Deprecated
+    public static final ConfigOption<String> MODULE_TYPE =
+            ConfigOptions.key("type").stringType().noDefaultValue();
 }

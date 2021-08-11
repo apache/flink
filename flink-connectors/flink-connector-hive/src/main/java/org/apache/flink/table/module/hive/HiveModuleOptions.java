@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.module.hive;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 
-/** Validator for {@link ModuleDescriptor}. */
-@Internal
-@Deprecated
-public abstract class ModuleDescriptorValidator implements DescriptorValidator {
+/** Configuration options for the Hive module. */
+@PublicEvolving
+public class HiveModuleOptions {
 
-    /** Key for describing the type of the module. Used for factory discovery. */
-    public static final String MODULE_TYPE = "type";
+    public static final ConfigOption<String> HIVE_VERSION =
+            ConfigOptions.key("hive-version").stringType().noDefaultValue();
 
-    @Override
-    public void validate(DescriptorProperties properties) {
-        properties.validateString(MODULE_TYPE, false, 1);
-    }
+    private HiveModuleOptions() {}
 }
