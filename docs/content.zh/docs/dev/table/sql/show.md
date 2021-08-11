@@ -36,11 +36,12 @@ SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有�
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
-- SHOW CREATE TABLE 
+- SHOW CREATE TABLE
 - SHOW VIEWS
 - SHOW FUNCTIONS
 - SHOW MODULES
 - SHOW FULL MODULES
+- SHOW JARS
 
 
 ## 执行 SHOW 语句
@@ -411,6 +412,8 @@ Flink SQL> SHOW FULL MODULES;
 +-------------+------+
 1 row in set
 
+Flink SQL> SHOW JARS;
+/path/to/addedJar.jar
 
 ```
 {{< /tab >}}
@@ -497,5 +500,15 @@ SHOW [FULL] MODULES
 
 **FULL**
 展示当前环境加载的所有 module 及激活状态。
+
+## SHOW JARS
+
+```sql
+SHOW JARS
+```
+
+展示所有被加入到 session classloader 中的 jar。
+
+<span class="label label-danger">Attention</span> 当前 SHOW JARS 命令只能在 SQL CLI 中使用。
 
 {{< top >}}
