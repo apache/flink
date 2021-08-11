@@ -35,7 +35,7 @@ under the License.
 
 ### 介绍
 
-本页面描述了如何使用 Flink [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 部署模式在 Kubernetes 上部署 standalone 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}) 模式在 Kubernetes上部署 Flink。
+本页面描述了如何使用 Flink standalone 部署模式在 Kubernetes 上部署 [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}) 模式在 Kubernetes上部署 Flink。
 
 ### 准备
 
