@@ -31,7 +31,7 @@ under the License.
 
 ## 入门
 
-本 *入门* 指南描述了如何在 Kubernetes 上部署 *Flink Seesion 集群*。
+本 *入门* 指南描述了如何在 [Kubernetes](https://kubernetes.io) 上部署 *Flink Seesion 集群*。
 
 ### 介绍
 
