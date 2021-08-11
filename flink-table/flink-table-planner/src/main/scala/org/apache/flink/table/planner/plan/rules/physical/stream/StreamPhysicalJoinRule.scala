@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil.{accessesTimeAttribute, combineJoinInputsRowType, satisfyRegularJoin}
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{containsInitialTemporalJoinCondition}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.containsInitialTemporalJoinCondition
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -58,21 +58,15 @@ class StreamPhysicalJoinRule
     // to regular join
     checkState(!containsInitialTemporalJoinCondition(join.getCondition))
 
-    val rowTimeAttrInOutput = join.getRowType.getFieldList
-      .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-    if (rowTimeAttrInOutput) {
-      throw new TableException(
-        "Rowtime attributes must not be in the input rows of a regular join. " +
-          "As a workaround you can cast the time attributes of input tables to TIMESTAMP before.")
-    }
+    // Time attributes must not be in the output type of a regular join
+    val timeAttrInOutput = join.getRowType.getFieldList
+      .exists(f => FlinkTypeFactory.isTimeIndicatorType(f.getType))
+    checkState(!timeAttrInOutput)
 
-    // join condition must not access time attributes
+    // Join condition must not access time attributes
     val remainingPredsAccessTime = accessesTimeAttribute(
       join.getCondition, combineJoinInputsRowType(join))
-    if (remainingPredsAccessTime) {
-      throw new TableException(
-        "Time attributes must not be in the join condition of a regular join.")
-    }
+    checkState(!remainingPredsAccessTime)
     true
   }
 
