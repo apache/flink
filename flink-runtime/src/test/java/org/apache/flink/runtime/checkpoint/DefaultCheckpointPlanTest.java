@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalcu
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.ClassRule;
@@ -179,6 +180,38 @@ public class DefaultCheckpointPlanTest {
         OperatorState operatorState = operatorStates.get(partiallyFinishedOperatorId);
         assertFalse(operatorState.isFullyFinished());
         assertTrue(operatorState.getState(0).isFinished());
+    }
+
+    @Test
+    public void testFulfillFullyFinishedStatesWithCoordinator() throws Exception {
+        JobVertexID finishedJobVertexID = new JobVertexID();
+        OperatorID finishedOperatorID = new OperatorID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(
+                                finishedJobVertexID,
+                                1,
+                                256,
+                                Collections.singletonList(
+                                        OperatorIDPair.generatedIDOnly(finishedOperatorID)),
+                                true)
+                        .build();
+        executionGraph
+                .getJobVertex(finishedJobVertexID)
+                .getTaskVertices()[0]
+                .getCurrentExecutionAttempt()
+                .markFinished();
+        CheckpointPlan checkpointPlan = createCheckpointPlan(executionGraph);
+
+        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        OperatorState operatorState = new OperatorState(finishedOperatorID, 1, 256);
+        operatorState.setCoordinatorState(new TestingStreamStateHandle());
+        operatorStates.put(finishedOperatorID, operatorState);
+
+        checkpointPlan.fulfillFinishedTaskStatus(operatorStates);
+        assertEquals(1, operatorStates.size());
+        assertTrue(operatorStates.get(finishedOperatorID).isFullyFinished());
     }
 
     private CheckpointPlan createCheckpointPlan(ExecutionGraph executionGraph) throws Exception {
