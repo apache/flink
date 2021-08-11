@@ -41,24 +41,24 @@ Flink 中的日志记录是使用 [SLF4J](http://www.slf4j.org/) 日志接口实
 
 ## 配置 Log4j2
 
-Log4j2 是使用配置文件进行配置的。
+Log4j2 是通过 property 配置文件进行配置的。
 
-Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果启用了 Log4j 2，则会自动使用这些文件：
+Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果启用了 Log4j 2，则会自动使用如下文件：
 
-- `log4j-cli.properties`：Flink 命令行客户端使用（例如 `flink run`）；
-- `log4j-session.properties`：Flink 命令行客户端在开启 YARN 会话 或 Kubernetes 会话时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
+- `log4j-cli.properties`：Flink 命令行端使用（例如 `flink run`）；
+- `log4j-session.properties`：Flink 命令行端在启动基于 Yarn 或 Kubernetes 的 Session 集群时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
 - `log4j-console.properties`：JobManager/Taskmanagers 在前端模式运行时使用（例如 Kubernetes）；
-- `log4j.properties`： JobManager/TaskManager 默认情况下使用的日志配置。
+- `log4j.properties`： JobManager/TaskManager 默认使用的日志配置。
 
-Log4j 会定期扫描此文件以进行更改，并在必要时调整日志记录行为。默认情况下每30秒检查一次，监测间隔是通过 Log4j 配置文件的 `monitorInterval` 配置项进行设置的。
+Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录行为。默认情况下30秒检查一次，监测间隔可以通过 Log4j 配置文件的 `monitorInterval` 配置项进行设置。
 
 <a name="compatibility-with-log4j1"> </a>
 
-### 与 Log4j1 的兼容性
+### 适配 Log4j1
 
-Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html)，使得当前基于 Log4j1 开发的应用程序可以继续正常运行。
+Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html) 相关的依赖，使当前基于 Log4j1 开发的应用程序可以继续正常运行。
 
-如果你有基于 Log4j 的自定义配置文件或代码，请查看官方 Log4j [兼容性](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html) 指南。
+如果有基于 Log4j 的自定义配置文件或代码，请查看官方 Log4j [适配](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
 
 <a name="configuring-log4j1"> </a>
 
@@ -68,12 +68,12 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-core`、`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`；
 - 且 Classpath 中存在 `log4j:log4j`、`org.slf4j:slf4j-log4j12`、`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
 
-在 IDE 中使用 Log4j1 ，你必须在 pom 文件中使用上述 `Classpath 中存在的 jars` 依赖项替换 `Classpath 中不存在的 jars` 依赖项，并尽可能在传递依赖于 `Classpath 中不存在的 jars` 的依赖项上添加排除 `Classpath 中不存在的 jars` 配置。
+在 IDE 中使用 Log4j1 ，必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换  Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须：
 - 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars；
-- 向 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars；
-- 用兼容的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
+- 往 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars；
+- 用适配的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
 
 <a name="configuring-logback"> </a>
 
@@ -84,18 +84,18 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j-impl`；
 - Classpath 中存在 `ch.qos.logback:logback-core` 和 `ch.qos.logback:logback-classic`。
 
-在 IDE 中使用 logback ，你必须在 pom 文件中使用上述 `Classpath 中存在的 jars` 依赖项替换 `Classpath 中不存在的 jars` 依赖项，并尽可能在传递依赖于 `Classpath 中不存在的 jars` 的依赖项上添加排除 `Classpath 中不存在的 jars` 配置。
+在 IDE 中使用 logback ，必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换  Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须：
 
-- 从 `lib` 目录中移除 `log4j-slf4j-impl` 和 `log4j-1.2-api` jars；
+- 从 `lib` 目录中移除 `log4j-slf4j-impl`  jars；
 - 向 `lib` 目录中添加 `logback-core` 和 `logback-classic` jars。
 
 Flink 发行版在 `conf` 目录中附带了以下 logback 配置文件，如果启用了 logback，则会自动使用这些文件：
 
-- `logback-session.properties`: Flink 命令行客户端在开启 YARN 会话 或 Kubernetes 会话时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
-- `logback-console.properties`: JobManager/Taskmanagers 在前端模式运行时使用（例如 Kubernetes）；
-- `logback.xml`: 命令行客户端和JobManager/TaskManager 在默认情况下使用的日志配置。
+- `logback-session.properties`: Flink 命令行端在启动基于 Yarn 或 Kubernetes 的 Session 集群时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
+- `logback-console.properties`：JobManager/Taskmanagers 在前端模式运行时使用（例如 Kubernetes）；
+- `logback.xml`: 命令行端和 JobManager/TaskManager 默认使用的日志配置。
 
 {{< hint warning >}}
 
