@@ -42,8 +42,11 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
      * additional features such as e.g. registering user metrics.
      *
      * @param context Contextual information that can be used during initialization.
+     * @param sinkContext runtime information i.e. partitions, subtaskId
      */
-    default void open(SerializationSchema.InitializationContext context) throws Exception {}
+    default void open(
+            SerializationSchema.InitializationContext context, KafkaSinkContext sinkContext)
+            throws Exception {}
 
     /**
      * Serializes given element and returns it as a {@link ProducerRecord}.
