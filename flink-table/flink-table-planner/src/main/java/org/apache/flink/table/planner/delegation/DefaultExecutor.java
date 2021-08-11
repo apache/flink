@@ -34,6 +34,8 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.planner.utils.ExecutorUtils;
 import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /** Default implementation of {@link Executor}. */
@@ -60,18 +62,18 @@ public class DefaultExecutor implements Executor {
     @Override
     public Pipeline createPipeline(
             List<Transformation<?>> transformations,
-            ReadableConfig configuration,
-            String defaultJobName) {
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName) {
 
         // reconfigure before a stream graph is generated
-        executionEnvironment.configure(configuration);
+        executionEnvironment.configure(tableConfiguration);
 
         // create stream graph
-        final RuntimeExecutionMode mode = configuration.get(ExecutionOptions.RUNTIME_MODE);
+        final RuntimeExecutionMode mode = tableConfiguration.get(ExecutionOptions.RUNTIME_MODE);
         final StreamGraph graph;
         switch (mode) {
             case BATCH:
-                graph = createBatchGraph(transformations, configuration);
+                graph = createBatchGraph(transformations, tableConfiguration);
                 break;
             case STREAMING:
                 graph = createStreamingGraph(transformations);
@@ -95,11 +97,11 @@ public class DefaultExecutor implements Executor {
     }
 
     private StreamGraph createBatchGraph(
-            List<Transformation<?>> transformations, ReadableConfig configuration) {
+            List<Transformation<?>> transformations, ReadableConfig tableConfiguration) {
         ExecutorUtils.setBatchProperties(executionEnvironment);
         StreamGraph graph =
                 ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
-        ExecutorUtils.setBatchProperties(graph, configuration);
+        ExecutorUtils.setBatchProperties(graph, tableConfiguration);
         return graph;
     }
 
@@ -107,7 +109,7 @@ public class DefaultExecutor implements Executor {
         return ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
     }
 
-    private void setJobName(StreamGraph streamGraph, String defaultJobName) {
+    private void setJobName(StreamGraph streamGraph, @Nullable String defaultJobName) {
         final String adjustedDefaultJobName =
                 StringUtils.isNullOrWhitespaceOnly(defaultJobName)
                         ? DEFAULT_JOB_NAME
