@@ -116,7 +116,7 @@ final class ExternalDynamicSource<E>
                         null, // will be filled by the framework
                         externalTransformation.getParallelism());
 
-        return TransformationScanProvider.of(conversionTransformation, false);
+        return TransformationScanProvider.of(conversionTransformation);
     }
 
     private String generateOperatorName() {

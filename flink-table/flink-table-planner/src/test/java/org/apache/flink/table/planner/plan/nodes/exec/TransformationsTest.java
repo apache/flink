@@ -27,6 +27,9 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -77,6 +80,46 @@ public class TransformationsTest extends TableTestBase {
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
         assertTrue(sourceTransform.getOperator().emitsProgressiveWatermarks());
+    }
+
+    @Test
+    public void testStreamTransformationScanProvider() {
+        final JavaStreamTableTestUtil util = javaStreamTestUtil();
+        final StreamTableEnvironment env = util.tableEnv();
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "false")
+                                .schema(dummySchema())
+                                .build());
+
+        final Transformation<RowData> transformation =
+                env.toChangelogStream(table)
+                        .<RowData>map(r -> new GenericRowData(0))
+                        .getTransformation();
+
+        assertFalse(TransformationScanProvider.of(transformation).isBounded());
+    }
+
+    @Test
+    public void testBatchTransformationScanProvider() {
+        final JavaStreamTableTestUtil util = javaStreamTestUtil();
+        final StreamTableEnvironment env = util.tableEnv();
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "true")
+                                .schema(dummySchema())
+                                .build());
+
+        final Transformation<RowData> transformation =
+                env.toChangelogStream(table)
+                        .<RowData>map(r -> new GenericRowData(0))
+                        .getTransformation();
+
+        assertTrue(TransformationScanProvider.of(transformation).isBounded());
     }
 
     // --------------------------------------------------------------------------------------------
