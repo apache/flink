@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexLiteral;
@@ -32,5 +35,14 @@ public class BatchExecValues extends CommonExecValues implements BatchExecNode<R
 
     public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
         super(tuples, getNewNodeId(), outputType, description);
+    }
+
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+        // we know the boundedness here, so we can safely declare all legacy transformations as
+        // bounded to make the stream graph generator happy
+        ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
+        return transformation;
     }
 }

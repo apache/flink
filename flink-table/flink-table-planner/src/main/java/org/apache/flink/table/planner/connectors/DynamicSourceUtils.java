@@ -76,7 +76,7 @@ public final class DynamicSourceUtils {
      * necessary.
      */
     public static RelNode convertDataStreamToRel(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
@@ -91,7 +91,7 @@ public final class DynamicSourceUtils {
                 new ExternalDynamicSource<>(
                         identifier, dataStream, physicalDataType, isTopLevelRecord, changelogMode);
         return convertSourceToRel(
-                isStreamingMode,
+                isBatchMode,
                 config,
                 relBuilder,
                 identifier,
@@ -106,7 +106,7 @@ public final class DynamicSourceUtils {
      * if necessary.
      */
     public static RelNode convertSourceToRel(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
@@ -116,17 +116,11 @@ public final class DynamicSourceUtils {
             DynamicTableSource tableSource) {
 
         // 1. prepare table source
-        prepareDynamicSource(identifier, catalogTable, tableSource, isStreamingMode, config);
+        prepareDynamicSource(identifier, catalogTable, tableSource, isBatchMode, config);
 
         // 2. push table scan
         pushTableScan(
-                isStreamingMode,
-                relBuilder,
-                identifier,
-                catalogTable,
-                statistic,
-                hints,
-                tableSource);
+                isBatchMode, relBuilder, identifier, catalogTable, statistic, hints, tableSource);
 
         // 3. push project for non-physical columns
         final ResolvedSchema schema = catalogTable.getResolvedSchema();
@@ -136,7 +130,7 @@ public final class DynamicSourceUtils {
         }
 
         // 4. push watermark assigner
-        if (isStreamingMode && !schema.getWatermarkSpecs().isEmpty()) {
+        if (!isBatchMode && !schema.getWatermarkSpecs().isEmpty()) {
             pushWatermarkAssigner(relBuilder, schema);
         }
 
@@ -151,7 +145,7 @@ public final class DynamicSourceUtils {
             ObjectIdentifier sourceIdentifier,
             ResolvedCatalogTable table,
             DynamicTableSource source,
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config) {
         final ResolvedSchema schema = table.getResolvedSchema();
 
@@ -159,7 +153,7 @@ public final class DynamicSourceUtils {
 
         if (source instanceof ScanTableSource) {
             validateScanSource(
-                    sourceIdentifier, schema, (ScanTableSource) source, isStreamingMode, config);
+                    sourceIdentifier, schema, (ScanTableSource) source, isBatchMode, config);
         }
 
         // lookup table source is validated in LookupJoin node
@@ -328,7 +322,7 @@ public final class DynamicSourceUtils {
     }
 
     private static void pushTableScan(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
             ResolvedCatalogTable catalogTable,
@@ -347,7 +341,7 @@ public final class DynamicSourceUtils {
                         producedRelDataType,
                         statistic,
                         tableSource,
-                        isStreamingMode,
+                        !isBatchMode,
                         catalogTable,
                         new String[0],
                         new SourceAbilitySpec[0]);
@@ -447,7 +441,7 @@ public final class DynamicSourceUtils {
             ObjectIdentifier sourceIdentifier,
             ResolvedSchema schema,
             ScanTableSource scanSource,
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config) {
         final ScanRuntimeProvider provider =
                 scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -455,11 +449,11 @@ public final class DynamicSourceUtils {
 
         validateWatermarks(sourceIdentifier, schema);
 
-        if (isStreamingMode) {
+        if (isBatchMode) {
+            validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
+        } else {
             validateScanSourceForStreaming(
                     sourceIdentifier, schema, scanSource, changelogMode, config);
-        } else {
-            validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
         }
     }
 

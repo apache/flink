@@ -31,7 +31,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.planner.utils.ExecutorUtils;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -69,21 +68,21 @@ public class DefaultExecutor implements Executor {
         executionEnvironment.configure(tableConfiguration);
 
         // create stream graph
-        final RuntimeExecutionMode mode = tableConfiguration.get(ExecutionOptions.RUNTIME_MODE);
-        final StreamGraph graph;
+        final RuntimeExecutionMode mode = getConfiguration().get(ExecutionOptions.RUNTIME_MODE);
         switch (mode) {
             case BATCH:
-                graph = createBatchGraph(transformations, tableConfiguration);
+                configureBatchSpecificProperties();
                 break;
             case STREAMING:
-                graph = createStreamingGraph(transformations);
                 break;
             case AUTOMATIC:
             default:
                 throw new TableException(String.format("Unsupported runtime mode: %s", mode));
         }
-        setJobName(graph, defaultJobName);
-        return graph;
+
+        final StreamGraph streamGraph = executionEnvironment.generateStreamGraph(transformations);
+        setJobName(streamGraph, defaultJobName);
+        return streamGraph;
     }
 
     @Override
@@ -96,17 +95,8 @@ public class DefaultExecutor implements Executor {
         return executionEnvironment.executeAsync((StreamGraph) pipeline);
     }
 
-    private StreamGraph createBatchGraph(
-            List<Transformation<?>> transformations, ReadableConfig tableConfiguration) {
-        ExecutorUtils.setBatchProperties(executionEnvironment);
-        StreamGraph graph =
-                ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
-        ExecutorUtils.setBatchProperties(graph, tableConfiguration);
-        return graph;
-    }
-
-    private StreamGraph createStreamingGraph(List<Transformation<?>> transformations) {
-        return ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
+    private void configureBatchSpecificProperties() {
+        executionEnvironment.getConfig().enableObjectReuse();
     }
 
     private void setJobName(StreamGraph streamGraph, @Nullable String defaultJobName) {

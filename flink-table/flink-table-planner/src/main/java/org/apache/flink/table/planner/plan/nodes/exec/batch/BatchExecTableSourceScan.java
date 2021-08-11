@@ -24,9 +24,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -43,6 +45,15 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
     }
 
     @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+        // the boundedness has been checked via the runtime provider already, so we can safely
+        // declare all legacy transformations as bounded to make the stream graph generator happy
+        ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
+        return transformation;
+    }
+
+    @Override
     public Transformation<RowData> createInputFormatTransformation(
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
@@ -54,7 +65,6 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         // We can use InputFormatSourceFunction directly to support InputFormat.
         final InputFormatSourceFunction<RowData> function =
                 new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
-        return createSourceFunctionTransformation(
-                env, function, true, operatorName, outputTypeInfo);
+        return env.addSource(function, operatorName, outputTypeInfo).getTransformation();
     }
 }

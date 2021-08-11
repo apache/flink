@@ -2112,10 +2112,10 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
+     * Getter of the {@link StreamGraph} of the streaming job. This call clears previously
+     * registered {@link Transformation transformations}.
      *
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
     public StreamGraph getStreamGraph() {
@@ -2123,33 +2123,44 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph StreamGraph} of the
-     * streaming job with the option to clear previously registered {@link Transformation
-     * transformations}. Clearing the transformations allows, for example, to not re-execute the
-     * same operations when calling {@link #execute()} multiple times.
+     * Getter of the {@link StreamGraph} of the streaming job with the option to clear previously
+     * registered {@link Transformation transformations}. Clearing the transformations allows, for
+     * example, to not re-execute the same operations when calling {@link #execute()} multiple
+     * times.
      *
      * @param clearTransformations Whether or not to clear previously registered transformations
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
     public StreamGraph getStreamGraph(boolean clearTransformations) {
-        final StreamGraph streamGraph = getStreamGraphGenerator().generate();
+        final StreamGraph streamGraph = getStreamGraphGenerator(transformations).generate();
         if (clearTransformations) {
-            this.transformations.clear();
+            transformations.clear();
         }
         return streamGraph;
     }
 
-    private StreamGraphGenerator getStreamGraphGenerator() {
+    /**
+     * Generates a {@link StreamGraph} that consists of the given {@link Transformation
+     * transformations} and is configured with the configuration of this environment.
+     *
+     * <p>This method does not access or clear the previously registered transformations.
+     *
+     * @param transformations list of transformations that the graph should contain
+     * @return The stream graph representing the transformations
+     */
+    @Internal
+    public StreamGraph generateStreamGraph(List<Transformation<?>> transformations) {
+        return getStreamGraphGenerator(transformations).generate();
+    }
+
+    private StreamGraphGenerator getStreamGraphGenerator(List<Transformation<?>> transformations) {
         if (transformations.size() <= 0) {
             throw new IllegalStateException(
                     "No operators defined in streaming topology. Cannot execute.");
         }
 
-        final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
-
         return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
-                .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
                 .setSavepointDir(defaultSavepointDirectory)
