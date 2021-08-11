@@ -40,10 +40,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.commons:commons-text:1.4
-- org.apache.hadoop:hadoop-annotations:3.3.1
-- org.apache.hadoop:hadoop-aws:3.3.1
-- org.apache.hadoop:hadoop-auth:3.3.1
-- org.apache.hadoop:hadoop-common:3.3.1
+- org.apache.hadoop:hadoop-annotations:3.2.2
+- org.apache.hadoop:hadoop-aws:3.2.2
+- org.apache.hadoop:hadoop-auth:3.2.2
+- org.apache.hadoop:hadoop-common:3.2.2
 - org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
 - org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
 - org.apache.htrace:htrace-core4:4.1.0-incubating
@@ -66,6 +66,7 @@ See bundled license files for details.
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
+- javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
