@@ -135,12 +135,9 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
     private RelNode createInnerProject(
             RelBuilder relBuilder, RelNode scanInput, ImmutableBitSet toPushFields) {
         relBuilder.push(scanInput);
-        List<String> scanInputFieldNames = scanInput.getRowType().getFieldNames();
-        List<Pair<RexInputRef, String>> newProjects =
-                toPushFields.toList().stream()
-                        .map(f -> Pair.of(relBuilder.field(f), scanInputFieldNames.get(f)))
-                        .collect(Collectors.toList());
-        return relBuilder.project(Pair.left(newProjects), Pair.right(newProjects)).build();
+        List<RexInputRef> newProjects =
+                toPushFields.toList().stream().map(relBuilder::field).collect(Collectors.toList());
+        return relBuilder.project(newProjects).build();
     }
 
     private LogicalTableFunctionScan createNewTableFunctionScan(
