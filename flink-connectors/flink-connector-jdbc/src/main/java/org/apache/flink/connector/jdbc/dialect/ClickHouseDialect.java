@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.lang.String.format;
+
 /** JDBC dialect for ClickHouse. */
 public class ClickHouseDialect extends AbstractDialect {
 
@@ -60,27 +62,43 @@ public class ClickHouseDialect extends AbstractDialect {
 
     @Override
     public String quoteIdentifier(String identifier) {
+        if (identifier.contains(".")) {
+            int dotIndex = identifier.indexOf(".");
+            return "`"
+                    + identifier.substring(0, dotIndex)
+                    + "`.`"
+                    + identifier.substring(dotIndex + 1)
+                    + "`";
+        }
         return "`" + identifier + "`";
     }
 
-    /**
-     * clickhouse upsert query use DUPLICATE KEY UPDATE.
-     *
-     * <p>NOTE: It requires clickhouse's primary key to be consistent with pkFields.
-     *
-     * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
-     */
     @Override
-    public Optional<String> getUpsertStatement(
-            String tableName, String[] fieldNames, String[] uniqueKeyFields) {
-        String updateClause =
+    public String getUpdateStatement(
+            String tableName, String[] fieldNames, String[] conditionFields) {
+        String setClause =
                 Arrays.stream(fieldNames)
-                        .map(f -> quoteIdentifier(f) + "=VALUES(" + quoteIdentifier(f) + ")")
+                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
                         .collect(Collectors.joining(", "));
-        return Optional.of(
-                getInsertIntoStatement(tableName, fieldNames)
-                        + " ON DUPLICATE KEY UPDATE "
-                        + updateClause);
+        String conditionClause =
+                Arrays.stream(conditionFields)
+                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .collect(Collectors.joining(" AND "));
+        return "ALTER TABLE "
+                + quoteIdentifier(tableName)
+                + " UPDATE "
+                + setClause
+                + " WHERE "
+                + conditionClause;
+    }
+
+    @Override
+    public String getDeleteStatement(String tableName, String[] conditionFields) {
+        String conditionClause =
+                Arrays.stream(conditionFields)
+                        .map(f -> format("%s = :%s", quoteIdentifier(f), f))
+                        .collect(Collectors.joining(" AND "));
+        return "ALTER TABLE " + quoteIdentifier(tableName) + " DELETE WHERE " + conditionClause;
     }
 
     @Override

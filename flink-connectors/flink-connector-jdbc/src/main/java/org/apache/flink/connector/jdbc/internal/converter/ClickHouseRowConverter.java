@@ -18,13 +18,18 @@
 
 package org.apache.flink.connector.jdbc.internal.converter;
 
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 
 /**
  * Runtime converter that responsible to convert between JDBC object and Flink internal object for
@@ -44,22 +49,58 @@ public class ClickHouseRowConverter extends AbstractJdbcRowConverter {
     }
 
     @Override
-    public RowData toInternal(ResultSet resultSet) throws SQLException {
-        GenericRowData genericRowData = new GenericRowData(this.rowType.getFieldCount());
-
-        for (int pos = 0; pos < this.rowType.getFieldCount(); ++pos) {
-            Object field = resultSet.getObject(pos + 1);
-            if (field instanceof BigInteger) {
-                int length = ((BigInteger) field).toString().length();
-                if (length > 8) {
-                    field = ((BigInteger) field).toString();
-                } else {
-                    field = Long.parseLong(((BigInteger) field).toString());
-                }
-            }
-            genericRowData.setField(pos, this.toInternalConverters[pos].deserialize(field));
+    protected JdbcDeserializationConverter createInternalConverter(LogicalType type) {
+        switch (type.getTypeRoot()) {
+            case NULL:
+                return val -> null;
+            case BOOLEAN:
+            case FLOAT:
+            case DOUBLE:
+            case INTERVAL_YEAR_MONTH:
+            case INTERVAL_DAY_TIME:
+                return val -> val;
+            case TINYINT:
+                return val -> ((Integer) val).byteValue();
+            case SMALLINT:
+                // Converter for small type that casts value to int and then return short value,
+                // since
+                // JDBC 1.0 use int type for small values.
+                return val -> val instanceof Integer ? ((Integer) val).shortValue() : val;
+            case INTEGER:
+                return val -> val;
+            case BIGINT:
+                return val -> ((BigInteger) val).longValue();
+            case DECIMAL:
+                final int precision = ((DecimalType) type).getPrecision();
+                final int scale = ((DecimalType) type).getScale();
+                // using decimal(20, 0) to support db type bigint unsigned, user should define
+                // decimal(20, 0) in SQL,
+                // but other precision like decimal(30, 0) can work too from lenient consideration.
+                return val ->
+                        val instanceof BigInteger
+                                ? DecimalData.fromBigDecimal(
+                                        new BigDecimal((BigInteger) val, 0), precision, scale)
+                                : DecimalData.fromBigDecimal((BigDecimal) val, precision, scale);
+            case DATE:
+                return val -> (int) (((Date) val).toLocalDate().toEpochDay());
+            case TIME_WITHOUT_TIME_ZONE:
+                return val -> (int) (((Time) val).toLocalTime().toNanoOfDay() / 1_000_000L);
+            case TIMESTAMP_WITH_TIME_ZONE:
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                return val -> TimestampData.fromTimestamp((Timestamp) val);
+            case CHAR:
+            case VARCHAR:
+                return val -> StringData.fromString((String) val);
+            case BINARY:
+            case VARBINARY:
+                return val -> (byte[]) val;
+            case ARRAY:
+            case ROW:
+            case MAP:
+            case MULTISET:
+            case RAW:
+            default:
+                throw new UnsupportedOperationException("Unsupported type:" + type);
         }
-
-        return genericRowData;
     }
 }
