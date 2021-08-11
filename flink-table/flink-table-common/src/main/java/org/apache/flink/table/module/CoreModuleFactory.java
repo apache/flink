@@ -26,8 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
-
 /** Factory for {@link CoreModule}. */
 @Internal
 public class CoreModuleFactory implements ModuleFactory {
@@ -42,7 +40,7 @@ public class CoreModuleFactory implements ModuleFactory {
     @Override
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
-        context.put(MODULE_TYPE, IDENTIFIER);
+        context.put(CommonModuleOptions.MODULE_TYPE.key(), IDENTIFIER);
 
         return context;
     }

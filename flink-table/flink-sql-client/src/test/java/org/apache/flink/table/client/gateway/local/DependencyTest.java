@@ -61,7 +61,6 @@ import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,7 +71,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -207,22 +205,24 @@ public class DependencyTest {
     public static class TestModuleFactory implements ModuleFactory {
 
         @Override
-        public Module createModule(Map<String, String> properties) {
+        public String factoryIdentifier() {
+            return MODULE_TYPE_TEST;
+        }
+
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            // "test"
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Module createModule(Context context) {
             return new TestModule();
-        }
-
-        @Override
-        public Map<String, String> requiredContext() {
-            final Map<String, String> context = new HashMap<>();
-            context.put(MODULE_TYPE, MODULE_TYPE_TEST);
-            return context;
-        }
-
-        @Override
-        public List<String> supportedProperties() {
-            final List<String> properties = new ArrayList<>();
-            properties.add("test");
-            return properties;
         }
     }
 

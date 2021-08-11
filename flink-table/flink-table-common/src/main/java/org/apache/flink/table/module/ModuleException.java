@@ -16,21 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.module.hive;
+package org.apache.flink.table.module;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
-import org.apache.flink.table.module.CommonModuleOptions;
+import org.apache.flink.annotation.PublicEvolving;
 
-/** Validator for {@link HiveModuleDescriptor}. */
-public class HiveModuleDescriptorValidator extends ModuleDescriptorValidator {
-    public static final String MODULE_TYPE_HIVE = "hive";
-    public static final String MODULE_HIVE_VERSION = "hive-version";
+/** Exception related to modules. */
+@PublicEvolving
+public class ModuleException extends RuntimeException {
+    /** Creates a new {@link ModuleException}. */
+    public ModuleException(String message) {
+        super(message);
+    }
 
-    @Override
-    public void validate(DescriptorProperties properties) {
-        super.validate(properties);
-        properties.validateValue(CommonModuleOptions.MODULE_TYPE.key(), MODULE_TYPE_HIVE, false);
-        properties.validateString(MODULE_HIVE_VERSION, true, 1);
+    /** Creates a new {@link ModuleException}. */
+    public ModuleException(String message, Throwable throwable) {
+        super(message, throwable);
     }
 }

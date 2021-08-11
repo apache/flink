@@ -19,17 +19,15 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.module.CommonModuleOptions;
 
 /** Validator for {@link ModuleDescriptor}. */
 @Internal
 @Deprecated
 public abstract class ModuleDescriptorValidator implements DescriptorValidator {
 
-    /** Key for describing the type of the module. Used for factory discovery. */
-    public static final String MODULE_TYPE = "type";
-
     @Override
     public void validate(DescriptorProperties properties) {
-        properties.validateString(MODULE_TYPE, false, 1);
+        properties.validateString(CommonModuleOptions.MODULE_TYPE.key(), false, 1);
     }
 }

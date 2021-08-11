@@ -21,6 +21,7 @@ package org.apache.flink.table.module.hive;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.ModuleFactory;
+import org.apache.flink.table.module.CommonModuleOptions;
 import org.apache.flink.table.module.Module;
 
 import java.util.Arrays;
@@ -28,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_HIVE_VERSION;
 import static org.apache.flink.table.module.hive.HiveModuleDescriptorValidator.MODULE_TYPE_HIVE;
 
@@ -59,7 +59,7 @@ public class HiveModuleFactory implements ModuleFactory {
     @Override
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
-        context.put(MODULE_TYPE, MODULE_TYPE_HIVE);
+        context.put(CommonModuleOptions.MODULE_TYPE.key(), MODULE_TYPE_HIVE);
 
         return context;
     }

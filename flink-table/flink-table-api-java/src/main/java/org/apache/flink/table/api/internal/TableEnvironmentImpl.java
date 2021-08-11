@@ -78,8 +78,6 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -166,7 +164,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
+import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
@@ -1330,21 +1328,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResult loadModule(LoadModuleOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        final String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
-            // find module by name
-            Map<String, String> properties = new HashMap<>(operation.getProperties());
-            if (properties.containsKey(MODULE_TYPE)) {
+            final Map<String, String> options = new HashMap<>(operation.getOptions());
+            if (options.containsKey(MODULE_TYPE.key())) {
                 throw new ValidationException(
                         String.format(
-                                "Property 'type' = '%s' is not supported since module name "
+                                "Option '%s' = '%s' is not supported since module name "
                                         + "is used to find module",
-                                properties.get(MODULE_TYPE)));
+                                MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
             }
-            properties.put(MODULE_TYPE, operation.getModuleName());
-            final ModuleFactory factory =
-                    TableFactoryService.find(ModuleFactory.class, properties, userClassLoader);
-            moduleManager.loadModule(operation.getModuleName(), factory.createModule(properties));
+
+            options.put(MODULE_TYPE.key(), operation.getModuleName());
+
+            final Module module =
+                    FactoryUtil.createModule(
+                            options, tableConfig.getConfiguration(), userClassLoader);
+            moduleManager.loadModule(operation.getModuleName(), module);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {
             throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);

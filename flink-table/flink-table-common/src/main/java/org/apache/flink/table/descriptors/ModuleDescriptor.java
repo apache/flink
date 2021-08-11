@@ -19,11 +19,11 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.module.CommonModuleOptions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -51,7 +51,7 @@ public abstract class ModuleDescriptor implements Descriptor {
     @Override
     public final Map<String, String> toProperties() {
         final DescriptorProperties properties = new DescriptorProperties();
-        properties.putString(MODULE_TYPE, type);
+        properties.putString(CommonModuleOptions.MODULE_TYPE.key(), type);
 
         properties.putProperties(toModuleProperties());
         return properties.asMap();

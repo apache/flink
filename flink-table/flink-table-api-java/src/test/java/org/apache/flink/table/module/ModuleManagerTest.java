@@ -41,8 +41,10 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link ModuleManager}. */
 public class ModuleManagerTest extends TestLogger {
+
+    @Rule public final ExpectedException thrown = ExpectedException.none();
+
     private ModuleManager manager;
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Before
     public void before() {

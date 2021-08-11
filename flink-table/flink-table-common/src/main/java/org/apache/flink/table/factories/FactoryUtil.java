@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -37,6 +38,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -62,6 +64,7 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
+import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -270,13 +273,57 @@ public final class FactoryUtil {
                 final DefaultCatalogContext context =
                         new DefaultCatalogContext(
                                 catalogName, factoryOptions, configuration, classLoader);
-
                 return factory.createCatalog(context);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
                                 "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
                                 catalogName,
+                                options.entrySet().stream()
+                                        .map(
+                                                optionEntry ->
+                                                        stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue()))
+                                        .sorted()
+                                        .collect(Collectors.joining("\n"))),
+                        t);
+            }
+        }
+    }
+
+    /**
+     * Discovers a matching module factory and creates an instance of it.
+     *
+     * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
+     * ModuleFactory}. If none is found, it falls back to the new stack using {@link Factory}
+     * instead.
+     */
+    public static Module createModule(
+            Map<String, String> options, ReadableConfig configuration, ClassLoader classLoader) {
+        try {
+            final ModuleFactory legacyFactory =
+                    TableFactoryService.find(ModuleFactory.class, options, classLoader);
+            return legacyFactory.createModule(options);
+        } catch (NoMatchingTableFactoryException e) {
+            final DefaultModuleContext discoveryContext =
+                    new DefaultModuleContext(options, configuration, classLoader);
+            try {
+                final ModuleFactory factory = getModuleFactory(discoveryContext);
+
+                final Map<String, String> factoryOptions =
+                        options.entrySet().stream()
+                                .filter(entry -> !MODULE_TYPE.key().equals(entry.getKey()))
+                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+                final DefaultModuleContext context =
+                        new DefaultModuleContext(factoryOptions, configuration, classLoader);
+                return factory.createModule(context);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Unable to create module '%s'.%n%nModule options are:%n%s",
+                                options.get(MODULE_TYPE.key()),
                                 options.entrySet().stream()
                                         .map(
                                                 optionEntry ->
@@ -500,6 +547,18 @@ public final class FactoryUtil {
         }
 
         return discoverFactory(context.getClassLoader(), CatalogFactory.class, catalogType);
+    }
+
+    private static ModuleFactory getModuleFactory(ModuleFactory.Context context) {
+        final String moduleType = context.getOptions().get(MODULE_TYPE.key());
+        if (moduleType == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Module options do not contain an option key '%s' for discovering a module.",
+                            MODULE_TYPE.key()));
+        }
+
+        return discoverFactory(context.getClassLoader(), ModuleFactory.class, moduleType);
     }
 
     private static ValidationException enrichNoMatchingConnectorError(
@@ -834,6 +893,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link DynamicTableFactory.Context}. */
+    @Internal
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
@@ -882,6 +942,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link CatalogFactory.Context}. */
+    @Internal
     public static class DefaultCatalogContext implements CatalogFactory.Context {
         private final String name;
         private final Map<String, String> options;
@@ -902,6 +963,38 @@ public final class FactoryUtil {
         @Override
         public String getName() {
             return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
+    /** Default implementation of {@link ModuleFactory.Context}. */
+    @Internal
+    public static class DefaultModuleContext implements ModuleFactory.Context {
+        private final Map<String, String> options;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+
+        public DefaultModuleContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
         }
 
         @Override

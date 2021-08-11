@@ -16,21 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.module.hive;
+package org.apache.flink.table.factories.module;
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.ModuleDescriptorValidator;
+import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.CommonModuleOptions;
+import org.apache.flink.table.module.Module;
 
-/** Validator for {@link HiveModuleDescriptor}. */
-public class HiveModuleDescriptorValidator extends ModuleDescriptorValidator {
-    public static final String MODULE_TYPE_HIVE = "hive";
-    public static final String MODULE_HIVE_VERSION = "hive-version";
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+/** Test implementation of a {@link ModuleFactory} using the legacy stack. */
+@Deprecated
+public class LegacyDummyModuleFactory implements ModuleFactory {
+
+    public static final String IDENTIFIER = "LegacyModule";
 
     @Override
-    public void validate(DescriptorProperties properties) {
-        super.validate(properties);
-        properties.validateValue(CommonModuleOptions.MODULE_TYPE.key(), MODULE_TYPE_HIVE, false);
-        properties.validateString(MODULE_HIVE_VERSION, true, 1);
+    public Map<String, String> requiredContext() {
+        return Collections.singletonMap(CommonModuleOptions.MODULE_TYPE.key(), IDENTIFIER);
+    }
+
+    @Override
+    public List<String> supportedProperties() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public Module createModule(Map<String, String> options) {
+        return new Module() {};
     }
 }
