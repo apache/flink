@@ -21,11 +21,11 @@ package org.apache.flink.table.module.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.module.Module;
 
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.table.module.hive.HiveModuleOptions.HIVE_VERSION;
@@ -53,8 +53,14 @@ public class HiveModuleFactory implements ModuleFactory {
 
     @Override
     public Module createModule(Context context) {
+        final FactoryUtil.ModuleFactoryHelper factoryHelper =
+                FactoryUtil.createModuleFactoryHelper(this, context);
+        factoryHelper.validate();
+
         final String hiveVersion =
-                Optional.ofNullable(context.getOptions().get(HIVE_VERSION.key()))
+                factoryHelper
+                        .getOptions()
+                        .getOptional(HIVE_VERSION)
                         .orElseGet(HiveShimLoader::getHiveVersion);
 
         return new HiveModule(hiveVersion);

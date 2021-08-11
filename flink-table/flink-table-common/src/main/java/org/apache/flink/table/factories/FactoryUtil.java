@@ -202,6 +202,16 @@ public final class FactoryUtil {
     }
 
     /**
+     * Creates a utility that helps validating options for a {@link ModuleFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static ModuleFactoryHelper createModuleFactoryHelper(
+            ModuleFactory factory, ModuleFactory.Context context) {
+        return new ModuleFactoryHelper(factory, context);
+    }
+
+    /**
      * Creates a utility that helps in discovering formats and validating all options for a {@link
      * DynamicTableFactory}.
      *
@@ -747,6 +757,17 @@ public final class FactoryUtil {
 
         public CatalogFactoryHelper(CatalogFactory catalogFactory, CatalogFactory.Context context) {
             super(catalogFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link ModuleFactory}.
+     *
+     * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
+     */
+    public static class ModuleFactoryHelper extends FactoryHelper<ModuleFactory> {
+        public ModuleFactoryHelper(ModuleFactory moduleFactory, ModuleFactory.Context context) {
+            super(moduleFactory, context.getOptions(), PROPERTY_VERSION);
         }
     }
 
