@@ -51,7 +51,7 @@ env.fromElements(1, 2, 3)
 
 不幸的是，像 `flatMap()` 这样的函数，它的签名 `void flatMap(IN value, Collector<OUT> out)` 被 Java 编译器编译为 `void flatMap(IN value, Collector out)`。这样 Flink 就无法自动推断输出的类型信息了。
 
-Flink 很可能抛出类似如下的异常：
+Flink 很可能抛出如下异常：
 
 ```
 org.apache.flink.api.common.functions.InvalidTypesException: The generic type parameters of 'Collector' are missing.
