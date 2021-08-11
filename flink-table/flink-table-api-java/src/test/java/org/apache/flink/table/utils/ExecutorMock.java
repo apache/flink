@@ -25,6 +25,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.delegation.Executor;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /** Mocking {@link Executor} for tests. */
@@ -38,8 +40,8 @@ public class ExecutorMock implements Executor {
     @Override
     public Pipeline createPipeline(
             List<Transformation<?>> transformations,
-            ReadableConfig configuration,
-            String defaultJobName) {
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName) {
         return null;
     }
 
