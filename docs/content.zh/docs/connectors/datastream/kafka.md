@@ -486,9 +486,9 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 
 ## 问题排查
 
-<div class="alert alert-warning">
+{{< hint warning >}}
 如果你在使用 Flink 时对 Kafka 有问题，请记住，Flink 只封装 <a href="https://kafka.apache.org/documentation/#consumerapi">KafkaConsumer</a> 或 <a href="https://kafka.apache.org/documentation/#producerapi">KafkaProducer</a>，你的问题可能独立于 Flink，有时可以通过升级 Kafka broker 程序、重新配置 Kafka broker 程序或在 Flink 中重新配置 <tt>KafkaConsumer</tt> 或 <tt>KafkaProducer</tt> 来解决。下面列出了一些常见问题的示例。
-</div>
+{{< /hint >}}
 
 <a name="data-loss"></a>
 

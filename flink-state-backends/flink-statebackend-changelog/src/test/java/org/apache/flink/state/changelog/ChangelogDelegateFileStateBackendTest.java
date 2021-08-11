@@ -25,11 +25,24 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.FileStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
+
 /** Tests for {@link ChangelogStateBackend} delegating {@link FsStateBackend}. */
 public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest {
+
+    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+
+    @Override
+    protected TestTaskStateManager getTestTaskStateManager() throws IOException {
+        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+    }
 
     @Override
     protected boolean snapshotUsesStreamFactory() {

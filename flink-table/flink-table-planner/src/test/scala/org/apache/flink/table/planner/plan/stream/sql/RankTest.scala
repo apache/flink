@@ -689,6 +689,26 @@ class RankTest extends TableTestBase {
   }
 
   @Test
+  def testCorrelateSortToRankWithMultipleGroupKeys(): Unit = {
+    util.addDataStream[(Int, String, Long, Long)](
+      "T", 'a, 'b, 'c, 'd, 'proctime.proctime, 'rowtime.rowtime)
+    val query =
+      s"""
+         |SELECT a, b, c
+         |FROM
+         |  (SELECT DISTINCT a, b FROM T) T1,
+         |  LATERAL (
+         |    SELECT c, d
+         |    FROM T
+         |    WHERE a = T1.a and b = T1.b
+         |    ORDER BY d
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyExecPlan(query)
+  }
+
+  @Test
   def testRankWithAnotherRankAsInput(): Unit = {
     val sql =
       """

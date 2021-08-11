@@ -66,11 +66,11 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
 
     private static final String PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.scalar."
-                    + "RowDataPythonScalarFunctionOperator";
+                    + "PythonScalarFunctionOperator";
 
     private static final String ARROW_PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.scalar.arrow."
-                    + "RowDataArrowPythonScalarFunctionOperator";
+                    + "ArrowPythonScalarFunctionOperator";
 
     @JsonProperty(FIELD_NAME_PROJECTION)
     private final List<RexNode> projection;

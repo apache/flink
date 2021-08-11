@@ -22,12 +22,12 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, TIMESTAMP_DATA, boxedTypeTermForType, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
@@ -96,14 +96,6 @@ abstract class WindowCodeGenerator(
   private lazy val windowedGroupKeyType: RowType = RowType.of(
     (groupKeyRowType.getChildren :+ timestampInternalType).toArray,
     (groupKeyRowType.getFieldNames :+ "assignedTs$").toArray)
-
-  def getOutputRowClass: Class[_ <: RowData] = {
-    if (namedProperties.isEmpty && grouping.isEmpty) {
-      classOf[GenericRowData]
-    } else {
-      classOf[JoinedRowData]
-    }
-  }
 
   private[flink] def getWindowsGroupingElementInfo(
       enablePreAccumulate: Boolean = true): RowType = {

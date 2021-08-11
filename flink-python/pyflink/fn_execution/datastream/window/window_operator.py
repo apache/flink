@@ -23,7 +23,7 @@ from pyflink.datastream.functions import KeyedStateStore, RuntimeContext, Intern
 from pyflink.datastream.state import StateDescriptor, ListStateDescriptor, \
     ReducingStateDescriptor, AggregatingStateDescriptor, ValueStateDescriptor, MapStateDescriptor, \
     State, AggregatingState, ReducingState, MapState, ListState, ValueState, AppendingState
-from pyflink.fn_execution.datastream.timerservice import InternalTimerService, InternalTimer
+from pyflink.fn_execution.datastream.timerservice import InternalTimerService
 from pyflink.datastream.window import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.window.merging_window_set import MergingWindowSet
 from pyflink.fn_execution.internal_state import InternalMergingState, InternalKvState, \
@@ -411,9 +411,9 @@ class WindowOperator(object):
         if is_skipped_element and self.is_element_late(value, timestamp):
             self.num_late_records_dropped.inc()
 
-    def on_event_time(self, timer: InternalTimer) -> None:
-        self.trigger_context.user_key = self.user_key_selector(timer.get_key())
-        self.trigger_context.window = timer.get_namespace()
+    def on_event_time(self, timestamp, key, namespace) -> None:
+        self.trigger_context.user_key = self.user_key_selector(key)
+        self.trigger_context.window = namespace
 
         if isinstance(self.window_assigner, MergingWindowAssigner):
             merging_windows = self.get_merging_window_set()
@@ -429,7 +429,7 @@ class WindowOperator(object):
             self.window_state.set_current_namespace(self.trigger_context.window)
             merging_windows = None
 
-        trigger_result = self.trigger_context.on_event_time(timer.get_timestamp())
+        trigger_result = self.trigger_context.on_event_time(timestamp)
 
         if trigger_result.is_fire():
             contents = self.window_state.get()
@@ -445,15 +445,15 @@ class WindowOperator(object):
             self.window_state.clear()
 
         if self.window_assigner.is_event_time() and self.is_cleanup_time(
-                self.trigger_context.window, timer.get_timestamp()):
+                self.trigger_context.window, timestamp):
             self.clear_all_state(self.trigger_context.window, self.window_state, merging_windows)
 
         if merging_windows is not None:
             merging_windows.persist()
 
-    def on_processing_time(self, timer):
-        self.trigger_context.user_key = self.user_key_selector(timer.get_key())
-        self.trigger_context.window = timer.get_namespace()
+    def on_processing_time(self, timestamp, key, namespace):
+        self.trigger_context.user_key = self.user_key_selector(key)
+        self.trigger_context.window = namespace
 
         if isinstance(self.window_assigner, MergingWindowAssigner):
             merging_windows = self.get_merging_window_set()
@@ -469,7 +469,7 @@ class WindowOperator(object):
             self.window_state.set_current_namespace(self.trigger_context.window)
             merging_windows = None
 
-        trigger_result = self.trigger_context.on_processing_time(timer.get_timestamp())
+        trigger_result = self.trigger_context.on_processing_time(timestamp)
 
         if trigger_result.is_fire():
             contents = self.window_state.get()
@@ -485,7 +485,7 @@ class WindowOperator(object):
             self.window_state.clear()
 
         if self.window_assigner.is_event_time() and self.is_cleanup_time(
-                self.trigger_context.window, timer.get_timestamp()):
+                self.trigger_context.window, timestamp):
             self.clear_all_state(self.trigger_context.window, self.window_state, merging_windows)
 
         if merging_windows is not None:

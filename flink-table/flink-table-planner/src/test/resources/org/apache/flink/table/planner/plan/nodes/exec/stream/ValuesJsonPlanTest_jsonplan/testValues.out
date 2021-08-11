@@ -1,0 +1,204 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues",
+    "tuples" : [ [ {
+      "kind" : "LITERAL",
+      "value" : "1",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "2",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "Hi",
+      "type" : {
+        "typeName" : "CHAR",
+        "nullable" : false,
+        "precision" : 2
+      }
+    } ], [ {
+      "kind" : "LITERAL",
+      "value" : "3",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "4",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "Hello",
+      "type" : {
+        "typeName" : "CHAR",
+        "nullable" : false,
+        "precision" : 5
+      }
+    } ] ],
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "EXPR$0" : "INT NOT NULL"
+      }, {
+        "EXPR$1" : "INT NOT NULL"
+      }, {
+        "EXPR$2" : "VARCHAR(5) NOT NULL"
+      } ]
+    },
+    "description" : "Values(tuples=[[{ 1, 2, _UTF-16LE'Hi' }, { 3, 4, _UTF-16LE'Hello' }]])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : {
+          "typeName" : "VARCHAR",
+          "nullable" : false,
+          "precision" : 5
+        }
+      } ],
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
+      }
+    } ],
+    "condition" : null,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Calc(select=[CAST(EXPR$0) AS a, CAST(EXPR$1) AS b, CAST(EXPR$2) AS c])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "sink-insert-only" : "false",
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "BIGINT NOT NULL"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "BIGINT"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

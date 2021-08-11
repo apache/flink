@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -74,9 +73,6 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.ConnectTableDescriptor;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
@@ -207,19 +203,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD "
                     + "MODULE, USE MODULES, SHOW [FULL] MODULES.";
 
-    /** Provides necessary methods for {@link ConnectTableDescriptor}. */
-    private final Registration registration =
-            new Registration() {
-
-                @Override
-                public void createTemporaryTable(String path, CatalogBaseTable table) {
-                    UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
-                    ObjectIdentifier objectIdentifier =
-                            catalogManager.qualifyIdentifier(unresolvedIdentifier);
-                    catalogManager.createTemporaryTable(table, objectIdentifier, false);
-                }
-            };
-
     protected TableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
@@ -313,10 +296,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        Map<String, String> executorProperties = settings.toExecutorProperties();
-        Executor executor =
-                ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
-                        .create(executorProperties);
+        final ExecutorFactory executorFactory =
+                FactoryUtil.discoverFactory(
+                        classLoader, ExecutorFactory.class, settings.getExecutor());
+        final Executor executor = executorFactory.create(configuration);
 
         Map<String, String> plannerProperties = settings.toPlannerProperties();
         Planner planner =
@@ -623,11 +606,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-        return new StreamTableDescriptor(registration, connectorDescriptor);
-    }
-
-    @Override
     public String[] listCatalogs() {
         return catalogManager.listCatalogs().stream().sorted().toArray(String[]::new);
     }
@@ -815,8 +793,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResult executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
-        String jobName = getJobName("insert-into_" + String.join(",", sinkIdentifierNames));
-        Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
+        final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
+        Pipeline pipeline =
+                execEnv.createPipeline(
+                        transformations, tableConfig.getConfiguration(), defaultJobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             final List<Column> columns = new ArrayList<>();
@@ -851,8 +831,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 new CollectModifyOperation(objectIdentifier, operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
-        String jobName = getJobName("collect");
-        Pipeline pipeline = execEnv.createPipeline(transformations, tableConfig, jobName);
+        final String defaultJobName = "collect";
+        Pipeline pipeline =
+                execEnv.createPipeline(
+                        transformations, tableConfig.getConfiguration(), defaultJobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             CollectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
@@ -1288,9 +1270,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 throw new TableException(exMsg, e);
             }
         } else if (operation instanceof ExplainOperation) {
+            ExplainOperation explainOperation = (ExplainOperation) operation;
+            ExplainDetail[] explainDetails =
+                    explainOperation.getExplainDetails().stream()
+                            .map(ExplainDetail::valueOf)
+                            .toArray(ExplainDetail[]::new);
             String explanation =
                     explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()));
+                            Collections.singletonList(((ExplainOperation) operation).getChild()),
+                            explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
@@ -1608,10 +1596,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .collect(Collectors.toList());
     }
 
-    private String getJobName(String defaultJobName) {
-        return tableConfig.getConfiguration().getString(PipelineOptions.NAME, defaultJobName);
-    }
-
     /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
     private Catalog getCatalogOrThrowException(String catalogName) {
         return getCatalog(catalogName)
@@ -1652,7 +1636,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public JobExecutionResult execute(String jobName) throws Exception {
-        Pipeline pipeline = execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
+        Pipeline pipeline =
+                execEnv.createPipeline(
+                        translateAndClearBuffer(), tableConfig.getConfiguration(), jobName);
         return execEnv.execute(pipeline);
     }
 

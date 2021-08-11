@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -31,9 +33,11 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,6 +45,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Suite;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -48,14 +53,16 @@ import static java.util.Collections.singletonMap;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 
 /** Tests for functions that access nested fields/elements of composite/collection types. */
 @RunWith(Suite.class)
@@ -120,12 +127,20 @@ public class ConstructedAccessFunctionsITCase {
     /** A class for customized tests. */
     public static class FieldAccessAfterCall {
 
+        @ClassRule
+        public static MiniClusterWithClientResource miniClusterResource =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberTaskManagers(1)
+                                .setNumberSlotsPerTaskManager(1)
+                                .build());
+
         @Rule public ExpectedException thrown = ExpectedException.none();
 
         @Test
         public void testSqlAccessingNullableRow() {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
             env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 
             thrown.expect(ValidationException.class);
@@ -137,7 +152,7 @@ public class ConstructedAccessFunctionsITCase {
         @Test
         public void testSqlAccessingNotNullRow() throws Exception {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
             env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 
             TableResult result =
@@ -152,7 +167,7 @@ public class ConstructedAccessFunctionsITCase {
         @Test
         public void testSqlAccessingNullableRowWithAlias() throws Exception {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
             env.createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 
             TableResult result =
@@ -176,7 +191,7 @@ public class ConstructedAccessFunctionsITCase {
         @Test
         public void testTableApiAccessingNullableRow() {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
             thrown.expect(ValidationException.class);
             thrown.expectMessage(
@@ -193,7 +208,7 @@ public class ConstructedAccessFunctionsITCase {
         @Test
         public void testTableApiAccessingNotNullRow() throws Exception {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
             TableResult result =
                     env.fromValues(1)
@@ -210,9 +225,9 @@ public class ConstructedAccessFunctionsITCase {
         }
 
         @Test
-        public void testTableApiFlattenCompositeType() throws Exception {
+        public void testTableApiFlattenRowType() throws Exception {
             final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.newInstance().build());
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
             TableResult result =
                     env.fromValues(
@@ -238,6 +253,41 @@ public class ConstructedAccessFunctionsITCase {
 
             try (CloseableIterator<Row> it = result.collect()) {
                 assertThat(it.next(), equalTo(Row.of(1L, "ABC")));
+                assertFalse(it.hasNext());
+            }
+        }
+
+        @Test
+        public void testTableApiFlattenStructuredType() throws Exception {
+            final TableEnvironment env =
+                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+            final Row row =
+                    Row.of(
+                            1,
+                            LocalDateTime.parse("2012-12-12T12:12:12.001"),
+                            "a",
+                            Row.of(10, "aa"));
+
+            final Table data = env.fromValues(row);
+
+            final TableResult result =
+                    data.select(call(PojoConstructorScalarFunction.class, $("*")).flatten())
+                            .execute();
+
+            assertThat(
+                    result.getResolvedSchema(),
+                    equalTo(
+                            ResolvedSchema.of(
+                                    Column.physical("_c0", INT().bridgedTo(int.class)),
+                                    Column.physical("_c1", TIMESTAMP(3)),
+                                    Column.physical("_c2", STRING()),
+                                    Column.physical(
+                                            "_c3",
+                                            ROW(FIELD("ri", INT()), FIELD("rs", STRING()))))));
+
+            try (CloseableIterator<Row> it = result.collect()) {
+                assertThat(it.next(), equalTo(row));
                 assertFalse(it.hasNext());
             }
         }
@@ -274,6 +324,35 @@ public class ConstructedAccessFunctionsITCase {
         public void eval() {
             collect(null);
             collect(Row.of("A", new String[] {"A", "B"}));
+        }
+    }
+
+    /** Scalar function that returns a POJO. */
+    public static class PojoConstructorScalarFunction extends ScalarFunction {
+        public ComplexPojo eval(
+                int i,
+                @DataTypeHint("TIMESTAMP(3)") LocalDateTime t,
+                String s,
+                @DataTypeHint("ROW<ri INT, rs STRING>") Row r) {
+            return new ComplexPojo(i, t, s, r);
+        }
+    }
+
+    /** Complex POJO for testing flattening. */
+    public static class ComplexPojo {
+        public final int i;
+
+        public final @DataTypeHint("TIMESTAMP(3)") LocalDateTime t;
+
+        public final String s;
+
+        public final @DataTypeHint("ROW<ri INT, rs STRING>") Row r;
+
+        public ComplexPojo(int i, LocalDateTime t, String s, Row r) {
+            this.i = i;
+            this.t = t;
+            this.s = s;
+            this.r = r;
         }
     }
 }

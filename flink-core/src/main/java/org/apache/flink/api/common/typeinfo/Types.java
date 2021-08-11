@@ -319,7 +319,7 @@ public class Types {
             final Field f = TypeExtractor.getDeclaredField(pojoClass, field.getKey());
             if (f == null) {
                 throw new InvalidTypesException(
-                        "Field '" + field.getKey() + "'could not be accessed.");
+                        "Field '" + field.getKey() + "' could not be accessed.");
             }
             pojoFields.add(new PojoField(f, field.getValue()));
         }

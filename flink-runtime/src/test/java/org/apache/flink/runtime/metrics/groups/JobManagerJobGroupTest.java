@@ -41,9 +41,9 @@ public class JobManagerJobGroupTest extends TestLogger {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
-        JobManagerMetricGroup tmGroup = new JobManagerMetricGroup(registry, "theHostName");
-        JobMetricGroup jmGroup =
-                new JobManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+        JobManagerJobMetricGroup jmGroup =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
+                        .addJob(new JobID(), "myJobName");
 
         assertArrayEquals(
                 new String[] {"theHostName", "jobmanager", "myJobName"},
@@ -62,10 +62,9 @@ public class JobManagerJobGroupTest extends TestLogger {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
 
-        JobID jid = new JobID();
-
-        JobManagerMetricGroup tmGroup = new JobManagerMetricGroup(registry, "theHostName");
-        JobMetricGroup jmGroup = new JobManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
+        JobManagerJobMetricGroup jmGroup =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
+                        .addJob(new JobID(), "myJobName");
 
         assertArrayEquals(
                 new String[] {"some-constant", "myJobName"}, jmGroup.getScopeComponents());
@@ -85,8 +84,9 @@ public class JobManagerJobGroupTest extends TestLogger {
 
         JobID jid = new JobID();
 
-        JobManagerMetricGroup tmGroup = new JobManagerMetricGroup(registry, "theHostName");
-        JobMetricGroup jmGroup = new JobManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
+        JobManagerJobMetricGroup jmGroup =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
+                        .addJob(jid, "myJobName");
 
         assertArrayEquals(
                 new String[] {"peter", "some-constant", jid.toString()},
@@ -103,8 +103,9 @@ public class JobManagerJobGroupTest extends TestLogger {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
-        JobManagerMetricGroup jm = new JobManagerMetricGroup(registry, "host");
-        JobManagerJobMetricGroup jmj = new JobManagerJobMetricGroup(registry, jm, jid, "jobname");
+        JobManagerJobMetricGroup jmj =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
+                        .addJob(jid, "myJobName");
 
         QueryScopeInfo.JobQueryScopeInfo info =
                 jmj.createQueryServiceMetricInfo(new DummyCharacterFilter());

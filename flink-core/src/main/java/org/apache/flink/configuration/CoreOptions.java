@@ -25,8 +25,8 @@ import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -183,7 +183,8 @@ public class CoreOptions {
         return parseParentFirstLoaderPatterns(base, append);
     }
 
-    private static String[] parseParentFirstLoaderPatterns(String base, String append) {
+    @Internal
+    public static String[] parseParentFirstLoaderPatterns(String base, String append) {
         Splitter splitter = Splitter.on(';').omitEmptyStrings();
         return Iterables.toArray(
                 Iterables.concat(splitter.split(base), splitter.split(append)), String.class);

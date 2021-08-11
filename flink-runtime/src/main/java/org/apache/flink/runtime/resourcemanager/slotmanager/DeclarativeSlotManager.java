@@ -755,12 +755,6 @@ public class DeclarativeSlotManager implements SlotManager {
         return Collections.emptyList();
     }
 
-    @Override
-    public int getNumberPendingSlotRequests() {
-        // only exists for testing purposes
-        throw new UnsupportedOperationException();
-    }
-
     // ---------------------------------------------------------------------------------------------
     // Internal utility methods
     // ---------------------------------------------------------------------------------------------

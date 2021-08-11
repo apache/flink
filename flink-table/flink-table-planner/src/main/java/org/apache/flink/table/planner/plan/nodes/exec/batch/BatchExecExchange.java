@@ -21,15 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
@@ -50,22 +47,24 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
+
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for batch.
  *
  * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
-    // the required shuffle mode for reusable BatchExecExchange
+    // the required exchange mode for reusable BatchExecExchange
     // if it's None, use value from configuration
-    @Nullable private ShuffleMode requiredShuffleMode;
+    @Nullable private StreamExchangeMode requiredExchangeMode;
 
     public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
         super(getNewNodeId(), Collections.singletonList(inputProperty), outputType, description);
     }
 
-    public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
-        this.requiredShuffleMode = requiredShuffleMode;
+    public void setRequiredExchangeMode(@Nullable StreamExchangeMode requiredExchangeMode) {
+        this.requiredExchangeMode = requiredExchangeMode;
     }
 
     @Override
@@ -89,7 +88,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
             sb.append("[").append(String.join(", ", fieldNames)).append("]");
         }
         sb.append("]");
-        if (requiredShuffleMode == ShuffleMode.BATCH) {
+        if (requiredExchangeMode == StreamExchangeMode.BATCH) {
             sb.append(", shuffle_mode=[BATCH]");
         }
         return String.format("Exchange(%s)", sb.toString());
@@ -141,30 +140,17 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 throw new TableException(distributionType + "is not supported now!");
         }
 
-        final ShuffleMode shuffleMode =
-                getShuffleMode(planner.getTableConfig().getConfiguration(), requiredShuffleMode);
+        final StreamExchangeMode exchangeMode =
+                getBatchStreamExchangeMode(planner.getConfiguration(), requiredExchangeMode);
         final Transformation<RowData> transformation =
-                new PartitionTransformation<>(inputTransform, partitioner, shuffleMode);
+                new PartitionTransformation<>(inputTransform, partitioner, exchangeMode);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
         return transformation;
     }
 
-    public static ShuffleMode getShuffleMode(
-            Configuration config, @Nullable ShuffleMode requiredShuffleMode) {
-        if (requiredShuffleMode == ShuffleMode.BATCH) {
-            return ShuffleMode.BATCH;
-        }
-        if (config.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-                .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString())) {
-            return ShuffleMode.BATCH;
-        } else {
-            return ShuffleMode.UNDEFINED;
-        }
-    }
-
     @VisibleForTesting
-    public Optional<ShuffleMode> getRequiredShuffleMode() {
-        return Optional.ofNullable(requiredShuffleMode);
+    public Optional<StreamExchangeMode> getRequiredExchangeMode() {
+        return Optional.ofNullable(requiredExchangeMode);
     }
 }

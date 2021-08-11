@@ -55,6 +55,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -77,6 +78,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
     private final ActorRef rpcEndpoint;
 
+    private final ClassLoader flinkClassLoader;
+
     // whether the actor ref is local and thus no message serialization is needed
     protected final boolean isLocal;
 
@@ -97,11 +100,13 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             Time timeout,
             long maximumFramesize,
             @Nullable CompletableFuture<Void> terminationFuture,
-            boolean captureAskCallStack) {
+            boolean captureAskCallStack,
+            ClassLoader flinkClassLoader) {
 
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
         this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
+        this.flinkClassLoader = Preconditions.checkNotNull(flinkClassLoader);
         this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
         this.timeout = Preconditions.checkNotNull(timeout);
         this.maximumFramesize = maximumFramesize;
@@ -383,7 +388,10 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      * @return Response future
      */
     protected CompletableFuture<?> ask(Object message, Time timeout) {
-        return AkkaFutureUtils.toJava(Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
+        final CompletableFuture<?> response =
+                AkkaFutureUtils.toJava(
+                        Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
+        return guardCompletionWithContextClassLoader(response, flinkClassLoader);
     }
 
     @Override

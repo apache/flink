@@ -377,7 +377,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
     val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
-    val result = in.select(rf('a) as 'd).joinLateral(tf('d) as 'e)
+    val result = in.select(rf('a) as 'd).joinLateral(call(tf, 'd) as 'e)
 
     val sink = new TestingAppendSink
 

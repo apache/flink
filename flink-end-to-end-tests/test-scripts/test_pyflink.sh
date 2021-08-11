@@ -156,38 +156,26 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
 echo "Test using python udf in sql client:\n"
-SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
+INIT_SQL=$TEST_DATA_DIR/sql-client-init.sql
 
-cat >> $SQL_CONF << EOF
-tables:
-- name: sink
-  type: sink-table
-  update-mode: append
-  schema:
-  - name: a
-    type: BIGINT
-  connector:
-    type: filesystem
-    path: "$TEST_DATA_DIR/sql-client-test.csv"
-  format:
-    type: csv
-    fields:
-    - name: a
-      type: BIGINT
+cat >> $INIT_SQL << EOF
+CREATE TABLE sink (
+  a BIGINT
+) WITH (
+  'connector' = 'filesystem',
+  'path' = '$TEST_DATA_DIR/sql-client-test',
+  'format' = 'csv'
+);
 
-functions:
-- name: add_one
-  from: python
-  fully-qualified-name: add_one.add_one
+CREATE FUNCTION add_one AS 'add_one.add_one' LANGUAGE PYTHON;
 
-configuration:
-  python.client.executable: "$PYTHON_EXEC"
+SET 'python.client.executable'='$PYTHON_EXEC';
 EOF
 
 SQL_STATEMENT="insert into sink select add_one(a) from (VALUES (1), (2), (3)) as source (a)"
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
-  --environment $SQL_CONF \
+  --init $INIT_SQL \
   -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
   -pyreq "${REQUIREMENTS_PATH}" \
   -pyarch "${TEST_DATA_DIR}/venv.zip" \

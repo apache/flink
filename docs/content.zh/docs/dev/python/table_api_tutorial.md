@@ -69,29 +69,32 @@ $ python -m pip install apache-flink
 ```python
 settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
+
+# write all the data to one file
+t_env.get_config().get_configuration().set_string("parallelism.default", "1")
 ```
 
 接下来，我们将介绍如何创建源表和结果表。
 
 ```python
-# write all the data to one file
-t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 ```
 
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
@@ -144,7 +147,7 @@ tab.group_by(tab.word) \
 
 ```python
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
-from pyflink.table.descriptors import Schema, OldCsv, FileSystem
+from pyflink.table.descriptors import Schema, FileSystem
 from pyflink.table.expressions import lit
 
 settings = EnvironmentSettings.in_batch_mode()
@@ -152,22 +155,25 @@ t_env = TableEnvironment.create(settings)
 
 # write all the data to one file
 t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
@@ -180,7 +186,8 @@ tab.group_by(tab.word) \
 首先，你需要在文件 “/tmp/input” 中准备好输入数据。你可以选择通过如下命令准备输入数据：
 
 ```bash
-$ echo -e  "flink\npyflink\nflink" > /tmp/input
+$ mkdir /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input/input.csv
 ```
 
 接下来，可以在命令行中运行作业（假设作业名为WordCount.py）（注意：如果输出结果文件“/tmp/output”已经存在，你需要先删除文件，否则程序将无法正确运行起来）：
@@ -195,7 +202,7 @@ $ python WordCount.py
 最后，你可以通过如下命令查看你的运行结果：
 
 ```bash
-$ cat /tmp/output
+$ cat /tmp/output/*
 flink	2
 pyflink	1
 ```

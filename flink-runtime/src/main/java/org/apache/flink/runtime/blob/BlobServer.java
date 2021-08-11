@@ -779,6 +779,50 @@ public class BlobServer extends Thread
     }
 
     /**
+     * Deletes the file associated with the blob key in the local storage of the blob server.
+     *
+     * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+     * @param key blob key associated with the file to be deleted
+     * @return <tt>true</tt> if the given blob is successfully deleted or non-existing;
+     *     <tt>false</tt> otherwise
+     */
+    private boolean deleteInternal(JobID jobId, PermanentBlobKey key) {
+        final File localFile =
+                new File(
+                        BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
+
+        readWriteLock.writeLock().lock();
+
+        try {
+            boolean deleteLocally = true;
+            if (!localFile.delete() && localFile.exists()) {
+                LOG.warn(
+                        "Failed to locally delete BLOB "
+                                + key
+                                + " at "
+                                + localFile.getAbsolutePath());
+                deleteLocally = false;
+            }
+            // this needs to happen inside the write lock in case of concurrent getFile() calls
+            boolean deleteHA = blobStore.delete(jobId, key);
+            return deleteLocally && deleteHA;
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Delete the uploaded data with the given {@link JobID} and {@link PermanentBlobKey}.
+     *
+     * @param jobId ID of the job this blob belongs to
+     * @param key the key of this blob
+     */
+    @Override
+    public boolean deletePermanent(JobID jobId, PermanentBlobKey key) {
+        return deleteInternal(jobId, key);
+    }
+
+    /**
      * Removes all BLOBs from local and HA store belonging to the given job ID.
      *
      * @param jobId ID of the job this blob belongs to

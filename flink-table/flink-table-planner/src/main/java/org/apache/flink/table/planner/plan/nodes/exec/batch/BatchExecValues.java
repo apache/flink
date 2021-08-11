@@ -31,6 +31,6 @@ import java.util.List;
 public class BatchExecValues extends CommonExecValues implements BatchExecNode<RowData> {
 
     public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
-        super(tuples, outputType, description);
+        super(tuples, getNewNodeId(), outputType, description);
     }
 }

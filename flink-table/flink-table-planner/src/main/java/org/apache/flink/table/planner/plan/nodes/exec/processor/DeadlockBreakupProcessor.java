@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -43,8 +43,8 @@ public class DeadlockBreakupProcessor implements ExecNodeGraphProcessor {
                 new InputPriorityConflictResolver(
                         execGraph.getRootNodes(),
                         InputProperty.DamBehavior.END_INPUT,
-                        ShuffleMode.BATCH,
-                        context.getPlanner().getTableConfig().getConfiguration());
+                        StreamExchangeMode.BATCH,
+                        context.getPlanner().getConfiguration());
         resolver.detectAndResolve();
         return execGraph;
     }

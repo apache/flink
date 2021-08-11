@@ -17,15 +17,11 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,20 +30,17 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
-import org.apache.flink.streaming.api.operators.python.PythonTimestampsAndWatermarksOperator;
+import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -66,34 +59,34 @@ public class PythonConfigUtil {
      * python dependency management configurations.
      */
     public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
+            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         return PythonDependencyUtils.configurePythonDependencies(
                 env.getCachedFiles(), getEnvironmentConfig(env));
     }
 
     /**
-     * Get the private method {@link StreamExecutionEnvironment#getConfiguration()} by reflection
-     * recursively. Then access the method to get the configuration of the given
+     * Get the private field {@code StreamExecutionEnvironment#configuration} by reflection
+     * recursively. Then access the field to get the configuration of the given
      * StreamExecutionEnvironment.
      */
     public static Configuration getEnvironmentConfig(StreamExecutionEnvironment env)
-            throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
-        Method getConfigurationMethod = null;
+            throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
+        Field configurationField = null;
         for (Class<?> clz = env.getClass(); clz != Object.class; clz = clz.getSuperclass()) {
             try {
-                getConfigurationMethod = clz.getDeclaredMethod("getConfiguration");
+                configurationField = clz.getDeclaredField("configuration");
                 break;
-            } catch (NoSuchMethodException e) {
+            } catch (NoSuchFieldException e) {
                 // ignore
             }
         }
 
-        if (getConfigurationMethod == null) {
-            throw new NoSuchMethodException("Method getConfigurationMethod not found.");
+        if (configurationField == null) {
+            throw new NoSuchFieldException("Field 'configuration' not found.");
         }
 
-        getConfigurationMethod.setAccessible(true);
-        return (Configuration) getConfigurationMethod.invoke(env);
+        configurationField.setAccessible(true);
+        return (Configuration) configurationField.get(env);
     }
 
     /**
@@ -105,24 +98,16 @@ public class PythonConfigUtil {
      */
     public static StreamGraph generateStreamGraphWithDependencies(
             StreamExecutionEnvironment env, boolean clearTransformations)
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         configPythonOperator(env);
 
-        String jobName =
-                getEnvironmentConfig(env)
-                        .getString(
-                                PipelineOptions.NAME, StreamExecutionEnvironment.DEFAULT_JOB_NAME);
-        return env.getStreamGraph(jobName, clearTransformations);
+        return env.getStreamGraph(clearTransformations);
     }
 
     @SuppressWarnings("unchecked")
     public static void configPythonOperator(StreamExecutionEnvironment env)
-            throws IllegalAccessException, NoSuchMethodException, InvocationTargetException,
-                    NoSuchFieldException {
+            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         Configuration mergedConfig = getEnvConfigWithDependencies(env);
-
-        boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
 
         Field transformationsField =
                 StreamExecutionEnvironment.class.getDeclaredField("transformations");
@@ -143,13 +128,6 @@ public class PythonConfigUtil {
                     // update dependency related configurations for Python operators
                     pythonFunctionOperator.setPythonConfig(
                             generateNewPythonConfig(oldConfig, mergedConfig));
-
-                    // set the emitProgressiveWatermarks flag for
-                    // PythonTimestampsAndWatermarksOperator
-                    if (pythonFunctionOperator instanceof PythonTimestampsAndWatermarksOperator) {
-                        ((PythonTimestampsAndWatermarksOperator<?>) pythonFunctionOperator)
-                                .configureEmitProgressiveWatermarks(!executedInBatchMode);
-                    }
                 }
             }
         }
@@ -166,7 +144,7 @@ public class PythonConfigUtil {
                     PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
             mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
             return mergedConfig;
-        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+        } catch (IllegalAccessException | NoSuchFieldException | InvocationTargetException e) {
             throw new TableException("Method getMergedConfig failed.", e);
         }
     }
@@ -291,31 +269,6 @@ public class PythonConfigUtil {
         return new PythonConfig(mergedConfig);
     }
 
-    /** Return is executed in batch mode according to the configured RuntimeExecutionMode. */
-    private static boolean isExecuteInBatchMode(
-            StreamExecutionEnvironment env, Configuration configuration)
-            throws NoSuchFieldException, IllegalAccessException {
-
-        final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
-        if (executionMode != RuntimeExecutionMode.AUTOMATIC) {
-            return executionMode == RuntimeExecutionMode.BATCH;
-        }
-
-        Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        boolean existsUnboundedSource = false;
-        for (Transformation<?> transform :
-                (List<Transformation<?>>) transformationsField.get(env)) {
-            existsUnboundedSource =
-                    existsUnboundedSource
-                            || (transform instanceof WithBoundedness
-                                    && ((WithBoundedness) transform).getBoundedness()
-                                            != Boundedness.BOUNDED);
-        }
-        return !existsUnboundedSource;
-    }
-
     private static void setPartitionCustomOperatorNumPartitions(
             List<Transformation<?>> transformations) {
         // Update the numPartitions of PartitionCustomOperator after aligned all operators.
@@ -326,9 +279,9 @@ public class PythonConfigUtil {
             }
             AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                     getPythonOperator(firstInputTransformation);
-            if (pythonFunctionOperator instanceof PythonPartitionCustomOperator) {
-                PythonPartitionCustomOperator<?, ?> partitionCustomFunctionOperator =
-                        (PythonPartitionCustomOperator<?, ?>) pythonFunctionOperator;
+            if (pythonFunctionOperator instanceof PythonProcessOperator) {
+                PythonProcessOperator<?, ?> partitionCustomFunctionOperator =
+                        (PythonProcessOperator<?, ?>) pythonFunctionOperator;
 
                 partitionCustomFunctionOperator.setNumPartitions(transformation.getParallelism());
             }

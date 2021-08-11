@@ -102,10 +102,15 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param executionAttemptID identifying the task
      * @param jobId identifying the job to which the task belongs
      * @param checkpointId of the subsumed checkpoint
+     * @param latestCompletedCheckpointId of the latest completed checkpoint
      * @param timestamp of the subsumed checkpoint
      */
     void notifyCheckpointAborted(
-            ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp);
+            ExecutionAttemptID executionAttemptID,
+            JobID jobId,
+            long checkpointId,
+            long latestCompletedCheckpointId,
+            long timestamp);
 
     /**
      * Trigger for the given task a checkpoint.
@@ -115,8 +120,9 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param checkpointId of the checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
+     * @return Future acknowledge which is returned once the checkpoint has been triggered
      */
-    void triggerCheckpoint(
+    CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,

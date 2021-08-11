@@ -27,10 +27,12 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -51,6 +53,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 
 /** IT cases for using Kinesis consumer/producer based on Kinesalite. */
+@Ignore("See FLINK-23528")
 public class FlinkKinesisITCase extends TestLogger {
     public static final String TEST_STREAM = "test_stream";
 
@@ -61,8 +64,7 @@ public class FlinkKinesisITCase extends TestLogger {
 
     @ClassRule
     public static KinesaliteContainer kinesalite =
-            new KinesaliteContainer(
-                    DockerImageName.parse("instructure/kinesalite").withTag("latest"));
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
 
     @Rule public TemporaryFolder temp = new TemporaryFolder();
 

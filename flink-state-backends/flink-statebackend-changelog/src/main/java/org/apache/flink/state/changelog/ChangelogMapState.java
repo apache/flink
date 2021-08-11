@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
 import org.apache.flink.state.changelog.restore.StateChangeApplier;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -122,22 +123,24 @@ class ChangelogMapState<K, N, UK, UV>
     private Iterator<Map.Entry<UK, UV>> getEntryIterator(Iterator<Map.Entry<UK, UV>> iterator) {
         final N currentNamespace = getCurrentNamespace();
         return StateChangeLoggingIterator.create(
-                new Iterator<Map.Entry<UK, UV>>() {
-                    @Override
-                    public Map.Entry<UK, UV> next() {
-                        return loggingMapEntry(iterator.next(), changeLogger, currentNamespace);
-                    }
+                CloseableIterator.adapterForIterator(
+                        new Iterator<Map.Entry<UK, UV>>() {
+                            @Override
+                            public Map.Entry<UK, UV> next() {
+                                return loggingMapEntry(
+                                        iterator.next(), changeLogger, currentNamespace);
+                            }
 
-                    @Override
-                    public boolean hasNext() {
-                        return iterator.hasNext();
-                    }
+                            @Override
+                            public boolean hasNext() {
+                                return iterator.hasNext();
+                            }
 
-                    @Override
-                    public void remove() {
-                        iterator.remove();
-                    }
-                },
+                            @Override
+                            public void remove() {
+                                iterator.remove();
+                            }
+                        }),
                 changeLogger,
                 (entry, out) -> serializeKey(entry.getKey(), out),
                 currentNamespace);
@@ -148,7 +151,7 @@ class ChangelogMapState<K, N, UK, UV>
         Iterable<UK> iterable = delegatedState.keys();
         return () ->
                 StateChangeLoggingIterator.create(
-                        iterable.iterator(),
+                        CloseableIterator.adapterForIterator(iterable.iterator()),
                         changeLogger,
                         this::serializeKey,
                         getCurrentNamespace());

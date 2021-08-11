@@ -43,6 +43,8 @@ import org.apache.flink.state.changelog.StateChangeOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -94,10 +96,9 @@ class ChangelogBackendLogApplier {
             DataInputView in, ChangelogKeyedStateBackend<?> backend, ClassLoader classLoader)
             throws Exception {
         StateMetaInfoSnapshot snapshot = readStateMetaInfoSnapshot(in, classLoader);
-        StateTtlConfig ttlConfig = readTtlConfig(in);
         switch (snapshot.getBackendStateType()) {
             case KEY_VALUE:
-                restoreKvMetaData(backend, snapshot, ttlConfig);
+                restoreKvMetaData(backend, snapshot, in);
                 return;
             case PRIORITY_QUEUE:
                 restorePqMetaData(backend, snapshot);
@@ -126,18 +127,24 @@ class ChangelogBackendLogApplier {
         }
     }
 
+    @Nullable
+    private static Object readDefaultValue(
+            DataInputView in, RegisteredKeyValueStateBackendMetaInfo meta) throws IOException {
+        return in.readBoolean() ? meta.getStateSerializer().deserialize(in) : null;
+    }
+
     private static void restoreKvMetaData(
-            ChangelogKeyedStateBackend<?> backend,
-            StateMetaInfoSnapshot snapshot,
-            StateTtlConfig ttlConfig)
+            ChangelogKeyedStateBackend<?> backend, StateMetaInfoSnapshot snapshot, DataInputView in)
             throws Exception {
         RegisteredKeyValueStateBackendMetaInfo meta =
                 new RegisteredKeyValueStateBackendMetaInfo(snapshot);
+        StateTtlConfig ttlConfig = readTtlConfig(in);
+        Object defaultValue = readDefaultValue(in, meta);
         // Use regular API to create states in both changelog and the base backends the metadata is
         // persisted in log before data changes.
         // An alternative solution to load metadata "natively" by the base backends would require
         // base state to be always present, i.e. the 1st checkpoint would have to be "full" always.
-        StateDescriptor stateDescriptor = toStateDescriptor(meta);
+        StateDescriptor stateDescriptor = toStateDescriptor(meta, defaultValue);
         // todo: support changing ttl (FLINK-23143)
         if (ttlConfig.isEnabled()) {
             stateDescriptor.enableTimeToLive(ttlConfig);
@@ -145,10 +152,12 @@ class ChangelogBackendLogApplier {
         backend.getOrCreateKeyedState(meta.getNamespaceSerializer(), stateDescriptor);
     }
 
-    private static StateDescriptor toStateDescriptor(RegisteredKeyValueStateBackendMetaInfo meta) {
+    private static StateDescriptor toStateDescriptor(
+            RegisteredKeyValueStateBackendMetaInfo meta, @Nullable Object defaultValue) {
         switch (meta.getStateType()) {
             case VALUE:
-                return new ValueStateDescriptor(meta.getName(), meta.getStateSerializer());
+                return new ValueStateDescriptor(
+                        meta.getName(), meta.getStateSerializer(), defaultValue);
             case MAP:
                 MapSerializer mapSerializer = (MapSerializer) meta.getStateSerializer();
                 return new MapStateDescriptor(

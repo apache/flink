@@ -74,7 +74,7 @@ public class StreamTaskTimerTest extends TestLogger {
         // first one spawns thread
         timeService.registerTimer(System.currentTimeMillis(), timestamp -> {});
 
-        assertEquals(1, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+        assertEquals(2, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
     }
 
     @Test

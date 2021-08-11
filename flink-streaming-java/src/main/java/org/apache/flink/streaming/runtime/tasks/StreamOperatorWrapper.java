@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 import javax.annotation.Nonnull;
@@ -36,11 +36,11 @@ import java.util.concurrent.TimeoutException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class handles the close, endInput and other related logic of a {@link StreamOperator}. It
- * also automatically propagates the close operation to the next wrapper that the {@link #next}
+ * This class handles the finish, endInput and other related logic of a {@link StreamOperator}. It
+ * also automatically propagates the finish operation to the next wrapper that the {@link #next}
  * points to, so we can use {@link #next} to link all operator wrappers in the operator chain and
- * close all operators only by calling the {@link #finish(StreamTaskActionExecutor, boolean)} method
- * of the header operator wrapper.
+ * finish all operators only by calling the {@link #finish(StreamTaskActionExecutor)} method of the
+ * header operator wrapper.
  */
 @Internal
 public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
@@ -113,16 +113,15 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
     }
 
     /**
-     * Closes the wrapped operator and propagates the close operation to the next wrapper that the
-     * {@link #next} points to.
+     * Finishes the wrapped operator and propagates the finish operation to the next wrapper that
+     * the {@link #next} points to.
      *
      * <p>Note that this method must be called in the task thread, because we need to call {@link
      * MailboxExecutor#yield()} to take the mails of closing operator and running timers and run
      * them.
      */
-    public void finish(StreamTaskActionExecutor actionExecutor, boolean isStoppingBySyncSavepoint)
-            throws Exception {
-        if (!isHead && !isStoppingBySyncSavepoint) {
+    public void finish(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (!isHead) {
             // NOTE: This only do for the case where the operator is one-input operator. At present,
             // any non-head operator on the operator chain is one-input operator.
             actionExecutor.runThrowing(() -> endOperatorInput(1));
@@ -132,8 +131,14 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
         // propagate the close operation to the next wrapper
         if (next != null) {
-            next.finish(actionExecutor, isStoppingBySyncSavepoint);
+            next.finish(actionExecutor);
         }
+    }
+
+    /** Close the operator. */
+    public void close() throws Exception {
+        closed = true;
+        wrapped.close();
     }
 
     private void quiesceTimeServiceAndFinishOperator(StreamTaskActionExecutor actionExecutor)
@@ -166,7 +171,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
             }
         }
 
-        // expose the exception thrown when closing
+        // expose the exception thrown when finishing
         finishedFuture.get();
     }
 
@@ -183,7 +188,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
                         finishOperatorFuture.completeExceptionally(t);
                     }
                 },
-                "StreamOperatorWrapper#closeOperator for " + wrapped);
+                "StreamOperatorWrapper#finishOperator for " + wrapped);
         return finishOperatorFuture;
     }
 
@@ -203,11 +208,7 @@ public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
     }
 
     private void finishOperator(StreamTaskActionExecutor actionExecutor) throws Exception {
-        actionExecutor.runThrowing(
-                () -> {
-                    closed = true;
-                    wrapped.finish();
-                });
+        actionExecutor.runThrowing(wrapped::finish);
     }
 
     static class ReadIterator

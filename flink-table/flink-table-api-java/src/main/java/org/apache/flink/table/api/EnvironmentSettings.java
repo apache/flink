@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.functions.UserDefinedFunction;
 
@@ -69,8 +70,8 @@ public class EnvironmentSettings {
     /** Canonical name of the {@link Planner} class to use. */
     private final String plannerClass;
 
-    /** Canonical name of the {@link Executor} class to use. */
-    private final String executorClass;
+    /** Factory identifier of the {@link Executor} to use. */
+    private final String executor;
 
     /**
      * Specifies the name of the initial catalog to be created when instantiating {@link
@@ -92,12 +93,12 @@ public class EnvironmentSettings {
 
     private EnvironmentSettings(
             @Nullable String plannerClass,
-            @Nullable String executorClass,
+            @Nullable String executor,
             String builtInCatalogName,
             String builtInDatabaseName,
             boolean isStreamingMode) {
         this.plannerClass = plannerClass;
-        this.executorClass = executorClass;
+        this.executor = executor;
         this.builtInCatalogName = builtInCatalogName;
         this.builtInDatabaseName = builtInDatabaseName;
         this.isStreamingMode = isStreamingMode;
@@ -216,20 +217,17 @@ public class EnvironmentSettings {
         return true;
     }
 
+    /** Returns the {@link Executor} that should submit and execute table programs. */
+    @Internal
+    public String getExecutor() {
+        return executor;
+    }
+
     @Internal
     public Map<String, String> toPlannerProperties() {
         Map<String, String> properties = new HashMap<>(toCommonProperties());
         if (plannerClass != null) {
             properties.put(CLASS_NAME, plannerClass);
-        }
-        return properties;
-    }
-
-    @Internal
-    public Map<String, String> toExecutorProperties() {
-        Map<String, String> properties = new HashMap<>(toCommonProperties());
-        if (executorClass != null) {
-            properties.put(CLASS_NAME, executorClass);
         }
         return properties;
     }
@@ -244,11 +242,9 @@ public class EnvironmentSettings {
     public static class Builder {
         private static final String BLINK_PLANNER_FACTORY =
                 "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
-        private static final String BLINK_EXECUTOR_FACTORY =
-                "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
 
         private String plannerClass = BLINK_PLANNER_FACTORY;
-        private String executorClass = BLINK_EXECUTOR_FACTORY;
+        private String executor = ExecutorFactory.DEFAULT_IDENTIFIER;
         private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
         private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
         private boolean isStreamingMode = true;
@@ -278,7 +274,6 @@ public class EnvironmentSettings {
         @Deprecated
         public Builder useBlinkPlanner() {
             this.plannerClass = BLINK_PLANNER_FACTORY;
-            this.executorClass = BLINK_EXECUTOR_FACTORY;
             return this;
         }
 
@@ -296,7 +291,6 @@ public class EnvironmentSettings {
         @Deprecated
         public Builder useAnyPlanner() {
             this.plannerClass = null;
-            this.executorClass = null;
             return this;
         }
 
@@ -354,7 +348,7 @@ public class EnvironmentSettings {
         public EnvironmentSettings build() {
             return new EnvironmentSettings(
                     plannerClass,
-                    executorClass,
+                    executor,
                     builtInCatalogName,
                     builtInDatabaseName,
                     isStreamingMode);

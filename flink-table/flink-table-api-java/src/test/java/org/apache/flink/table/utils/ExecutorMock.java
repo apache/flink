@@ -21,8 +21,8 @@ package org.apache.flink.table.utils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 
 import java.util.List;
@@ -31,8 +31,15 @@ import java.util.List;
 public class ExecutorMock implements Executor {
 
     @Override
+    public ReadableConfig getConfiguration() {
+        return null;
+    }
+
+    @Override
     public Pipeline createPipeline(
-            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+            List<Transformation<?>> transformations,
+            ReadableConfig configuration,
+            String defaultJobName) {
         return null;
     }
 
@@ -42,7 +49,7 @@ public class ExecutorMock implements Executor {
     }
 
     @Override
-    public JobClient executeAsync(Pipeline pipeline) throws Exception {
+    public JobClient executeAsync(Pipeline pipeline) {
         return null;
     }
 }

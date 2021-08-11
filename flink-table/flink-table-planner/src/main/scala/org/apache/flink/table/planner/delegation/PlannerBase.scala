@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException}
@@ -93,6 +94,10 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
+  private val plannerConfiguration: ReadableConfig = new PlannerConfiguration(
+    config.getConfiguration,
+    executor.getConfiguration)
+
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
@@ -102,8 +107,6 @@ abstract class PlannerBase(
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
-
-  private val sqlExprToRexConverterFactory = plannerContext.getSqlExprToRexConverterFactory
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
@@ -133,8 +136,22 @@ abstract class PlannerBase(
 
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
+  /**
+   * Gives access to both API specific table configuration and executor configuration.
+   *
+   * This configuration should be the main source of truth in the planner module.
+   */
+  def getConfiguration: ReadableConfig = plannerConfiguration
+
+  /**
+   * @deprecated Do not use this method anymore. Use [[getConfiguration]] to access options.
+   *             Create transformations without it. A [[StreamExecutionEnvironment]] is a mixture
+   *             of executor and stream graph generator/builder. In the long term, we would like
+   *             to avoid the need for it in the planner module.
+   */
+  @deprecated
   private[flink] def getExecEnv: StreamExecutionEnvironment = {
-    executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
+    executor.asInstanceOf[DefaultExecutor].getExecutionEnvironment
   }
 
   def createNewParser: Parser = {
@@ -192,7 +209,8 @@ abstract class PlannerBase(
 
       case collectModifyOperation: CollectModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
-        DynamicSinkUtils.convertCollectToRel(getRelBuilder, input, collectModifyOperation)
+        DynamicSinkUtils.convertCollectToRel(
+          getRelBuilder, input, collectModifyOperation, getTableConfig.getConfiguration)
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()

@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.FutureTaskWithException;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.FutureTaskWithException;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Assert;

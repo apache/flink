@@ -40,7 +40,10 @@ class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
         return 'PassThroughLengthPrefixCoderImpl[%s]' % self._value_coder
 
 
-class BeamCoderImpl(StreamCoderImpl):
+class FlinkCoderBeamWrapper(StreamCoderImpl):
+    """
+    Bridge between Beam coder and Flink coder.
+    """
     def __init__(self, value_coder):
         self._value_coder = value_coder
         self._data_output_stream = OutputStream()
@@ -55,4 +58,4 @@ class BeamCoderImpl(StreamCoderImpl):
         return self._value_coder.decode_from_stream(data_input_stream)
 
     def __repr__(self):
-        return 'BeamCoderImpl[%s]' % self._value_coder
+        return 'FlinkCoderBeamWrapper[%s]' % self._value_coder

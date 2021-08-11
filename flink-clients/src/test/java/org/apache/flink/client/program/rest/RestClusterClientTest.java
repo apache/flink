@@ -45,8 +45,6 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -154,8 +152,6 @@ public class RestClusterClientTest extends TestLogger {
 
     private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 
-    private RestServerEndpointConfiguration restServerEndpointConfiguration;
-
     private volatile FailHttpRequestPredicate failHttpRequest = FailHttpRequestPredicate.never();
 
     private ExecutorService executor;
@@ -177,8 +173,6 @@ public class RestClusterClientTest extends TestLogger {
 
     @Before
     public void setUp() throws Exception {
-        restServerEndpointConfiguration =
-                RestServerEndpointConfiguration.fromConfiguration(restConfig);
         mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
         executor =
@@ -209,7 +203,7 @@ public class RestClusterClientTest extends TestLogger {
 
     @Nonnull
     private RestClient createRestClient() throws ConfigurationException {
-        return new RestClient(RestClientConfiguration.fromConfiguration(restConfig), executor) {
+        return new RestClient(restConfig, executor) {
             @Override
             public <
                             M extends MessageHeaders<R, P, U>,
@@ -1048,8 +1042,7 @@ public class RestClusterClientTest extends TestLogger {
 
     private TestRestServerEndpoint createRestServerEndpoint(
             final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
-        TestRestServerEndpoint.Builder builder =
-                TestRestServerEndpoint.builder(restServerEndpointConfiguration);
+        TestRestServerEndpoint.Builder builder = TestRestServerEndpoint.builder(restConfig);
         Arrays.stream(abstractRestHandlers).forEach(builder::withHandler);
 
         return builder.buildAndStart();

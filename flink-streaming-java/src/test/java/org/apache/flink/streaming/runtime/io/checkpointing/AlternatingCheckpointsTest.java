@@ -34,7 +34,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler.Cancellable;
 import org.apache.flink.streaming.util.TestCheckpointedInputGateBuilder;
 import org.apache.flink.util.clock.Clock;
@@ -900,7 +900,6 @@ public class AlternatingCheckpointsTest {
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
-            gate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
             getChannel(gate, 0)
                     .onBuffer(
@@ -1152,6 +1151,34 @@ public class AlternatingCheckpointsTest {
 
         assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
         assertFalse(secondChannel.isBlocked());
+    }
+
+    @Test
+    public void testNextFirstCheckpointBarrierOvertakesCancellationBarrier() throws Exception {
+        int numberOfChannels = 2;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(
+                                numberOfChannels, getTestBarrierHandlerFactory(target))
+                        .withTestChannels()
+                        .withSyncExecutor()
+                        .build();
+
+        long alignmentTimeout = 10000;
+        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+
+        send(checkpointBarrier, 0, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(withTimeout(2, alignmentTimeout), 0, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(toBuffer(new CancelCheckpointMarker(1L), true), 1, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(withTimeout(2, alignmentTimeout), 1, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+
+        assertEquals(
+                Duration.ofSeconds(2).toNanos(),
+                target.lastAlignmentDurationNanos.get().longValue());
     }
 
     private void testBarrierHandling(CheckpointType checkpointType) throws Exception {

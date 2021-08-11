@@ -41,6 +41,12 @@ public class NoResourceAvailableException extends JobException {
         super(message, cause);
     }
 
+    public static NoResourceAvailableException withoutStackTrace(String message) {
+        NoResourceAvailableException exception = new NoResourceAvailableException(message);
+        exception.setStackTrace(new StackTraceElement[0]);
+        return exception;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @Override

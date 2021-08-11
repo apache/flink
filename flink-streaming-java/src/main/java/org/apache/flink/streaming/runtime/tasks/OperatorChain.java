@@ -54,7 +54,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -131,8 +132,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private final int numOperators;
 
     private final OperatorEventDispatcherImpl operatorEventDispatcher;
-
-    private boolean ignoreEndOfInput;
 
     private final Closer closer = Closer.create();
 
@@ -326,6 +325,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             WatermarkGaugeExposingOutput chainedSourceOutput =
                     createChainedSourceOutput(
                             containingTask,
+                            sourceInputConfig,
+                            userCodeClassloader,
                             operatorInputs.get(inputId),
                             (OperatorMetricGroup) multipleInputOperator.getMetricGroup(),
                             outputTag);
@@ -344,27 +345,38 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     sourceInput,
                     new ChainedSource(
                             chainedSourceOutput,
-                            new StreamTaskSourceInput<>(
-                                    sourceOperator, sourceInputGateIndex++, inputId)));
+                            finishedOnRestore
+                                    ? new StreamTaskFinishedOnRestoreSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)
+                                    : new StreamTaskSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)));
         }
         return chainedSourceInputs;
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private WatermarkGaugeExposingOutput<StreamRecord> createChainedSourceOutput(
             StreamTask<?, OP> containingTask,
+            StreamConfig sourceInputConfig,
+            ClassLoader userCodeClassloader,
             Input input,
             OperatorMetricGroup metricGroup,
             OutputTag outputTag) {
-        if (!containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            throw new UnsupportedOperationException(
-                    "Currently chained sources are supported only with objectReuse enabled");
+
+        WatermarkGaugeExposingOutput<StreamRecord> chainedSourceOutput;
+        if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+            chainedSourceOutput = new ChainingOutput(input, metricGroup, outputTag);
+        } else {
+            TypeSerializer<?> inSerializer =
+                    sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
+            chainedSourceOutput =
+                    new CopyingChainingOutput(input, inSerializer, metricGroup, outputTag);
         }
         /**
          * Chained sources are closed when {@link
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
-        return closer.register(new ChainingOutput(input, metricGroup, outputTag));
+        return closer.register(chainedSourceOutput);
     }
 
     public boolean isFinishedOnRestore() {
@@ -391,6 +403,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         // go forward through the operator chain and tell each operator
         // to prepare the checkpoint
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
@@ -407,7 +423,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      */
     @Override
     public void endInput(int inputId) throws Exception {
-        if (mainOperatorWrapper != null && !ignoreEndOfInput) {
+        if (mainOperatorWrapper != null) {
             mainOperatorWrapper.endOperatorInput(inputId);
         }
     }
@@ -419,6 +435,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      */
     protected void initializeStateAndOpenOperators(
             StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
             operator.initializeState(streamTaskStateInitializer);
@@ -432,8 +452,34 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
      */
     protected void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         if (firstOperatorWrapper != null) {
-            firstOperatorWrapper.finish(actionExecutor, ignoreEndOfInput);
+            firstOperatorWrapper.finish(actionExecutor);
+        }
+    }
+
+    /**
+     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
+     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
+     */
+    protected void closeAllOperators() throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
+        Exception closingException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.close();
+            } catch (Exception e) {
+                closingException = firstOrSuppressed(e, closingException);
+            }
+        }
+        if (closingException != null) {
+            throw closingException;
         }
     }
 
@@ -751,10 +797,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     @Nullable
     StreamOperator<?> getTailOperator() {
         return (tailOperatorWrapper == null) ? null : tailOperatorWrapper.getStreamOperator();
-    }
-
-    public void setIgnoreEndOfInput(boolean ignoreEndOfInput) {
-        this.ignoreEndOfInput = ignoreEndOfInput;
     }
 
     /** Wrapper class to access the chained sources and their's outputs. */

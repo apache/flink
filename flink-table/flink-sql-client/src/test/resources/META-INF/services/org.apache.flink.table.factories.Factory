@@ -14,6 +14,6 @@
 # limitations under the License.
 
 org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory
+org.apache.flink.table.client.gateway.local.DependencyTest$TestTableSourceFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestHiveCatalogFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestCatalogFactory
-org.apache.flink.table.client.gateway.context.ExecutionContextTest$TestClassLoaderCatalogFactory

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -75,6 +74,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -85,6 +85,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -112,6 +113,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -134,11 +136,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Each Task is run by one dedicated thread.
  */
 public class Task
-        implements Runnable,
-                TaskSlotPayload,
-                TaskActions,
-                PartitionProducerStateProvider,
-                CheckpointListener {
+        implements Runnable, TaskSlotPayload, TaskActions, PartitionProducerStateProvider {
 
     /** The class logger. */
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -294,6 +292,9 @@ public class Task
      */
     private UserCodeClassLoader userCodeClassLoader;
 
+    /** The only one throughput meter per subtask. */
+    private ThroughputCalculator throughputCalculator;
+
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
      * case of a failing task deployment.
@@ -417,11 +418,16 @@ public class Task
                         .toArray(new IndexedInputGate[0]);
 
         this.inputGates = new IndexedInputGate[gates.length];
+        this.throughputCalculator =
+                new ThroughputCalculator(
+                        SystemClock.getInstance(), taskConfiguration.get(BUFFER_DEBLOAT_SAMPLES));
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
                     new InputGateWithMetrics(
-                            gate, metrics.getIOMetricGroup().getNumBytesInCounter());
+                            gate,
+                            metrics.getIOMetricGroup().getNumBytesInCounter(),
+                            throughputCalculator);
         }
 
         if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
@@ -714,7 +720,8 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider);
+                            externalResourceInfoProvider,
+                            throughputCalculator);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable
@@ -1343,7 +1350,6 @@ public class Task
         }
     }
 
-    @Override
     public void notifyCheckpointComplete(final long checkpointID) {
         final AbstractInvokable invokable = this.invokable;
 
@@ -1371,13 +1377,13 @@ public class Task
         }
     }
 
-    @Override
-    public void notifyCheckpointAborted(final long checkpointID) {
+    public void notifyCheckpointAborted(
+            final long checkpointID, final long latestCompletedCheckpointId) {
         final AbstractInvokable invokable = this.invokable;
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
-                invokable.notifyCheckpointAbortAsync(checkpointID);
+                invokable.notifyCheckpointAbortAsync(checkpointID, latestCompletedCheckpointId);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.

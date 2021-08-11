@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
@@ -573,6 +574,39 @@ public class SqlToOperationConverterTest {
                         + "a.b-c-d.e-f.g=ada, "
                         + "a.b-c-d.e-f1231.g=ada}";
         assertEquals(expected, sortedProperties.toString());
+    }
+
+    @Test
+    public void testExplainWithSelect() {
+        final String sql = "explain select * from t1";
+        checkExplainSql(sql);
+    }
+
+    @Test
+    public void testExplainWithInsert() {
+        final String sql = "explain insert into t2 select * from t1";
+        checkExplainSql(sql);
+    }
+
+    @Test
+    public void testExplainWithUnion() {
+        final String sql = "explain select * from t1 union select * from t2";
+        checkExplainSql(sql);
+    }
+
+    @Test
+    public void testExplainWithExplainDetails() {
+        String sql = "explain changelog_mode, estimated_cost, json_execution_plan select * from t1";
+        checkExplainSql(sql);
+    }
+
+    private void checkExplainSql(String sql) {
+        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        SqlNode node = parser.parse(sql);
+        assert node instanceof SqlRichExplain;
+        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        assert operation instanceof ExplainOperation;
     }
 
     @Test

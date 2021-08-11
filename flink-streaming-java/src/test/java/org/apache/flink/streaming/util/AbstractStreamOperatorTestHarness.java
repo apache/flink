@@ -238,6 +238,24 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this(operator, SimpleOperatorFactory.of(operator), env, false, new OperatorID());
     }
 
+    public AbstractStreamOperatorTestHarness(
+            StreamOperator<OUT> operator, String taskName, OperatorID operatorID) throws Exception {
+        this(
+                operator,
+                SimpleOperatorFactory.of(operator),
+                new MockEnvironmentBuilder()
+                        .setTaskName(taskName)
+                        .setManagedMemorySize(3 * 1024 * 1024)
+                        .setInputSplitProvider(new MockInputSplitProvider())
+                        .setBufferSize(1024)
+                        .setMaxParallelism(1)
+                        .setParallelism(1)
+                        .setSubtaskIndex(0)
+                        .build(),
+                false,
+                operatorID);
+    }
+
     private AbstractStreamOperatorTestHarness(
             StreamOperator<OUT> operator,
             StreamOperatorFactory<OUT> factory,
@@ -351,6 +369,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     /** Get all the output from the task. This contains StreamRecords and Events interleaved. */
     public ConcurrentLinkedQueue<Object> getOutput() {
         return outputList;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Collection<StreamRecord<OUT>> getRecordOutput() {
+        return outputList.stream()
+                .filter(element -> element instanceof StreamRecord)
+                .map(element -> (StreamRecord<OUT>) element)
+                .collect(Collectors.toList());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

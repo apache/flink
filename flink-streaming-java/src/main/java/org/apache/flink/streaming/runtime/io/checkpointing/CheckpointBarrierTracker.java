@@ -81,8 +81,11 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     private long latestPendingCheckpointID = -1;
 
     public CheckpointBarrierTracker(
-            int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint, Clock clock) {
-        super(toNotifyOnCheckpoint, clock);
+            int totalNumberOfInputChannels,
+            AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock,
+            boolean enableCheckpointAfterTasksFinished) {
+        super(toNotifyOnCheckpoint, clock, enableCheckpointAfterTasksFinished);
         this.numOpenChannels = totalNumberOfInputChannels;
         this.pendingCheckpoints = new ArrayDeque<>();
     }
@@ -98,7 +101,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         // 3. Received barrier from channel 1.
         // In this case we should finish the existing pending checkpoint.
         if (receivedBarrier.getId() > latestPendingCheckpointID && numOpenChannels == 1) {
-            markAlignmentStartAndEnd(receivedBarrier.getTimestamp());
+            markAlignmentStartAndEnd(barrierId, receivedBarrier.getTimestamp());
             notifyCheckpoint(receivedBarrier);
             return;
         }
@@ -142,7 +145,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
             // if it is not newer than the latest checkpoint ID, then there cannot be a
             // successful checkpoint for that ID anyways
             if (barrierId > latestPendingCheckpointID) {
-                markAlignmentStart(receivedBarrier.getTimestamp());
+                markAlignmentStart(barrierId, receivedBarrier.getTimestamp());
                 latestPendingCheckpointID = barrierId;
                 pendingCheckpoints.addLast(
                         new CheckpointBarrierCount(receivedBarrier, channelInfo, numOpenChannels));
@@ -178,6 +181,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         // 3. Received cancellation barrier from channel 1.
         // In this case we should cleanup the existing pending checkpoint.
         if (cancelBarrier.getCheckpointId() > latestPendingCheckpointID && numOpenChannels == 1) {
+            resetAlignment();
             notifyAbortOnCancellationBarrier(checkpointId);
             return;
         }
@@ -232,7 +236,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     public void processEndOfPartition(InputChannelInfo channelInfo) throws IOException {
         numOpenChannels--;
 
-        if (!enableCheckpointAfterTasksFinished) {
+        if (!isCheckpointAfterTasksFinishedEnabled()) {
             while (!pendingCheckpoints.isEmpty()) {
                 CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
                 if (barrierCount.markAborted()) {
@@ -243,6 +247,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
                                             .CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
                 }
             }
+            resetAlignment();
         } else {
             checkAlignmentOnEndOfPartitionIfEnabled(channelInfo);
         }
@@ -284,7 +289,10 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
                     "All the channels are aligned for checkpoint {}", barrierCount.checkpointId());
         }
 
-        markAlignmentEnd();
+        // Only one calculation of the alignment time at once is supported right now.
+        if (barrierCount.checkpointId == latestPendingCheckpointID) {
+            markAlignmentEnd();
+        }
         checkState(
                 barrierCount.getPendingCheckpoint() != null,
                 "Pending checkpoint barrier must" + "exists for non-aborted checkpoints.");

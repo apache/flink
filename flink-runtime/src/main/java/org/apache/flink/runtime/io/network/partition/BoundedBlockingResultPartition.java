@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.util.function.SupplierWithException;
@@ -38,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * memory buffers as the parallelism of the target task that the data is shuffled to.
  */
 public class BoundedBlockingResultPartition extends BufferWritingResultPartition {
+
+    private boolean hasNotifiedEndOfUserRecords;
 
     public BoundedBlockingResultPartition(
             String owningTaskName,
@@ -60,6 +63,14 @@ public class BoundedBlockingResultPartition extends BufferWritingResultPartition
                 partitionManager,
                 bufferCompressor,
                 bufferPoolFactory);
+    }
+
+    @Override
+    public void notifyEndOfData() throws IOException {
+        if (!hasNotifiedEndOfUserRecords) {
+            broadcastEvent(EndOfData.INSTANCE, false);
+            hasNotifiedEndOfUserRecords = true;
+        }
     }
 
     @Override

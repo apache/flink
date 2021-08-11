@@ -68,7 +68,7 @@ public class JobVertex implements java.io.Serializable {
      *    C    E
      * </pre>
      *
-     * This is the same order that operators are stored in the {@code StreamTask}.
+     * <p>This is the same order that operators are stored in the {@code StreamTask}.
      */
     private final List<OperatorIDPair> operatorIDs;
 
@@ -498,11 +498,6 @@ public class JobVertex implements java.io.Serializable {
         this.inputs.add(edge);
         dataSet.addConsumer(edge);
         return edge;
-    }
-
-    public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
-        JobEdge edge = new JobEdge(dataSetId, this, distPattern);
-        this.inputs.add(edge);
     }
 
     // --------------------------------------------------------------------------------------------

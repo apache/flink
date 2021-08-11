@@ -144,7 +144,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
         }
 
-        final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function);
+        final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function, !isBounded);
         return new LegacySourceTransformation<>(
                 operatorName, sourceOperator, outputTypeInfo, parallelism, boundedness);
     }

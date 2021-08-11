@@ -541,14 +541,6 @@ public class OperatorCoordinatorHolder
         @Override
         public void failJob(final Throwable cause) {
             checkInitialized();
-            if (failed) {
-                LOG.warn(
-                        "Ignoring the request to fail job because the job is already failing. "
-                                + "The ignored failure cause is",
-                        cause);
-                return;
-            }
-            failed = true;
 
             final FlinkException e =
                     new FlinkException(
@@ -558,6 +550,15 @@ public class OperatorCoordinatorHolder
                                     + operatorId
                                     + ").",
                             cause);
+
+            if (failed) {
+                LOG.debug(
+                        "Ignoring the request to fail job because the job is already failing. "
+                                + "The ignored failure cause is",
+                        e);
+                return;
+            }
+            failed = true;
 
             schedulerExecutor.execute(() -> globalFailureHandler.accept(e));
         }

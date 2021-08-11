@@ -40,6 +40,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
     HeartbeatManagerSenderImpl(
             long heartbeatPeriod,
             long heartbeatTimeout,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
@@ -47,6 +48,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
         this(
                 heartbeatPeriod,
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 ownResourceID,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -57,6 +59,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
     HeartbeatManagerSenderImpl(
             long heartbeatPeriod,
             long heartbeatTimeout,
+            int failedRpcRequestsUntilUnreachable,
             ResourceID ownResourceID,
             HeartbeatListener<I, O> heartbeatListener,
             ScheduledExecutor mainThreadExecutor,
@@ -64,6 +67,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
             HeartbeatMonitor.Factory<O> heartbeatMonitorFactory) {
         super(
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 ownResourceID,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -90,6 +94,10 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
         O payload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
         final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
-        heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload);
+        heartbeatTarget
+                .requestHeartbeat(getOwnResourceID(), payload)
+                .whenCompleteAsync(
+                        handleHeartbeatRpc(heartbeatMonitor.getHeartbeatTargetId()),
+                        getMainThreadExecutor());
     }
 }

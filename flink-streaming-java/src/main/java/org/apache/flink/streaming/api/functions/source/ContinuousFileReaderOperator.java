@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
@@ -313,7 +313,8 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
                         new Object(), // no actual locking needed
                         output,
                         getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval(),
-                        -1);
+                        -1,
+                        true);
 
         this.reusedRecord = serializer.createInstance();
         this.completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");

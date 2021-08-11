@@ -52,16 +52,16 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -93,7 +93,6 @@ import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
@@ -143,8 +142,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment {
 
-    /** The default name to use for a streaming job if no other name has been specified. */
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    /**
+     * The default name to use for a streaming job if no other name has been specified.
+     *
+     * @deprecated This constant does not fit well to batch runtime mode.
+     */
+    @Deprecated
+    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 
     /** The time characteristic that is used if none other is set. */
     private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
@@ -193,7 +197,16 @@ public class StreamExecutionEnvironment {
 
     private final PipelineExecutorServiceLoader executorServiceLoader;
 
-    private final Configuration configuration;
+    /**
+     * Currently, configuration is split across multiple member variables and classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}. This architecture makes it quite difficult to
+     * handle/merge/enrich configuration or restrict access in other APIs.
+     *
+     * <p>In the long-term, this {@link Configuration} object should be the source of truth for
+     * newly added {@link ConfigOption}s that are relevant for DataStream API. Make sure to also
+     * update {@link #configure(ReadableConfig, ClassLoader)}.
+     */
+    protected final Configuration configuration;
 
     private final ClassLoader userClassloader;
 
@@ -263,10 +276,6 @@ public class StreamExecutionEnvironment {
         // other ways assume
         // that the env is already instantiated so they will overwrite the value passed here.
         this.configure(this.configuration, this.userClassloader);
-    }
-
-    protected Configuration getConfiguration() {
-        return this.configuration;
     }
 
     protected ClassLoader getUserClassloader() {
@@ -935,6 +944,21 @@ public class StreamExecutionEnvironment {
      * configuration}. If a key is not present, the current value of a field will remain untouched.
      *
      * @param configuration a configuration to read the values from
+     */
+    @PublicEvolving
+    public void configure(ReadableConfig configuration) {
+        configure(configuration, userClassloader);
+    }
+
+    /**
+     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
+     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+     *
+     * <p>It will change the value of a setting only if a corresponding option was set in the {@code
+     * configuration}. If a key is not present, the current value of a field will remain untouched.
+     *
+     * @param configuration a configuration to read the values from
      * @param classLoader a class loader to use when loading classes
      */
     @PublicEvolving
@@ -968,21 +992,38 @@ public class StreamExecutionEnvironment {
                 .ifPresent(
                         runtimeMode ->
                                 this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
+
+        configuration
+                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
+                .ifPresent(
+                        shuffleMode ->
+                                this.configuration.set(
+                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
+
         configuration
                 .getOptional(ExecutionOptions.SORT_INPUTS)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.SORT_INPUTS, sortInputs));
+                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
         configuration
                 .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
+                                this.configuration.set(
+                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
         configuration
                 .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
+                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
+
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                .ifPresent(
+                        flag ->
+                                this.configuration.set(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                        flag));
+
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
     }
@@ -1908,7 +1949,7 @@ public class StreamExecutionEnvironment {
      * @throws Exception which occurs during job execution.
      */
     public JobExecutionResult execute() throws Exception {
-        return execute(getJobName());
+        return execute(getStreamGraph());
     }
 
     /**
@@ -1924,8 +1965,9 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
-        return execute(getStreamGraph(jobName));
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return execute(streamGraph);
     }
 
     /**
@@ -2000,7 +2042,7 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public final JobClient executeAsync() throws Exception {
-        return executeAsync(getJobName());
+        return executeAsync(getStreamGraph());
     }
 
     /**
@@ -2017,7 +2059,10 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        return executeAsync(getStreamGraph(checkNotNull(jobName)));
+        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return executeAsync(streamGraph);
     }
 
     /**
@@ -2074,19 +2119,7 @@ public class StreamExecutionEnvironment {
      */
     @Internal
     public StreamGraph getStreamGraph() {
-        return getStreamGraph(getJobName());
-    }
-
-    /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
-     *
-     * @param jobName Desired name of the job
-     * @return The streamgraph representing the transformations
-     */
-    @Internal
-    public StreamGraph getStreamGraph(String jobName) {
-        return getStreamGraph(jobName, true);
+        return getStreamGraph(true);
     }
 
     /**
@@ -2095,31 +2128,12 @@ public class StreamExecutionEnvironment {
      * transformations}. Clearing the transformations allows, for example, to not re-execute the
      * same operations when calling {@link #execute()} multiple times.
      *
-     * @param jobName Desired name of the job
      * @param clearTransformations Whether or not to clear previously registered transformations
      * @return The streamgraph representing the transformations
      */
     @Internal
-    public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
-        StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
-
-        // There might be a resource deadlock when applying fine-grained resource management in
-        // batch jobs with PIPELINE edges. Users need to trigger the
-        // fine-grained.shuffle-mode.all-blocking to convert all edges to BLOCKING before we fix
-        // that issue.
-        if (configuration.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH
-                && streamGraph.hasFineGrainedResource()) {
-            if (configuration.get(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING)) {
-                streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
-            } else {
-                throw new IllegalConfigurationException(
-                        "At the moment, fine-grained resource management requires batch workloads to "
-                                + "be executed with types of all edges being BLOCKING. To do that, you need to configure '"
-                                + ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING.key()
-                                + "' to 'true'. Notice that this may affect the performance. See FLINK-20865 for more details.");
-            }
-        }
-
+    public StreamGraph getStreamGraph(boolean clearTransformations) {
+        final StreamGraph streamGraph = getStreamGraphGenerator().generate();
         if (clearTransformations) {
             this.transformations.clear();
         }
@@ -2134,7 +2148,7 @@ public class StreamExecutionEnvironment {
 
         final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
 
-        return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
+        return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
@@ -2154,7 +2168,7 @@ public class StreamExecutionEnvironment {
      * @return The execution plan of the program, as a JSON String.
      */
     public String getExecutionPlan() {
-        return getStreamGraph(getJobName(), false).getStreamingPlanAsJSON();
+        return getStreamGraph(false).getStreamingPlanAsJSON();
     }
 
     /**
@@ -2184,6 +2198,22 @@ public class StreamExecutionEnvironment {
     public void addOperator(Transformation<?> transformation) {
         Preconditions.checkNotNull(transformation, "transformation must not be null.");
         this.transformations.add(transformation);
+    }
+
+    /**
+     * Gives read-only access to the underlying configuration of this environment.
+     *
+     * <p>Note that the returned configuration might not be complete. It only contains options that
+     * have initialized the environment via {@link #StreamExecutionEnvironment(Configuration)} or
+     * options that are not represented in dedicated configuration classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}.
+     *
+     * <p>Use {@link #configure(ReadableConfig, ClassLoader)} to set options that are specific to
+     * this environment.
+     */
+    @Internal
+    public ReadableConfig getConfiguration() {
+        return new UnmodifiableConfiguration(configuration);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2458,9 +2488,5 @@ public class StreamExecutionEnvironment {
             }
         }
         return (T) resolvedTypeInfo;
-    }
-
-    private String getJobName() {
-        return configuration.getString(PipelineOptions.NAME, DEFAULT_JOB_NAME);
     }
 }

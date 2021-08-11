@@ -20,12 +20,13 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdint cimport *
+from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.utils.windowed_value cimport WindowedValue
+from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
-from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
-from pyflink.fn_execution.beam.beam_stream_fast cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
+from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 cdef class FunctionOperation(Operation):
     """
@@ -38,9 +39,8 @@ cdef class FunctionOperation(Operation):
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
 
-        if isinstance(self._value_coder_impl, BeamCoderImpl):
+        if isinstance(self._value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
             self._is_python_coder = False
-            self._output_coder = self._value_coder_impl._value_coder
         else:
             self._is_python_coder = True
 
@@ -48,15 +48,23 @@ cdef class FunctionOperation(Operation):
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     cpdef start(self):
         with self.scoped_start_state:
             super(FunctionOperation, self).start()
+            if self._profiler:
+                self._profiler.start()
 
     cpdef finish(self):
         with self.scoped_finish_state:
             super(FunctionOperation, self).finish()
             self.operation.finish()
+            if self._profiler:
+                self._profiler.close()
 
     cpdef teardown(self):
         with self.scoped_finish_state:
@@ -64,32 +72,27 @@ cdef class FunctionOperation(Operation):
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
-        cdef BeamInputStream input_stream
-        cdef LengthPrefixBaseCoderImpl input_coder
-        cdef BeamOutputStream output_stream
+        cdef BOutputStream output_stream
+        output_stream = self.consumer.output_stream
         with self.scoped_process_state:
             if self._is_python_coder:
                 for value in o.value:
                     self._value_coder_impl.encode_to_stream(
-                        self.process_element(value), self.consumer.output_stream, True)
-                    self.consumer.output_stream.maybe_flush()
+                        self.process_element(value), output_stream, True)
+                    output_stream.maybe_flush()
             else:
                 input_stream_wrapper = o.value
-                input_stream = input_stream_wrapper._input_stream
-                input_coder = input_stream_wrapper._value_coder
-                output_stream = BeamOutputStream(self.consumer.output_stream)
                 if isinstance(self.operation, BundleOperation):
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        self.process_element(input_data)
+                    while input_stream_wrapper.has_next():
+                        self.process_element(input_stream_wrapper.next())
                     result = self.operation.finish_bundle()
-                    self._output_coder.encode_to_stream(result, output_stream)
+                    self._value_coder_impl.encode_to_stream(
+                        result, output_stream, True)
                 else:
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        result = self.process_element(input_data)
-                        self._output_coder.encode_to_stream(result, output_stream)
-                output_stream.flush()
+                    while input_stream_wrapper.has_next():
+                        result = self.process_element(input_stream_wrapper.next())
+                        self._value_coder_impl.encode_to_stream(
+                            result, output_stream, True)
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()
@@ -129,3 +132,14 @@ cdef class StatefulFunctionOperation(FunctionOperation):
 
     cdef object generate_operation(self):
         return self.operation_cls(self.spec, self.keyed_state_backend)
+
+    cpdef void add_timer_info(self, timer_family_id, timer_info):
+        # ignore timer_family_id
+        self.operation.add_timer_info(timer_info)
+
+    cpdef process_timer(self, tag, timer_data):
+        cdef BOutputStream output_stream
+        output_stream = self.consumer.output_stream
+        self._value_coder_impl.encode_to_stream(
+            # the field user_key holds the timer data
+            self.operation.process_timer(timer_data.user_key), output_stream, True)

@@ -15,8 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor, operation_specs
+from apache_beam.utils import proto_utils
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
@@ -113,25 +115,29 @@ def create_pandas_over_window_aggregate_function(
         table_operations.PandasBatchOverWindowAggregateFunctionOperation)
 
 
-@bundle_processor.BeamTransformFactory.register_urn(
-    datastream_operations.DATA_STREAM_STATELESS_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
-def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatelessFunctionOperation,
-        datastream_operations.StatelessOperation)
+# ----------------- DataStream --------------------
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    datastream_operations.DATA_STREAM_STATEFUL_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
+    common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
 def create_data_stream_keyed_process_function(factory, transform_id, transform_proto, parameter,
                                               consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatefulFunctionOperation,
-        datastream_operations.StatefulOperation)
+    urn = parameter.do_fn.urn
+    payload = proto_utils.parse_Bytes(
+        parameter.do_fn.payload, flink_fn_execution_pb2.UserDefinedDataStreamFunction)
+    if urn == datastream_operations.DATA_STREAM_STATELESS_FUNCTION_URN:
+        return _create_user_defined_function_operation(
+            factory, transform_proto, consumers, payload,
+            beam_operations.StatelessFunctionOperation,
+            datastream_operations.StatelessOperation)
+    else:
+        return _create_user_defined_function_operation(
+            factory, transform_proto, consumers, payload,
+            beam_operations.StatefulFunctionOperation,
+            datastream_operations.StatefulOperation)
+
+
+# ----------------- Utilities --------------------
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,

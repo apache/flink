@@ -127,9 +127,9 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         partitionRequestQueue.notifyReaderCreated(viewReader);
 
         // Write the message to acknowledge all records are processed to server
-        resultPartition.notifyEndOfUserRecords();
+        resultPartition.notifyEndOfData();
         CompletableFuture<Void> allRecordsProcessedFuture =
-                resultPartition.getAllRecordsProcessedFuture();
+                resultPartition.getAllDataProcessedFuture();
         assertFalse(allRecordsProcessedFuture.isDone());
         channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
         channel.runPendingTasks();

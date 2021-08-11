@@ -21,7 +21,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -82,6 +82,9 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
 
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
+
+    /** The session gap interval, only used for SESSION window. */
+    protected static final String PARAM_SESSION_GAP = "GAP";
 
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is

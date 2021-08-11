@@ -19,15 +19,8 @@ from abc import ABC
 from collections import Iterable
 from enum import Enum
 
-from pyflink.fn_execution.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.datastream.timerservice_impl import (
-    InternalTimerImpl, InternalTimerServiceImpl)
-from pyflink.fn_execution.datastream.output_handler import OutputHandler
-
-
-class RunnerInputType(Enum):
-    NORMAL_RECORD = 0
-    TRIGGER_TIMER = 1
+from pyflink.common import Row
+from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
 
 
 class TimerType(Enum):
@@ -35,74 +28,73 @@ class TimerType(Enum):
     PROCESSING_TIME = 1
 
 
-class InputHandler(ABC):
+class RunnerInputHandler(ABC):
     """
-    Handler which handles both normal data and timer data.
+    Handler which handles normal input data.
     """
 
     def __init__(self,
                  internal_timer_service: InternalTimerServiceImpl,
-                 output_handler: OutputHandler,
-                 process_element_func,
+                 process_element_func):
+        self._internal_timer_service = internal_timer_service
+        self._process_element_func = process_element_func
+
+    def process_element(self, value) -> Iterable:
+        timestamp = value[0]
+        watermark = value[1]
+        data = value[2]
+        self._advance_watermark(watermark)
+        yield from _emit_results(timestamp, self._process_element_func(data, timestamp))
+
+    def _advance_watermark(self, watermark: int) -> None:
+        self._internal_timer_service.advance_watermark(watermark)
+
+
+class TimerHandler(ABC):
+    """
+    Handler which handles normal input data.
+    """
+
+    def __init__(self,
+                 internal_timer_service: InternalTimerServiceImpl,
                  on_event_time_func,
                  on_processing_time_func,
                  namespace_coder):
         self._internal_timer_service = internal_timer_service
-        self._output_handler = output_handler
-        self._process_element_func = process_element_func
         self._on_event_time_func = on_event_time_func
         self._on_processing_time_func = on_processing_time_func
         self._namespace_coder = namespace_coder
 
-    def process_element(self, normal_data, timestamp: int) -> Iterable:
-        result = self._process_element_func(normal_data, timestamp)
-        yield from self._emit_result(result)
+    def process_timer(self, timer_data) -> Iterable:
+        timer_type = timer_data[0]
+        watermark = timer_data[1]
+        timestamp = timer_data[2]
+        key = timer_data[3]
+        serialized_namespace = timer_data[4]
 
-    def on_event_time(
-            self, internal_timer: InternalTimer) -> Iterable:
-        result = self._on_event_time_func(internal_timer)
-        yield from self._emit_result(result)
+        self._advance_watermark(watermark)
+        if self._namespace_coder is not None:
+            namespace = self._namespace_coder.decode(serialized_namespace)
+        else:
+            namespace = None
+        if timer_type == TimerType.EVENT_TIME.value:
+            yield from _emit_results(timestamp, self._on_event_time(timestamp, key, namespace))
+        elif timer_type == TimerType.PROCESSING_TIME.value:
+            yield from _emit_results(timestamp, self._on_processing_time(timestamp, key, namespace))
+        else:
+            raise Exception("Unsupported timer type: %d" % timer_type)
 
-    def on_processing_time(
-            self, internal_timer: InternalTimer) -> Iterable:
-        result = self._on_processing_time_func(internal_timer)
-        yield from self._emit_result(result)
+    def _on_event_time(self, timestamp, key, namespace) -> Iterable:
+        yield from self._on_event_time_func(timestamp, key, namespace)
 
-    def advance_watermark(self, watermark: int) -> None:
+    def _on_processing_time(self, timestamp, key, namespace) -> Iterable:
+        yield from self._on_processing_time_func(timestamp, key, namespace)
+
+    def _advance_watermark(self, watermark: int) -> None:
         self._internal_timer_service.advance_watermark(watermark)
 
-    def accept(self, value):
-        input_type = value[0]
-        normal_data = value[1]
-        timestamp = value[2]
-        watermark = value[3]
-        timer_data = value[4]
 
-        self.advance_watermark(watermark)
-        if input_type == RunnerInputType.NORMAL_RECORD.value:
-            yield from self.process_element(normal_data, timestamp)
-        elif input_type == RunnerInputType.TRIGGER_TIMER.value:
-            timer_type = timer_data[0]
-            key = timer_data[1]
-            serialized_namespace = timer_data[2]
-            if self._namespace_coder is not None:
-                namespace = self._namespace_coder.decode(serialized_namespace)
-            else:
-                namespace = None
-            internal_timer = InternalTimerImpl(timestamp, key, namespace)
-            if timer_type == TimerType.EVENT_TIME.value:
-                yield from self.on_event_time(internal_timer)
-            elif timer_type == TimerType.PROCESSING_TIME.value:
-                yield from self.on_processing_time(internal_timer)
-            else:
-                raise Exception("Unsupported timer type: %d" % timer_type)
-        else:
-            raise Exception("Unsupported input type: %d" % input_type)
-
-    def _emit_result(self, result):
-        if result:
-            yield from self._output_handler.from_normal_data(result)
-
-        yield from self._output_handler.from_timers(self._internal_timer_service.timers)
-
-        self._internal_timer_service.timers.clear()
+def _emit_results(timestamp, results):
+    if results:
+        for result in results:
+            yield Row(timestamp, result)

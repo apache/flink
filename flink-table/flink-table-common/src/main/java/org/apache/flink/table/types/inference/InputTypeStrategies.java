@@ -40,7 +40,7 @@ import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTyp
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import java.util.Arrays;
 import java.util.List;
@@ -169,8 +169,8 @@ public final class InputTypeStrategies {
      * argument.
      */
     public static InputTypeStrategy comparable(
-            ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
-        return new ComparableTypeStrategy(argumentCount, requiredComparision);
+            ConstantArgumentCount argumentCount, StructuredComparison requiredComparison) {
+        return new ComparableTypeStrategy(argumentCount, requiredComparison);
     }
 
     // --------------------------------------------------------------------------------------------

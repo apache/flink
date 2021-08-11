@@ -33,7 +33,7 @@ under the License.
 
 ## 构建 Flink
 
-首先需要准备源码。可以[从发布版本下载源码](https://flink.apache.org/downloads.html) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
+首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
 还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8** 或更新的版本来进行构建。
 
@@ -138,7 +138,9 @@ mvn clean install
 
 ## Scala 版本
 
-{% info %} 只是用 Java 库和 API 的用户可以 *忽略* 这一部分。
+{{< hint info >}}
+只是用 Java 库和 API 的用户可以*忽略*这一部分。
+{{< /hint >}}
 
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。

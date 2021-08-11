@@ -31,7 +31,7 @@ public class GeneratedResultFutureWrapper<T extends ResultFuture<?>>
     private final Class<T> clazz;
 
     public GeneratedResultFutureWrapper(T resultFuture) {
-        super(resultFuture.getClass().getSimpleName(), "N/A", new Object[0]);
+        super(resultFuture.getClass().getSimpleName(), "", new Object[0]);
         //noinspection unchecked
         this.clazz = (Class<T>) resultFuture.getClass();
     }

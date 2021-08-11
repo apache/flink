@@ -492,7 +492,8 @@ public class CheckpointCoordinatorMasterHooksTest {
                 new DefaultCheckpointPlanCalculator(
                         graph.getJobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
-                        graph.getVerticesTopologically()),
+                        graph.getVerticesTopologically(),
+                        false),
                 new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
     }
 

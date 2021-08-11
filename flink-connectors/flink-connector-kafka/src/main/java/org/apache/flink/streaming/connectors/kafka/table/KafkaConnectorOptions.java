@@ -21,7 +21,10 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
@@ -142,21 +145,11 @@ public class KafkaConnectorOptions {
     // Scan specific options
     // --------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<String> SCAN_STARTUP_MODE =
+    public static final ConfigOption<ScanStartupMode> SCAN_STARTUP_MODE =
             ConfigOptions.key("scan.startup.mode")
-                    .stringType()
-                    .defaultValue("group-offsets")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional startup mode for Kafka consumer, valid enumerations are")
-                                    .list(
-                                            text("'earliest-offset'"),
-                                            text("'latest-offset'"),
-                                            text("'group-offsets'"),
-                                            text("'timestamp'"),
-                                            text("'specific-offsets'"))
-                                    .build());
+                    .enumType(ScanStartupMode.class)
+                    .defaultValue(ScanStartupMode.GROUP_OFFSETS)
+                    .withDescription("Startup mode for Kafka consumer.");
 
     public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
             ConfigOptions.key("scan.startup.specific-offsets")
@@ -202,16 +195,11 @@ public class KafkaConnectorOptions {
                                                     "custom class name (use custom FlinkKafkaPartitioner subclass)"))
                                     .build());
 
-    public static final ConfigOption<String> SINK_SEMANTIC =
+    public static final ConfigOption<SinkSemantic> SINK_SEMANTIC =
             ConfigOptions.key("sink.semantic")
-                    .stringType()
-                    .defaultValue("at-least-once")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional semantic when committing. Valid enumerations are")
-                                    .list(text("at-least-once"), text("exactly-once"), text("none"))
-                                    .build());
+                    .enumType(SinkSemantic.class)
+                    .defaultValue(SinkSemantic.AT_LEAST_ONCE)
+                    .withDescription("Optional semantic when committing.");
 
     // Disable this feature by default
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
@@ -260,6 +248,82 @@ public class KafkaConnectorOptions {
     public enum ValueFieldsStrategy {
         ALL,
         EXCEPT_KEY
+    }
+
+    /** Startup mode for the Kafka consumer, see {@link #SCAN_STARTUP_MODE}. */
+    public enum ScanStartupMode implements DescribedEnum {
+        EARLIEST_OFFSET("earliest-offset", text("Start from the earliest offset possible.")),
+        LATEST_OFFSET("latest-offset", text("Start from the latest offset.")),
+        GROUP_OFFSETS(
+                "group-offsets",
+                text(
+                        "Start from committed offsets in ZooKeeper / Kafka brokers of a specific consumer group.")),
+        TIMESTAMP("timestamp", text("Start from user-supplied timestamp for each partition.")),
+        SPECIFIC_OFFSETS(
+                "specific-offsets",
+                text("Start from user-supplied specific offsets for each partition."));
+
+        private final String value;
+        private final InlineElement description;
+
+        ScanStartupMode(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Sink semantic, see {@link #SINK_SEMANTIC}. */
+    public enum SinkSemantic implements DescribedEnum {
+        EXACTLY_ONCE(
+                FlinkKafkaProducer.Semantic.EXACTLY_ONCE,
+                "exactly-once",
+                text(
+                        "Writes all messages in a Kafka transaction that will be committed to Kafka on a checkpoint.")),
+        AT_LEAST_ONCE(
+                FlinkKafkaProducer.Semantic.AT_LEAST_ONCE,
+                "at-least-once",
+                text(
+                        "Waits for all outstanding messages in the kafka buffers to be acknowledged by the Kafka producer on a checkpoint.")),
+        NONE(
+                FlinkKafkaProducer.Semantic.NONE,
+                "none",
+                text(
+                        "No guarantees are made. Messages can be lost and/or duplicated in case of failure."));
+
+        private final FlinkKafkaProducer.Semantic semantic;
+        private final String value;
+        private final InlineElement description;
+
+        SinkSemantic(
+                FlinkKafkaProducer.Semantic semantic, String value, InlineElement description) {
+            this.semantic = semantic;
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        FlinkKafkaProducer.Semantic getSemantic() {
+            return semantic;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     private KafkaConnectorOptions() {}

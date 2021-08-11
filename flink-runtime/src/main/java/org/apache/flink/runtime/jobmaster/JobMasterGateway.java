@@ -184,16 +184,18 @@ public interface JobMasterGateway
      *
      * @param resourceID unique id of the task manager
      * @param payload report payload
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromTaskManager(
+    CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID resourceID, final TaskExecutorToJobManagerHeartbeatPayload payload);
 
     /**
      * Sends heartbeat request from the resource manager.
      *
      * @param resourceID unique id of the resource manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromResourceManager(final ResourceID resourceID);
+    CompletableFuture<Void> heartbeatFromResourceManager(final ResourceID resourceID);
 
     /**
      * Request the details of the executed job.
@@ -289,4 +291,12 @@ public interface JobMasterGateway
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             @RpcTimeout Time timeout);
+
+    /**
+     * Notifies the {@link org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker}
+     * to stop tracking the target result partitions and release the locally occupied resources on
+     * {@link org.apache.flink.runtime.taskexecutor.TaskExecutor}s if any.
+     */
+    CompletableFuture<?> stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> partitionIds);
 }

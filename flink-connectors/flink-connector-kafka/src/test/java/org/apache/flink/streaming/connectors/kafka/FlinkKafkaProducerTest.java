@@ -110,6 +110,14 @@ public class FlinkKafkaProducerTest {
         assertThat(partitioner.openCalled, equalTo(true));
     }
 
+    @Test(expected = NullPointerException.class)
+    public void testProvidedNullTransactionalIdPrefix() {
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>(
+                        "localhost:9092", "test-topic", new OpenTestingSerializationSchema());
+        kafkaProducer.setTransactionalIdPrefix(null);
+    }
+
     private static class CustomPartitioner<T> extends FlinkKafkaPartitioner<T> {
         private boolean openCalled;
 

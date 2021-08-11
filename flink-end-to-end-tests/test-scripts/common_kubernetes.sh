@@ -171,14 +171,14 @@ function wait_num_checkpoints {
 function wait_for_logs {
   local jm_pod_name=$1
   local successful_response_regex=$2
+  local timeout=${3:-30}
 
   echo "Waiting for jobmanager pod ${jm_pod_name} ready."
-  kubectl wait --for=condition=Ready --timeout=30s pod/$jm_pod_name || exit 1
+  kubectl wait --for=condition=Ready --timeout=${timeout}s pod/$jm_pod_name || exit 1
 
-  # wait at most 30 seconds until the log shows up
-  local TIMEOUT=30
+  # wait or timeout until the log shows up
   echo "Waiting for log \"$2\"..."
-  for i in $(seq 1 ${TIMEOUT}); do
+  for i in $(seq 1 ${timeout}); do
     if check_logs_output $jm_pod_name $successful_response_regex; then
       echo "Log \"$2\" shows up."
       return
@@ -186,7 +186,7 @@ function wait_for_logs {
 
     sleep 1
   done
-  echo "Log $2 does not show up within a timeout of ${TIMEOUT} sec"
+  echo "Log $2 does not show up within a timeout of ${timeout} sec"
   exit 1
 }
 

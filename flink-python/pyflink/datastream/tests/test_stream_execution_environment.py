@@ -42,8 +42,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
     EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
-    invoke_java_object_method
+from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 from pyflink.util.java_utils import get_j_env_configuration
 
 
@@ -129,8 +128,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_runtime_mode(self):
         self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
-        config = invoke_java_object_method(
-            self.env._j_stream_execution_environment, "getConfiguration")
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
         runtime_mode = config.getValue(
             get_gateway().jvm.org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE)
 
@@ -688,7 +686,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         j_resource_profile_1 = j_generated_stream_graph.getSlotSharingGroupResource(
             'slot_sharing_group_1').get()
         j_resource_profile_2 = j_generated_stream_graph.getSlotSharingGroupResource(

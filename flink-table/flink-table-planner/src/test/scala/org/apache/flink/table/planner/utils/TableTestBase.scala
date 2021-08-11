@@ -17,12 +17,13 @@
  */
 package org.apache.flink.table.planner.utils
 
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
@@ -36,10 +37,10 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericI
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{ComponentFactoryService, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
@@ -256,7 +257,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 
   /**
    * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
+   *
+   * @deprecated Use [[addTemporarySystemFunction]].
    */
+  @deprecated
+  @Deprecated
   def addFunction(name: String, function: ScalarFunction): Unit = {
     getTableEnv.registerFunction(name, function)
   }
@@ -995,9 +1000,9 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
-  tableEnv.getConfig.getConfiguration.setString(
-    ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-    GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
+  tableEnv.getConfig
+    .getConfiguration
+    .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
@@ -1351,12 +1356,8 @@ object TestTableSource {
       isBounded: Boolean,
       tableSchema: TableSchema,
       tableName: String): Unit = {
-    tEnv.connect(
-      new CustomConnectorDescriptor("TestTableSource", 1, false)
-        .property("is-bounded", if (isBounded) "true" else "false"))
-      .withSchema(new Schema().schema(tableSchema))
-      .createTemporaryTable(tableName)
-
+    val source = new TestTableSource(isBounded, tableSchema)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 
@@ -1548,9 +1549,9 @@ object TestingTableEnvironment {
 
     val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
 
-    val executorProperties = settings.toExecutorProperties
-    val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
-      executorProperties).create(executorProperties)
+    val executorFactory =
+      FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], settings.getExecutor)
+    val executor = executorFactory.create(tableConfig.getConfiguration)
 
     val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)

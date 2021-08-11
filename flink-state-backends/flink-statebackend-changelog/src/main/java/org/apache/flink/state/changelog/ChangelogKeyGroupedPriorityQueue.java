@@ -129,9 +129,8 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     @Override
     @Nonnull
     public CloseableIterator<T> iterator() {
-        return CloseableIterator.adapterForIterator(
-                StateChangeLoggingIterator.create(
-                        delegatedPriorityQueue.iterator(), logger, serializer::serialize, null));
+        return StateChangeLoggingIterator.create(
+                delegatedPriorityQueue.iterator(), logger, serializer::serialize, null);
     }
 
     @Override

@@ -128,16 +128,18 @@ class DefaultSchemaResolver implements SchemaResolver {
 
     private PhysicalColumn resolvePhysicalColumn(UnresolvedPhysicalColumn unresolvedColumn) {
         return Column.physical(
-                unresolvedColumn.getName(),
-                dataTypeFactory.createDataType(unresolvedColumn.getDataType()));
+                        unresolvedColumn.getName(),
+                        dataTypeFactory.createDataType(unresolvedColumn.getDataType()))
+                .withComment(unresolvedColumn.getComment().orElse(null));
     }
 
     private MetadataColumn resolveMetadataColumn(UnresolvedMetadataColumn unresolvedColumn) {
         return Column.metadata(
-                unresolvedColumn.getName(),
-                dataTypeFactory.createDataType(unresolvedColumn.getDataType()),
-                unresolvedColumn.getMetadataKey(),
-                unresolvedColumn.isVirtual());
+                        unresolvedColumn.getName(),
+                        dataTypeFactory.createDataType(unresolvedColumn.getDataType()),
+                        unresolvedColumn.getMetadataKey(),
+                        unresolvedColumn.isVirtual())
+                .withComment(unresolvedColumn.getComment().orElse(null));
     }
 
     private ComputedColumn resolveComputedColumn(
@@ -153,7 +155,8 @@ class DefaultSchemaResolver implements SchemaResolver {
                             unresolvedColumn.getName()),
                     e);
         }
-        return Column.computed(unresolvedColumn.getName(), resolvedExpression);
+        return Column.computed(unresolvedColumn.getName(), resolvedExpression)
+                .withComment(unresolvedColumn.getComment().orElse(null));
     }
 
     private void validateDuplicateColumns(List<Schema.UnresolvedColumn> columns) {

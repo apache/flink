@@ -68,6 +68,7 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -336,12 +337,14 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         @Override
         public SourceReader<Long, NumberSequenceSplit> createReader(
                 SourceReaderContext readerContext) {
-            return new CheckpointListeningIteratorSourceReader(
+            return new CheckpointListeningIteratorSourceReader<>(
                     readerContext, numAllowedMessageBeforeCheckpoint);
         }
     }
 
-    private static class CheckpointListeningIteratorSourceReader extends IteratorSourceReader {
+    private static class CheckpointListeningIteratorSourceReader<
+                    E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
+            extends IteratorSourceReader<E, IterT, SplitT> {
         private boolean checkpointed = false;
         private long messagesProduced = 0;
         private final long numAllowedMessageBeforeCheckpoint;
@@ -353,7 +356,7 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        public InputStatus pollNext(ReaderOutput output) {
+        public InputStatus pollNext(ReaderOutput<E> output) {
             if (messagesProduced < numAllowedMessageBeforeCheckpoint || checkpointed) {
                 messagesProduced++;
                 return super.pollNext(output);

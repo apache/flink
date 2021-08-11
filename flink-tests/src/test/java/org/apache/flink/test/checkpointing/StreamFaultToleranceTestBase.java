@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -32,7 +33,9 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -67,6 +70,8 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
 
     private static MiniClusterWithClientResource cluster;
 
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+
     @Before
     public void setup() throws Exception {
         Configuration configuration = new Configuration();
@@ -78,6 +83,11 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
                 configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
         }
 
+        // Configure DFS DSTL for this test as it might produce too much GC pressure if
+        // ChangelogStateBackend is used.
+        // Doing it on cluster level unconditionally as randomization currently happens on the job
+        // level (environment); while this factory can only be set on the cluster level.
+        FsStateChangelogStorageFactory.configure(configuration, tempFolder.newFolder());
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

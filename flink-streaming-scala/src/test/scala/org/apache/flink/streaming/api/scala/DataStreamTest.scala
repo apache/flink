@@ -676,14 +676,13 @@ class DataStreamTest extends AbstractTestBase {
   private def getOperatorForDataStream(dataStream: DataStream[_]): StreamOperator[_] = {
     dataStream.print()
     val env = dataStream.javaStream.getExecutionEnvironment
-    val streamGraph: StreamGraph =
-      env.getStreamGraph(JStreamExecutionEnvironment.DEFAULT_JOB_NAME, false)
+    val streamGraph: StreamGraph = env.getStreamGraph(false)
     streamGraph.getStreamNode(dataStream.getId).getOperator
   }
 
   /** Returns the StreamGraph without clearing the transformations. */
   private def getStreamGraph(sEnv: StreamExecutionEnvironment): StreamGraph = {
-    sEnv.getStreamGraph(JStreamExecutionEnvironment.DEFAULT_JOB_NAME, clearTransformations = false)
+    sEnv.getStreamGraph(false)
   }
 
   private def isPartitioned(edges: java.util.List[StreamEdge]) = {

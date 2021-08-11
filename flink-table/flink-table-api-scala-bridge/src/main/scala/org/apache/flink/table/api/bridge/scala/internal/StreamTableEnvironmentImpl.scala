@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.api.bridge.scala.internal
 
+import java.util
+import java.util.{Collections, List => JList}
+
+import javax.annotation.Nullable
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
@@ -31,9 +35,8 @@ import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
-import org.apache.flink.table.factories.ComponentFactoryService
+import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations._
@@ -44,9 +47,6 @@ import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
-import javax.annotation.Nullable
-import java.util
-import java.util.{Collections, List => JList, Map => JMap}
 import scala.collection.JavaConverters._
 
 /**
@@ -292,15 +292,16 @@ class StreamTableEnvironmentImpl (
       table: Table,
       modifyOperation: ModifyOperation)
     : DataStream[T] = {
-    val transformations = planner
-      .translate(Collections.singletonList(modifyOperation))
-    val streamTransformation: Transformation[T] = getTransformation(
-      table,
-      transformations)
-    scalaExecutionEnvironment.getWrappedStreamExecutionEnvironment.addOperator(streamTransformation)
-    new DataStream[T](new JDataStream[T](
-      scalaExecutionEnvironment
-        .getWrappedStreamExecutionEnvironment, streamTransformation))
+    val javaExecutionEnvironment = scalaExecutionEnvironment.getJavaEnv
+
+    val transformations = planner.translate(Collections.singletonList(modifyOperation))
+    val streamTransformation: Transformation[T] = getTransformation(table, transformations)
+    javaExecutionEnvironment.addOperator(streamTransformation)
+
+    // reconfigure whenever planner transformations are added
+    javaExecutionEnvironment.configure(tableConfig.getConfiguration)
+
+    new DataStream[T](new JDataStream[T](javaExecutionEnvironment, streamTransformation))
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {
@@ -381,10 +382,6 @@ class StreamTableEnvironmentImpl (
       accTypeInfo
     )
   }
-
-  override def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor = super
-    .connect(connectorDescriptor).asInstanceOf[StreamTableDescriptor]
-
 
   override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
     super.validateTableSource(tableSource)
@@ -489,8 +486,7 @@ object StreamTableEnvironmentImpl {
 
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
-    val executorProperties = settings.toExecutorProperties
-    val executor = lookupExecutor(executorProperties, executionEnvironment)
+    val executor = lookupExecutor(classLoader, settings.getExecutor, executionEnvironment)
 
     val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
@@ -515,22 +511,20 @@ object StreamTableEnvironmentImpl {
   }
 
   private def lookupExecutor(
-      executorProperties: JMap[String, String],
+      classLoader: ClassLoader,
+      executorIdentifier: String,
       executionEnvironment: StreamExecutionEnvironment)
     :Executor =
     try {
-      val executorFactory = ComponentFactoryService
-        .find(classOf[ExecutorFactory], executorProperties)
-      val createMethod = executorFactory.getClass
-        .getMethod(
-          "create",
-          classOf[util.Map[String, String]],
-          classOf[JStreamExecutionEnvironment])
+      val executorFactory =
+        FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], executorIdentifier)
+      val createMethod = executorFactory
+        .getClass
+        .getMethod("create", classOf[JStreamExecutionEnvironment])
 
       createMethod
         .invoke(
           executorFactory,
-          executorProperties,
           executionEnvironment.getWrappedStreamExecutionEnvironment)
         .asInstanceOf[Executor]
     } catch {

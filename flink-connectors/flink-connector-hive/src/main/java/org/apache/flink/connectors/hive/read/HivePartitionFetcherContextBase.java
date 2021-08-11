@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.hive.read;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connectors.hive.ConsumeOrder;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
@@ -28,6 +27,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.table.filesystem.PartitionTimeExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
@@ -66,7 +66,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
     protected final String[] fieldNames;
     protected final Configuration configuration;
     protected final String defaultPartitionName;
-    protected final ConsumeOrder consumeOrder;
+    protected final PartitionOrder partitionOrder;
 
     protected transient HiveMetastoreClientWrapper metaStoreClient;
     protected transient StorageDescriptor tableSd;
@@ -94,8 +94,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
         this.fieldNames = fieldNames;
         this.configuration = configuration;
         this.defaultPartitionName = defaultPartitionName;
-        String consumeOrderStr = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
-        this.consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
+        this.partitionOrder = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
     }
 
     @Override
@@ -123,8 +122,8 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
     @Override
     public List<ComparablePartitionValue> getComparablePartitionValueList() throws Exception {
         List<ComparablePartitionValue> partitionValueList = new ArrayList<>();
-        switch (consumeOrder) {
-            case PARTITION_NAME_ORDER:
+        switch (partitionOrder) {
+            case PARTITION_NAME:
                 List<String> partitionNames =
                         metaStoreClient.listPartitionNames(
                                 tablePath.getDatabaseName(),
@@ -134,7 +133,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                     partitionValueList.add(getComparablePartitionByName(partitionName));
                 }
                 break;
-            case CREATE_TIME_ORDER:
+            case CREATE_TIME:
                 partitionNames =
                         metaStoreClient.listPartitionNames(
                                 tablePath.getDatabaseName(),
@@ -160,7 +159,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                                     partValues, partValuesToCreateTime.get(partValues)));
                 }
                 break;
-            case PARTITION_TIME_ORDER:
+            case PARTITION_TIME:
                 partitionNames =
                         metaStoreClient.listPartitionNames(
                                 tablePath.getDatabaseName(),
@@ -174,7 +173,7 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
                 break;
             default:
                 throw new UnsupportedOperationException(
-                        "Unsupported consumer order: " + consumeOrder);
+                        "Unsupported partition order: " + partitionOrder);
         }
         return partitionValueList;
     }

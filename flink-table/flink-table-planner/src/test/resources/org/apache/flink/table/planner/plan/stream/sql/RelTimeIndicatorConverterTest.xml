@@ -267,9 +267,9 @@ LogicalProject(EXPR$0=[$2], long=[$0])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, long])
-+- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 100)], select=[long, MIN(rowtime0) AS EXPR$0])
++- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 100)], select=[long, MIN(rowtime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
+      +- Calc(select=[CAST(rowtime) AS rowtime, long, int])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
@@ -343,9 +343,9 @@ LogicalProject(EXPR$0=[$2], long=[$0])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, long], where=[(EXTRACT(FLAG(QUARTER), w$end) = 1:BIGINT)])
-+- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 1000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime0) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
++- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 1000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[long, rowtime, CAST(rowtime) AS rowtime0])
+      +- Calc(select=[CAST(rowtime) AS rowtime, long, int])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>

@@ -49,7 +49,7 @@ JobManager metadata is persisted in the file system `high-availability.storageDi
 
   The `storageDir` stores all metadata needed to recover a JobManager failure.
 
-- [high-availability.zookeeper.quorum]({%link deployment/config.md %}#high-availability-zookeeper-quorum) (required): 
+- [high-availability.zookeeper.quorum]({{< ref "docs/deployment/config.md" >}}#high-availability-zookeeper-quorum) (required): 
 A *ZooKeeper quorum* is a replicated group of ZooKeeper servers, which provide the distributed coordination service.
 
   <pre>high-availability.zookeeper.quorum: address1:2181[,...],addressX:2181</pre>

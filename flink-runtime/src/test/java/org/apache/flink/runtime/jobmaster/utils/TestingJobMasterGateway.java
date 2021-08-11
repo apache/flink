@@ -119,10 +119,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             registerTaskManagerFunction;
 
     @Nonnull
-    private final BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-            taskManagerHeartbeatConsumer;
+    private final BiFunction<
+                    ResourceID, TaskExecutorToJobManagerHeartbeatPayload, CompletableFuture<Void>>
+            taskManagerHeartbeatFunction;
 
-    @Nonnull private final Consumer<ResourceID> resourceManagerHeartbeatConsumer;
+    @Nonnull
+    private final Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction;
 
     @Nonnull private final Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier;
 
@@ -221,9 +223,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
                                     CompletableFuture<RegistrationResponse>>
                             registerTaskManagerFunction,
             @Nonnull
-                    BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-                            taskManagerHeartbeatConsumer,
-            @Nonnull Consumer<ResourceID> resourceManagerHeartbeatConsumer,
+                    BiFunction<
+                                    ResourceID,
+                                    TaskExecutorToJobManagerHeartbeatPayload,
+                                    CompletableFuture<Void>>
+                            taskManagerHeartbeatFunction,
+            @Nonnull Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction,
             @Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
             @Nonnull Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier,
             @Nonnull
@@ -291,8 +296,8 @@ public class TestingJobMasterGateway implements JobMasterGateway {
         this.offerSlotsFunction = offerSlotsFunction;
         this.failSlotConsumer = failSlotConsumer;
         this.registerTaskManagerFunction = registerTaskManagerFunction;
-        this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
-        this.resourceManagerHeartbeatConsumer = resourceManagerHeartbeatConsumer;
+        this.taskManagerHeartbeatFunction = taskManagerHeartbeatFunction;
+        this.resourceManagerHeartbeatFunction = resourceManagerHeartbeatFunction;
         this.requestJobDetailsSupplier = requestJobDetailsSupplier;
         this.requestJobSupplier = requestJobSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
@@ -372,14 +377,14 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
-    public void heartbeatFromTaskManager(
+    public CompletableFuture<Void> heartbeatFromTaskManager(
             ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
-        taskManagerHeartbeatConsumer.accept(resourceID, payload);
+        return taskManagerHeartbeatFunction.apply(resourceID, payload);
     }
 
     @Override
-    public void heartbeatFromResourceManager(ResourceID resourceID) {
-        resourceManagerHeartbeatConsumer.accept(resourceID);
+    public CompletableFuture<Void> heartbeatFromResourceManager(ResourceID resourceID) {
+        return resourceManagerHeartbeatFunction.apply(resourceID);
     }
 
     @Override
@@ -511,5 +516,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             SerializedValue<CoordinationRequest> serializedRequest,
             Time timeout) {
         return deliverCoordinationRequestFunction.apply(operatorId, serializedRequest);
+    }
+
+    @Override
+    public CompletableFuture<?> stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> partitionIds) {
+        return CompletableFuture.completedFuture(null);
     }
 }

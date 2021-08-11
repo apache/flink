@@ -72,7 +72,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-changelog_${scala.binary.version}</artifactId>
+			<artifactId>flink-statebackend-changelog</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -121,12 +121,6 @@ under the License.
 			<groupId>com.opentable.components</groupId>
 			<artifactId>otj-pg-embedded</artifactId>
 			<version>${otj-pg-embedded.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.testcontainers</groupId>
-			<artifactId>postgresql</artifactId>
-			<version>1.15.1</version>
 			<scope>test</scope>
 		</dependency>
 

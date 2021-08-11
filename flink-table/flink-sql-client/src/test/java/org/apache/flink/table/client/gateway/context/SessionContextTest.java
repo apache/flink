@@ -20,8 +20,6 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 
 import org.junit.Before;
@@ -34,11 +32,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
@@ -57,7 +53,6 @@ public class SessionContextTest {
 
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-    private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
     private static File udfJar;
 
     private SessionContext sessionContext;
@@ -70,26 +65,15 @@ public class SessionContextTest {
     }
 
     @Before
-    public void setup() throws Exception {
+    public void setup() {
         sessionContext = createSessionContext();
-    }
-
-    @Test
-    public void testSetAndResetYamlKey() {
-        sessionContext.set("execution.max-table-result-rows", "100000");
-
-        assertEquals("100000", getConfigurationMap().get("execution.max-table-result-rows"));
-
-        sessionContext.reset();
-
-        assertEquals("100", getConfigurationMap().get("execution.max-table-result-rows"));
     }
 
     @Test
     public void testSetAndResetOption() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
-        // runtime config option and Yaml specified value
+        // runtime config option
         sessionContext.set(MAX_PARALLELISM.key(), "128");
         // runtime config option and doesn't have default value
         sessionContext.set(NAME.key(), "test");
@@ -111,31 +95,10 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testSetAndResetKeyInYamlKey() {
-        sessionContext.set("execution.max-table-result-rows", "200000");
-        sessionContext.set("execution.result-mode", "table");
-
-        assertEquals("200000", getConfigurationMap().get("execution.max-table-result-rows"));
-
-        assertEquals("table", getConfigurationMap().get("execution.result-mode"));
-
-        sessionContext.reset("execution.result-mode");
-        assertEquals("changelog", getConfigurationMap().get("execution.result-mode"));
-        // no reset this key execution.max-table-result-rows
-        assertEquals("200000", getConfigurationMap().get("execution.max-table-result-rows"));
-
-        // reset option for deprecated key
-        sessionContext.reset("sql-client.execution.max-table-result.rows");
-        assertEquals(
-                "100", getConfigurationMap().get("sql-client.execution.max-table-result.rows"));
-        assertEquals("100", getConfigurationMap().get("execution.max-table-result-rows"));
-    }
-
-    @Test
     public void testSetAndResetKeyInConfigOptions() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
-        // runtime config option and Yaml specified value
+        // runtime config option
         sessionContext.set(MAX_PARALLELISM.key(), "128");
         // runtime config option and doesn't have default value
         sessionContext.set(NAME.key(), "test");
@@ -161,19 +124,8 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testSetWithConfigOptionAndResetWithYamlKey() {
-        // runtime config option and has deprecated key
-        sessionContext.set(RUNTIME_MODE.key(), "BATCH");
-        assertEquals("BATCH", getConfiguration().get(RUNTIME_MODE).name());
-
-        sessionContext.reset(RUNTIME_MODE.key());
-        assertEquals("STREAMING", getConfiguration().get(RUNTIME_MODE).name());
-        assertEquals("STREAMING", getConfigurationMap().get("execution.type").toUpperCase());
-    }
-
-    @Test
-    public void testSetAndResetKeyNotInYaml() {
-        // other property not in yaml and flink-conf
+    public void testSetAndResetArbitraryKey() {
+        // other property not in flink-conf
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");
 
@@ -245,21 +197,12 @@ public class SessionContextTest {
 
     // --------------------------------------------------------------------------------------------
 
-    private SessionContext createSessionContext() throws Exception {
-        Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        replaceVars.put("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
-
-        final Environment env =
-                EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+    private SessionContext createSessionContext() {
         Configuration flinkConfig = new Configuration();
         flinkConfig.set(OBJECT_REUSE, true);
+        flinkConfig.set(MAX_PARALLELISM, 16);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        env,
                         Collections.emptyList(),
                         flinkConfig,
                         Collections.singletonList(new DefaultCLI()));

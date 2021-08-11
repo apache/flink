@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
+import org.apache.flink.table.planner.plan.utils.RankUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -47,6 +48,7 @@ import org.apache.flink.table.runtime.operators.rank.AbstractTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.AppendOnlyFirstNFunction;
 import org.apache.flink.table.runtime.operators.rank.AppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.ComparableRecordComparator;
+import org.apache.flink.table.runtime.operators.rank.FastTop1Function;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
@@ -224,6 +226,18 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 rankRange,
                                 generateUpdateBefore,
                                 outputRankNumber);
+            } else if (RankUtil.isTop1(rankRange)) {
+                processFunction =
+                        new FastTop1Function(
+                                ttlConfig,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber,
+                                cacheSize);
             } else {
                 processFunction =
                         new AppendOnlyTopNFunction(
@@ -238,23 +252,37 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 cacheSize);
             }
         } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
-            RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
-                    (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
-            int[] primaryKeys = updateFastStrategy.getPrimaryKeys();
-            RowDataKeySelector rowKeySelector =
-                    KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
-            processFunction =
-                    new UpdatableTopNFunction(
-                            ttlConfig,
-                            inputRowTypeInfo,
-                            rowKeySelector,
-                            sortKeyComparator,
-                            sortKeySelector,
-                            rankType,
-                            rankRange,
-                            generateUpdateBefore,
-                            outputRankNumber,
-                            cacheSize);
+            if (RankUtil.isTop1(rankRange)) {
+                processFunction =
+                        new FastTop1Function(
+                                ttlConfig,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber,
+                                cacheSize);
+            } else {
+                RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
+                        (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
+                int[] primaryKeys = updateFastStrategy.getPrimaryKeys();
+                RowDataKeySelector rowKeySelector =
+                        KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
+                processFunction =
+                        new UpdatableTopNFunction(
+                                ttlConfig,
+                                inputRowTypeInfo,
+                                rowKeySelector,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber,
+                                cacheSize);
+            }
             // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
             EqualiserCodeGenerator equaliserCodeGen =

@@ -41,7 +41,7 @@ comparison:
       table: value.isNotNull
       description: Returns TRUE if value is not NULL.
     - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns TRUE; NULL IS NOT DISTINCT FROM NULL returns FALSE.
     - sql: value1 IS NOT DISTINCT FROM value2
       description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
     - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
@@ -240,7 +240,7 @@ arithmetic:
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
   - sql: TRUNCATE(numeric1, integer2)
     table: numeric1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.This function can also pass in only one numeric1 parameter and not set Integer2 to use.If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.34. and 42.324.truncate() to 42.0.
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
 
 string:
   - sql: string1 || string2
@@ -273,7 +273,7 @@ string:
     description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
   - sql: RTRIM(string)
     table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING.E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
@@ -316,10 +316,10 @@ string:
     description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC') returns "AA~BB~~CC".
   - sql: LPAD(string1, integer, string2)
     table: STRING1.lpad(INT, STRING2)
-    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi',4,'??') returns "??hi"; LPAD('hi',1,'??') returns "h".
+    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi', 4, '??') returns "??hi"; LPAD('hi', 1, '??') returns "h".
   - sql: RPAD(string1, integer, string2)
     table: STRING1.rpad(INT, STRING2)
-    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi',4,'??') returns "hi??", RPAD('hi',1,'??') returns "h". 
+    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi', 4, '??') returns "hi??", RPAD('hi', 1, '??') returns "h".
   - sql: FROM_BASE64(string)
     table: STRING.fromBase64()
     description: Returns the base64-decoded result from string; returns NULL if string is NULL. E.g., FROM_BASE64('aGVsbG8gd29ybGQ=') returns "hello world".
@@ -402,7 +402,7 @@ temporal:
   - table: | 
       NUMERIC.hour
       NUMERIC.hours
-    desription: Creates an interval of milliseconds for NUMERIC hours.
+    description: Creates an interval of milliseconds for NUMERIC hours.
   - table: |
       NUMERIC.minute
       NUMERIC.minutes
@@ -469,7 +469,7 @@ temporal:
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
-    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
+    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
     description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
@@ -537,7 +537,11 @@ conditional:
     description: Returns true if all characters in string are digit, otherwise false.
   - table: BOOLEAN.?(VALUE1, VALUE2)
     description: Returns VALUE1 if BOOLEAN evaluates to TRUE; returns VALUE2 otherwise. E.g., (42 > 5).?('A', 'B') returns "A".
-   
+  - sql: GREATEST(value1[, value2]*)
+    description: Returns the greatest value of the list of arguments. Returns NULL if any argument is NULL.
+  - sql: LEAST(value1[, value2]*)
+    description: Returns the least value of the list of arguments. Returns NULL if any argument is NULL.
+
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
@@ -627,7 +631,7 @@ hashfunctions:
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
 
 auxilary:
-  - table:  callSql(STRING)
+  - table: callSql(STRING)
     description: |
       A call to a SQL expression.
 
@@ -683,7 +687,7 @@ aggregate:
     description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
   - sql: DENSE_RANK()
     description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMER()
+  - sql: ROW_NUMBER()
     description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
   - sql: LEAD(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.

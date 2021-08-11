@@ -19,22 +19,34 @@
 package org.apache.flink.streaming.api.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static org.apache.flink.python.Constants.FLINK_CODER_URN;
+import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.MAIN_INPUT_NAME;
+import static org.apache.flink.python.Constants.MAIN_OUTPUT_NAME;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.TIMER_ID;
+import static org.apache.flink.python.Constants.TRANSFORM_ID;
+import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
 
 /**
  * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
@@ -43,15 +55,14 @@ import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 @Internal
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
-    private final TypeInformation inputType;
-    private final TypeInformation outputType;
+    @Nullable private final FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor;
+
+    private final String functionUrn;
     private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
 
     public BeamDataStreamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            TypeInformation inputType,
-            TypeInformation outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
             Map<String, String> jobOptions,
@@ -59,62 +70,95 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             KeyedStateBackend stateBackend,
             TypeSerializer keySerializer,
             TypeSerializer namespaceSerializer,
+            @Nullable TimerRegistration timerRegistration,
             MemoryManager memoryManager,
             double managedMemoryFraction,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
+            FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
+            FlinkFnApi.CoderInfoDescriptor timerCoderDescriptor) {
         super(
                 taskName,
                 environmentManager,
-                functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
                 namespaceSerializer,
+                timerRegistration,
                 memoryManager,
                 managedMemoryFraction,
-                inputDataType,
-                outputDataType,
-                outputMode);
-        this.inputType = inputType;
-        this.outputType = outputType;
-        this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
+                inputCoderDescriptor,
+                outputCoderDescriptor);
+        this.functionUrn = Preconditions.checkNotNull(functionUrn);
+        this.userDefinedDataStreamFunction =
+                Preconditions.checkNotNull(userDefinedDataStreamFunction);
+        this.timerCoderDescriptor = timerCoderDescriptor;
     }
 
     @Override
-    protected byte[] getUserDefinedFunctionsProtoBytes() {
-        return this.userDefinedDataStreamFunction.toByteArray();
+    protected Map<String, RunnerApi.PTransform> getTransforms() {
+        // Use ParDoPayload as a wrapper of the actual payload as timer is only supported in ParDo
+        RunnerApi.ParDoPayload.Builder payloadBuilder =
+                RunnerApi.ParDoPayload.newBuilder()
+                        .setDoFn(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(functionUrn)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        userDefinedDataStreamFunction
+                                                                .toByteArray()))
+                                        .build());
+
+        if (timerCoderDescriptor != null) {
+            payloadBuilder.putTimerFamilySpecs(
+                    TIMER_ID,
+                    RunnerApi.TimerFamilySpec.newBuilder()
+                            .setTimeDomain(
+                                    RunnerApi.TimeDomain.Enum
+                                            .EVENT_TIME) // always set it as event time, this field
+                            // is not used
+                            .setTimerFamilyCoderId(WRAPPER_TIMER_CODER_ID)
+                            .build());
+        }
+
+        return Collections.singletonMap(
+                TRANSFORM_ID,
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(TRANSFORM_ID)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(
+                                                BeamUrns.getUrn(
+                                                        RunnerApi.StandardPTransforms.Primitives
+                                                                .PAR_DO))
+                                        .setPayload(payloadBuilder.build().toByteString())
+                                        .build())
+                        .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
+                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
+                        .build());
     }
 
     @Override
-    protected RunnerApi.Coder getInputCoderProto() {
-        return getInputOutputCoderProto(inputType, inputDataType);
+    protected List<TimerReference> getTimers(RunnerApi.Components components) {
+        if (timerCoderDescriptor != null) {
+            RunnerApi.ExecutableStagePayload.TimerId timerId =
+                    RunnerApi.ExecutableStagePayload.TimerId.newBuilder()
+                            .setTransformId(TRANSFORM_ID)
+                            .setLocalName(TIMER_ID)
+                            .build();
+            return Collections.singletonList(TimerReference.fromTimerId(timerId, components));
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     @Override
-    protected RunnerApi.Coder getOutputCoderProto() {
-        return getInputOutputCoderProto(outputType, outputDataType);
-    }
-
-    private RunnerApi.Coder getInputOutputCoderProto(
-            TypeInformation typeInformation, FlinkFnApi.CoderParam.DataType dataType) {
-        FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
-        FlinkFnApi.TypeInfo typeinfo =
-                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
-        coderParamBuilder.setTypeInfo(typeinfo);
-        coderParamBuilder.setDataType(dataType);
-        coderParamBuilder.setOutputMode(outputMode);
-        return RunnerApi.Coder.newBuilder()
-                .setSpec(
-                        RunnerApi.FunctionSpec.newBuilder()
-                                .setUrn(FLINK_CODER_URN)
-                                .setPayload(
-                                        org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
-                                                .ByteString.copyFrom(
-                                                coderParamBuilder.build().toByteArray()))
-                                .build())
-                .build();
+    protected Optional<RunnerApi.Coder> getOptionalTimerCoderProto() {
+        if (timerCoderDescriptor != null) {
+            return Optional.of(ProtoUtils.createCoderProto(timerCoderDescriptor));
+        } else {
+            return Optional.empty();
+        }
     }
 }

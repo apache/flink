@@ -37,7 +37,7 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.junit.After;
 import org.junit.Assert;

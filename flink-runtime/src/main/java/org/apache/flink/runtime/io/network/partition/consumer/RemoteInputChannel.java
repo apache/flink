@@ -39,8 +39,9 @@ import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -285,6 +286,21 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
+    @Override
+    int getBuffersInUseCount() {
+        return getNumberOfQueuedBuffers()
+                + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        try {
+            notifyNewBufferSize(newBufferSize);
+        } catch (Throwable t) {
+            ExceptionUtils.rethrow(t);
+        }
+    }
+
     private void failPartitionRequest() {
         setError(new PartitionNotFoundException(partitionId));
     }
@@ -305,6 +321,12 @@ public class RemoteInputChannel extends InputChannel {
         checkPartitionRequestQueueInitialized();
 
         partitionRequestClient.notifyCreditAvailable(this);
+    }
+
+    private void notifyNewBufferSize(int newBufferSize) throws IOException {
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.notifyNewBufferSize(this, newBufferSize);
     }
 
     @VisibleForTesting

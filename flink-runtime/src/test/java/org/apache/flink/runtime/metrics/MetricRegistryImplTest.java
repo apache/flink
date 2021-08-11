@@ -43,7 +43,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -193,7 +193,7 @@ public class MetricRegistryImplTest extends TestLogger {
                         manuallyTriggeredScheduledExecutorService);
         try {
             Collection<ScheduledFuture<?>> scheduledTasks =
-                    manuallyTriggeredScheduledExecutorService.getScheduledTasks();
+                    manuallyTriggeredScheduledExecutorService.getActiveScheduledTasks();
             ScheduledFuture<?> reportTask = Iterators.getOnlyElement(scheduledTasks.iterator());
             Assert.assertEquals(
                     MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds(),
@@ -235,7 +235,9 @@ public class MetricRegistryImplTest extends TestLogger {
                                 ReporterSetup.forReporter("test1", new TestReporter6()),
                                 ReporterSetup.forReporter("test2", new TestReporter7())));
 
-        TaskManagerMetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup root =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
         root.counter("rootCounter");
 
         assertTrue(TestReporter6.addedMetric instanceof Counter);
@@ -332,7 +334,9 @@ public class MetricRegistryImplTest extends TestLogger {
                         MetricRegistryTestUtils.fromConfiguration(config),
                         ReporterSetup.fromConfiguration(config, null));
 
-        TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup tmGroup =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
         assertEquals("A_B_C_D_E_name", tmGroup.getMetricIdentifier("name"));
 
         registry.shutdown().get();
@@ -434,7 +438,9 @@ public class MetricRegistryImplTest extends TestLogger {
         ((TestReporter8) reporters.get(3)).expectedDelimiter =
                 GLOBAL_DEFAULT_DELIMITER; // for test4 reporter use global delimiter
 
-        TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerMetricGroup group =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
         group.counter("C");
         group.close();
         registry.shutdown().get();

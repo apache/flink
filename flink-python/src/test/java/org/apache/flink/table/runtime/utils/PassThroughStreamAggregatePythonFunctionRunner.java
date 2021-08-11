@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughStreamAggregatePythonFunctionRunner} runner that help to test the Python
  * stream group aggregate operators. It will process the input data with the provided
@@ -60,8 +62,6 @@ public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTablePyt
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -71,9 +71,10 @@ public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTablePyt
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                createRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false));
         this.buffer = new LinkedList<>();
         this.processFunction = processFunction;
     }

@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalCorrelateRule;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
+import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -39,7 +40,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 import java.util.LinkedList;
@@ -116,8 +116,8 @@ public class PythonCorrelateSplitRule extends RelOptRule {
             calcProjects.add(RexInputRef.of(i, rowType));
         }
         // change RexCorrelVariable to RexInputRef.
-        RexVisitorImpl<RexNode> visitor =
-                new RexVisitorImpl<RexNode>(true) {
+        RexDefaultVisitor<RexNode> visitor =
+                new RexDefaultVisitor<RexNode>() {
                     @Override
                     public RexNode visitFieldAccess(RexFieldAccess fieldAccess) {
                         RexNode expr = fieldAccess.getReferenceExpr();
@@ -128,6 +128,11 @@ public class PythonCorrelateSplitRule extends RelOptRule {
                             return rexBuilder.makeFieldAccess(
                                     expr.accept(this), fieldAccess.getField().getIndex());
                         }
+                    }
+
+                    @Override
+                    public RexNode visitNode(RexNode rexNode) {
+                        return rexNode;
                     }
                 };
         // add the fields of the extracted rex calls.

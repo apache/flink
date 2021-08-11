@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumerWithPartialRecor
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -380,8 +380,8 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    public void acknowledgeAllRecordsProcessed() {
-        parent.onSubpartitionAllRecordsProcessed(subpartitionInfo.getSubPartitionIdx());
+    public void acknowledgeAllDataProcessed() {
+        parent.onSubpartitionAllDataProcessed(subpartitionInfo.getSubPartitionIdx());
     }
 
     @Override
@@ -443,8 +443,11 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    int getCurrentNumberOfBuffers() {
-        return buffers.size();
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        synchronized (buffers) {
+            return buffers.size();
+        }
     }
 
     // ------------------------------------------------------------------------

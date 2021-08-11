@@ -21,7 +21,6 @@ package org.apache.flink.tests.util.flink;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -30,26 +29,10 @@ public class SQLJobSubmission {
 
     private final List<String> sqlLines;
     private final List<String> jars;
-    private final String defaultEnvFile;
-    private final String sessionEnvFile;
 
-    private SQLJobSubmission(
-            List<String> sqlLines,
-            List<String> jars,
-            String defaultEnvFile,
-            String sessionEnvFile) {
+    private SQLJobSubmission(List<String> sqlLines, List<String> jars) {
         this.sqlLines = checkNotNull(sqlLines);
         this.jars = checkNotNull(jars);
-        this.defaultEnvFile = defaultEnvFile;
-        this.sessionEnvFile = sessionEnvFile;
-    }
-
-    public Optional<String> getDefaultEnvFile() {
-        return Optional.ofNullable(defaultEnvFile);
-    }
-
-    public Optional<String> getSessionEnvFile() {
-        return Optional.ofNullable(sessionEnvFile);
     }
 
     public List<String> getJars() {
@@ -64,21 +47,9 @@ public class SQLJobSubmission {
     public static class SQLJobSubmissionBuilder {
         private final List<String> sqlLines;
         private final List<String> jars = new ArrayList<>();
-        private String defaultEnvFile = null;
-        private String sessionEnvFile = null;
 
         public SQLJobSubmissionBuilder(List<String> sqlLines) {
             this.sqlLines = sqlLines;
-        }
-
-        public SQLJobSubmissionBuilder setDefaultEnvFile(String defaultEnvFile) {
-            this.defaultEnvFile = defaultEnvFile;
-            return this;
-        }
-
-        public SQLJobSubmissionBuilder setSessionEnvFile(String sessionEnvFile) {
-            this.sessionEnvFile = sessionEnvFile;
-            return this;
         }
 
         public SQLJobSubmissionBuilder addJar(Path jarFile) {
@@ -99,7 +70,7 @@ public class SQLJobSubmission {
         }
 
         public SQLJobSubmission build() {
-            return new SQLJobSubmission(sqlLines, jars, defaultEnvFile, sessionEnvFile);
+            return new SQLJobSubmission(sqlLines, jars);
         }
     }
 }

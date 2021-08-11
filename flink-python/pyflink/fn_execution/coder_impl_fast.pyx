@@ -30,8 +30,8 @@ from typing import List, Union
 from cloudpickle import cloudpickle
 
 from pyflink.common import Row, RowKind
+from pyflink.common.time import Instant
 from pyflink.datastream.window import CountWindow, TimeWindow
-from pyflink.fn_execution import flink_fn_execution_pb2
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -175,26 +175,14 @@ cdef class LengthPrefixBaseCoderImpl:
     """
 
     def __init__(self, field_coder: FieldCoderImpl):
-        self._field_coder = field_coder  # type: FieldCoderImpl
+        self._field_coder = field_coder
         self._data_out_stream = OutputStream()
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         pass
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
-        cdef char*input_data
-        cdef char*temp
-        cdef size_t size
-        cdef long long addr
-        cdef InputStream data_input_stream
-        # set input_data pointer to the input data
-        size = input_stream.read(&input_data)
-
-        # create InputStream
-        data_input_stream = InputStream()
-        data_input_stream._input_data = input_data
-
-        return self._field_coder.decode_from_stream(data_input_stream, size)
+        pass
 
     cdef void _write_data_to_output_stream(self, LengthPrefixOutputStream output_stream):
         cdef OutputStream data_out_stream
@@ -247,6 +235,17 @@ cdef class FieldCoderImpl:
         input_stream._input_data = <char*> encoded
         return self.decode_from_stream(input_stream, len(encoded))
 
+cdef class InputStreamWrapper:
+    def __cinit__(self, value_coder: ValueCoderImpl, input_stream: LengthPrefixInputStream):
+        self._value_coder = value_coder
+        self._input_stream = input_stream
+
+    cpdef bint has_next(self):
+        return self._input_stream.available()
+
+    cpdef next(self):
+        return self._value_coder.decode_from_stream(self._input_stream)
+
 cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     """
     Encodes iterable data to output stream. The output mode will decide whether write a special end
@@ -259,21 +258,22 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             raise MemoryError()
         self._end_message[0] = 0x00
 
-    def __init__(self, field_coder: FieldCoderImpl, output_mode):
+    def __init__(self, field_coder: FieldCoderImpl, separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
-        if output_mode == flink_fn_execution_pb2.CoderParam.MULTIPLE:
-            self._writes_end_message = False
-        else:
-            self._writes_end_message = True
+        self._separated_with_end_message = separated_with_end_message
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
-        for item in value:
-            self._field_coder.encode_to_stream(item, self._data_out_stream)
-            self._write_data_to_output_stream(output_stream)
+        if value:
+            for item in value:
+                self._field_coder.encode_to_stream(item, self._data_out_stream)
+                self._write_data_to_output_stream(output_stream)
 
         # write end message
-        if self._writes_end_message:
+        if self._separated_with_end_message:
             output_stream.write(self._end_message, 1)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        return InputStreamWrapper(ValueCoderImpl(self._field_coder), input_stream)
 
     def __dealloc__(self):
         if self._end_message != NULL:
@@ -290,6 +290,21 @@ cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(output_stream)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        cdef char*input_data
+        cdef char*temp
+        cdef size_t size
+        cdef long long addr
+        cdef InputStream data_input_stream
+        # set input_data pointer to the input data
+        size = input_stream.read(&input_data)
+
+        # create InputStream
+        data_input_stream = InputStream()
+        data_input_stream._input_data = input_data
+
+        return self._field_coder.decode_from_stream(data_input_stream, size)
 
 cdef class FlattenRowCoderImpl(FieldCoderImpl):
     """
@@ -631,6 +646,34 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+
+cdef class InstantCoderImpl(FieldCoderImpl):
+    """
+    A coder for Instant.
+    """
+
+    def __init__(self):
+        self._null_seconds = -9223372036854775808
+        self._null_nanos = -2147483648
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value is None:
+            out_stream.write_int64(self._null_seconds)
+            out_stream.write_int32(self._null_nanos)
+        else:
+            out_stream.write_int64(value.seconds)
+            out_stream.write_int32(value.nanos)
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        cdef int64_t seconds
+        cdef int32_t nanos
+        seconds = in_stream.read_int64()
+        nanos = in_stream.read_int32()
+        if seconds == self._null_seconds and nanos == self._null_nanos:
+            return None
+        else:
+            return Instant(seconds, nanos)
+
 
 cdef class CloudPickleCoderImpl(FieldCoderImpl):
     """

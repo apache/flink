@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -100,6 +101,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final ShuffleMaster<?> shuffleMaster;
 
+    private final Time rpcTimeout;
+
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -120,7 +123,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
             final ExecutionGraphFactory executionGraphFactory,
-            final ShuffleMaster<?> shuffleMaster)
+            final ShuffleMaster<?> shuffleMaster,
+            final Time rpcTimeout)
             throws Exception {
 
         super(
@@ -143,6 +147,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.userCodeLoader = checkNotNull(userCodeLoader);
         this.executionVertexOperations = checkNotNull(executionVertexOperations);
         this.shuffleMaster = checkNotNull(shuffleMaster);
+        this.rpcTimeout = checkNotNull(rpcTimeout);
 
         final FailoverStrategy failoverStrategy =
                 failoverStrategyFactory.create(
@@ -429,21 +434,33 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {
         FutureUtils.assertNoException(
-                assignAllResources(deploymentHandles).handle(deployAll(deploymentHandles)));
+                assignAllResourcesAndRegisterProducedPartitions(deploymentHandles)
+                        .handle(deployAll(deploymentHandles)));
     }
 
-    private CompletableFuture<Void> assignAllResources(
+    private CompletableFuture<Void> assignAllResourcesAndRegisterProducedPartitions(
             final List<DeploymentHandle> deploymentHandles) {
-        final List<CompletableFuture<Void>> slotAssignedFutures = new ArrayList<>();
+        final List<CompletableFuture<Void>> resultFutures = new ArrayList<>();
         for (DeploymentHandle deploymentHandle : deploymentHandles) {
-            final CompletableFuture<Void> slotAssigned =
+            final CompletableFuture<Void> resultFuture =
                     deploymentHandle
                             .getSlotExecutionVertexAssignment()
                             .getLogicalSlotFuture()
-                            .handle(assignResourceOrHandleError(deploymentHandle));
-            slotAssignedFutures.add(slotAssigned);
+                            .handle(assignResource(deploymentHandle))
+                            .thenCompose(registerProducedPartitions(deploymentHandle))
+                            .handle(
+                                    (ignore, throwable) -> {
+                                        if (throwable != null) {
+                                            handleTaskDeploymentFailure(
+                                                    deploymentHandle.getExecutionVertexId(),
+                                                    throwable);
+                                        }
+                                        return null;
+                                    });
+
+            resultFutures.add(resultFuture);
         }
-        return FutureUtils.waitForAll(slotAssignedFutures);
+        return FutureUtils.waitForAll(resultFutures);
     }
 
     private BiFunction<Void, Throwable, Void> deployAll(
@@ -470,7 +487,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
     }
 
-    private BiFunction<LogicalSlot, Throwable, Void> assignResourceOrHandleError(
+    private BiFunction<LogicalSlot, Throwable, LogicalSlot> assignResource(
             final DeploymentHandle deploymentHandle) {
         final ExecutionVertexVersion requiredVertexVersion =
                 deploymentHandle.getRequiredVertexVersion();
@@ -478,28 +495,56 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         return (logicalSlot, throwable) -> {
             if (executionVertexVersioner.isModified(requiredVertexVersion)) {
-                log.debug(
-                        "Refusing to assign slot to execution vertex {} because this deployment was "
-                                + "superseded by another deployment",
-                        executionVertexId);
-                releaseSlotIfPresent(logicalSlot);
+                if (throwable == null) {
+                    log.debug(
+                            "Refusing to assign slot to execution vertex {} because this deployment was "
+                                    + "superseded by another deployment",
+                            executionVertexId);
+                    releaseSlotIfPresent(logicalSlot);
+                }
                 return null;
             }
 
-            if (throwable == null) {
+            // throw exception only if the execution version is not outdated.
+            // this ensures that canceling a pending slot request does not fail
+            // a task which is about to cancel in #restartTasksWithDelay(...)
+            if (throwable != null) {
+                throw new CompletionException(maybeWrapWithNoResourceAvailableException(throwable));
+            }
+
+            final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
+            executionVertex.tryAssignResource(logicalSlot);
+            return logicalSlot;
+        };
+    }
+
+    private Function<LogicalSlot, CompletableFuture<Void>> registerProducedPartitions(
+            final DeploymentHandle deploymentHandle) {
+        final ExecutionVertexID executionVertexId = deploymentHandle.getExecutionVertexId();
+
+        return logicalSlot -> {
+            // a null logicalSlot means the slot assignment is skipped, in which case
+            // the produced partition registration process can be skipped as well
+            if (logicalSlot != null) {
                 final ExecutionVertex executionVertex = getExecutionVertex(executionVertexId);
                 final boolean notifyPartitionDataAvailable =
                         deploymentHandle.getDeploymentOption().notifyPartitionDataAvailable();
-                executionVertex
-                        .getCurrentExecutionAttempt()
-                        .registerProducedPartitions(
-                                logicalSlot.getTaskManagerLocation(), notifyPartitionDataAvailable);
-                executionVertex.tryAssignResource(logicalSlot);
+
+                final CompletableFuture<Void> partitionRegistrationFuture =
+                        executionVertex
+                                .getCurrentExecutionAttempt()
+                                .registerProducedPartitions(
+                                        logicalSlot.getTaskManagerLocation(),
+                                        notifyPartitionDataAvailable);
+
+                return FutureUtils.orTimeout(
+                        partitionRegistrationFuture,
+                        rpcTimeout.toMilliseconds(),
+                        TimeUnit.MILLISECONDS,
+                        getMainThreadExecutor());
             } else {
-                handleTaskDeploymentFailure(
-                        executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
+                return FutureUtils.completedVoidFuture();
             }
-            return null;
         };
     }
 

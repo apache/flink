@@ -19,6 +19,8 @@ package org.apache.flink.table.codesplit;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -43,8 +45,10 @@ public class JavaCodeSplitter {
         checkArgument(maxMethodLength > 0);
         checkArgument(maxClassMemberCount > 0);
 
-        return new DeclarationRewriter(code, maxMethodLength)
-                .rewrite()
+        String returnValueRewrittenCode = new ReturnValueRewriter(code, maxMethodLength).rewrite();
+        return Optional.ofNullable(
+                        new DeclarationRewriter(returnValueRewrittenCode, maxMethodLength)
+                                .rewrite())
                 .map(text -> new IfStatementRewriter(text, maxMethodLength).rewrite())
                 .map(text -> new FunctionSplitter(text, maxMethodLength).rewrite())
                 .map(text -> new MemberFieldRewriter(text, maxClassMemberCount).rewrite())

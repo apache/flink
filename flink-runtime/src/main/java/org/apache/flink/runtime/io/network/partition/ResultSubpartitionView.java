@@ -53,13 +53,15 @@ public interface ResultSubpartitionView {
 
     void resumeConsumption();
 
-    void acknowledgeAllRecordsProcessed();
+    void acknowledgeAllDataProcessed();
 
     Throwable getFailureCause();
 
     AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
 
     int unsynchronizedGetNumberOfQueuedBuffers();
+
+    int getNumberOfQueuedBuffers();
 
     /**
      * Availability of the {@link ResultSubpartitionView} and the backlog in the corresponding

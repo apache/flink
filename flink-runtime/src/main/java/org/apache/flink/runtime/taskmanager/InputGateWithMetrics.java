@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,9 +46,15 @@ public class InputGateWithMetrics extends IndexedInputGate {
 
     private final Counter numBytesIn;
 
-    public InputGateWithMetrics(IndexedInputGate inputGate, Counter numBytesIn) {
+    private final ThroughputCalculator throughputCalculator;
+
+    public InputGateWithMetrics(
+            IndexedInputGate inputGate,
+            Counter numBytesIn,
+            ThroughputCalculator throughputCalculator) {
         this.inputGate = checkNotNull(inputGate);
         this.numBytesIn = checkNotNull(numBytesIn);
+        this.throughputCalculator = throughputCalculator;
     }
 
     @Override
@@ -86,8 +93,23 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public int getBuffersInUseCount() {
+        return inputGate.getBuffersInUseCount();
+    }
+
+    @Override
+    public void announceBufferSize(int bufferSize) {
+        inputGate.announceBufferSize(bufferSize);
+    }
+
+    @Override
     public boolean isFinished() {
         return inputGate.isFinished();
+    }
+
+    @Override
+    public boolean hasReceivedEndOfData() {
+        return inputGate.hasReceivedEndOfData();
     }
 
     @Override
@@ -141,7 +163,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
-        numBytesIn.inc(bufferOrEvent.getSize());
+        int incomingDataSize = bufferOrEvent.getSize();
+
+        numBytesIn.inc(incomingDataSize);
+        throughputCalculator.incomingDataSize(incomingDataSize);
+
         return bufferOrEvent;
     }
 }

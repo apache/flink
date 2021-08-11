@@ -19,50 +19,36 @@
         "bounded" : "false",
         "schema.0.name" : "a",
         "schema.1.data-type" : "INT NOT NULL"
-      },
-      "sourceAbilitySpecs" : [ {
-        "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 2 ], [ 0 ], [ 1 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "c" : "VARCHAR(2147483647)"
-          }, {
-            "a" : "BIGINT"
-          }, {
-            "b" : "INT NOT NULL"
-          } ]
-        }
-      } ]
+      }
     },
     "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
-      }, {
         "a" : "BIGINT"
       }, {
         "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
+      }, {
+        "d" : "BIGINT"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "inputIndex" : 3,
       "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
+        "typeName" : "BIGINT",
+        "nullable" : true
       }
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 1,
+      "inputIndex" : 0,
       "type" : {
         "typeName" : "BIGINT",
         "nullable" : true
@@ -76,7 +62,7 @@
       },
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 2,
+        "inputIndex" : 1,
         "type" : {
           "typeName" : "INTEGER",
           "nullable" : false
@@ -95,10 +81,18 @@
       }
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 2,
+      "inputIndex" : 1,
       "type" : {
         "typeName" : "INTEGER",
         "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "VARCHAR",
+        "nullable" : true,
+        "precision" : 2147483647
       }
     } ],
     "condition" : null,
@@ -114,16 +108,18 @@
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
+        "d" : "BIGINT"
       }, {
         "a" : "BIGINT"
       }, {
         "$f2" : "BOOLEAN NOT NULL"
       }, {
         "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Calc(select=[c, a, (b > 10) AS $f2, b])"
+    "description" : "Calc(select=[d, a, (b > 10) AS $f2, b, c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 3,
@@ -139,16 +135,18 @@
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
+        "d" : "BIGINT"
       }, {
         "a" : "BIGINT"
       }, {
         "$f2" : "BOOLEAN NOT NULL"
       }, {
         "b" : "INT NOT NULL"
+      }, {
+        "c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "Exchange(distribution=[hash[c]])"
+    "description" : "Exchange(distribution=[hash[d]])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate",
     "grouping" : [ 0 ],
@@ -232,8 +230,24 @@
         "typeName" : "INTEGER",
         "nullable" : false
       }
+    }, {
+      "name" : "cnt_d",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 4 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
     } ],
-    "aggCallNeedRetractions" : [ false, false, false, false, false ],
+    "aggCallNeedRetractions" : [ false, false, false, false, false, false ],
     "generateUpdateBefore" : true,
     "needRetraction" : false,
     "id" : 4,
@@ -248,7 +262,7 @@
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
+        "d" : "BIGINT"
       }, {
         "cnt_a1" : "BIGINT NOT NULL"
       }, {
@@ -259,18 +273,19 @@
         "sum_b" : "INT NOT NULL"
       }, {
         "avg_b" : "INT NOT NULL"
+      }, {
+        "cnt_d" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "GroupAggregate(groupBy=[c], select=[c, COUNT(DISTINCT a) FILTER $f2 AS cnt_a1, COUNT(DISTINCT a) AS cnt_a2, SUM(DISTINCT a) AS sum_a, SUM(DISTINCT b) AS sum_b, AVG(b) AS avg_b])"
+    "description" : "GroupAggregate(groupBy=[d], select=[d, COUNT(DISTINCT a) FILTER $f2 AS cnt_a1, COUNT(DISTINCT a) AS cnt_a2, SUM(DISTINCT a) AS sum_a, SUM(DISTINCT b) AS sum_b, AVG(b) AS avg_b, COUNT(DISTINCT c) AS cnt_d])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
       "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
+        "typeName" : "BIGINT",
+        "nullable" : true
       }
     }, {
       "kind" : "REX_CALL",
@@ -355,6 +370,25 @@
         "typeName" : "DOUBLE",
         "nullable" : true
       }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 6,
+        "type" : {
+          "typeName" : "BIGINT",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
     } ],
     "condition" : null,
     "id" : 5,
@@ -369,7 +403,7 @@
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
+        "d" : "BIGINT"
       }, {
         "cnt_a1" : "BIGINT"
       }, {
@@ -380,9 +414,11 @@
         "sum_b" : "INT"
       }, {
         "avg_b" : "DOUBLE"
+      }, {
+        "cnt_c" : "BIGINT"
       } ]
     },
-    "description" : "Calc(select=[c, CAST(cnt_a1) AS cnt_a1, CAST(cnt_a2) AS cnt_a2, sum_a, CAST(sum_b) AS sum_b, CAST(avg_b) AS avg_b])"
+    "description" : "Calc(select=[d, CAST(cnt_a1) AS cnt_a1, CAST(cnt_a2) AS cnt_a2, sum_a, CAST(sum_b) AS sum_b, CAST(avg_b) AS avg_b, CAST(cnt_d) AS cnt_c])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {
@@ -394,9 +430,10 @@
       "catalogTable" : {
         "schema.5.name" : "avg_b",
         "sink-insert-only" : "false",
-        "schema.0.data-type" : "VARCHAR(2147483647)",
+        "schema.0.data-type" : "BIGINT",
         "schema.2.name" : "cnt_a2",
         "schema.1.name" : "cnt_a1",
+        "schema.6.data-type" : "BIGINT",
         "schema.4.name" : "sum_b",
         "schema.1.data-type" : "BIGINT",
         "schema.3.data-type" : "BIGINT",
@@ -404,9 +441,10 @@
         "schema.2.data-type" : "BIGINT",
         "schema.3.name" : "sum_a",
         "connector" : "values",
+        "schema.6.name" : "cnt_c",
         "schema.5.data-type" : "DOUBLE",
         "schema.4.data-type" : "INT",
-        "schema.0.name" : "c"
+        "schema.0.name" : "d"
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
@@ -422,7 +460,7 @@
       "type" : "ROW",
       "nullable" : true,
       "fields" : [ {
-        "c" : "VARCHAR(2147483647)"
+        "d" : "BIGINT"
       }, {
         "cnt_a1" : "BIGINT"
       }, {
@@ -433,9 +471,11 @@
         "sum_b" : "INT"
       }, {
         "avg_b" : "DOUBLE"
+      }, {
+        "cnt_c" : "BIGINT"
       } ]
     },
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, cnt_a1, cnt_a2, sum_a, sum_b, avg_b])"
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[d, cnt_a1, cnt_a2, sum_a, sum_b, avg_b, cnt_c])"
   } ],
   "edges" : [ {
     "source" : 1,

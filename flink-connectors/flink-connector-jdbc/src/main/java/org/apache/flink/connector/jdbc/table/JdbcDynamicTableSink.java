@@ -78,7 +78,7 @@ public class JdbcDynamicTableSink implements DynamicTableSink {
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         final TypeInformation<RowData> rowDataTypeInformation =
                 context.createTypeInformation(tableSchema.toRowDataType());
-        final JdbcDynamicOutputFormatBuilder builder = new JdbcDynamicOutputFormatBuilder();
+        final JdbcOutputFormatBuilder builder = new JdbcOutputFormatBuilder();
 
         builder.setJdbcOptions(jdbcOptions);
         builder.setJdbcDmlOptions(dmlOptions);

@@ -60,8 +60,9 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-{% info 注意 %}  Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
-
+{{< hint info >}}
+Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
+{{< /hint >}}
 
 
 <a name="introduction-and-examples"></a>
