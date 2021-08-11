@@ -139,12 +139,12 @@ under the License.
 		<dependencies>
 			<dependency>
 				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-compiler</artifactId>
+				<artifactId>scala-reflect</artifactId>
 				<version>${akka.scala.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-reflect</artifactId>
+				<artifactId>scala-compiler</artifactId>
 				<version>${akka.scala.version}</version>
 			</dependency>
 			<dependency>
