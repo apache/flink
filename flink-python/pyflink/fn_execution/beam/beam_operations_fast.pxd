@@ -35,14 +35,14 @@ cdef class IntermediateInputProcessor(InputProcessor):
     cdef object _next_value
 
 cdef class OutputProcessor:
+    cdef Operation _consumer
     cpdef process_outputs(self, WindowedValue windowed_value, results)
 
 cdef class NetworkOutputProcessor(OutputProcessor):
-    cdef Operation _consumer
     cdef StreamCoderImpl _value_coder_impl
 
 cdef class IntermediateOutputProcessor(OutputProcessor):
-    cdef Operation _consumer
+    pass
 
 cdef class FunctionOperation(Operation):
     cdef OutputProcessor _output_processor

@@ -19,13 +19,13 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
-from apache_beam.runners.worker.bundle_processor import DataOutputOperation
 from libc.stdint cimport *
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.utils cimport windowed_value
 from apache_beam.utils.windowed_value cimport WindowedValue
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
+from apache_beam.runners.worker.bundle_processor import DataOutputOperation
 from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler

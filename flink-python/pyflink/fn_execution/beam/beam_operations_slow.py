@@ -21,6 +21,7 @@ from typing import Iterable, Any
 
 from apache_beam.runners.worker.bundle_processor import TimerInfo, DataOutputOperation
 from apache_beam.runners.worker.operations import Operation
+from apache_beam.utils import windowed_value
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution.table.operations import BundleOperation
@@ -147,20 +148,20 @@ class StatelessFunctionOperation(FunctionOperation):
 class StatefulFunctionOperation(FunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
                  keyed_state_backend):
-        self.keyed_state_backend = keyed_state_backend
+        self._keyed_state_backend = keyed_state_backend
+        self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers, operation_cls)
 
     def generate_operation(self):
-        return self.operation_cls(self.spec, self.keyed_state_backend)
+        return self.operation_cls(self.spec, self._keyed_state_backend)
 
     def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
         # ignore timer_family_id
         self.operation.add_timer_info(timer_info)
 
     def process_timer(self, tag, timer_data):
-        output_stream = self.consumer.output_stream
-        self._value_coder_impl.encode_to_stream(
+        self._output_processor.process_outputs(
+            self._reusable_windowed_value,
             # the field user_key holds the timer data
-            self.operation.process_timer(timer_data.user_key), output_stream, True)
-        output_stream.maybe_flush()
+            self.operation.process_timer(timer_data.user_key))
