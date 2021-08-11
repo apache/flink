@@ -85,4 +85,15 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
          */
         int[] getPartitionsForTopic(String topic);
     }
+
+    /**
+     * Creates a default schema builder to provide common building blocks i.e. key serialization,
+     * value serialization, partitioning.
+     *
+     * @param <T> type of incoming elements
+     * @return {@link KafkaRecordSerializationSchemaBuilder}
+     */
+    static <T> KafkaRecordSerializationSchemaBuilder<T> builder() {
+        return new KafkaRecordSerializationSchemaBuilder<>();
+    }
 }
