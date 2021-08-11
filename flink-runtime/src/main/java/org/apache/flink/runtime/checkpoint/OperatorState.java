@@ -159,6 +159,10 @@ public class OperatorState implements CompositeStateHandle {
         }
     }
 
+    public boolean hasSubtaskStates() {
+        return operatorSubtaskStates.size() > 0;
+    }
+
     @Override
     public long getStateSize() {
         long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();

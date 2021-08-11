@@ -233,8 +233,8 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                 OperatorState operatorState =
                         operatorStates.get(operatorID.getGeneratedOperatorID());
                 checkState(
-                        operatorState == null,
-                        "There should be no states reported for fully finished or finished on restore operators");
+                        operatorState == null || !operatorState.hasSubtaskStates(),
+                        "There should be no states or only coordinator state reported for fully finished operators");
 
                 operatorState =
                         new FullyFinishedOperatorState(
