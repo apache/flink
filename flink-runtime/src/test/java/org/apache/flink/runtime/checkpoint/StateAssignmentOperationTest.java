@@ -192,10 +192,11 @@ public class StateAssignmentOperationTest extends TestLogger {
     }
 
     @Test
-    public void testRepartitionBroadcastStateWithFinishedState() {
+    public void testRepartitionBroadcastStateWithNullSubtaskState() {
         OperatorID operatorID = new OperatorID();
         OperatorState operatorState = new OperatorState(operatorID, 2, 4);
 
+        // Only the subtask 0 reports the states.
         Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap1 = new HashMap<>(2);
         metaInfoMap1.put(
                 "t-5",
@@ -211,17 +212,32 @@ public class StateAssignmentOperationTest extends TestLogger {
         operatorState.putState(
                 0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
 
-        // t-5 is complete while t-6 is partly finished.
-        Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap2 = new HashMap<>(2);
-        metaInfoMap2.put(
+        verifyOneKindPartitionableStateRescale(operatorState, operatorID);
+    }
+
+    @Test
+    public void testRepartitionBroadcastStateWithEmptySubtaskState() {
+        OperatorID operatorID = new OperatorID();
+        OperatorState operatorState = new OperatorState(operatorID, 2, 4);
+
+        // Only the subtask 0 reports the states.
+        Map<String, OperatorStateHandle.StateMetaInfo> metaInfoMap1 = new HashMap<>(2);
+        metaInfoMap1.put(
                 "t-5",
                 new OperatorStateHandle.StateMetaInfo(
                         new long[] {0, 10, 20}, OperatorStateHandle.Mode.BROADCAST));
-        OperatorStateHandle osh2 =
+        metaInfoMap1.put(
+                "t-6",
+                new OperatorStateHandle.StateMetaInfo(
+                        new long[] {30, 40, 50}, OperatorStateHandle.Mode.BROADCAST));
+        OperatorStateHandle osh1 =
                 new OperatorStreamStateHandle(
-                        metaInfoMap2, new ByteStreamStateHandle("test2", new byte[60]));
+                        metaInfoMap1, new ByteStreamStateHandle("test1", new byte[60]));
         operatorState.putState(
-                1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
+                0, OperatorSubtaskState.builder().setManagedOperatorState(osh1).build());
+
+        // The subtask 1 report an empty snapshot.
+        operatorState.putState(1, OperatorSubtaskState.builder().build());
 
         verifyOneKindPartitionableStateRescale(operatorState, operatorID);
     }
