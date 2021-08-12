@@ -111,7 +111,7 @@ Logback 1.3+ 需要 SLF4J 2，目前不支持。
 
 通过将相应 Class 的类型对象作为参数调用 `org.slf4j.LoggerFactory#LoggerFactory.getLogger` 方法可以创建一个 SLF4J 的 logger。
 
-强烈建议将 logger 字段设置为 `private static final` 类型。
+强烈建议将 logger 字段设置为 `private static final` 修饰的类型。
 
 ```java
 import org.slf4j.Logger;
