@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyed
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -169,6 +168,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             }
             if (flushThreadPool != null) {
                 flushThreadPool.shutdown();
+                flushThreadPool = null;
             }
         } finally {
             super.close();
@@ -355,13 +355,9 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             emitResults();
             Throwable flushThreadThrowable = exceptionReference.get();
             if (flushThreadThrowable != null) {
-                try {
-                    throw flushThreadThrowable;
-                } catch (Throwable throwable) {
-                    ExceptionUtils.checkInterrupted(throwable);
-                    throw new RuntimeException(
-                            "Error while waiting for BeamPythonFunctionRunner flush", throwable);
-                }
+                throw new RuntimeException(
+                        "Error while waiting for BeamPythonFunctionRunner flush",
+                        flushThreadThrowable);
             }
             elementCount = 0;
             lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
