@@ -49,19 +49,15 @@ public class BatchAsyncProcessor implements Consumer<ProducerWriteRequest<Dynamo
     private final UnboundedTaskExecutor taskExecutor;
     private final CountingCompletionService<ProducerWriteResponse> callbackCompletionService;
     private final BatchWriterProvider writerProvider;
-    private final ResponseHandler outputMessageHandler;
-
-    private final boolean shutdownOnError;
+    private final CompletionHandler outputMessageHandler;
 
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     public BatchAsyncProcessor(
             int internalQueueLimit,
-            boolean shutdownOnError,
             ExecutorService completionExecutor,
             BatchWriterProvider writerProvider,
-            ResponseHandler outputMessageHandler) {
-        this.shutdownOnError = shutdownOnError;
+            CompletionHandler outputMessageHandler) {
         this.outgoingMessagesQueue = new LinkedBlockingQueue<>(internalQueueLimit);
         this.executor = completionExecutor;
         this.taskExecutor = new UnboundedTaskExecutor();
@@ -91,10 +87,6 @@ public class BatchAsyncProcessor implements Consumer<ProducerWriteRequest<Dynamo
     private synchronized void fatalError(String message, Throwable error) {
         LOG.error(message, error);
         outputMessageHandler.onException(error);
-
-        if (shutdownOnError) {
-            shutdown();
-        }
     }
 
     /** Start processing and completion loops. */
@@ -218,13 +210,13 @@ public class BatchAsyncProcessor implements Consumer<ProducerWriteRequest<Dynamo
         }
     }
 
-    /** Handles completion messages. */
-    public interface ResponseHandler {
+    /** Hook for additional handling of the completion messages or errors. */
+    public interface CompletionHandler {
 
-        /* Called if writer could execute the task without exceptions (both if the write was successful or not). */
+        /* Called if writer could execute the task without exceptions (both if the write itself was successful or not). */
         void onCompletion(ProducerWriteResponse response);
 
-        /* Called if writer thrown an exception while executing the task. */
+        /* Called if an error occurred while scheduling or completing the write tasks.  */
         void onException(Throwable error);
     }
 }

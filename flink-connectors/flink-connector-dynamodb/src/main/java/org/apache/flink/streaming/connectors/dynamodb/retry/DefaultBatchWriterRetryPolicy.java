@@ -32,7 +32,10 @@ public class DefaultBatchWriterRetryPolicy implements BatchWriterRetryPolicy {
     /** Base backoff time for jitter. */
     private static final int BASE_BACKOFF_TIME_MS = 128;
 
-    /** Maximum number of attempts before returning a failure. */
+    /**
+     * Maximum number of attempts before returning a failure. Value -1 means retry forever until
+     * successful.
+     */
     private static final int DEFAULT_MAX_NUMBER_OF_ATTEMPTS = -1;
 
     public final int maxNumOfRetryAttempts;
@@ -69,5 +72,15 @@ public class DefaultBatchWriterRetryPolicy implements BatchWriterRetryPolicy {
                         Math.min(
                                 MAX_BACKOFF_TIME_MS,
                                 BASE_BACKOFF_TIME_MS * 2 * attemptResult.getAttemptNumber()));
+    }
+
+    @Override
+    public boolean isNotRetryableException(Exception e) {
+        return DynamoDbExceptionUtils.isNotRetryableException(e);
+    }
+
+    @Override
+    public boolean isThrottlingException(Exception e) {
+        return DynamoDbExceptionUtils.isThrottlingException(e);
     }
 }

@@ -22,7 +22,6 @@ import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
-import org.apache.flink.streaming.connectors.dynamodb.retry.DynamoDbExceptionUtils;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
@@ -157,13 +156,13 @@ public class DynamoDbBatchWriter implements Callable<ProducerWriteResponse> {
                     }
                 } catch (Exception e) {
                     currentAttemptResult.setFinallySuccessful(false);
-                    currentAttemptResult.setException(e);
 
-                    if (DynamoDbExceptionUtils.isNotRetryableException(e)) {
+                    if (retryPolicy.isNotRetryableException(e)) {
+                        currentAttemptResult.setException(e);
                         return currentAttemptResult;
                     }
 
-                    if (DynamoDbExceptionUtils.isThrottlingException(e)) {
+                    if (retryPolicy.isThrottlingException(e)) {
                         interrupted = sleepFor(retryPolicy.getBackOffTime(currentAttemptResult));
                     }
                 }

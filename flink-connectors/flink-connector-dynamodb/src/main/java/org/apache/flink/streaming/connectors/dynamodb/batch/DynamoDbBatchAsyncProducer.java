@@ -19,51 +19,66 @@
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
-import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
-import org.apache.flink.streaming.connectors.dynamodb.WriteRequestFailureHandler;
+import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Asynchronous batch producer. */
 public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
 
-    private final DynamoDbClient client;
-    private final BatchCollector batchCollector;
-    private final WriteRequestFailureHandler failureHandler;
-    private final ExecutorService taskExecutor;
-
     private static final Logger LOG = LoggerFactory.getLogger(DynamoDbBatchAsyncProducer.class);
 
-    private BlockingQueue<ProducerWriteRequest<DynamoDbRequest>> outgoingMessages;
+    private final BatchCollector batchCollector;
+    private final BatchAsyncProcessor processor;
+    private final boolean failOnError;
 
     public DynamoDbBatchAsyncProducer(
-            DynamoDbClient client,
-            BatchCollector batchCollector,
-            WriteRequestFailureHandler failureHandler,
-            BlockingQueue outgoingMessages,
-            ExecutorService taskExecutor) {
-        this.client = client;
-        this.batchCollector = batchCollector;
-        this.failureHandler = failureHandler;
-        this.outgoingMessages = outgoingMessages;
-        this.taskExecutor = taskExecutor;
+            int batchSize,
+            int internalQueueLimit,
+            boolean failOnError,
+            DynamoDbTablesConfig tablesConfig,
+            BatchWriterProvider writerProvider) {
+        this.failOnError = failOnError;
+        this.processor =
+                new BatchAsyncProcessor(
+                        internalQueueLimit,
+                        getLoopsExecutor(),
+                        writerProvider,
+                        new CompletionHandler());
+        this.batchCollector = new BatchCollector(batchSize, tablesConfig, processor);
+    }
+
+    protected static ExecutorService getLoopsExecutor() {
+        return Executors.newCachedThreadPool(
+                (new ThreadFactoryBuilder())
+                        .setDaemon(true)
+                        .setNameFormat("dynamo-daemon-%04d")
+                        .build());
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() throws Exception {
+        batchCollector.flush();
+        processor.shutdown();
+    }
+
+    @Override
+    public void start() {
+        processor.start();
+    }
 
     @Override
     public long getOutstandingRecordsCount() {
-        return 0;
+        return processor.getOutstandingRecordsCount();
     }
 
     @Override
@@ -73,12 +88,12 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
 
     @Override
     public void produce(PutItemRequest request) {
-        writeRequest(request);
+        batchCollector.accumulateAndPromote(request);
     }
 
     @Override
     public void produce(DeleteItemRequest request) {
-        writeRequest(request);
+        batchCollector.accumulateAndPromote(request);
     }
 
     @Override
@@ -87,7 +102,32 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
                 "UpdateItemRequest is not supported in the batch mode. Use another type of DynamoDb producer.");
     }
 
-    private void writeRequest(DynamoDbRequest request) {
-        batchCollector.accumulateAndPromote(request);
+    private class CompletionHandler implements BatchAsyncProcessor.CompletionHandler {
+        @Override
+        public void onCompletion(ProducerWriteResponse response) {
+            LOG.debug(
+                    "Finished write for batch id "
+                            + response.getId()
+                            + "after "
+                            + response.getNumberOfAttempts()
+                            + " attempts. Successful: "
+                            + response.isSuccessful());
+        }
+
+        @Override
+        public void onException(Throwable error) {
+            LOG.error(
+                    "Write failed with an unhandled exception. Fail on error flag set to: "
+                            + failOnError,
+                    error);
+
+            if (failOnError) {
+                LOG.info(
+                        "Attempt to gracefully shutdown the processor, because 'fail on error' was set to true");
+                processor.shutdown();
+            }
+        }
+
+        // TODO restart policy
     }
 }

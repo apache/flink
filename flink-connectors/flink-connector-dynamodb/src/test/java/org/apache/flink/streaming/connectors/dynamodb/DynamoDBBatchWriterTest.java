@@ -51,7 +51,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
-/** Tests for validation in {@link DynamoDbBatchWriter}. */
+/**
+ * Tests for validation in {@link
+ * org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchWriter}.
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class DynamoDBBatchWriterTest {
 
@@ -104,6 +107,16 @@ public class DynamoDBBatchWriterTest {
             public int getBackOffTime(BatchWriterAttemptResult attemptResult) {
                 return 0;
             }
+
+            @Override
+            public boolean isNotRetryableException(Exception e) {
+                return false;
+            }
+
+            @Override
+            public boolean isThrottlingException(Exception e) {
+                return false;
+            }
         };
     }
 
@@ -138,6 +151,7 @@ public class DynamoDBBatchWriterTest {
 
         AwsServiceException exception = getThrottlingException();
 
+        BatchWriteItemResponse response1 = getResponse();
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
                 .thenThrow(exception)
                 .thenReturn(getResponse());
@@ -154,7 +168,7 @@ public class DynamoDBBatchWriterTest {
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
         verify(client, times(2)).batchWriteItem(any(BatchWriteItemRequest.class));
         verify(listener, times(1)).beforeWrite(request.getId(), request);
-        verify(listener, times(1)).afterWrite(request.getId(), request, exception);
+        verify(listener, times(1)).afterWrite(request.getId(), request, response);
     }
 
     @Test
@@ -198,7 +212,7 @@ public class DynamoDBBatchWriterTest {
     }
 
     @Test
-    public void testDoesNotRetryWhenResourceNotFoundException() {
+    public void testDoesNotRetryWhenNotRetryableException() {
         BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
 
         ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");

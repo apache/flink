@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.connectors.dynamodb.retry;
 
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
@@ -29,6 +31,10 @@ public class DynamoDbExceptionUtils {
         return e instanceof AwsServiceException;
     }
 
+    public static boolean isClientException(Exception e) {
+        return e instanceof SdkClientException;
+    }
+
     public static boolean isResourceNotFoundException(Exception e) {
         return e instanceof ResourceNotFoundException;
     }
@@ -37,11 +43,17 @@ public class DynamoDbExceptionUtils {
         return e instanceof ConditionalCheckFailedException;
     }
 
+    public static boolean isApiCallAttemptTimeoutExcepiton(Exception e) {
+        return e instanceof ApiCallAttemptTimeoutException;
+    }
+
     public static boolean isThrottlingException(Exception e) {
         return isServiceException(e) && ((AwsServiceException) e).isThrottlingException();
     }
 
     public static boolean isNotRetryableException(Exception e) {
-        return isResourceNotFoundException(e) || isConditionalCheckFailedException(e);
+        return isClientException(e)
+                || isResourceNotFoundException(e)
+                || isConditionalCheckFailedException(e);
     }
 }

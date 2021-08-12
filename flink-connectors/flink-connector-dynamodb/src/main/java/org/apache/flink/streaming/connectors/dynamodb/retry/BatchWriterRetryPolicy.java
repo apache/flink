@@ -27,4 +27,16 @@ public interface BatchWriterRetryPolicy {
     boolean shouldRetry(BatchWriterAttemptResult attemptResult);
 
     int getBackOffTime(BatchWriterAttemptResult attemptResult);
+
+    /**
+     * Identify non-retryable exceptions while handling DynamoDB write. If exception identified as
+     * non-retryable the write attempt will be marked as unsuccessful and can be handled later.
+     */
+    boolean isNotRetryableException(Exception e);
+
+    /**
+     * Identify throttling DynamoDB write. If exception identified as throttling exception, backoff
+     * will be applied and the request will be retried after the backoff time.
+     */
+    boolean isThrottlingException(Exception e);
 }

@@ -51,8 +51,8 @@ public class BatchCollector {
 
     public BatchCollector(
             int batchSize,
-            Consumer<ProducerWriteRequest<DynamoDbRequest>> batchConsumer,
-            DynamoDbTablesConfig tableConfig) {
+            DynamoDbTablesConfig tableConfig,
+            Consumer<ProducerWriteRequest<DynamoDbRequest>> batchConsumer) {
         this.batchSize = batchSize;
         requireNonNull(batchConsumer);
         this.batchConsumer = batchConsumer;

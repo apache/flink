@@ -49,6 +49,9 @@ public interface DynamoDbProducer {
     /** Tear-down the producer. */
     void close() throws Exception;
 
+    /** Starts the producer. */
+    void start() throws Exception;
+
     /** Get outstanding records in the in-memory queue. */
     long getOutstandingRecordsCount();
 

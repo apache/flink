@@ -79,7 +79,7 @@ public class BatchCollectorTest {
         DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
         tableConfig.addTableConfig(tableName, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
-        BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(3, tableConfig, consumer);
         collector.accumulateAndPromote(createPutItemRequest(tableName, "1", "1"));
         collector.accumulateAndPromote(createPutItemRequest(tableName, "2", "2"));
         collector.accumulateAndPromote(createPutItemRequest(tableName, "3", "3"));
@@ -104,7 +104,7 @@ public class BatchCollectorTest {
         tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
         tableConfig.addTableConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
-        BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(3, tableConfig, consumer);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "2"));
         collector.accumulateAndPromote(createPutItemRequest(tableTwo, "2", "1"));
@@ -125,7 +125,7 @@ public class BatchCollectorTest {
         String tableOne = "testTable1";
         DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
 
-        BatchCollector collector = new BatchCollector(2, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(2, tableConfig, consumer);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
 
@@ -145,7 +145,7 @@ public class BatchCollectorTest {
         DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
         tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
-        BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(3, tableConfig, consumer);
 
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
         collector.accumulateAndPromote(
@@ -169,7 +169,7 @@ public class BatchCollectorTest {
         DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
         tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME);
 
-        BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(3, tableConfig, consumer);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", null));
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", null));
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "2", null));
@@ -194,7 +194,7 @@ public class BatchCollectorTest {
         tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
         tableConfig.addTableConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
-        BatchCollector collector = new BatchCollector(2, consumer, tableConfig);
+        BatchCollector collector = new BatchCollector(2, tableConfig, consumer);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "2"));
         collector.accumulateAndPromote(createPutItemRequest(tableTwo, "2", "1"));

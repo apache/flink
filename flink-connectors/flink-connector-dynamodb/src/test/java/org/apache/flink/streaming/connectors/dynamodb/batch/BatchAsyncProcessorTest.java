@@ -45,7 +45,8 @@ public class BatchAsyncProcessorTest {
                         .build());
     }
 
-    private static class CountingResponseHandler implements BatchAsyncProcessor.ResponseHandler {
+    private static class CountingCompletionHandler
+            implements BatchAsyncProcessor.CompletionHandler {
         private final AtomicInteger completionCounter = new AtomicInteger(0);
         private final AtomicInteger exceptionCounter = new AtomicInteger(0);
 
@@ -102,10 +103,9 @@ public class BatchAsyncProcessorTest {
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
                         3,
-                        false,
                         createExecutorService(),
                         new MockWriterProvider(null),
-                        new CountingResponseHandler());
+                        new CountingCompletionHandler());
 
         processor.shutdown();
         processor.accept(createMockRequest());
@@ -116,28 +116,23 @@ public class BatchAsyncProcessorTest {
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
                         3,
-                        false,
                         createExecutorService(),
                         new MockWriterProvider(null),
-                        new CountingResponseHandler());
+                        new CountingCompletionHandler());
 
         processor.accept(createMockRequest());
     }
 
     @Test
     public void testOnCompletionHandlerIsCalled() {
-        CountingResponseHandler handler = new CountingResponseHandler();
+        CountingCompletionHandler handler = new CountingCompletionHandler();
 
         Callable<ProducerWriteResponse> writer =
                 () -> new ProducerWriteResponse("test", true, 1, null, 10L);
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        10,
-                        false,
-                        createExecutorService(),
-                        new MockWriterProvider(writer),
-                        handler);
+                        10, createExecutorService(), new MockWriterProvider(writer), handler);
 
         processor.start();
 
@@ -161,7 +156,7 @@ public class BatchAsyncProcessorTest {
 
     @Test
     public void testOnExceptionHandlerIsCalled() throws Exception {
-        CountingResponseHandler handler = new CountingResponseHandler();
+        CountingCompletionHandler handler = new CountingCompletionHandler();
 
         Callable<ProducerWriteResponse> writer =
                 () -> {
@@ -170,11 +165,7 @@ public class BatchAsyncProcessorTest {
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
-                        10,
-                        false,
-                        createExecutorService(),
-                        new MockWriterProvider(writer),
-                        handler);
+                        10, createExecutorService(), new MockWriterProvider(writer), handler);
 
         processor.start();
 
@@ -203,12 +194,11 @@ public class BatchAsyncProcessorTest {
                     return new ProducerWriteResponse("test", true, 1, null, 10L);
                 };
 
-        CountingResponseHandler handler = new CountingResponseHandler();
+        CountingCompletionHandler handler = new CountingCompletionHandler();
 
         BatchAsyncProcessor processor =
                 new BatchAsyncProcessor(
                         6,
-                        false,
                         createExecutorService(),
                         new MockWriterProvider(sleepingWriter),
                         handler);
