@@ -119,7 +119,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         multipleInputTransform.setResources(
                 generator.getMinResources(), generator.getPreferredResources());
         final int memoryWeight = generator.getManagedMemoryWeight();
-        ExecNodeUtil.setManagedMemoryWeight(multipleInputTransform, memoryWeight);
+        final long memoryBytes = (long) memoryWeight << 20;
+        ExecNodeUtil.setManagedMemoryWeight(multipleInputTransform, memoryBytes);
 
         // set chaining strategy for source chaining
         multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);

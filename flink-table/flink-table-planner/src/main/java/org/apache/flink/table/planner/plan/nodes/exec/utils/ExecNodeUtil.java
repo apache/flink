@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -37,14 +36,15 @@ import java.util.stream.Collectors;
 public class ExecNodeUtil {
     /**
      * Sets {Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}
-     * using the given mebibyte weight for {@link ManagedMemoryUseCase#OPERATOR}.
+     * using the given bytes for {@link ManagedMemoryUseCase#OPERATOR}.
      */
     public static <T> void setManagedMemoryWeight(
-            Transformation<T> transformation, int memoryWeight) {
-        if (memoryWeight > 0) {
-            Optional<Integer> previousWeight =
+            Transformation<T> transformation, long memoryBytes) {
+        if (memoryBytes > 0) {
+            final int weightInMebibyte = Math.max(1, (int) (memoryBytes >> 20));
+            final Optional<Integer> previousWeight =
                     transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                            ManagedMemoryUseCase.OPERATOR, memoryWeight);
+                            ManagedMemoryUseCase.OPERATOR, weightInMebibyte);
             if (previousWeight.isPresent()) {
                 throw new TableException(
                         "Managed memory weight has been set, this should not happen.");
@@ -62,7 +62,7 @@ public class ExecNodeUtil {
             long memoryBytes) {
         OneInputTransformation<T, T> transformation =
                 new OneInputTransformation<>(input, name, operatorFactory, outputType, parallelism);
-        setManagedMemoryWeight(transformation, new MemorySize(memoryBytes).getMebiBytes());
+        setManagedMemoryWeight(transformation, memoryBytes);
         return transformation;
     }
 
@@ -78,7 +78,7 @@ public class ExecNodeUtil {
         TwoInputTransformation<T, T, T> transformation =
                 new TwoInputTransformation<>(
                         input1, input2, name, operatorFactory, outputType, parallelism);
-        setManagedMemoryWeight(transformation, new MemorySize(memoryBytes).getMebiBytes());
+        setManagedMemoryWeight(transformation, memoryBytes);
         return transformation;
     }
 
