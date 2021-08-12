@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
+import org.apache.flink.table.planner.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, FlinkStreamProgram, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
+
+import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.tools.RuleSets
+
 import org.junit.{Before, Test}
 
 /**
@@ -31,7 +35,16 @@ class ProjectWindowTableFunctionTransposeRuleTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    util.buildStreamProgram(FlinkStreamProgram.LOGICAL)
+    val programs = new FlinkChainedProgram[StreamOptimizeContext]()
+    programs.addLast(
+      "rules",
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(RuleSets.ofList(ProjectWindowTableFunctionTransposeRule.INSTANCE))
+        .build())
+    util.replaceStreamProgram(programs)
+
     util.tableEnv.executeSql(
       s"""
          |CREATE TABLE MyTable (
