@@ -36,7 +36,7 @@ under the License.
 
 ### 以密集索引编号
 
-`zipWithIndex` 为元素分配连续的标签，接收数据集作为输入并返回一个新的 `(unique id, initial value)` 2-tuples 的数据集。
+`zipWithIndex` 为元素分配连续的标签，接收数据集作为输入并返回一个新的 `(unique id, initial value)` 二元组的数据集。
 这个过程需要分为两个（子）过程，首先是计数，然后是标记元素，由于计数操作的同步性，这个过程不能被 pipelined（流水线化）。
 
 可供备选的 `zipWithUniqueId` 是以 pipelined 的方式进行工作的。当唯一标签足够时，首选 `zipWithUniqueId` 。
@@ -94,7 +94,7 @@ env.execute()
 ### 以唯一标识符编号
 
 在许多情况下，可能不需要指定连续的标签。
-`zipWithUniqueId` 以 pipelined 的方式工作，加快了标签分配的过程。该方法接收一个数据集作为输入，并返回一个新的 `(unique id, initial value)` 2-tuples 的数据集。
+`zipWithUniqueId` 以 pipelined 的方式工作，加快了标签分配的过程。该方法接收一个数据集作为输入，并返回一个新的 `(unique id, initial value)` 二元组的数据集。
 例如，下面的代码：
 
 {{< tabs "49a5535f-7835-4204-afd4-40bb1cbfa404" >}}
