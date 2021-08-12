@@ -71,7 +71,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
         CheckpointFailureManager failureManager = new CheckpointFailureManager(2, callback);
 
         failureManager.handleJobLevelCheckpointException(
-                new CheckpointException(CheckpointFailureReason.EXCEPTION), 1);
+                new CheckpointException(CheckpointFailureReason.IO_EXCEPTION), 1);
         failureManager.handleJobLevelCheckpointException(
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED), 2);
 

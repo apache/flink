@@ -106,7 +106,7 @@ public final class StreamTaskNetworkInput<T>
                         ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
                         e.getValue().getUnconsumedBuffer());
             } catch (IOException ioException) {
-                throw new CheckpointException(CheckpointFailureReason.EXCEPTION, ioException);
+                throw new CheckpointException(CheckpointFailureReason.IO_EXCEPTION, ioException);
             }
         }
         return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);
