@@ -133,7 +133,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
         return bytes;
     }
 
-    protected StateChangelogStorage<T> getFactory() {
+    protected StateChangelogStorage<T> getFactory() throws IOException {
         return (StateChangelogStorage<T>) new InMemoryStateChangelogStorage();
     }
 }

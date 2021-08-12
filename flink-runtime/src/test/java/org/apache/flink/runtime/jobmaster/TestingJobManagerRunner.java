@@ -33,6 +33,10 @@ import java.util.concurrent.CompletableFuture;
 /** Testing implementation of the {@link JobManagerRunner}. */
 public class TestingJobManagerRunner implements JobManagerRunner {
 
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     private final JobID jobId;
 
     private final boolean blockingTermination;
@@ -156,11 +160,16 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
     public static class Builder {
+
         private JobID jobId = null;
         private boolean blockingTermination = false;
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
         private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+
+        private Builder() {
+            // No-op.
+        }
 
         public Builder setJobId(JobID jobId) {
             this.jobId = jobId;

@@ -129,7 +129,7 @@ public class DefaultSchedulerTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-    private ManuallyTriggeredScheduledExecutor taskRestartExecutor =
+    private final ManuallyTriggeredScheduledExecutor taskRestartExecutor =
             new ManuallyTriggeredScheduledExecutor();
 
     private ExecutorService executor;
@@ -1071,7 +1071,6 @@ public class DefaultSchedulerTest extends TestLogger {
         scheduler.updateTaskExecutionState(
                 new TaskExecutionState(attemptId, ExecutionState.CANCELED, expectedException));
         taskRestartExecutor.triggerScheduledTasks();
-        final long end = System.currentTimeMillis();
 
         final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
                 scheduler.getExceptionHistory();
@@ -1386,10 +1385,8 @@ public class DefaultSchedulerTest extends TestLogger {
             timeout = Time.milliseconds(1);
             createSchedulerAndStartScheduling(jobGraph, mainThreadExecutor);
 
-            Thread.sleep(100);
-
-            assertThat(testExecutionVertexOperations.getCanceledVertices(), hasSize(2));
-            assertThat(testExecutionVertexOperations.getFailedVertices(), hasSize(1));
+            testExecutionVertexOperations.awaitCanceledVertices(2);
+            testExecutionVertexOperations.awaitFailedVertices(1);
         } finally {
             if (scheduledExecutorService != null) {
                 scheduledExecutorService.shutdown();

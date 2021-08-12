@@ -106,6 +106,7 @@ public class KubernetesJobManagerFactory {
                 .withName(
                         KubernetesUtils.getDeploymentName(
                                 kubernetesJobManagerParameters.getClusterId()))
+                .withAnnotations(kubernetesJobManagerParameters.getAnnotations())
                 .withLabels(kubernetesJobManagerParameters.getLabels())
                 .withOwnerReferences(
                         kubernetesJobManagerParameters.getOwnerReference().stream()

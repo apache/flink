@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -31,25 +32,30 @@ import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,10 +68,11 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -169,22 +176,33 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
     @Test
     public void testSkipExecutionIfFinishedOnRestore() throws Exception {
-        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
 
         LifeCycleMonitorSource testingSource =
                 new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);
         SourceOperatorFactory<Integer> sourceOperatorFactory =
                 new SourceOperatorFactory<>(testingSource, WatermarkStrategy.noWatermarks());
 
+        List<Object> output = new ArrayList<>();
         try (StreamTaskMailboxTestHarness<Integer> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
                         .setTaskStateSnapshot(1, taskStateSnapshot)
+                        .addAdditionalOutput(
+                                new RecordOrEventCollectingResultPartitionWriter<StreamElement>(
+                                        output,
+                                        new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
+                                    @Override
+                                    public void notifyEndOfData() throws IOException {
+                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    }
+                                })
                         .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
                         .build()) {
 
             testHarness.getStreamTask().invoke();
-            testHarness.waitForTaskCompletion();
+            testHarness.processAll();
+            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)
@@ -234,8 +252,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             CheckpointOptions checkpointOptions)
             throws Exception {
         // Trigger a checkpoint.
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-        testHarness.taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
+        testHarness.taskStateManager.getWaitForReportLatch().reset();
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
         Future<Boolean> checkpointFuture =
                 testHarness
@@ -251,7 +268,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
         Future<Void> checkpointNotified =
                 testHarness.getStreamTask().notifyCheckpointCompleteAsync(checkpointId);
         processUntil(testHarness, checkpointNotified::isDone);
-        waitForAcknowledgeLatch.await();
+        testHarness.taskStateManager.getWaitForReportLatch().await();
     }
 
     private void processUntil(StreamTaskMailboxTestHarness testHarness, Supplier<Boolean> condition)
@@ -377,10 +394,11 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
-            numEmittedEvents++;
-            if (numEmittedEvents == numEventsBeforeCheckpoint) {
+            if (numEmittedEvents == numEventsBeforeCheckpoint - 1) {
+                numEmittedEvents++;
                 return InputStatus.NOTHING_AVAILABLE;
             } else if (numEmittedEvents < totalNumEvents) {
+                numEmittedEvents++;
                 return InputStatus.MORE_AVAILABLE;
             } else {
                 return InputStatus.END_OF_INPUT;

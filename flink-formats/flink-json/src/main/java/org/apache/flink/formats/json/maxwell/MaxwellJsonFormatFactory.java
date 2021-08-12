@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.maxwell;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
@@ -52,6 +53,7 @@ import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.TIM
  * Format factory for providing configured instances of Maxwell JSON to RowData {@link
  * DeserializationSchema}.
  */
+@Internal
 public class MaxwellJsonFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

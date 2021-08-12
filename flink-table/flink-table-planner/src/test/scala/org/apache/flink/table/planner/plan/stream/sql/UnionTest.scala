@@ -112,9 +112,6 @@ class UnionTest extends TableTestBase {
 
   @Test
   def testUnionDiffRowTime(): Unit = {
-    expectedException.expectMessage(
-      "Union fields with time attributes requires same types," +
-        " but the types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.")
     val sqlQuery =
       """
         |SELECT * FROM (

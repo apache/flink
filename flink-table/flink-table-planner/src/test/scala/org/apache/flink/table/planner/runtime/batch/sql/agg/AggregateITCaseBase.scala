@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.{DataTypes, TableException, Types}
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -863,6 +863,72 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     //       "SELECT 3 AS c, 4 AS d, SUM(f1) FROM t GROUP BY c, d"
     // with GROUP-BY clause referencing alias in SELECT clause.
     // that doesn't make sense, and we do not support it.
+  }
+
+  @Test
+  def testLeadLag(): Unit = {
+
+    val testAllDataTypeCardinality = tEnv.fromValues(
+      DataTypes.ROW(
+        DataTypes.FIELD("a", DataTypes.STRING()),
+        DataTypes.FIELD("b", DataTypes.TINYINT()),
+        DataTypes.FIELD("c", DataTypes.SMALLINT()),
+        DataTypes.FIELD("d", DataTypes.INT),
+        DataTypes.FIELD("e", DataTypes.BIGINT()),
+        DataTypes.FIELD("f", DataTypes.FLOAT()),
+        DataTypes.FIELD("g", DataTypes.DOUBLE()),
+        DataTypes.FIELD("h", DataTypes.BOOLEAN()),
+        DataTypes.FIELD("i", DataTypes.VARCHAR(20)),
+        DataTypes.FIELD("j", DataTypes.CHAR(20)),
+        DataTypes.FIELD("k", DataTypes.DATE()),
+        DataTypes.FIELD("l", DataTypes.TIME()),
+        DataTypes.FIELD("m", DataTypes.TIMESTAMP()),
+        DataTypes.FIELD("n", DataTypes.DECIMAL(3, 2))
+      ),
+      row("Alice", 1, 1, 2, 9223, -2.3F, 9.9D, "true", "varchar", "char", 
+        "2021-8-3", "20:8:17", "2021-8-3 20:8:29", 9.99),
+      row("Alice", null, null, null, null, null, null, null, null, 
+        null, null, null, null, null),
+      row("Alice", 1, 1, 2, 9223, -2.3F, 9.9D, "true", "varchar", "char",
+        "2021-8-3", "20:8:17", "2021-8-3 20:8:29", 9.99)
+    )
+
+    checkResult(
+      s"""
+         |SELECT
+         |  a,
+         |  b, LEAD(b, 1) over (order by a)  AS bLead, LAG(b, 1) over (order by a)  AS bLag,
+         |  c, LEAD(c, 1) over (order by a)  AS cLead, LAG(c, 1) over (order by a)  AS cLag,
+         |  d, LEAD(d, 1) over (order by a)  AS dLead, LAG(d, 1) over (order by a)  AS dLag,
+         |  e, LEAD(e, 1) over (order by a)  AS eLead, LAG(e, 1) over (order by a)  AS eLag,
+         |  f, LEAD(f, 1) over (order by a)  AS fLead, LAG(f, 1) over (order by a)  AS fLag,
+         |  g, LEAD(g, 1) over (order by a)  AS gLead, LAG(g, 1) over (order by a)  AS gLag,
+         |  h, LEAD(h, 1) over (order by a)  AS hLead, LAG(h, 1) over (order by a)  AS hLag,
+         |  i, LEAD(i, 1) over (order by a)  AS iLead, LAG(i, 1) over (order by a)  AS iLag,
+         |  j, LEAD(j, 1) over (order by a)  AS jLead, LAG(j, 1) over (order by a)  AS jLag,
+         |  k, LEAD(k, 1) over (order by a)  AS kLead, LAG(k, 1) over (order by a)  AS kLag,
+         |  l, LEAD(l, 1) over (order by a)  AS lLead, LAG(l, 1) over (order by a)  AS lLag,
+         |  m, LEAD(m, 1) over (order by a)  AS mLead, LAG(m, 1) over (order by a)  AS mLag,
+         |  n, LEAD(n, 1) over (order by a)  AS nLead, LAG(n, 1) over (order by a)  AS nLag
+         |
+         |FROM ${testAllDataTypeCardinality}
+         |order by a
+         |""".stripMargin,
+      Seq(
+        row("Alice", 1, 1, null, 1, 1, null, 2, 2, null, 9223, 9223, null, -2.3, -2.3, null, 
+          9.9, 9.9, null, true, true, null, "varchar", "varchar", null, "char                ", 
+          "char                ", null, "2021-08-03", "2021-08-03", null, "20:08:17", "20:08:17", 
+          null, "2021-08-03T20:08:29", "2021-08-03T20:08:29", null, 9.99, 9.99, null),
+        row("Alice", 1, null, 1, 1, null, 1, 2, null, 2, 9223, null, 9223,
+          -2.3, null, -2.3, 9.9, null, 9.9, true, null, true, "varchar", null, 
+          "varchar", "char                ", null, "char                ", "2021-08-03", null, 
+          "2021-08-03", "20:08:17", null, "20:08:17", "2021-08-03T20:08:29", null, 
+          "2021-08-03T20:08:29", 9.99, null, 9.99),
+        row("Alice", null, null, 1, null, null, 1, null, null, 2, null, null, 9223, null,
+          null, -2.3, null, null, 9.9, null, null, true, null, null, "varchar", null, null,
+          "char                ", null, null, "2021-08-03", null, null, "20:08:17", null, null,
+          "2021-08-03T20:08:29", null, null, 9.99)
+      ))
   }
 
   // TODO support csv

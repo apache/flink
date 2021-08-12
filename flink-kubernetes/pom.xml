@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>4.9.2</kubernetes.client.version>
+		<kubernetes.client.version>5.5.0</kubernetes.client.version>
 	</properties>
 
 	<dependencies>
@@ -129,8 +129,7 @@ under the License.
 							<artifactSet>
 								<includes combine.children="append">
 									<include>io.fabric8:kubernetes-client</include>
-									<include>io.fabric8:kubernetes-model</include>
-									<include>io.fabric8:kubernetes-model-common</include>
+									<include>io.fabric8:kubernetes-model-*</include>
 									<include>io.fabric8:zjsonpatch</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->

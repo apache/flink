@@ -74,7 +74,6 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
     }
 
     private void updateDependencies() throws Exception {
-        final Configuration configuration = getConfiguration();
         checkState(
                 configuration.getBoolean(DeploymentOptions.ATTACHED),
                 "Only ATTACHED mode is supported by the scala shell.");
@@ -85,7 +84,7 @@ public class ScalaShellStreamEnvironment extends StreamExecutionEnvironment {
     }
 
     public Configuration getClientConfiguration() {
-        return getConfiguration();
+        return configuration;
     }
 
     private List<URL> getUpdatedJarFiles() throws MalformedURLException {

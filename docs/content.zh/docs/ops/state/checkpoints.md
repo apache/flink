@@ -64,9 +64,9 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 
 其中 **SHARED** 目录保存了可能被多个 checkpoint 引用的文件，**TASKOWNED** 保存了不会被 JobManager 删除的文件，**EXCLUSIVE** 则保存那些仅被单个 checkpoint 引用的文件。
 
-<div class="alert alert-warning">
-  <strong>注意:</strong> Checkpoint 目录不是公共 API 的一部分，因此可能在未来的 Release 中进行改变。
-</div>
+{{< hint warning >}}
+**注意:** Checkpoint 目录不是公共 API 的一部分，因此可能在未来的 Release 中进行改变。
+{{< /hint >}}
 
 #### 通过配置文件全局配置
 

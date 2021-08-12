@@ -215,6 +215,12 @@ under the License.
 			<version>67.1</version>
 		</dependency>
 
+		<!-- For legacy string expressions in Table API -->
+		<dependency>
+			<groupId>org.scala-lang.modules</groupId>
+			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
+		</dependency>
+
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -388,6 +394,9 @@ under the License.
 
 									<!-- Tools to unify display format for different languages -->
 									<include>com.ibm.icu:icu4j</include>
+
+									<!-- For legacy string expressions in Table API -->
+									<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
 
 									<include>org.reflections:reflections</include>
 								</includes>

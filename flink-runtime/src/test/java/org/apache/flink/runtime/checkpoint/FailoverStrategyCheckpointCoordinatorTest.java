@@ -88,7 +88,8 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         new DefaultCheckpointPlanCalculator(
                                 graph.getJobID(),
                                 new ExecutionGraphCheckpointPlanCalculatorContext(graph),
-                                graph.getVerticesTopologically()),
+                                graph.getVerticesTopologically(),
+                                false),
                         new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
 
         // switch current execution's state to running to allow checkpoint could be triggered.

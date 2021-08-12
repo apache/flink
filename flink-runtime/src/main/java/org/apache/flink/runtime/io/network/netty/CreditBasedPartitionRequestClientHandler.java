@@ -131,6 +131,17 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
     }
 
     @Override
+    public void notifyNewBufferSize(final RemoteInputChannel inputChannel, int bufferSize) {
+        ctx.executor()
+                .execute(
+                        () ->
+                                ctx.pipeline()
+                                        .fireUserEventTriggered(
+                                                new NewBufferSizeMessage(
+                                                        inputChannel, bufferSize)));
+    }
+
+    @Override
     public void resumeConsumption(RemoteInputChannel inputChannel) {
         ctx.executor()
                 .execute(
@@ -455,6 +466,20 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         public Object buildMessage() {
             int credits = inputChannel.getAndResetUnannouncedCredit();
             return credits > 0 ? new AddCredit(credits, inputChannel.getInputChannelId()) : null;
+        }
+    }
+
+    private static class NewBufferSizeMessage extends ClientOutboundMessage {
+        private final int bufferSize;
+
+        NewBufferSizeMessage(RemoteInputChannel inputChannel, int bufferSize) {
+            super(checkNotNull(inputChannel));
+            this.bufferSize = bufferSize;
+        }
+
+        @Override
+        public Object buildMessage() {
+            return new NettyMessage.NewBufferSize(bufferSize, inputChannel.getInputChannelId());
         }
     }
 

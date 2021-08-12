@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
-import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -73,7 +72,7 @@ public class HiveCatalogTest {
                 HiveTableUtil.instantiateHiveTable(
                         new ObjectPath("test", "test"),
                         new CatalogTableImpl(
-                                schema, new FileSystem().path("/test_path").toProperties(), null),
+                                schema, getLegacyFileSystemConnectorOptions("/test_path"), null),
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
@@ -85,14 +84,13 @@ public class HiveCatalogTest {
 
     @Test
     public void testCreateHiveTable() {
-        Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
-
-        map.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        Map<String, String> options = getLegacyFileSystemConnectorOptions("/test_path");
+        options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
 
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(
                         new ObjectPath("test", "test"),
-                        new CatalogTableImpl(schema, map, null),
+                        new CatalogTableImpl(schema, options, null),
                         HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
@@ -107,15 +105,12 @@ public class HiveCatalogTest {
         ObjectPath hiveObjectPath =
                 new ObjectPath(HiveCatalog.DEFAULT_DB, "testRetrieveProperties");
 
-        Map<String, String> properties =
-                new HashMap<>(new FileSystem().path("/test_path").toProperties());
+        Map<String, String> options = getLegacyFileSystemConnectorOptions("/test_path");
+        options.put(CONNECTOR.key(), "jdbc");
+        options.put("url", "jdbc:clickhouse://host:port/testUrl1");
+        options.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
 
-        properties.put(CONNECTOR.key(), "jdbc");
-        properties.put("url", "jdbc:clickhouse://host:port/testUrl1");
-        properties.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
-
-        hiveCatalog.createTable(
-                hiveObjectPath, new CatalogTableImpl(schema, properties, null), false);
+        hiveCatalog.createTable(hiveObjectPath, new CatalogTableImpl(schema, options, null), false);
 
         CatalogBaseTable hiveTable = hiveCatalog.getTable(hiveObjectPath);
         assertEquals(hiveTable.getOptions().get("url"), "jdbc:clickhouse://host:port/testUrl1");
@@ -154,5 +149,13 @@ public class HiveCatalogTest {
 
         CatalogBaseTable catalogTable = hiveCatalog.getTable(hiveObjectPath);
         assertEquals(TableSchema.builder().build(), catalogTable.getSchema());
+    }
+
+    private static Map<String, String> getLegacyFileSystemConnectorOptions(String path) {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector.type", "filesystem");
+        options.put("connector.path", path);
+
+        return options;
     }
 }

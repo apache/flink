@@ -218,6 +218,10 @@ object WindowUtil {
         val step = getOperandAsLong(windowCall.operands(2))
         val maxSize = getOperandAsLong(windowCall.operands(3))
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
+
+      case FlinkSqlOperatorTable.SESSION =>
+        val gap = getOperandAsLong(windowCall.operands(2))
+        new SessionWindowSpec(Duration.ofMillis(gap))
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)

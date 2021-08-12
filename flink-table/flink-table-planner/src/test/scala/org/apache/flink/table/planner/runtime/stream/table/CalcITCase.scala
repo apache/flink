@@ -417,7 +417,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @SerialVersionUID(1L)
   object SubstringFunc extends ScalarFunction {
-    def eval(str: String, begin: Int, end: Int): String = {
+    def eval(str: String, begin: Integer, end: Integer): String = {
       str.substring(begin, end)
     }
   }

@@ -20,8 +20,8 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
@@ -40,30 +40,31 @@ public class ExecutionOptions {
                             "Runtime execution mode of DataStream programs. Among other things, "
                                     + "this controls task scheduling, network shuffle behavior, and time semantics.");
 
-    public static final ConfigOption<ShuffleMode> SHUFFLE_MODE =
-            ConfigOptions.key("execution.shuffle-mode")
-                    .enumType(ShuffleMode.class)
-                    .defaultValue(ShuffleMode.AUTOMATIC)
+    public static final ConfigOption<BatchShuffleMode> BATCH_SHUFFLE_MODE =
+            ConfigOptions.key("execution.batch-shuffle-mode")
+                    .enumType(BatchShuffleMode.class)
+                    .defaultValue(BatchShuffleMode.ALL_EXCHANGES_BLOCKING)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Mode that defines how data is exchanged between tasks if the shuffling "
-                                                    + "behavior has not been set explicitly for an individual exchange. "
-                                                    + "The shuffle mode depends on the configured '%s' and is only "
-                                                    + "relevant for batch executions on bounded streams.",
+                                            "Defines how data is exchanged between tasks in batch '%s' if the shuffling "
+                                                    + "behavior has not been set explicitly for an individual exchange.",
                                             text(RUNTIME_MODE.key()))
                                     .linebreak()
                                     .text(
-                                            "In streaming mode, upstream and downstream tasks run simultaneously to achieve low latency. "
-                                                    + "An exchange is always pipelined (i.e. a result record is immediately sent to and "
-                                                    + "processed by the downstream task). Thus, the receiver back-pressures the sender.")
+                                            "With pipelined exchanges, upstream and downstream tasks run simultaneously. "
+                                                    + "In order to achieve lower latency, a result record is immediately "
+                                                    + "sent to and processed by the downstream task. Thus, the receiver "
+                                                    + "back-pressures the sender. The streaming mode always uses this "
+                                                    + "exchange.")
                                     .linebreak()
                                     .text(
-                                            "In batch mode, upstream and downstream tasks can run in stages. Blocking exchanges persist "
-                                                    + "records to some storage. Downstream tasks then fetch these records after the "
-                                                    + "upstream tasks finished. Such an exchange reduces the resources required to "
-                                                    + "execute the job as it does not need to run upstream and downstream tasks "
-                                                    + "simultaneously.")
+                                            "With blocking exchanges, upstream and downstream tasks run in stages. "
+                                                    + "Records are persisted to some storage between stages. Downstream "
+                                                    + "tasks then fetch these records after the upstream tasks finished. "
+                                                    + "Such an exchange reduces the resources required to execute the "
+                                                    + "job as it does not need to run upstream and downstream "
+                                                    + "tasks simultaneously.")
                                     .build());
 
     /**

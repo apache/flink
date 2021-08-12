@@ -270,7 +270,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 
     @Test
     public void testStateRetrievingWithFinishedOperator() {
-        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
 
         JobManagerTaskRestore jobManagerTaskRestore =
                 new JobManagerTaskRestore(2, taskStateSnapshot);

@@ -256,12 +256,16 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 
     @Override
     public DataInputStatus emitNext(DataOutput<IN> output) throws Exception {
+
         if (sortedInput != null) {
+            if (commonContext.isFinishedEmitting(idx)) {
+                return wrappedInput.emitNext(sortingPhaseDataOutput);
+            }
             return emitNextAfterSorting(output);
         }
 
         DataInputStatus inputStatus = wrappedInput.emitNext(sortingPhaseDataOutput);
-        if (inputStatus == DataInputStatus.END_OF_INPUT) {
+        if (inputStatus == DataInputStatus.END_OF_DATA) {
             endSorting();
             return addNextToQueue(new HeadElement(idx), output);
         }
@@ -272,9 +276,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     @Nonnull
     @SuppressWarnings({"unchecked"})
     private DataInputStatus emitNextAfterSorting(DataOutput<IN> output) throws Exception {
-        if (commonContext.isFinishedEmitting(idx)) {
-            return DataInputStatus.END_OF_INPUT;
-        } else if (commonContext.allSorted()) {
+        if (commonContext.allSorted()) {
             HeadElement head = commonContext.getQueueOfHeads().peek();
             if (head != null && head.inputIndex == idx) {
                 HeadElement headElement = commonContext.getQueueOfHeads().poll();
@@ -309,7 +311,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             if (seenWatermark > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(seenWatermark));
             }
-            return DataInputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_DATA;
         }
 
         if (commonContext.allSorted()) {
@@ -375,6 +377,10 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
                 return new InputSelection.Builder()
                         .select(currentPassThroughInputIndex + 1)
                         .build(numInputs);
+            }
+
+            if (commonContext.allEndOfPartition()) {
+                return InputSelection.ALL;
             }
 
             if (commonContext.allSorted()) {
@@ -464,12 +470,13 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
         private final AvailabilityProvider.AvailabilityHelper allFinished =
                 new AvailabilityProvider.AvailabilityHelper();
         private long notFinishedSortingMask = 0;
-        private long finishedEmitting = 0;
+        private long notFinishedEmitting = 0;
 
         public CommonContext(StreamTaskInput<Object>[] sortingInputs) {
             for (StreamTaskInput<Object> sortingInput : sortingInputs) {
                 notFinishedSortingMask =
                         setBitMask(notFinishedSortingMask, sortingInput.getInputIndex());
+                notFinishedEmitting = setBitMask(notFinishedEmitting, sortingInput.getInputIndex());
             }
         }
 
@@ -477,16 +484,20 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             return notFinishedSortingMask == 0;
         }
 
+        public boolean allEndOfPartition() {
+            return notFinishedEmitting == 0;
+        }
+
         public void setFinishedSorting(int inputIndex) {
             this.notFinishedSortingMask = unsetBitMask(this.notFinishedSortingMask, inputIndex);
         }
 
         public void setFinishedEmitting(int inputIndex) {
-            this.finishedEmitting = setBitMask(this.finishedEmitting, inputIndex);
+            this.notFinishedEmitting = unsetBitMask(this.notFinishedEmitting, inputIndex);
         }
 
         public boolean isFinishedEmitting(int inputIndex) {
-            return checkBitMask(this.finishedEmitting, inputIndex);
+            return !checkBitMask(this.notFinishedEmitting, inputIndex);
         }
 
         public PriorityQueue<HeadElement> getQueueOfHeads() {

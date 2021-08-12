@@ -110,6 +110,7 @@ The table below shows the types supported now and how to define them:
 |`Types.STRING()` | `str` | `java.lang.String` |
 |`Types.BIG_INT()` | `int` | `java.math.BigInteger` |
 |`Types.BIG_DEC()` | `decimal.Decimal` | `java.math.BigDecimal` |
+|`Types.INSTANT()` | `pyflink.common.time.Instant` | `java.time.Instant` |
 |`Types.TUPLE()` | `tuple` | `org.apache.flink.api.java.tuple.Tuple0` ~ `org.apache.flink.api.java.tuple.Tuple25` |
 |`Types.ROW()` | `pyflink.common.Row` | `org.apache.flink.types.Row` |
 |`Types.ROW_NAMED()` | `pyflink.common.Row` | `org.apache.flink.types.Row` |

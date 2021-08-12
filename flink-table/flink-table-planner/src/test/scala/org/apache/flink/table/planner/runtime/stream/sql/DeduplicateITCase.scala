@@ -23,14 +23,14 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
-import org.junit.{Rule, Test}
+import org.junit.{Assume, Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -190,6 +190,40 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 
   @Test
+  def testFirstRowWithoutAllChangelogOnRowtime(): Unit = {
+    Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
+    tEnv.getConfig.getConfiguration.setBoolean(
+      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
+    val t = env.fromCollection(rowtimeTestData)
+      .assignTimestampsAndWatermarks(new RowtimeExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
+    tEnv.registerTable("T", t)
+    createSinkTable("rowtime_sink")
+
+    val sql =
+      """
+        |INSERT INTO rowtime_sink
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |     ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime) as rowNum
+        |   FROM T
+        | )
+        | WHERE rowNum = 1
+      """.stripMargin
+
+    tEnv.executeSql(sql).await()
+    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+
+    val expected = List(
+      "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+      "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+      "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
+      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)")
+    assertEquals(expected.sorted, rawResult.sorted)
+  }
+
+  @Test
   def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
@@ -259,6 +293,42 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "-U(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "+U(4,4,Comment#3,1970-01-01T00:00:00.004)")
+    assertEquals(expected.sorted, rawResult.sorted)
+  }
+
+  @Test
+  def testLastRowWithoutAllChangelogOnRowtime(): Unit = {
+    Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
+    tEnv.getConfig.getConfiguration.setBoolean(
+      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
+    val t = env.fromCollection(rowtimeTestData)
+      .assignTimestampsAndWatermarks(new RowtimeExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
+    tEnv.registerTable("T", t)
+    createSinkTable("rowtime_sink")
+
+    val sql =
+      """
+        |INSERT INTO rowtime_sink
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |     ROW_NUMBER() OVER (PARTITION BY b ORDER BY rowtime DESC) as rowNum
+        |   FROM T
+        | )
+        | WHERE rowNum = 1
+      """.stripMargin
+
+    tEnv.executeSql(sql).await()
+    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+
+    val expected = List(
+      "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+      "+I(1,2,Hello world,1970-01-01T00:00:00.002)",
+      "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+      "+I(2,6,Comment#1,1970-01-01T00:00:00.006)",
+      "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
+      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)")
     assertEquals(expected.sorted, rawResult.sorted)
   }
 

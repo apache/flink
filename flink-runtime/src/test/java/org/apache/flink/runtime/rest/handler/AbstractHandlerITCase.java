@@ -21,8 +21,6 @@ package org.apache.flink.runtime.rest.handler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -77,8 +75,7 @@ public class AbstractHandlerITCase extends TestLogger {
         Configuration config = new Configuration(REST_BASE_CONFIG);
         config.setInteger(RestOptions.PORT, serverPort);
 
-        return new RestClient(
-                RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
+        return new RestClient(config, Executors.directExecutor());
     }
 
     @Test
@@ -99,9 +96,7 @@ public class AbstractHandlerITCase extends TestLogger {
                                         new OutOfMemoryError("Metaspace")));
 
         try (final TestRestServerEndpoint server =
-                        TestRestServerEndpoint.builder(
-                                        RestServerEndpointConfiguration.fromConfiguration(
-                                                REST_BASE_CONFIG))
+                        TestRestServerEndpoint.builder(REST_BASE_CONFIG)
                                 .withHandler(messageHeaders, testRestHandler)
                                 .buildAndStart();
                 final RestClient restClient =

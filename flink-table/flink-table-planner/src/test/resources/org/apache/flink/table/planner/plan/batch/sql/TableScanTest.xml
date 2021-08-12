@@ -144,12 +144,12 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
   <TestCase name="testTableApiScanWithTemporaryTable">
     <Resource name="ast">
       <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]])
+LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [CsvTableSource(read fields: word)]]], fields=[word])
+TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[word])
 ]]>
     </Resource>
   </TestCase>

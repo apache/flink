@@ -76,11 +76,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     private static final int CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS = 30_000;
 
-    /**
-     * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
-     * removed in the last PR.
-     */
-    private boolean enableCheckpointAfterTasksFinished;
+    private final boolean enableCheckpointAfterTasksFinished;
 
     private final CachingCheckpointStorageWorkerView checkpointStorage;
     private final String taskName;
@@ -116,6 +112,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean unalignedCheckpointEnabled,
+            boolean enableCheckpointAfterTasksFinished,
             BiFunctionWithException<
                             ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot)
@@ -129,6 +126,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 env,
                 asyncExceptionHandler,
                 unalignedCheckpointEnabled,
+                enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
                 DEFAULT_MAX_RECORD_ABORTED_CHECKPOINTS);
     }
@@ -142,6 +140,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Environment env,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean unalignedCheckpointEnabled,
+            boolean enableCheckpointAfterTasksFinished,
             BiFunctionWithException<
                             ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
@@ -159,7 +158,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 maxRecordAbortedCheckpoints,
                 unalignedCheckpointEnabled
                         ? openChannelStateWriter(taskName, checkpointStorage, env)
-                        : ChannelStateWriter.NO_OP);
+                        : ChannelStateWriter.NO_OP,
+                enableCheckpointAfterTasksFinished);
     }
 
     @VisibleForTesting
@@ -175,7 +175,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                             ChannelStateWriter, Long, CompletableFuture<Void>, CheckpointException>
                     prepareInputSnapshot,
             int maxRecordAbortedCheckpoints,
-            ChannelStateWriter channelStateWriter)
+            ChannelStateWriter channelStateWriter,
+            boolean enableCheckpointAfterTasksFinished)
             throws IOException {
         this.checkpointStorage =
                 new CachingCheckpointStorageWorkerView(checkNotNull(checkpointStorage));
@@ -193,6 +194,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.lastCheckpointId = -1L;
         closeableRegistry.registerCloseable(this);
         this.closed = false;
+        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
     }
 
     private static ChannelStateWriter openChannelStateWriter(
@@ -202,11 +204,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         taskName, env.getTaskInfo().getIndexOfThisSubtask(), checkpointStorage);
         writer.open();
         return writer;
-    }
-
-    @Override
-    public void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished) {
-        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
     }
 
     @Override
@@ -253,6 +250,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointOptions options,
             CheckpointMetricsBuilder metrics,
             OperatorChain<?, ?> operatorChain,
+            boolean isOperatorsFinished,
             Supplier<Boolean> isRunning)
             throws Exception {
 
@@ -326,6 +324,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         metadata,
                         metrics,
                         operatorChain.isFinishedOnRestore(),
+                        isOperatorsFinished,
                         isRunning);
             } else {
                 cleanup(snapshotFutures, metadata, metrics, new Exception("Checkpoint declined"));
@@ -571,6 +570,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
             boolean isFinishedOnRestore,
+            boolean isOperatorsFinished,
             Supplier<Boolean> isRunning)
             throws IOException {
         AsyncCheckpointRunnable asyncCheckpointRunnable =
@@ -584,6 +584,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         env,
                         asyncExceptionHandler,
                         isFinishedOnRestore,
+                        isOperatorsFinished,
                         isRunning);
 
         registerAsyncCheckpointRunnable(

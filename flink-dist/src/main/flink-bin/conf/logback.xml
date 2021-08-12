@@ -55,10 +55,4 @@
     <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
         <appender-ref ref="file"/>
     </logger>
-
-    <!-- Suppress the verbose log in kubernetes informer -->
-    <logger name="io.fabric8.kubernetes.client.informers.cache.ReflectorWatcher" level="ERROR">
-        <appender-ref ref="file"/>
-    </logger>
-
 </configuration>

@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, Correlate, Filter, JoinRelType, Project, Sort}
@@ -82,10 +81,7 @@ class CorrelateSortToRankRule extends RelOptRule(
       return false
     }
     val agg: Aggregate = call.rel(1)
-    if (agg.getAggCallList.size() > 0
-      || agg.getGroupSets.size() > 1
-      || agg.getGroupSet.cardinality() != 1) {
-      // only one group field is supported now
+    if (agg.getAggCallList.size() > 0 || agg.getGroupSets.size() > 1) {
       return false
     }
     val aggInput: Project = call.rel(2)
@@ -103,20 +99,26 @@ class CorrelateSortToRankRule extends RelOptRule(
       return false
     }
     val filter: Filter = call.rel(5)
-    val condition = filter.getCondition
+
+    val cnfCond = RelOptUtil.conjunctions(filter.getCondition)
+    if (cnfCond.exists(c => !isValidCondition(c, correlate))) {
+      return false
+    }
+
+    aggInput.getInput.getDigest.equals(filter.getInput.getDigest)
+  }
+
+  private def isValidCondition(condition: RexNode, correlate: Correlate): Boolean = {
+    // must be equiv condition
     if (condition.getKind != SqlKind.EQUALS) {
       return false
     }
-    // only support one partition key
     val (inputRef, fieldAccess) = resolveFilterCondition(condition)
     if (inputRef == null) {
       return false
     }
     val variable = fieldAccess.getReferenceExpr.asInstanceOf[RexCorrelVariable]
-    if (!variable.id.equals(correlate.getCorrelationId)) {
-      return false
-    }
-    aggInput.getInput.getDigest.equals(filter.getInput.getDigest)
+    variable.id.equals(correlate.getCorrelationId)
   }
 
   /**
@@ -126,7 +128,7 @@ class CorrelateSortToRankRule extends RelOptRule(
    * @return tuple of operands (RexInputRef, RexFieldAccess),
    *         or null if the pattern does not match
    */
-  def resolveFilterCondition(condition: RexNode): (RexInputRef, RexFieldAccess) = {
+  private def resolveFilterCondition(condition: RexNode): (RexInputRef, RexFieldAccess) = {
     val condCall = condition.asInstanceOf[RexCall]
     val operand0 = condCall.getOperands.get(0)
     val operand1 = condCall.getOperands.get(1)
@@ -146,8 +148,9 @@ class CorrelateSortToRankRule extends RelOptRule(
     val sortInput: Project = call.rel(4)
     val filter: Filter = call.rel(5)
 
-    val partitionKey: ImmutableBitSet =
-      ImmutableBitSet.of(resolveFilterCondition(filter.getCondition)._1.getIndex)
+    val cnfCond = RelOptUtil.conjunctions(filter.getCondition)
+    val partitionKey: ImmutableBitSet = ImmutableBitSet.of(
+      cnfCond.map(c => resolveFilterCondition(c)._1.getIndex): _*)
 
     val baseType: RelDataType = sortInput.getInput().getRowType
     val projects = new util.ArrayList[RexNode]()

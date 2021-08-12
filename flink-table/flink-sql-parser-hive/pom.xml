@@ -86,23 +86,6 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-		<!-- Because Calcite tests use Junit5 and we extend from its SqlParserTest,
-			 we need the Junit5 runner. -->
-		<dependency>
-			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.7.2</version>
-			<scope>test</scope>
-		</dependency>
-		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
-		 	 to add this dependency to make our own Junit4 tests compatible with the Junit5
-		 	 environment.-->
-		<dependency>
-			<groupId>org.junit.vintage</groupId>
-			<artifactId>junit-vintage-engine</artifactId>
-			<version>5.7.2</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>

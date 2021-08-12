@@ -444,7 +444,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        createCheckpointPlanCalculator(),
+                        createCheckpointPlanCalculator(
+                                chkConfig.isEnableCheckpointsAfterTasksFinish()),
                         new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
@@ -468,11 +469,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+            boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
-                getVerticesTopologically());
+                getVerticesTopologically(),
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override
@@ -751,22 +754,20 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
+    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
 
         assertRunningInJobMasterMainThread();
 
         LOG.debug(
                 "Attaching {} topologically sorted vertices to existing job graph with {} "
                         + "vertices and {} intermediate results.",
-                topologiallySorted.size(),
+                topologicallySorted.size(),
                 tasks.size(),
                 intermediateResults.size());
 
-        final ArrayList<ExecutionJobVertex> newExecJobVertices =
-                new ArrayList<>(topologiallySorted.size());
         final long createTimestamp = System.currentTimeMillis();
 
-        for (JobVertex jobVertex : topologiallySorted) {
+        for (JobVertex jobVertex : topologicallySorted) {
 
             if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
                 this.isStoppable = false;
@@ -809,7 +810,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
             this.verticesInCreationOrder.add(ejv);
             this.numVerticesTotal += ejv.getParallelism();
-            newExecJobVertices.add(ejv);
         }
 
         registerExecutionVerticesAndResultPartitions(this.verticesInCreationOrder);

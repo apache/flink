@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.netty.NettyMessage.AckAllUserRecordsP
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CancelPartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.NewBufferSize;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.TaskEventRequest;
@@ -127,6 +128,10 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                 AckAllUserRecordsProcessed request = (AckAllUserRecordsProcessed) msg;
 
                 outboundQueue.acknowledgeAllRecordsProcessed(request.receiverId);
+            } else if (msgClazz == NewBufferSize.class) {
+                NewBufferSize request = (NewBufferSize) msg;
+
+                outboundQueue.notifyNewBufferSize(request.receiverId, request.bufferSize);
             } else {
                 LOG.warn("Received unexpected client request: {}", msg);
             }

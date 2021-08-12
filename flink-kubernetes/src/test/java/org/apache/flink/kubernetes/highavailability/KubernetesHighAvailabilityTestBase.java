@@ -57,8 +57,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Base class for high availability unit tests with a configured testing Kubernetes client. */
 public class KubernetesHighAvailabilityTestBase extends TestLogger {
@@ -133,7 +133,6 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         }
 
         void runTest(RunnableWithException testMethod) throws Exception {
-            configMapSharedWatcher.run();
             electionEventHandler.init(leaderElectionDriver);
             testMethod.run();
 

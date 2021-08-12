@@ -457,11 +457,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
         }
 
         @Override
-        public void run() {
-            // noop
-        }
-
-        @Override
         public void close() {
             // noop
         }

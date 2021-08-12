@@ -105,7 +105,6 @@ public class KubernetesHaServices extends AbstractHaServices {
         this.watchExecutorService =
                 Executors.newCachedThreadPool(
                         new ExecutorThreadFactory("config-map-watch-handler"));
-        this.configMapSharedWatcher.run();
 
         lockIdentity = UUID.randomUUID().toString();
     }

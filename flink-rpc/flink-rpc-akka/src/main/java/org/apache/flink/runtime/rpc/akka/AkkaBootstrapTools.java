@@ -34,9 +34,6 @@ import java.net.BindException;
 import java.util.Iterator;
 import java.util.Optional;
 
-import scala.Some;
-import scala.Tuple2;
-
 /** Tools for starting the Actor Systems used to run the JobManager and TaskManager actors. */
 public class AkkaBootstrapTools {
     /**
@@ -179,8 +176,8 @@ public class AkkaBootstrapTools {
             Config akkaConfig =
                     AkkaUtils.getAkkaConfig(
                             configuration,
-                            new Some<>(new Tuple2<>(externalAddress, externalPort)),
-                            new Some<>(new Tuple2<>(bindAddress, bindPort)),
+                            new HostAndPort(externalAddress, externalPort),
+                            new HostAndPort(bindAddress, bindPort),
                             actorSystemExecutorConfiguration);
 
             if (customConfig != null) {
@@ -230,10 +227,7 @@ public class AkkaBootstrapTools {
         try {
             Config akkaConfig =
                     AkkaUtils.getAkkaConfig(
-                            configuration,
-                            scala.Option.empty(),
-                            scala.Option.empty(),
-                            actorSystemExecutorConfiguration);
+                            configuration, null, null, actorSystemExecutorConfiguration);
 
             if (customConfig != null) {
                 akkaConfig = customConfig.withFallback(akkaConfig);

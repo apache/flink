@@ -35,11 +35,11 @@ under the License.
 * toc
 
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 请仔细阅读本篇升级指南。
-  使用原本的和新的内存配制方法可能会使内存组成部分具有截然不同的大小。
-  未经调整直接沿用 Flink 1.10 以前版本的 TaskManager 配置文件或 Flink 1.11 以前版本的 JobManager 配置文件，可能导致应用的行为、性能发生变化，甚至造成应用执行失败。
-</div>
+{{< hint warning >}}
+**注意：** 请仔细阅读本篇升级指南。
+使用原本的和新的内存配制方法可能会使内存组成部分具有截然不同的大小。
+未经调整直接沿用 Flink 1.10 以前版本的 TaskManager 配置文件或 Flink 1.11 以前版本的 JobManager 配置文件，可能导致应用的行为、性能发生变化，甚至造成应用执行失败。
+{{< /hint >}}
 
 <span class="label label-info">提示</span>
 在 *1.10/1.11* 版本之前，Flink 不要求用户一定要配置 TaskManager/JobManager 内存相关的参数，因为这些参数都具有默认值。
@@ -80,7 +80,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                请参考新配置参数 <a href="{%link deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
+                请参考新配置参数 <a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
                 新的配置参数与被移除的配置参数在语义上有所差别，因此其配置值通常也需要做出适当调整。
                 请参考<a href="#managed-memory">如何升级托管内存</a>。
             </td>
@@ -110,27 +110,27 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{%link deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
-                  <li>容器化部署模式（Containerized Deployement）下：<a href="{%link deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
+                  <li><a href="{{< ref "docs/deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li>容器化部署模式（Containerized Deployement）下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.size</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.min</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.max</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.fraction</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
         </tr>
     </tbody>
 </table>
@@ -300,6 +300,6 @@ Flink 通过设置上述 JVM 内存限制降低内存泄漏问题的排查难度
 
 请参考[如何配置总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)。
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 使用新的默认 `flink-conf.yaml` 可能会造成各内存部分的大小发生变化，从而产生性能变化。
-</div>
+{{< hint warning >}}
+**注意：** 使用新的默认 `flink-conf.yaml` 可能会造成各内存部分的大小发生变化，从而产生性能变化。
+{{< /hint >}}

@@ -45,8 +45,7 @@ public class JsonSerdeCoverageTest {
                     "StreamExecGroupTableAggregate",
                     "StreamExecPythonGroupTableAggregate",
                     "StreamExecSort",
-                    "StreamExecMultipleInput",
-                    "StreamExecValues");
+                    "StreamExecMultipleInput");
 
     @SuppressWarnings({"rawtypes"})
     @Test

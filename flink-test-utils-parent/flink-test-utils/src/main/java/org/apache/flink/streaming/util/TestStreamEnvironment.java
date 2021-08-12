@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -31,6 +33,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
@@ -42,6 +45,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
+    private static final boolean RANDOMIZE_BUFFER_DEBLOAT_CONFIG =
+            Boolean.parseBoolean(System.getProperty("buffer-debloat.randomization", "false"));
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -92,16 +97,31 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                                 Duration.ofSeconds(2));
                     }
                     if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                        conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                            conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+                        }
                     } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
                             STATE_CHANGE_LOG_CONFIG_RAND)) {
-                        randomize(conf, CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                            randomize(
+                                    conf,
+                                    CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
+                                    true,
+                                    false);
+                        }
+                    }
+                    if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG) {
+                        randomize(conf, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
                     }
                     env.configure(conf, env.getUserClassloader());
                     return env;
                 };
 
         initializeContextEnvironment(factory);
+    }
+
+    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
+        return !configuration.get(LOCAL_RECOVERY);
     }
 
     /**

@@ -160,7 +160,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             return false;
         }
 
-        return jobManagerTaskRestore.getTaskStateSnapshot().isFinished();
+        return jobManagerTaskRestore.getTaskStateSnapshot().isFinishedOnRestore();
     }
 
     @Override

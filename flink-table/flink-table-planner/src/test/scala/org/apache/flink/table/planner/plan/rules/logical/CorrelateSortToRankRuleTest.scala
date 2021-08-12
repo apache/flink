@@ -112,8 +112,8 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
     util.verifyRelPlan(query)
   }
 
-  @Test // TODO: this is a valid case to support
-  def testMultipleGroupingsNotSupported(): Unit = {
+  @Test
+  def testCorrelateSortToRankWithMultipleGroupKeys(): Unit = {
     val query =
       s"""
          |SELECT f0, f2
@@ -196,6 +196,42 @@ class CorrelateSortToRankRuleTest extends TableTestBase {
          |    SELECT f1, f2
          |    FROM t1
          |    WHERE t2.f0 = f0 + 1
+         |    ORDER BY f2
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyRelPlan(query)
+  }
+
+  @Test
+  def testMultipleGroupingsWithConstantNotSupported1(): Unit = {
+    val query =
+      s"""
+         |SELECT f0, f2
+         |FROM
+         |  (SELECT DISTINCT f0, f1 FROM t1) t2,
+         |  LATERAL (
+         |    SELECT f2
+         |    FROM t1
+         |    WHERE f0 = 1 AND f1 = t2.f1
+         |    ORDER BY f2
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyRelPlan(query)
+  }
+
+  @Test
+  def testMultipleGroupingsWithConstantNotSupported2(): Unit = {
+    val query =
+      s"""
+         |SELECT f0, f2
+         |FROM
+         |  (SELECT DISTINCT f0, f1 FROM t1) t2,
+         |  LATERAL (
+         |    SELECT f2
+         |    FROM t1
+         |    WHERE 1 = t2.f0 AND f1 = t2.f1
          |    ORDER BY f2
          |    DESC LIMIT 3
          |  )

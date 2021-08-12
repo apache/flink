@@ -201,6 +201,13 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
+    int getBuffersInUseCount() {
+        synchronized (receivedBuffers) {
+            return receivedBuffers.size();
+        }
+    }
+
+    @Override
     public void resumeConsumption() {
         throw new UnsupportedOperationException("RecoveredInputChannel should never be blocked.");
     }
@@ -271,5 +278,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     @Override
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        // Not supported.
     }
 }

@@ -27,9 +27,9 @@ import org.junit.Test;
 
 import java.util.Collections;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link KubernetesLeaderRetrievalDriver}. */
 public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabilityTestBase {

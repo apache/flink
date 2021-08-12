@@ -23,8 +23,9 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -52,8 +53,20 @@ public class DefaultExecutor implements Executor {
     }
 
     @Override
+    public ReadableConfig getConfiguration() {
+        return executionEnvironment.getConfiguration();
+    }
+
+    @Override
     public Pipeline createPipeline(
-            List<Transformation<?>> transformations, Configuration configuration, String jobName) {
+            List<Transformation<?>> transformations,
+            ReadableConfig configuration,
+            String defaultJobName) {
+
+        // reconfigure before a stream graph is generated
+        executionEnvironment.configure(configuration);
+
+        // create stream graph
         final RuntimeExecutionMode mode = configuration.get(ExecutionOptions.RUNTIME_MODE);
         final StreamGraph graph;
         switch (mode) {
@@ -67,7 +80,7 @@ public class DefaultExecutor implements Executor {
             default:
                 throw new TableException(String.format("Unsupported runtime mode: %s", mode));
         }
-        graph.setJobName(getNonEmptyJobName(jobName));
+        setJobName(graph, defaultJobName);
         return graph;
     }
 
@@ -82,7 +95,7 @@ public class DefaultExecutor implements Executor {
     }
 
     private StreamGraph createBatchGraph(
-            List<Transformation<?>> transformations, Configuration configuration) {
+            List<Transformation<?>> transformations, ReadableConfig configuration) {
         ExecutorUtils.setBatchProperties(executionEnvironment);
         StreamGraph graph =
                 ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
@@ -94,11 +107,13 @@ public class DefaultExecutor implements Executor {
         return ExecutorUtils.generateStreamGraph(executionEnvironment, transformations);
     }
 
-    private static String getNonEmptyJobName(String jobName) {
-        if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
-            return DEFAULT_JOB_NAME;
-        } else {
-            return jobName;
-        }
+    private void setJobName(StreamGraph streamGraph, String defaultJobName) {
+        final String adjustedDefaultJobName =
+                StringUtils.isNullOrWhitespaceOnly(defaultJobName)
+                        ? DEFAULT_JOB_NAME
+                        : defaultJobName;
+        final String jobName =
+                getConfiguration().getOptional(PipelineOptions.NAME).orElse(adjustedDefaultJobName);
+        streamGraph.setJobName(jobName);
     }
 }

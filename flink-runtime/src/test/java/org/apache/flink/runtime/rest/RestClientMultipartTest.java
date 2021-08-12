@@ -50,10 +50,7 @@ public class RestClientMultipartTest extends TestLogger {
 
     @BeforeClass
     public static void setupClient() throws ConfigurationException {
-        restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        TestingUtils.defaultExecutor());
+        restClient = new RestClient(new Configuration(), TestingUtils.defaultExecutor());
     }
 
     @After

@@ -155,8 +155,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
-        throw new UnsupportedOperationException("Method should never be called.");
+    public void acknowledgeAllDataProcessed() {
+        // in case of bounded partitions there is no upstream to acknowledge, we simply ignore
+        // the ack, as there are no checkpoints
     }
 
     @Override
@@ -179,6 +180,16 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     @Override
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return parent.unsynchronizedGetNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        return parent.getNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
     }
 
     @Override

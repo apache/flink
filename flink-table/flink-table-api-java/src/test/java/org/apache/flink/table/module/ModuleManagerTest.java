@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -53,12 +52,14 @@ public class ModuleManagerTest extends TestLogger {
     @Test
     public void testLoadModuleTwice() {
         // CoreModule is loaded by default
-        assertEquals(Collections.singletonList(MODULE_TYPE_CORE), manager.getUsedModules());
-        assertEquals(CoreModule.INSTANCE, manager.getLoadedModules().get(MODULE_TYPE_CORE));
+        assertEquals(
+                Collections.singletonList(CoreModuleFactory.IDENTIFIER), manager.getUsedModules());
+        assertEquals(
+                CoreModule.INSTANCE, manager.getLoadedModules().get(CoreModuleFactory.IDENTIFIER));
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage("A module with name 'core' already exists");
-        manager.loadModule(MODULE_TYPE_CORE, CoreModule.INSTANCE);
+        manager.loadModule(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
     }
 
     @Test
@@ -71,12 +72,14 @@ public class ModuleManagerTest extends TestLogger {
         manager.loadModule(z.getType(), z);
 
         Map<String, Module> expectedLoadedModules = new HashMap<>();
-        expectedLoadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
+        expectedLoadedModules.put(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
         expectedLoadedModules.put("x", x);
         expectedLoadedModules.put("y", y);
         expectedLoadedModules.put("z", z);
 
-        assertEquals(Arrays.asList(MODULE_TYPE_CORE, "x", "y", "z"), manager.getUsedModules());
+        assertEquals(
+                Arrays.asList(CoreModuleFactory.IDENTIFIER, "x", "y", "z"),
+                manager.getUsedModules());
         assertEquals(expectedLoadedModules, manager.getLoadedModules());
     }
 
@@ -88,50 +91,52 @@ public class ModuleManagerTest extends TestLogger {
         manager.loadModule(z.getType(), z);
 
         Map<String, Module> expectedLoadedModules = new HashMap<>();
-        expectedLoadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
+        expectedLoadedModules.put(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
         expectedLoadedModules.put("y", y);
         expectedLoadedModules.put("z", z);
 
-        assertEquals(Arrays.asList(MODULE_TYPE_CORE, "y", "z"), manager.getUsedModules());
+        assertEquals(
+                Arrays.asList(CoreModuleFactory.IDENTIFIER, "y", "z"), manager.getUsedModules());
         assertEquals(expectedLoadedModules, manager.getLoadedModules());
 
         // disable module y and z
-        manager.useModules(MODULE_TYPE_CORE);
+        manager.useModules(CoreModuleFactory.IDENTIFIER);
 
         // load module x to test the order
         ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
         expectedLoadedModules.put("x", x);
 
-        assertEquals(Arrays.asList(MODULE_TYPE_CORE, "x"), manager.getUsedModules());
+        assertEquals(Arrays.asList(CoreModuleFactory.IDENTIFIER, "x"), manager.getUsedModules());
         assertEquals(expectedLoadedModules, manager.getLoadedModules());
     }
 
     @Test
     public void testUnloadModuleTwice() {
-        assertEquals(Collections.singletonList(MODULE_TYPE_CORE), manager.getUsedModules());
+        assertEquals(
+                Collections.singletonList(CoreModuleFactory.IDENTIFIER), manager.getUsedModules());
 
-        manager.unloadModule(MODULE_TYPE_CORE);
+        manager.unloadModule(CoreModuleFactory.IDENTIFIER);
         assertEquals(Collections.emptyList(), manager.getUsedModules());
         assertEquals(Collections.emptyMap(), manager.getLoadedModules());
 
         thrown.expect(ValidationException.class);
         thrown.expectMessage("No module with name 'core' exists");
-        manager.unloadModule(MODULE_TYPE_CORE);
+        manager.unloadModule(CoreModuleFactory.IDENTIFIER);
     }
 
     @Test
     public void testUseUnloadedModules() {
         thrown.expect(ValidationException.class);
         thrown.expectMessage("No module with name 'x' exists");
-        manager.useModules(MODULE_TYPE_CORE, "x");
+        manager.useModules(CoreModuleFactory.IDENTIFIER, "x");
     }
 
     @Test
     public void testUseModulesWithDuplicateModuleName() {
         thrown.expect(ValidationException.class);
         thrown.expectMessage("Module 'core' appears more than once");
-        manager.useModules(MODULE_TYPE_CORE, MODULE_TYPE_CORE);
+        manager.useModules(CoreModuleFactory.IDENTIFIER, CoreModuleFactory.IDENTIFIER);
     }
 
     @Test
@@ -143,15 +148,17 @@ public class ModuleManagerTest extends TestLogger {
         manager.loadModule(y.getType(), y);
         manager.loadModule(z.getType(), z);
 
-        assertEquals(Arrays.asList(MODULE_TYPE_CORE, "x", "y", "z"), manager.getUsedModules());
+        assertEquals(
+                Arrays.asList(CoreModuleFactory.IDENTIFIER, "x", "y", "z"),
+                manager.getUsedModules());
 
         // test order for used modules
-        manager.useModules("z", MODULE_TYPE_CORE);
-        assertEquals(Arrays.asList("z", MODULE_TYPE_CORE), manager.getUsedModules());
+        manager.useModules("z", CoreModuleFactory.IDENTIFIER);
+        assertEquals(Arrays.asList("z", CoreModuleFactory.IDENTIFIER), manager.getUsedModules());
 
         // test unmentioned modules are still loaded
         Map<String, Module> expectedLoadedModules = new HashMap<>();
-        expectedLoadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
+        expectedLoadedModules.put(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
         expectedLoadedModules.put("x", x);
         expectedLoadedModules.put("y", y);
         expectedLoadedModules.put("z", z);
@@ -181,7 +188,7 @@ public class ModuleManagerTest extends TestLogger {
         manager.useModules("z", "y");
 
         assertEquals(
-                getExpectedModuleEntries(2, "z", "y", MODULE_TYPE_CORE, "x"),
+                getExpectedModuleEntries(2, "z", "y", CoreModuleFactory.IDENTIFIER, "x"),
                 manager.listFullModules());
     }
 
@@ -193,7 +200,7 @@ public class ModuleManagerTest extends TestLogger {
         assertTrue(manager.listFunctions().contains("dummy"));
 
         // should not return function name of an unused module
-        manager.useModules(MODULE_TYPE_CORE);
+        manager.useModules(CoreModuleFactory.IDENTIFIER);
         assertFalse(manager.listFunctions().contains("dummy"));
     }
 
@@ -205,7 +212,7 @@ public class ModuleManagerTest extends TestLogger {
         assertTrue(manager.getFunctionDefinition("dummy").isPresent());
 
         // should not return function definition of an unused module
-        manager.useModules(MODULE_TYPE_CORE);
+        manager.useModules(CoreModuleFactory.IDENTIFIER);
         assertFalse(manager.getFunctionDefinition("dummy").isPresent());
     }
 

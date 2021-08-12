@@ -18,20 +18,22 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.FlatMapDriver;
@@ -68,6 +70,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
     public void testOperatorIOMetricReuse() throws Exception {
         // environment
         initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+
         this.mockEnv =
                 new MockEnvironmentBuilder()
                         .setTaskName(HEAD_OPERATOR_NAME)
@@ -75,15 +78,18 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
                         .setInputSplitProvider(this.inputSplitProvider)
                         .setBufferSize(NETWORK_BUFFER_SIZE)
                         .setMetricGroup(
-                                new TaskMetricGroup(
-                                        NoOpMetricRegistry.INSTANCE,
-                                        UnregisteredMetricGroups
-                                                .createUnregisteredTaskManagerJobMetricGroup(),
-                                        new JobVertexID(),
-                                        new ExecutionAttemptID(),
-                                        "task",
-                                        0,
-                                        0))
+                                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                                                NoOpMetricRegistry.INSTANCE,
+                                                "host",
+                                                ResourceID.generate())
+                                        .addTaskForJob(
+                                                new JobID(),
+                                                "jobName",
+                                                new JobVertexID(),
+                                                new ExecutionAttemptID(),
+                                                "task",
+                                                0,
+                                                0))
                         .build();
 
         final int keyCnt = 100;

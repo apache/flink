@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /** Validator for {@link ModuleDescriptor}. */
 @Internal
+@Deprecated
 public abstract class ModuleDescriptorValidator implements DescriptorValidator {
 
     /** Key for describing the type of the module. Used for factory discovery. */

@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
+import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepFirstRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepLastRowFunction;
@@ -47,6 +48,7 @@ import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDed
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDeduplicateKeepLastRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
+import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchLatestChangeDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -88,6 +90,17 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     + "If true, Flink will guarantee to send INSERT for the first row, "
                                     + "but there will be additional overhead."
                                     + "Default is true.");
+
+    @Experimental
+    public static final ConfigOption<Boolean> TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES =
+            ConfigOptions.key("table.exec.deduplicate.mini-batch.compact-changes")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Set whether to compact the changes sent downstream in row-time mini-batch. "
+                                    + "If true, Flink will compact changes, only send the latest change to downstream. "
+                                    + "Notes: If the downstream needs the details of versioned data, this optimization cannot be opened. "
+                                    + "If false, Flink will send all changes to downstream just like when the mini-batch is not on.");
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
@@ -223,6 +236,12 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                     .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
         }
 
+        protected boolean isCompactChanges() {
+            return tableConfig
+                    .getConfiguration()
+                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES);
+        }
+
         protected long getMinRetentionTime() {
             return tableConfig.getMinIdleStateRetentionTime();
         }
@@ -275,15 +294,28 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             checkArgument(rowtimeIndex >= 0);
             if (isMiniBatchEnabled()) {
                 CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(getMiniBatchSize());
-                RowTimeMiniBatchDeduplicateFunction processFunction =
-                        new RowTimeMiniBatchDeduplicateFunction(
-                                rowTypeInfo,
-                                typeSerializer,
-                                getMinRetentionTime(),
-                                rowtimeIndex,
-                                generateUpdateBefore,
-                                generateInsert(),
-                                keepLastRow);
+                MapBundleFunction processFunction;
+                if (isCompactChanges()) {
+                    processFunction =
+                            new RowTimeMiniBatchLatestChangeDeduplicateFunction(
+                                    rowTypeInfo,
+                                    typeSerializer,
+                                    getMinRetentionTime(),
+                                    rowtimeIndex,
+                                    generateUpdateBefore,
+                                    generateInsert(),
+                                    keepLastRow);
+                } else {
+                    processFunction =
+                            new RowTimeMiniBatchDeduplicateFunction(
+                                    rowTypeInfo,
+                                    typeSerializer,
+                                    getMinRetentionTime(),
+                                    rowtimeIndex,
+                                    generateUpdateBefore,
+                                    generateInsert(),
+                                    keepLastRow);
+                }
                 return new KeyedMapBundleOperator<>(processFunction, trigger);
             } else {
                 RowTimeDeduplicateFunction processFunction =

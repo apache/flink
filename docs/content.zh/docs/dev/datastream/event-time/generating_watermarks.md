@@ -83,9 +83,9 @@ WatermarkStrategy
 
 稍后我们将在[自定义 WatermarkGenerator](#writing-watermarkgenerators) 小节学习 WatermarkGenerator 接口。
 
-<div class="alert alert-warning">
-<strong>注意</strong>：时间戳和 watermark 都是从 1970-01-01T00:00:00Z 起的 Java 纪元开始，并以毫秒为单位。
-</div>
+{{< hint warning >}}
+**注意：** 时间戳和 watermark 都是从 1970-01-01T00:00:00Z 起的 Java 纪元开始，并以毫秒为单位。
+{{< /hint >}}
 
 <a name="using-watermark-strategies"></a>
 
@@ -345,9 +345,9 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 {{< /tab >}}
 {{< /tabs >}}
 
-<div class="alert alert-warning">
-<strong>注意</strong>：可以针对每个事件去生成 watermark。但是由于每个 watermark 都会在下游做一些计算，因此过多的 watermark 会降低程序性能。
-</div>
+{{< hint warning >}}
+**注意：** 可以针对每个事件去生成 watermark。但是由于每个 watermark 都会在下游做一些计算，因此过多的 watermark 会降低程序性能。
+{{< /hint >}}
 
 <a name="watermark-strategies-and-the-kafka-connector"></a>
 

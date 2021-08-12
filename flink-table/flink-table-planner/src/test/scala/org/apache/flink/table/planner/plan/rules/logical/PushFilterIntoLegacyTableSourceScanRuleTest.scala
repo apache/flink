@@ -86,7 +86,7 @@ class PushFilterIntoLegacyTableSourceScanRuleTest
       "MTable",
       isBounded = true,
       data,
-      List("a", "b"))
+      Set("a", "b"))
 
     super.testLowerUpperPushdown()
   }
@@ -107,7 +107,7 @@ class PushFilterIntoLegacyTableSourceScanRuleTest
       "MTable",
       isBounded = true,
       data,
-      List("a", "b"))
+      Set("a", "b"))
 
     super.testWithInterval()
   }

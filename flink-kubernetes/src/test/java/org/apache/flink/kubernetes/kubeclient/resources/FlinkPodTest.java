@@ -25,9 +25,9 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import org.junit.Test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link FlinkPod}. */
 public class FlinkPodTest extends KubernetesTestBase {

@@ -37,6 +37,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class BufferBuilder implements AutoCloseable {
     private final Buffer buffer;
     private final MemorySegment memorySegment;
+    private int maxCapacity;
 
     private final SettablePositionMarker positionMarker = new SettablePositionMarker();
 
@@ -45,6 +46,7 @@ public class BufferBuilder implements AutoCloseable {
     public BufferBuilder(MemorySegment memorySegment, BufferRecycler recycler) {
         this.memorySegment = checkNotNull(memorySegment);
         this.buffer = new NetworkBuffer(memorySegment, recycler);
+        this.maxCapacity = buffer.getMaxCapacity();
     }
 
     /**
@@ -142,7 +144,16 @@ public class BufferBuilder implements AutoCloseable {
     }
 
     public int getMaxCapacity() {
-        return buffer.getMaxCapacity();
+        return maxCapacity;
+    }
+
+    /**
+     * The result capacity can not be greater than allocated memorySegment. It also can not be less
+     * than already written data.
+     */
+    public void trim(int newSize) {
+        maxCapacity =
+                Math.min(Math.max(newSize, positionMarker.getCached()), buffer.getMaxCapacity());
     }
 
     @Override

@@ -43,7 +43,7 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     public void resumeConsumption() {}
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {}
+    public void acknowledgeAllDataProcessed() {}
 
     @Override
     public Throwable getFailureCause() {
@@ -59,4 +59,12 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     public int unsynchronizedGetNumberOfQueuedBuffers() {
         return 0;
     }
+
+    @Override
+    public int getNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {}
 }

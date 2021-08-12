@@ -357,7 +357,7 @@ public class UnalignedCheckpointsTest {
     @Test
     public void testMultiChannelTrailingInflightData() throws Exception {
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
-        inputGate = createInputGate(3, handler);
+        inputGate = createInputGate(3, handler, false);
 
         BufferOrEvent[] sequence =
                 addSequence(
@@ -413,7 +413,7 @@ public class UnalignedCheckpointsTest {
     @Test
     public void testEarlyCleanup() throws Exception {
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler(1);
-        inputGate = createInputGate(3, handler);
+        inputGate = createInputGate(3, handler, false);
 
         // checkpoint 1
         final BufferOrEvent[] sequence1 =
@@ -728,6 +728,7 @@ public class UnalignedCheckpointsTest {
                         "test",
                         invokable,
                         SystemClock.getInstance(),
+                        true,
                         inputGate);
 
         // should trigger respective checkpoint
@@ -753,6 +754,7 @@ public class UnalignedCheckpointsTest {
                         "test",
                         invokable,
                         SystemClock.getInstance(),
+                        true,
                         inputGate);
 
         handler.processCancellationBarrier(
@@ -812,6 +814,7 @@ public class UnalignedCheckpointsTest {
                         "test",
                         invokable,
                         SystemClock.getInstance(),
+                        false,
                         inputGate);
 
         // should trigger respective checkpoint
@@ -835,7 +838,6 @@ public class UnalignedCheckpointsTest {
     public void testTriggerCheckpointsWithEndOfPartition() throws Exception {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
         inputGate = createInputGate(3, validator);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         BufferOrEvent[] sequence =
                 addSequence(
@@ -858,7 +860,6 @@ public class UnalignedCheckpointsTest {
     public void testTriggerCheckpointsAfterReceivedEndOfPartition() throws Exception {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
         inputGate = createInputGate(3, validator);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         BufferOrEvent[] sequence1 =
                 addSequence(
@@ -925,6 +926,14 @@ public class UnalignedCheckpointsTest {
 
     private CheckpointedInputGate createInputGate(int numberOfChannels, AbstractInvokable toNotify)
             throws IOException {
+        return createInputGate(numberOfChannels, toNotify, true);
+    }
+
+    private CheckpointedInputGate createInputGate(
+            int numberOfChannels,
+            AbstractInvokable toNotify,
+            boolean enableCheckpointsAfterTasksFinished)
+            throws IOException {
         final NettyShuffleEnvironment environment = new NettyShuffleEnvironmentBuilder().build();
         SingleInputGate gate =
                 new SingleInputGateBuilder()
@@ -948,7 +957,7 @@ public class UnalignedCheckpointsTest {
         gate.setup();
         gate.requestPartitions();
 
-        return createCheckpointedInputGate(gate, toNotify);
+        return createCheckpointedInputGate(gate, toNotify, enableCheckpointsAfterTasksFinished);
     }
 
     private BufferOrEvent[] addSequence(CheckpointedInputGate inputGate, BufferOrEvent... sequence)
@@ -991,12 +1000,20 @@ public class UnalignedCheckpointsTest {
 
     private CheckpointedInputGate createCheckpointedInputGate(
             IndexedInputGate gate, AbstractInvokable toNotify) {
+        return createCheckpointedInputGate(gate, toNotify, true);
+    }
+
+    private CheckpointedInputGate createCheckpointedInputGate(
+            IndexedInputGate gate,
+            AbstractInvokable toNotify,
+            boolean enableCheckpointsAfterTasksFinished) {
         final SingleCheckpointBarrierHandler barrierHandler =
                 SingleCheckpointBarrierHandler.createUnalignedCheckpointBarrierHandler(
                         new TestSubtaskCheckpointCoordinator(channelStateWriter),
                         "Test",
                         toNotify,
                         SystemClock.getInstance(),
+                        enableCheckpointsAfterTasksFinished,
                         gate);
         return new CheckpointedInputGate(gate, barrierHandler, new SyncMailboxExecutor());
     }

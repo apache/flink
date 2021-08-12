@@ -25,9 +25,9 @@ import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull, binaryWriterWriteField, binaryWriterWriteNull, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.functions.SqlFunctionUtils
+import org.apache.flink.table.runtime.functions.{SqlDateTimeUtils, SqlFunctionUtils}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -2016,14 +2016,37 @@ object ScalarOperatorGens {
       stringLiteral: GeneratedExpression,
       expectType: LogicalType): GeneratedExpression = {
     checkArgument(stringLiteral.literal)
-    val rightTerm = stringLiteral.resultTerm
+    if (java.lang.Boolean.valueOf(stringLiteral.nullTerm)) {
+      return generateNullLiteral(expectType, nullCheck = true)
+    }
+
+    val stringValue = stringLiteral.literalValue.get.toString
+    val literalCode = expectType.getTypeRoot match {
+      case DATE =>
+        SqlDateTimeUtils.dateStringToUnixDate(stringValue) match {
+          case null => throw new ValidationException(s"String '$stringValue' is not a valid date")
+          case v => v
+        }
+      case TIME_WITHOUT_TIME_ZONE =>
+        SqlDateTimeUtils.timeStringToUnixDate(stringValue) match {
+          case null => throw new ValidationException(s"String '$stringValue' is not a valid time")
+          case v => v
+        }
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        SqlDateTimeUtils.toTimestampData(stringValue) match {
+          case null =>
+            throw new ValidationException(s"String '$stringValue' is not a valid timestamp")
+          case v => s"${CodeGenUtils.TIMESTAMP_DATA}.fromEpochMillis(" +
+            s"${v.getMillisecond}L, ${v.getNanoOfMillisecond})"
+        }
+      case _ => throw new UnsupportedOperationException
+    }
+
     val typeTerm = primitiveTypeTermForType(expectType)
-    val defaultTerm = primitiveDefaultValue(expectType)
-    val term = newName("stringToTime")
-    val code = stringToLocalTimeCode(expectType, rightTerm)
-    val stmt = s"$typeTerm $term = ${stringLiteral.nullTerm} ? $defaultTerm : $code;"
+    val resultTerm = newName("stringToTime")
+    val stmt = s"$typeTerm $resultTerm = $literalCode;"
     ctx.addReusableMember(stmt)
-    stringLiteral.copy(resultType = expectType, resultTerm = term)
+    GeneratedExpression(resultTerm, "false", "", expectType)
   }
 
   private def generateCastArrayToString(
@@ -2450,21 +2473,6 @@ object ScalarOperatorGens {
       throw new CodeGenException(s"Unsupported casting from $operandType to $resultType.")
     }
   }
-
-  private def stringToLocalTimeCode(
-      targetType: LogicalType,
-      operandTerm: String): String =
-    targetType.getTypeRoot match {
-      case DATE =>
-        s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
-      case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
-      case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        s"""
-           |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
-           |""".stripMargin
-      case _ => throw new UnsupportedOperationException
-    }
 
   private def localTimeToStringCode(
       ctx: CodeGeneratorContext,

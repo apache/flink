@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
@@ -33,6 +33,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheckpointStorage;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
@@ -135,7 +137,9 @@ public class StreamGraphGenerator {
     public static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
             TimeCharacteristic.ProcessingTime;
 
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    public static final String DEFAULT_STREAMING_JOB_NAME = "Flink Streaming Job";
+
+    public static final String DEFAULT_BATCH_JOB_NAME = "Flink Batch Job";
 
     public static final String DEFAULT_SLOT_SHARING_GROUP = "default";
 
@@ -164,8 +168,6 @@ public class StreamGraphGenerator {
             Collections.emptyList();
 
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
-
-    private String jobName = DEFAULT_JOB_NAME;
 
     private SavepointRestoreSettings savepointRestoreSettings;
 
@@ -284,11 +286,6 @@ public class StreamGraphGenerator {
         return this;
     }
 
-    public StreamGraphGenerator setJobName(String jobName) {
-        this.jobName = jobName;
-        return this;
-    }
-
     /**
      * Specify fine-grained resource requirements for slot sharing groups.
      *
@@ -314,6 +311,9 @@ public class StreamGraphGenerator {
 
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph.setEnableCheckpointsAfterTasksFinish(
+                configuration.get(
+                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
         shouldExecuteInBatchMode = shouldExecuteInBatchMode(runtimeExecutionMode);
         configureStreamGraph(streamGraph);
 
@@ -355,7 +355,6 @@ public class StreamGraphGenerator {
         graph.setChaining(chaining);
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
-        graph.setJobName(jobName);
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
@@ -367,6 +366,7 @@ public class StreamGraphGenerator {
 
     private void configureStreamGraphBatch(final StreamGraph graph) {
         graph.setJobType(JobType.BATCH);
+        graph.setJobName(deriveJobName(DEFAULT_BATCH_JOB_NAME));
 
         if (checkpointConfig.isCheckpointingEnabled()) {
             LOG.info(
@@ -381,6 +381,7 @@ public class StreamGraphGenerator {
 
     private void configureStreamGraphStreaming(final StreamGraph graph) {
         graph.setJobType(JobType.STREAMING);
+        graph.setJobName(deriveJobName(DEFAULT_STREAMING_JOB_NAME));
 
         graph.setStateBackend(stateBackend);
         graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
@@ -389,13 +390,16 @@ public class StreamGraphGenerator {
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
     }
 
+    private String deriveJobName(String defaultJobName) {
+        return configuration.getOptional(PipelineOptions.NAME).orElse(defaultJobName);
+    }
+
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeBatch() {
-        final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
+        final BatchShuffleMode shuffleMode = configuration.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
         switch (shuffleMode) {
             case ALL_EXCHANGES_PIPELINED:
                 return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
             case ALL_EXCHANGES_BLOCKING:
-            case AUTOMATIC:
                 return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
             default:
                 throw new IllegalArgumentException(
@@ -406,21 +410,11 @@ public class StreamGraphGenerator {
     }
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeStreaming() {
-        final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
-        switch (shuffleMode) {
-            case ALL_EXCHANGES_PIPELINED:
-            case AUTOMATIC:
-                if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
-                    checkApproximateLocalRecoveryCompatibility();
-                    return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
-                }
-                return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
-            default:
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Unsupported shuffle mode '%s' in STREAMING runtime mode.",
-                                shuffleMode.toString()));
+        if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
+            checkApproximateLocalRecoveryCompatibility();
+            return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
         }
+        return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
     }
 
     private void checkApproximateLocalRecoveryCompatibility() {

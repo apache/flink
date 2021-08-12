@@ -227,7 +227,8 @@ public class StateAssignmentOperation {
 
     private void assignFinishedStateToTask(Execution currentExecutionAttempt) {
         JobManagerTaskRestore taskRestore =
-                new JobManagerTaskRestore(restoreCheckpointId, TaskStateSnapshot.FINISHED);
+                new JobManagerTaskRestore(
+                        restoreCheckpointId, TaskStateSnapshot.FINISHED_ON_RESTORE);
         currentExecutionAttempt.setInitialState(taskRestore);
     }
 
@@ -236,7 +237,7 @@ public class StateAssignmentOperation {
             List<OperatorIDPair> operatorIDs,
             int subTaskIndex,
             Execution currentExecutionAttempt) {
-        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
+        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size(), false);
         boolean statelessTask = true;
 
         for (OperatorIDPair operatorID : operatorIDs) {

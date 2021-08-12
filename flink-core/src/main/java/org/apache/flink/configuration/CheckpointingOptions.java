@@ -135,7 +135,7 @@ public class CheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "The list of recognized shortcut names currently includes"
-                                                    + " 'memory' only.")
+                                                    + " 'memory' and 'filesystem'.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
