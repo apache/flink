@@ -127,7 +127,6 @@ public class CheckpointFailureManager {
             case CHECKPOINT_DECLINED_SUBSUMED:
             case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
 
-            case EXCEPTION:
             case TASK_FAILURE:
             case TASK_CHECKPOINT_FAILURE:
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
