@@ -76,6 +76,7 @@ public class KafkaPartitionSplitReader<T>
     private final String groupId;
     private final int subtaskId;
     private final KafkaSourceReaderMetrics kafkaSourceReaderMetrics;
+    private final List<TopicPartition> invalidAssignedTopicPartitions = new ArrayList<>();
 
     public KafkaPartitionSplitReader(
             Properties props,
@@ -178,6 +179,7 @@ public class KafkaPartitionSplitReader<T>
         if (!finishedPartitions.isEmpty()) {
             unassignPartitions(finishedPartitions);
         }
+        cleanupInvalidAssignedTopicPartitions(recordsBySplits, this.invalidAssignedTopicPartitions);
         recordsBySplits.prepareForRead();
         return recordsBySplits;
     }
@@ -347,6 +349,7 @@ public class KafkaPartitionSplitReader<T>
         for (TopicPartition tp : consumer.assignment()) {
             if (consumer.position(tp) >= getStoppingOffset(tp)) {
                 emptySplits.add(tp);
+                invalidAssignedTopicPartitions.add(tp);
             }
         }
         if (!emptySplits.isEmpty()) {
@@ -366,7 +369,7 @@ public class KafkaPartitionSplitReader<T>
                                 "[%s, start:%d, stop: %d]",
                                 split.getTopicPartition(), startingOffset, stoppingOffset));
             }
-            LOG.debug("SplitsChange handling result: {}", splitsInfo.toString());
+            LOG.debug("SplitsChange handling result: {}", splitsInfo);
         }
     }
 
@@ -411,6 +414,15 @@ public class KafkaPartitionSplitReader<T>
                         Boolean::parseBoolean);
         if (needToRegister) {
             kafkaSourceReaderMetrics.registerKafkaConsumerMetrics(consumer);
+        }
+    }
+
+    private void cleanupInvalidAssignedTopicPartitions(
+            KafkaPartitionSplitRecords<Tuple3<T, Long, Long>> recordsBySplits,
+            List<TopicPartition> invalidAssignedTopicPartitions) {
+        if (!invalidAssignedTopicPartitions.isEmpty()) {
+            invalidAssignedTopicPartitions.forEach(
+                    (tp) -> recordsBySplits.addFinishedSplit(KafkaPartitionSplit.toSplitId(tp)));
         }
     }
 
