@@ -31,6 +31,7 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
+import static org.rocksdb.CompactionStyle.NONE;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
 import static org.rocksdb.InfoLogLevel.DEBUG_LEVEL;
 import static org.rocksdb.InfoLogLevel.ERROR_LEVEL;
@@ -102,9 +103,13 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .noDefaultValue()
                     .withDescription(
                             String.format(
-                                    "The specified compaction style for DB. Candidate compaction style is %s, %s or %s, "
+                                    "The specified compaction style for DB. Candidate compaction style is %s, %s, %s or %s, "
                                             + "and RocksDB choose '%s' as default style.",
-                                    LEVEL.name(), FIFO.name(), UNIVERSAL.name(), LEVEL.name()));
+                                    LEVEL.name(),
+                                    FIFO.name(),
+                                    UNIVERSAL.name(),
+                                    NONE.name(),
+                                    LEVEL.name()));
 
     public static final ConfigOption<Boolean> USE_DYNAMIC_LEVEL_SIZE =
             key("state.backend.rocksdb.compaction.level.use-dynamic-size")

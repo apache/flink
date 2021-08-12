@@ -250,7 +250,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
     @VisibleForTesting
     static Filter getFilterFromBlockBasedTableConfig(BlockBasedTableConfig blockBasedTableConfig)
             throws NoSuchFieldException, IllegalAccessException {
-        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filter_");
+        Field filterField = blockBasedTableConfig.getClass().getDeclaredField("filterPolicy");
         filterField.setAccessible(true);
         Object filter = filterField.get(blockBasedTableConfig);
         filterField.setAccessible(false);
