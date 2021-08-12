@@ -1305,7 +1305,19 @@ public class Task
 
         if (executionState == ExecutionState.RUNNING && invokable != null) {
             try {
-                invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
+                invokable
+                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions)
+                        .handle(
+                                (triggerResult, exception) -> {
+                                    if (exception != null || !triggerResult) {
+                                        declineCheckpoint(
+                                                checkpointID,
+                                                CheckpointFailureReason.TASK_FAILURE,
+                                                exception);
+                                        return false;
+                                    }
+                                    return true;
+                                });
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
@@ -1314,6 +1326,8 @@ public class Task
                         checkpointID,
                         taskNameWithSubtask,
                         executionId);
+                declineCheckpoint(
+                        checkpointID, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING);
             } catch (Throwable t) {
                 if (getExecutionState() == ExecutionState.RUNNING) {
                     failExternally(
@@ -1340,14 +1354,27 @@ public class Task
                     executionId);
 
             // send back a message that we did not do the checkpoint
-            checkpointResponder.declineCheckpoint(
-                    jobId,
-                    executionId,
-                    checkpointID,
-                    new CheckpointException(
-                            "Task name with subtask : " + taskNameWithSubtask,
-                            CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
+            declineCheckpoint(
+                    checkpointID, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
         }
+    }
+
+    private void declineCheckpoint(long checkpointID, CheckpointFailureReason failureReason) {
+        declineCheckpoint(checkpointID, failureReason, null);
+    }
+
+    private void declineCheckpoint(
+            long checkpointID,
+            CheckpointFailureReason failureReason,
+            @Nullable Throwable failureCause) {
+        checkpointResponder.declineCheckpoint(
+                jobId,
+                executionId,
+                checkpointID,
+                new CheckpointException(
+                        "Task name with subtask : " + taskNameWithSubtask,
+                        failureReason,
+                        failureCause));
     }
 
     public void notifyCheckpointComplete(final long checkpointID) {
