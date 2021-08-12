@@ -24,9 +24,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
-import org.apache.flink.runtime.rpc.DirectlyFailingFatalErrorHandler;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -35,6 +34,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -54,8 +54,11 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-/** Tests for the error handling in case of a suspended connection to the ZooKeeper instance. */
-public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
+/**
+ * Tests for the error handling in case of a suspended connection to the ZooKeeper instance when
+ * retrieving the leader information.
+ */
+public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
 
     private TestingServer testingServer;
 
@@ -63,7 +66,9 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
     private CuratorFramework zooKeeperClient;
 
-    private final FatalErrorHandler fatalErrorHandler = DirectlyFailingFatalErrorHandler.INSTANCE;
+    @Rule
+    public final TestingFatalErrorHandlerResource fatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
     @Before
     public void before() throws Exception {
@@ -98,7 +103,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
             leaderRetrievalDriver =
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient)
                             .createLeaderRetrievalDriver(
-                                    queueLeaderElectionListener, fatalErrorHandler);
+                                    queueLeaderElectionListener,
+                                    fatalErrorHandlerResource.getFatalErrorHandler());
 
             // do the testing
             final CompletableFuture<String> firstAddress =
@@ -139,7 +145,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
-                            fatalErrorHandler);
+                            fatalErrorHandlerResource.getFatalErrorHandler());
 
             writeLeaderInformationToZooKeeper(
                     leaderRetrievalDriver.getConnectionInformationPath(),
@@ -180,7 +186,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
-                            fatalErrorHandler);
+                            fatalErrorHandlerResource.getFatalErrorHandler());
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
@@ -248,7 +254,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
-                            fatalErrorHandler);
+                            fatalErrorHandlerResource.getFatalErrorHandler());
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
