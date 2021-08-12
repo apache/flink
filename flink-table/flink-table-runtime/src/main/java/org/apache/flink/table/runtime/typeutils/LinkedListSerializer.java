@@ -119,11 +119,18 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         return -1; // var length
     }
 
+    private void ensureReuseMaskLength(int len) {
+        if (reuseMask == null || reuseMask.length < len) {
+            reuseMask = new boolean[len];
+        }
+    }
+
     @Override
     public void serialize(LinkedList<T> list, DataOutputView target) throws IOException {
         target.writeInt(list.size());
         if (hasNullMask) {
-            MaskUtils.writeMask(getNullMask(list), target);
+            ensureReuseMaskLength(list.size());
+            MaskUtils.writeMask(getNullMask(list), list.size(), target);
         }
         for (T element : list) {
             if (element != null) {
@@ -133,9 +140,6 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     }
 
     private boolean[] getNullMask(LinkedList<T> list) {
-        if (reuseMask == null || reuseMask.length != list.size()) {
-            reuseMask = new boolean[list.size()];
-        }
         int idx = 0;
         for (T item : list) {
             reuseMask[idx] = item == null;
@@ -148,12 +152,12 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     public LinkedList<T> deserialize(DataInputView source) throws IOException {
         final int size = source.readInt();
         final LinkedList<T> list = new LinkedList<>();
-        boolean[] nullMask = new boolean[size];
         if (hasNullMask) {
-            MaskUtils.readIntoMask(source, nullMask);
+            ensureReuseMaskLength(size);
+            MaskUtils.readIntoMask(source, reuseMask, size);
         }
         for (int i = 0; i < size; i++) {
-            if (nullMask[i]) {
+            if (hasNullMask && reuseMask[i]) {
                 list.add(null);
             } else {
                 list.add(elementSerializer.deserialize(source));
@@ -172,13 +176,12 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         // copy number of elements
         final int num = source.readInt();
         target.writeInt(num);
-        boolean[] nullMask = new boolean[num];
         if (hasNullMask) {
-            MaskUtils.readIntoMask(source, nullMask);
-            MaskUtils.writeMask(nullMask, target);
+            ensureReuseMaskLength(num);
+            MaskUtils.readIntoAndCopyMask(source, target, reuseMask, num);
         }
         for (int i = 0; i < num; i++) {
-            if (!nullMask[i]) {
+            if (!(hasNullMask && reuseMask[i])) {
                 elementSerializer.copy(source, target);
             }
         }
