@@ -65,6 +65,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -169,6 +170,7 @@ public class KafkaSinkITCase extends TestLogger {
     }
 
     @Test
+    @Ignore
     public void testWriteRecordsToKafkaWithExactlyOnceGuarantee() throws Exception {
         writeRecordsToKafka(DeliveryGuarantee.EXACTLY_ONCE, emittedRecordsWithCheckpoint);
     }
