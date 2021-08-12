@@ -507,8 +507,8 @@ Show all loaded modules and enabled status with resolution order.
 SHOW JARS
 ```
 
-Show all added jars in the session classloader which are added by [`ADD JAR`](link) statement. 
+Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the SQL CLI.
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}
