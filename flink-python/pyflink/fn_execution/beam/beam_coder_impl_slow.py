@@ -67,12 +67,10 @@ class FlinkLengthPrefixCoderBeamWrapper(FlinkFieldCoderBeamWrapper):
     """
     def __init__(self, value_coder):
         super(FlinkLengthPrefixCoderBeamWrapper, self).__init__(value_coder)
-        self._output_stream = None
+        self._output_stream = BeamTimeBasedOutputStream()
 
     def encode_to_stream(self, value, out_stream: create_OutputStream, nested):
-        if not self._output_stream:
-            self._output_stream = BeamTimeBasedOutputStream()
-        self._output_stream.parse_output_stream(out_stream)
+        self._output_stream.reset_output_stream(out_stream)
 
         self._value_coder.encode_to_stream(value, self._data_output_stream)
         self._output_stream.write(self._data_output_stream.get())

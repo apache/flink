@@ -94,12 +94,10 @@ cdef class FlinkLengthPrefixCoderBeamWrapper(StreamCoderImpl):
     """
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
-        self._output_stream = None
+        self._output_stream = BeamTimeBasedOutputStream()
 
     cpdef encode_to_stream(self, value, BOutputStream out_stream, bint nested):
-        if not self._output_stream:
-            self._output_stream = BeamTimeBasedOutputStream()
-        self._output_stream.parse_output_stream(out_stream)
+        self._output_stream.reset_output_stream(out_stream)
         self._value_coder.encode_to_stream(value, self._output_stream)
 
     cpdef decode_from_stream(self, BInputStream in_stream, bint nested):

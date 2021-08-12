@@ -366,7 +366,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     /** Interrupts the progress of takeResult. */
-    public void noEmptySignal() {
+    public void notifyNoMoreResults() {
         resultBuffer.add(new byte[0]);
     }
 

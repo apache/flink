@@ -90,15 +90,17 @@ cdef class BeamSizeBasedOutputStream(LengthPrefixOutputStream):
         self._output_stream.flush()
         self._output_pos = 0
 
-    cdef void parse_output_stream(self, BOutputStream output_stream):
+    cdef void reset_output_stream(self, BOutputStream output_stream):
         self._output_stream = output_stream
         self._output_data = output_stream.data
         self._output_pos = output_stream.pos
         self._output_buffer_size = output_stream.buffer_size
 
-    cdef void _maybe_flush(self):
+    cdef bint _maybe_flush(self):
         if self._output_pos > 10_000_000:
             self.flush()
+            return True
+        return False
 
 cdef class BeamTimeBasedOutputStream(BeamSizeBasedOutputStream):
     def __init__(self, *args, **kwargs):
@@ -108,15 +110,16 @@ cdef class BeamTimeBasedOutputStream(BeamSizeBasedOutputStream):
         self._periodic_flusher.start()
 
     cpdef void notify_flush(self):
-        if not self._flush_event:
-            self._flush_event = True
-
-    cdef void _maybe_flush(self):
-        if self._flush_event or self._output_pos > 10_000_000:
-            self.flush()
-            self._flush_event = False
+        self._flush_event = True
 
     cpdef void close(self):
         if self._periodic_flusher:
             self._periodic_flusher.cancel()
             self._periodic_flusher = None
+
+    cdef bint _maybe_flush(self):
+        if self._flush_event:
+            self.flush()
+            self._flush_event = False
+        elif BeamSizeBasedOutputStream._maybe_flush(self):
+            self._flush_event = False

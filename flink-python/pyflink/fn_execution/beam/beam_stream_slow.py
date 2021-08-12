@@ -51,12 +51,11 @@ class BeamTimeBasedOutputStream(create_OutputStream):
             self._output_stream.flush()
             self._flush_event = False
 
-    def parse_output_stream(self, output_stream: create_OutputStream):
+    def reset_output_stream(self, output_stream: create_OutputStream):
         self._output_stream = output_stream
 
     def notify_flush(self):
-        if not self._flush_event:
-            self._flush_event = True
+        self._flush_event = True
 
     def close(self):
         if self._periodic_flusher:
