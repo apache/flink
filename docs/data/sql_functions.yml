@@ -596,6 +596,43 @@ json:
         'strict $.b' FALSE ON ERROR);
       ```
 
+  - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
+    table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
+    description: |
+      Extracts a scalar from a JSON string.
+
+      This method searches a JSON string for a given path expression and returns the value if the
+      value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
+      returned as `STRING`. Using `returningType` a different type can be chosen, with the following
+      types being supported:
+
+      * `VARCHAR` / `STRING`
+      * `BOOLEAN`
+      * `INTEGER`
+      * `DOUBLE`
+
+      For empty path expressions or errors a behavior can be defined to either return `null`, raise
+      an error or return a defined default value instead. When omitted, the default is
+      `NULL ON EMPTY` or `NULL ON ERROR`, respectively. The default value may be a literal or an
+      expression. If the default value itself raises an error, it falls through to the error
+      behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
+
+      ```
+      // STRING: "true"
+      JSON_VALUE('{"a": true}', '$.a')
+
+      // BOOLEAN: true
+      JSON_VALUE('{"a": true}', '$.a' RETURNING BOOLEAN)
+
+      // STRING: "false"
+      JSON_VALUE('{"a": true}', 'lax $.b'
+          DEFAULT FALSE ON EMPTY)
+
+      // STRING: "false"
+      JSON_VALUE('{"a": true}', 'strict $.b'
+          DEFAULT FALSE ON ERROR)
+      ```
+
 valueconstruction:
   - sql: |
       -- implicit constructor with parenthesis

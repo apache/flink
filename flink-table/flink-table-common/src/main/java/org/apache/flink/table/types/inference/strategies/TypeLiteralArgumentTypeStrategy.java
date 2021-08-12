@@ -46,6 +46,6 @@ public class TypeLiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<TYPE LITERAL NOT NULL>");
+        return Signature.Argument.of("<DATA TYPE NOT NULL>");
     }
 }
