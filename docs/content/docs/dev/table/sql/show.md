@@ -507,7 +507,7 @@ Show all loaded modules and enabled status with resolution order.
 SHOW JARS
 ```
 
-Show all added jars in the session classloader.
+Show all added jars in the session classloader which are added by [`ADD JAR`](link) statement. 
 
 <span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the SQL CLI.
 
