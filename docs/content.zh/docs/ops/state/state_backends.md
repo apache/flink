@@ -112,18 +112,18 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"));
+env.setStateBackend(new HashMapStateBackend());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"))
+env.setStateBackend(new HashMapStateBackend())
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-如果你想在 IDE 中使用 `RocksDBStateBackend`，或者需要在作业中通过编程方式动态配置 `RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
+如果你想在 IDE 中使用 `EmbeddedRocksDBStateBackend`，或者需要在作业中通过编程方式动态配置它，必须添加以下依赖到 Flink 项目中。
 
 ```xml
 <dependency>
@@ -143,9 +143,9 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 
 在 `flink-conf.yaml` 可以通过键 `state.backend` 设置默认的 State Backend。
 
-可选值包括 *jobmanager* (MemoryStateBackend)、*filesystem* (FsStateBackend)、*rocksdb* (RocksDBStateBackend)，
+可选值包括 *jobmanager* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend)，
 或使用实现了 state backend 工厂 [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java) 的类的全限定类名，
-例如： RocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory`。
+例如： EmbeddedRocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory`。
 
 `state.checkpoints.dir` 选项指定了所有 State Backend 写 CheckPoint 数据和写元数据文件的目录。
 你能在 [这里]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure) 找到关于 CheckPoint 目录结构的详细信息。
@@ -165,11 +165,11 @@ state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 
 # RocksDB State Backend 进阶
 
-*该小节描述 RocksDBStateBackend 的更多细节*
+*该小节描述 RocksDB state backend 的更多细节*
 
 ### 增量快照
 
-RocksDBStateBackend 支持*增量快照*。不同于产生一个包含所有数据的全量备份，增量快照中只包含自上一次快照完成之后被修改的记录，因此可以显著减少快照完成的耗时。
+RocksDB 支持*增量快照*。不同于产生一个包含所有数据的全量备份，增量快照中只包含自上一次快照完成之后被修改的记录，因此可以显著减少快照完成的耗时。
 
 一个增量快照是基于（通常多个）前序快照构建的。由于 RocksDB 内部存在 compaction 机制对 sst 文件进行合并，Flink 的增量快照也会定期重新设立起点（rebase），因此增量链条不会一直增长，旧快照包含的文件也会逐渐过期并被自动清理。
 
@@ -177,7 +177,7 @@ RocksDBStateBackend 支持*增量快照*。不同于产生一个包含所有数�
 
 虽然状态数据量很大时我们推荐使用增量快照，但这并不是默认的快照机制，您需要通过下述配置手动开启该功能：
   - 在 `flink-conf.yaml` 中设置：`state.backend.incremental: true` 或者
-  - 在代码中按照右侧方式配置（来覆盖默认配置）：`RocksDBStateBackend backend = new RocksDBStateBackend(filebackend, true);`
+  - 在代码中按照右侧方式配置（来覆盖默认配置）：`EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);`
 
 需要注意的是，一旦启用了增量快照，网页上展示的 `Checkpointed Data Size` 只代表增量上传的数据量，而不是一次快照的完整数据量。
 
@@ -214,11 +214,11 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 计时器（Timer）用于安排稍后的操作（基于事件时间或处理时间），例如触发窗口或回调 `ProcessFunction`。
 
-当选择 RocksDBStateBackend 时，默认情况下计时器也存储在 RocksDB 中。这是一种健壮且可扩展的方式，允许应用程序使用很多个计时器。另一方面，在 RocksDB 中维护计时器会有一定的成本，因此 Flink 也提供了将计时器存储在 JVM 堆上而使用 RocksDB 存储其他状态的选项。当计时器数量较少时，基于堆的计时器可以有更好的性能。
+当选择 RocksDB 作为 State Backend 时，默认情况下计时器也存储在 RocksDB 中。这是一种健壮且可扩展的方式，允许应用程序使用很多个计时器。另一方面，在 RocksDB 中维护计时器会有一定的成本，因此 Flink 也提供了将计时器存储在 JVM 堆上而使用 RocksDB 存储其他状态的选项。当计时器数量较少时，基于堆的计时器可以有更好的性能。
 
 您可以通过将 `state.backend.rocksdb.timer-service.factory` 配置项设置为 `heap`（而不是默认的 `rocksdb`）来将计时器存储在堆上。
 
-<span class="label label-info">注意</span> *在 RocksDBStateBackend 中使用基于堆的计时器的组合当前不支持计时器状态的异步快照。其他状态（如 keyed state）可以被异步快照。*
+<span class="label label-info">注意</span> *在 RocksDB state backend 中使用基于堆的计时器的组合当前不支持计时器状态的异步快照。其他状态（如 keyed state）可以被异步快照。*
 
 ### 开启 RocksDB 原生监控指标
 
@@ -237,7 +237,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 有两种方法可以选择要应用的预定义选项：
   - 通过 `state.backend.rocksdb.predefined-options` 配置项将选项名称设置进 `flink-conf.yaml` 。
-  - 通过程序设置：`RocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)` 。
+  - 通过程序设置：`EmbeddedRocksDBStateBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)` 。
 
 该选项的默认值是 `DEFAULT` ，对应 `PredefinedOptions.DEFAULT` 。
 
@@ -247,11 +247,11 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 您也可以通过配置一个 `RocksDBOptionsFactory` 来手动控制 RocksDB 的选项。此机制使您可以对列族的设置进行细粒度控制，例如内存使用、线程、Compaction 设置等。目前每个算子的每个状态都在 RocksDB 中有专门的一个列族存储。
 
-有两种方法可以将 `RocksDBOptionsFactory` 传递给 RocksDBStateBackend：
+有两种方法可以将 `RocksDBOptionsFactory` 传递给 RocksDB State Backend：
 
   - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到`flink-conf.yaml` 。
   
-  - 通过程序设置，例如 `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
+  - 通过程序设置，例如 `EmbeddedRocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
   
 <span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 `flink-conf.yaml` 配置文件的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
 
