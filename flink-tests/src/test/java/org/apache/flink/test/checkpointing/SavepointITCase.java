@@ -88,12 +88,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -127,16 +125,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.allOf;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+import static org.apache.flink.util.ExceptionUtils.assertThrowable;
+import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -469,9 +467,8 @@ public class SavepointITCase extends TestLogger {
 
             fail();
         } catch (ExecutionException e) {
-            assertTrue(
-                    ExceptionUtils.findThrowable(e, FlinkJobNotFoundException.class).isPresent());
-            assertTrue(ExceptionUtils.findThrowableWithMessage(e, jobID.toString()).isPresent());
+            assertThrowable(e, FlinkJobNotFoundException.class);
+            assertThrowableWithMessage(e, jobID.toString());
         } finally {
             cluster.after();
         }
@@ -510,13 +507,9 @@ public class SavepointITCase extends TestLogger {
 
             fail();
         } catch (ExecutionException e) {
-            assertTrue(ExceptionUtils.findThrowable(e, IllegalStateException.class).isPresent());
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(e, graph.getJobID().toString())
-                            .isPresent());
-            assertTrue(
-                    ExceptionUtils.findThrowableWithMessage(e, "is not a streaming job")
-                            .isPresent());
+            assertThrowable(e, IllegalStateException.class);
+            assertThrowableWithMessage(e, graph.getJobID().toString());
+            assertThrowableWithMessage(e, "is not a streaming job");
         } finally {
             cluster.after();
         }
@@ -576,12 +569,6 @@ public class SavepointITCase extends TestLogger {
             snapshotStartedLatch = new CountDownLatch(parallelism);
             inputEnded = false;
         }
-    }
-
-    private static boolean ischeckpointcoordinatorshutdownError(Throwable throwable) {
-        return ExceptionUtils.findThrowable(throwable, CheckpointException.class)
-                .filter(e -> e.getCheckpointFailureReason() == CHECKPOINT_COORDINATOR_SHUTDOWN)
-                .isPresent();
     }
 
     @Test
@@ -671,9 +658,9 @@ public class SavepointITCase extends TestLogger {
                 submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
             } catch (Exception e) {
                 Optional<JobExecutionException> expectedJobExecutionException =
-                        ExceptionUtils.findThrowable(e, JobExecutionException.class);
+                        findThrowable(e, JobExecutionException.class);
                 Optional<FileNotFoundException> expectedFileNotFoundException =
-                        ExceptionUtils.findThrowable(e, FileNotFoundException.class);
+                        findThrowable(e, FileNotFoundException.class);
                 if (!(expectedJobExecutionException.isPresent()
                         && expectedFileNotFoundException.isPresent())) {
                     throw e;
@@ -741,13 +728,15 @@ public class SavepointITCase extends TestLogger {
                         .get();
                 fail("The future should fail exceptionally.");
             } catch (ExecutionException e) {
-                assertThat(
-                        e.getMessage(),
-                        CoreMatchers.startsWith(
-                                "org.apache.flink.util.FlinkException: Inconsistent execution state"
-                                        + " after stopping with savepoint. At least one execution"
-                                        + " is still in one of the following states: FAILED. "
-                                        + "A global fail-over is triggered to recover the job"));
+                assertThrowable(
+                        e,
+                        ex ->
+                                ex.getMessage()
+                                        .startsWith(
+                                                "org.apache.flink.util.FlinkException: Inconsistent execution state"
+                                                        + " after stopping with savepoint. At least one execution"
+                                                        + " is still in one of the following states: FAILED. "
+                                                        + "A global fail-over is triggered to recover the job"));
             }
         } finally {
             cluster.after();
@@ -804,35 +793,37 @@ public class SavepointITCase extends TestLogger {
         }
     }
 
-    private static BiConsumer<JobID, ExecutionException> assertAfterSnapshotCreationFailure() {
+    private static BiFunction<JobID, ExecutionException, Boolean>
+            assertAfterSnapshotCreationFailure() {
         return (jobId, actualException) -> {
             if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
-                assertThat(
-                        actualException,
-                        containsMessage("Stop with savepoint operation could not be completed"));
+                return actualException
+                        .getMessage()
+                        .contains("Stop with savepoint operation could not be completed");
             } else {
                 Optional<FlinkException> actualFlinkException =
-                        ExceptionUtils.findThrowable(actualException, FlinkException.class);
-                assertTrue(actualFlinkException.isPresent());
-
-                assertThat(
-                        actualFlinkException.get(),
-                        containsMessage(
+                        findThrowable(actualException, FlinkException.class);
+                if (!actualFlinkException.isPresent()) {
+                    return false;
+                }
+                return actualFlinkException
+                        .get()
+                        .getMessage()
+                        .contains(
                                 String.format(
                                         "A global fail-over is triggered to recover the job %s.",
-                                        jobId)));
+                                        jobId));
             }
         };
     }
 
-    private static BiConsumer<JobID, ExecutionException> assertInSnapshotCreationFailure() {
+    private static BiFunction<JobID, ExecutionException, Boolean>
+            assertInSnapshotCreationFailure() {
         return (ignored, actualException) -> {
             if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
-                assertThat(actualException, containsCause(FlinkException.class));
+                return findThrowable(actualException, FlinkException.class).isPresent();
             } else {
-                Optional<CheckpointException> actualFailureCause =
-                        ExceptionUtils.findThrowable(actualException, CheckpointException.class);
-                assertTrue(actualFailureCause.isPresent());
+                return findThrowable(actualException, CheckpointException.class).isPresent();
             }
         };
     }
@@ -862,7 +853,7 @@ public class SavepointITCase extends TestLogger {
             InfiniteTestSource failingSource,
             File savepointDir,
             int expectedMaximumNumberOfRestarts,
-            BiConsumer<JobID, ExecutionException> exceptionAssertion)
+            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion)
             throws Exception {
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -910,7 +901,7 @@ public class SavepointITCase extends TestLogger {
                         .get();
                 fail("The future should fail exceptionally.");
             } catch (ExecutionException e) {
-                exceptionAssertion.accept(jobGraph.getJobID(), e);
+                assertThrowable(e, ex -> exceptionAssertion.apply(jobGraph.getJobID(), e));
             }
 
             waitUntilAllTasksAreRunning(cluster.getRestAddres(), jobGraph.getJobID());
