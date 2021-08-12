@@ -2132,10 +2132,16 @@ public class CheckpointCoordinator {
     private static CheckpointException getCheckpointException(
             CheckpointFailureReason defaultReason, Throwable throwable) {
 
-        final Optional<CheckpointException> checkpointExceptionOptional =
-                findThrowable(throwable, CheckpointException.class);
-        return checkpointExceptionOptional.orElseGet(
-                () -> new CheckpointException(defaultReason, throwable));
+        final Optional<IOException> ioExceptionOptional =
+                findThrowable(throwable, IOException.class);
+        if (ioExceptionOptional.isPresent()) {
+            return new CheckpointException(CheckpointFailureReason.IO_EXCEPTION, throwable);
+        } else {
+            final Optional<CheckpointException> checkpointExceptionOptional =
+                    findThrowable(throwable, CheckpointException.class);
+            return checkpointExceptionOptional.orElseGet(
+                    () -> new CheckpointException(defaultReason, throwable));
+        }
     }
 
     private static class CheckpointIdAndStorageLocation {
