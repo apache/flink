@@ -27,6 +27,7 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
@@ -145,6 +146,8 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
+                            ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                                    .ON_SUSPENDED_CONNECTION,
                             fatalErrorHandlerResource.getFatalErrorHandler());
 
             writeLeaderInformationToZooKeeper(
@@ -175,6 +178,48 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
     }
 
     @Test
+    public void testSuspendedConnectionDoesNotClearLeaderInformationIfClearanceOnLostConnection()
+            throws Exception {
+        final String retrievalPath = "/testConnectionSuspendedHandling";
+        final String leaderAddress = "localhost";
+
+        final QueueLeaderElectionListener queueLeaderElectionListener =
+                new QueueLeaderElectionListener(1);
+        ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver = null;
+        try {
+            leaderRetrievalDriver =
+                    new ZooKeeperLeaderRetrievalDriver(
+                            zooKeeperClient,
+                            retrievalPath,
+                            queueLeaderElectionListener,
+                            ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                                    .ON_LOST_CONNECTION,
+                            fatalErrorHandlerResource.getFatalErrorHandler());
+
+            writeLeaderInformationToZooKeeper(
+                    leaderRetrievalDriver.getConnectionInformationPath(),
+                    leaderAddress,
+                    UUID.randomUUID());
+
+            // do the testing
+            CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
+            assertThat(
+                    "The first result is expected to be the initially set leader address.",
+                    firstAddress.get(),
+                    is(leaderAddress));
+
+            closeTestServer();
+
+            // make sure that no new leader information is published
+            assertThat(queueLeaderElectionListener.next(Duration.ofMillis(100L)), is(nullValue()));
+        } finally {
+            if (leaderRetrievalDriver != null) {
+                leaderRetrievalDriver.close();
+            }
+        }
+    }
+
+    @Test
     public void testSameLeaderAfterReconnectTriggersListenerNotification() throws Exception {
         final String retrievalPath = "/testSameLeaderAfterReconnectTriggersListenerNotification";
         final QueueLeaderElectionListener queueLeaderElectionListener =
@@ -186,6 +231,8 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
+                            ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                                    .ON_SUSPENDED_CONNECTION,
                             fatalErrorHandlerResource.getFatalErrorHandler());
 
             final String leaderAddress = "foobar";
@@ -254,6 +301,8 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             zooKeeperClient,
                             retrievalPath,
                             queueLeaderElectionListener,
+                            ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                                    .ON_SUSPENDED_CONNECTION,
                             fatalErrorHandlerResource.getFatalErrorHandler());
 
             final String leaderAddress = "foobar";
@@ -322,9 +371,10 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
         }
 
         public CompletableFuture<String> next() {
-            return next(null);
+            return Preconditions.checkNotNull(next(null));
         }
 
+        @Nullable
         public CompletableFuture<String> next(@Nullable Duration timeout) {
             try {
                 if (timeout == null) {
