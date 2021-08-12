@@ -44,4 +44,15 @@ public class DataStreamPythonFunctionInfo extends PythonFunctionInfo {
     public int getFunctionType() {
         return this.functionType;
     }
+
+    public DataStreamPythonFunctionInfo copy() {
+        if (getInputs().length == 0) {
+            return new DataStreamPythonFunctionInfo(getPythonFunction(), this.functionType);
+        } else {
+            return new DataStreamPythonFunctionInfo(
+                    getPythonFunction(),
+                    ((DataStreamPythonFunctionInfo) getInputs()[0]).copy(),
+                    this.functionType);
+        }
+    }
 }

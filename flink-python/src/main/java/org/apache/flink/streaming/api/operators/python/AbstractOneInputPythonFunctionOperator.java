@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
@@ -145,10 +144,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
         elementCount++;
         checkInvokeFinishBundleByCount();
         emitResults();
-    }
-
-    public Map<String, String> getInternalParameters() {
-        return Collections.emptyMap();
     }
 
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor() {
