@@ -45,16 +45,16 @@ Flink 内置了以下这些开箱即用的 state backends ：
  - *HashMapStateBackend*
  - *EmbeddedRocksDBStateBackend*
 
-如果不设置，默认使用 HashMapStateBackend
+如果不设置，默认使用 HashMapStateBackend。
 
 
 ### HashMapStateBackend
 
-在 *HashMapStateBackend* 内部，数据以 Java 对象的形式存储在堆中。 Key/value 形式的状态和窗口算子持有存储着状态值、触发器的 hash table。
+在 *HashMapStateBackend* 内部，数据以 Java 对象的形式存储在堆中。 Key/value 形式的状态和窗口算子会持有一个 hash table，其中存储着状态值、触发器。
 
 HashMapStateBackend 的适用场景：
 
-  - 有较大state，较长window和较大 key/value 状态的 jobs。
+  - 有较大 state，较长 window 和较大 key/value 状态的 Job。
   - 所有的高可用场景。
 
 建议同时将 [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) 设为0，以保证将最大限度的内存分配给 JVM 上的用户代码。
@@ -62,11 +62,11 @@ HashMapStateBackend 的适用场景：
 ### EmbeddedRocksDBStateBackend
 
 EmbeddedRocksDBStateBackend 将正在运行中的状态数据保存在 [RocksDB](http://rocksdb.org) 数据库中，RocksDB 数据库默认将数据存储在 TaskManager 的数据目录。
-不同于 `HashMapStateBackend` 中的 java objects，数据被以 serialized byte array 的方式存储，这种方式由 type serializer 决定，因此 key 之间的比较是以 byte-wise的形式进行而不是使用 Java 的 `hashCode` 或 `equals()` 方法。
+不同于 `HashMapStateBackend` 中的 java 对象，数据被以序列化字节数组的方式存储，这种方式由序列化器决定，因此 key 之间的比较是以字节序的形式进行而不是使用 Java 的 `hashCode` 或 `equals()` 方法。
 
 EmbeddedRocksDBStateBackend 会使用异步的方式生成 snapshots。
 
-EmbeddedRocksDBStateBackend 会使用异步的方式生成的限制：
+EmbeddedRocksDBStateBackend 的局限：
 
   - 由于 RocksDB 的 JNI API 构建在 byte[] 数据结构之上, 所以每个 key 和 value 最大支持 2^31 字节。
   RocksDB 合并操作的状态（例如：ListState）累积数据量大小可以超过 2^31 字节，但是会在下一次获取数据时失败。这是当前 RocksDB JNI 的限制。
@@ -86,7 +86,7 @@ EmbeddedRocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Bac
 
 可以使用一些 RocksDB 的本地指标(metrics)，但默认是关闭的。你能在 [这里]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics) 找到关于 RocksDB 本地指标的文档。
 
-RocksDB instance 中每个 slot 的内存大小是有限制的，请参考 [这里]({{< ref "docs/ops/state/large_state_tuning" >}})。
+每个 slot 中的 RocksDB instance 的内存大小是有限制的，详情请见 [这里]({{< ref "docs/ops/state/large_state_tuning" >}})。
 
 # 选择合适的 State Backend
 
@@ -134,9 +134,9 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </dependency>
 ```
 
-<div class="alert alert-info" markdown="span">
-  <strong>注意:</strong> 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
-</div>
+{{< hint info >}}
+  **注意:** 由于 RocksDB 是 Flink 默认分发包的一部分，所以如果你没在代码中使用 RocksDB，则不需要添加此依赖。而且可以在 `flink-conf.yaml` 文件中通过 `state.backend` 配置 State Backend，以及更多的 [checkpointing]({{< ref "docs/deployment/config" >}}#checkpointing) 和 [RocksDB 特定的]({{< ref "docs/deployment/config" >}}#rocksdb-state-backend) 参数。
+{{< /hint >}}
 
 
 ### 设置默认的（全局的） State Backend
@@ -225,9 +225,9 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 您可以选择使用 Flink 的监控指标系统来汇报 RocksDB 的原生指标，并且可以选择性的指定特定指标进行汇报。
 请参阅 [configuration docs]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics) 了解更多详情。
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 启用 RocksDB 的原生指标可能会对应用程序的性能产生负面影响。
-</div>
+{{< hint warning >}}
+  **注意：** 启用 RocksDB 的原生指标可能会对应用程序的性能产生负面影响。
+{{< /hint >}}
 
 ### 列族（ColumnFamily）级别的预定义选项
 
@@ -305,7 +305,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
 从 **Flink 1.13** 版本开始，社区改进了 state backend 的公开类，进而帮助用户更好理解本地状态存储和 checkpoint 存储的区分。
 这个变化并不会影响 state backend 和 checkpointing 过程的运行时实现和机制，仅仅是为了更好地传达设计意图。
-用户可以在没有任何 state 或者 consistency 失效的情况下使用新的 API。
+用户可以将现有作业迁移到新的 API，同时不会损失原有 state。
 
 
 ### MemoryStateBackend
