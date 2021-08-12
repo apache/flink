@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -39,6 +40,7 @@ import java.lang.management.RuntimeMXBean;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -198,6 +200,45 @@ public class CommonTestUtils {
             SupplierWithException<JobStatus, Exception> jobStatusSupplier, Deadline timeout)
             throws Exception {
         waitUntilCondition(() -> jobStatusSupplier.get() != JobStatus.INITIALIZING, timeout, 20L);
+    }
+
+    public static void waitForJobStatus(
+            JobClient client, List<JobStatus> expectedStatus, Deadline deadline) throws Exception {
+        waitUntilCondition(
+                () -> {
+                    final JobStatus currentStatus = client.getJobStatus().get();
+
+                    // Entered an expected status
+                    if (expectedStatus.contains(currentStatus)) {
+                        return true;
+                    }
+
+                    // Entered a terminal status but not expected
+                    if (currentStatus.isTerminalState()) {
+                        try {
+                            // Exception will be exposed here if job failed
+                            client.getJobExecutionResult().get();
+                        } catch (Exception e) {
+                            throw new IllegalStateException(
+                                    String.format(
+                                            "Job has entered %s state, but expecting %s",
+                                            currentStatus, expectedStatus),
+                                    e);
+                        }
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Job has entered a terminal state %s, but expecting %s",
+                                        currentStatus, expectedStatus));
+                    }
+
+                    // Continue waiting for expected status
+                    return false;
+                },
+                deadline);
+    }
+
+    public static void terminateJob(JobClient client, Duration timeout) throws Exception {
+        client.cancel().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     /** Utility class to read the output of a process stream and forward it into a StringWriter. */
