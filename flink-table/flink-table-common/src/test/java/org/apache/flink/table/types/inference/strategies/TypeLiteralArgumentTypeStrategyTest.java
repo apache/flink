@@ -39,12 +39,12 @@ public class TypeLiteralArgumentTypeStrategyTest extends InputTypeStrategiesTest
                         .calledWithArgumentTypes(DataTypes.STRING())
                         .calledWithLiteralAt(0, DataTypes.STRING())
                         .expectArgumentTypes(DataTypes.STRING())
-                        .expectSignature("f(<TYPE LITERAL NOT NULL>)"),
+                        .expectSignature("f(<DATA TYPE NOT NULL>)"),
                 TestSpec.forStrategy("Value literal", sequence(TYPE_LITERAL))
                         .calledWithArgumentTypes(DataTypes.STRING())
                         .calledWithLiteralAt(0, "Test")
                         .expectErrorMessage(
                                 String.format(
-                                        "Invalid input arguments. Expected signatures are:%nf(<TYPE LITERAL NOT NULL>)")));
+                                        "Invalid input arguments. Expected signatures are:%nf(<DATA TYPE NOT NULL>)")));
     }
 }

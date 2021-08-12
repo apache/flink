@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
@@ -49,6 +50,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.COMMON_
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
@@ -63,6 +65,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
+import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
@@ -1501,6 +1504,23 @@ public final class BuiltInFunctionDefinitions {
                                                     LITERAL),
                                             symbol(JsonExistsOnError.class))))
                     .outputTypeStrategy(explicit(DataTypes.BOOLEAN().nullable()))
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition JSON_VALUE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_VALUE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
+                                    TYPE_LITERAL,
+                                    symbol(JsonValueOnEmptyOrError.class),
+                                    ANY,
+                                    symbol(JsonValueOnEmptyOrError.class),
+                                    ANY))
+                    .outputTypeStrategy(forceNullable(argument(2)))
                     .runtimeDeferred()
                     .build();
 

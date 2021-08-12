@@ -21,8 +21,10 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -87,6 +89,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LIKE;
@@ -1322,5 +1325,141 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType jsonExists(String path) {
         return toApiSpecificExpression(unresolvedCall(JSON_EXISTS, toExpr(), valueLiteral(path)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}. Using {@param returningType} a different type can
+     * be chosen, with the following types being supported:
+     *
+     * <ul>
+     *   <li>{@link DataTypes#STRING()}
+     *   <li>{@link DataTypes#BOOLEAN()}
+     *   <li>{@link DataTypes#INT()}
+     *   <li>{@link DataTypes#DOUBLE()}
+     * </ul>
+     *
+     * <p>For empty path expressions or errors a behavior can be defined to either return {@code
+     * null}, raise an error or return a defined default value instead.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // STRING: "true"
+     * lit("{\"a\": true}").jsonValue("$.a")
+     *
+     * // BOOLEAN: true
+     * lit("{\"a\": true}").jsonValue("$.a", DataTypes.BOOLEAN())
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("lax $.b",
+     *     JsonValueOnEmptyOrError.DEFAULT, false, JsonValueOnEmptyOrError.NULL, null)
+     *
+     * // BOOLEAN: "false"
+     * lit("{\"a\": true}").jsonValue("strict $.b",
+     *     JsonValueOnEmptyOrError.NULL, null, JsonValueOnEmptyOrError.DEFAULT, false)
+     * }</pre>
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @param onEmpty Behavior in case the path expression is empty.
+     * @param defaultOnEmpty Default value to return if the path expression is empty and {@param
+     *     onEmpty} is set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @param onError Behavior in case of an error.
+     * @param defaultOnError Default value to return if there is an error and {@param onError} is
+     *     set to {@link JsonValueOnEmptyOrError#DEFAULT}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(
+            String path,
+            DataType returningType,
+            JsonValueOnEmptyOrError onEmpty,
+            InType defaultOnEmpty,
+            JsonValueOnEmptyOrError onError,
+            InType defaultOnError) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        JSON_VALUE,
+                        toExpr(),
+                        valueLiteral(path),
+                        typeLiteral(returningType),
+                        valueLiteral(onEmpty),
+                        objectToExpression(defaultOnEmpty),
+                        valueLiteral(onError),
+                        objectToExpression(defaultOnError)));
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.NULL,
+                null,
+                JsonValueOnEmptyOrError.NULL,
+                null);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * <p>This is a convenience method using {@link JsonValueOnEmptyOrError#DEFAULT} for both empty
+     * and error cases with the same default value.
+     *
+     * @param path JSON path to extract.
+     * @param returningType Type to convert the extracted scalar to, otherwise defaults to {@link
+     *     DataTypes#STRING()}.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path, DataType returningType, InType defaultOnEmptyOrError) {
+        return jsonValue(
+                path,
+                returningType,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError,
+                JsonValueOnEmptyOrError.DEFAULT,
+                defaultOnEmptyOrError);
+    }
+
+    /**
+     * Extracts a scalar from a JSON string.
+     *
+     * <p>This method searches a JSON string for a given path expression and returns the value if
+     * the value at that path is scalar. Non-scalar values cannot be returned. By default, the value
+     * is returned as {@link DataTypes#STRING()}.
+     *
+     * <p>See also {@link #jsonValue(String, DataType, JsonValueOnEmptyOrError, Object,
+     * JsonValueOnEmptyOrError, Object)}.
+     *
+     * @param path JSON path to extract.
+     * @return The extracted scalar value.
+     */
+    public OutType jsonValue(String path) {
+        return jsonValue(path, DataTypes.STRING());
     }
 }

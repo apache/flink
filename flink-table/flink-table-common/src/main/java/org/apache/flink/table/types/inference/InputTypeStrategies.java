@@ -198,7 +198,7 @@ public final class InputTypeStrategies {
     public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL =
             new LiteralArgumentTypeStrategy(true);
 
-    /** Strategy that checks if an argument is a literal. */
+    /** Strategy that checks if an argument is a type literal. */
     public static final TypeLiteralArgumentTypeStrategy TYPE_LITERAL =
             new TypeLiteralArgumentTypeStrategy();
 
