@@ -133,12 +133,6 @@ public class PythonKeyedProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        if (getConfig().getConfig().containsKey("loopback.server.address")) {
-            getJobOptions()
-                    .put(
-                            "loopback.server.address",
-                            getConfig().getConfig().getString("loopback.server.address", null));
-        }
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
@@ -243,7 +237,7 @@ public class PythonKeyedProcessOperator<OUT>
     public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new PythonKeyedProcessOperator<>(
-                getConfig().getConfig(),
+                getPythonConfig().getConfig(),
                 pythonFunctionInfo,
                 (RowTypeInfo) getInputTypeInfo(),
                 outputTypeInfo,

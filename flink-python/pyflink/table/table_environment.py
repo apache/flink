@@ -1748,17 +1748,15 @@ class TableEnvironment(object):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         if not self._remote_mode and \
                 is_local_deployment(get_j_env_configuration(self._get_j_env())):
-            j_config = self.get_config().get_configuration()
+            j_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getMergedConfig(
+                self._j_tenv, self.get_config()._j_table_config)
             parallelism = int(j_config.get_string("parallelism.default", "1"))
 
             if parallelism > 1 and j_config.contains_key(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
                 import logging
-                logging.warning("Currently in MiniCluster mode, if you use the API "
-                                "add_python_archive of TableEnvironment and set the "
-                                "parallelism bigger than 1, the executed python "
-                                "function will be a separate python process. "
-                                "In this mode, you will need to take use of the remote debug way "
-                                "to debug your python function.")
+                logging.warning("Lookback mode is disabled as python archives are used and the "
+                                "parallelism of the job is greater than 1. The Python user-defined "
+                                "functions will be executed in an independent Python process.")
             else:
                 from pyflink.fn_execution.beam.beam_worker_pool_service import \
                     BeamFnLoopbackWorkerPoolServicer

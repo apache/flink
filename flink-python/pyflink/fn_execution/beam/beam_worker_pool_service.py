@@ -124,16 +124,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
         sdk_pipeline_options = sdk_worker_main._parse_pipeline_options(options)
 
-        semi_persistent_directory = start_worker_request.params['SEMI_PERSISTENT_DIRECTORY']
-
         _worker_id = start_worker_request.worker_id
-
-        try:
-            sdk_worker_main._load_main_session(semi_persistent_directory)
-        except Exception:  # pylint: disable=broad-except
-            exception_details = traceback.format_exc()
-            _LOGGER.error(
-                'Could not load main session: %s', exception_details, exc_info=True)
 
         try:
             control_service_descriptor = endpoints_pb2.ApiServiceDescriptor(url=control_endpoint)

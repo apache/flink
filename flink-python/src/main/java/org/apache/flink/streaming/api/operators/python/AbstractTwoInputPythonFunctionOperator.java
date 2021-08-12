@@ -54,14 +54,14 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
-
     /** The left input type. */
     private final TypeInformation<IN1> inputTypeInfo1;
 
     /** The right input type. */
     private final TypeInformation<IN2> inputTypeInfo2;
+
+    /** The options used to configure the Python worker process. */
+    private transient Map<String, String> jobOptions;
 
     /** The TypeInformation of python worker input data. */
     private transient TypeInformation<Row> runnerInputTypeInfo;
@@ -89,7 +89,6 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
             TypeInformation<IN2> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, outputTypeInfo);
-        this.jobOptions = config.toMap();
         this.inputTypeInfo1 = Preconditions.checkNotNull(inputTypeInfo1);
         this.inputTypeInfo2 = Preconditions.checkNotNull(inputTypeInfo2);
     }
@@ -109,6 +108,8 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
         runnerInputHandler = new RunnerInputHandler();
         runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
+
+        jobOptions = config.toMap();
 
         super.open();
     }

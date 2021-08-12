@@ -55,9 +55,9 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 
 ### Local Debug
 
-You can debug your python functions directly in PyCharm.
+You can debug your python functions directly in IDEs such as PyCharm.
 
-**Note:** Currently, if your job take use of config `python-archives` and the parallelism of the job is bigger than `1`, you can only use [remote debug](#remote-debug) mode.
+**Note:** Currently, if you use `python-archives` in the job and the parallelism of the job is greater than `1`, you can only use [remote debug](#remote-debug) mode.
 
 ### Remote Debug
 

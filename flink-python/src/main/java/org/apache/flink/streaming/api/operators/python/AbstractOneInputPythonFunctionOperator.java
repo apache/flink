@@ -56,11 +56,11 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
-
     /** The TypeInformation of input data. */
     private final TypeInformation<IN> inputTypeInfo;
+
+    /** The options used to configure the Python worker process. */
+    private transient Map<String, String> jobOptions;
 
     /** The TypeInformation of runner input data. */
     private transient TypeInformation<Row> runnerInputTypeInfo;
@@ -96,7 +96,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, outputTypeInfo);
-        this.jobOptions = config.toMap();
         this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
     }
 
@@ -118,6 +117,8 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 
         runnerInputHandler = new RunnerInputHandler();
         runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
+
+        jobOptions = config.toMap();
 
         super.open();
     }
