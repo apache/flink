@@ -98,6 +98,14 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredOperatorIOMetricGroup();
     }
 
+    public static SourceReaderMetricGroup createSourceReaderMetricGroup() {
+        return new UnregisteredSourceReaderMetricGroup();
+    }
+
+    public static SplitEnumeratorMetricGroup createSplitEnumeratorMetricGroup() {
+        return new UnregisteredSplitEnumeratorMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -126,6 +134,46 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         @Override
         public Counter getNumBytesOutCounter() {
             return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
+            implements SourceReaderMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public void setPendingBytesGauge(Gauge<Long> pendingBytesGauge) {}
+
+        @Override
+        public void setPendingRecordsGauge(Gauge<Long> pendingRecordsGauge) {}
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+    }
+
+    private static class UnregisteredSplitEnumeratorMetricGroup extends UnregisteredMetricsGroup
+            implements SplitEnumeratorMetricGroup {
+        @Override
+        public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
+            return null;
         }
     }
 }
