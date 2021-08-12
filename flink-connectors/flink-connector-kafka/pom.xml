@@ -210,6 +210,12 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-testing_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -224,7 +230,8 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/KafkaTestEnvironmentImpl*</include>
+								<include>**/KafkaTestEnvironment*</include>
+								<include>**/testutils/*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -247,7 +254,8 @@ under the License.
 								<addMavenDescriptor>false</addMavenDescriptor>
 							</archive>
 							<includes>
-								<include>**/KafkaTestEnvironmentImpl*</include>
+								<include>**/KafkaTestEnvironment*</include>
+								<include>**/testutils/*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
