@@ -25,6 +25,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="how-to-use-logging"></a>
+
 # 如何使用日志记录
 
 所有 Flink 进程都会创建一个文本格式的日志文件，其中包含该进程中发生的各种事件的信息。
