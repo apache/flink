@@ -140,22 +140,11 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.*;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -503,9 +492,12 @@ public class SqlToOperationConverter {
                     parseLanguage(sqlCreateFunction.getFunctionLanguage()));
         } else {
             FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
+            Map<String, Object> parameter =
+                    parseFunctionParameter(sqlCreateFunction.getFunctionParamter());
             CatalogFunction catalogFunction =
                     new CatalogFunctionImpl(
                             sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
+                            parameter,
                             language);
             ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
@@ -517,6 +509,12 @@ public class SqlToOperationConverter {
         }
     }
 
+    private Map<String, Object> parseFunctionParameter(SqlCharStringLiteral functionParamter) {
+        return Arrays.stream(functionParamter.getValueAs(String.class).split(","))
+                .map(entry -> entry.split("="))
+                .collect(Collectors.toMap(entry -> entry[0].trim(), entry -> entry[1].trim()));
+    }
+
     /** Convert ALTER FUNCTION statement. */
     private Operation convertAlterFunction(SqlAlterFunction sqlAlterFunction) {
         if (sqlAlterFunction.isSystemFunction()) {
@@ -526,7 +524,9 @@ public class SqlToOperationConverter {
         FunctionLanguage language = parseLanguage(sqlAlterFunction.getFunctionLanguage());
         CatalogFunction catalogFunction =
                 new CatalogFunctionImpl(
-                        sqlAlterFunction.getFunctionClassName().getValueAs(String.class), language);
+                        sqlAlterFunction.getFunctionClassName().getValueAs(String.class),
+                        null,
+                        language);
 
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());

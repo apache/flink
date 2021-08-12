@@ -224,7 +224,7 @@ public final class FunctionCatalog {
         }
 
         final CatalogFunction catalogFunction =
-                new CatalogFunctionImpl(functionClass.getName(), FunctionLanguage.JAVA);
+                new CatalogFunctionImpl(functionClass.getName(), null, FunctionLanguage.JAVA);
         try {
             catalog.createFunction(path, catalogFunction, ignoreIfExists);
         } catch (Throwable t) {
@@ -681,6 +681,12 @@ public final class FunctionCatalog {
             // has a class name, there is no guarantee that the new UDF object constructed from the
             // class name is the same as the UDF held by this object. To reduce the chance of making
             // mistakes, UnsupportedOperationException is thrown here.
+            throw new UnsupportedOperationException(
+                    "This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
+        }
+
+        @Override
+        public Map<String, Object> getParameter() {
             throw new UnsupportedOperationException(
                     "This CatalogFunction is a InlineCatalogFunction. This method should not be called.");
         }

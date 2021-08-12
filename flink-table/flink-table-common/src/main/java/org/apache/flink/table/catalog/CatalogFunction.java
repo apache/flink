@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import java.util.Map;
 import java.util.Optional;
 
 /** Interface for a function in a catalog. */
@@ -29,6 +30,8 @@ public interface CatalogFunction {
      * @return the full name of the class
      */
     String getClassName();
+
+    Map<String, Object> getParameter();
 
     /**
      * Create a deep copy of the function.

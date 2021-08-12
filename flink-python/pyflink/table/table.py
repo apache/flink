@@ -810,7 +810,7 @@ class Table(object):
         :param func: user-defined scalar function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return Table(self._j_table.map(func), self._t_env)
@@ -842,7 +842,7 @@ class Table(object):
         :param func: user-defined table function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return Table(self._j_table.flatMap(func), self._t_env)
@@ -879,7 +879,7 @@ class Table(object):
         :param func: user-defined aggregate function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)
@@ -936,7 +936,7 @@ class Table(object):
         :param func: user-defined table aggregate function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
@@ -1143,7 +1143,7 @@ class GroupedTable(object):
         :param func: user-defined aggregate function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)
@@ -1200,7 +1200,7 @@ class GroupedTable(object):
         :param func: user-defined table aggregate function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
@@ -1323,7 +1323,7 @@ class WindowGroupedTable(object):
         :param func: user-defined aggregate function.
         :return: The result table.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if isinstance(func, str):
             return AggregatedTable(self._j_table.aggregate(func), self._t_env)

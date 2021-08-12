@@ -136,7 +136,7 @@ class StreamExecutionEnvironment(object):
         :param execution_mode: The desired execution mode.
         :return: The execution environment of your application.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         return self._j_stream_execution_environment.setRuntimeMode(
             execution_mode._to_j_execution_mode())
@@ -728,7 +728,7 @@ class StreamExecutionEnvironment(object):
         sources that describe their produced type, the parameter type_info should not be specified
         to avoid specifying the produced type redundantly.
 
-        .. versionadded:: 1.13.0
+        .. versionadded:: 1.13.0-SNAPSHOT
         """
         if type_info:
             j_type_info = type_info.get_java_type_info()

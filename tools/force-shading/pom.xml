@@ -38,7 +38,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>force-shading</artifactId>
-	<version>1.13.0</version>
+	<version>1.13.0-SNAPSHOT</version>
 	<name>Flink : Tools : Force Shading</name>
 
 	<packaging>jar</packaging>
@@ -57,6 +57,18 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
+	<distributionManagement>
+		<repository>
+			<id> botech-common-release</id>
+			<name> Botech Common Release</name>
+			<url> http://192.168.3.249:8081/repository/botech-common-release/</url>
+		</repository>
+		<snapshotRepository>
+			<id>botech-common-snapshots</id>
+			<name>Botech Common Snapshots</name>
+			<url>http://192.168.3.249:8081/repository/botech-common-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<profiles>
 		<profile>

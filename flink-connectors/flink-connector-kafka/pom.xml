@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13.0</version>
+		<version>1.13.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kafka.version>2.4.1</kafka.version>
+		<kafka.version>2.4.2-SNAPSHOT</kafka.version>
 	</properties>
 
 	<dependencies>

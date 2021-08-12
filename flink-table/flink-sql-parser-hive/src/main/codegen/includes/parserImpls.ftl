@@ -1005,7 +1005,7 @@ SqlCreate SqlCreateFunction(Span s, boolean isTemporary) :
         functionClassName = createStringLiteral(token.image, getPos());
     }
     {
-        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, null,
+        return new SqlCreateFunction(s.pos(), functionIdentifier, functionClassName, null, null,
                 false, isTemporary, false);
     }
 }
