@@ -322,7 +322,18 @@ public class CliClient implements AutoCloseable {
     private boolean executeStatement(String statement, ExecutionMode executionMode) {
         try {
             final Optional<Operation> operation = parseCommand(statement);
-            operation.ifPresent(op -> callOperation(op, executionMode));
+            operation.ifPresent(
+                    op -> {
+                        final Thread thread = Thread.currentThread();
+                        final Terminal.SignalHandler previousHandler =
+                                terminal.handle(
+                                        Terminal.Signal.INT, (signal) -> thread.interrupt());
+                        try {
+                            callOperation(op, executionMode);
+                        } finally {
+                            terminal.handle(Terminal.Signal.INT, previousHandler);
+                        }
+                    });
         } catch (SqlExecutionException e) {
             printExecutionException(e);
             return false;
