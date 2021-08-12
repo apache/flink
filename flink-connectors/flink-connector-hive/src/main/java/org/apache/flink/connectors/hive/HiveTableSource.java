@@ -124,43 +124,47 @@ public class HiveTableSource
     @VisibleForTesting
     protected DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
         HiveSourceBuilder sourceBuilder =
-                new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable);
-        List<HiveTablePartition> allHivePartitions =
-                getAllPartitions(
-                        jobConf,
-                        hiveVersion,
-                        tablePath,
-                        catalogTable.getPartitionKeys(),
-                        remainingPartitions);
-
-        sourceBuilder
-                .setPartitions(allHivePartitions)
-                .setProjectedFields(projectedFields)
-                .setLimit(limit);
-
-        HiveSource<RowData> hiveSource = sourceBuilder.buildWithDefaultBulkFormat();
-        DataStreamSource<RowData> source =
-                execEnv.fromSource(
-                        hiveSource,
-                        WatermarkStrategy.noWatermarks(),
-                        "HiveSource-" + tablePath.getFullName());
+                new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
+                        .setProjectedFields(projectedFields)
+                        .setLimit(limit);
 
         if (isStreamingSource()) {
-            return source;
+            return toDataStreamSource(execEnv, sourceBuilder.buildWithDefaultBulkFormat());
         } else {
+            List<HiveTablePartition> hivePartitionsToRead =
+                    getAllPartitions(
+                            jobConf,
+                            hiveVersion,
+                            tablePath,
+                            catalogTable.getPartitionKeys(),
+                            remainingPartitions);
+
             int parallelism =
                     new HiveParallelismInference(tablePath, flinkConf)
                             .infer(
                                     () ->
                                             HiveSourceFileEnumerator.getNumFiles(
-                                                    allHivePartitions, jobConf),
+                                                    hivePartitionsToRead, jobConf),
                                     () ->
                                             HiveSourceFileEnumerator.createInputSplits(
-                                                            0, allHivePartitions, jobConf)
+                                                            0, hivePartitionsToRead, jobConf)
                                                     .size())
                             .limit(limit);
-            return source.setParallelism(parallelism);
+            return toDataStreamSource(
+                            execEnv,
+                            sourceBuilder
+                                    .setPartitions(hivePartitionsToRead)
+                                    .buildWithDefaultBulkFormat())
+                    .setParallelism(parallelism);
         }
+    }
+
+    private DataStreamSource<RowData> toDataStreamSource(
+            StreamExecutionEnvironment execEnv, HiveSource<RowData> hiveSource) {
+        return execEnv.fromSource(
+                hiveSource,
+                WatermarkStrategy.noWatermarks(),
+                "HiveSource-" + tablePath.getFullName());
     }
 
     protected boolean isStreamingSource() {

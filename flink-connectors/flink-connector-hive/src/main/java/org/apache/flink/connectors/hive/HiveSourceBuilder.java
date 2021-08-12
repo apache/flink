@@ -172,6 +172,8 @@ public class HiveSourceBuilder {
         ContinuousPartitionFetcher<Partition, ?> fetcher = null;
         HiveTableSource.HiveContinuousPartitionFetcherContext<?> fetcherContext = null;
         if (isStreamingSource()) {
+            Preconditions.checkState(
+                    partitions == null, "setPartitions shouldn't be called in streaming mode");
             if (partitionKeys.isEmpty()) {
                 FileSystemConnectorOptions.PartitionOrder partitionOrder =
                         configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
@@ -181,6 +183,15 @@ public class HiveSourceBuilder {
                                     + FileSystemConnectorOptions.PartitionOrder.CREATE_TIME
                                     + "' is supported for non partitioned table.");
                 }
+                // for non-partitioned table, we need to add the table to partitions because
+                // HiveSourceFileEnumerator needs it to create new splits
+                partitions =
+                        Collections.singletonList(
+                                HiveTablePartition.ofTable(
+                                        HiveConfUtils.create(jobConf),
+                                        hiveVersion,
+                                        tablePath.getDatabaseName(),
+                                        tablePath.getObjectName()));
             }
 
             Duration monitorInterval =

@@ -165,6 +165,7 @@ public class HiveSourceITCase {
                                 Collections.singletonList(
                                         HiveTablePartition.ofPartition(
                                                 hiveCatalog.getHiveConf(),
+                                                hiveCatalog.getHiveVersion(),
                                                 tablePath.getDatabaseName(),
                                                 tablePath.getObjectName(),
                                                 spec)))

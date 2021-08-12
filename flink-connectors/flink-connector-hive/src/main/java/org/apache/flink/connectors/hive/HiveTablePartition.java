@@ -30,6 +30,8 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.thrift.TException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -140,11 +142,14 @@ public class HiveTablePartition implements Serializable {
      * Creates a HiveTablePartition to represent a hive table.
      *
      * @param hiveConf the HiveConf used to connect to HMS
+     * @param hiveVersion the version of hive in use, if it's null the version will be automatically
+     *     detected
      * @param dbName name of the database
      * @param tableName name of the table
      */
-    public static HiveTablePartition ofTable(HiveConf hiveConf, String dbName, String tableName) {
-        HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+    public static HiveTablePartition ofTable(
+            HiveConf hiveConf, @Nullable String hiveVersion, String dbName, String tableName) {
+        HiveShim hiveShim = getHiveShim(hiveVersion);
         try (HiveMetastoreClientWrapper client =
                 new HiveMetastoreClientWrapper(hiveConf, hiveShim)) {
             Table hiveTable = client.getTable(dbName, tableName);
@@ -163,6 +168,8 @@ public class HiveTablePartition implements Serializable {
      * Creates a HiveTablePartition to represent a hive partition.
      *
      * @param hiveConf the HiveConf used to connect to HMS
+     * @param hiveVersion the version of hive in use, if it's null the version will be automatically
+     *     detected
      * @param dbName name of the database
      * @param tableName name of the table
      * @param partitionSpec map from each partition column to its value. The map should contain
@@ -171,10 +178,11 @@ public class HiveTablePartition implements Serializable {
      */
     public static HiveTablePartition ofPartition(
             HiveConf hiveConf,
+            @Nullable String hiveVersion,
             String dbName,
             String tableName,
             LinkedHashMap<String, String> partitionSpec) {
-        HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
+        HiveShim hiveShim = getHiveShim(hiveVersion);
         try (HiveMetastoreClientWrapper client =
                 new HiveMetastoreClientWrapper(hiveConf, hiveShim)) {
             Table hiveTable = client.getTable(dbName, tableName);
@@ -191,5 +199,10 @@ public class HiveTablePartition implements Serializable {
                             partitionSpec, dbName, tableName),
                     e);
         }
+    }
+
+    private static HiveShim getHiveShim(String hiveVersion) {
+        hiveVersion = hiveVersion != null ? hiveVersion : HiveShimLoader.getHiveVersion();
+        return HiveShimLoader.loadHiveShim(hiveVersion);
     }
 }
