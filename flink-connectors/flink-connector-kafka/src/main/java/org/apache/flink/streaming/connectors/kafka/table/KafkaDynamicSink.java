@@ -19,18 +19,21 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.connectors.kafka.sink.KafkaSinkBuilder;
-import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.ArrayData;
@@ -45,6 +48,7 @@ import org.apache.kafka.common.header.Header;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -185,44 +190,57 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         final SerializationSchema<RowData> valueSerialization =
                 createSerialization(context, valueEncodingFormat, valueProjection, null);
 
-        if (flushMode.isEnabled() && upsertMode) {
-            BufferedUpsertSinkFunction buffedSinkFunction =
-                    new BufferedUpsertSinkFunction(
-                            createKafkaProducer(keySerialization, valueSerialization),
-                            physicalDataType,
-                            keyProjection,
-                            context.createTypeInformation(consumedDataType),
-                            flushMode);
-            return SinkFunctionProvider.of(buffedSinkFunction, parallelism);
-        } else {
-            final KafkaSinkBuilder<RowData> sinkBuilder = KafkaSink.builder();
-            final List<LogicalType> physicalChildren =
-                    physicalDataType.getLogicalType().getChildren();
-            if (transactionalIdPrefix != null) {
-                sinkBuilder.setTransactionalIdPrefix(transactionalIdPrefix);
-            }
-            return SinkProvider.of(
-                    sinkBuilder
-                            .setDeliverGuarantee(deliveryGuarantee)
-                            .setBootstrapServers(
-                                    properties
-                                            .get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
-                                            .toString())
-                            .setKafkaProducerConfig(properties)
-                            .setRecordSerializer(
-                                    new DynamicKafkaRecordSerializationSchema(
-                                            topic,
-                                            partitioner,
-                                            keySerialization,
-                                            valueSerialization,
-                                            getFieldGetters(physicalChildren, keyProjection),
-                                            getFieldGetters(physicalChildren, valueProjection),
-                                            hasMetadata(),
-                                            getMetadataPositions(physicalChildren),
-                                            upsertMode))
-                            .build(),
-                    parallelism);
+        final KafkaSinkBuilder<RowData> sinkBuilder = KafkaSink.builder();
+        final List<LogicalType> physicalChildren = physicalDataType.getLogicalType().getChildren();
+        if (transactionalIdPrefix != null) {
+            sinkBuilder.setTransactionalIdPrefix(transactionalIdPrefix);
         }
+        final KafkaSink<RowData> kafkaSink =
+                sinkBuilder
+                        .setDeliverGuarantee(deliveryGuarantee)
+                        .setBootstrapServers(
+                                properties.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).toString())
+                        .setKafkaProducerConfig(properties)
+                        .setRecordSerializer(
+                                new DynamicKafkaRecordSerializationSchema(
+                                        topic,
+                                        partitioner,
+                                        keySerialization,
+                                        valueSerialization,
+                                        getFieldGetters(physicalChildren, keyProjection),
+                                        getFieldGetters(physicalChildren, valueProjection),
+                                        hasMetadata(),
+                                        getMetadataPositions(physicalChildren),
+                                        upsertMode))
+                        .build();
+        if (flushMode.isEnabled() && upsertMode) {
+            return (DataStreamSinkProvider)
+                    dataStream -> {
+                        final boolean objectReuse =
+                                dataStream
+                                        .getExecutionEnvironment()
+                                        .getConfig()
+                                        .isObjectReuseEnabled();
+                        final ReducingUpsertSink<?> sink =
+                                new ReducingUpsertSink<>(
+                                        kafkaSink,
+                                        physicalDataType,
+                                        keyProjection,
+                                        flushMode,
+                                        objectReuse
+                                                ? createRowDataTypeSerializer(
+                                                                context,
+                                                                dataStream.getExecutionConfig())
+                                                        ::copy
+                                                : Function.identity());
+                        final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
+                        if (parallelism != null) {
+                            end.setParallelism(parallelism);
+                        }
+                        return end;
+                    };
+        }
+        return SinkProvider.of(kafkaSink, parallelism);
     }
 
     @Override
@@ -317,38 +335,11 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
 
     // --------------------------------------------------------------------------------------------
 
-    protected FlinkKafkaProducer<RowData> createKafkaProducer(
-            SerializationSchema<RowData> keySerialization,
-            SerializationSchema<RowData> valueSerialization) {
-        final List<LogicalType> physicalChildren = physicalDataType.getLogicalType().getChildren();
-
-        final RowData.FieldGetter[] keyFieldGetters =
-                getFieldGetters(physicalChildren, keyProjection);
-
-        final RowData.FieldGetter[] valueFieldGetters =
-                getFieldGetters(physicalChildren, valueProjection);
-
-        // determine the positions of metadata in the consumed row
-        final int[] metadataPositions = getMetadataPositions(physicalChildren);
-
-        final DynamicKafkaSerializationSchema kafkaSerializer =
-                new DynamicKafkaSerializationSchema(
-                        topic,
-                        partitioner,
-                        keySerialization,
-                        valueSerialization,
-                        keyFieldGetters,
-                        valueFieldGetters,
-                        hasMetadata(),
-                        metadataPositions,
-                        upsertMode);
-
-        return new FlinkKafkaProducer<>(
-                topic,
-                kafkaSerializer,
-                properties,
-                getSemantic(deliveryGuarantee),
-                FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
+    private TypeSerializer<RowData> createRowDataTypeSerializer(
+            Context context, ExecutionConfig executionConfig) {
+        final TypeInformation<RowData> typeInformation =
+                context.createTypeInformation(consumedDataType);
+        return typeInformation.createSerializer(executionConfig);
     }
 
     private int[] getMetadataPositions(List<LogicalType> physicalChildren) {
@@ -467,6 +458,10 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             this.dataType = dataType;
             this.converter = converter;
         }
+    }
+
+    interface MetadataConverter extends Serializable {
+        Object read(RowData consumedRow, int pos);
     }
 
     // --------------------------------------------------------------------------------------------
