@@ -947,6 +947,7 @@ class RemoteKeyedStateBackend(object):
                 transform_id="clear_iterators",
                 side_input_id="clear_iterators",
                 key=self._encoded_current_key))
+        self._created_states = set()
 
     def get_list_state(self, name, element_coder, ttl_config=None):
         return self._wrap_internal_bag_state(
@@ -1065,8 +1066,10 @@ class RemoteKeyedStateBackend(object):
         from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
         state_proto = StateDescriptor()
         state_proto.state_name = name
-        if ttl_config is not None:
-            state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
+        if name not in self._created_states:
+            self._created_states.add(name)
+            if ttl_config is not None:
+                state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
         state_key = beam_fn_api_pb2.StateKey(
             multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
                 transform_id="",
@@ -1153,18 +1156,19 @@ class RemoteKeyedStateBackend(object):
                     (name, self._encoded_current_key, encoded_namespace))
                 # currently all the SynchronousMergingRuntimeState is based on bag state
                 state_key = self.get_bag_state_key(
-                    name, self._encoded_current_key, encoded_namespace)
+                    name, self._encoded_current_key, encoded_namespace, None)
                 # clear the read cache, the read cache is shared between map state handler and bag
                 # state handler. So we can use the map state handler instead.
                 self._map_state_handler.clear_read_cache(state_key)
 
-    @staticmethod
-    def get_bag_state_key(name, encoded_key, encoded_namespace, ttl_config):
+    def get_bag_state_key(self, name, encoded_key, encoded_namespace, ttl_config):
         from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
         state_proto = StateDescriptor()
         state_proto.state_name = name
-        if ttl_config is not None:
-            state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
+        if name not in self._created_states:
+            self._created_states.add(name)
+            if ttl_config is not None:
+                state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
         return beam_fn_api_pb2.StateKey(
             bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                 transform_id="",

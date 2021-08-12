@@ -325,6 +325,32 @@ public enum ProtoUtils {
                 separatedWithEndMessage);
     }
 
+    private static FlinkFnApi.CoderInfoDescriptor createCoderInfoDescriptorProto(
+            FlinkFnApi.CoderInfoDescriptor.FlattenRowType flattenRowType,
+            FlinkFnApi.CoderInfoDescriptor.RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.ArrowType arrowType,
+            FlinkFnApi.CoderInfoDescriptor.OverWindowArrowType overWindowArrowType,
+            FlinkFnApi.CoderInfoDescriptor.RawType rawType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage) {
+        FlinkFnApi.CoderInfoDescriptor.Builder builder =
+                FlinkFnApi.CoderInfoDescriptor.newBuilder();
+        if (flattenRowType != null) {
+            builder.setFlattenRowType(flattenRowType);
+        } else if (rowType != null) {
+            builder.setRowType(rowType);
+        } else if (arrowType != null) {
+            builder.setArrowType(arrowType);
+        } else if (overWindowArrowType != null) {
+            builder.setOverWindowArrowType(overWindowArrowType);
+        } else if (rawType != null) {
+            builder.setRawType(rawType);
+        }
+        builder.setMode(mode);
+        builder.setSeparatedWithEndMessage(separatedWithEndMessage);
+        return builder.build();
+    }
+
     public static StateTtlConfig parseStateTtlConfigFromProto(
             FlinkFnApi.StateDescriptor.StateTTLConfig stateTTLConfigProto) {
         StateTtlConfig.Builder builder =
@@ -375,32 +401,6 @@ public enum ProtoUtils {
             }
         }
 
-        return builder.build();
-    }
-
-    private static FlinkFnApi.CoderInfoDescriptor createCoderInfoDescriptorProto(
-            FlinkFnApi.CoderInfoDescriptor.FlattenRowType flattenRowType,
-            FlinkFnApi.CoderInfoDescriptor.RowType rowType,
-            FlinkFnApi.CoderInfoDescriptor.ArrowType arrowType,
-            FlinkFnApi.CoderInfoDescriptor.OverWindowArrowType overWindowArrowType,
-            FlinkFnApi.CoderInfoDescriptor.RawType rawType,
-            FlinkFnApi.CoderInfoDescriptor.Mode mode,
-            boolean separatedWithEndMessage) {
-        FlinkFnApi.CoderInfoDescriptor.Builder builder =
-                FlinkFnApi.CoderInfoDescriptor.newBuilder();
-        if (flattenRowType != null) {
-            builder.setFlattenRowType(flattenRowType);
-        } else if (rowType != null) {
-            builder.setRowType(rowType);
-        } else if (arrowType != null) {
-            builder.setArrowType(arrowType);
-        } else if (overWindowArrowType != null) {
-            builder.setOverWindowArrowType(overWindowArrowType);
-        } else if (rawType != null) {
-            builder.setRawType(rawType);
-        }
-        builder.setMode(mode);
-        builder.setSeparatedWithEndMessage(separatedWithEndMessage);
         return builder.build();
     }
 

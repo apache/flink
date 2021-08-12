@@ -443,22 +443,13 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            if self.value == StateTtlConfig.UpdateType.Disabled.value:
-                return StateDescriptor.StateTTLConfig.UpdateType.Disabled
-            elif self.value == StateTtlConfig.UpdateType.OnCreateAndWrite.value:
-                return StateDescriptor.StateTTLConfig.UpdateType.OnCreateAndWrite
-            else:
-                return StateDescriptor.StateTTLConfig.UpdateType.OnReadAndWrite
+            return getattr(StateDescriptor.StateTTLConfig.UpdateType, self.name)
 
         @staticmethod
         def _from_proto(proto):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            if proto == StateDescriptor.StateTTLConfig.UpdateType.Disabled:
-                return StateTtlConfig.UpdateType.Disabled
-            elif proto == StateDescriptor.StateTTLConfig.UpdateType.OnCreateAndWrite:
-                return StateTtlConfig.UpdateType.OnCreateAndWrite
-            else:
-                return StateTtlConfig.UpdateType.OnReadAndWrite
+            update_type_name = StateDescriptor.StateTTLConfig.UpdateType.Name(proto)
+            return StateTtlConfig.UpdateType[update_type_name]
 
     class StateVisibility(Enum):
         """
@@ -477,18 +468,13 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            if self.value == StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp.value:
-                return StateDescriptor.StateTTLConfig.StateVisibility.ReturnExpiredIfNotCleanedUp
-            elif self.value == StateTtlConfig.StateVisibility.NeverReturnExpired.value:
-                return StateDescriptor.StateTTLConfig.StateVisibility.NeverReturnExpired
+            return getattr(StateDescriptor.StateTTLConfig.StateVisibility, self.name)
 
         @staticmethod
         def _from_proto(proto):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            if proto == StateDescriptor.StateTTLConfig.StateVisibility.ReturnExpiredIfNotCleanedUp:
-                return StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp
-            elif proto == StateDescriptor.StateTTLConfig.StateVisibility.NeverReturnExpired:
-                return StateTtlConfig.StateVisibility.NeverReturnExpired
+            state_visibility_name = StateDescriptor.StateTTLConfig.StateVisibility.Name(proto)
+            return StateTtlConfig.StateVisibility[state_visibility_name]
 
     class TtlTimeCharacteristic(Enum):
         """
@@ -502,11 +488,14 @@ class StateTtlConfig(object):
 
         def _to_proto(self):
             from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-            return StateDescriptor.StateTTLConfig.TtlTimeCharacteristic.ProcessingTime
+            return getattr(StateDescriptor.StateTTLConfig.TtlTimeCharacteristic, self.name)
 
         @staticmethod
         def _from_proto(proto):
-            return StateTtlConfig.TtlTimeCharacteristic.ProcessingTime
+            from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+            ttl_time_characteristic_name = \
+                StateDescriptor.StateTTLConfig.TtlTimeCharacteristic.Name(proto)
+            return StateTtlConfig.TtlTimeCharacteristic[ttl_time_characteristic_name]
 
     def __init__(self,
                  update_type: UpdateType,
@@ -764,26 +753,15 @@ class StateTtlConfig(object):
 
             def _to_proto(self):
                 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-                Strategies = StateTtlConfig.CleanupStrategies.Strategies
-                DescriptorStrategies = StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
-                if self.value == Strategies.FULL_STATE_SCAN_SNAPSHOT.value:
-                    return DescriptorStrategies.FULL_STATE_SCAN_SNAPSHOT
-                elif self.value == Strategies.INCREMENTAL_CLEANUP.value:
-                    return DescriptorStrategies.INCREMENTAL_CLEANUP
-                else:
-                    return DescriptorStrategies.ROCKSDB_COMPACTION_FILTER
+                return getattr(
+                    StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies, self.name)
 
             @staticmethod
             def _from_proto(proto):
                 from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
-                Strategies = StateTtlConfig.CleanupStrategies.Strategies
-                DescriptorStrategies = StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
-                if proto == DescriptorStrategies.FULL_STATE_SCAN_SNAPSHOT:
-                    return Strategies.FULL_STATE_SCAN_SNAPSHOT
-                elif proto == DescriptorStrategies.INCREMENTAL_CLEANUP:
-                    return Strategies.INCREMENTAL_CLEANUP
-                else:
-                    return Strategies.ROCKSDB_COMPACTION_FILTER
+                strategies_name = \
+                    StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies.Name(proto)
+                return StateTtlConfig.CleanupStrategies.Strategies[strategies_name]
 
         class CleanupStrategy(ABC):
             """
@@ -842,7 +820,7 @@ class StateTtlConfig(object):
                     StateTtlConfig.CleanupStrategies.IncrementalCleanupStrategy(5, False)
             else:
                 default_strategy = None
-            return self._strategies.get(    # type: ignore
+            return self._strategies.get(  # type: ignore
                 StateTtlConfig.CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
                 default_strategy)
 
@@ -853,7 +831,7 @@ class StateTtlConfig(object):
                     StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(1000)
             else:
                 default_strategy = None
-            return self._strategies.get(    # type: ignore
+            return self._strategies.get(  # type: ignore
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
                 default_strategy)
 
