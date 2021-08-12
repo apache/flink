@@ -38,7 +38,7 @@ Flink 中的日志记录是使用 [SLF4J](http://www.slf4j.org/) 日志接口实
 
 默认情况下，使用 [Log4j 2](https://logging.apache.org/log4j/2.x/index.html) 作为底层日志框架。
 
-<a name="configuring-log4j2"> </a>
+<a name="configuring-log4j-2"></a>
 
 ## 配置 Log4j2
 
