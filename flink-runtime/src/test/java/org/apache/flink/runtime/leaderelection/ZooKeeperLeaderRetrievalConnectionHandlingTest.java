@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for the error handling in case of a suspended connection to the ZooKeeper instance when
