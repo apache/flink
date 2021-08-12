@@ -136,6 +136,7 @@ public class CheckpointFailureManager {
                 // ignore
                 break;
 
+            case IO_EXCEPTION:
             case CHECKPOINT_ASYNC_EXCEPTION:
             case CHECKPOINT_DECLINED:
             case CHECKPOINT_EXPIRED:

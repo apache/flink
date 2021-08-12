@@ -110,6 +110,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.IO_EXCEPTION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
@@ -623,6 +624,194 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 e.printStackTrace();
                 fail(e.getMessage());
             }
+        }
+    }
+
+    @Test
+    public void testIOExceptionCheckpointExceedsTolerableFailureNumber() throws Exception {
+        // create some mock Execution vertices that receive the checkpoint trigger messages
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .addJobVertex(new JobVertexID())
+                        .build();
+
+        final String errorMsg = "Exceeded checkpoint failure tolerance number!";
+        CheckpointFailureManager checkpointFailureManager = getCheckpointFailureManager(errorMsg);
+        CheckpointCoordinator checkpointCoordinator =
+                getCheckpointCoordinator(graph, checkpointFailureManager);
+
+        try {
+            checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            checkpointCoordinator.abortPendingCheckpoints(new CheckpointException(IO_EXCEPTION));
+
+            fail("Test failed.");
+        } catch (Exception e) {
+            // expected
+            assertTrue(e instanceof RuntimeException);
+            assertEquals(errorMsg, e.getMessage());
+        } finally {
+            checkpointCoordinator.shutdown();
+        }
+    }
+
+    @Test
+    public void testIOExceptionForPeriodicSchedulingWithInactiveTasks() {
+        TestingIOExceptionCheckpointIDCounter idCounter =
+                new TestingIOExceptionCheckpointIDCounter();
+
+        try {
+            JobVertexID jobVertexID1 = new JobVertexID();
+
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .setTransitToRunning(false)
+                            .build();
+
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+
+            CheckpointCoordinatorConfiguration chkConfig =
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(10) // periodic interval is 10 ms
+                            .setCheckpointTimeout(200000) // timeout is very long (200 s)
+                            .setMinPauseBetweenCheckpoints(0) // no extra delay
+                            .setMaxConcurrentCheckpoints(2) // max two concurrent checkpoints
+                            .build();
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinatorBuilder()
+                            .setExecutionGraph(graph)
+                            .setCheckpointCoordinatorConfiguration(chkConfig)
+                            .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setCheckpointIDCounter(idCounter)
+                            .build();
+            idCounter.setOwner(checkpointCoordinator);
+
+            checkpointCoordinator.startCheckpointScheduler();
+
+            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            // no checkpoint should have started so far
+            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
+            // now move the state to RUNNING
+            vertex1.getCurrentExecutionAttempt().transitionState(ExecutionState.RUNNING);
+
+            final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
+                    checkpointCoordinator.triggerCheckpoint(
+                            CheckpointProperties.forCheckpoint(
+                                    CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                            null,
+                            true);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            try {
+                onCompletionPromise.get();
+                fail("should not trigger periodic checkpoint after IOException occurred.");
+            } catch (Exception e) {
+                final Optional<CheckpointException> checkpointExceptionOptional =
+                        ExceptionUtils.findThrowable(e, CheckpointException.class);
+                assertTrue(checkpointExceptionOptional.isPresent());
+                assertEquals(
+                        IO_EXCEPTION,
+                        checkpointExceptionOptional.get().getCheckpointFailureReason());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    /** Tests that do not trigger checkpoint when IOException occurred. */
+    @Test
+    public void testTriggerCheckpointAfterIOException() throws Exception {
+        // set up the coordinator
+        TestingIOExceptionCheckpointIDCounter idCounter =
+                new TestingIOExceptionCheckpointIDCounter();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointIDCounter(idCounter)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build();
+        idCounter.setOwner(checkpointCoordinator);
+
+        try {
+            // start the coordinator
+            checkpointCoordinator.startCheckpointScheduler();
+            final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
+                    checkpointCoordinator.triggerCheckpoint(
+                            CheckpointProperties.forCheckpoint(
+                                    CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                            null,
+                            true);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            try {
+                onCompletionPromise.get();
+                fail("should not trigger periodic checkpoint after IOException occurred.");
+            } catch (Exception e) {
+                final Optional<CheckpointException> checkpointExceptionOptional =
+                        ExceptionUtils.findThrowable(e, CheckpointException.class);
+                assertTrue(checkpointExceptionOptional.isPresent());
+                assertEquals(
+                        IO_EXCEPTION,
+                        checkpointExceptionOptional.get().getCheckpointFailureReason());
+            }
+        } finally {
+            checkpointCoordinator.shutdown();
+        }
+    }
+
+    @Test
+    public void testCheckpointAbortsIfTriggerTasksAreFinishedAndIOException() {
+        TestingIOExceptionCheckpointIDCounter idCounter =
+                new TestingIOExceptionCheckpointIDCounter();
+
+        try {
+            JobVertexID jobVertexID1 = new JobVertexID();
+            JobVertexID jobVertexID2 = new JobVertexID();
+
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .addJobVertex(jobVertexID2, false)
+                            .build();
+
+            // set up the coordinator
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinatorBuilder()
+                            .setExecutionGraph(graph)
+                            .setCheckpointIDCounter(idCounter)
+                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .build();
+            idCounter.setOwner(checkpointCoordinator);
+
+            Arrays.stream(graph.getJobVertex(jobVertexID1).getTaskVertices())
+                    .forEach(task -> task.getCurrentExecutionAttempt().markFinished());
+
+            // nothing should be happening
+            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
+            assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+
+            checkpointCoordinator.startCheckpointScheduler();
+            // trigger the first checkpoint. this should not succeed
+            final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+                    checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            assertTrue(checkpointFuture.isCompletedExceptionally());
+
+            // still, nothing should be happening
+            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
+            assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+
+            checkpointCoordinator.shutdown();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
         }
     }
 
@@ -3731,6 +3920,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+        }
+    }
+
+    private static class TestingIOExceptionCheckpointIDCounter
+            extends StandaloneCheckpointIDCounter {
+        private CheckpointCoordinator owner;
+
+        @Override
+        public long getAndIncrement() throws Exception {
+            checkNotNull(owner);
+            throw new IOException("disk is error!");
+        }
+
+        void setOwner(CheckpointCoordinator coordinator) {
+            this.owner = checkNotNull(coordinator);
         }
     }
 

@@ -226,8 +226,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             String exceptionMessage = checkpointExceptionOptional.get().getMessage();
             assertTrue(
                     "Stop with savepoint failed because of another cause " + exceptionMessage,
-                    exceptionMessage.contains(
-                            CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE.message()));
+                    exceptionMessage.contains(CheckpointFailureReason.IO_EXCEPTION.message()));
         }
 
         final JobStatus jobStatus =
