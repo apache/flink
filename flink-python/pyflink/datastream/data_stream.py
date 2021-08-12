@@ -604,7 +604,7 @@ class DataStream(object):
         This method takes the key selector to get the key to partition on, and a partitioner that
         accepts the key type.
 
-        Note that this method works only on single field keys, i.e. the selector cannet return
+        Note that this method works only on single field keys, i.e. the selector cannot return
         tuples of fields.
 
         :param partitioner: The partitioner to assign partitions to keys.
@@ -675,6 +675,8 @@ class DataStream(object):
         stream_with_partition_info = self.process(
             CustomPartitioner(partitioner, key_selector),
             output_type=Types.ROW([Types.INT(), original_type_info]))
+        stream_with_partition_info._j_data_stream.getTransformation().getOperatorFactory() \
+            .getOperator().setContainsPartitionCustom(True)
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -731,6 +733,7 @@ class DataStream(object):
         """
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
         JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
+        self._apply_chaining_optimization()
         if job_execution_name is None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
         elif job_execution_name is not None and limit is None:
@@ -759,6 +762,19 @@ class DataStream(object):
         else:
             j_data_stream_sink = self._align_output_type()._j_data_stream.print()
         return DataStreamSink(j_data_stream_sink)
+
+    def _apply_chaining_optimization(self):
+        """
+        Chain the Python operators if possible.
+        """
+        gateway = get_gateway()
+        JPythonOperatorChainingOptimizer = gateway.jvm.org.apache.flink.python.chain. \
+            PythonOperatorChainingOptimizer
+        j_transformation = JPythonOperatorChainingOptimizer.apply(
+            self._j_data_stream.getExecutionEnvironment(),
+            self._j_data_stream.getTransformation())
+        self._j_data_stream = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream(
+            self._j_data_stream.getExecutionEnvironment(), j_transformation)
 
     def _align_output_type(self) -> 'DataStream':
         """

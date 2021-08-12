@@ -18,8 +18,8 @@
 
 package org.apache.flink.python.chain;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.PythonConfigUtil;
@@ -51,20 +51,21 @@ import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
-import org.apache.commons.compress.utils.Lists;
-
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A util class which attempts to chain all available Python functions.
@@ -91,47 +92,135 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PythonOperatorChainingOptimizer {
 
-    private final List<Transformation<?>> transformations;
-
-    private final boolean isChainingEnabled;
-
-    // key-value pairs where the value is the output transformations of the key transformation
-    private final transient Map<Transformation<?>, Set<Transformation<?>>> outputMap =
-            new HashMap<>();
-
-    public PythonOperatorChainingOptimizer(
-            List<Transformation<?>> transformations, boolean isChainingEnabled) {
-        this.transformations = checkNotNull(transformations);
-        this.isChainingEnabled = isChainingEnabled;
-        buildOutputMap();
-    }
-
-    private void buildOutputMap() {
-        for (Transformation<?> transformation : transformations) {
-            for (Transformation<?> input : transformation.getInputs()) {
-                Set<Transformation<?>> outputs =
-                        outputMap.computeIfAbsent(input, i -> Sets.newHashSet());
-                outputs.add(transformation);
-            }
+    /**
+     * Perform chaining optimization. It will iterate the transformations defined in the given
+     * StreamExecutionEnvironment and update them with the chained transformations.
+     */
+    @SuppressWarnings("unchecked")
+    public static void apply(StreamExecutionEnvironment env) throws Exception {
+        if (env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED)) {
+            final Field transformationsField =
+                    StreamExecutionEnvironment.class.getDeclaredField("transformations");
+            transformationsField.setAccessible(true);
+            final List<Transformation<?>> transformations =
+                    (List<Transformation<?>>) transformationsField.get(env);
+            transformationsField.set(env, optimize(transformations));
         }
     }
 
-    @VisibleForTesting
-    public List<Transformation<?>> optimize() throws Exception {
-        List<Transformation<?>> optimizedTransformations = Lists.newArrayList();
-        Set<Transformation<?>> removedTransformations = Sets.newIdentityHashSet();
-        for (Transformation<?> transformation : transformations) {
-            if (!removedTransformations.contains(transformation)) {
-                ChainInfo chainInfo = chainWithInputIfPossible(transformation);
-                optimizedTransformations.add(chainInfo.newTransformation);
-                optimizedTransformations.removeAll(chainInfo.oldTransformations);
-                removedTransformations.addAll(chainInfo.oldTransformations);
-            }
+    /**
+     * Perform chaining optimization. It will iterate the transformations defined in the given
+     * StreamExecutionEnvironment and update them with the chained transformations. Besides, it will
+     * return the transformation after chaining optimization for the given transformation.
+     */
+    @SuppressWarnings("unchecked")
+    public static Transformation<?> apply(
+            StreamExecutionEnvironment env, Transformation<?> transformation) throws Exception {
+        if (env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED)) {
+            final Field transformationsField =
+                    StreamExecutionEnvironment.class.getDeclaredField("transformations");
+            transformationsField.setAccessible(true);
+            final List<Transformation<?>> transformations =
+                    (List<Transformation<?>>) transformationsField.get(env);
+            final Tuple2<List<Transformation<?>>, Transformation<?>> resultTuple =
+                    optimize(transformations, transformation);
+            transformationsField.set(env, resultTuple.f0);
+            return resultTuple.f1;
+        } else {
+            return transformation;
         }
-        return optimizedTransformations;
     }
 
-    private ChainInfo chainWithInputIfPossible(Transformation<?> transform) throws Exception {
+    /**
+     * Perform chaining optimization. It will return the chained transformations for the given
+     * transformation list.
+     */
+    public static List<Transformation<?>> optimize(List<Transformation<?>> transformations) {
+        final Map<Transformation<?>, Set<Transformation<?>>> outputMap =
+                buildOutputMap(transformations);
+
+        final LinkedHashSet<Transformation<?>> chainedTransformations = new LinkedHashSet<>();
+        final Set<Transformation<?>> alreadyTransformed = Sets.newIdentityHashSet();
+        final Queue<Transformation<?>> toTransformQueue = Queues.newArrayDeque(transformations);
+        while (!toTransformQueue.isEmpty()) {
+            final Transformation<?> transformation = toTransformQueue.poll();
+            if (!alreadyTransformed.contains(transformation)) {
+                alreadyTransformed.add(transformation);
+
+                final ChainInfo chainInfo = chainWithInputIfPossible(transformation, outputMap);
+                chainedTransformations.add(chainInfo.newTransformation);
+                chainedTransformations.removeAll(chainInfo.oldTransformations);
+                alreadyTransformed.addAll(chainInfo.oldTransformations);
+
+                // Add the chained transformation and its inputs to the to-optimize list
+                toTransformQueue.add(chainInfo.newTransformation);
+                toTransformQueue.addAll(chainInfo.newTransformation.getInputs());
+            }
+        }
+        return new ArrayList<>(chainedTransformations);
+    }
+
+    /**
+     * Perform chaining optimization. It will returns the chained transformations and the
+     * transformation after chaining optimization for the given transformation.
+     */
+    public static Tuple2<List<Transformation<?>>, Transformation<?>> optimize(
+            List<Transformation<?>> transformations, Transformation<?> targetTransformation) {
+        final Map<Transformation<?>, Set<Transformation<?>>> outputMap =
+                buildOutputMap(transformations);
+
+        final LinkedHashSet<Transformation<?>> chainedTransformations = new LinkedHashSet<>();
+        final Set<Transformation<?>> alreadyTransformed = Sets.newIdentityHashSet();
+        final Queue<Transformation<?>> toTransformQueue = Queues.newArrayDeque();
+        toTransformQueue.add(targetTransformation);
+        while (!toTransformQueue.isEmpty()) {
+            final Transformation<?> toTransform = toTransformQueue.poll();
+            if (!alreadyTransformed.contains(toTransform)) {
+                alreadyTransformed.add(toTransform);
+
+                final ChainInfo chainInfo = chainWithInputIfPossible(toTransform, outputMap);
+                chainedTransformations.add(chainInfo.newTransformation);
+                chainedTransformations.removeAll(chainInfo.oldTransformations);
+                alreadyTransformed.addAll(chainInfo.oldTransformations);
+
+                // Add the chained transformation and its inputs to the to-optimize list
+                toTransformQueue.add(chainInfo.newTransformation);
+                toTransformQueue.addAll(chainInfo.newTransformation.getInputs());
+
+                if (toTransform == targetTransformation) {
+                    targetTransformation = chainInfo.newTransformation;
+                }
+            }
+        }
+        return Tuple2.of(new ArrayList<>(chainedTransformations), targetTransformation);
+    }
+
+    /**
+     * Construct the key-value pairs where the value is the output transformations of the key
+     * transformation.
+     */
+    private static Map<Transformation<?>, Set<Transformation<?>>> buildOutputMap(
+            List<Transformation<?>> transformations) {
+        final Map<Transformation<?>, Set<Transformation<?>>> outputMap = new HashMap<>();
+        final Queue<Transformation<?>> toTransformQueue = Queues.newArrayDeque(transformations);
+        final Set<Transformation<?>> alreadyTransformed = Sets.newIdentityHashSet();
+        while (!toTransformQueue.isEmpty()) {
+            Transformation<?> transformation = toTransformQueue.poll();
+            if (!alreadyTransformed.contains(transformation)) {
+                alreadyTransformed.add(transformation);
+                for (Transformation<?> input : transformation.getInputs()) {
+                    Set<Transformation<?>> outputs =
+                            outputMap.computeIfAbsent(input, i -> Sets.newHashSet());
+                    outputs.add(transformation);
+                }
+                toTransformQueue.addAll(transformation.getInputs());
+            }
+        }
+        return outputMap;
+    }
+
+    private static ChainInfo chainWithInputIfPossible(
+            Transformation<?> transform, Map<Transformation<?>, Set<Transformation<?>>> outputMap) {
         ChainInfo chainInfo = null;
         if (transform instanceof OneInputTransformation
                 && PythonConfigUtil.isPythonDataStreamOperator(transform)) {
@@ -166,27 +255,36 @@ public class PythonOperatorChainingOptimizer {
         return chainInfo;
     }
 
-    private Transformation<?> createChainedTransformation(
+    private static Transformation<?> createChainedTransformation(
             Transformation<?> upTransform, Transformation<?> downTransform) {
-        AbstractDataStreamPythonFunctionOperator<?> upOperator =
+        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
                 (AbstractDataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        PythonProcessOperator<?, ?> downOperator =
+        final PythonProcessOperator<?, ?> downOperator =
                 (PythonProcessOperator<?, ?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
                                 .getOperator();
 
-        DataStreamPythonFunctionInfo upPythonFunctionInfo = upOperator.getPythonFunctionInfo();
-        DataStreamPythonFunctionInfo downPythonFunctionInfo = downOperator.getPythonFunctionInfo();
+        final DataStreamPythonFunctionInfo upPythonFunctionInfo =
+                upOperator.getPythonFunctionInfo().copy();
+        final DataStreamPythonFunctionInfo downPythonFunctionInfo =
+                downOperator.getPythonFunctionInfo().copy();
 
-        DataStreamPythonFunctionInfo chainedPythonFunctionInfo =
-                new DataStreamPythonFunctionInfo(
-                        downPythonFunctionInfo.getPythonFunction(),
-                        upPythonFunctionInfo,
-                        downPythonFunctionInfo.getFunctionType());
+        DataStreamPythonFunctionInfo headPythonFunctionInfoOfDownOperator = downPythonFunctionInfo;
+        while (headPythonFunctionInfoOfDownOperator.getInputs().length != 0) {
+            headPythonFunctionInfoOfDownOperator =
+                    (DataStreamPythonFunctionInfo)
+                            headPythonFunctionInfoOfDownOperator.getInputs()[0];
+        }
+        headPythonFunctionInfoOfDownOperator.setInputs(
+                new DataStreamPythonFunctionInfo[] {upPythonFunctionInfo});
 
-        AbstractDataStreamPythonFunctionOperator<?> chainedOperator =
-                upOperator.copy(chainedPythonFunctionInfo, downOperator.getProducedType());
+        final AbstractDataStreamPythonFunctionOperator<?> chainedOperator =
+                upOperator.copy(downPythonFunctionInfo, downOperator.getProducedType());
+
+        // set partition custom flag
+        chainedOperator.setContainsPartitionCustom(
+                downOperator.containsPartitionCustom() || upOperator.containsPartitionCustom());
 
         PhysicalTransformation<?> chainedTransformation;
         if (upOperator instanceof AbstractOneInputPythonFunctionOperator) {
@@ -269,27 +367,12 @@ public class PythonOperatorChainingOptimizer {
         return chainedTransformation;
     }
 
-    private boolean isChainable(Transformation<?> upTransform, Transformation<?> downTransform) {
+    private static boolean isChainable(
+            Transformation<?> upTransform, Transformation<?> downTransform) {
         return upTransform.getParallelism() == downTransform.getParallelism()
                 && upTransform.getMaxParallelism() == downTransform.getMaxParallelism()
                 && upTransform.getSlotSharingGroup().equals(downTransform.getSlotSharingGroup())
-                && areOperatorsChainable(upTransform, downTransform)
-                && isChainingEnabled;
-    }
-
-    // ----------------------- Utility Methods -----------------------
-
-    public static void apply(StreamExecutionEnvironment env) throws Exception {
-        Field transformationsField =
-                StreamExecutionEnvironment.class.getDeclaredField("transformations");
-        transformationsField.setAccessible(true);
-        List<Transformation<?>> transformations =
-                (List<Transformation<?>>) transformationsField.get(env);
-        PythonOperatorChainingOptimizer chainingOptimizer =
-                new PythonOperatorChainingOptimizer(
-                        transformations,
-                        env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED));
-        transformationsField.set(env, chainingOptimizer.optimize());
+                && areOperatorsChainable(upTransform, downTransform);
     }
 
     private static boolean areOperatorsChainable(
@@ -298,10 +381,10 @@ public class PythonOperatorChainingOptimizer {
             return false;
         }
 
-        AbstractDataStreamPythonFunctionOperator<?> upOperator =
+        final AbstractDataStreamPythonFunctionOperator<?> upOperator =
                 (AbstractDataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(upTransform)).getOperator();
-        AbstractDataStreamPythonFunctionOperator<?> downOperator =
+        final AbstractDataStreamPythonFunctionOperator<?> downOperator =
                 (AbstractDataStreamPythonFunctionOperator<?>)
                         ((SimpleOperatorFactory<?>) getOperatorFactory(downTransform))
                                 .getOperator();
@@ -356,6 +439,8 @@ public class PythonOperatorChainingOptimizer {
         return isChainable;
     }
 
+    // ----------------------- Utility Methods -----------------------
+
     private static StreamOperatorFactory<?> getOperatorFactory(Transformation<?> transform) {
         if (transform instanceof OneInputTransformation) {
             return ((OneInputTransformation<?, ?>) transform).getOperatorFactory();
@@ -371,48 +456,54 @@ public class PythonOperatorChainingOptimizer {
     private static void replaceInput(
             Transformation<?> transformation,
             Transformation<?> oldInput,
-            Transformation<?> newInput)
-            throws Exception {
-        if (transformation instanceof OneInputTransformation
-                || transformation instanceof FeedbackTransformation
-                || transformation instanceof SideOutputTransformation
-                || transformation instanceof ReduceTransformation
-                || transformation instanceof SinkTransformation
-                || transformation instanceof LegacySinkTransformation
-                || transformation instanceof TimestampsAndWatermarksTransformation) {
-            Field inputField = transformation.getClass().getDeclaredField("input");
-            inputField.setAccessible(true);
-            inputField.set(transformation, newInput);
-        } else if (transformation instanceof TwoInputTransformation) {
-            Field inputField;
-            if (((TwoInputTransformation<?, ?, ?>) transformation).getInput1() == oldInput) {
-                inputField = transformation.getClass().getDeclaredField("input1");
+            Transformation<?> newInput) {
+        try {
+            if (transformation instanceof OneInputTransformation
+                    || transformation instanceof FeedbackTransformation
+                    || transformation instanceof SideOutputTransformation
+                    || transformation instanceof ReduceTransformation
+                    || transformation instanceof SinkTransformation
+                    || transformation instanceof LegacySinkTransformation
+                    || transformation instanceof TimestampsAndWatermarksTransformation
+                    || transformation instanceof PartitionTransformation) {
+                final Field inputField = transformation.getClass().getDeclaredField("input");
+                inputField.setAccessible(true);
+                inputField.set(transformation, newInput);
+            } else if (transformation instanceof TwoInputTransformation) {
+                final Field inputField;
+                if (((TwoInputTransformation<?, ?, ?>) transformation).getInput1() == oldInput) {
+                    inputField = transformation.getClass().getDeclaredField("input1");
+                } else {
+                    inputField = transformation.getClass().getDeclaredField("input2");
+                }
+                inputField.setAccessible(true);
+                inputField.set(transformation, newInput);
+            } else if (transformation instanceof UnionTransformation
+                    || transformation instanceof AbstractMultipleInputTransformation) {
+                final Field inputsField = transformation.getClass().getDeclaredField("inputs");
+                inputsField.setAccessible(true);
+                List<Transformation<?>> newInputs = Lists.newArrayList();
+                newInputs.addAll(transformation.getInputs());
+                newInputs.remove(oldInput);
+                newInputs.add(newInput);
+                inputsField.set(transformation, newInputs);
+            } else if (transformation instanceof AbstractBroadcastStateTransformation) {
+                final Field inputField;
+                if (((AbstractBroadcastStateTransformation<?, ?, ?>) transformation)
+                                .getRegularInput()
+                        == oldInput) {
+                    inputField = transformation.getClass().getDeclaredField("regularInput");
+                } else {
+                    inputField = transformation.getClass().getDeclaredField("broadcastInput");
+                }
+                inputField.setAccessible(true);
+                inputField.set(transformation, newInput);
             } else {
-                inputField = transformation.getClass().getDeclaredField("input2");
+                throw new RuntimeException("Unsupported transformation: " + transformation);
             }
-            inputField.setAccessible(true);
-            inputField.set(transformation, newInput);
-        } else if (transformation instanceof UnionTransformation
-                || transformation instanceof AbstractMultipleInputTransformation) {
-            Field inputsField = transformation.getClass().getDeclaredField("inputs");
-            inputsField.setAccessible(true);
-            List<Transformation<?>> newInputs = Lists.newArrayList();
-            newInputs.addAll(transformation.getInputs());
-            newInputs.remove(oldInput);
-            newInputs.add(newInput);
-            inputsField.set(transformation, newInputs);
-        } else if (transformation instanceof AbstractBroadcastStateTransformation) {
-            Field inputField;
-            if (((AbstractBroadcastStateTransformation<?, ?, ?>) transformation).getRegularInput()
-                    == oldInput) {
-                inputField = transformation.getClass().getDeclaredField("regularInput");
-            } else {
-                inputField = transformation.getClass().getDeclaredField("broadcastInput");
-            }
-            inputField.setAccessible(true);
-            inputField.set(transformation, newInput);
-        } else {
-            throw new RuntimeException("Unsupported transformation: " + transformation);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            // This should never happen
+            throw new RuntimeException(e);
         }
     }
 

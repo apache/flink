@@ -39,7 +39,8 @@ from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, invoke_method
+from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
+    invoke_method, get_field_value
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -918,15 +919,18 @@ class StreamExecutionEnvironment(object):
     def _generate_stream_graph(self, clear_transformations: bool = False, job_name: str = None) \
             -> JavaObject:
         gateway = get_gateway()
+        JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
+
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
             self._j_stream_execution_environment)
-        j_stream_graph = gateway.jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-                self._j_stream_execution_environment, clear_transformations)
 
+        JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
+            get_field_value(self._j_stream_execution_environment, "transformations"))
+
+        j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
         if job_name is not None:
             j_stream_graph.setJobName(job_name)
-
         return j_stream_graph
 
     def is_unaligned_checkpoints_enabled(self):

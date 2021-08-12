@@ -19,6 +19,7 @@
 from datetime import timedelta
 
 from py4j.java_gateway import JavaClass, get_java_class, JavaObject
+from py4j.protocol import Py4JJavaError
 
 from pyflink.java_gateway import get_gateway
 
@@ -89,6 +90,27 @@ def get_j_env_configuration(j_env):
         field = env_clazz.getDeclaredField("configuration")
         field.setAccessible(True)
         return field.get(j_env)
+
+
+def get_field_value(java_obj, field_name):
+    field = get_field(java_obj.getClass(), field_name)
+    return field.get(java_obj)
+
+
+def get_field(cls, field_name):
+    try:
+        field = cls.getDeclaredField(field_name)
+        field.setAccessible(True)
+        return field
+    except Py4JJavaError:
+        while cls.getSuperclass() is not None:
+            cls = cls.getSuperclass()
+            try:
+                field = cls.getDeclaredField(field_name)
+                field.setAccessible(True)
+                return field
+            except Py4JJavaError:
+                pass
 
 
 def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
