@@ -26,6 +26,7 @@ import org.apache.kafka.common.TopicPartition;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A initializer that initialize the partitions to the earliest / latest / last-committed offsets.
@@ -64,5 +65,18 @@ class ReaderHandledOffsetsInitializer implements OffsetsInitializer {
     @Override
     public OffsetResetStrategy getAutoOffsetResetStrategy() {
         return offsetResetStrategy;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final ReaderHandledOffsetsInitializer that = (ReaderHandledOffsetsInitializer) o;
+        return Objects.equals(startingOffset, that.startingOffset)
+                && Objects.equals(offsetResetStrategy, that.offsetResetStrategy);
     }
 }

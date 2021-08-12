@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.serde;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.kafka.table.sink.KafkaDynamicSink;
 import org.apache.flink.streaming.connectors.kafka.KafkaContextAware;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -34,7 +35,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /** A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicSink}. */
-class DynamicKafkaSerializationSchema
+public class DynamicKafkaSerializationSchema
         implements KafkaSerializationSchema<RowData>, KafkaContextAware<RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -67,7 +68,7 @@ class DynamicKafkaSerializationSchema
 
     private int numParallelInstances;
 
-    DynamicKafkaSerializationSchema(
+    public DynamicKafkaSerializationSchema(
             String topic,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
             @Nullable SerializationSchema<RowData> keySerialization,
@@ -187,7 +188,7 @@ class DynamicKafkaSerializationSchema
         return null;
     }
 
-    static RowData createProjectedRow(
+    public static RowData createProjectedRow(
             RowData consumedRow, RowKind kind, RowData.FieldGetter[] fieldGetters) {
         final int arity = fieldGetters.length;
         final GenericRowData genericRowData = new GenericRowData(kind, arity);
@@ -199,7 +200,8 @@ class DynamicKafkaSerializationSchema
 
     // --------------------------------------------------------------------------------------------
 
-    interface MetadataConverter extends Serializable {
+    /** Metadata converter. */
+    public interface MetadataConverter extends Serializable {
         Object read(RowData consumedRow, int pos);
     }
 }

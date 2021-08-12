@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table;
 
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;

@@ -24,6 +24,7 @@ import org.apache.kafka.common.TopicPartition;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An implementation of {@link OffsetsInitializer} to initialize the offsets based on a timestamp.
@@ -71,5 +72,17 @@ class TimestampOffsetsInitializer implements OffsetsInitializer {
     @Override
     public OffsetResetStrategy getAutoOffsetResetStrategy() {
         return OffsetResetStrategy.NONE;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final TimestampOffsetsInitializer that = (TimestampOffsetsInitializer) o;
+        return Objects.equals(startingTimestamp, that.startingTimestamp);
     }
 }

@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka.config;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.OffsetMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
 import org.apache.flink.table.api.TableException;
 
 /** Startup modes for the Kafka Consumer. */
@@ -58,7 +58,7 @@ public enum StartupMode {
         this.stateSentinel = stateSentinel;
     }
 
-    public static StartupMode fromOption(ScanStartupMode scanStartupMode) {
+    public static StartupMode fromOption(OffsetMode scanStartupMode) {
         switch (scanStartupMode) {
             case EARLIEST_OFFSET:
                 return StartupMode.EARLIEST;

@@ -13,5 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory
-org.apache.flink.streaming.connectors.kafka.table.UpsertKafkaDynamicTableFactory
+org.apache.flink.connector.kafka.table.factories.KafkaDynamicTableFactory
+org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicTableFactory
+org.apache.flink.connector.kafka.table.factories.UpsertKafkaDynamicTableFactory
+org.apache.flink.streaming.connectors.kafka.table.UpsertKafkaLegacyDynamicTableFactory

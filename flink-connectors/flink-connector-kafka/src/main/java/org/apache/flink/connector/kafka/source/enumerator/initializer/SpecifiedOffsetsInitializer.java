@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * An implementation of {@link OffsetsInitializer} which initializes the offsets of the partition
@@ -84,5 +85,18 @@ class SpecifiedOffsetsInitializer implements OffsetsInitializer {
     @Override
     public OffsetResetStrategy getAutoOffsetResetStrategy() {
         return offsetResetStrategy;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final SpecifiedOffsetsInitializer that = (SpecifiedOffsetsInitializer) o;
+        return Objects.equals(initialOffsets, that.initialOffsets)
+                && Objects.equals(offsetResetStrategy, that.offsetResetStrategy);
     }
 }

@@ -16,23 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.factories;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.connector.kafka.table.sink.KafkaDynamicSink;
+import org.apache.flink.connector.kafka.table.source.KafkaDynamicTableSource;
+import org.apache.flink.connector.kafka.table.utils.BufferedUpsertSinkFunction;
+import org.apache.flink.connector.kafka.table.utils.SinkBufferFlushMode;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicSource;
+import org.apache.flink.streaming.connectors.kafka.table.UpsertKafkaLegacyDynamicTableFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -41,13 +50,11 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestFormatFactory;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
-import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -65,13 +72,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
 
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Test for {@link UpsertKafkaDynamicTableFactory}. */
@@ -84,6 +91,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
     private static final String TEST_REGISTRY_URL = "http://localhost:8081";
     private static final String DEFAULT_VALUE_SUBJECT = SINK_TOPIC + "-value";
     private static final String DEFAULT_KEY_SUBJECT = SINK_TOPIC + "-key";
+
+    private static final ObjectPath TEST_OBJECT_PATH = FactoryMocks.IDENTIFIER.toObjectPath();
 
     private static final ResolvedSchema SOURCE_SCHEMA =
             new ResolvedSchema(
@@ -116,6 +125,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
     static {
         UPSERT_KAFKA_SOURCE_PROPERTIES.setProperty("bootstrap.servers", "dummy");
+        UPSERT_KAFKA_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
 
         UPSERT_KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
     }
@@ -132,6 +142,10 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             new TestFormatFactory.DecodingFormatMock(
                     ",", true, ChangelogMode.insertOnly(), Collections.emptyMap());
 
+    protected boolean isLegacySource() {
+        return false;
+    }
+
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -140,27 +154,31 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         // Construct table source using options and table source factory
         final DynamicTableSource actualSource =
                 createTableSource(SOURCE_SCHEMA, getFullSourceOptions());
-
-        final KafkaDynamicSource expectedSource =
-                createExpectedScanSource(
-                        producedDataType,
-                        keyDecodingFormat,
-                        valueDecodingFormat,
-                        SOURCE_KEY_FIELDS,
-                        SOURCE_VALUE_FIELDS,
-                        null,
-                        SOURCE_TOPIC,
-                        UPSERT_KAFKA_SOURCE_PROPERTIES);
+        DynamicTableSource expectedSource;
+        if (isLegacySource()) {
+            expectedSource =
+                    createLegacyExpectedScanSource(
+                            producedDataType,
+                            keyDecodingFormat,
+                            valueDecodingFormat,
+                            SOURCE_KEY_FIELDS,
+                            SOURCE_VALUE_FIELDS,
+                            null,
+                            SOURCE_TOPIC,
+                            UPSERT_KAFKA_SOURCE_PROPERTIES);
+        } else {
+            expectedSource =
+                    createExpectedScanSource(
+                            producedDataType,
+                            keyDecodingFormat,
+                            valueDecodingFormat,
+                            SOURCE_KEY_FIELDS,
+                            SOURCE_VALUE_FIELDS,
+                            null,
+                            SOURCE_TOPIC,
+                            UPSERT_KAFKA_SOURCE_PROPERTIES);
+        }
         assertEquals(actualSource, expectedSource);
-
-        final KafkaDynamicSource actualUpsertKafkaSource = (KafkaDynamicSource) actualSource;
-        ScanTableSource.ScanRuntimeProvider provider =
-                actualUpsertKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
     }
 
     @Test
@@ -343,18 +361,22 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
         if (AVRO_CONFLUENT.equals(valueFormat)) {
             SerializationSchema<RowData> actualValueEncoder =
-                    sink.valueEncodingFormat.createRuntimeEncoder(
-                            new SinkRuntimeProviderContext(false), SINK_SCHEMA.toSinkRowDataType());
+                    sink.getValueEncodingFormat()
+                            .createRuntimeEncoder(
+                                    new SinkRuntimeProviderContext(false),
+                                    SINK_SCHEMA.toSinkRowDataType());
             assertEquals(
                     createConfluentAvroSerSchema(rowType, expectedValueSubject),
                     actualValueEncoder);
         }
 
         if (AVRO_CONFLUENT.equals(keyFormat)) {
-            assert sink.keyEncodingFormat != null;
+            assert sink.getKeyEncodingFormat() != null;
             SerializationSchema<RowData> actualKeyEncoder =
-                    sink.keyEncodingFormat.createRuntimeEncoder(
-                            new SinkRuntimeProviderContext(false), SINK_SCHEMA.toSinkRowDataType());
+                    sink.getKeyEncodingFormat()
+                            .createRuntimeEncoder(
+                                    new SinkRuntimeProviderContext(false),
+                                    SINK_SCHEMA.toSinkRowDataType());
             assertEquals(
                     createConfluentAvroSerSchema(rowType, expectedKeySubject), actualKeyEncoder);
         }
@@ -492,12 +514,19 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         return options;
     }
 
-    private static Map<String, String> getFullSourceOptions() {
+    private Map<String, String> getFullSourceOptions() {
         // table options
         Map<String, String> options = new HashMap<>();
-        options.put("connector", UpsertKafkaDynamicTableFactory.IDENTIFIER);
+        String identifier;
+        if (isLegacySource()) {
+            identifier = UpsertKafkaLegacyDynamicTableFactory.IDENTIFIER;
+        } else {
+            identifier = UpsertKafkaDynamicTableFactory.IDENTIFIER;
+        }
+        options.put("connector", identifier);
         options.put("topic", SOURCE_TOPIC);
         options.put("properties.bootstrap.servers", "dummy");
+        options.put("properties.group.id", "dummy");
         // key format options
         options.put("key.format", TestFormatFactory.IDENTIFIER);
         options.put(
@@ -567,7 +596,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         return options;
     }
 
-    private static KafkaDynamicSource createExpectedScanSource(
+    @SuppressWarnings("SameParameterValue")
+    private static KafkaDynamicTableSource createExpectedScanSource(
             DataType producedDataType,
             DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -576,10 +606,37 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
             String keyPrefix,
             String topic,
             Properties properties) {
-        return new KafkaDynamicSource(
+        return new KafkaDynamicTableSource(
                 producedDataType,
                 keyDecodingFormat,
                 new UpsertKafkaDynamicTableFactory.DecodingFormatWrapper(valueDecodingFormat),
+                keyFields,
+                valueFields,
+                keyPrefix,
+                KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                        Collections.singletonList(topic)),
+                OffsetsInitializer.earliest(),
+                null,
+                Boundedness.CONTINUOUS_UNBOUNDED,
+                properties,
+                TEST_OBJECT_PATH,
+                true);
+    }
+
+    private static KafkaLegacyDynamicSource createLegacyExpectedScanSource(
+            DataType producedDataType,
+            DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
+            DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
+            int[] keyFields,
+            int[] valueFields,
+            String keyPrefix,
+            String topic,
+            Properties properties) {
+        Map<KafkaTopicPartition, Long> convertedSpecifiedOffsets = new HashMap<>();
+        return new KafkaLegacyDynamicSource(
+                producedDataType,
+                keyDecodingFormat,
+                new UpsertKafkaLegacyDynamicTableFactory.DecodingFormatWrapper(valueDecodingFormat),
                 keyFields,
                 valueFields,
                 keyPrefix,
@@ -592,6 +649,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 true);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static KafkaDynamicSink createExpectedSink(
             DataType consumedDataType,
             EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,

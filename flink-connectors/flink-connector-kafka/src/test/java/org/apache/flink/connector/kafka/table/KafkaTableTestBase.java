@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -44,6 +44,10 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
     private static final int zkTimeoutMills = 30000;
+
+    protected boolean isLegacySource() {
+        return false;
+    }
 
     @ClassRule
     public static final KafkaContainer KAFKA_CONTAINER =

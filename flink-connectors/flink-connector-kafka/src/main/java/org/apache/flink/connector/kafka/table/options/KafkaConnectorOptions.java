@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.options;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.DescribedEnum;
@@ -128,6 +129,13 @@ public class KafkaConnectorOptions {
                     .withDescription(
                             "Optional topic pattern from which the table is read for source. Either 'topic' or 'topic-pattern' must be set.");
 
+    public static final ConfigOption<List<String>> PARTITIONS =
+            ConfigOptions.key("partitions")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription("Set of partitions from which the table is reading from.");
+
     public static final ConfigOption<String> PROPS_BOOTSTRAP_SERVERS =
             ConfigOptions.key("properties.bootstrap.servers")
                     .stringType()
@@ -145,10 +153,10 @@ public class KafkaConnectorOptions {
     // Scan specific options
     // --------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<ScanStartupMode> SCAN_STARTUP_MODE =
+    public static final ConfigOption<OffsetMode> SCAN_STARTUP_MODE =
             ConfigOptions.key("scan.startup.mode")
-                    .enumType(ScanStartupMode.class)
-                    .defaultValue(ScanStartupMode.GROUP_OFFSETS)
+                    .enumType(OffsetMode.class)
+                    .defaultValue(OffsetMode.GROUP_OFFSETS)
                     .withDescription("Startup mode for Kafka consumer.");
 
     public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
@@ -164,6 +172,32 @@ public class KafkaConnectorOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Optional timestamp used in case of \"timestamp\" startup mode");
+
+    public static final ConfigOption<OffsetMode> SCAN_STOP_MODE =
+            ConfigOptions.key("scan.stop.mode")
+                    .enumType(OffsetMode.class)
+                    .noDefaultValue()
+                    .withDescription("Stop mode for Kafka consumer");
+
+    public static final ConfigOption<String> SCAN_STOP_SPECIFIC_OFFSETS =
+            ConfigOptions.key("scan.stop.specific-offsets")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional offsets used in case of \"specific-offsets\" stop mode");
+
+    public static final ConfigOption<Long> SCAN_STOP_TIMESTAMP_MILLIS =
+            ConfigOptions.key("scan.stop.timestamp-millis")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription("Optional timestamp used in case of \"timestamp\" stop mode");
+
+    public static final ConfigOption<Boundedness> BOUNDEDNESS =
+            ConfigOptions.key("boundedness")
+                    .enumType(Boundedness.class)
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify whether Kafka source runs in unbounded or bounded mode");
 
     public static final ConfigOption<Duration> SCAN_TOPIC_PARTITION_DISCOVERY =
             ConfigOptions.key("scan.topic-partition-discovery.interval")
@@ -251,7 +285,7 @@ public class KafkaConnectorOptions {
     }
 
     /** Startup mode for the Kafka consumer, see {@link #SCAN_STARTUP_MODE}. */
-    public enum ScanStartupMode implements DescribedEnum {
+    public enum OffsetMode implements DescribedEnum {
         EARLIEST_OFFSET("earliest-offset", text("Start from the earliest offset possible.")),
         LATEST_OFFSET("latest-offset", text("Start from the latest offset.")),
         GROUP_OFFSETS(
@@ -266,7 +300,7 @@ public class KafkaConnectorOptions {
         private final String value;
         private final InlineElement description;
 
-        ScanStartupMode(String value, InlineElement description) {
+        OffsetMode(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }
@@ -316,7 +350,7 @@ public class KafkaConnectorOptions {
             return value;
         }
 
-        FlinkKafkaProducer.Semantic getSemantic() {
+        public FlinkKafkaProducer.Semantic getSemantic() {
             return semantic;
         }
 

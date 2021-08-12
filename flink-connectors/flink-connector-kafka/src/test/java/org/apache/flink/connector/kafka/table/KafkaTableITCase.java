@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table;
 
+import org.apache.flink.connector.kafka.table.factories.KafkaDynamicTableFactory;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicTableFactory;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.test.util.SuccessException;
@@ -45,12 +47,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.collectRows;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Basic IT cases for the Kafka table source and sink. */
@@ -105,11 +107,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  %s\n"
                                 + ")",
-                        KafkaDynamicTableFactory.IDENTIFIER,
-                        topic,
-                        bootstraps,
-                        groupId,
-                        formatOptions());
+                        getKafkaIdentifier(), topic, bootstraps, groupId, formatOptions());
 
         tEnv.executeSql(createTable);
 
@@ -198,7 +196,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                     String.format(
                                             tableTemp,
                                             currencies.get(index).toLowerCase(),
-                                            KafkaDynamicTableFactory.IDENTIFIER,
+                                            getKafkaIdentifier(),
                                             topics.get(index),
                                             bootstraps,
                                             groupId,
@@ -209,7 +207,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                 String.format(
                         tableTemp,
                         "currencies_topic_list",
-                        KafkaDynamicTableFactory.IDENTIFIER,
+                        getKafkaIdentifier(),
                         String.join(";", topics),
                         bootstraps,
                         groupId,
@@ -282,14 +280,14 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `topic` STRING METADATA VIRTUAL,\n"
                                 + "  `physical_3` BOOLEAN\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  %s\n"
                                 + ")",
-                        topic, bootstraps, groupId, formatOptions());
+                        getKafkaIdentifier(), topic, bootstraps, groupId, formatOptions());
 
         tEnv.executeSql(createTable);
 
@@ -376,7 +374,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `user_id` INT,\n"
                                 + "  `payload` STRING\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
@@ -387,7 +385,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'value.format' = '%s',\n"
                                 + "  'value.fields-include' = 'EXCEPT_KEY'\n"
                                 + ")",
-                        topic, bootstraps, groupId, format, format);
+                        getKafkaIdentifier(), topic, bootstraps, groupId, format, format);
 
         tEnv.executeSql(createTable);
 
@@ -458,7 +456,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `event_id` BIGINT,\n"
                                 + "  `payload` STRING\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
@@ -468,7 +466,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'value.format' = '%s',\n"
                                 + "  'value.fields-include' = 'ALL'\n"
                                 + ")",
-                        topic, bootstraps, groupId, format, format);
+                        getKafkaIdentifier(), topic, bootstraps, groupId, format, format);
 
         tEnv.executeSql(createTable);
 
@@ -543,14 +541,14 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  purchaser STRING,\n"
                                 + "  WATERMARK FOR order_time AS order_time - INTERVAL '1' SECOND\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
                                 + "  'format' = '%s'\n"
                                 + ")",
-                        orderTopic, bootstraps, groupId, format);
+                        getKafkaIdentifier(), orderTopic, bootstraps, groupId, format);
         tEnv.executeSql(orderTableDDL);
         String orderInitialValues =
                 "INSERT INTO ordersTable\n"
@@ -575,14 +573,14 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  PRIMARY KEY(product_id) NOT ENFORCED,\n"
                                 + "  WATERMARK FOR update_time AS update_time - INTERVAL '1' SECOND\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
                                 + "  'value.format' = 'debezium-json'\n"
                                 + ")",
-                        productTopic, bootstraps, groupId);
+                        getKafkaIdentifier(), productTopic, bootstraps, groupId);
         tEnv.executeSql(productTableDDL);
 
         // use raw format to initial the changelog data
@@ -607,7 +605,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                                 + "ON O.product_id = P.product_id"),
                                 6)
                         .stream()
-                        .map(row -> row.toString())
+                        .map(Row::toString)
                         .sorted()
                         .collect(Collectors.toList());
 
@@ -634,13 +632,13 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         "CREATE TABLE productChangelog (\n"
                                 + "  changelog STRING"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'format' = 'raw'\n"
                                 + ")",
-                        topic, bootstraps);
+                        getKafkaIdentifier(), topic, bootstraps);
         tEnv.executeSql(productChangelogDDL);
         String[] allChangelog = readLines("product_changelog.txt").toArray(new String[0]);
 
@@ -673,7 +671,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `timestamp` TIMESTAMP(3),\n"
                                 + "  WATERMARK FOR `timestamp` AS `timestamp`\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
@@ -681,7 +679,12 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'sink.partitioner' = '%s',\n"
                                 + "  'format' = '%s'\n"
                                 + ")",
-                        topic, bootstraps, groupId, TestPartitioner.class.getName(), format);
+                        getKafkaIdentifier(),
+                        topic,
+                        bootstraps,
+                        groupId,
+                        TestPartitioner.class.getName(),
+                        format);
 
         tEnv.executeSql(createTable);
 
@@ -766,7 +769,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  `timestamp` TIMESTAMP(3),\n"
                                 + "  WATERMARK FOR `timestamp` AS `timestamp`\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
                                 + "  'properties.group.id' = '%s',\n"
@@ -774,7 +777,12 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 + "  'sink.partitioner' = '%s',\n"
                                 + "  'format' = '%s'\n"
                                 + ")",
-                        topic, bootstraps, groupId, TestPartitioner.class.getName(), format);
+                        getKafkaIdentifier(),
+                        topic,
+                        bootstraps,
+                        groupId,
+                        TestPartitioner.class.getName(),
+                        format);
 
         tEnv.executeSql(createTable);
 
@@ -818,6 +826,89 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         // ------------- cleanup -------------------
 
         tableResult.getJobClient().ifPresent(JobClient::cancel);
+        deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testBoundedSource() throws Exception {
+        if (isLegacySource()) {
+            return;
+        }
+
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "bounded_table_topic_" + format;
+        createTestTopic(topic, 4, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+
+        final String createTable =
+                String.format(
+                        "create table kafka (\n"
+                                + "  `computed-price` as price + 1.0,\n"
+                                + "  price decimal(38, 18),\n"
+                                + "  currency string,\n"
+                                + "  log_date date,\n"
+                                + "  log_time time(3),\n"
+                                + "  log_ts timestamp(3),\n"
+                                + "  ts as log_ts + INTERVAL '1' SECOND,\n"
+                                + "  watermark for ts as ts\n"
+                                + ") with (\n"
+                                + "  'connector' = '%s',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'scan.stop.mode' = 'latest-offset',\n"
+                                + "  %s\n"
+                                + ")",
+                        getKafkaIdentifier(), topic, bootstraps, groupId, formatOptions());
+
+        tEnv.executeSql(createTable);
+
+        String initialValues =
+                "INSERT INTO kafka\n"
+                        + "SELECT CAST(price AS DECIMAL(10, 2)), currency, "
+                        + " CAST(d AS DATE), CAST(t AS TIME(0)), CAST(ts AS TIMESTAMP(3))\n"
+                        + "FROM (VALUES (2.02,'Euro','2019-12-12', '00:00:01', '2019-12-12 00:00:01.001001'), \n"
+                        + "  (1.11,'US Dollar','2019-12-12', '00:00:02', '2019-12-12 00:00:02.002001'), \n"
+                        + "  (50,'Yen','2019-12-12', '00:00:03', '2019-12-12 00:00:03.004001'), \n"
+                        + "  (3.1,'Euro','2019-12-12', '00:00:04', '2019-12-12 00:00:04.005001'), \n"
+                        + "  (5.33,'US Dollar','2019-12-12', '00:00:05', '2019-12-12 00:00:05.006001'))\n"
+                        + "  AS orders (price, currency, d, t, ts)";
+        tEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        String query =
+                "SELECT\n"
+                        + "  CAST(TUMBLE_END(ts, INTERVAL '5' SECOND) AS VARCHAR),\n"
+                        + "  CAST(MAX(log_date) AS VARCHAR),\n"
+                        + "  CAST(MAX(log_time) AS VARCHAR),\n"
+                        + "  CAST(MAX(ts) AS VARCHAR),\n"
+                        + "  COUNT(*),\n"
+                        + "  CAST(MAX(price) AS DECIMAL(10, 2))\n"
+                        + "FROM kafka\n"
+                        + "GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)";
+
+        DataStream<RowData> result = tEnv.toAppendStream(tEnv.sqlQuery(query), RowData.class);
+        TestingSinkFunction sink = new TestingSinkFunction(100);
+        result.addSink(sink).setParallelism(1);
+
+        // This method should return because Kafka source is running in bounded mode
+        env.execute("Job_2");
+
+        List<String> expected =
+                Arrays.asList(
+                        "+I(2019-12-12 00:00:05.000,2019-12-12,00:00:03,2019-12-12 00:00:04.004,3,50.00)",
+                        "+I(2019-12-12 00:00:10.000,2019-12-12,00:00:05,2019-12-12 00:00:06.006,2,5.33)");
+
+        assertEquals(expected, TestingSinkFunction.rows);
+
+        // ------------- cleanup -------------------
+
         deleteTestTopic(topic);
     }
 
@@ -872,5 +963,11 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         } else {
             return false;
         }
+    }
+
+    protected String getKafkaIdentifier() {
+        return isLegacySource()
+                ? KafkaLegacyDynamicTableFactory.IDENTIFIER
+                : KafkaDynamicTableFactory.IDENTIFIER;
     }
 }

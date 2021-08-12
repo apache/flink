@@ -19,14 +19,16 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.kafka.table.serde.DynamicKafkaDeserializationSchema;
+import org.apache.flink.connector.kafka.table.serde.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -62,9 +64,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-/** A version-agnostic Kafka {@link ScanTableSource}. */
+/** A version-agnostic Kafka {@link ScanTableSource} using legacy {@link FlinkKafkaConsumer}. */
 @Internal
-public class KafkaDynamicSource
+public class KafkaLegacyDynamicSource
         implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
 
     // --------------------------------------------------------------------------------------------
@@ -137,7 +139,7 @@ public class KafkaDynamicSource
     /** Flag to determine source mode. In upsert mode, it will keep the tombstone message. * */
     protected final boolean upsertMode;
 
-    public KafkaDynamicSource(
+    public KafkaLegacyDynamicSource(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -258,8 +260,8 @@ public class KafkaDynamicSource
 
     @Override
     public DynamicTableSource copy() {
-        final KafkaDynamicSource copy =
-                new KafkaDynamicSource(
+        final KafkaLegacyDynamicSource copy =
+                new KafkaLegacyDynamicSource(
                         physicalDataType,
                         keyDecodingFormat,
                         valueDecodingFormat,
@@ -292,7 +294,7 @@ public class KafkaDynamicSource
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        final KafkaDynamicSource that = (KafkaDynamicSource) o;
+        final KafkaLegacyDynamicSource that = (KafkaLegacyDynamicSource) o;
         return Objects.equals(producedDataType, that.producedDataType)
                 && Objects.equals(metadataKeys, that.metadataKeys)
                 && Objects.equals(physicalDataType, that.physicalDataType)
@@ -533,5 +535,15 @@ public class KafkaDynamicSource
             this.dataType = dataType;
             this.converter = converter;
         }
+    }
+
+    @VisibleForTesting
+    public void setProducedDataType(DataType producedDataType) {
+        this.producedDataType = producedDataType;
+    }
+
+    @VisibleForTesting
+    public void setMetadataKeys(List<String> metadataKeys) {
+        this.metadataKeys = metadataKeys;
     }
 }

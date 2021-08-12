@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.factories;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -24,11 +24,15 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil;
+import org.apache.flink.connector.kafka.table.sink.KafkaDynamicSink;
+import org.apache.flink.connector.kafka.table.source.KafkaDynamicTableSource;
+import org.apache.flink.connector.kafka.table.utils.SinkBufferFlushMode;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -45,30 +49,30 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.PROPS_BOOTSTRAP_SERVERS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARALLELISM;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.autoCompleteSchemaRegistrySubject;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createKeyFormatProjection;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getKafkaProperties;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopicPattern;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopics;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FIELDS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FORMAT;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.PROPS_BOOTSTRAP_SERVERS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SINK_PARALLELISM;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.TOPIC;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.VALUE_FORMAT;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.autoCompleteSchemaRegistrySubject;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.createKeyFormatProjection;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.createValueFormatProjection;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.getBoundedness;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.getKafkaProperties;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.getOffsetsInitializer;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.getTopicPartitionSubscription;
 
 /** Upsert-Kafka factory. */
 public class UpsertKafkaDynamicTableFactory
@@ -114,29 +118,27 @@ public class UpsertKafkaDynamicTableFactory
 
         // Validate the option data type.
         helper.validateExcept(PROPERTIES_PREFIX);
-        TableSchema schema = context.getCatalogTable().getSchema();
+        ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
         validateSource(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
         String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
         Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
-        // always use earliest to keep data integrity
-        StartupMode earliest = StartupMode.EARLIEST;
 
-        return new KafkaDynamicSource(
+        return new KafkaDynamicTableSource(
                 schema.toPhysicalRowDataType(),
                 keyDecodingFormat,
                 new DecodingFormatWrapper(valueDecodingFormat),
                 keyValueProjections.f0,
                 keyValueProjections.f1,
                 keyPrefix,
-                getSourceTopics(tableOptions),
-                getSourceTopicPattern(tableOptions),
+                getTopicPartitionSubscription(tableOptions),
+                OffsetsInitializer.earliest(), // always use earliest to keep data integrity
+                getOffsetsInitializer(tableOptions, KafkaConnectorOptionsUtil.StartOrStop.STOP),
+                getBoundedness(tableOptions),
                 properties,
-                earliest,
-                Collections.emptyMap(),
-                0,
+                context.getObjectIdentifier().toObjectPath(),
                 true);
     }
 
@@ -155,7 +157,7 @@ public class UpsertKafkaDynamicTableFactory
 
         // Validate the option data type.
         helper.validateExcept(PROPERTIES_PREFIX);
-        TableSchema schema = context.getCatalogTable().getSchema();
+        ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();
         validateSink(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
@@ -189,9 +191,10 @@ public class UpsertKafkaDynamicTableFactory
                 parallelism);
     }
 
-    private Tuple2<int[], int[]> createKeyValueProjections(CatalogTable catalogTable) {
-        TableSchema schema = catalogTable.getSchema();
+    private Tuple2<int[], int[]> createKeyValueProjections(ResolvedCatalogTable catalogTable) {
+        ResolvedSchema schema = catalogTable.getResolvedSchema();
         // primary key should validated earlier
+        assert schema.getPrimaryKey().isPresent();
         List<String> keyFields = schema.getPrimaryKey().get().getColumns();
         DataType physicalDataType = schema.toPhysicalRowDataType();
 
@@ -210,14 +213,20 @@ public class UpsertKafkaDynamicTableFactory
     // --------------------------------------------------------------------------------------------
 
     private static void validateSource(
-            ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
+            ReadableConfig tableOptions,
+            Format keyFormat,
+            Format valueFormat,
+            ResolvedSchema schema) {
         validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(schema);
     }
 
     private static void validateSink(
-            ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
+            ReadableConfig tableOptions,
+            Format keyFormat,
+            Format valueFormat,
+            ResolvedSchema schema) {
         validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(schema);
@@ -253,7 +262,7 @@ public class UpsertKafkaDynamicTableFactory
         }
     }
 
-    private static void validatePKConstraints(TableSchema schema) {
+    private static void validatePKConstraints(ResolvedSchema schema) {
         if (!schema.getPrimaryKey().isPresent()) {
             throw new ValidationException(
                     "'upsert-kafka' tables require to define a PRIMARY KEY constraint. "
@@ -288,7 +297,7 @@ public class UpsertKafkaDynamicTableFactory
      * It is used to wrap the decoding format and expose the desired changelog mode. It's only works
      * for insert-only format.
      */
-    protected static class DecodingFormatWrapper
+    public static class DecodingFormatWrapper
             implements DecodingFormat<DeserializationSchema<RowData>> {
         private final DecodingFormat<DeserializationSchema<RowData>> innerDecodingFormat;
 
@@ -338,7 +347,7 @@ public class UpsertKafkaDynamicTableFactory
      * It is used to wrap the encoding format and expose the desired changelog mode. It's only works
      * for insert-only format.
      */
-    protected static class EncodingFormatWrapper
+    public static class EncodingFormatWrapper
             implements EncodingFormat<SerializationSchema<RowData>> {
         private final EncodingFormat<SerializationSchema<RowData>> innerEncodingFormat;
 

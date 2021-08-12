@@ -16,8 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table;
 
+import org.apache.flink.connector.kafka.table.factories.KafkaDynamicTableFactory;
+import org.apache.flink.connector.kafka.table.factories.UpsertKafkaDynamicTableFactory;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicTableFactory;
+import org.apache.flink.streaming.connectors.kafka.table.UpsertKafkaLegacyDynamicTableFactory;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.utils.LegacyRowResource;
@@ -37,12 +41,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.comparedWithKeyAndOrder;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.collectRows;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.comparedWithKeyAndOrder;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
@@ -121,15 +125,21 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  `payload` STRING,\n"
                                 + "  PRIMARY KEY (k_event_id, k_user_id) NOT ENFORCED"
                                 + ") WITH (\n"
-                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'key.fields-prefix' = 'k_',\n"
                                 + "  'value.format' = '%s',\n"
                                 + "  'value.fields-include' = 'EXCEPT_KEY'\n"
                                 + ")",
-                        topic, bootstraps, format, format);
+                        getUpsertKafkaIdentifier(),
+                        topic,
+                        bootstraps,
+                        "source-sink-with-key-and-partial-value",
+                        format,
+                        format);
 
         tEnv.executeSql(createTable);
 
@@ -220,16 +230,22 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  `payload` STRING,\n"
                                 + "  PRIMARY KEY (event_id, user_id) NOT ENFORCED"
                                 + ") WITH (\n"
-                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'value.format' = '%s',\n"
                                 + "  'value.fields-include' = 'ALL',\n"
                                 + "  'sink.parallelism' = '4'" // enable different parallelism to
                                 // check ordering
                                 + ")",
-                        topic, bootstraps, format, format);
+                        getUpsertKafkaIdentifier(),
+                        topic,
+                        bootstraps,
+                        "source-sink-with-key-and-full-value",
+                        format,
+                        format);
 
         tEnv.executeSql(createTable);
 
@@ -320,13 +336,20 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  `count` BIGINT,\n"
                                 + "  PRIMARY KEY (`word`) NOT ENFORCED\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'value.format' = '%s'"
                                 + ")",
-                        wordCountTable, wordCountTable, bootstraps, format, format);
+                        wordCountTable,
+                        getUpsertKafkaIdentifier(),
+                        wordCountTable,
+                        bootstraps,
+                        "word-count-to-upsert-kafka",
+                        format,
+                        format);
         tEnv.executeSql(createSinkTable);
         String initialValues =
                 "INSERT INTO "
@@ -374,9 +397,10 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  `word` STRING NOT NULL,\n"
                                 + "  `count` BIGINT\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
                                 + "  'scan.startup.mode' = 'earliest-offset',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'key.fields' = 'key_word',\n"
@@ -384,7 +408,13 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  'value.format' = '%s',\n"
                                 + "  'value.fields-include' = 'EXCEPT_KEY'"
                                 + ")",
-                        rawWordCountTable, wordCountTable, bootstraps, format, format));
+                        rawWordCountTable,
+                        getKafkaIdentifier(),
+                        wordCountTable,
+                        bootstraps,
+                        "word-count-to-upsert-kafka",
+                        format,
+                        format));
 
         final List<Row> result2 =
                 collectRows(tEnv.sqlQuery("SELECT * FROM " + rawWordCountTable), 8);
@@ -553,13 +583,20 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 + "  watermark for modification_time as modification_time,\n"
                                 + "  PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'upsert-kafka',\n"
+                                + "  'connector' = '%s',\n"
                                 + "  'topic' = '%s',\n"
                                 + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
                                 + "  'key.format' = '%s',\n"
                                 + "  'value.format' = '%s'"
                                 + ")",
-                        userTable, userTable, bootstraps, format, format);
+                        userTable,
+                        getUpsertKafkaIdentifier(),
+                        userTable,
+                        bootstraps,
+                        "changelog-to-upsert-kafka-with-metadata",
+                        format,
+                        format);
         tEnv.executeSql(createSinkTable);
         String initialValues =
                 "INSERT INTO " + userTable + " " + "SELECT * " + "FROM users_changelog_" + format;
@@ -781,5 +818,17 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                         7);
 
         assertThat(result, deepEqualTo(expected, true));
+    }
+
+    protected String getUpsertKafkaIdentifier() {
+        return isLegacySource()
+                ? UpsertKafkaLegacyDynamicTableFactory.IDENTIFIER
+                : UpsertKafkaDynamicTableFactory.IDENTIFIER;
+    }
+
+    protected String getKafkaIdentifier() {
+        return isLegacySource()
+                ? KafkaLegacyDynamicTableFactory.IDENTIFIER
+                : KafkaDynamicTableFactory.IDENTIFIER;
     }
 }

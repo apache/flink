@@ -16,21 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.options;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.OffsetMode;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.ValueFieldsStrategy;
+import org.apache.flink.connector.kafka.table.source.KafkaDynamicTableSource;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ValueFieldsStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.format.Format;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -38,36 +44,49 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.common.TopicPartition;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.BOUNDEDNESS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FIELDS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.KEY_FORMAT;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.PARTITIONS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.PROPS_GROUP_ID;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STARTUP_MODE;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STOP_MODE;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STOP_SPECIFIC_OFFSETS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SCAN_STOP_TIMESTAMP_MILLIS;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.TOPIC;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.TOPIC_PATTERN;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
 /** Utilities for {@link KafkaConnectorOptions}. */
 @Internal
-class KafkaConnectorOptionsUtil {
+public class KafkaConnectorOptionsUtil {
 
     private static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
             ConfigOptions.key("schema-registry.subject").stringType().noDefaultValue();
@@ -87,8 +106,8 @@ class KafkaConnectorOptionsUtil {
     // Other keywords.
     private static final String PARTITION = "partition";
     private static final String OFFSET = "offset";
-    protected static final String AVRO_CONFLUENT = "avro-confluent";
-    protected static final String DEBEZIUM_AVRO_CONFLUENT = "debezium-avro-confluent";
+    public static final String AVRO_CONFLUENT = "avro-confluent";
+    public static final String DEBEZIUM_AVRO_CONFLUENT = "debezium-avro-confluent";
     private static final List<String> SCHEMA_REGISTRY_FORMATS =
             Arrays.asList(AVRO_CONFLUENT, DEBEZIUM_AVRO_CONFLUENT);
 
@@ -97,8 +116,10 @@ class KafkaConnectorOptionsUtil {
     // --------------------------------------------------------------------------------------------
 
     public static void validateTableSourceOptions(ReadableConfig tableOptions) {
-        validateSourceTopic(tableOptions);
-        validateScanStartupMode(tableOptions);
+        validateConsumerGroupId(tableOptions);
+        validateSourceTopicPartitionSubscription(tableOptions);
+        validateOffsetMode(tableOptions, StartOrStop.START);
+        validateOffsetMode(tableOptions, StartOrStop.STOP);
     }
 
     public static void validateTableSinkOptions(ReadableConfig tableOptions) {
@@ -106,17 +127,55 @@ class KafkaConnectorOptionsUtil {
         validateSinkPartitioner(tableOptions);
     }
 
-    public static void validateSourceTopic(ReadableConfig tableOptions) {
-        Optional<List<String>> topic = tableOptions.getOptional(TOPIC);
-        Optional<String> pattern = tableOptions.getOptional(TOPIC_PATTERN);
-
-        if (topic.isPresent() && pattern.isPresent()) {
+    private static void validateConsumerGroupId(ReadableConfig tableOptions) {
+        if (!tableOptions.getOptional(PROPS_GROUP_ID).isPresent()) {
             throw new ValidationException(
-                    "Option 'topic' and 'topic-pattern' shouldn't be set together.");
+                    String.format(
+                            "Option '%s' is required for Kafka source table",
+                            PROPS_GROUP_ID.key()));
         }
+    }
 
-        if (!topic.isPresent() && !pattern.isPresent()) {
-            throw new ValidationException("Either 'topic' or 'topic-pattern' must be set.");
+    public static void validateSourceTopicPartitionSubscription(ReadableConfig tableOptions) {
+        final List<String> subscriptionTypes = new ArrayList<>();
+
+        tableOptions.getOptional(TOPIC).ifPresent((ignore) -> subscriptionTypes.add(TOPIC.key()));
+        tableOptions
+                .getOptional(TOPIC_PATTERN)
+                .ifPresent((ignore) -> subscriptionTypes.add(TOPIC_PATTERN.key()));
+        tableOptions
+                .getOptional(PARTITIONS)
+                .ifPresent((ignore) -> subscriptionTypes.add(PARTITIONS.key()));
+
+        if (subscriptionTypes.size() == 0) {
+            throw new ValidationException(
+                    String.format(
+                            "At least one topic partition subscription pattern is required: "
+                                    + "'%s', '%s' or '%s'.",
+                            TOPIC.key(), TOPIC_PATTERN.key(), PARTITIONS.key()));
+        }
+        if (subscriptionTypes.size() > 1) {
+            throw new ValidationException(
+                    String.format(
+                            "Multiple topic partition subscription patterns shouldn't be set together: "
+                                    + "%s",
+                            subscriptionTypes.stream()
+                                    .collect(Collectors.joining("', '", "'", "'"))));
+        }
+    }
+
+    public static void validatePKConstraints(
+            ObjectIdentifier tableName, CatalogTable catalogTable, Format format) {
+        if (catalogTable.getSchema().getPrimaryKey().isPresent()
+                && format.getChangelogMode().containsOnly(RowKind.INSERT)) {
+            Configuration options = Configuration.fromMap(catalogTable.getOptions());
+            String formatName =
+                    options.getOptional(FactoryUtil.FORMAT).orElse(options.get(VALUE_FORMAT));
+            throw new ValidationException(
+                    String.format(
+                            "The Kafka table '%s' with '%s' format doesn't support defining PRIMARY KEY constraint"
+                                    + " on the table, because it can't guarantee the semantic of primary key.",
+                            tableName.asSummaryString(), formatName));
         }
     }
 
@@ -130,6 +189,10 @@ class KafkaConnectorOptionsUtil {
                                 errorMessageTemp,
                                 "'topic-pattern'",
                                 tableOptions.get(TOPIC_PATTERN)));
+            } else if (tableOptions.getOptional(PARTITIONS).isPresent()) {
+                throw new ValidationException(
+                        String.format(
+                                errorMessageTemp, PARTITIONS.key(), tableOptions.get(PARTITIONS)));
             } else {
                 throw new ValidationException(
                         String.format(errorMessageTemp, "'topic'", tableOptions.get(TOPIC)));
@@ -137,44 +200,69 @@ class KafkaConnectorOptionsUtil {
         }
     }
 
-    private static void validateScanStartupMode(ReadableConfig tableOptions) {
+    private static void validateOffsetMode(ReadableConfig tableOptions, StartOrStop startOrStop) {
+        // Validate if stopping offsets are specified when running in bounded mode
+        if (startOrStop.equals(StartOrStop.STOP)) {
+            tableOptions
+                    .getOptional(BOUNDEDNESS)
+                    .ifPresent(
+                            boundedness -> {
+                                if (boundedness.equals(Boundedness.BOUNDED)
+                                        && !tableOptions.getOptional(SCAN_STOP_MODE).isPresent()) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "'%s' should be specified when Kafka source is running in %s mode. ",
+                                                    SCAN_STOP_MODE.key(), boundedness));
+                                }
+                            });
+        }
+
+        // Validate offset mode
+        final ConfigOption<OffsetMode> option =
+                startOrStop.equals(StartOrStop.START) ? SCAN_STARTUP_MODE : SCAN_STOP_MODE;
         tableOptions
-                .getOptional(SCAN_STARTUP_MODE)
+                .getOptional(option)
                 .ifPresent(
                         mode -> {
                             switch (mode) {
                                 case TIMESTAMP:
-                                    if (!tableOptions
-                                            .getOptional(SCAN_STARTUP_TIMESTAMP_MILLIS)
-                                            .isPresent()) {
+                                    final ConfigOption<Long> timestampOption =
+                                            startOrStop.equals(StartOrStop.START)
+                                                    ? SCAN_STARTUP_TIMESTAMP_MILLIS
+                                                    : SCAN_STOP_TIMESTAMP_MILLIS;
+                                    if (!tableOptions.getOptional(timestampOption).isPresent()) {
                                         throw new ValidationException(
                                                 String.format(
                                                         "'%s' is required in '%s' startup mode"
                                                                 + " but missing.",
-                                                        SCAN_STARTUP_TIMESTAMP_MILLIS.key(),
-                                                        ScanStartupMode.TIMESTAMP));
+                                                        timestampOption.key(),
+                                                        OffsetMode.TIMESTAMP));
                                     }
 
                                     break;
                                 case SPECIFIC_OFFSETS:
+                                    final ConfigOption<String> specificOffsetsOption =
+                                            startOrStop.equals(StartOrStop.START)
+                                                    ? SCAN_STARTUP_SPECIFIC_OFFSETS
+                                                    : SCAN_STOP_SPECIFIC_OFFSETS;
                                     if (!tableOptions
-                                            .getOptional(SCAN_STARTUP_SPECIFIC_OFFSETS)
+                                            .getOptional(specificOffsetsOption)
                                             .isPresent()) {
                                         throw new ValidationException(
                                                 String.format(
                                                         "'%s' is required in '%s' startup mode"
                                                                 + " but missing.",
-                                                        SCAN_STARTUP_SPECIFIC_OFFSETS.key(),
-                                                        ScanStartupMode.SPECIFIC_OFFSETS));
+                                                        specificOffsetsOption.key(),
+                                                        OffsetMode.SPECIFIC_OFFSETS));
                                     }
                                     if (!isSingleTopic(tableOptions)) {
                                         throw new ValidationException(
                                                 "Currently Kafka source only supports specific offset for single topic.");
                                     }
                                     String specificOffsets =
-                                            tableOptions.get(SCAN_STARTUP_SPECIFIC_OFFSETS);
+                                            tableOptions.get(specificOffsetsOption);
                                     parseSpecificOffsets(
-                                            specificOffsets, SCAN_STARTUP_SPECIFIC_OFFSETS.key());
+                                            specificOffsets, specificOffsetsOption.key());
 
                                     break;
                             }
@@ -200,8 +288,123 @@ class KafkaConnectorOptionsUtil {
     }
 
     // --------------------------------------------------------------------------------------------
+    // Validations for legacy source
+    // --------------------------------------------------------------------------------------------
+
+    public static void validateLegacyTableSourceOptions(ReadableConfig tableOptions) {
+        validateSourceTopic(tableOptions);
+        validateScanStartupMode(tableOptions);
+    }
+
+    private static void validateSourceTopic(ReadableConfig tableOptions) {
+        Optional<List<String>> topic = tableOptions.getOptional(TOPIC);
+        Optional<String> pattern = tableOptions.getOptional(TOPIC_PATTERN);
+
+        if (topic.isPresent() && pattern.isPresent()) {
+            throw new ValidationException(
+                    "Option 'topic' and 'topic-pattern' shouldn't be set together.");
+        }
+
+        if (!topic.isPresent() && !pattern.isPresent()) {
+            throw new ValidationException("Either 'topic' or 'topic-pattern' must be set.");
+        }
+    }
+
+    private static void validateScanStartupMode(ReadableConfig tableOptions) {
+        tableOptions
+                .getOptional(SCAN_STARTUP_MODE)
+                .ifPresent(
+                        mode -> {
+                            switch (mode) {
+                                case TIMESTAMP:
+                                    if (!tableOptions
+                                            .getOptional(SCAN_STARTUP_TIMESTAMP_MILLIS)
+                                            .isPresent()) {
+                                        throw new ValidationException(
+                                                String.format(
+                                                        "'%s' is required in '%s' startup mode"
+                                                                + " but missing.",
+                                                        SCAN_STARTUP_TIMESTAMP_MILLIS.key(),
+                                                        OffsetMode.TIMESTAMP));
+                                    }
+
+                                    break;
+                                case SPECIFIC_OFFSETS:
+                                    if (!tableOptions
+                                            .getOptional(SCAN_STARTUP_SPECIFIC_OFFSETS)
+                                            .isPresent()) {
+                                        throw new ValidationException(
+                                                String.format(
+                                                        "'%s' is required in '%s' startup mode"
+                                                                + " but missing.",
+                                                        SCAN_STARTUP_SPECIFIC_OFFSETS.key(),
+                                                        OffsetMode.SPECIFIC_OFFSETS));
+                                    }
+                                    if (!isSingleTopic(tableOptions)) {
+                                        throw new ValidationException(
+                                                "Currently Kafka source only supports specific offset for single topic.");
+                                    }
+                                    String specificOffsets =
+                                            tableOptions.get(SCAN_STARTUP_SPECIFIC_OFFSETS);
+                                    parseSpecificOffsets(
+                                            specificOffsets, SCAN_STARTUP_SPECIFIC_OFFSETS.key());
+
+                                    break;
+                            }
+                        });
+    }
+
+    // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------
+
+    public static KafkaDynamicTableSource.TopicPartitionSubscription getTopicPartitionSubscription(
+            ReadableConfig tableOptions) {
+        if (tableOptions.getOptional(TOPIC).isPresent()) {
+            return KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                    tableOptions.get(TOPIC));
+        }
+        if (tableOptions.getOptional(TOPIC_PATTERN).isPresent()) {
+            return KafkaDynamicTableSource.TopicPartitionSubscription.topicPattern(
+                    Pattern.compile(tableOptions.get(TOPIC_PATTERN)));
+        }
+        if (tableOptions.getOptional(PARTITIONS).isPresent()) {
+            return KafkaDynamicTableSource.TopicPartitionSubscription.partitions(
+                    parsePartitionSet(tableOptions));
+        }
+        throw new TableException(
+                "At lease one kind of topic partition subscription should be specified. "
+                        + "Validator should have checked that.");
+    }
+
+    private static Set<TopicPartition> parsePartitionSet(ReadableConfig tableOptions) {
+        return tableOptions
+                .getOptional(PARTITIONS)
+                .map(
+                        partitionList -> {
+                            final Set<TopicPartition> partitionSet = new HashSet<>();
+                            partitionList.forEach(
+                                    topicPartitionString -> {
+                                        final String[] split = topicPartitionString.split(":");
+                                        if (split.length != 2) {
+                                            throw new TableException(
+                                                    String.format(
+                                                            "Unrecognized topic partition string \"%s\"",
+                                                            topicPartitionString));
+                                        }
+                                        partitionSet.add(
+                                                new TopicPartition(
+                                                        split[0], Integer.parseInt(split[1])));
+                                    });
+                            return partitionSet;
+                        })
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        String.format(
+                                                "Option \"%s\" does not exist in table options",
+                                                PARTITIONS.key())));
+    }
 
     public static List<String> getSourceTopics(ReadableConfig tableOptions) {
         return tableOptions.getOptional(TOPIC).orElse(null);
@@ -211,9 +414,66 @@ class KafkaConnectorOptionsUtil {
         return tableOptions.getOptional(TOPIC_PATTERN).map(Pattern::compile).orElse(null);
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean isSingleTopic(ReadableConfig tableOptions) {
         // Option 'topic-pattern' is regarded as multi-topics.
         return tableOptions.getOptional(TOPIC).map(t -> t.size() == 1).orElse(false);
+    }
+
+    public static OffsetsInitializer getOffsetsInitializer(
+            ReadableConfig tableOptions, StartOrStop startOrStop) {
+        ConfigOption<OffsetMode> option =
+                startOrStop.equals(StartOrStop.START) ? SCAN_STARTUP_MODE : SCAN_STOP_MODE;
+        return tableOptions
+                .getOptional(option)
+                .map(
+                        mode -> {
+                            switch (mode) {
+                                case EARLIEST_OFFSET:
+                                    return OffsetsInitializer.earliest();
+                                case LATEST_OFFSET:
+                                    return OffsetsInitializer.latest();
+                                case GROUP_OFFSETS:
+                                    return OffsetsInitializer.committedOffsets();
+                                case SPECIFIC_OFFSETS:
+                                    return OffsetsInitializer.offsets(
+                                            buildSpecificOffsets(
+                                                    tableOptions,
+                                                    tableOptions.get(TOPIC).get(0),
+                                                    startOrStop));
+                                case TIMESTAMP:
+                                    final ConfigOption<Long> timestampOption =
+                                            startOrStop.equals(StartOrStop.START)
+                                                    ? SCAN_STARTUP_TIMESTAMP_MILLIS
+                                                    : SCAN_STOP_TIMESTAMP_MILLIS;
+                                    return OffsetsInitializer.timestamp(
+                                            tableOptions.get(timestampOption));
+                                default:
+                                    throw new TableException(
+                                            "Unsupported startup mode. Validator should have checked that.");
+                            }
+                        })
+                .orElseGet(
+                        () -> {
+                            switch (startOrStop) {
+                                case START:
+                                    return OffsetsInitializer.committedOffsets();
+                                case STOP:
+                                    return null;
+                                default:
+                                    throw new TableException(
+                                            "OffsetsInitializer is only available for starting and stopping offsets");
+                            }
+                        });
+    }
+
+    public static Boundedness getBoundedness(ReadableConfig tableOptions) {
+        return tableOptions
+                .getOptional(BOUNDEDNESS)
+                .orElse(
+                        tableOptions.getOptional(SCAN_STOP_MODE).isPresent()
+                                ? Boundedness.BOUNDED
+                                : Boundedness.CONTINUOUS_UNBOUNDED);
     }
 
     public static StartupOptions getStartupOptions(ReadableConfig tableOptions) {
@@ -237,6 +497,22 @@ class KafkaConnectorOptionsUtil {
             options.startupTimestampMillis = tableOptions.get(SCAN_STARTUP_TIMESTAMP_MILLIS);
         }
         return options;
+    }
+
+    private static Map<TopicPartition, Long> buildSpecificOffsets(
+            ReadableConfig tableOptions, String topic, StartOrStop startOrStop) {
+        final Map<TopicPartition, Long> topicPartitionOffsets = new HashMap<>();
+        final ConfigOption<String> offsetOption =
+                startOrStop.equals(StartOrStop.START)
+                        ? SCAN_STARTUP_SPECIFIC_OFFSETS
+                        : SCAN_STOP_SPECIFIC_OFFSETS;
+        String specificOffsetsStrOpt = tableOptions.get(offsetOption);
+        final Map<Integer, Long> offsetMap =
+                parseSpecificOffsets(specificOffsetsStrOpt, offsetOption.key());
+        offsetMap.forEach(
+                (partition, offset) ->
+                        topicPartitionOffsets.put(new TopicPartition(topic, partition), offset));
+        return topicPartitionOffsets;
     }
 
     private static void buildSpecificOffsets(
@@ -544,6 +820,12 @@ class KafkaConnectorOptionsUtil {
         public StartupMode startupMode;
         public Map<KafkaTopicPartition, Long> specificOffsets;
         public long startupTimestampMillis;
+    }
+
+    /** Starting or stopping offsets. */
+    public enum StartOrStop {
+        START,
+        STOP
     }
 
     private KafkaConnectorOptionsUtil() {}

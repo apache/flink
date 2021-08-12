@@ -16,28 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.factories;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.OffsetMode;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil;
+import org.apache.flink.connector.kafka.table.sink.KafkaDynamicSink;
+import org.apache.flink.connector.kafka.table.source.KafkaDynamicTableSource;
+import org.apache.flink.connector.kafka.table.utils.SinkBufferFlushMode;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroSerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicSource;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicTableFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -48,19 +56,21 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.kafka.common.TopicPartition;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -78,15 +88,15 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
+import static org.apache.flink.connector.kafka.table.options.KafkaConnectorOptionsUtil.DEBEZIUM_AVRO_CONFLUENT;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.DEBEZIUM_AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -98,6 +108,13 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final String TOPIC = "myTopic";
     private static final String TOPICS = "myTopic-1;myTopic-2;myTopic-3";
     private static final String TOPIC_REGEX = "myTopic-\\d+";
+    private static final String PARTITIONS =
+            String.format("%s:%d;%s:%d", "myTopic-1", 0, "myTopic-2", 1);
+    private static final Set<TopicPartition> PARTITION_SET =
+            new HashSet<>(
+                    Arrays.asList(
+                            new TopicPartition("myTopic-1", 0),
+                            new TopicPartition("myTopic-2", 1)));
     private static final List<String> TOPIC_LIST =
             Arrays.asList("myTopic-1", "myTopic-2", "myTopic-3");
     private static final String TEST_REGISTRY_URL = "http://localhost:8081";
@@ -119,14 +136,15 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     private static final String DISCOVERY_INTERVAL = "1000 ms";
 
     private static final Properties KAFKA_SOURCE_PROPERTIES = new Properties();
-    private static final Properties KAFKA_FINAL_SOURCE_PROPERTIES = new Properties();
     private static final Properties KAFKA_SINK_PROPERTIES = new Properties();
     private static final Properties KAFKA_FINAL_SINK_PROPERTIES = new Properties();
+
+    private static final ObjectPath TEST_OBJECT_PATH = FactoryMocks.IDENTIFIER.toObjectPath();
 
     static {
         KAFKA_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
         KAFKA_SOURCE_PROPERTIES.setProperty("bootstrap.servers", "dummy");
-        KAFKA_SOURCE_PROPERTIES.setProperty("flink.partition-discovery.interval-millis", "1000");
+        KAFKA_SOURCE_PROPERTIES.setProperty("partition.discovery.interval.ms", "1000");
 
         KAFKA_SINK_PROPERTIES.setProperty("group.id", "dummy");
         KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
@@ -137,12 +155,23 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         KAFKA_FINAL_SINK_PROPERTIES.setProperty(
                 "key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         KAFKA_FINAL_SINK_PROPERTIES.put("transaction.timeout.ms", 3600000);
+    }
 
-        KAFKA_FINAL_SOURCE_PROPERTIES.putAll(KAFKA_SOURCE_PROPERTIES);
-        KAFKA_FINAL_SOURCE_PROPERTIES.setProperty(
+    // Properties for legacy dynamic table
+    private static final Properties KAFKA_LEGACY_SOURCE_PROPERTIES = new Properties();
+    private static final Properties KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES = new Properties();
+
+    static {
+        KAFKA_LEGACY_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
+        KAFKA_LEGACY_SOURCE_PROPERTIES.setProperty("bootstrap.servers", "dummy");
+        KAFKA_LEGACY_SOURCE_PROPERTIES.setProperty(
+                "flink.partition-discovery.interval-millis", "1000");
+
+        KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES.putAll(KAFKA_LEGACY_SOURCE_PROPERTIES);
+        KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES.setProperty(
                 "value.deserializer",
                 "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-        KAFKA_FINAL_SOURCE_PROPERTIES.setProperty(
+        KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES.setProperty(
                 "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     }
 
@@ -181,66 +210,57 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
     private static final DataType SCHEMA_DATA_TYPE = SCHEMA.toPhysicalRowDataType();
 
+    protected boolean isLegacySource() {
+        return false;
+    }
+
     @Test
     public void testTableSource() {
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, getBasicSourceOptions());
-        final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
+        final DynamicTableSource actualKafkaSource =
+                createTableSource(SCHEMA, getBasicSourceOptions());
 
-        final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
-        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
-        specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+        final Map<TopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
         final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
                 new DecodingFormatMock(",", true);
 
+        final DynamicTableSource expectedKafkaSource;
         // Test scan source equals
-        final KafkaDynamicSource expectedKafkaSource =
-                createExpectedScanSource(
-                        SCHEMA_DATA_TYPE,
-                        null,
-                        valueDecodingFormat,
-                        new int[0],
-                        new int[] {0, 1, 2},
-                        null,
-                        Collections.singletonList(TOPIC),
-                        null,
-                        KAFKA_SOURCE_PROPERTIES,
-                        StartupMode.SPECIFIC_OFFSETS,
-                        specificOffsets,
-                        0);
+        if (isLegacySource()) {
+            expectedKafkaSource =
+                    createLegacyExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            null,
+                            valueDecodingFormat,
+                            new int[0],
+                            new int[] {0, 1, 2},
+                            null,
+                            Collections.singletonList(TOPIC),
+                            null,
+                            KAFKA_LEGACY_SOURCE_PROPERTIES,
+                            StartupMode.SPECIFIC_OFFSETS,
+                            specificOffsets,
+                            0);
+        } else {
+            expectedKafkaSource =
+                    createExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            null,
+                            valueDecodingFormat,
+                            new int[0],
+                            new int[] {0, 1, 2},
+                            null,
+                            KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                    Collections.singletonList(TOPIC)),
+                            OffsetsInitializer.offsets(specificOffsets),
+                            null,
+                            Boundedness.CONTINUOUS_UNBOUNDED,
+                            KAFKA_SOURCE_PROPERTIES,
+                            TEST_OBJECT_PATH);
+        }
         assertEquals(actualKafkaSource, expectedKafkaSource);
-
-        // Test Kafka consumer
-        ScanTableSource.ScanRuntimeProvider provider =
-                actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
-
-        // Test commitOnCheckpoints flag should be true when set consumer group
-        assertTrue(((FlinkKafkaConsumer<?>) sourceFunction).getEnableCommitOnCheckpoints());
-    }
-
-    @Test
-    public void testTableSourceCommitOnCheckpointsDisabled() {
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(), options -> options.remove("properties.group.id"));
-        final DynamicTableSource tableSource = createTableSource(SCHEMA, modifiedOptions);
-
-        // Test commitOnCheckpoints flag should be false when do not set consumer group.
-        assertThat(tableSource, instanceOf(KafkaDynamicSource.class));
-        ScanTableSource.ScanRuntimeProvider providerWithoutGroupId =
-                ((KafkaDynamicSource) tableSource)
-                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(providerWithoutGroupId, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider functionProviderWithoutGroupId =
-                (SourceFunctionProvider) providerWithoutGroupId;
-        final SourceFunction<RowData> function =
-                functionProviderWithoutGroupId.createSourceFunction();
-        assertFalse(((FlinkKafkaConsumer<?>) function).getEnableCommitOnCheckpoints());
     }
 
     @Test
@@ -251,20 +271,72 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         options -> {
                             options.remove("topic");
                             options.put("topic-pattern", TOPIC_REGEX);
-                            options.put(
-                                    "scan.startup.mode",
-                                    ScanStartupMode.EARLIEST_OFFSET.toString());
+                            options.put("scan.startup.mode", OffsetMode.EARLIEST_OFFSET.toString());
                             options.remove("scan.startup.specific-offsets");
                         });
         final DynamicTableSource actualSource = createTableSource(SCHEMA, modifiedOptions);
-
-        final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
 
         DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
                 new DecodingFormatMock(",", true);
 
         // Test scan source equals
-        final KafkaDynamicSource expectedKafkaSource =
+        DynamicTableSource expectedKafkaSource;
+        if (isLegacySource()) {
+            expectedKafkaSource =
+                    createLegacyExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            null,
+                            valueDecodingFormat,
+                            new int[0],
+                            new int[] {0, 1, 2},
+                            null,
+                            null,
+                            Pattern.compile(TOPIC_REGEX),
+                            KAFKA_LEGACY_SOURCE_PROPERTIES,
+                            StartupMode.EARLIEST,
+                            new HashMap<>(),
+                            0);
+        } else {
+            expectedKafkaSource =
+                    createExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            null,
+                            valueDecodingFormat,
+                            new int[0],
+                            new int[] {0, 1, 2},
+                            null,
+                            KafkaDynamicTableSource.TopicPartitionSubscription.topicPattern(
+                                    Pattern.compile(TOPIC_REGEX)),
+                            OffsetsInitializer.earliest(),
+                            null,
+                            Boundedness.CONTINUOUS_UNBOUNDED,
+                            KAFKA_SOURCE_PROPERTIES,
+                            TEST_OBJECT_PATH);
+        }
+        assertEquals(actualSource, expectedKafkaSource);
+    }
+
+    @Test
+    public void testTableSourceWithPartitionList() {
+        if (isLegacySource()) {
+            return;
+        }
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getBasicSourceOptions(),
+                        options -> {
+                            options.remove("topic");
+                            options.put("partitions", PARTITIONS);
+                            options.put("scan.startup.mode", "earliest-offset");
+                        });
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, modifiedOptions);
+
+        final Map<TopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+        final DynamicTableSource expectedSource =
                 createExpectedScanSource(
                         SCHEMA_DATA_TYPE,
                         null,
@@ -272,31 +344,23 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         new int[0],
                         new int[] {0, 1, 2},
                         null,
+                        KafkaDynamicTableSource.TopicPartitionSubscription.partitions(
+                                PARTITION_SET),
+                        OffsetsInitializer.earliest(),
                         null,
-                        Pattern.compile(TOPIC_REGEX),
+                        Boundedness.CONTINUOUS_UNBOUNDED,
                         KAFKA_SOURCE_PROPERTIES,
-                        StartupMode.EARLIEST,
-                        specificOffsets,
-                        0);
-        final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
-        assertEquals(actualKafkaSource, expectedKafkaSource);
+                        TEST_OBJECT_PATH);
 
-        // Test Kafka consumer
-        ScanTableSource.ScanRuntimeProvider provider =
-                actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
+        assertEquals(expectedSource, actualSource);
     }
 
     @Test
     public void testTableSourceWithKeyValue() {
         final DynamicTableSource actualSource = createTableSource(SCHEMA, getKeyValueOptions());
-        final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
         // initialize stateful testing formats
-        actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        ((ScanTableSource) actualSource)
+                .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 
         final DecodingFormatMock keyDecodingFormat = new DecodingFormatMock("#", false);
         keyDecodingFormat.producedDataType =
@@ -309,21 +373,39 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                                 DataTypes.FIELD(TIME, DataTypes.TIMESTAMP(3)))
                         .notNull();
 
-        final KafkaDynamicSource expectedKafkaSource =
-                createExpectedScanSource(
-                        SCHEMA_DATA_TYPE,
-                        keyDecodingFormat,
-                        valueDecodingFormat,
-                        new int[] {0},
-                        new int[] {1, 2},
-                        null,
-                        Collections.singletonList(TOPIC),
-                        null,
-                        KAFKA_FINAL_SOURCE_PROPERTIES,
-                        StartupMode.GROUP_OFFSETS,
-                        Collections.emptyMap(),
-                        0);
-
+        DynamicTableSource expectedKafkaSource;
+        if (isLegacySource()) {
+            expectedKafkaSource =
+                    createLegacyExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            keyDecodingFormat,
+                            valueDecodingFormat,
+                            new int[] {0},
+                            new int[] {1, 2},
+                            null,
+                            Collections.singletonList(TOPIC),
+                            null,
+                            KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES,
+                            StartupMode.GROUP_OFFSETS,
+                            Collections.emptyMap(),
+                            0);
+        } else {
+            expectedKafkaSource =
+                    createExpectedScanSource(
+                            SCHEMA_DATA_TYPE,
+                            keyDecodingFormat,
+                            valueDecodingFormat,
+                            new int[] {0},
+                            new int[] {1, 2},
+                            null,
+                            KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                    Collections.singletonList(TOPIC)),
+                            OffsetsInitializer.committedOffsets(),
+                            null,
+                            Boundedness.CONTINUOUS_UNBOUNDED,
+                            KAFKA_SOURCE_PROPERTIES,
+                            TEST_OBJECT_PATH);
+        }
         assertEquals(actualSource, expectedKafkaSource);
     }
 
@@ -333,12 +415,13 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         options.put("value.test-format.readable-metadata", "metadata_1:INT, metadata_2:STRING");
 
         final DynamicTableSource actualSource = createTableSource(SCHEMA_WITH_METADATA, options);
-        final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
         // initialize stateful testing formats
-        actualKafkaSource.applyReadableMetadata(
-                Arrays.asList("timestamp", "value.metadata_2"),
-                SCHEMA_WITH_METADATA.toSourceRowDataType());
-        actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        ((SupportsReadingMetadata) actualSource)
+                .applyReadableMetadata(
+                        Arrays.asList("timestamp", "value.metadata_2"),
+                        SCHEMA_WITH_METADATA.toSourceRowDataType());
+        ((ScanTableSource) actualSource)
+                .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
 
         final DecodingFormatMock expectedKeyFormat =
                 new DecodingFormatMock(
@@ -360,24 +443,241 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         .notNull();
         expectedValueFormat.metadataKeys = Collections.singletonList("metadata_2");
 
-        final KafkaDynamicSource expectedKafkaSource =
-                createExpectedScanSource(
-                        SCHEMA_WITH_METADATA.toPhysicalRowDataType(),
-                        expectedKeyFormat,
-                        expectedValueFormat,
-                        new int[] {0},
-                        new int[] {1},
-                        null,
-                        Collections.singletonList(TOPIC),
-                        null,
-                        KAFKA_FINAL_SOURCE_PROPERTIES,
-                        StartupMode.GROUP_OFFSETS,
-                        Collections.emptyMap(),
-                        0);
-        expectedKafkaSource.producedDataType = SCHEMA_WITH_METADATA.toSourceRowDataType();
-        expectedKafkaSource.metadataKeys = Collections.singletonList("timestamp");
+        DynamicTableSource expectedKafkaSource;
+        if (isLegacySource()) {
+            expectedKafkaSource =
+                    createLegacyExpectedScanSource(
+                            SCHEMA_WITH_METADATA.toPhysicalRowDataType(),
+                            expectedKeyFormat,
+                            expectedValueFormat,
+                            new int[] {0},
+                            new int[] {1},
+                            null,
+                            Collections.singletonList(TOPIC),
+                            null,
+                            KAFKA_LEGACY_FINAL_SOURCE_PROPERTIES,
+                            StartupMode.GROUP_OFFSETS,
+                            Collections.emptyMap(),
+                            0);
+            KafkaLegacyDynamicSource castedExpectedKafkaSource =
+                    (KafkaLegacyDynamicSource) expectedKafkaSource;
+            castedExpectedKafkaSource.setProducedDataType(
+                    SCHEMA_WITH_METADATA.toSourceRowDataType());
+            castedExpectedKafkaSource.setMetadataKeys(Collections.singletonList("timestamp"));
+        } else {
+            expectedKafkaSource =
+                    createExpectedScanSource(
+                            SCHEMA_WITH_METADATA.toPhysicalRowDataType(),
+                            expectedKeyFormat,
+                            expectedValueFormat,
+                            new int[] {0},
+                            new int[] {1},
+                            null,
+                            KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                    Collections.singletonList(TOPIC)),
+                            OffsetsInitializer.committedOffsets(),
+                            null,
+                            Boundedness.CONTINUOUS_UNBOUNDED,
+                            KAFKA_SOURCE_PROPERTIES,
+                            TEST_OBJECT_PATH);
+            KafkaDynamicTableSource castedExpectedKafkaSource =
+                    (KafkaDynamicTableSource) expectedKafkaSource;
+            castedExpectedKafkaSource.setProducedDataType(
+                    SCHEMA_WITH_METADATA.toSourceRowDataType());
+            castedExpectedKafkaSource.setMetadataKeys(Collections.singletonList("timestamp"));
+        }
 
         assertEquals(actualSource, expectedKafkaSource);
+    }
+
+    @Test
+    public void testBoundedTableSource() {
+        if (isLegacySource()) {
+            return;
+        }
+        final DynamicTableSource actualSource =
+                createTableSource(
+                        SCHEMA,
+                        getModifiedOptions(
+                                getBasicSourceOptions(),
+                                options ->
+                                        options.put(
+                                                "scan.stop.mode",
+                                                OffsetMode.LATEST_OFFSET.toString())));
+
+        final Map<TopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+        final DynamicTableSource expectedSource =
+                createExpectedScanSource(
+                        SCHEMA_DATA_TYPE,
+                        null,
+                        valueDecodingFormat,
+                        new int[0],
+                        new int[] {0, 1, 2},
+                        null,
+                        KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                Collections.singletonList(TOPIC)),
+                        OffsetsInitializer.offsets(specificOffsets),
+                        OffsetsInitializer.latest(),
+                        Boundedness.BOUNDED,
+                        KAFKA_SOURCE_PROPERTIES,
+                        TEST_OBJECT_PATH);
+
+        assertEquals(expectedSource, actualSource);
+
+        final ScanTableSource.ScanRuntimeProvider provider =
+                ((ScanTableSource) actualSource)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertTrue(provider.isBounded());
+    }
+
+    @Test
+    public void testBoundedTableSourceWithStoppingOffsets() {
+        if (isLegacySource()) {
+            return;
+        }
+        final DynamicTableSource actualSource =
+                createTableSource(
+                        SCHEMA,
+                        getModifiedOptions(
+                                getBasicSourceOptions(),
+                                options -> {
+                                    options.put(
+                                            "scan.stop.mode",
+                                            OffsetMode.SPECIFIC_OFFSETS.toString());
+                                    options.put(
+                                            "scan.stop.specific-offsets",
+                                            String.format(
+                                                    "partition:%s,offset:%d;partition:%s,offset:%d",
+                                                    PARTITION_0, 15213, PARTITION_1, 18213));
+                                }));
+
+        final Map<TopicPartition, Long> startingSpecificOffsets = new HashMap<>();
+        startingSpecificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        startingSpecificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+
+        final Map<TopicPartition, Long> stoppingSpecificOffsets = new HashMap<>();
+        stoppingSpecificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), 15213L);
+        stoppingSpecificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), 18213L);
+
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+        final DynamicTableSource expectedSource =
+                createExpectedScanSource(
+                        SCHEMA_DATA_TYPE,
+                        null,
+                        valueDecodingFormat,
+                        new int[0],
+                        new int[] {0, 1, 2},
+                        null,
+                        KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                Collections.singletonList(TOPIC)),
+                        OffsetsInitializer.offsets(startingSpecificOffsets),
+                        OffsetsInitializer.offsets(stoppingSpecificOffsets),
+                        Boundedness.BOUNDED,
+                        KAFKA_SOURCE_PROPERTIES,
+                        TEST_OBJECT_PATH);
+
+        assertEquals(expectedSource, actualSource);
+
+        final ScanTableSource.ScanRuntimeProvider provider =
+                ((ScanTableSource) actualSource)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertTrue(provider.isBounded());
+    }
+
+    @Test
+    public void testBoundedTableSourceWithStoppingTimestamp() {
+        if (isLegacySource()) {
+            return;
+        }
+        final DynamicTableSource actualSource =
+                createTableSource(
+                        SCHEMA,
+                        getModifiedOptions(
+                                getBasicSourceOptions(),
+                                options -> {
+                                    options.put("scan.stop.mode", OffsetMode.TIMESTAMP.toString());
+                                    options.put("scan.stop.timestamp-millis", "15213");
+                                }));
+
+        final Map<TopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+        final DynamicTableSource expectedSource =
+                createExpectedScanSource(
+                        SCHEMA_DATA_TYPE,
+                        null,
+                        valueDecodingFormat,
+                        new int[0],
+                        new int[] {0, 1, 2},
+                        null,
+                        KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                Collections.singletonList(TOPIC)),
+                        OffsetsInitializer.offsets(specificOffsets),
+                        OffsetsInitializer.timestamp(15213L),
+                        Boundedness.BOUNDED,
+                        KAFKA_SOURCE_PROPERTIES,
+                        TEST_OBJECT_PATH);
+
+        assertEquals(expectedSource, actualSource);
+
+        final ScanTableSource.ScanRuntimeProvider provider =
+                ((ScanTableSource) actualSource)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+        assertTrue(provider.isBounded());
+    }
+
+    @Test
+    public void testUnboundedTableSourceWithStoppingOffsets() {
+        if (isLegacySource()) {
+            return;
+        }
+        final DynamicTableSource actualSource =
+                createTableSource(
+                        SCHEMA,
+                        getModifiedOptions(
+                                getBasicSourceOptions(),
+                                options -> {
+                                    options.put(
+                                            "scan.stop.mode", OffsetMode.LATEST_OFFSET.toString());
+                                    options.put("boundedness", "CONTINUOUS_UNBOUNDED");
+                                }));
+
+        final Map<TopicPartition, Long> specificOffsets = new HashMap<>();
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+        specificOffsets.put(new TopicPartition(TOPIC, PARTITION_1), OFFSET_1);
+        final DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat =
+                new DecodingFormatMock(",", true);
+        final DynamicTableSource expectedSource =
+                createExpectedScanSource(
+                        SCHEMA_DATA_TYPE,
+                        null,
+                        valueDecodingFormat,
+                        new int[0],
+                        new int[] {0, 1, 2},
+                        null,
+                        KafkaDynamicTableSource.TopicPartitionSubscription.topics(
+                                Collections.singletonList(TOPIC)),
+                        OffsetsInitializer.offsets(specificOffsets),
+                        OffsetsInitializer.latest(),
+                        Boundedness.CONTINUOUS_UNBOUNDED,
+                        KAFKA_SOURCE_PROPERTIES,
+                        TEST_OBJECT_PATH);
+
+        assertEquals(expectedSource, actualSource);
+
+        // Given source should be unbounded even stopping offsets initializer is specified
+        final ScanTableSource.ScanRuntimeProvider provider =
+                ((ScanTableSource) actualSource)
+                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+
+        assertFalse(provider.isBounded());
     }
 
     @Test
@@ -584,8 +884,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
         if (avroFormats.contains(valueFormat)) {
             SerializationSchema<RowData> actualValueEncoder =
-                    sink.valueEncodingFormat.createRuntimeEncoder(
-                            new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
+                    sink.getValueEncodingFormat()
+                            .createRuntimeEncoder(
+                                    new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
             final SerializationSchema<RowData> expectedValueEncoder;
             if (AVRO_CONFLUENT.equals(valueFormat)) {
                 expectedValueEncoder = createConfluentAvroSerSchema(rowType, expectedValueSubject);
@@ -596,10 +897,11 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         }
 
         if (avroFormats.contains(keyFormat)) {
-            assert sink.keyEncodingFormat != null;
+            assert sink.getKeyEncodingFormat() != null;
             SerializationSchema<RowData> actualKeyEncoder =
-                    sink.keyEncodingFormat.createRuntimeEncoder(
-                            new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
+                    sink.getKeyEncodingFormat()
+                            .createRuntimeEncoder(
+                                    new SinkRuntimeProviderContext(false), SCHEMA_DATA_TYPE);
             final SerializationSchema<RowData> expectedKeyEncoder;
             if (AVRO_CONFLUENT.equals(keyFormat)) {
                 expectedKeyEncoder = createConfluentAvroSerSchema(rowType, expectedKeySubject);
@@ -631,10 +933,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     @Test
     public void testSourceTableWithTopicAndTopicPattern() {
         thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Option 'topic' and 'topic-pattern' shouldn't be set together.")));
+        String errorMessage;
+        if (isLegacySource()) {
+            errorMessage = "Option 'topic' and 'topic-pattern' shouldn't be set together.";
+        } else {
+            errorMessage =
+                    "Multiple topic partition subscription patterns shouldn't be set together: 'topic', 'topic-pattern'";
+        }
+        thrown.expect(containsCause(new ValidationException(errorMessage)));
 
         final Map<String, String> modifiedOptions =
                 getModifiedOptions(
@@ -812,7 +1118,37 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     // Utilities
     // --------------------------------------------------------------------------------------------
 
-    private static KafkaDynamicSource createExpectedScanSource(
+    @SuppressWarnings("SameParameterValue")
+    private KafkaDynamicTableSource createExpectedScanSource(
+            DataType physicalDataType,
+            @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
+            DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
+            int[] keyProjection,
+            int[] valueProjection,
+            @Nullable String keyPrefix,
+            KafkaDynamicTableSource.TopicPartitionSubscription topicPartitionSubscription,
+            OffsetsInitializer startingOffsetsInitializer,
+            @Nullable OffsetsInitializer stoppingOffsetsInitializer,
+            Boundedness boundedness,
+            Properties properties,
+            ObjectPath objectPath) {
+        return new KafkaDynamicTableSource(
+                physicalDataType,
+                keyDecodingFormat,
+                valueDecodingFormat,
+                keyProjection,
+                valueProjection,
+                keyPrefix,
+                topicPartitionSubscription,
+                startingOffsetsInitializer,
+                stoppingOffsetsInitializer,
+                boundedness,
+                properties,
+                objectPath,
+                false);
+    }
+
+    private static KafkaLegacyDynamicSource createLegacyExpectedScanSource(
             DataType physicalDataType,
             @Nullable DecodingFormat<DeserializationSchema<RowData>> keyDecodingFormat,
             DecodingFormat<DeserializationSchema<RowData>> valueDecodingFormat,
@@ -823,9 +1159,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             @Nullable Pattern topicPattern,
             Properties properties,
             StartupMode startupMode,
-            Map<KafkaTopicPartition, Long> specificStartupOffsets,
+            Map<TopicPartition, Long> specificStartupOffsets,
             long startupTimestampMillis) {
-        return new KafkaDynamicSource(
+        Map<KafkaTopicPartition, Long> convertedSpecifiedOffsets = new HashMap<>();
+        specificStartupOffsets.forEach(
+                (tp, offset) ->
+                        convertedSpecifiedOffsets.put(
+                                new KafkaTopicPartition(tp.topic(), tp.partition()), offset));
+        return new KafkaLegacyDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
                 valueDecodingFormat,
@@ -836,11 +1177,12 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 topicPattern,
                 properties,
                 startupMode,
-                specificStartupOffsets,
+                convertedSpecifiedOffsets,
                 startupTimestampMillis,
                 false);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static KafkaDynamicSink createExpectedSink(
             DataType physicalDataType,
             @Nullable EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
@@ -881,10 +1223,16 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         return options;
     }
 
-    private static Map<String, String> getBasicSourceOptions() {
+    protected Map<String, String> getBasicSourceOptions() {
         Map<String, String> tableOptions = new HashMap<>();
         // Kafka specific options.
-        tableOptions.put("connector", KafkaDynamicTableFactory.IDENTIFIER);
+        String identifier;
+        if (isLegacySource()) {
+            identifier = KafkaLegacyDynamicTableFactory.IDENTIFIER;
+        } else {
+            identifier = KafkaDynamicTableFactory.IDENTIFIER;
+        }
+        tableOptions.put("connector", identifier);
         tableOptions.put("topic", TOPIC);
         tableOptions.put("properties.group.id", "dummy");
         tableOptions.put("properties.bootstrap.servers", "dummy");
@@ -924,10 +1272,16 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         return tableOptions;
     }
 
-    private static Map<String, String> getKeyValueOptions() {
+    private Map<String, String> getKeyValueOptions() {
         Map<String, String> tableOptions = new HashMap<>();
         // Kafka specific options.
-        tableOptions.put("connector", KafkaDynamicTableFactory.IDENTIFIER);
+        String identifier;
+        if (isLegacySource()) {
+            identifier = KafkaLegacyDynamicTableFactory.IDENTIFIER;
+        } else {
+            identifier = KafkaDynamicTableFactory.IDENTIFIER;
+        }
+        tableOptions.put("connector", identifier);
         tableOptions.put("topic", TOPIC);
         tableOptions.put("properties.group.id", "dummy");
         tableOptions.put("properties.bootstrap.servers", "dummy");

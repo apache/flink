@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kafka.table.factories.KafkaDynamicTableFactory;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaLegacyDynamicTableFactory;
 import org.apache.flink.table.api.TableResult;
 
 import org.junit.Before;
@@ -36,10 +38,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.connector.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE;
 import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
 /** IT cases for Kafka with changelog format for Table API & SQL. */
 public class KafkaChangelogTableITCase extends KafkaTableTestBase {
@@ -102,13 +104,14 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
                                 + " origin_topic STRING METADATA FROM 'topic' VIRTUAL,"
                                 + " origin_partition STRING METADATA FROM 'partition' VIRTUAL" // unused
                                 + ") WITH ("
-                                + " 'connector' = 'kafka',"
+                                + " 'connector' = '%s',"
                                 + " 'topic' = '%s',"
                                 + " 'properties.bootstrap.servers' = '%s',"
+                                + " 'properties.group.id' = '%s',"
                                 + " 'scan.startup.mode' = 'earliest-offset',"
                                 + " 'value.format' = 'debezium-json'"
                                 + ")",
-                        topic, bootstraps);
+                        getKafkaIdentifier(), topic, bootstraps, "debezium-changelog-source-test");
         String sinkDDL =
                 "CREATE TABLE sink ("
                         + " origin_topic STRING,"
@@ -250,13 +253,14 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
                                 + " origin_partition STRING METADATA FROM 'partition' VIRTUAL," // unused
                                 + " WATERMARK FOR origin_es AS origin_es - INTERVAL '5' SECOND"
                                 + ") WITH ("
-                                + " 'connector' = 'kafka',"
+                                + " 'connector' = '%s',"
                                 + " 'topic' = '%s',"
                                 + " 'properties.bootstrap.servers' = '%s',"
+                                + " 'properties.group.id' = '%s',"
                                 + " 'scan.startup.mode' = 'earliest-offset',"
                                 + " 'value.format' = 'canal-json'"
                                 + ")",
-                        topic, bootstraps);
+                        getKafkaIdentifier(), topic, bootstraps, "canal-changelog-source-test");
         String sinkDDL =
                 "CREATE TABLE sink ("
                         + " origin_topic STRING,"
@@ -400,13 +404,14 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
                                 + " origin_topic STRING METADATA FROM 'topic' VIRTUAL,"
                                 + " origin_partition STRING METADATA FROM 'partition' VIRTUAL" // unused
                                 + ") WITH ("
-                                + " 'connector' = 'kafka',"
+                                + " 'connector' = '%s',"
                                 + " 'topic' = '%s',"
                                 + " 'properties.bootstrap.servers' = '%s',"
+                                + " 'properties.group.id' = '%s',"
                                 + " 'scan.startup.mode' = 'earliest-offset',"
                                 + " 'value.format' = 'maxwell-json'"
                                 + ")",
-                        topic, bootstraps);
+                        getKafkaIdentifier(), topic, bootstraps, "maxwell-changelog-source-test");
         String sinkDDL =
                 "CREATE TABLE sink ("
                         + " origin_topic STRING,"
@@ -491,5 +496,11 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
         tableResult.getJobClient().get().cancel().get(); // stop the job
         deleteTestTopic(topic);
+    }
+
+    protected String getKafkaIdentifier() {
+        return isLegacySource()
+                ? KafkaLegacyDynamicTableFactory.IDENTIFIER
+                : KafkaDynamicTableFactory.IDENTIFIER;
     }
 }

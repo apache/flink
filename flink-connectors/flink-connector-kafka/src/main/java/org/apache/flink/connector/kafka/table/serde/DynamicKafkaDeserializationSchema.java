@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.serde;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.kafka.table.source.KafkaDynamicTableSource;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.table.data.GenericRowData;
@@ -37,8 +38,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/** A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicSource}. */
-class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
+/** A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicTableSource}. */
+public class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -56,7 +57,7 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
     private final boolean upsertMode;
 
-    DynamicKafkaDeserializationSchema(
+    public DynamicKafkaDeserializationSchema(
             int physicalArity,
             @Nullable DeserializationSchema<RowData> keyDeserialization,
             int[] keyProjection,
@@ -139,7 +140,8 @@ class DynamicKafkaDeserializationSchema implements KafkaDeserializationSchema<Ro
 
     // --------------------------------------------------------------------------------------------
 
-    interface MetadataConverter extends Serializable {
+    /** Metadata converter. */
+    public interface MetadataConverter extends Serializable {
         Object read(ConsumerRecord<?, ?> record);
     }
 

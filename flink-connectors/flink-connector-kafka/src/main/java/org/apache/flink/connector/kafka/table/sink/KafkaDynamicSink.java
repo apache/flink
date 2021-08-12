@@ -16,14 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.table;
+package org.apache.flink.connector.kafka.table.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.kafka.table.options.KafkaConnectorOptions.SinkSemantic;
+import org.apache.flink.connector.kafka.table.serde.DynamicKafkaSerializationSchema;
+import org.apache.flink.connector.kafka.table.serde.DynamicKafkaSerializationSchema.MetadataConverter;
+import org.apache.flink.connector.kafka.table.utils.BufferedUpsertSinkFunction;
+import org.apache.flink.connector.kafka.table.utils.SinkBufferFlushMode;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -355,7 +359,8 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     // Metadata handling
     // --------------------------------------------------------------------------------------------
 
-    enum WritableMetadata {
+    /** Writable metadata. */
+    public enum WritableMetadata {
         HEADERS(
                 "headers",
                 // key and value of the map are nullable to make handling easier in queries
@@ -399,11 +404,11 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                     }
                 });
 
-        final String key;
+        public final String key;
 
-        final DataType dataType;
+        public final DataType dataType;
 
-        final MetadataConverter converter;
+        public final MetadataConverter converter;
 
         WritableMetadata(String key, DataType dataType, MetadataConverter converter) {
             this.key = key;
@@ -434,5 +439,16 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         public byte[] value() {
             return value;
         }
+    }
+
+    @VisibleForTesting
+    @Nullable
+    public EncodingFormat<SerializationSchema<RowData>> getKeyEncodingFormat() {
+        return keyEncodingFormat;
+    }
+
+    @VisibleForTesting
+    public EncodingFormat<SerializationSchema<RowData>> getValueEncodingFormat() {
+        return valueEncodingFormat;
     }
 }
