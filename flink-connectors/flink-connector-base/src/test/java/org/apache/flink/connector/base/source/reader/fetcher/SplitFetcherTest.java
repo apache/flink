@@ -177,7 +177,10 @@ public class SplitFetcherTest {
                 new SplitFetcher<>(
                         0,
                         elementQueue,
-                        new MockSplitReader(2, true),
+                        MockSplitReader.newBuilder()
+                                .setNumRecordsPerSplitPerFetch(2)
+                                .setBlockingFetch(true)
+                                .build(),
                         ExceptionUtils::rethrow,
                         () -> {});
 
