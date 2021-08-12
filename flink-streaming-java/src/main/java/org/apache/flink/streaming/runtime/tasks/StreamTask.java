@@ -1291,7 +1291,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             throws Exception {
 
         LOG.debug(
-                "Starting checkpoint ({}) {} on task {}",
+                "Starting checkpoint {} {} on task {}",
                 checkpointMetaData.getCheckpointId(),
                 checkpointOptions.getCheckpointType(),
                 getName());
@@ -1400,6 +1400,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void notifyCheckpointComplete(long checkpointId) throws Exception {
+        LOG.debug("Notify checkpoint {} complete on task {}", checkpointId, getName());
+
         if (checkpointId <= latestReportCheckpointId) {
             return;
         }
