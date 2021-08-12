@@ -111,7 +111,7 @@ cdef class FunctionOperation(Operation):
             self._output_processor = NetworkOutputProcessor(consumer)
 
             _value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-            if isinstance(self._value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
+            if isinstance(_value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
                 self._is_python_coder = False
             else:
                 self._is_python_coder = True

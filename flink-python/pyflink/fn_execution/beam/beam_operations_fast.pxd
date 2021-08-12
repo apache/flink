@@ -47,7 +47,6 @@ cdef class IntermediateOutputProcessor(OutputProcessor):
 cdef class FunctionOperation(Operation):
     cdef OutputProcessor _output_processor
     cdef bint _is_python_coder
-    cdef StreamCoderImpl _value_coder_impl
     cdef object process_element
     cdef object operation
     cdef object operation_cls
