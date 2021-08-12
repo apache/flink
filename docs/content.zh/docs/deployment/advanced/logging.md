@@ -105,7 +105,7 @@ Logback 1.3+ 需要 SLF4J 2，目前不支持。
 {{< /hint >}}
 
 
-<a name="best-practices-for-developers"> </a>
+<a name="best-practices-for-developers"></a>
 
 ## 开发人员的最佳实践
 
