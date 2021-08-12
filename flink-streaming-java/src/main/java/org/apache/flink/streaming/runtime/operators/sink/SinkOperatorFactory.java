@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -113,5 +114,10 @@ public final class SinkOperatorFactory<InputT, CommT, WriterStateT>
     @Override
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
         return SinkOperator.class;
+    }
+
+    @VisibleForTesting
+    public Sink<InputT, CommT, WriterStateT, ?> getSink() {
+        return sink;
     }
 }

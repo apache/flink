@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,16 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -43,6 +36,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +45,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
@@ -58,10 +53,9 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/** Test for {@link BufferedUpsertSinkFunction}. */
+/** Tests for {@link ReducingUpsertWriter}. */
 @RunWith(Parameterized.class)
-public class BufferedUpsertSinkFunctionTest {
-
+public class ReducingUpsertWriterTest {
     @Parameterized.Parameters(name = "object reuse = {0}")
     public static Object[] enableObjectReuse() {
         return new Boolean[] {true, false};
@@ -137,26 +131,34 @@ public class BufferedUpsertSinkFunctionTest {
                 StringData.fromString("Kevin Jones"),
                 null,
                 1010,
+                TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z"))),
+        GenericRowData.ofKind(
+                DELETE,
+                1005,
+                StringData.fromString("A Teaspoon of Java 1.8"),
+                StringData.fromString("Kevin Jones"),
+                null,
+                1010,
                 TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))
     };
 
     private final boolean enableObjectReuse;
 
-    public BufferedUpsertSinkFunctionTest(boolean enableObjectReuse) {
+    public ReducingUpsertWriterTest(boolean enableObjectReuse) {
         this.enableObjectReuse = enableObjectReuse;
     }
 
     @Test
     public void testWriteData() throws Exception {
-        MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        BufferedUpsertSinkFunction bufferedSink = createBufferedSink(sinkFunction);
+        final MockedSinkWriter writer = new MockedSinkWriter();
+        final ReducingUpsertWriter<?> bufferedWriter = createBufferedWriter(writer);
 
-        // write 3 records which doesn't trigger batch size
-        writeData(bufferedSink, new ReusableIterator(0, 3));
-        assertTrue(sinkFunction.rowDataCollectors.isEmpty());
+        // write 4 records which doesn't trigger batch size
+        writeData(bufferedWriter, new ReusableIterator(0, 4));
+        assertTrue(writer.rowDataCollectors.isEmpty());
 
         // write one more record, and should flush the buffer
-        writeData(bufferedSink, new ReusableIterator(3, 1));
+        writeData(bufferedWriter, new ReusableIterator(7, 1));
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -193,22 +195,34 @@ public class BufferedUpsertSinkFunctionTest {
                                 55,
                                 TimestampData.fromInstant(Instant.parse("2021-03-30T18:00:00Z")))));
 
-        compareCompactedResult(expected, sinkFunction.rowDataCollectors);
+        expected.put(
+                1005,
+                Collections.singletonList(
+                        GenericRowData.ofKind(
+                                DELETE,
+                                1005,
+                                StringData.fromString("A Teaspoon of Java 1.8"),
+                                StringData.fromString("Kevin Jones"),
+                                null,
+                                1010,
+                                TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))));
 
-        sinkFunction.rowDataCollectors.clear();
+        compareCompactedResult(expected, writer.rowDataCollectors);
+
+        writer.rowDataCollectors.clear();
         // write remaining data, and they are still buffered
-        writeData(bufferedSink, new ReusableIterator(4, 3));
-        assertTrue(sinkFunction.rowDataCollectors.isEmpty());
+        writeData(bufferedWriter, new ReusableIterator(4, 3));
+        assertTrue(writer.rowDataCollectors.isEmpty());
     }
 
     @Test
     public void testFlushDataWhenCheckpointing() throws Exception {
-        MockedSinkFunction sinkFunction = new MockedSinkFunction();
-        BufferedUpsertSinkFunction bufferedFunction = createBufferedSink(sinkFunction);
+        final MockedSinkWriter writer = new MockedSinkWriter();
+        final ReducingUpsertWriter<?> bufferedWriter = createBufferedWriter(writer);
         // write all data, there should be 3 records are still buffered
-        writeData(bufferedFunction, new ReusableIterator(0, TEST_DATA.length));
+        writeData(bufferedWriter, new ReusableIterator(0, 4));
         // snapshot should flush the buffer
-        bufferedFunction.snapshotState(null);
+        bufferedWriter.prepareCommit(true);
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -243,47 +257,9 @@ public class BufferedUpsertSinkFunctionTest {
                                 StringData.fromString("Kevin Jones"),
                                 55.55,
                                 55,
-                                TimestampData.fromInstant(Instant.parse("2021-03-30T18:00:00Z"))),
-                        GenericRowData.ofKind(
-                                DELETE,
-                                1004,
-                                StringData.fromString("A Teaspoon of Java 1.8"),
-                                StringData.fromString("Kevin Jones"),
-                                null,
-                                1010,
-                                TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))));
+                                TimestampData.fromInstant(Instant.parse("2021-03-30T18:00:00Z")))));
 
-        compareCompactedResult(expected, sinkFunction.rowDataCollectors);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    @SuppressWarnings("unchecked")
-    private BufferedUpsertSinkFunction createBufferedSink(MockedSinkFunction sinkFunction)
-            throws Exception {
-        TypeInformation<RowData> typeInformation =
-                (TypeInformation<RowData>)
-                        new SinkRuntimeProviderContext(false)
-                                .createTypeInformation(SCHEMA.toPhysicalRowDataType());
-
-        BufferedUpsertSinkFunction bufferedSinkFunction =
-                new BufferedUpsertSinkFunction(
-                        sinkFunction,
-                        SCHEMA.toPhysicalRowDataType(),
-                        new int[] {keyIndices},
-                        typeInformation,
-                        BUFFER_FLUSH_MODE);
-        bufferedSinkFunction.open(new Configuration());
-        return bufferedSinkFunction;
-    }
-
-    private void writeData(BufferedUpsertSinkFunction sink, Iterator<RowData> iterator)
-            throws Exception {
-        while (iterator.hasNext()) {
-            RowData next = iterator.next();
-            long rowtime = next.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
-            sink.invoke(next, SinkContextUtil.forTimestamp(rowtime));
-        }
+        compareCompactedResult(expected, writer.rowDataCollectors);
     }
 
     private void compareCompactedResult(
@@ -301,54 +277,82 @@ public class BufferedUpsertSinkFunctionTest {
         }
     }
 
-    // --------------------------------------------------------------------------------------------
+    private void writeData(ReducingUpsertWriter<?> writer, Iterator<RowData> iterator)
+            throws Exception {
+        while (iterator.hasNext()) {
+            RowData next = iterator.next();
+            long rowtime = next.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
+            writer.write(
+                    next,
+                    new SinkWriter.Context() {
+                        @Override
+                        public long currentWatermark() {
+                            throw new UnsupportedOperationException("Not implemented.");
+                        }
 
-    private class MockedSinkFunction extends RichSinkFunction<RowData>
-            implements CheckpointedFunction, CheckpointListener {
+                        @Override
+                        public Long timestamp() {
+                            return rowtime;
+                        }
+                    });
+        }
+    }
 
-        private static final long serialVersionUID = 1L;
-        private final RuntimeContext context = new MockStreamingRuntimeContext(true, 1, 1);
+    @SuppressWarnings("unchecked")
+    private ReducingUpsertWriter<?> createBufferedWriter(MockedSinkWriter sinkWriter) {
+        TypeInformation<RowData> typeInformation =
+                (TypeInformation<RowData>)
+                        new SinkRuntimeProviderContext(false)
+                                .createTypeInformation(SCHEMA.toPhysicalRowDataType());
+        return new ReducingUpsertWriter<>(
+                sinkWriter,
+                SCHEMA.toPhysicalRowDataType(),
+                new int[] {keyIndices},
+                BUFFER_FLUSH_MODE,
+                new Sink.ProcessingTimeService() {
+                    @Override
+                    public long getCurrentProcessingTime() {
+                        return 0;
+                    }
+
+                    @Override
+                    public void registerProcessingTimer(
+                            long time, ProcessingTimeCallback processingTimerCallback) {}
+                },
+                enableObjectReuse
+                        ? typeInformation.createSerializer(new ExecutionConfig())::copy
+                        : Function.identity());
+    }
+
+    private static class MockedSinkWriter implements SinkWriter<RowData, Void, Void> {
+
         transient List<RowData> rowDataCollectors;
 
-        MockedSinkFunction() {
-            if (enableObjectReuse) {
-                context.getExecutionConfig().enableObjectReuse();
-            }
-        }
-
-        @Override
-        public RuntimeContext getRuntimeContext() {
-            return context;
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        MockedSinkWriter() {
             rowDataCollectors = new ArrayList<>();
         }
 
         @Override
-        public void notifyCheckpointComplete(long checkpointId) {
-            // do nothing
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) {
-            // do nothing
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) {
-            // do nothing
-        }
-
-        @Override
-        public void invoke(RowData value, Context context) {
+        public void write(RowData element, Context context)
+                throws IOException, InterruptedException {
             assertEquals(
-                    value.getTimestamp(TIMESTAMP_INDICES, 3).toInstant(),
+                    element.getTimestamp(TIMESTAMP_INDICES, 3).toInstant(),
                     Instant.ofEpochMilli(context.timestamp()));
-            rowDataCollectors.add(value);
+            rowDataCollectors.add(element);
         }
+
+        @Override
+        public List<Void> prepareCommit(boolean flush) throws IOException, InterruptedException {
+            return null;
+        }
+
+        @Override
+        public List<Void> snapshotState() throws IOException {
+            return null;
+        }
+
+        @Override
+        public void close() throws Exception {}
     }
 
     private class ReusableIterator implements Iterator<RowData> {
