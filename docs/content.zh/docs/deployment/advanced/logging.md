@@ -30,7 +30,6 @@ under the License.
 # 如何使用日志记录
 
 所有 Flink 进程都会创建一个文本格式的日志文件，其中包含该进程中发生的各种事件的信息。
-
 这些日志提供了深入了解 Flink 内部工作的途径，同时可以用来输出检测出的问题（以 WARN/ERROR 消息的形式），还可以辅助调试问题。
 
 日志文件可以通过 Job-/TaskManager 对应的 WebUI 页面访问。所使用的 [Resource Provider]({{< ref "docs/deployment/overview" >}}) （如 YARN）可能会提供额外的访问方式来访问日志。
