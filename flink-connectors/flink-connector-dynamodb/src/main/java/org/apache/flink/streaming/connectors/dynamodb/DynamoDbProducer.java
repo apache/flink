@@ -55,7 +55,7 @@ public interface DynamoDbProducer {
     /** Get outstanding records in the in-memory queue. */
     long getOutstandingRecordsCount();
 
-    /** Flush outstanding records in the producer. */
+    /** Flush outstanding records in the producer queue. */
     void flush() throws Exception;
 
     /** Produce to DynamoDb. */

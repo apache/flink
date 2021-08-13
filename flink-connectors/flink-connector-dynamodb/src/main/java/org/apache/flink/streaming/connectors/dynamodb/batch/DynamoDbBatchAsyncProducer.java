@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.dynamodb.batch;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
+import org.apache.flink.streaming.connectors.dynamodb.config.RestartPolicy;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -39,16 +40,20 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
     private static final Logger LOG = LoggerFactory.getLogger(DynamoDbBatchAsyncProducer.class);
 
     private final BatchCollector batchCollector;
-    private final BatchAsyncProcessor processor;
-    private final boolean failOnError;
+    private BatchAsyncProcessor processor;
+    private final RestartPolicy restartPolicy;
+    private final BatchWriterProvider writerProvider;
+    private final int internalQueueLimit;
 
     public DynamoDbBatchAsyncProducer(
             int batchSize,
             int internalQueueLimit,
-            boolean failOnError,
+            RestartPolicy restartPolicy,
             DynamoDbTablesConfig tablesConfig,
             BatchWriterProvider writerProvider) {
-        this.failOnError = failOnError;
+        this.writerProvider = writerProvider;
+        this.internalQueueLimit = internalQueueLimit;
+        this.restartPolicy = restartPolicy;
         this.processor =
                 new BatchAsyncProcessor(
                         internalQueueLimit,
@@ -118,17 +123,26 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
         @Override
         public void onException(Throwable error) {
             LOG.error(
-                    "Write failed with an unhandled exception. Fail on error flag set to: "
-                            + failOnError,
+                    "Write failed with an unhandled exception. Restart policy set to: "
+                            + restartPolicy,
                     error);
 
-            if (failOnError) {
+            if (restartPolicy == RestartPolicy.FailOnError) {
                 LOG.info(
                         "Attempt to gracefully shutdown the processor, because 'fail on error' was set to true");
                 processor.shutdown();
+            } else if (restartPolicy == RestartPolicy.Restart) {
+                LOG.info(
+                        "Attempt to gracefully shutdown and restart the processor because of the restart policy");
+                processor.shutdown();
+                processor =
+                        new BatchAsyncProcessor(
+                                internalQueueLimit,
+                                getLoopsExecutor(),
+                                writerProvider,
+                                new CompletionHandler());
+                processor.start();
             }
         }
-
-        // TODO restart policy
     }
 }

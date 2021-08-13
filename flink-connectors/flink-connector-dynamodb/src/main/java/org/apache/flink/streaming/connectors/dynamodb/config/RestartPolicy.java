@@ -21,13 +21,14 @@ package org.apache.flink.streaming.connectors.dynamodb.config;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Type of the DynamoDB producer: BatchAsync producer attempts to batch records and write them
- * asynchronously by several processes. As batch may retry unprocessed records, the order of the
- * write is not guaranteed.
+ * If restart policy is FailOnError, the producer will attempt to do a clean shutdown (processing
+ * remaining items in the queue) in case of the write error. If restart policy is Restart, the
+ * producer will additionally attempt to restart the process.
  */
 @PublicEvolving
-public enum ProducerType {
-    BatchAsync;
+public enum RestartPolicy {
+    Restart,
+    FailOnError;
 
-    ProducerType() {}
+    RestartPolicy() {}
 }

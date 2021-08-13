@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchAsyncPr
 import org.apache.flink.streaming.connectors.dynamodb.batch.retry.DefaultBatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
+import org.apache.flink.streaming.connectors.dynamodb.config.RestartPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -31,17 +32,17 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class DynamoDbProducerBuilder {
 
     public static final int DEFAULT_BATCH_SIZE = 25;
-    public static final int DEFAULT_MAX_NUMBER_OF_RETRY_ATTEMPTS = 50;
     public static final int DEFAULT_INTERNAL_QUEUE_LIMIT = 1000;
 
     private final DynamoDbClient client;
-    private ProducerType type;
+    private final ProducerType type;
     private DynamoDbTablesConfig tablesConfig;
     private int batchSize;
     private int queueLimit;
     private WriterRetryPolicy retryPolicy;
     private DynamoDbProducer.Listener listener;
     private boolean failOnError;
+    private RestartPolicy restartPolicy;
 
     public DynamoDbProducerBuilder(DynamoDbClient client, ProducerType type, boolean failOnError) {
         this.client = client;
@@ -49,46 +50,68 @@ public class DynamoDbProducerBuilder {
         this.failOnError = failOnError;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.queueLimit = DEFAULT_INTERNAL_QUEUE_LIMIT;
-        this.retryPolicy = new DefaultBatchWriterRetryPolicy(DEFAULT_MAX_NUMBER_OF_RETRY_ATTEMPTS);
+        this.retryPolicy = new DefaultBatchWriterRetryPolicy();
     }
 
+    /**
+     * DynamoDb tables configuration. The configuration can be used by batching producers to
+     * deduplicated messages in the batch based on the value of the table keys (Primary or Composite
+     * keys). If configuration is not provided deduplication will not happen and the batch write may
+     * be rejected by DynamoDB.
+     */
     public DynamoDbProducerBuilder setTablesConfig(DynamoDbTablesConfig config) {
         this.tablesConfig = config;
         return this;
     }
 
+    /**
+     * The batch size for the batching DynamoDB producer. The parameter only considered for the
+     * batch producers, otherwise ignored. Maximum value 25. Default value 25.
+     */
     public DynamoDbProducerBuilder setBatchSize(int batchSize) {
         this.batchSize = batchSize;
         return this;
     }
 
+    /** Limit for the internal queue of the write tasks. */
     public DynamoDbProducerBuilder setQueueLimit(int queueLimit) {
         this.queueLimit = queueLimit;
         return this;
     }
 
-    // TODO define retry policy in a better way
+    /**
+     * Retry and backoff policy for the writer. If the policy is not set, default policy is used
+     * that will retry forever until the write is successful (unless a non-retryable error).
+     */
     public DynamoDbProducerBuilder setRetryPolicy(WriterRetryPolicy retryPolicy) {
         this.retryPolicy = retryPolicy;
         return this;
     }
 
+    /**
+     * Allows to set custom listener implementation. Listener is called before and after the write.
+     */
     public DynamoDbProducerBuilder setListener(DynamoDbProducer.Listener listener) {
         this.listener = listener;
         return this;
     }
 
-    public DynamoDbProducerBuilder setFailOnError(boolean failOnError) {
-        this.failOnError = failOnError;
+    /**
+     * If restart policy is FailOnError, producer will attempt to do a clean shutdown (processing
+     * remaining items in the queue) in case of the write error. If restart policy is Restart, the
+     * producer will additionally attempt to restart the process.
+     */
+    public DynamoDbProducerBuilder setRestartPolicy(RestartPolicy policy) {
+        this.restartPolicy = policy;
         return this;
     }
 
     public DynamoDbProducer build() {
-        if (type == ProducerType.BATCH_ASYNC) {
+        if (type == ProducerType.BatchAsync) {
             BatchWriterProvider writerProvider =
                     new BatchWriterProvider(client, retryPolicy, listener);
             return new DynamoDbBatchAsyncProducer(
-                    batchSize, queueLimit, failOnError, tablesConfig, writerProvider);
+                    batchSize, queueLimit, restartPolicy, tablesConfig, writerProvider);
         } else {
             throw new RuntimeException("Producer type " + type + "is not supported");
         }
