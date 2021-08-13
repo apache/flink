@@ -117,6 +117,39 @@ public class TwoPhaseCommitSinkFunctionTest {
     }
 
     @Test
+    public void testNoTransactionAfterSinkFunctionFinish() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        harness.snapshot(0, 1);
+        harness.processElement("43", 2);
+        harness.snapshot(1, 3);
+        harness.processElement("44", 4);
+
+        // do not expect new input after finish()
+        sinkFunction.finish();
+
+        harness.snapshot(2, 5);
+        harness.notifyOfCompletedCheckpoint(1);
+
+        // make sure the previous empty transaction will not be pre-committed
+        harness.snapshot(3, 6);
+
+        try {
+            harness.processElement("45", 7);
+            fail(
+                    "TwoPhaseCommitSinkFunctionTest should not process any more input data after finish!");
+        } catch (NullPointerException e) {
+            // expected and do nothing here
+        }
+
+        // Checkpoint2 has not complete
+        assertExactlyOnce(Arrays.asList("42", "43"));
+
+        // transaction for checkpoint2
+        assertEquals(1, tmpDirectory.listFiles().size());
+    }
+
+    @Test
     public void testNotifyOfCompletedCheckpoint() throws Exception {
         harness.open();
         harness.processElement("42", 0);
