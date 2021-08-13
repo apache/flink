@@ -49,7 +49,7 @@ Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果�
 - `log4j-cli.properties`：Flink 命令行使用（例如 `flink run`）；
 - `log4j-session.properties`：Flink 命令行在启动基于 Kubernetes/Yarn 的 Session 集群时使用（例如 `kubernetes-session.sh`/`yarn-session.sh`）；
 - `log4j-console.properties`：Job-/TaskManagers 在前台模式运行时使用（例如 Kubernetes）；
-- `log4j.properties`： JobManager/TaskManager 默认使用的日志配置。
+- `log4j.properties`： Job-/TaskManagers 默认使用的日志配置。
 
 Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录行为。默认情况下30秒检查一次，监测间隔可以通过 Log4j 配置文件的 `monitorInterval` 配置项进行设置。
 
