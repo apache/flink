@@ -61,7 +61,7 @@ under the License.
 * 运行 [TaskManagers]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager) 的 *Deployment*；
 * 暴露 *JobManager* 上 REST 和 UI 端口的 *Service*；
 
-使用 [通用集群资源定义](#common-cluster-resource-definitions)中提供的文件内容来创建以下文件，并使用 `kubectl` 命令来创建相应的组件：
+使用[通用集群资源定义](#common-cluster-resource-definitions)中提供的文件内容来创建以下文件，并使用 `kubectl` 命令来创建相应的组件：
 
 ```sh
     # configmap 和 service 的定义
