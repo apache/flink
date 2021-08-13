@@ -76,7 +76,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - 往 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars；
 - 用适配的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
 
-<a name="configuring-logback"> </a>
+<a name="configuring-logback"></a>
 
 ## 配置 logback
 
