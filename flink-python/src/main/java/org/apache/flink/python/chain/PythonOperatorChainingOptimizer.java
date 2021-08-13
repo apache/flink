@@ -20,7 +20,6 @@ package org.apache.flink.python.chain;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.PythonConfigUtil;
@@ -286,11 +285,10 @@ public class PythonOperatorChainingOptimizer {
         transformationsField.setAccessible(true);
         List<Transformation<?>> transformations =
                 (List<Transformation<?>>) transformationsField.get(env);
-        Configuration config = PythonConfigUtil.getEnvironmentConfig(env);
         PythonOperatorChainingOptimizer chainingOptimizer =
                 new PythonOperatorChainingOptimizer(
                         transformations,
-                        config.getBoolean(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED));
+                        env.getConfiguration().get(PythonOptions.PYTHON_OPERATOR_CHAINING_ENABLED));
         transformationsField.set(env, chainingOptimizer.optimize());
     }
 

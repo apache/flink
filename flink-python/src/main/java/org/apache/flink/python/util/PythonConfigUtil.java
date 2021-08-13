@@ -62,7 +62,7 @@ public class PythonConfigUtil {
     public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
             throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         return PythonDependencyUtils.configurePythonDependencies(
-                env.getCachedFiles(), getEnvironmentConfig(env));
+                env.getCachedFiles(), (Configuration) env.getConfiguration());
     }
 
     /**
@@ -138,16 +138,12 @@ public class PythonConfigUtil {
 
     public static Configuration getMergedConfig(
             StreamExecutionEnvironment env, TableConfig tableConfig) {
-        try {
-            Configuration config = new Configuration(getEnvironmentConfig(env));
-            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
-            Configuration mergedConfig =
-                    PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
-            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return mergedConfig;
-        } catch (IllegalAccessException | NoSuchFieldException | InvocationTargetException e) {
-            throw new TableException("Method getMergedConfig failed.", e);
-        }
+        Configuration config = new Configuration((Configuration) env.getConfiguration());
+        PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
+        Configuration mergedConfig =
+                PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
+        mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+        return mergedConfig;
     }
 
     @SuppressWarnings("unchecked")
