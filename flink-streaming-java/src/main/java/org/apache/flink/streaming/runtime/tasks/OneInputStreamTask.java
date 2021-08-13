@@ -42,8 +42,8 @@ import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
 
@@ -237,8 +237,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            operator.processStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            operator.processWatermarkStatus(watermarkStatus);
         }
 
         @Override

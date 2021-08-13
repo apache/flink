@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 /** A fake {@link Input} for finished on restore tasks. */
 public class FinishedOnRestoreInput<IN> implements Input<IN> {
@@ -57,7 +57,7 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
     }
 
     @Override
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
         throw new IllegalStateException();
     }
 

@@ -41,9 +41,9 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
@@ -284,11 +284,11 @@ public class StreamTwoInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
             if (inputIndex == 0) {
-                operator.processStreamStatus1(streamStatus);
+                operator.processWatermarkStatus1(watermarkStatus);
             } else {
-                operator.processStreamStatus2(streamStatus);
+                operator.processWatermarkStatus2(watermarkStatus);
             }
         }
 

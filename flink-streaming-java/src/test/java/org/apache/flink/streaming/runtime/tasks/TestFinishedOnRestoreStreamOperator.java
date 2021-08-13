@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup;
 
@@ -61,7 +61,7 @@ public class TestFinishedOnRestoreStreamOperator
     }
 
     @Override
-    public void processStreamStatus(StreamStatus streamStatus) {
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) {
         throw new IllegalStateException(MESSAGE);
     }
 
@@ -176,12 +176,12 @@ public class TestFinishedOnRestoreStreamOperator
     }
 
     @Override
-    public void processStreamStatus1(StreamStatus streamStatus) throws Exception {
+    public void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
         throw new IllegalStateException(MESSAGE);
     }
 
     @Override
-    public void processStreamStatus2(StreamStatus streamStatus) throws Exception {
+    public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
         throw new IllegalStateException(MESSAGE);
     }
 }

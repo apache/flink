@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.streamstatus;
+package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.junit.Test;
 
@@ -25,33 +25,33 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for {@link StreamStatus}. */
-public class StreamStatusTest {
+/** Tests for {@link WatermarkStatus}. */
+public class WatermarkStatusTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testIllegalCreationThrowsException() {
-        new StreamStatus(32);
+        new WatermarkStatus(32);
     }
 
     @Test
     public void testEquals() {
-        StreamStatus idleStatus = new StreamStatus(StreamStatus.IDLE_STATUS);
-        StreamStatus activeStatus = new StreamStatus(StreamStatus.ACTIVE_STATUS);
+        WatermarkStatus idleStatus = new WatermarkStatus(WatermarkStatus.IDLE_STATUS);
+        WatermarkStatus activeStatus = new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS);
 
-        assertEquals(StreamStatus.IDLE, idleStatus);
+        assertEquals(WatermarkStatus.IDLE, idleStatus);
         assertTrue(idleStatus.isIdle());
         assertFalse(idleStatus.isActive());
 
-        assertEquals(StreamStatus.ACTIVE, activeStatus);
+        assertEquals(WatermarkStatus.ACTIVE, activeStatus);
         assertTrue(activeStatus.isActive());
         assertFalse(activeStatus.isIdle());
     }
 
     @Test
     public void testTypeCasting() {
-        StreamStatus status = StreamStatus.ACTIVE;
+        WatermarkStatus status = WatermarkStatus.ACTIVE;
 
-        assertTrue(status.isStreamStatus());
+        assertTrue(status.isWatermarkStatus());
         assertFalse(status.isRecord());
         assertFalse(status.isWatermark());
         assertFalse(status.isLatencyMarker());
