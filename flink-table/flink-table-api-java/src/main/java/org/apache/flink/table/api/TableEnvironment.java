@@ -1248,8 +1248,9 @@ public interface TableEnvironment {
     JobExecutionResult execute(String jobName) throws Exception;
 
     /**
-     * Create a {@link StatementSet} instance which accepts DML statements or Tables, the planner
-     * can optimize all added statements and Tables together and then submit as one job.
+     * Returns a {@link StatementSet} that accepts pipelines defined by DML statements or {@link
+     * Table} objects. The planner can optimize all added statements together and then submit them
+     * as one job.
      */
     StatementSet createStatementSet();
 }

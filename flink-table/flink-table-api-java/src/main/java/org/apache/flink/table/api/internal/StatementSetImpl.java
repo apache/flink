@@ -40,11 +40,11 @@ import java.util.stream.Collectors;
 
 /** Implementation for {@link StatementSet}. */
 @Internal
-class StatementSetImpl implements StatementSet {
-    private final TableEnvironmentInternal tableEnvironment;
-    private final List<ModifyOperation> operations = new ArrayList<>();
+public class StatementSetImpl<E extends TableEnvironmentInternal> implements StatementSet {
+    protected final E tableEnvironment;
+    protected final List<ModifyOperation> operations = new ArrayList<>();
 
-    protected StatementSetImpl(TableEnvironmentInternal tableEnvironment) {
+    protected StatementSetImpl(E tableEnvironment) {
         this.tableEnvironment = tableEnvironment;
     }
 

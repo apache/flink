@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -720,6 +721,17 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     DataStream<Row> toChangelogStream(
             Table table, Schema targetSchema, ChangelogMode changelogMode);
+
+    /**
+     * Returns a {@link StatementSet} that integrates with the Java-specific {@link DataStream} API.
+     *
+     * <p>It accepts pipelines defined by DML statements or {@link Table} objects. The planner can
+     * optimize all added statements together and then either submit them as one job or attach them
+     * to the underlying {@link StreamExecutionEnvironment}.
+     *
+     * @return statement set builder for the Java-specific {@link DataStream} API
+     */
+    StreamStatementSet createStatementSet();
 
     /**
      * Converts the given {@link DataStream} into a {@link Table} with specified field names.
