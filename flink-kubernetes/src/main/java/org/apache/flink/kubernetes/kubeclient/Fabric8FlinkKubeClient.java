@@ -41,6 +41,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
+import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -72,26 +73,27 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(Fabric8FlinkKubeClient.class);
 
-    private final NamespacedKubernetesClient internalClient;
     private final String clusterId;
     private final String namespace;
     private final int maxRetryAttempts;
+    private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
 
+    private final NamespacedKubernetesClient internalClient;
     private final ExecutorService kubeClientExecutorService;
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
             ExecutorService executorService) {
-        this.internalClient = checkNotNull(client);
         this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
-
         this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-
         this.maxRetryAttempts =
                 flinkConfig.getInteger(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
-
+        this.nodePortAddressType =
+                flinkConfig.get(
+                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
+        this.internalClient = checkNotNull(client);
         this.kubeClientExecutorService = checkNotNull(executorService);
     }
 
@@ -433,8 +435,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 address = loadBalancer.getIngress().get(0).getHostname();
             }
         } else {
-            // Use node port
-            address = this.internalClient.getMasterUrl().getHost();
+            // Use node port. Node port is accessible on any node within kubernetes cluster. We'll
+            // only consider IPs with the configured address type.
+            address =
+                    internalClient.nodes().list().getItems().stream()
+                            .flatMap(node -> node.getStatus().getAddresses().stream())
+                            .filter(
+                                    nodeAddress ->
+                                            nodePortAddressType
+                                                    .name()
+                                                    .equals(nodeAddress.getType()))
+                            .map(NodeAddress::getAddress)
+                            .filter(ip -> !ip.isEmpty())
+                            .findAny()
+                            .orElse(null);
+            if (address == null) {
+                LOG.warn(
+                        "Unable to find any node ip with type [{}]. Please see [{}] config option for more details.",
+                        nodePortAddressType,
+                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE.key());
+            }
         }
         boolean noAddress = address == null || address.isEmpty();
         return noAddress ? Optional.empty() : Optional.of(new Endpoint(address, restPort));

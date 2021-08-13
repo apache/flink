@@ -34,6 +34,7 @@ import java.util.Map;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** This class holds configuration constants used by Flink's kubernetes runners. */
 @PublicEvolving
@@ -58,6 +59,25 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The exposed type of the rest service. "
                                     + "The exposed rest service could be used to access the Flink’s Web UI and REST endpoint.");
+
+    public static final ConfigOption<NodePortAddressType>
+            REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE =
+                    key("kubernetes.rest-service.exposed.node-port-address-type")
+                            .enumType(NodePortAddressType.class)
+                            .defaultValue(NodePortAddressType.InternalIP)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "The user-specified %s that is used for filtering node IPs when constructing a %s connection string. This option is only considered when '%s' is set to '%s'.",
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/architecture/nodes/#addresses",
+                                                            "address type"),
+                                                    link(
+                                                            "https://kubernetes.io/docs/concepts/services-networking/service/#nodeport",
+                                                            "node port"),
+                                                    text(REST_SERVICE_EXPOSED_TYPE.key()),
+                                                    text(ServiceExposedType.NodePort.name()))
+                                            .build());
 
     public static final ConfigOption<String> JOB_MANAGER_SERVICE_ACCOUNT =
             key("kubernetes.jobmanager.service-account")
@@ -453,6 +473,12 @@ public class KubernetesConfigOptions {
         ClusterIP,
         NodePort,
         LoadBalancer
+    }
+
+    /** The flink rest service exposed type. */
+    public enum NodePortAddressType {
+        InternalIP,
+        ExternalIP,
     }
 
     /** The container image pull policy. */
