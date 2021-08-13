@@ -43,7 +43,7 @@ under the License.
 
 ### 准备
 
-本指南假设存在一个 Kubernets 的运行环境。可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
+本指南假设存在一个 Kubernets 的运行环境。你可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
 
 如果想在本地运行 Kubernetes，建议使用 [MiniKube](https://minikube.sigs.k8s.io/docs/start/)。
 
