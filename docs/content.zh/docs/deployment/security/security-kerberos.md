@@ -55,7 +55,7 @@ Flink Kerberos 安全框架的主要目标如下：
 - HBase
 - ZooKeeper
 
-请注意，可以单独为每个服务或 connector 启用 Kerberos。例如，用户可以启用 Hadoop security，而无需为 ZooKeeper 开启 Kerberos，反之亦然。Kerberos 凭证是组件之间共享的配置，每个组件会显式地使用它。
+请注意，你可以单独为每个服务或 connector 启用 Kerberos。例如，用户可以启用 Hadoop security，而无需为 ZooKeeper 开启 Kerberos，反之亦然。Kerberos 凭证是组件之间共享的配置，每个组件会显式地使用它。
 
 Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runtime.security.modules.SecurityModule`）上的，安全模块在 Flink 启动过程中被安装。后面部分描述了每个安全模块。
 
@@ -87,7 +87,7 @@ Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runt
 
 ### Standalone 模式
 
-在 standalone 模式 或 集群模式下运行安全 Flink 集群的步骤如下：
+在 standalone 模式或集群模式下运行安全 Flink 集群的步骤如下：
 
 1. 将与安全相关的配置选项添加到 Flink 配置文件（在所有集群节点上执行）（详见[此处]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)）。
 2. 确保 keytab 文件存在于每个群集节点通过 `security.kerberos.login.keytab` 指定的路径上。
@@ -109,9 +109,11 @@ Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runt
 
 有关更多信息，请参阅 <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> 文档。
 
+<a name="using-kinit-yarn-only"></a>
+
 #### 使用 `kinit` (仅限 YARN)
 
-在 YARN 模式下，可以不需要 keytab 而只使用 ticket 缓存（由 `kinit` 管理）来部署一个安全的 Flink 集群。这避免了生成 keytab 的复杂性，同事避免了将其委托给集群管理器。在这种情况下，使用 Flink CLI 获取 Hadoop delegation token（用于 HDFS 和 HBase）。主要缺点是集群必须是短暂的，因为生成的 delegation token 将会过期（通常在一周内）。
+在 YARN 模式下，可以不需要 keytab 而只使用 ticket 缓存（由 `kinit` 管理）来部署一个安全的 Flink 集群。这避免了生成 keytab 的复杂性，同时避免了将其委托给集群管理器。在这种情况下，使用 Flink CLI 获取 Hadoop delegation token（用于 HDFS 和 HBase）。主要缺点是集群必须是短暂的，因为生成的 delegation token 将会过期（通常在一周内）。
 
 使用 `kinit` 运行安全 Flink 集群的步骤如下：
 
