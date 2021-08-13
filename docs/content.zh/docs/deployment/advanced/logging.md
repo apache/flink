@@ -84,7 +84,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j-impl`；
 - Classpath 中存在 `ch.qos.logback:logback-core` 和 `ch.qos.logback:logback-classic`。
 
-在 IDE 中使用 logback ，必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换  Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
+如果在 IDE 中使用 logback，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须：
 
