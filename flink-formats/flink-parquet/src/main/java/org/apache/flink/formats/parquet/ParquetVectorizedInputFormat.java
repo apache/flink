@@ -177,7 +177,10 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
             for (int i = 0; i < projectedFields.length; ++i) {
                 String fieldName = projectedFields[i];
                 if (!parquetSchema.containsField(fieldName)) {
-                    LOG.warn("%s does not exist in %s", fieldName, parquetSchema);
+                    LOG.warn(
+                            "{} does not exist in {}, will fill the field with null.",
+                            fieldName,
+                            parquetSchema);
                     types[i] =
                             ParquetSchemaConverter.convertToParquetType(
                                     fieldName, projectedTypes[i]);
@@ -204,7 +207,10 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                 Type type =
                         caseInsensitiveFieldMap.get(projectedFields[i].toLowerCase(Locale.ROOT));
                 if (type == null) {
-                    LOG.warn("%s does not exist in %s", projectedFields[i], parquetSchema);
+                    LOG.warn(
+                            "{} does not exist in {}, will fill the field with null.",
+                            projectedFields[i],
+                            parquetSchema);
                     type =
                             ParquetSchemaConverter.convertToParquetType(
                                     projectedFields[i].toLowerCase(Locale.ROOT), projectedTypes[i]);
@@ -380,6 +386,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                 if (columnReaders[i] == null) {
                     batch.writableVectors[i].fillWithNulls();
                 } else {
+                    //noinspection unchecked
                     columnReaders[i].readToVector(num, batch.writableVectors[i]);
                 }
             }

@@ -272,7 +272,7 @@ public class ParquetColumnarRowInputFormatTest {
                     new DoubleType(), new TinyIntType(), new IntType(), new VarCharType()
                 };
         ParquetColumnarRowInputFormat<FileSourceSplit> format =
-                new ParquetColumnarRowInputFormat(
+                new ParquetColumnarRowInputFormat<>(
                         new Configuration(),
                         // f99 not exist in parquet file.
                         RowType.of(fieldTypes, new String[] {"f7", "f2", "f4", "f99"}),
@@ -289,7 +289,7 @@ public class ParquetColumnarRowInputFormatTest {
                     assertEquals(i, row.getDouble(0), 0);
                     assertEquals((byte) i, row.getByte(1));
                     assertEquals(i, row.getInt(2));
-                    assertEquals(true, row.isNullAt(3));
+                    assertTrue(row.isNullAt(3));
                     cnt.incrementAndGet();
                 });
     }
