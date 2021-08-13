@@ -33,6 +33,8 @@ under the License.
 
 本 *入门* 指南描述了如何在 [Kubernetes](https://kubernetes.io) 上部署 *Flink Seesion 集群*。
 
+<a name="introduction"></a>
+
 ### 介绍
 
 本文描述了如何使用 Flink standalone 部署模式在 Kubernetes 上部署 [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}) 模式在 Kubernetes上部署 Flink。
