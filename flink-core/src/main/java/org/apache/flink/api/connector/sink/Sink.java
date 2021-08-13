@@ -193,7 +193,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
              *
              * @param time The time this callback was registered for.
              */
-            void onProcessingTime(long time) throws IOException;
+            void onProcessingTime(long time) throws IOException, InterruptedException;
         }
     }
 }
