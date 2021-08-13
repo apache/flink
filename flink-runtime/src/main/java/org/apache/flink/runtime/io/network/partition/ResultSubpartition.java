@@ -62,7 +62,7 @@ public abstract class ResultSubpartition {
     }
 
     @VisibleForTesting
-    public final boolean add(BufferConsumer bufferConsumer) throws IOException {
+    public final int add(BufferConsumer bufferConsumer) throws IOException {
         return add(bufferConsumer, 0);
     }
 
@@ -80,10 +80,10 @@ public abstract class ResultSubpartition {
      * @param bufferConsumer the buffer to add (transferring ownership to this writer)
      * @param partialRecordLength the length of bytes to skip in order to start with a complete
      *     record, from position index 0 of the underlying {@cite MemorySegment}.
-     * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
+     * @return the preferable buffer size for this subpartition or -1 if the add operation fails.
      * @throws IOException thrown in case of errors while adding the buffer
      */
-    public abstract boolean add(BufferConsumer bufferConsumer, int partialRecordLength)
+    public abstract int add(BufferConsumer bufferConsumer, int partialRecordLength)
             throws IOException;
 
     public abstract void flush();
@@ -108,6 +108,8 @@ public abstract class ResultSubpartition {
 
     /** Get the current size of the queue. */
     public abstract int getNumberOfQueuedBuffers();
+
+    public abstract void bufferSize(int desirableNewBufferSize);
 
     // ------------------------------------------------------------------------
 

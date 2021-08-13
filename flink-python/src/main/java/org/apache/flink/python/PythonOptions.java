@@ -76,6 +76,15 @@ public class PythonOptions {
                                     + "The interval between each profiling is determined by the config options "
                                     + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
 
+    /** The configuration to enable or disable python operator chaining. */
+    public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =
+            ConfigOptions.key("python.operator-chaining.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Python operator chaining allows non-shuffle operations to be co-located in the "
+                                    + "same thread fully avoiding serialization and de-serialization.");
+
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
                     .stringType()

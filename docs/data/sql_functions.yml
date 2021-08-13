@@ -240,7 +240,7 @@ arithmetic:
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
   - sql: TRUNCATE(numeric1, integer2)
     table: numeric1.truncate(INTEGER2)
-    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL.If integer2 is 0,the result has no decimal point or fractional part.integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero.This function can also pass in only one numeric1 parameter and not set Integer2 to use.If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.34. and 42.324.truncate() to 42.0.
+    description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set Integer2 to use. If Integer2 is not set, the function truncates as if Integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
 
 string:
   - sql: string1 || string2
@@ -273,7 +273,7 @@ string:
     description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
   - sql: RTRIM(string)
     table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING.E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
@@ -316,10 +316,10 @@ string:
     description: Returns a string that concatenates STRING2, STRING3, ... with a separator STRING1. The separator is added between the strings to be concatenated. Returns NULL If STRING1 is NULL. Compared with concat(), concat_ws() automatically skips NULL arguments. E.g., concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC') returns "AA~BB~~CC".
   - sql: LPAD(string1, integer, string2)
     table: STRING1.lpad(INT, STRING2)
-    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi',4,'??') returns "??hi"; LPAD('hi',1,'??') returns "h".
+    description: Returns a new string from string1 left-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., LPAD('hi', 4, '??') returns "??hi"; LPAD('hi', 1, '??') returns "h".
   - sql: RPAD(string1, integer, string2)
     table: STRING1.rpad(INT, STRING2)
-    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi',4,'??') returns "hi??", RPAD('hi',1,'??') returns "h". 
+    description: Returns a new string from string1 right-padded with string2 to a length of integer characters. If the length of string1 is shorter than integer, returns string1 shortened to integer characters. E.g., RPAD('hi', 4, '??') returns "hi??", RPAD('hi', 1, '??') returns "h".
   - sql: FROM_BASE64(string)
     table: STRING.fromBase64()
     description: Returns the base64-decoded result from string; returns NULL if string is NULL. E.g., FROM_BASE64('aGVsbG8gd29ybGQ=') returns "hello world".
@@ -571,6 +571,31 @@ collection:
     table: MAP.at(ANY)
     description: Returns the value specified by key value in map.
 
+json:
+  - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
+    table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
+    description: |
+      Determines whether a JSON string satisfies a given path search criterion.
+
+      If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
+
+      ```
+      // TRUE
+      SELECT JSON_EXISTS('{"a": true}', '$.a');
+      // FALSE
+      SELECT JSON_EXISTS('{"a": true}', '$.b');
+      // TRUE
+      SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
+        '$.a[0].b');
+
+      // TRUE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' TRUE ON ERROR);
+      // FALSE
+      SELECT JSON_EXISTS('{"a": true}',
+        'strict $.b' FALSE ON ERROR);
+      ```
+
 valueconstruction:
   - sql: |
       -- implicit constructor with parenthesis
@@ -631,7 +656,7 @@ hashfunctions:
     description: Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument string is the string to be hashed and the second argument hashLength is the bit length of the result (224, 256, 384, or 512). Returns NULL if string or hashLength is NULL. 
 
 auxilary:
-  - table:  callSql(STRING)
+  - table: callSql(STRING)
     description: |
       A call to a SQL expression.
 

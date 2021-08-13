@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.types.Row;
@@ -230,12 +232,12 @@ public class StreamExecutionEnvironmentTest {
         Assert.assertEquals(1 << 15, operator.getParallelism());
 
         // default value after generating
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
         // configured value after generating
         env.setMaxParallelism(42);
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
 
         // bounds configured parallelism 1
@@ -275,7 +277,7 @@ public class StreamExecutionEnvironmentTest {
         Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
 
         // override config
-        env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
+        env.getStreamGraph(false).getJobGraph();
         Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
     }
 
@@ -342,7 +344,7 @@ public class StreamExecutionEnvironmentTest {
             DataStreamSource<Integer> dataStream4 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
             dataStream4.addSink(new DiscardingSink<Integer>());
-            assertEquals(4, env.getStreamGraph("TestJob").getStreamNodes().size());
+            assertEquals(4, env.getStreamGraph().getStreamNodes().size());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -352,7 +354,11 @@ public class StreamExecutionEnvironmentTest {
     @Test
     public void testDefaultJobName() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        testJobName(StreamExecutionEnvironment.DEFAULT_JOB_NAME, env);
+
+        testJobName(StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME, env);
+
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        testJobName(StreamGraphGenerator.DEFAULT_BATCH_JOB_NAME, env);
     }
 
     @Test

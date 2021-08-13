@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.KafkaContextAware;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -120,13 +119,17 @@ class DynamicKafkaSerializationSchema
         if (keySerialization == null) {
             keySerialized = null;
         } else {
-            final RowData keyRow = createProjectedRow(consumedRow, RowKind.INSERT, keyFieldGetters);
+            final RowData keyRow =
+                    DynamicKafkaRecordSerializationSchema.createProjectedRow(
+                            consumedRow, RowKind.INSERT, keyFieldGetters);
             keySerialized = keySerialization.serialize(keyRow);
         }
 
         final byte[] valueSerialized;
         final RowKind kind = consumedRow.getRowKind();
-        final RowData valueRow = createProjectedRow(consumedRow, kind, valueFieldGetters);
+        final RowData valueRow =
+                DynamicKafkaRecordSerializationSchema.createProjectedRow(
+                        consumedRow, kind, valueFieldGetters);
         if (upsertMode) {
             if (kind == RowKind.DELETE || kind == RowKind.UPDATE_BEFORE) {
                 // transform the message as the tombstone message
@@ -185,16 +188,6 @@ class DynamicKafkaSerializationSchema
                     consumedRow, keySerialized, valueSerialized, topic, partitions);
         }
         return null;
-    }
-
-    static RowData createProjectedRow(
-            RowData consumedRow, RowKind kind, RowData.FieldGetter[] fieldGetters) {
-        final int arity = fieldGetters.length;
-        final GenericRowData genericRowData = new GenericRowData(kind, arity);
-        for (int fieldPos = 0; fieldPos < arity; fieldPos++) {
-            genericRowData.setField(fieldPos, fieldGetters[fieldPos].getFieldOrNull(consumedRow));
-        }
-        return genericRowData;
     }
 
     // --------------------------------------------------------------------------------------------

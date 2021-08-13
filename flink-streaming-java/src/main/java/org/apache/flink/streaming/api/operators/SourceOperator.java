@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -128,6 +129,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private TimestampsAndWatermarks<OUT> eventTimeLogic;
 
+    /** A mode to control the behaviour of the {@link #emitNext(DataOutput)} method. */
+    private OperatingMode operatingMode;
+
+    private final CompletableFuture<Void> finished = new CompletableFuture<>();
+    private final CompletableFuture<Void> forcedStop = new CompletableFuture<>();
+
+    private enum OperatingMode {
+        READING,
+        OUTPUT_NOT_INITIALIZED,
+        SOURCE_STOPPED,
+        DATA_FINISHED
+    }
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -147,6 +161,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+        this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
     }
 
     /**
@@ -266,6 +281,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
         super.finish();
+
+        finished.complete(null);
+    }
+
+    public CompletableFuture<Void> stop() {
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+            case READING:
+                this.operatingMode = OperatingMode.SOURCE_STOPPED;
+                forcedStop.complete(null);
+                break;
+        }
+        return finished;
     }
 
     @Override
@@ -279,18 +307,36 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
         // guarding an assumptions we currently make due to the fact that certain classes
-        // assume a constant output
-        assert lastInvokedOutput == output || lastInvokedOutput == null;
+        // assume a constant output, this assumption does not need to stand if we emitted all
+        // records. In that case the output will change to FinishedDataOutput
+        assert lastInvokedOutput == output
+                || lastInvokedOutput == null
+                || this.operatingMode == OperatingMode.DATA_FINISHED;
 
-        // short circuit the common case (every invocation except the first)
-        if (currentMainOutput != null) {
+        // short circuit the hot path. Without this short circuit (READING handled in the
+        // switch/case) InputBenchmark.mapSink was showing a performance regression.
+        if (operatingMode == OperatingMode.READING) {
             return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
         }
+        return emitNextNotReading(output);
+    }
 
-        // this creates a batch or streaming output based on the runtime mode
-        currentMainOutput = eventTimeLogic.createMainOutput(output);
-        lastInvokedOutput = output;
-        return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+    private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+                currentMainOutput = eventTimeLogic.createMainOutput(output);
+                lastInvokedOutput = output;
+                this.operatingMode = OperatingMode.READING;
+                return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+            case SOURCE_STOPPED:
+                this.operatingMode = OperatingMode.DATA_FINISHED;
+                return DataInputStatus.END_OF_DATA;
+            case DATA_FINISHED:
+                return DataInputStatus.END_OF_INPUT;
+            case READING:
+            default:
+                throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
     }
 
     private DataInputStatus convertToInternalStatus(InputStatus inputStatus) {
@@ -300,7 +346,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case NOTHING_AVAILABLE:
                 return DataInputStatus.NOTHING_AVAILABLE;
             case END_OF_INPUT:
-                return DataInputStatus.END_OF_INPUT;
+                this.operatingMode = OperatingMode.DATA_FINISHED;
+                return DataInputStatus.END_OF_DATA;
             default:
                 throw new IllegalArgumentException("Unknown input status: " + inputStatus);
         }
@@ -315,7 +362,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public CompletableFuture<?> getAvailableFuture() {
-        return sourceReader.isAvailable();
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+            case READING:
+                CompletableFuture<Void> sourceReaderAvailable = sourceReader.isAvailable();
+                return sourceReaderAvailable == AvailabilityProvider.AVAILABLE
+                        ? sourceReaderAvailable
+                        : CompletableFuture.anyOf(sourceReaderAvailable, forcedStop);
+            case SOURCE_STOPPED:
+            case DATA_FINISHED:
+                return AvailabilityProvider.AVAILABLE;
+            default:
+                throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
     }
 
     @Override

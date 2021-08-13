@@ -54,6 +54,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -1430,17 +1431,15 @@ public class Execution
                         getAttemptId(),
                         currentState,
                         targetState);
-            } else {
-                if (LOG.isInfoEnabled()) {
-                    LOG.info(
-                            "{} ({}) switched from {} to {} on {}.",
-                            getVertex().getTaskNameWithSubtaskIndex(),
-                            getAttemptId(),
-                            currentState,
-                            targetState,
-                            getLocationInformation(),
-                            error);
-                }
+            } else if (LOG.isInfoEnabled()) {
+                LOG.info(
+                        "{} ({}) switched from {} to {} on {}.",
+                        getVertex().getTaskNameWithSubtaskIndex(),
+                        getAttemptId(),
+                        currentState,
+                        targetState,
+                        getLocationInformation(),
+                        ExceptionUtils.stripCompletionException(error));
             }
 
             if (targetState == INITIALIZING || targetState == RUNNING) {

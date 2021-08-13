@@ -18,22 +18,23 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.expressions.FieldReferenceExpression
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerWindowReference}
+import org.apache.flink.table.planner.plan.logical.{SessionGroupWindow, SessionWindowSpec, TimeAttributeWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.{StreamExecGroupWindowAggregate, StreamExecWindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 
@@ -104,14 +105,45 @@ class StreamPhysicalWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
-    new StreamExecWindowAggregate(
-      grouping,
-      aggCalls.toArray,
-      windowing,
-      namedWindowProperties.toArray,
-      InputProperty.DEFAULT,
-      FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+    windowing.getWindow match {
+      case windowSpec: SessionWindowSpec =>
+        windowing match {
+          case timeWindowStrategy: TimeAttributeWindowingStrategy =>
+            val timeAttributeFieldName = getInput.getRowType.getFieldNames.get(
+              timeWindowStrategy.getTimeAttributeIndex)
+            val timeAttributeType = windowing.getTimeAttributeType
+            val logicalWindow = SessionGroupWindow(
+              new PlannerWindowReference("w$", timeAttributeType),
+              new FieldReferenceExpression(
+                timeAttributeFieldName,
+                fromLogicalTypeToDataType(timeAttributeType),
+                0,
+                timeWindowStrategy.getTimeAttributeIndex),
+              intervalOfMillis(windowSpec.getGap.toMillis)
+            )
+            new StreamExecGroupWindowAggregate(
+              grouping,
+              aggCalls.toArray,
+              logicalWindow,
+              namedWindowProperties.toArray,
+              false,
+              InputProperty.DEFAULT,
+              FlinkTypeFactory.toLogicalRowType(getRowType),
+              getRelDetailedDescription
+            )
+          case _ =>
+            throw new UnsupportedOperationException(s"$windowing is not supported yet.")
+        }
+      case _ =>
+        new StreamExecWindowAggregate(
+          grouping,
+          aggCalls.toArray,
+          windowing,
+          namedWindowProperties.toArray,
+          InputProperty.DEFAULT,
+          FlinkTypeFactory.toLogicalRowType(getRowType),
+          getRelDetailedDescription
+        )
+    }
   }
 }

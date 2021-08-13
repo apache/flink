@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 final class CollectionDataInput<E> implements StreamTaskInput<E> {
     private final Iterator<StreamElement> elementsIterator;
     private final int inputIdx;
+    private boolean endOfInput = false;
 
     CollectionDataInput(Collection<StreamElement> elements) {
         this(elements, 0);
@@ -56,9 +57,14 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
                 throw new IllegalStateException("Unsupported element type: " + streamElement);
             }
         }
-        return elementsIterator.hasNext()
-                ? DataInputStatus.MORE_AVAILABLE
-                : DataInputStatus.END_OF_INPUT;
+        if (elementsIterator.hasNext()) {
+            return DataInputStatus.MORE_AVAILABLE;
+        } else if (endOfInput) {
+            return DataInputStatus.END_OF_INPUT;
+        } else {
+            endOfInput = true;
+            return DataInputStatus.END_OF_DATA;
+        }
     }
 
     @Override

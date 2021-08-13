@@ -45,5 +45,11 @@ public enum DataInputStatus {
     END_OF_RECOVERY,
 
     /** Indicator that the input has reached the end of data. */
+    END_OF_DATA,
+
+    /**
+     * Indicator that the input has reached the end of data and control events. The input is about
+     * to close.
+     */
     END_OF_INPUT
 }

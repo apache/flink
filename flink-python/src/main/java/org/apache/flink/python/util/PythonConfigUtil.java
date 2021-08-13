@@ -22,15 +22,15 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -62,7 +62,7 @@ public class PythonConfigUtil {
     public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
             throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         return PythonDependencyUtils.configurePythonDependencies(
-                env.getCachedFiles(), getEnvironmentConfig(env));
+                env.getCachedFiles(), (Configuration) env.getConfiguration());
     }
 
     /**
@@ -93,20 +93,16 @@ public class PythonConfigUtil {
     /**
      * Generate a {@link StreamGraph} for transformations maintained by current {@link
      * StreamExecutionEnvironment}, and reset the merged env configurations with dependencies to
-     * every {@link OneInputPythonFunctionOperator}. It is an idempotent operation that can be call
-     * multiple times. Remember that only when need to execute the StreamGraph can we set the
-     * clearTransformations to be True.
+     * every {@link AbstractOneInputPythonFunctionOperator}. It is an idempotent operation that can
+     * be call multiple times. Remember that only when need to execute the StreamGraph can we set
+     * the clearTransformations to be True.
      */
     public static StreamGraph generateStreamGraphWithDependencies(
             StreamExecutionEnvironment env, boolean clearTransformations)
             throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
         configPythonOperator(env);
 
-        String jobName =
-                getEnvironmentConfig(env)
-                        .getString(
-                                PipelineOptions.NAME, StreamExecutionEnvironment.DEFAULT_JOB_NAME);
-        return env.getStreamGraph(jobName, clearTransformations);
+        return env.getStreamGraph(clearTransformations);
     }
 
     @SuppressWarnings("unchecked")
@@ -142,16 +138,12 @@ public class PythonConfigUtil {
 
     public static Configuration getMergedConfig(
             StreamExecutionEnvironment env, TableConfig tableConfig) {
-        try {
-            Configuration config = new Configuration(getEnvironmentConfig(env));
-            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
-            Configuration mergedConfig =
-                    PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
-            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return mergedConfig;
-        } catch (IllegalAccessException | NoSuchFieldException | InvocationTargetException e) {
-            throw new TableException("Method getMergedConfig failed.", e);
-        }
+        Configuration config = new Configuration((Configuration) env.getConfiguration());
+        PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
+        Configuration mergedConfig =
+                PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
+        mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+        return mergedConfig;
     }
 
     @SuppressWarnings("unchecked")
@@ -174,7 +166,7 @@ public class PythonConfigUtil {
     }
 
     /**
-     * Configure the {@link OneInputPythonFunctionOperator} to be chained with the
+     * Configure the {@link AbstractOneInputPythonFunctionOperator} to be chained with the
      * upstream/downstream operator by setting their parallelism, slot sharing group, co-location
      * group to be the same, and applying a {@link ForwardPartitioner}. 1. operator with name
      * "_keyed_stream_values_operator" should align with its downstream operator. 2. operator with
@@ -239,7 +231,7 @@ public class PythonConfigUtil {
         return null;
     }
 
-    private static boolean isPythonOperator(Transformation<?> transform) {
+    public static boolean isPythonOperator(Transformation<?> transform) {
         if (transform instanceof OneInputTransformation) {
             return isPythonOperator(
                     ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
@@ -258,6 +250,28 @@ public class PythonConfigUtil {
         if (streamOperatorFactory instanceof SimpleOperatorFactory) {
             return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
                     instanceof AbstractPythonFunctionOperator;
+        } else {
+            return false;
+        }
+    }
+
+    public static boolean isPythonDataStreamOperator(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return isPythonDataStreamOperator(
+                    ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
+        } else if (transform instanceof TwoInputTransformation) {
+            return isPythonDataStreamOperator(
+                    ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory());
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean isPythonDataStreamOperator(
+            StreamOperatorFactory<?> streamOperatorFactory) {
+        if (streamOperatorFactory instanceof SimpleOperatorFactory) {
+            return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
+                    instanceof AbstractDataStreamPythonFunctionOperator;
         } else {
             return false;
         }

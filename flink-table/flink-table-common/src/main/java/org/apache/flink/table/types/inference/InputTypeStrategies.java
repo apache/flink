@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
@@ -36,6 +37,7 @@ import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrat
 import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStrategy.SubsequenceStrategyBuilder;
+import org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -289,6 +291,12 @@ public final class InputTypeStrategies {
      */
     public static OrArgumentTypeStrategy or(ArgumentTypeStrategy... strategies) {
         return new OrArgumentTypeStrategy(Arrays.asList(strategies));
+    }
+
+    /** Strategy for a symbol argument of a specific {@link TableSymbol} enum. */
+    public static SymbolArgumentTypeStrategy symbol(
+            Class<? extends Enum<? extends TableSymbol>> clazz) {
+        return new SymbolArgumentTypeStrategy(clazz);
     }
 
     /**

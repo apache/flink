@@ -83,6 +83,9 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
 
+    /** The session gap interval, only used for SESSION window. */
+    protected static final String PARAM_SESSION_GAP = "GAP";
+
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is
      * combined from the row type of operand #0 (which is a TABLE) and two additional fields. The

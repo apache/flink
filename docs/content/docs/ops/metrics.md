@@ -243,7 +243,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink does not provide a default implementation for `Histogram`, but offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard histograms.
+Flink does not provide a default implementation for `Histogram`, but offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard histograms.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>

@@ -81,6 +81,12 @@
             <td>When it is false, metric for Python will be disabled. You can disable the metric to achieve better performance at some circumstance.</td>
         </tr>
         <tr>
+            <td><h5>python.operator-chaining.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Python operator chaining allows non-shuffle operations to be co-located in the same thread fully avoiding serialization and de-serialization.</td>
+        </tr>
+        <tr>
             <td><h5>python.profile.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

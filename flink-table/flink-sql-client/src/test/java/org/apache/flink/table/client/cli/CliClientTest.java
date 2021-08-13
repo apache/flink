@@ -300,6 +300,42 @@ public class CliClientTest extends TestLogger {
         assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
+    @Test(timeout = 20000)
+    public void testCancelExecutionInteractiveMode() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = true;
+
+        String sessionId = mockExecutor.openSession("test-session");
+        Path historyFilePath = historyTempFile();
+        InputStream inputStream = new ByteArrayInputStream("SELECT 1;\n".getBytes());
+        OutputStream outputStream = new ByteArrayOutputStream(248);
+
+        try (CliClient client =
+                new CliClient(
+                        () -> TerminalUtils.createDumbTerminal(inputStream, outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyFilePath,
+                        null)) {
+            Thread thread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    client.executeInInteractiveMode();
+                                } catch (Exception ignore) {
+                                }
+                            });
+            thread.start();
+
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
+
+            client.getTerminal().raise(Terminal.Signal.INT);
+            assertTrue(thread.isInterrupted());
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private void verifyUpdateSubmission(
@@ -367,8 +403,8 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
-        public boolean isSync = false;
-        public boolean isAwait = false;
+        public volatile boolean isSync = false;
+        public volatile boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
@@ -491,6 +527,14 @@ public class CliClientTest extends TestLogger {
         @Override
         public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
                 throws SqlExecutionException {
+            if (isSync) {
+                isAwait = true;
+                try {
+                    Thread.sleep(60_000L);
+                } catch (InterruptedException e) {
+                    throw new SqlExecutionException("Fail to execute", e);
+                }
+            }
             return null;
         }
 

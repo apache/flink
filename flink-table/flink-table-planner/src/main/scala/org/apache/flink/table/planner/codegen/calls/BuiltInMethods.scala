@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.runtime.functions._
-
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.SqlFunctions
-
+import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
 import java.util.TimeZone
+
+import org.apache.calcite.sql.SqlJsonExistsErrorBehavior
 
 object BuiltInMethods {
 
@@ -481,4 +481,12 @@ object BuiltInMethods {
 
   val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "subtractMonths",
     classOf[Long], classOf[Long])
+
+  // JSON functions
+
+  val JSON_EXISTS = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
+    classOf[String], classOf[String])
+
+  val JSON_EXISTS_ON_ERROR = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
+    classOf[String], classOf[String], classOf[SqlJsonExistsErrorBehavior])
 }

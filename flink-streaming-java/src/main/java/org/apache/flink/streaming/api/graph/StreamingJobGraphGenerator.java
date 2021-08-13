@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
+import org.apache.flink.runtime.jobgraph.topology.LogicalVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -1021,8 +1022,8 @@ public class StreamingJobGraphGenerator {
         final boolean allRegionsInSameSlotSharingGroup =
                 streamGraph.isAllVerticesInSameSlotSharingGroupByDefault();
 
-        final Set<DefaultLogicalPipelinedRegion> regions =
-                new DefaultLogicalTopology(jobGraph).getLogicalPipelinedRegions();
+        final Iterable<DefaultLogicalPipelinedRegion> regions =
+                DefaultLogicalTopology.fromJobGraph(jobGraph).getAllPipelinedRegions();
         for (DefaultLogicalPipelinedRegion region : regions) {
             final SlotSharingGroup regionSlotSharingGroup;
             if (allRegionsInSameSlotSharingGroup) {
@@ -1035,8 +1036,8 @@ public class StreamingJobGraphGenerator {
                         .ifPresent(regionSlotSharingGroup::setResourceProfile);
             }
 
-            for (JobVertexID jobVertexID : region.getVertexIDs()) {
-                vertexRegionSlotSharingGroups.put(jobVertexID, regionSlotSharingGroup);
+            for (LogicalVertex vertex : region.getVertices()) {
+                vertexRegionSlotSharingGroups.put(vertex.getId(), regionSlotSharingGroup);
             }
         }
 

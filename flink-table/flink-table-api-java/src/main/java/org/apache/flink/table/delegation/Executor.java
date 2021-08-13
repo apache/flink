@@ -22,9 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableEnvironment;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 
@@ -49,12 +52,14 @@ public interface Executor {
      * Translates the given transformations to a {@link Pipeline}.
      *
      * @param transformations list of transformations
-     * @param configuration configuration options
-     * @param jobName what should be the name of the job
+     * @param tableConfiguration table-specific configuration options
+     * @param defaultJobName default job name if not specified via {@link PipelineOptions#NAME}
      * @return The pipeline representing the transformations.
      */
     Pipeline createPipeline(
-            List<Transformation<?>> transformations, ReadableConfig configuration, String jobName);
+            List<Transformation<?>> transformations,
+            ReadableConfig tableConfiguration,
+            @Nullable String defaultJobName);
 
     /**
      * Executes the given pipeline.

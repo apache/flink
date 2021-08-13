@@ -119,7 +119,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     @After
     public void shutdownScheduler() throws Exception {
         if (createdScheduler != null) {
-            createdScheduler.close();
+            closeScheduler(createdScheduler);
         }
     }
 
@@ -140,7 +140,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        scheduler.close();
+        closeScheduler(scheduler);
 
         assertTrue(coordinator.isClosed());
     }
@@ -866,6 +866,12 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         }
 
         return checkpointId;
+    }
+
+    private void closeScheduler(DefaultScheduler scheduler) throws Exception {
+        final CompletableFuture<Void> closeFuture = scheduler.closeAsync();
+        executor.triggerAll();
+        closeFuture.get();
     }
 
     // ------------------------------------------------------------------------

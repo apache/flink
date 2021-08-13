@@ -37,7 +37,9 @@ import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source._
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.flink.util.{SplittableIterator, TernaryBoolean}
 
 import com.esotericsoftware.kryo.Serializer
@@ -950,18 +952,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The StreamGraph representing the transformations
    */
   @Internal
-  def getStreamGraph = javaEnv.getStreamGraph
-
-  /**
-   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
-   * This call clears previously registered
-   * [[org.apache.flink.api.dag.Transformation transformations]].
-   *
-   * @param jobName Desired name of the job
-   * @return The StreamGraph representing the transformations
-   */
-  @Internal
-  def getStreamGraph(jobName: String) = javaEnv.getStreamGraph(jobName)
+  def getStreamGraph: StreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job
@@ -970,13 +961,13 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * allows, for example, to not re-execute the same operations when calling
    * [[execute()]] multiple times.
    *
-   * @param jobName Desired name of the job
    * @param clearTransformations Whether or not to clear previously registered transformations
    * @return The StreamGraph representing the transformations
    */
   @Internal
-  def getStreamGraph(jobName: String, clearTransformations: Boolean) =
-    javaEnv.getStreamGraph(jobName, clearTransformations)
+  def getStreamGraph(clearTransformations: Boolean): StreamGraph = {
+    javaEnv.getStreamGraph(clearTransformations)
+  }
 
   /**
    * Gives read-only access to the underlying configuration of this environment.

@@ -117,7 +117,7 @@ public class StreamTaskSelectiveReadingTest {
             fail("should throw an IOException");
         } catch (Exception t) {
             if (!ExceptionUtils.findThrowableWithMessage(
-                            t, "only first input is selected but it is already finished")
+                            t, "all selected inputs are already finished")
                     .isPresent()) {
                 throw t;
             }

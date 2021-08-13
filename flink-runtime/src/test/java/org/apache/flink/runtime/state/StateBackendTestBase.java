@@ -3621,6 +3621,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             state.clear();
             assertEquals("Hello", state.value());
+
+            backend =
+                    restoreKeyedBackend(
+                            IntSerializer.INSTANCE,
+                            runSnapshot(
+                                    backend.snapshot(
+                                            1L,
+                                            1L,
+                                            createStreamFactory(),
+                                            CheckpointOptions.forCheckpointWithDefaultLocation()),
+                                    new SharedStateRegistry()));
+            state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            backend.setCurrentKey(1);
+            assertEquals("Hello", state.value());
+
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();

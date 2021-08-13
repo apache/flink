@@ -389,6 +389,13 @@ stream.addSink(myProducer)
 {{< /tab >}}
 {{< /tabs >}}
 
+除此之外，我们还可以使用下列配置方法：
+
+- {{< javadoc name="setWriteTimestampToKafka(boolean writeTimestampToKafka)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setWriteTimestampToKafka-boolean-" >}}，给每条记录设置时间戳
+- {{< javadoc name="setLogFailuresOnly(boolean logFailuresOnly)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setLogFailuresOnly-boolean-" >}}，设置是否在 Producer 发生异常时仅仅记录日志
+- {{< javadoc name="setTransactionalIdPrefix(String transactionalIdPrefix)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setTransactionalIdPrefix-java.lang.String-" >}}，设置自定义的 `transactional.id` 前缀
+- {{< javadoc name="ignoreFailuresAfterTransactionTimeout()" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#ignoreFailuresAfterTransactionTimeout--" >}}，在恢复时忽略事务超时异常
+
 <a name="the-serializationschema"></a>
 
 ## `SerializationSchema`
@@ -438,7 +445,7 @@ Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制�
 
 **注意**：`Semantic.EXACTLY_ONCE` 模式为每个 `FlinkKafkaProducer` 实例使用固定大小的 KafkaProducer 池。每个 checkpoint 使用其中一个 producer。如果并发 checkpoint 的数量超过池的大小，`FlinkKafkaProducer` 将抛出异常，并导致整个应用程序失败。请合理地配置最大池大小和最大并发 checkpoint 数量。
 
-**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。
+**注意**：`Semantic.EXACTLY_ONCE` 会尽一切可能不留下任何逗留的事务，否则会阻塞其他消费者从这个 Kafka topic 中读取数据。但是，如果 Flink 应用程序在第一次 checkpoint 之前就失败了，那么在重新启动此类应用程序后，系统中不会有先前池大小（pool size）相关的信息。因此，在第一次 checkpoint 完成前对 Flink 应用程序进行缩容，且并发数缩容倍数大于安全系数 `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR` 的值的话，是不安全的。同样，在这种情况使用 `setTransactionalIdPrefix()` 改变 `transactional.id` 也是不安全的，因为系统也不知道先前使用的 `transactional.id` 前缀。
 
 <a name="kafka-connector-metrics"></a>
 
@@ -508,5 +515,11 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 ### UnknownTopicOrPartitionException
 
 导致此错误的一个可能原因是正在进行新的 leader 选举，例如在重新启动 Kafka broker 之后或期间。这是一个可重试的异常，因此 Flink job 应该能够重启并恢复正常运行。也可以通过更改 producer 设置中的 `retries` 属性来规避。但是，这可能会导致重新排序消息，反过来可以通过将 `max.in.flight.requests.per.connection` 设置为 1 来避免不需要的消息。
+
+
+### ProducerFencedException
+
+这个错误是由于 `FlinkKafkaProducer` 所生成的 `transactional.id` 与其他应用所使用的的产生了冲突。多数情况下，由于 `FlinkKafkaProducer` 产生的 ID 都是以 `taskName + "-" + operatorUid` 为前缀的，这些产生冲突的应用也是使用了相同 Job Graph 的 Flink Job。
+我们可以使用 `setTransactionalIdPrefix()` 方法来覆盖默认的行为，为每个不同的 Job 分配不同的 `transactional.id` 前缀来解决这个问题。
 
 {{< top >}}

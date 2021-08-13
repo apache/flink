@@ -300,6 +300,42 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         assertEquals(1, subpartition.getNumberOfQueuedBuffers());
     }
 
+    @Test
+    public void testNewBufferSize() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Changing buffer size.
+        subpartition.bufferSize(42);
+
+        // then: Changes successfully applied.
+        assertEquals(42, subpartition.add(createFilledFinishedBufferConsumer(4)));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testNegativeNewBufferSize() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Changing buffer size to the negative value.
+        subpartition.bufferSize(-1);
+    }
+
+    @Test
+    public void testNegativeBufferSizeAsSignOfAddingFail() throws Exception {
+        // given: Buffer size equal to integer max value by default.
+        final PipelinedSubpartition subpartition = createSubpartition();
+        assertEquals(Integer.MAX_VALUE, subpartition.add(createFilledFinishedBufferConsumer(4)));
+
+        // when: Finishing the subpartition which make following adding impossible.
+        subpartition.finish();
+
+        // then: -1 should be return because the add operation fails.
+        assertEquals(-1, subpartition.add(createFilledFinishedBufferConsumer(4)));
+    }
+
     private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition)
             throws Exception {
         // Add a bufferConsumer
@@ -327,6 +363,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     public static PipelinedSubpartition createPipelinedSubpartition() {
         final ResultPartition parent = PartitionTestUtils.createPartition();
 
+        return new PipelinedSubpartition(0, 2, parent);
+    }
+
+    public static PipelinedSubpartition createPipelinedSubpartition(ResultPartition parent) {
         return new PipelinedSubpartition(0, 2, parent);
     }
 }

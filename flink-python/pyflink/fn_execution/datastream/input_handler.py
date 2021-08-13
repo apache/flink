@@ -44,7 +44,7 @@ class RunnerInputHandler(ABC):
         watermark = value[1]
         data = value[2]
         self._advance_watermark(watermark)
-        yield from _emit_results(timestamp, self._process_element_func(data, timestamp))
+        yield from _emit_results(timestamp, watermark, self._process_element_func(data, timestamp))
 
     def _advance_watermark(self, watermark: int) -> None:
         self._internal_timer_service.advance_watermark(watermark)
@@ -78,9 +78,11 @@ class TimerHandler(ABC):
         else:
             namespace = None
         if timer_type == TimerType.EVENT_TIME.value:
-            yield from _emit_results(timestamp, self._on_event_time(timestamp, key, namespace))
+            yield from _emit_results(
+                timestamp, watermark, self._on_event_time(timestamp, key, namespace))
         elif timer_type == TimerType.PROCESSING_TIME.value:
-            yield from _emit_results(timestamp, self._on_processing_time(timestamp, key, namespace))
+            yield from _emit_results(
+                timestamp, watermark, self._on_processing_time(timestamp, key, namespace))
         else:
             raise Exception("Unsupported timer type: %d" % timer_type)
 
@@ -94,7 +96,7 @@ class TimerHandler(ABC):
         self._internal_timer_service.advance_watermark(watermark)
 
 
-def _emit_results(timestamp, results):
+def _emit_results(timestamp, watermark, results):
     if results:
         for result in results:
-            yield Row(timestamp, result)
+            yield Row(timestamp, watermark, result)

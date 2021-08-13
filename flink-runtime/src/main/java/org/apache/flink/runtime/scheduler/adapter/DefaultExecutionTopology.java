@@ -21,10 +21,18 @@ package org.apache.flink.runtime.scheduler.adapter;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.EdgeManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
+import org.apache.flink.runtime.executiongraph.failover.flip1.SchedulingPipelinedRegionComputeUtil;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
+import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
+import org.apache.flink.runtime.jobgraph.topology.LogicalEdge;
+import org.apache.flink.runtime.jobgraph.topology.LogicalVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
@@ -33,6 +41,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.util.IterableUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +49,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -137,15 +149,28 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
         EdgeManager edgeManager = executionGraph.getEdgeManager();
 
+        List<JobVertex> topologicallySortedJobVertices =
+                IterableUtils.toStream(executionGraph.getVerticesTopologically())
+                        .map(ExecutionJobVertex::getJobVertex)
+                        .collect(Collectors.toList());
+
+        Iterable<DefaultLogicalPipelinedRegion> logicalPipelinedRegions =
+                DefaultLogicalTopology.fromTopologicallySortedJobVertices(
+                                topologicallySortedJobVertices)
+                        .getAllPipelinedRegions();
+
         ExecutionGraphIndex executionGraphIndex =
                 computeExecutionGraphIndex(
                         executionGraph.getAllExecutionVertices(),
                         executionGraph.getTotalNumberOfVertices(),
+                        logicalPipelinedRegions,
                         edgeManager);
 
         IndexedPipelinedRegions indexedPipelinedRegions =
                 computePipelinedRegions(
-                        executionGraphIndex.executionVerticesList,
+                        logicalPipelinedRegions,
+                        executionGraphIndex.sortedExecutionVerticesInPipelinedRegion::get,
+                        executionGraphIndex.executionVerticesById::get,
                         executionGraphIndex.resultPartitionsById::get);
 
         ensureCoLocatedVerticesInSameRegion(
@@ -163,11 +188,23 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     private static ExecutionGraphIndex computeExecutionGraphIndex(
             Iterable<ExecutionVertex> executionVertices,
             int vertexNumber,
+            Iterable<DefaultLogicalPipelinedRegion> logicalPipelinedRegions,
             EdgeManager edgeManager) {
         Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById = new HashMap<>();
         List<DefaultExecutionVertex> executionVerticesList = new ArrayList<>(vertexNumber);
         Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById =
                 new HashMap<>();
+        Map<DefaultLogicalPipelinedRegion, List<DefaultExecutionVertex>>
+                sortedExecutionVerticesInPipelinedRegion = new IdentityHashMap<>();
+
+        Map<JobVertexID, DefaultLogicalPipelinedRegion> logicalPipelinedRegionByJobVertexId =
+                new HashMap<>();
+        for (DefaultLogicalPipelinedRegion logicalPipelinedRegion : logicalPipelinedRegions) {
+            for (LogicalVertex vertex : logicalPipelinedRegion.getVertices()) {
+                logicalPipelinedRegionByJobVertexId.put(vertex.getId(), logicalPipelinedRegion);
+            }
+        }
+
         for (ExecutionVertex vertex : executionVertices) {
             List<DefaultResultPartition> producedPartitions =
                     generateProducedSchedulingResultPartition(
@@ -185,10 +222,19 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                             edgeManager.getConsumedPartitionGroupsForVertex(vertex.getID()),
                             resultPartitionsById::get);
             executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
+            sortedExecutionVerticesInPipelinedRegion
+                    .computeIfAbsent(
+                            logicalPipelinedRegionByJobVertexId.get(
+                                    schedulingVertex.getId().getJobVertexId()),
+                            ignore -> new ArrayList<>())
+                    .add(schedulingVertex);
             executionVerticesList.add(schedulingVertex);
         }
         return new ExecutionGraphIndex(
-                executionVerticesById, executionVerticesList, resultPartitionsById);
+                executionVerticesById,
+                executionVerticesList,
+                sortedExecutionVerticesInPipelinedRegion,
+                resultPartitionsById);
     }
 
     private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
@@ -243,13 +289,57 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     }
 
     private static IndexedPipelinedRegions computePipelinedRegions(
-            Iterable<DefaultExecutionVertex> topologicallySortedVertexes,
+            Iterable<DefaultLogicalPipelinedRegion> logicalPipelinedRegions,
+            Function<DefaultLogicalPipelinedRegion, List<DefaultExecutionVertex>>
+                    sortedExecutionVerticesInPipelinedRegion,
+            Function<ExecutionVertexID, DefaultExecutionVertex> executionVertexRetriever,
             Function<IntermediateResultPartitionID, DefaultResultPartition>
                     resultPartitionRetriever) {
+
         long buildRegionsStartTime = System.nanoTime();
 
         Set<Set<SchedulingExecutionVertex>> rawPipelinedRegions =
-                PipelinedRegionComputeUtil.computePipelinedRegions(topologicallySortedVertexes);
+                Collections.newSetFromMap(new IdentityHashMap<>());
+
+        // A SchedulingPipelinedRegion can be derived from just one LogicalPipelinedRegion.
+        // Thus, we can traverse all LogicalPipelinedRegions and convert them into
+        // SchedulingPipelinedRegions one by one. The LogicalPipelinedRegions and
+        // SchedulingPipelinedRegions are both connected with inter-region blocking edges.
+        for (DefaultLogicalPipelinedRegion logicalPipelinedRegion : logicalPipelinedRegions) {
+
+            List<DefaultExecutionVertex> schedulingExecutionVertices =
+                    sortedExecutionVerticesInPipelinedRegion.apply(logicalPipelinedRegion);
+
+            if (containsIntraRegionAllToAllEdge(logicalPipelinedRegion)) {
+                // For edges inside one LogicalPipelinedRegion, if there is any all-to-all edge, it
+                // could be under two circumstances:
+                //
+                // 1. Pipelined all-to-all edge:
+                //     Pipelined all-to-all edge will connect all vertices pipelined. Therefore,
+                // all execution vertices derived from this LogicalPipelinedRegion should be in one
+                // SchedulingPipelinedRegion.
+                //
+                // 2. Blocking all-to-all edge:
+                //     For intra-region blocking all-to-all edge, we must make sure all the vertices
+                // are inside one SchedulingPipelinedRegion, so that there will be no deadlock
+                // happens during scheduling. For more details about this case, please refer to
+                // FLINK-17330 (https://issues.apache.org/jira/browse/FLINK-17330).
+                //
+                // Therefore, if a LogicalPipelinedRegion contains any intra-region all-to-all
+                // edge, we just convert the entire LogicalPipelinedRegion to a sole
+                // SchedulingPipelinedRegion directly.
+                rawPipelinedRegions.add(new HashSet<>(schedulingExecutionVertices));
+            } else {
+                // If there are only pointwise edges inside the LogicalPipelinedRegion, we can use
+                // SchedulingPipelinedRegionComputeUtil to compute the regions with O(N) computation
+                // complexity.
+                rawPipelinedRegions.addAll(
+                        SchedulingPipelinedRegionComputeUtil.computePipelinedRegions(
+                                schedulingExecutionVertices,
+                                executionVertexRetriever,
+                                resultPartitionRetriever));
+            }
+        }
 
         Map<ExecutionVertexID, DefaultSchedulingPipelinedRegion> pipelinedRegionsByVertex =
                 new HashMap<>();
@@ -275,6 +365,23 @@ public class DefaultExecutionTopology implements SchedulingTopology {
                 buildRegionsDuration);
 
         return new IndexedPipelinedRegions(pipelinedRegionsByVertex, pipelinedRegions);
+    }
+
+    /**
+     * Check if the {@link DefaultLogicalPipelinedRegion} contains intra-region all-to-all edges or
+     * not.
+     */
+    private static boolean containsIntraRegionAllToAllEdge(
+            DefaultLogicalPipelinedRegion logicalPipelinedRegion) {
+        for (LogicalVertex vertex : logicalPipelinedRegion.getVertices()) {
+            for (LogicalEdge inputEdge : vertex.getInputs()) {
+                if (inputEdge.getDistributionPattern() == DistributionPattern.ALL_TO_ALL
+                        && logicalPipelinedRegion.contains(inputEdge.getProducerVertexId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -318,15 +425,21 @@ public class DefaultExecutionTopology implements SchedulingTopology {
     private static class ExecutionGraphIndex {
         private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById;
         private final List<DefaultExecutionVertex> executionVerticesList;
+        private final Map<DefaultLogicalPipelinedRegion, List<DefaultExecutionVertex>>
+                sortedExecutionVerticesInPipelinedRegion;
         private final Map<IntermediateResultPartitionID, DefaultResultPartition>
                 resultPartitionsById;
 
         private ExecutionGraphIndex(
                 Map<ExecutionVertexID, DefaultExecutionVertex> executionVerticesById,
                 List<DefaultExecutionVertex> executionVerticesList,
+                Map<DefaultLogicalPipelinedRegion, List<DefaultExecutionVertex>>
+                        sortedExecutionVerticesInPipelinedRegion,
                 Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionsById) {
             this.executionVerticesById = checkNotNull(executionVerticesById);
             this.executionVerticesList = checkNotNull(executionVerticesList);
+            this.sortedExecutionVerticesInPipelinedRegion =
+                    checkNotNull(sortedExecutionVerticesInPipelinedRegion);
             this.resultPartitionsById = checkNotNull(resultPartitionsById);
         }
     }

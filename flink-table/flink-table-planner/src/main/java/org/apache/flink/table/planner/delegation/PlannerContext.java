@@ -102,6 +102,7 @@ public class PlannerContext {
     private final FrameworkConfig frameworkConfig;
 
     public PlannerContext(
+            boolean isBatchMode,
             TableConfig tableConfig,
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
@@ -111,7 +112,11 @@ public class PlannerContext {
 
         this.context =
                 new FlinkContextImpl(
-                        tableConfig, functionCatalog, catalogManager, rexConverterFactory);
+                        isBatchMode,
+                        tableConfig,
+                        functionCatalog,
+                        catalogManager,
+                        rexConverterFactory);
 
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;

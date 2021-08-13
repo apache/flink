@@ -25,13 +25,13 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collections;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -43,7 +43,7 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  */
 @Internal
 public class PythonCoProcessOperator<IN1, IN2, OUT>
-        extends TwoInputPythonFunctionOperator<IN1, IN2, OUT> {
+        extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
     private static final long serialVersionUID = 1L;
 
@@ -71,7 +71,7 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATELESS_FUNCTION_URN,
-                getUserDefinedDataStreamFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         Collections.emptyMap(),
@@ -113,5 +113,16 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
     public void processWatermark(Watermark mark) throws Exception {
         super.processWatermark(mark);
         currentWatermark = mark.getTimestamp();
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonCoProcessOperator<>(
+                getConfig().getConfig(),
+                pythonFunctionInfo,
+                getLeftInputType(),
+                getRightInputType(),
+                outputTypeInfo);
     }
 }

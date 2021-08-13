@@ -133,14 +133,18 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
     }
 
     public void endInput() {
+        endInput(true);
+    }
+
+    public void endInput(boolean allDataProcessed) {
         for (int i = 0; i < inputGates.length; i++) {
-            endInput(i);
+            endInput(i, allDataProcessed);
         }
     }
 
-    public void endInput(int inputIndex) {
+    public void endInput(int inputIndex, boolean emitEndOfData) {
         if (!inputGateEnded[inputIndex]) {
-            inputGates[inputIndex].endInput();
+            inputGates[inputIndex].endInput(emitEndOfData);
             inputGateEnded[inputIndex] = true;
         }
     }

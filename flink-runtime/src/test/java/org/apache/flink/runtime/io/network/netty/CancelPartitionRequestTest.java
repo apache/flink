@@ -229,7 +229,7 @@ public class CancelPartitionRequestTest {
         public void resumeConsumption() {}
 
         @Override
-        public void acknowledgeAllRecordsProcessed() {}
+        public void acknowledgeAllDataProcessed() {}
 
         @Override
         public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
@@ -245,6 +245,9 @@ public class CancelPartitionRequestTest {
         public int getNumberOfQueuedBuffers() {
             return 0;
         }
+
+        @Override
+        public void notifyNewBufferSize(int newBufferSize) {}
 
         @Override
         public Throwable getFailureCause() {

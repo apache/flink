@@ -27,6 +27,10 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.TransformationScanProvider;
+import org.apache.flink.table.planner.utils.JavaBatchTableTestUtil;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -43,7 +47,7 @@ public class TransformationsTest extends TableTestBase {
 
     @Test
     public void testLegacyBatchSource() {
-        final JavaStreamTableTestUtil util = javaStreamTestUtil();
+        final JavaBatchTableTestUtil util = javaBatchTestUtil();
         final StreamTableEnvironment env = util.tableEnv();
 
         final Table table =
@@ -79,18 +83,71 @@ public class TransformationsTest extends TableTestBase {
         assertTrue(sourceTransform.getOperator().emitsProgressiveWatermarks());
     }
 
+    @Test
+    public void testStreamTransformationScanProvider() {
+        final JavaStreamTableTestUtil util = javaStreamTestUtil();
+        final StreamTableEnvironment env = util.tableEnv();
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "false")
+                                .schema(dummySchema())
+                                .build());
+
+        final Transformation<RowData> transformation =
+                env.toChangelogStream(table)
+                        .<RowData>map(r -> new GenericRowData(0))
+                        .getTransformation();
+
+        assertFalse(TransformationScanProvider.of(transformation).isBounded());
+    }
+
+    @Test
+    public void testBatchTransformationScanProvider() {
+        final JavaBatchTableTestUtil util = javaBatchTestUtil();
+        final StreamTableEnvironment env = util.tableEnv();
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "true")
+                                .schema(dummySchema())
+                                .build());
+
+        final Transformation<RowData> transformation =
+                env.toChangelogStream(table)
+                        .<RowData>map(r -> new GenericRowData(0))
+                        .getTransformation();
+
+        assertTrue(TransformationScanProvider.of(transformation).isBounded());
+    }
+
+    @Test
+    public void testLegacyBatchValues() {
+        final JavaBatchTableTestUtil util = javaBatchTestUtil();
+        final StreamTableEnvironment env = util.tableEnv();
+
+        final Table table = env.fromValues(1, 2, 3);
+
+        final LegacySourceTransformation<?> sourceTransform =
+                toLegacySourceTransformation(env, table);
+
+        assertBoundedness(Boundedness.BOUNDED, sourceTransform);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
 
     private static LegacySourceTransformation<?> toLegacySourceTransformation(
             StreamTableEnvironment env, Table table) {
-        final Transformation<?> transform = env.toChangelogStream(table).getTransformation();
-        assertFalse(transform.getInputs().isEmpty());
-
-        final Transformation<?> sourceTransform = transform.getInputs().get(0);
-        assertTrue(sourceTransform instanceof LegacySourceTransformation);
-        return (LegacySourceTransformation<?>) sourceTransform;
+        Transformation<?> transform = env.toChangelogStream(table).getTransformation();
+        while (transform.getInputs().size() == 1) {
+            transform = transform.getInputs().get(0);
+        }
+        assertTrue(transform instanceof LegacySourceTransformation);
+        return (LegacySourceTransformation<?>) transform;
     }
 
     private static void assertBoundedness(Boundedness boundedness, Transformation<?> transform) {

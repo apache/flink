@@ -858,7 +858,7 @@ object StreamTableEnvironment {
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
     create(
       executionEnvironment,
-      EnvironmentSettings.newInstance().build())
+      EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration))
   }
 
   /**
@@ -886,7 +886,7 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    val config = new TableConfig();
+    val config = new TableConfig()
     config.addConfiguration(settings.toConfiguration)
     StreamTableEnvironmentImpl
       .create(executionEnvironment, settings, config)
@@ -922,7 +922,7 @@ object StreamTableEnvironment {
     StreamTableEnvironmentImpl
       .create(
         executionEnvironment,
-        EnvironmentSettings.newInstance().build(),
+        EnvironmentSettings.fromConfiguration(tableConfig.getConfiguration),
         tableConfig)
   }
 }

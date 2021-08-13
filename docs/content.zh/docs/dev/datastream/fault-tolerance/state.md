@@ -342,6 +342,22 @@ val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[Str
 stateDescriptor.enableTimeToLive(ttlConfig)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.common.typeinfo import Types
+from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+  .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+  .build()
+
+state_descriptor = ValueStateDescriptor("text state", Types.STRING())
+state_descriptor.enable_time_to_live(ttl_config)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 TTL 配置有以下几个选项：
@@ -404,7 +420,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .disable_cleanup_in_background() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -441,7 +463,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_full_snapshot() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -479,7 +507,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_incrementally(10, True) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -524,7 +558,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL 当前在 PyFlink DataStream API 中还不支持。
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.LOGICAL_REWRITE
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram.PHYSICAL
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
@@ -35,7 +35,7 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
 
   @Before
   def setup(): Unit = {
-    util.buildStreamProgram(LOGICAL_REWRITE)
+    util.buildStreamProgram(PHYSICAL)
     val chainedProgram = util.getStreamProgram()
     // add test rule
     chainedProgram.addLast(

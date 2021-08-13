@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -29,6 +30,7 @@ import org.apache.calcite.tools.RelBuilder;
 import java.util.Optional;
 
 /** Rule to convert {@link CallExpression}. */
+@Internal
 public interface CallExpressionConvertRule {
 
     /**

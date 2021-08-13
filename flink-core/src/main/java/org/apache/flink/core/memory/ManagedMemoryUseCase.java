@@ -24,8 +24,12 @@ import org.apache.flink.util.Preconditions;
 /** Use cases of managed memory. */
 @Internal
 public enum ManagedMemoryUseCase {
+
+    /** Currently, weights are defined as mebibyte values. */
     OPERATOR(Scope.OPERATOR),
+
     STATE_BACKEND(Scope.SLOT),
+
     PYTHON(Scope.SLOT);
 
     public final Scope scope;

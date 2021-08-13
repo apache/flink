@@ -85,6 +85,9 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
 
     programs.optimize(relNode, new BatchOptimizeContext {
+
+      override def isBatchMode: Boolean = true
+
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog

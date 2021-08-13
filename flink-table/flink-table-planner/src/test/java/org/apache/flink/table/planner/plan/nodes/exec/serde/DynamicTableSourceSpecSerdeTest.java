@@ -89,6 +89,7 @@ public class DynamicTableSourceSpecSerdeTest {
         SerdeContext serdeCtx =
                 new SerdeContext(
                         new FlinkContextImpl(
+                                false,
                                 TableConfig.getDefault(),
                                 null,
                                 CatalogManagerMocks.createEmptyCatalogManager(),

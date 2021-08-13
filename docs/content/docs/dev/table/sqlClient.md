@@ -69,11 +69,11 @@ For validating your setup and cluster connection, you can enter the simple query
 SET 'sql-client.execution.result-mode' = 'tableau';
 SET 'execution.runtime-mode' = 'batch';
 
-SELECT 
-  name, 
-  COUNT(*) AS cnt 
-FROM 
-  (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) 
+SELECT
+  name,
+  COUNT(*) AS cnt
+FROM
+  (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name)
 GROUP BY name;
 ```
 
@@ -91,7 +91,7 @@ The SQL client will retrieve the results from the cluster and visualize them (yo
 
 The `SET` command allows you to tune the job execution and the sql client behaviour. See [SQL Client Configuration](#sql-client-configuration) below for more details.
 
-After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. 
+After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job.
 The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
 ### Getting help
@@ -116,15 +116,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-         -d,--defaults <environment file>      Deprecated feature: the environment
-                                               properties with which every new
-                                               session is initialized. Properties
-                                               might be overwritten by session
-                                               properties.
-         -e,--environment <environment file>   Deprecated feature: the environment
-                                               properties to be imported into the
-                                               session. It might overwrite default
-                                               environment properties.
          -f,--file <script file>               Script file that should be executed.
                                                In this mode, the client will not
                                                open an interactive terminal.
@@ -284,7 +275,7 @@ by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#con
 SET 'sql-client.execution.result-mode' = 'changelog';
 ```
 
-The result of a query would then look like this: 
+The result of a query would then look like this:
 
 ```text
  op                           name         age isHappy        dob                         height
@@ -312,7 +303,7 @@ The displaying content will be influenced by the query execution type (`executio
 SET 'sql-client.execution.result-mode' = 'tableau';
 ```
 
-The result of a query would then look like this: 
+The result of a query would then look like this:
 
 ```text
 +----+--------------------------------+-------------+---------+------------+--------------------------------+
@@ -711,36 +702,6 @@ Flink SQL> RESET pipeline.name;
 ```
 
 If the option `pipeline.name` is not specified, SQL Client will generate a default name for the submitted job, e.g. `insert-into_<sink_table_name>` for `INSERT INTO` statements.
-
-{{< top >}}
-
-Compatibility
--------------
-
-To be compatible with before, SQL Client still supports to initialize with environment YAML file and allows to `SET` the key in YAML file.
-When set the key defined in YAML file, the SQL Client will print the warning messages to inform.
-
-```sql
-Flink SQL> SET 'execution.type' = 'batch';
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead.
-[INFO] Session property has been set.
-
--- all the following DML statements will be restored from the specified savepoint path
-Flink SQL> INSERT INTO ...
-```
-
-When using `SET` command to print the properties, the SQL Client will also print all the properties.
-To distinguish the deprecated key, the sql client use the '[DEPRECATED]' as the identifier.
-
-```sql
-Flink SQL>SET;
-execution.runtime-mode=batch
-sql-client.execution.result-mode=table
-[DEPRECATED] execution.result-mode=table
-[DEPRECATED] execution.type=batch
-```
-
-If you want to see more information about environment files, please refer to [previous docs version](https://ci.apache.org/projects/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
 
 {{< top >}}
 

@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -127,8 +128,21 @@ public abstract class BuiltInFunctionTestBase {
 
     private static void testTableApiError(Table inputTable, TableApiErrorTestItem testItem) {
         try {
-            inputTable.select(testItem.expression).execute();
-            fail("Error expected: " + testItem.errorMessage);
+            final TableResult tableResult = inputTable.select(testItem.expression).execute();
+            if (testItem.expectedDuringValidation) {
+                fail("Error expected: " + testItem.errorMessage);
+            }
+
+            try {
+                tableResult.await();
+                fail("Error expected: " + testItem.errorMessage);
+            } catch (AssertionError e) {
+                throw e;
+            } catch (Throwable t) {
+                assertThat(t, containsMessage(testItem.errorMessage));
+            }
+        } catch (AssertionError e) {
+            throw e;
         } catch (Throwable t) {
             assertThat(t, containsCause(new ValidationException(testItem.errorMessage)));
         }
@@ -148,8 +162,22 @@ public abstract class BuiltInFunctionTestBase {
     private static void testSqlError(
             TableEnvironment env, Table inputTable, SqlErrorTestItem testItem) {
         try {
-            env.sqlQuery("SELECT " + testItem.expression + " FROM " + inputTable).execute();
-            fail("Error expected: " + testItem.errorMessage);
+            final TableResult tableResult =
+                    env.sqlQuery("SELECT " + testItem.expression + " FROM " + inputTable).execute();
+            if (testItem.expectedDuringValidation) {
+                fail("Error expected: " + testItem.errorMessage);
+            }
+
+            try {
+                tableResult.await();
+                fail("Error expected: " + testItem.errorMessage);
+            } catch (AssertionError e) {
+                throw e;
+            } catch (Throwable t) {
+                assertThat(t, containsMessage(testItem.errorMessage));
+            }
+        } catch (AssertionError e) {
+            throw e;
         } catch (Throwable t) {
             assertTrue(t instanceof ValidationException);
             assertThat(t.getMessage(), containsString(testItem.errorMessage));
@@ -237,8 +265,13 @@ public abstract class BuiltInFunctionTestBase {
             return this;
         }
 
-        TestSpec testTableApiError(Expression expression, String errorMessage) {
-            testItems.add(new TableApiErrorTestItem(expression, errorMessage));
+        TestSpec testTableApiValidationError(Expression expression, String errorMessage) {
+            testItems.add(new TableApiErrorTestItem(expression, errorMessage, true));
+            return this;
+        }
+
+        TestSpec testTableApiRuntimeError(Expression expression, String errorMessage) {
+            testItems.add(new TableApiErrorTestItem(expression, errorMessage, false));
             return this;
         }
 
@@ -247,8 +280,13 @@ public abstract class BuiltInFunctionTestBase {
             return this;
         }
 
-        TestSpec testSqlError(String expression, String errorMessage) {
-            testItems.add(new SqlErrorTestItem(expression, errorMessage));
+        TestSpec testSqlValidationError(String expression, String errorMessage) {
+            testItems.add(new SqlErrorTestItem(expression, errorMessage, true));
+            return this;
+        }
+
+        TestSpec testSqlRuntimeError(String expression, String errorMessage) {
+            testItems.add(new SqlErrorTestItem(expression, errorMessage, false));
             return this;
         }
 
@@ -285,9 +323,11 @@ public abstract class BuiltInFunctionTestBase {
 
     private static class ErrorTestItem implements TestItem {
         final String errorMessage;
+        boolean expectedDuringValidation;
 
-        ErrorTestItem(String errorMessage) {
+        ErrorTestItem(String errorMessage, boolean expectedDuringValidation) {
             this.errorMessage = errorMessage;
+            this.expectedDuringValidation = expectedDuringValidation;
         }
     }
 
@@ -308,8 +348,9 @@ public abstract class BuiltInFunctionTestBase {
     private static class TableApiErrorTestItem extends ErrorTestItem {
         final Expression expression;
 
-        TableApiErrorTestItem(Expression expression, String errorMessage) {
-            super(errorMessage);
+        TableApiErrorTestItem(
+                Expression expression, String errorMessage, boolean expectedDuringValidation) {
+            super(errorMessage, expectedDuringValidation);
             this.expression = expression;
         }
 
@@ -336,8 +377,9 @@ public abstract class BuiltInFunctionTestBase {
     private static class SqlErrorTestItem extends ErrorTestItem {
         final String expression;
 
-        private SqlErrorTestItem(String expression, String errorMessage) {
-            super(errorMessage);
+        private SqlErrorTestItem(
+                String expression, String errorMessage, boolean expectedDuringValidation) {
+            super(errorMessage, expectedDuringValidation);
             this.expression = expression;
         }
 

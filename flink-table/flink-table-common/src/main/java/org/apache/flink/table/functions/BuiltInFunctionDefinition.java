@@ -195,13 +195,28 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             return this;
         }
 
+        /**
+         * Specifies that this {@link BuiltInFunctionDefinition} is implemented during code
+         * generation.
+         */
         public Builder runtimeProvided() {
             this.isRuntimeProvided = true;
             return this;
         }
 
+        /** Specifies the runtime class implementing this {@link BuiltInFunctionDefinition}. */
         public Builder runtimeClass(String runtimeClass) {
             this.runtimeClass = runtimeClass;
+            return this;
+        }
+
+        /**
+         * Specifies that this {@link BuiltInFunctionDefinition} will be mapped to a Calcite
+         * function.
+         */
+        public Builder runtimeDeferred() {
+            // This method is just a marker method for clarity. It is equivalent to calling
+            // neither {@link #runtimeProvided} nor {@link #runtimeClass}.
             return this;
         }
 

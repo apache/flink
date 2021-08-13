@@ -21,7 +21,8 @@ import os
 import uuid
 from typing import Collection, Iterable
 
-from pyflink.common import Row
+from pyflink.common import Row, Configuration
+from pyflink.common.time import Time
 from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
@@ -35,7 +36,7 @@ from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFl
                                           WindowFunction)
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
-                                      AggregatingStateDescriptor)
+                                      AggregatingStateDescriptor, StateTtlConfig)
 from pyflink.datastream.window import (CountWindowSerializer, MergingWindowAssigner, TimeWindow,
                                        TimeWindowSerializer)
 from pyflink.java_gateway import get_gateway
@@ -55,81 +56,135 @@ class DataStreamTests(object):
     def tearDown(self) -> None:
         self.test_sink.clear()
 
-    def test_map(self):
-        self.env.set_parallelism(1)
+    def assert_equals_sorted(self, expected, actual):
+        expected.sort()
+        actual.sort()
+        self.assertEqual(expected, actual)
+
+    def test_basic_operations(self):
         ds = self.env.from_collection([('ab', decimal.Decimal(1)),
                                        ('bdc', decimal.Decimal(2)),
                                        ('cfgs', decimal.Decimal(3)),
                                        ('deeefg', decimal.Decimal(4))],
                                       type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
-        ds.map(MyMapFunction()).add_sink(self.test_sink)
-        self.env.execute('map_function_test')
+
+        class MyMapFunction(MapFunction):
+            def map(self, value):
+                return Row(value[0], value[1] + 1, value[2])
+
+        class MyFlatMapFunction(FlatMapFunction):
+            def flat_map(self, value):
+                if value[1] % 2 == 0:
+                    yield value
+
+        class MyFilterFunction(FilterFunction):
+            def filter(self, value):
+                return value[1] > 2
+
+        (ds.map(lambda i: (i[0], len(i[0]), i[1]),
+                output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .flat_map(MyFlatMapFunction(),
+                     output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .filter(MyFilterFunction())
+           .map(MyMapFunction(),
+                output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .add_sink(self.test_sink))
+        self.env.execute('test_basic_operations')
+        results = self.test_sink.get_results()
+        expected = ["+I[cfgs, 5, 3]",
+                    "+I[deeefg, 7, 4]"]
+        self.assert_equals_sorted(expected, results)
+
+    def test_basic_operations_with_callable_function(self):
+        ds = self.env.from_collection([('ab', decimal.Decimal(1)),
+                                       ('bdc', decimal.Decimal(2)),
+                                       ('cfgs', decimal.Decimal(3)),
+                                       ('deeefg', decimal.Decimal(4))],
+                                      type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
+
+        def add_1(value):
+            return Row(value[0], value[1] + 1, value[2])
+
+        def reserve_even(value):
+            if value[1] % 2 == 0:
+                yield value
+
+        (ds.map(lambda i: (i[0], len(i[0]), i[1]))
+           .flat_map(reserve_even)
+           .filter(lambda i: i[1] > 2)
+           .map(add_1)
+           .add_sink(self.test_sink))
+        self.env.execute('test_basic_operations_with_callable_function')
         results = self.test_sink.get_results(True)
-        expected = ["<Row('ab', 2, Decimal('1'))>", "<Row('bdc', 3, Decimal('2'))>",
-                    "<Row('cfgs', 4, Decimal('3'))>", "<Row('deeefg', 6, Decimal('4'))>"]
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+        expected = ["<Row('cfgs', 5, Decimal('3'))>",
+                    "<Row('deeefg', 7, Decimal('4'))>"]
+        self.assert_equals_sorted(expected, results)
 
-    def test_map_with_output_type(self):
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+    def test_basic_co_operations(self):
+        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir)
+        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
+        with open(python_file_path, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
 
-        ds.map(MyMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
-            .add_sink(self.test_sink)
-        self.env.execute('map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+        class MyCoFlatMapFunction(CoFlatMapFunction):
 
-    def test_map_with_callable_function(self):
-        ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
+            def flat_map1(self, value):
+                yield value + 1
 
-        def map_func(value):
-            result = Row(value[0], len(value[0]), value[1])
-            return result
+            def flat_map2(self, value):
+                yield value - 1
 
-        ds.map(map_func, output_type=Types.ROW([Types.STRING(), Types.INT(), Types.INT()]))\
-            .add_sink(self.test_sink)
-        self.env.execute('map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[ab, 2, 1]', '+I[bdc, 3, 2]', '+I[cfgs, 4, 3]', '+I[deeefg, 6, 4]']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+        class MyCoMapFunction(CoMapFunction):
 
-    def test_co_map(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
-                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
-        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
-                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).map(MyCoMapFunction()).add_sink(self.test_sink)
-        self.env.execute('co_map_function_test')
+            def map1(self, value):
+                from test_stream_dependency_manage_lib import add_two
+                return add_two(value)
+
+            def map2(self, value):
+                return value + 1
+
+        self.env.add_python_file(python_file_path)
+        ds_1 = self.env.from_collection([1, 2, 3, 4, 5])
+        ds_2 = ds_1.map(lambda x: x * 2)
+
+        (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction())
+             .connect(ds_2).map(MyCoMapFunction())
+             .add_sink(self.test_sink))
+        self.env.execute("test_basic_co_operations")
         results = self.test_sink.get_results(True)
-        expected = ['2', '3', '4', 'a', 'b', 'c']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+        expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
+        self.assert_equals_sorted(expected, results)
 
-    def test_co_map_with_output_type(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
-                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
-        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
-                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).map(MyCoMapFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('co_map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['2', '3', '4', 'a', 'b', 'c']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+    def test_basic_co_operations_with_output_type(self):
+        class MyCoMapFunction(CoMapFunction):
 
-    def test_keyed_co_process_function(self):
+            def map1(self, value):
+                return value + 2
+
+            def map2(self, value):
+                return value + 1
+
+        class MyCoFlatMapFunction(CoFlatMapFunction):
+
+            def flat_map1(self, value):
+                yield value + 1
+
+            def flat_map2(self, value):
+                yield value - 1
+
+        ds_1 = self.env.from_collection([1, 2, 3, 4, 5])
+        ds_2 = ds_1.map(lambda x: x * 2)
+
+        (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
+             .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+             .add_sink(self.test_sink))
+        self.env.execute("test_basic_co_operations_with_output_type")
+        results = self.test_sink.get_results()
+        expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_co_process(self):
         self.env.set_parallelism(1)
         ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -144,62 +199,20 @@ class DataStreamTests(object):
         ds1.connect(ds2) \
             .key_by(lambda x: x[0], lambda x: x[0]) \
             .process(MyKeyedCoProcessFunction()) \
+            .map(lambda x: Row(x[0], x[1] + 1)) \
             .add_sink(self.test_sink)
-        self.env.execute('co_map_function_test')
+        self.env.execute('test_keyed_co_process_function')
         results = self.test_sink.get_results(True)
-        expected = ["<Row('a', 1)>",
-                    "<Row('b', 1)>",
+        expected = ["<Row('a', 2)>",
                     "<Row('b', 2)>",
-                    "<Row('c', 1)>",
+                    "<Row('b', 3)>",
                     "<Row('c', 2)>",
-                    "<Row('d', 1)>",
-                    "<Row('on_timer', 3)>"]
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
+                    "<Row('c', 3)>",
+                    "<Row('d', 2)>",
+                    "<Row('on_timer', 4)>"]
+        self.assert_equals_sorted(expected, results)
 
-    def test_connected_streams_with_dependency(self):
-        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
-        os.mkdir(python_file_dir)
-        python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
-        with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
-
-        class TestCoMapFunction(CoMapFunction):
-
-            def map1(self, value):
-                from test_stream_dependency_manage_lib import add_two
-                return add_two(value)
-
-            def map2(self, value):
-                return value + 1
-
-        self.env.add_python_file(python_file_path)
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds_1 = ds.map(lambda x: x * 2)
-        ds.connect(ds_1).map(TestCoMapFunction()).add_sink(self.test_sink)
-        self.env.execute("test co-map add python file")
-        result = self.test_sink.get_results(True)
-        expected = ['11', '3', '3', '4', '5', '5', '6', '7', '7', '9']
-        result.sort()
-        expected.sort()
-        self.assertEqual(expected, result)
-
-    def test_co_map_function_with_data_types(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
-                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
-        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
-                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).map(MyCoMapFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
-        self.env.execute('co_map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['2', '3', '4', 'a', 'b', 'c']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
-
-    def test_key_by_and_co_map(self):
+    def test_keyed_co_map(self):
         ds1 = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()])) \
             .key_by(MyKeySelector(), key_type=Types.INT())
@@ -236,116 +249,28 @@ class DataStreamTests(object):
         ds1.connect(ds2)\
             .key_by(MyKeySelector(), MyKeySelector(), key_type=Types.INT())\
             .map(AssertKeyCoMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1)) \
             .add_sink(self.test_sink)
 
-        self.env.execute('key_by_test')
+        self.env.execute()
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)", "Row(f0='e', f1=2)",
-                    "Row(f0='a', f1=0)", "Row(f0='b', f1=0)", "Row(f0='c', f1=1)",
-                    "Row(f0='d', f1=1)"]
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        expected = ["('e', 3)", "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)", "('e', 3)",
+                    "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)"]
+        self.assert_equals_sorted(expected, results)
 
-    def test_flat_map(self):
-        ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.flat_map(MyFlatMapFunction(), output_type=Types.ROW([Types.STRING(), Types.INT()]))\
-            .add_sink(self.test_sink)
-
-        self.env.execute('flat_map_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[a, 0]', '+I[bdc, 2]', '+I[deeefg, 4]']
-        results.sort()
-        expected.sort()
-
-        self.assertEqual(expected, results)
-
-    def test_flat_map_with_callable_function(self):
-        ds = self.env.from_collection([('a', 0), ('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-
-        def flat_map(value):
-            if value[1] % 2 == 0:
-                yield value
-
-        ds.flat_map(flat_map, output_type=Types.ROW([Types.STRING(), Types.INT()]))\
-            .add_sink(self.test_sink)
-        self.env.execute('flat_map_test')
-        results = self.test_sink.get_results(False)
-        expected = ['+I[a, 0]', '+I[bdc, 2]', '+I[deeefg, 4]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
-    def test_co_flat_map(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
-                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
-        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
-                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).flat_map(MyCoFlatMapFunction()).add_sink(self.test_sink)
-        self.env.execute('co_flat_map_function_test')
-        results = self.test_sink.get_results(True)
-        expected = ['2', '2', '3', '3', '4', '4', 'b']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
-
-    def test_co_flat_map_with_output_type(self):
-        self.env.set_parallelism(1)
-        ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
-                                       type_info=Types.ROW([Types.INT(), Types.INT()]))
-        ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c")],
-                                       type_info=Types.ROW([Types.STRING(), Types.STRING()]))
-        ds1.connect(ds2).flat_map(MyCoFlatMapFunction(), output_type=Types.STRING())\
-            .add_sink(self.test_sink)
-        self.env.execute('co_flat_map_function_test')
-        results = self.test_sink.get_results(False)
-        expected = ['2', '2', '3', '3', '4', '4', 'b']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
-
-    def test_key_by_and_co_flat_map(self):
-        self.env.set_parallelism(1)
+    def test_keyed_co_flat_map(self):
         ds1 = self.env.from_collection([(1, 1), (2, 2), (3, 3)],
                                        type_info=Types.ROW([Types.INT(), Types.INT()]))
         ds2 = self.env.from_collection([("a", "a"), ("b", "b"), ("c", "c"), ("a", "a")],
                                        type_info=Types.ROW([Types.STRING(), Types.STRING()]))
         ds1.connect(ds2).key_by(lambda x: 1, lambda x: 1) \
             .flat_map(MyRichCoFlatMapFunction(), output_type=Types.STRING()) \
+            .filter(lambda x: x != '4') \
             .add_sink(self.test_sink)
-        self.env.execute('co_flat_map_function_test')
+        self.env.execute('test_keyed_co_flat_map')
         results = self.test_sink.get_results(False)
-        expected = ['2', '2', '3', '3', '4', '4', 'a', 'b', 'c']
-        expected.sort()
-        results.sort()
-        self.assertEqual(expected, results)
-
-    def test_filter(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')])
-        ds.filter(MyFilterFunction()).add_sink(self.test_sink)
-        self.env.execute("test filter")
-        results = self.test_sink.get_results(True)
-        expected = ["(2, 'Hello', 'Hi')"]
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
-    def test_filter_with_lambda_function(self):
-        ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
-                                      type_info=Types.ROW(
-                                          [Types.INT(), Types.STRING(), Types.STRING()])
-                                      )
-        ds.filter(lambda x: x[0] % 2 == 0).add_sink(self.test_sink)
-        self.env.execute("test filter")
-        results = self.test_sink.get_results(False)
-        expected = ['+I[2, Hello, Hi]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        expected = ['2', '2', '3', '3', 'a', 'b', 'c']
+        self.assert_equals_sorted(expected, results)
 
     def test_execute_and_collect(self):
         test_data = ['pyflink', 'datastream', 'execute', 'collect']
@@ -389,14 +314,11 @@ class DataStreamTests(object):
         ds = self.env.from_collection(test_data).map(lambda a: a)
         with ds.execute_and_collect() as results:
             actual = [result for result in results]
-            actual.sort()
-            expected.sort()
-            self.assertEqual(expected, actual)
+            self.assert_equals_sorted(expected, actual)
 
-    def test_key_by_map(self):
+    def test_keyed_map(self):
         from pyflink.util.java_utils import get_j_env_configuration
         from pyflink.common import Configuration
-        self.env.set_parallelism(1)
         config = Configuration(
             j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
         config.set_integer("python.fn-execution.bundle.size", 1)
@@ -442,16 +364,15 @@ class DataStreamTests(object):
                     state_value += 1
                 return state_value
 
-        keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
-        self.env.execute('key_by_test')
+        keyed_stream.map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
+            .add_sink(self.test_sink)
+        self.env.execute('test_keyed_map')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=1)",
-                    "Row(f0='c', f1=0)", "Row(f0='d', f1=1)"]
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        expected = ["('e', 3)", "('a', 1)", "('b', 2)", "('c', 1)", "('d', 2)"]
+        self.assert_equals_sorted(expected, results)
 
-    def test_key_by_flat_map(self):
+    def test_keyed_flat_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
@@ -486,16 +407,15 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 yield value
 
-        keyed_stream.flat_map(AssertKeyMapFunction()).add_sink(self.test_sink)
-        self.env.execute('key_by_test')
+        keyed_stream.flat_map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
+            .add_sink(self.test_sink)
+        self.env.execute('test_keyed_flat_map')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)"]
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        expected = ["('e', 3)", "('a', 1)", "('b', 1)", "('c', 2)", "('d', 2)"]
+        self.assert_equals_sorted(expected, results)
 
-    def test_key_by_filter(self):
+    def test_keyed_filter(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         keyed_stream = ds.key_by(MyKeySelector())
@@ -532,13 +452,13 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 return True
 
-        keyed_stream.filter(AssertKeyFilterFunction()).add_sink(self.test_sink)
+        keyed_stream.filter(AssertKeyFilterFunction())\
+            .filter(lambda x: x[1] > 0)\
+            .add_sink(self.test_sink)
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
-        expected = ['+I[a, 0]', '+I[c, 1]', '+I[e, 2]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        expected = ['+I[c, 1]', '+I[e, 2]']
+        self.assert_equals_sorted(expected, results)
 
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
@@ -549,13 +469,10 @@ class DataStreamTests(object):
         self.env.execute("test multi key by")
         results = self.test_sink.get_results(False)
         expected = ['+I[d, 1]', '+I[c, 1]', '+I[a, 0]', '+I[b, 0]', '+I[e, 2]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_print_without_align_output(self):
         # No need to align output typeinfo since we have specified the type info of the DataStream.
-        self.env.set_parallelism(1)
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         ds.print()
@@ -582,9 +499,7 @@ class DataStreamTests(object):
         self.env.execute("test primitive array type info")
         results = self.test_sink.get_results()
         expected = ['+I[1, [1.1, 1.2, 1.3]]', '+I[2, [2.1, 2.2, 2.3]]', '+I[3, [3.1, 3.2, 3.3]]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_basic_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
@@ -603,9 +518,7 @@ class DataStreamTests(object):
         expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
                     '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
                     '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_object_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
@@ -624,9 +537,7 @@ class DataStreamTests(object):
         expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
                     '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
                     '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_sql_timestamp_type_info(self):
         ds = self.env.from_collection([(datetime.date(2021, 1, 9),
@@ -643,7 +554,7 @@ class DataStreamTests(object):
         self.env.execute("test sql timestamp type info")
         results = self.test_sink.get_results()
         expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_process_function(self):
         self.env.set_parallelism(1)
@@ -668,21 +579,18 @@ class DataStreamTests(object):
         data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test process function')
-        result = self.test_sink.get_results()
-        expected_result = ["current timestamp: 1603708211000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                           "current timestamp: 1603708224000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                           "current timestamp: 1603708226000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                           "current timestamp: 1603708289000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        expected = ["current timestamp: 1603708211000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
+                    "current timestamp: 1603708224000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
+                    "current timestamp: 1603708226000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
+                    "current timestamp: 1603708289000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
+        self.assert_equals_sorted(expected, results)
 
     def test_keyed_process_function_with_state(self):
-        self.env.set_parallelism(1)
         self.env.get_config().set_auto_watermark_interval(2000)
         self.env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
         data_stream = self.env.from_collection([(1, 'hi', '1603708211000'),
@@ -712,6 +620,12 @@ class DataStreamTests(object):
                 list_state_descriptor = ListStateDescriptor('list_state', Types.INT())
                 self.list_state = runtime_context.get_list_state(list_state_descriptor)
                 map_state_descriptor = MapStateDescriptor('map_state', Types.INT(), Types.STRING())
+                state_ttl_config = StateTtlConfig \
+                    .new_builder(Time.seconds(1)) \
+                    .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
+                    .disable_cleanup_in_background() \
+                    .build()
+                map_state_descriptor.enable_time_to_live(state_ttl_config)
                 self.map_state = runtime_context.get_map_state(map_state_descriptor)
 
             def process_element(self, value, ctx):
@@ -742,28 +656,26 @@ class DataStreamTests(object):
             .process(MyProcessFunction(), output_type=Types.STRING()) \
             .add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
-        result = self.test_sink.get_results()
-        expected_result = ["current key: hi, current value state: None, current list state: [], "
-                           "current map state: {}, current value: Row(f0=1, f1='hi', "
-                           "f2='1603708211000')",
-                           "current key: hello, current value state: None, "
-                           "current list state: [], current map state: {}, current value: Row(f0=2,"
-                           " f1='hello', f2='1603708224000')",
-                           "current key: hi, current value state: 1, current list state: [1], "
-                           "current map state: {1: hi}, current value: Row(f0=3, f1='hi', "
-                           "f2='1603708226000')",
-                           "current key: hello, current value state: 2, current list state: [2], "
-                           "current map state: {2: hello}, current value: Row(f0=4, f1='hello', "
-                           "f2='1603708289000')",
-                           "current key: hi, current value state: 3, current list state: [1, 3], "
-                           "current map state: {1: hi, 3: hi}, current value: Row(f0=5, f1='hi', "
-                           "f2='1603708291000')",
-                           "current key: hello, current value state: 4, current list state: [2, 4],"
-                           " current map state: {2: hello, 4: hello}, current value: Row(f0=6, "
-                           "f1='hello', f2='1603708293000')"]
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        expected = ["current key: hi, current value state: None, current list state: [], "
+                    "current map state: {}, current value: Row(f0=1, f1='hi', "
+                    "f2='1603708211000')",
+                    "current key: hello, current value state: None, "
+                    "current list state: [], current map state: {}, current value: Row(f0=2,"
+                    " f1='hello', f2='1603708224000')",
+                    "current key: hi, current value state: 1, current list state: [1], "
+                    "current map state: {1: hi}, current value: Row(f0=3, f1='hi', "
+                    "f2='1603708226000')",
+                    "current key: hello, current value state: 2, current list state: [2], "
+                    "current map state: {2: hello}, current value: Row(f0=4, f1='hello', "
+                    "f2='1603708289000')",
+                    "current key: hi, current value state: 3, current list state: [1, 3], "
+                    "current map state: {1: hi, 3: hi}, current value: Row(f0=5, f1='hi', "
+                    "f2='1603708291000')",
+                    "current key: hello, current value state: 4, current list state: [2, 4],"
+                    " current map state: {2: hello, 4: hello}, current value: Row(f0=6, "
+                    "f1='hello', f2='1603708293000')"]
+        self.assert_equals_sorted(expected, results)
 
     def test_reducing_state(self):
         self.env.set_parallelism(2)
@@ -821,23 +733,33 @@ class DataStreamTests(object):
                 self.aggregating_state = None  # type: AggregatingState
 
             def open(self, runtime_context: RuntimeContext):
-                self.aggregating_state = runtime_context.get_aggregating_state(
-                    AggregatingStateDescriptor(
-                        'aggregating_state', MyAggregateFunction(), Types.INT()))
+                descriptor = AggregatingStateDescriptor(
+                    'aggregating_state', MyAggregateFunction(), Types.INT())
+                state_ttl_config = StateTtlConfig \
+                    .new_builder(Time.milliseconds(1)) \
+                    .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
+                    .disable_cleanup_in_background() \
+                    .build()
+                descriptor.enable_time_to_live(state_ttl_config)
+                self.aggregating_state = runtime_context.get_aggregating_state(descriptor)
 
             def process_element(self, value, ctx):
                 self.aggregating_state.add(value[0])
                 yield self.aggregating_state.get(), value[1]
 
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        config.set_integer("python.fn-execution.bundle.size", 1)
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
             .add_sink(self.test_sink)
         self.env.execute('test_aggregating_state')
-        result = self.test_sink.get_results()
-        expected_result = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        if isinstance(self, PyFlinkBatchTestCase):
+            expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
+        else:
+            expected = ['(1,hi)', '(2,hello)', '(3,hi)', '(4,hello)', '(5,hi)', '(6,hello)']
+        self.assert_equals_sorted(expected, results)
 
     def test_count_window(self):
         self.env.set_parallelism(2)
@@ -850,11 +772,9 @@ class DataStreamTests(object):
             .add_sink(self.test_sink)
 
         self.env.execute('test_count_window')
-        result = self.test_sink.get_results()
-        expected_result = ['(hello,12)', '(hi,9)']
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        expected = ['(hello,12)', '(hi,9)']
+        self.assert_equals_sorted(expected, results)
 
     def test_time_window(self):
         self.env.set_parallelism(1)
@@ -870,11 +790,9 @@ class DataStreamTests(object):
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window')
-        result = self.test_sink.get_results()
-        expected_result = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        expected = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
+        self.assert_equals_sorted(expected, results)
 
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
@@ -1040,7 +958,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
 
         j_stream_nodes = list(j_generated_stream_graph.getStreamNodes().toArray())
         for j_stream_node in j_stream_nodes:
@@ -1082,7 +1000,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         # ship_strategy for map_operator_0 and map_operator_1 is FORWARD, so the map_operator_1
         # can be chained with map_operator_0 and map_operator_2.
         j_generated_stream_graph = self.env._j_stream_execution_environment\
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         assert_chainable(j_generated_stream_graph, True, True)
 
         ds = self.env.from_collection([1, 2, 3])
@@ -1093,7 +1011,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         # We start a new chain for map operator, therefore, it cannot be chained with upstream
         # operator, but can be chained with downstream operator.
         assert_chainable(j_generated_stream_graph, False, True)
@@ -1106,7 +1024,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
-            .getStreamGraph("test start new_chain", True)
+            .getStreamGraph(True)
         # We disable chaining for map_operator_1, therefore, it cannot be chained with
         # upstream and downstream operators.
         assert_chainable(j_generated_stream_graph, False, False)
@@ -1154,21 +1072,19 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             .key_by(lambda x: x[0], key_type=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
-        result = self.test_sink.get_results()
+        results = self.test_sink.get_results()
         # Because the watermark interval is too long, no watermark was sent before processing these
         # data. So all current watermarks are Long.MIN_VALUE.
-        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                           "current key: 2, current timestamp: 1603708224000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                           "current key: 3, current timestamp: 1603708226000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                           "current key: 4, current timestamp: 1603708289000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')",
-                           "on timer: 3"]
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
+                    "current key: 2, current timestamp: 1603708224000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
+                    "current key: 3, current timestamp: 1603708226000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
+                    "current key: 4, current timestamp: 1603708289000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')",
+                    "on timer: 3"]
+        self.assert_equals_sorted(expected, results)
 
     def test_reduce(self):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
@@ -1177,11 +1093,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
           .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
           .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
-        result = self.test_sink.get_results()
+        results = self.test_sink.get_results()
         expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
-        expected.sort()
-        result.sort()
-        self.assertEqual(expected, result)
+        self.assert_equals_sorted(expected, results)
 
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
@@ -1195,9 +1109,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
         expected = ['+I[a, 0]', '+I[ab, 0]', '+I[c, 1]', '+I[cd, 1]', '+I[cde, 1]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
@@ -1230,9 +1142,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         self.env.execute("test_data_with_custom_class")
         results = self.test_sink.get_results(True)
         expected = ['c', 'c', 'b']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
+        self.assert_equals_sorted(expected, results)
 
 
 class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
@@ -1271,18 +1181,16 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
             .key_by(lambda x: x[0], key_type=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
-        result = self.test_sink.get_results()
-        expected_result = ["current key: 1, current timestamp: 1603708211000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
-                           "current key: 2, current timestamp: 1603708224000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
-                           "current key: 3, current timestamp: 1603708226000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
-                           "current key: 4, current timestamp: 1603708289000, current watermark: "
-                           "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
-        result.sort()
-        expected_result.sort()
-        self.assertEqual(expected_result, result)
+        results = self.test_sink.get_results()
+        expected = ["current key: 1, current timestamp: 1603708211000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=1, f1='1603708211000')",
+                    "current key: 2, current timestamp: 1603708224000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=2, f1='1603708224000')",
+                    "current key: 3, current timestamp: 1603708226000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=3, f1='1603708226000')",
+                    "current key: 4, current timestamp: 1603708289000, current watermark: "
+                    "-9223372036854775808, current_value: Row(f0=4, f1='1603708289000')"]
+        self.assert_equals_sorted(expected, results)
 
     def test_reduce(self):
         ds = self.env.from_collection([(1, 'a'), (4, 'b'), (2, 'a'), (3, 'b'), (3, 'a')],
@@ -1291,11 +1199,9 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
           .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
           .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
-        result = self.test_sink.get_results()
+        results = self.test_sink.get_results()
         expected = ["+I[6, a]", "+I[7, b]"]
-        expected.sort()
-        result.sort()
-        self.assertEqual(expected, result)
+        self.assert_equals_sorted(expected, results)
 
     def test_reduce_with_state(self):
         ds = self.env.from_collection([('a', 0), ('c', 1), ('d', 1), ('b', 0), ('e', 1)],
@@ -1309,54 +1215,12 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
         expected = ['+I[ab, 0]', '+I[cde, 1]']
-        results.sort()
-        expected.sort()
-        self.assertEqual(expected, results)
-
-
-class MyMapFunction(MapFunction):
-
-    def map(self, value):
-        result = Row(value[0], len(value[0]), value[1])
-        return result
-
-
-class MyFlatMapFunction(FlatMapFunction):
-
-    def flat_map(self, value):
-        if value[1] % 2 == 0:
-            yield value
+        self.assert_equals_sorted(expected, results)
 
 
 class MyKeySelector(KeySelector):
     def get_key(self, value):
         return value[1]
-
-
-class MyFilterFunction(FilterFunction):
-
-    def filter(self, value):
-        return value[0] % 2 == 0
-
-
-class MyCoMapFunction(CoMapFunction):
-
-    def map1(self, value):
-        return str(value[0] + 1)
-
-    def map2(self, value):
-        return value[0]
-
-
-class MyCoFlatMapFunction(CoFlatMapFunction):
-
-    def flat_map1(self, value):
-        yield str(value[0] + 1)
-        yield str(value[0] + 1)
-
-    def flat_map2(self, value):
-        if value[0] == 'b':
-            yield value[0]
 
 
 class MyRichCoFlatMapFunction(CoFlatMapFunction):

@@ -138,7 +138,9 @@ mvn clean install
 
 ## Scala 版本
 
-{% info %} 只是用 Java 库和 API 的用户可以 *忽略* 这一部分。
+{{< hint info >}}
+只是用 Java 库和 API 的用户可以*忽略*这一部分。
+{{< /hint >}}
 
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。

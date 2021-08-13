@@ -248,6 +248,8 @@ public abstract class FileSystem {
             ImmutableMultimap.<String, String>builder()
                     .put("wasb", "flink-fs-azure-hadoop")
                     .put("wasbs", "flink-fs-azure-hadoop")
+                    .put("abfs", "flink-fs-azure-hadoop")
+                    .put("abfss", "flink-fs-azure-hadoop")
                     .put("oss", "flink-oss-fs-hadoop")
                     .put("s3", "flink-s3-fs-hadoop")
                     .put("s3", "flink-s3-fs-presto")
