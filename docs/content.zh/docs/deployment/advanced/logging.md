@@ -47,7 +47,7 @@ Log4j 2 是通过 property 配置文件进行配置的。
 Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果启用了 Log4j 2，则会自动使用如下文件：
 
 - `log4j-cli.properties`：Flink 命令行使用（例如 `flink run`）；
-- `log4j-session.properties`：Flink 命令行端在启动基于 Yarn 或 Kubernetes 的 Session 集群时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
+- `log4j-session.properties`：Flink 命令行在启动基于 Kubernetes/Yarn 的 Session 集群时使用（例如 `kubernetes-session.sh`/`yarn-session.sh`）；
 - `log4j-console.properties`：JobManager/Taskmanagers 在前端模式运行时使用（例如 Kubernetes）；
 - `log4j.properties`： JobManager/TaskManager 默认使用的日志配置。
 
