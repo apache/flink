@@ -18,6 +18,7 @@
 import datetime
 import decimal
 import os
+import unittest
 import uuid
 from typing import Collection, Iterable
 
@@ -183,6 +184,7 @@ class DataStreamTests(object):
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
         self.assert_equals_sorted(expected, results)
 
+    @unittest.skip("FLINK-23742")
     def test_keyed_co_process(self):
         ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
