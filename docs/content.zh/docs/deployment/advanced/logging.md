@@ -59,7 +59,7 @@ Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录�
 
 Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html) 相关的依赖，使当前基于 Log4j1 开发的应用程序可以继续正常运行。
 
-如果有基于 Log4j 的自定义配置文件或代码，请查看官方 Log4j [适配](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
+如果有基于 Log4j 1 的自定义配置文件或代码，请查看官方 Log4j [兼容](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
 
 <a name="configuring-log4j1"> </a>
 
