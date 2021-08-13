@@ -53,7 +53,7 @@ Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果�
 
 Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录行为。默认情况下30秒检查一次，监测间隔可以通过 Log4j 配置文件的 `monitorInterval` 配置项进行设置。
 
-<a name="compatibility-with-log4j1"> </a>
+<a name="compatibility-with-log4j-1"></a>
 
 ### 适配 Log4j1
 
