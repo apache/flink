@@ -29,7 +29,7 @@ under the License.
 
 <a name="getting-started"></a>
 
-## 入门
+## 入门指南
 
 本 *入门* 指南描述了如何在 [Kubernetes](https://kubernetes.io) 上部署 *Flink Seesion 集群*。
 
@@ -51,6 +51,8 @@ under the License.
 如果使用 MiniKube，请确保在部署 Flink 集群之前先执行 `minikube ssh 'sudo ip link set docker0 promisc on'`，否则 Flink 组件不能自动地将自己映射到 Kubernetes Service 中。
 {{< /hint >}}
 
+<a name="starting-a-kubernetes-cluster-session-mode"></a>
+
 ### Kubernetes 上的 Flink session 集群
 
 *Flink session 集群* 是以一种长期运行的 Kubernetes Deployment 形式执行的。你可以在一个 *session 集群* 上运行多个 Flink 作业。当然，只有 session 集群部署好以后才可以在上面提交 Flink 作业。
@@ -64,7 +66,7 @@ under the License.
 使用[通用集群资源定义](#common-cluster-resource-definitions)中提供的文件内容来创建以下文件，并使用 `kubectl` 命令来创建相应的组件：
 
 ```sh
-    # configmap 和 service 的定义
+    # Configuration 和 service 的定义
     $ kubectl create -f flink-configuration-configmap.yaml
     $ kubectl create -f jobmanager-service.yaml
     # 为集群创建 deployment
@@ -96,17 +98,19 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ## 部署模式
 
+<a name="deploy-application-cluster"></a>
+
 ### Application 集群模式
 
 *Flink Application 集群* 是运行单个 Application 的专用集群，部署集群时要保证该 Application 可用。
 
 在 Kubernetes 上部署一个基本的 *Flink Application 集群* 时，一般包括下面三个组件：
 
-* *Application* 作业，同时在该 *Application* 中运行 *JobManager*；
+* 一个运行 *JobManager* 的 *Application*；
 * 运行若干个 TaskManager 的 Deployment；
 * 暴露 JobManager 上 REST 和 UI 端口的 Service；
 
-检查 [Application 集群资源定义](#application-cluster-resource-definitions) 并相应地调整它们：
+检查 [Application 集群资源定义](#application-cluster-resource-definitions) 并做出相应的调整：
 
 `jobmanager-job.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-job.yaml` 配置中指定的 Flink 镜像。
 
@@ -126,9 +130,13 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     $ kubectl delete -f jobmanager-job.yaml
 ```
 
+<a name="per-job-cluster-mode"></a>
+
 ### Per-Job 集群模式
 
 在 Kubernetes 上部署 Standalone 集群时不支持 Per-Job 集群模式。
+
+<a name="session-mode"></a>
 
 ### Session 集群模式
 
@@ -198,7 +206,7 @@ flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 
 <a name="high-availability-with-standalone-kubernetes"></a>
 
-### Standalone 集群配置 HA
+### 高可用的 Standalone Kubernetes
 
 对于在 Kubernetes 上实现HA，可以参考当前的 [Kubernets 高可用服务]({{< ref "docs/deployment/ha/overview" >}})。
 
@@ -208,7 +216,7 @@ flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 
 Session 模式和 Application 模式集群都支持使用 [Kubernetes 高可用服务]({{< ref "docs/deployment/ha/kubernetes_ha" >}})。需要在 [flink-configuration-configmap.yaml](#common-cluster-resource-definitions) 中添加如下 Flink 配置项。
 
-<span class="label label-info">Note</span> 配置了 HA 存储目录相对应的文件系统必须在运行时可用。相关更多信息，请参阅 [自定义Flink 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) 和 [启用文件系统插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins)。
+<span class="label label-info">Note</span> 配置了 HA 存储目录相对应的文件系统必须在运行时可用。请参阅[自定义Flink 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)和[启用文件系统插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins)获取更多相关信息。
 
 ```yaml
 apiVersion: v1
