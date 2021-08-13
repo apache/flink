@@ -19,7 +19,6 @@ package org.apache.flink.table.api.bridge.scala.internal
 
 import java.util
 import java.util.{Collections, List => JList}
-
 import javax.annotation.Nullable
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -30,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamStatementSet
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
@@ -302,6 +302,16 @@ class StreamTableEnvironmentImpl (
     javaExecutionEnvironment.configure(tableConfig.getConfiguration)
 
     new DataStream[T](new JDataStream[T](javaExecutionEnvironment, streamTransformation))
+  }
+
+  override def createStatementSet(): StreamStatementSet = {
+    new StreamStatementSetImpl(this)
+  }
+
+  private[internal] def attachAsDataStream(modifyOperations: JList[ModifyOperation]) {
+    val javaEnv = scalaExecutionEnvironment.getJavaEnv
+    val transformations = translate(modifyOperations).asScala
+    transformations.foreach(javaEnv.addOperator)
   }
 
   override def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table = {

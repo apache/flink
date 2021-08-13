@@ -2149,6 +2149,136 @@ watermarks in a subsequent `ProcessFunction` in DataStream API.
 
 {{< top >}}
 
+Adding Table API Pipelines to DataStream API
+--------------------------------------------
+
+A single Flink job can consist of multiple disconnected pipelines that run next to each other.
+
+Source-to-sink pipelines defined in Table API can be attached *as a whole* to the `StreamExecutionEnvironment`
+and will be submitted when calling one of the `execute` methods in the DataStream API.
+
+However, a source does not necessarily have to be a table source but can also be another DataStream
+pipeline that was converted to Table API before. Thus, it is possible to use table sinks for DataStream API
+programs.
+
+The functionality is available through a specialized `StreamStatementSet` instance created with
+`StreamTableEnvironment.createStatementSet()`. By using a statement set, the planner can optimize all
+added statements together and come up with one or more end-to-end pipelines that are added to the
+`StreamExecutionEnvironment` when calling `StreamStatementSet.attachAsDataStream()`.
+
+The following example shows how to add table programs to a DataStream API program within one job.
+
+{{< tabs "de4cd538-4345-49ee-b86e-b308f002e069" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.api.bridge.java.*;
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+StreamStatementSet statementSet = tableEnv.createStatementSet();
+
+// create some source
+TableDescriptor sourceDescriptor =
+    TableDescriptor.forConnector("datagen")
+        .option("number-of-rows", "3")
+        .schema(
+            Schema.newBuilder()
+                .column("myCol", DataTypes.INT())
+                .column("myOtherCol", DataTypes.BOOLEAN())
+                .build())
+        .build();
+
+// create some sink
+TableDescriptor sinkDescriptor = TableDescriptor.forConnector("print").build();
+
+// add a pure Table API pipeline
+Table tableFromSource = tableEnv.from(sourceDescriptor);
+statementSet.addInsert(sinkDescriptor, tableFromSource);
+
+// use table sinks for the DataStream API pipeline
+DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
+Table tableFromStream = tableEnv.fromDataStream(dataStream);
+statementSet.addInsert(sinkDescriptor, tableFromStream);
+
+// attach both pipelines to StreamExecutionEnvironment
+// (the statement set will be cleared after calling this method)
+statementSet.attachAsDataStream();
+
+// define other DataStream API parts
+env.fromElements(4, 5, 6).addSink(new DiscardingSink<>());
+
+// use DataStream API to submit the pipelines
+env.execute();
+
+// prints similar to:
+// +I[1618440447, false]
+// +I[1259693645, true]
+// +I[158588930, false]
+// +I[1]
+// +I[2]
+// +I[3]
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink
+import org.apache.flink.streaming.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env)
+
+val statementSet = tableEnv.createStatementSet()
+
+// create some source
+val sourceDescriptor = TableDescriptor.forConnector("datagen")
+    .option("number-of-rows", "3")
+    .schema(Schema.newBuilder
+        .column("myCol", DataTypes.INT)
+        .column("myOtherCol", DataTypes.BOOLEAN).build)
+    .build
+
+// create some sink
+val sinkDescriptor = TableDescriptor.forConnector("print").build
+
+// add a pure Table API pipeline
+val tableFromSource = tableEnv.from(sourceDescriptor)
+statementSet.addInsert(sinkDescriptor, tableFromSource)
+
+// use table sinks for the DataStream API pipeline
+val dataStream = env.fromElements(1, 2, 3)
+val tableFromStream = tableEnv.fromDataStream(dataStream)
+statementSet.addInsert(sinkDescriptor, tableFromStream)
+
+// attach both pipelines to StreamExecutionEnvironment
+// (the statement set will be cleared calling this method)
+statementSet.attachAsDataStream()
+
+// define other DataStream API parts
+env.fromElements(4, 5, 6).addSink(new DiscardingSink[Int]())
+
+// now use DataStream API to submit the pipelines
+env.execute()
+
+// prints similar to:
+// +I[1618440447, false]
+// +I[1259693645, true]
+// +I[158588930, false]
+// +I[1]
+// +I[2]
+// +I[3]
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
 Implicit Conversions in Scala
 -----------------------------
 

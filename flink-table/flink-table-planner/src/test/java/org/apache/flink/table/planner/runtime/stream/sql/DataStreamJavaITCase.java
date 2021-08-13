@@ -40,6 +40,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Column;
@@ -47,6 +48,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -547,6 +549,59 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 Row.of("Bob", 2L),
                 Row.of("Bob", 3L),
                 Row.of("Alice", 1L));
+    }
+
+    @Test
+    public void testAttachAsDataStream() throws Exception {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+        final String input1DataId =
+                TestValuesTableFactory.registerData(Arrays.asList(Row.of(1, "a"), Row.of(2, "b")));
+
+        tableEnv.createTemporaryTable(
+                "InputTable1",
+                TableDescriptor.forConnector("values")
+                        .option("data-id", input1DataId)
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("i", DataTypes.INT())
+                                        .column("s", DataTypes.STRING())
+                                        .build())
+                        .build());
+
+        tableEnv.createTemporaryTable(
+                "OutputTable1",
+                TableDescriptor.forConnector("values")
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("i", DataTypes.INT())
+                                        .column("s", DataTypes.STRING())
+                                        .build())
+                        .build());
+
+        tableEnv.createTemporaryView("InputTable2", env.fromElements(1, 2, 3));
+
+        tableEnv.createTemporaryTable(
+                "OutputTable2",
+                TableDescriptor.forConnector("values")
+                        .schema(Schema.newBuilder().column("i", DataTypes.INT()).build())
+                        .build());
+
+        tableEnv.createStatementSet()
+                .addInsert("OutputTable1", tableEnv.from("InputTable1"))
+                .addInsert("OutputTable2", tableEnv.from("InputTable2"))
+                .attachAsDataStream();
+
+        // submits all source-to-sink pipelines
+        testResult(env.fromElements(3, 4, 5), 3, 4, 5);
+
+        assertThat(
+                TestValuesTableFactory.getResults("OutputTable1"),
+                containsInAnyOrder("+I[1, a]", "+I[2, b]"));
+
+        assertThat(
+                TestValuesTableFactory.getResults("OutputTable2"),
+                containsInAnyOrder("+I[1]", "+I[2]", "+I[3]"));
     }
 
     // --------------------------------------------------------------------------------------------
