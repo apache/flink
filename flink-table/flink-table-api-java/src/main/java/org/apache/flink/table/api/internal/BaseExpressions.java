@@ -105,6 +105,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MINUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
@@ -207,6 +208,26 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType or(InType other) {
         return toApiSpecificExpression(unresolvedCall(OR, toExpr(), objectToExpression(other)));
+    }
+
+    /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit(true).not() // false
+     * lit(false).not() // true
+     * lit(null, DataTypes.BOOLEAN()).not() // null
+     * }</pre>
+     */
+    public OutType not() {
+        return toApiSpecificExpression(unresolvedCall(NOT, toExpr()));
     }
 
     /** Greater than. */
