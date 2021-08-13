@@ -39,6 +39,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerState;
@@ -48,6 +49,7 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
@@ -668,5 +670,112 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
             resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(
                     (ignore1, ignore2) -> getDriver().requestResource(taskExecutorProcessSpec));
         }
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForSuccess() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(),
+                        ContainerState.COMPLETE,
+                        "success exit code",
+                        ContainerExitStatus.SUCCESS);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForPreempted() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(),
+                        ContainerState.COMPLETE,
+                        "preempted exit code",
+                        ContainerExitStatus.PREEMPTED);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForInvalid() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(),
+                        ContainerState.COMPLETE,
+                        "invalid exit code",
+                        ContainerExitStatus.INVALID);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForAborted() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(),
+                        ContainerState.COMPLETE,
+                        "aborted exit code",
+                        ContainerExitStatus.ABORTED);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForDiskFailed() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(),
+                        ContainerState.COMPLETE,
+                        "disk failed exit code",
+                        ContainerExitStatus.DISKS_FAILED);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    @Test
+    public void testGetContainerCompletedCauseForUnknown() throws Exception {
+        ContainerStatus containerStatus =
+                ContainerStatusPBImpl.newInstance(
+                        testingContainer.getId(), ContainerState.COMPLETE, "unknown exit code", -1);
+        testingGetContainerOtherCause(containerStatus);
+    }
+
+    public void testingGetContainerOtherCause(ContainerStatus containerStatus) throws Exception {
+        new Context() {
+            {
+                addContainerRequestFutures.add(new CompletableFuture<>());
+                addContainerRequestFutures.add(new CompletableFuture<>());
+
+                testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer(
+                        (ignored1, ignored2) ->
+                                addContainerRequestFutures
+                                        .get(
+                                                addContainerRequestFuturesNumCompleted
+                                                        .getAndIncrement())
+                                        .complete(null));
+                resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(
+                        (ignore1, ignore2) ->
+                                getDriver().requestResource(testingTaskExecutorProcessSpec));
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getDriver()
+                                                    .requestResource(
+                                                            testingTaskExecutorProcessSpec));
+                            resourceManagerClientCallbackHandler.onContainersAllocated(
+                                    ImmutableList.of(testingContainer));
+
+                            resourceManagerClientCallbackHandler.onContainersCompleted(
+                                    Collections.singletonList(containerStatus));
+
+                            assertTrue(
+                                    YarnResourceManagerDriver.getContainerCompletedCause(
+                                                    containerStatus)
+                                            .contains(containerStatus.getDiagnostics()));
+
+                            resourceManagerClientCallbackHandler.onContainersCompleted(
+                                    ImmutableList.of(containerStatus));
+
+                            verifyFutureCompleted(addContainerRequestFutures.get(1));
+                        });
+            }
+        };
     }
 }
