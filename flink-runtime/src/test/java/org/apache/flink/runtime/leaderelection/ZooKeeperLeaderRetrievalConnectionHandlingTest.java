@@ -63,8 +63,6 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
 
     private TestingServer testingServer;
 
-    private Configuration config;
-
     private CuratorFramework zooKeeperClient;
 
     @Rule
@@ -75,8 +73,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
     public void before() throws Exception {
         testingServer = new TestingServer();
 
-        config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        final Configuration config = new Configuration();
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
 
@@ -115,7 +112,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                     firstAddress,
                     is(nullValue()));
 
-            closeTestServer();
+            restartTestServer();
 
             // QueueLeaderElectionListener will be notified with an empty leader when ZK connection
             // is suspended
@@ -162,7 +159,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                     firstAddress.get(),
                     is(leaderAddress));
 
-            closeTestServer();
+            restartTestServer();
 
             CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
             assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
@@ -208,7 +205,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                     firstAddress.get(),
                     is(leaderAddress));
 
-            closeTestServer();
+            restartTestServer();
 
             // make sure that no new leader information is published
             assertThat(queueLeaderElectionListener.next(Duration.ofMillis(100L)), is(nullValue()));
@@ -350,6 +347,11 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
             testingServer.close();
             testingServer = null;
         }
+    }
+
+    private void restartTestServer() throws Exception {
+        Preconditions.checkNotNull(testingServer, "TestingServer needs to be initialized.")
+                .restart();
     }
 
     private static class QueueLeaderElectionListener implements LeaderRetrievalEventHandler {
