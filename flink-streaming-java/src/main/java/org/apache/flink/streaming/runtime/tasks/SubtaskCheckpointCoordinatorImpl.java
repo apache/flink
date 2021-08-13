@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
-import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -586,14 +585,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Supplier<Boolean> isRunning)
             throws Exception {
 
-        if (!enableCheckpointAfterTasksFinished && operatorChain.isClosed()) {
-            env.declineCheckpoint(
-                    checkpointMetaData.getCheckpointId(),
-                    new CheckpointException(
-                            "Task Name" + taskName,
-                            CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING));
-            return false;
-        }
+        checkState(
+                !operatorChain.isClosed(),
+                "OperatorChain and Task should never be closed at this point");
 
         long checkpointId = checkpointMetaData.getCheckpointId();
         long started = System.nanoTime();
