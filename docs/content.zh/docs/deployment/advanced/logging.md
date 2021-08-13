@@ -55,7 +55,7 @@ Log4j 会定期扫描这些文件的变更，并在必要时调整日志记录�
 
 <a name="compatibility-with-log4j-1"></a>
 
-### 适配 Log4j1
+### 与 Log4j 1 的兼容
 
 Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/log4j-1.2-api/index.html) 相关的依赖，使当前基于 Log4j1 开发的应用程序可以继续正常运行。
 
