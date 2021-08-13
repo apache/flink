@@ -22,6 +22,12 @@ import { ExceptionInfoInterface } from 'interfaces';
 import { distinctUntilChanged, flatMap, tap } from 'rxjs/operators';
 import { JobService } from 'services';
 
+export interface ExceptionInfoInterfaceWrapper {
+  selected: ExceptionInfoInterface;
+  values: ExceptionInfoInterface[];
+  expand: boolean;
+}
+
 @Component({
   selector: 'flink-job-exceptions',
   templateUrl: './job-exceptions.component.html',
@@ -30,7 +36,7 @@ import { JobService } from 'services';
 })
 export class JobExceptionsComponent implements OnInit {
   rootException = '';
-  listOfException: ExceptionInfoInterface[] = [];
+  listOfException: ExceptionInfoInterfaceWrapper[] = [];
   truncated = false;
   isLoading = false;
   maxExceptions = 0;
@@ -61,7 +67,22 @@ export class JobExceptionsComponent implements OnInit {
           this.rootException = 'No Root Exception';
         }
         this.truncated = exceptionHistory.truncated;
-        this.listOfException = exceptionHistory.entries;
+        this.listOfException = exceptionHistory.entries.map(entry => {
+          const values: ExceptionInfoInterface[] = [];
+          values.push(entry);
+          entry.concurrentExceptions.forEach(ex => values.push(ex));
+          // Mark global failures
+          values.forEach(ex => {
+            if (ex.taskName == null) {
+              ex.taskName = '(global failure)';
+            }
+          });
+          return {
+            selected: values[0],
+            values: values,
+            expand: false
+          };
+        });
       });
   }
 
