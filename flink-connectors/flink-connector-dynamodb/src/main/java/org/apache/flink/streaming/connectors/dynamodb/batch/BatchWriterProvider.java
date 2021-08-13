@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.dynamodb.batch;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
-import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
@@ -31,12 +31,12 @@ import java.util.concurrent.Callable;
 public class BatchWriterProvider {
 
     private final DynamoDbClient client;
-    private final BatchWriterRetryPolicy retryPolicy;
+    private final WriterRetryPolicy retryPolicy;
     private final DynamoDbProducer.Listener listener;
 
     public BatchWriterProvider(
             DynamoDbClient client,
-            BatchWriterRetryPolicy retryPolicy,
+            WriterRetryPolicy retryPolicy,
             DynamoDbProducer.Listener listener) {
         this.client = client;
         this.retryPolicy = retryPolicy;

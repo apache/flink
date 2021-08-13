@@ -21,7 +21,8 @@ package org.apache.flink.streaming.connectors.dynamodb.batch;
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
-import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterAttemptResult;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
@@ -49,12 +50,12 @@ public class DynamoDbBatchWriter implements Callable<ProducerWriteResponse> {
 
     private final DynamoDbClient client;
     private final ProducerWriteRequest<DynamoDbRequest> producerWriteRequest;
-    private final BatchWriterRetryPolicy retryPolicy;
+    private final WriterRetryPolicy retryPolicy;
     private final DynamoDbProducer.Listener listener;
 
     public DynamoDbBatchWriter(
             DynamoDbClient client,
-            BatchWriterRetryPolicy retryPolicy,
+            WriterRetryPolicy retryPolicy,
             DynamoDbProducer.Listener listener,
             ProducerWriteRequest<DynamoDbRequest> request) {
         this.client = client;
@@ -80,7 +81,7 @@ public class DynamoDbBatchWriter implements Callable<ProducerWriteResponse> {
 
         listener.beforeWrite(requestId, producerWriteRequest);
         long start = System.nanoTime();
-        BatchWriterAttemptResult result = write(request);
+        WriterAttemptResult result = write(request);
         long stop = System.nanoTime();
         long elapsedTimeMs = TimeUnit.NANOSECONDS.toMillis(stop - start);
 
@@ -134,11 +135,11 @@ public class DynamoDbBatchWriter implements Callable<ProducerWriteResponse> {
      *
      * @return true if the write was successful after all retries
      */
-    public BatchWriterAttemptResult write(BatchWriteItemRequest request) {
+    public WriterAttemptResult write(BatchWriteItemRequest request) {
         BatchWriteItemResponse result;
         BatchWriteItemRequest req = createRequest(request.requestItems());
         boolean interrupted = false;
-        BatchWriterAttemptResult currentAttemptResult = new BatchWriterAttemptResult();
+        WriterAttemptResult currentAttemptResult = new WriterAttemptResult();
 
         try {
             do {

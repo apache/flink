@@ -16,16 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.batch;
+package org.apache.flink.streaming.connectors.dynamodb.retry;
 
-/** Result of a batch write attempt. */
-public class BatchWriterAttemptResult {
+/** Result of a write attempt. */
+public class WriterAttemptResult {
 
     private int attemptNumber;
     private boolean finallySuccessful;
     private Exception exception;
 
-    public BatchWriterAttemptResult() {
+    public WriterAttemptResult() {
         this.attemptNumber = 0;
         this.finallySuccessful = false;
     }

@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.connectors.dynamodb;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterAttemptResult;
 import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchWriter;
-import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
-import org.apache.flink.streaming.connectors.dynamodb.retry.DefaultBatchWriterRetryPolicy;
+import org.apache.flink.streaming.connectors.dynamodb.batch.retry.DefaultBatchWriterRetryPolicy;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterAttemptResult;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -96,15 +96,15 @@ public class DynamoDBBatchWriterTest {
                 .build();
     }
 
-    private BatchWriterRetryPolicy getShouldNotRetryPolicy() {
-        return new BatchWriterRetryPolicy() {
+    private WriterRetryPolicy getShouldNotRetryPolicy() {
+        return new WriterRetryPolicy() {
             @Override
-            public boolean shouldRetry(BatchWriterAttemptResult attemptResult) {
+            public boolean shouldRetry(WriterAttemptResult attemptResult) {
                 return false;
             }
 
             @Override
-            public int getBackOffTime(BatchWriterAttemptResult attemptResult) {
+            public int getBackOffTime(WriterAttemptResult attemptResult) {
                 return 0;
             }
 
@@ -122,7 +122,7 @@ public class DynamoDBBatchWriterTest {
 
     @Test
     public void testRetriesUnprocessedItems() {
-        BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
+        WriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
         ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
         when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
@@ -146,7 +146,7 @@ public class DynamoDBBatchWriterTest {
 
     @Test
     public void testRetriesAfterThrottlingError() {
-        BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
+        WriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
         ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
 
         AwsServiceException exception = getThrottlingException();
@@ -213,7 +213,7 @@ public class DynamoDBBatchWriterTest {
 
     @Test
     public void testDoesNotRetryWhenNotRetryableException() {
-        BatchWriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
+        WriterRetryPolicy retryPolicy = new DefaultBatchWriterRetryPolicy();
 
         ProducerWriteRequest<DynamoDbRequest> request = getRequest("req_id");
         Exception exception = ResourceNotFoundException.builder().build();

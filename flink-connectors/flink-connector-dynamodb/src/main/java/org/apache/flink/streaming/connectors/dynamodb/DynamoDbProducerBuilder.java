@@ -20,10 +20,10 @@ package org.apache.flink.streaming.connectors.dynamodb;
 
 import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterProvider;
 import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchAsyncProducer;
+import org.apache.flink.streaming.connectors.dynamodb.batch.retry.DefaultBatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
-import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
-import org.apache.flink.streaming.connectors.dynamodb.retry.DefaultBatchWriterRetryPolicy;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
@@ -39,7 +39,7 @@ public class DynamoDbProducerBuilder {
     private DynamoDbTablesConfig tablesConfig;
     private int batchSize;
     private int queueLimit;
-    private BatchWriterRetryPolicy retryPolicy;
+    private WriterRetryPolicy retryPolicy;
     private DynamoDbProducer.Listener listener;
     private boolean failOnError;
 
@@ -68,7 +68,7 @@ public class DynamoDbProducerBuilder {
     }
 
     // TODO define retry policy in a better way
-    public DynamoDbProducerBuilder setRetryPolicy(BatchWriterRetryPolicy retryPolicy) {
+    public DynamoDbProducerBuilder setRetryPolicy(WriterRetryPolicy retryPolicy) {
         this.retryPolicy = retryPolicy;
         return this;
     }

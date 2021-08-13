@@ -7,24 +7,25 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.retry;
+package org.apache.flink.streaming.connectors.dynamodb.batch.retry;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterAttemptResult;
+import org.apache.flink.streaming.connectors.dynamodb.retry.DynamoDbExceptionUtils;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterAttemptResult;
+import org.apache.flink.streaming.connectors.dynamodb.retry.WriterRetryPolicy;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 /** Default retry policy for a batch writer. */
-public class DefaultBatchWriterRetryPolicy implements BatchWriterRetryPolicy {
+public class DefaultBatchWriterRetryPolicy implements WriterRetryPolicy {
 
     /** Maximum backoff time to wait between retries in milliseconds. */
     private static final int MAX_BACKOFF_TIME_MS = 2048;
@@ -54,7 +55,7 @@ public class DefaultBatchWriterRetryPolicy implements BatchWriterRetryPolicy {
     }
 
     @Override
-    public boolean shouldRetry(BatchWriterAttemptResult attemptResult) {
+    public boolean shouldRetry(WriterAttemptResult attemptResult) {
         return !attemptResult.isFinallySuccessful()
                 && !(maxNumOfRetryAttempts >= 0
                         && attemptResult.getAttemptNumber() >= maxNumOfRetryAttempts);
@@ -65,7 +66,7 @@ public class DefaultBatchWriterRetryPolicy implements BatchWriterRetryPolicy {
      * attempt))) https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/.
      */
     @Override
-    public int getBackOffTime(BatchWriterAttemptResult attemptResult) {
+    public int getBackOffTime(WriterAttemptResult attemptResult) {
         return ThreadLocalRandom.current()
                 .nextInt(
                         0,

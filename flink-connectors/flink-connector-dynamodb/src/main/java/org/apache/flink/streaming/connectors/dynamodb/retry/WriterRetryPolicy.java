@@ -19,14 +19,15 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.retry;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterAttemptResult;
+import org.apache.flink.annotation.PublicEvolving;
 
-/** Retry policy for a batch writer. */
-public interface BatchWriterRetryPolicy {
+/** Retry policy for a DynamoDb writer. */
+@PublicEvolving
+public interface WriterRetryPolicy {
 
-    boolean shouldRetry(BatchWriterAttemptResult attemptResult);
+    boolean shouldRetry(WriterAttemptResult attemptResult);
 
-    int getBackOffTime(BatchWriterAttemptResult attemptResult);
+    int getBackOffTime(WriterAttemptResult attemptResult);
 
     /**
      * Identify non-retryable exceptions while handling DynamoDB write. If exception identified as

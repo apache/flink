@@ -22,7 +22,8 @@ import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 import org.apache.flink.streaming.connectors.dynamodb.ProducerWriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;

@@ -19,7 +19,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.retry;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterAttemptResult;
+import org.apache.flink.streaming.connectors.dynamodb.batch.retry.DefaultBatchWriterRetryPolicy;
 
 import org.junit.Test;
 
@@ -33,49 +33,49 @@ public class DefaultBatchWriterRetryPolicyTest {
     public void testShouldNotRetryWithMaximumNumberOfAttempts() {
         int maxNumberOfAttempts = 5;
 
-        BatchWriterAttemptResult attemptResult = new BatchWriterAttemptResult();
-        BatchWriterRetryPolicy batchWriterRetryPolicy =
+        WriterAttemptResult attemptResult = new WriterAttemptResult();
+        WriterRetryPolicy writerRetryPolicy =
                 new DefaultBatchWriterRetryPolicy(maxNumberOfAttempts);
 
         attemptResult.setAttemptNumber(maxNumberOfAttempts);
         attemptResult.setFinallySuccessful(false);
 
-        assertFalse(batchWriterRetryPolicy.shouldRetry(attemptResult));
+        assertFalse(writerRetryPolicy.shouldRetry(attemptResult));
     }
 
     @Test
     public void testShouldNotRetryWhenFinallySuccessful() {
         int maxNumberOfAttempts = 5;
 
-        BatchWriterAttemptResult attemptResult = new BatchWriterAttemptResult();
-        BatchWriterRetryPolicy batchWriterRetryPolicy =
+        WriterAttemptResult attemptResult = new WriterAttemptResult();
+        WriterRetryPolicy writerRetryPolicy =
                 new DefaultBatchWriterRetryPolicy(maxNumberOfAttempts);
 
         attemptResult.setAttemptNumber(maxNumberOfAttempts - 1);
         attemptResult.setFinallySuccessful(true);
 
-        assertFalse(batchWriterRetryPolicy.shouldRetry(attemptResult));
+        assertFalse(writerRetryPolicy.shouldRetry(attemptResult));
     }
 
     @Test
     public void testShouldRetryWhenNotFinallySuccesful() {
-        BatchWriterAttemptResult attemptResult = new BatchWriterAttemptResult();
-        BatchWriterRetryPolicy batchWriterRetryPolicy = new DefaultBatchWriterRetryPolicy();
+        WriterAttemptResult attemptResult = new WriterAttemptResult();
+        WriterRetryPolicy writerRetryPolicy = new DefaultBatchWriterRetryPolicy();
 
         attemptResult.setAttemptNumber(1000);
         attemptResult.setFinallySuccessful(false);
 
-        assertTrue(batchWriterRetryPolicy.shouldRetry(attemptResult));
+        assertTrue(writerRetryPolicy.shouldRetry(attemptResult));
     }
 
     @Test
     public void testShouldRetryWhenNotSuccessfulAndNotMaximumNumberOfAttempts() {
-        BatchWriterAttemptResult attemptResult = new BatchWriterAttemptResult();
-        BatchWriterRetryPolicy batchWriterRetryPolicy = new DefaultBatchWriterRetryPolicy(5);
+        WriterAttemptResult attemptResult = new WriterAttemptResult();
+        WriterRetryPolicy writerRetryPolicy = new DefaultBatchWriterRetryPolicy(5);
 
         attemptResult.setAttemptNumber(2);
         attemptResult.setFinallySuccessful(false);
 
-        assertTrue(batchWriterRetryPolicy.shouldRetry(attemptResult));
+        assertTrue(writerRetryPolicy.shouldRetry(attemptResult));
     }
 }
