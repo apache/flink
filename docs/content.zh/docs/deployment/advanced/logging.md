@@ -42,7 +42,7 @@ Flink 中的日志记录是使用 [SLF4J](http://www.slf4j.org/) 日志接口实
 
 ## 配置 Log4j 2
 
-Log4j2 是通过 property 配置文件进行配置的。
+Log4j 2 是通过 property 配置文件进行配置的。
 
 Flink 发行版在 `conf` 目录中附带了以下 log4j 配置文件，如果启用了 Log4j 2，则会自动使用如下文件：
 
