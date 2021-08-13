@@ -194,7 +194,7 @@ flink-taskmanager-64847444ff-7rdl4   1/1     Running            3          3m28s
 flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 ```
 
-现在可以通过运行 `kubectl logs flink-jobmanager-589967dcfc-m49xv` 来访问日志。
+现在你可以通过运行 `kubectl logs flink-jobmanager-589967dcfc-m49xv` 来访问日志。
 
 <a name="high-availability-with-standalone-kubernetes"></a>
 
