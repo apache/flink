@@ -315,7 +315,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                                 .getMiniCluster()
                                 .getExecutionGraph(jobID)
                                 .get(60, TimeUnit.SECONDS),
-                deadline);
+                deadline,
+                false);
     }
 
     /**

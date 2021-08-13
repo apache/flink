@@ -370,7 +370,7 @@ public class SavepointITCase extends TestLogger {
         try {
             client.submitJob(jobGraph).get();
 
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobId);
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobId, false);
             StatefulCounter.getProgressLatch().await();
 
             return client.cancelWithSavepoint(jobId, null).get();
@@ -502,7 +502,7 @@ public class SavepointITCase extends TestLogger {
         try {
             client.submitJob(graph).get();
             // triggerSavepoint is only available after all tasks are running
-            waitForAllTaskRunning(cluster.getMiniCluster(), graph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), graph.getJobID(), false);
 
             client.triggerSavepoint(graph.getJobID(), null).get();
 
@@ -993,7 +993,7 @@ public class SavepointITCase extends TestLogger {
             JobID jobID = client.submitJob(originalJobGraph).get();
 
             // wait for the Tasks to be ready
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobID);
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobID, false);
             assertTrue(
                     StatefulCounter.getProgressLatch()
                             .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
@@ -1334,7 +1334,7 @@ public class SavepointITCase extends TestLogger {
         try {
             client.submitJob(jobGraph).get();
 
-            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
 
             for (OneShotLatch latch : iterTestSnapshotWait) {
                 latch.await();

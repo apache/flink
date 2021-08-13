@@ -120,7 +120,7 @@ public class TimersSavepointITCase {
     private void takeSavepoint(String savepointPath, ClusterClient<?> client) throws Exception {
         JobGraph jobGraph = getJobGraph(EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         client.submitJob(jobGraph).get();
-        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID());
+        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID(), false);
         CompletableFuture<String> savepointPathFuture =
                 client.triggerSavepoint(jobGraph.getJobID(), null);
 
