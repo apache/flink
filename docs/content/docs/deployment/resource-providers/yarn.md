@@ -38,7 +38,6 @@ Flink services are submitted to YARN's ResourceManager, which spawns containers 
 
 Flink can dynamically allocate and de-allocate TaskManager resources depending on the number of processing slots required by the job(s) running on the JobManager.
 
- [测试]({{< downloads >}}) 
 
 ### Preparation
 
