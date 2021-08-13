@@ -19,7 +19,8 @@ from pyflink.java_gateway import get_gateway
 
 from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, get_private_field
+from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.util.java_utils import get_field_value
 
 
 class EnvironmentSettingsTests(PyFlinkTestCase):
@@ -120,7 +121,7 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
         CLASS_NAME = gateway.jvm.EnvironmentSettings.CLASS_NAME
 
         builder = EnvironmentSettings.new_instance()
-        BLINK_PLANNER_FACTORY = get_private_field(builder._j_builder, "BLINK_PLANNER_FACTORY")
+        BLINK_PLANNER_FACTORY = get_field_value(builder._j_builder, "BLINK_PLANNER_FACTORY")
 
         self.assertEqual(
             settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
