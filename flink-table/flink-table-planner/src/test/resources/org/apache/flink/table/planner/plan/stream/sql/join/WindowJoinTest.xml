@@ -1219,18 +1219,14 @@ WindowJoin(leftWindow=[SESSION(win_start=[window_start], win_end=[window_end], g
 :  +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
 :     +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[rowtime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
-:           +- Calc(select=[a, c, rowtime])
-:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[rowtime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, c, rowtime])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                  +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1293,16 +1289,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[proctime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

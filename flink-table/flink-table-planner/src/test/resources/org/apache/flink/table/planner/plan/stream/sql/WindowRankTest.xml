@@ -177,8 +177,7 @@ Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, 
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>

@@ -1617,8 +1617,8 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+            +- Calc(select=[a, b, c, d, PROCTIME() AS proctime, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, d, rowtime]]], fields=[a, b, c, d, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1656,8 +1656,8 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, c, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+            +- Calc(select=[a, b, c, d, PROCTIME() AS proctime, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c, d, rowtime]]], fields=[a, b, c, d, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1776,8 +1776,7 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, b, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1816,8 +1815,7 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5, wAvg, uv])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f4, b, e, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
