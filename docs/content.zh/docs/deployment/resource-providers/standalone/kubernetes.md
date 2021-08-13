@@ -208,7 +208,7 @@ flink-taskmanager-64847444ff-nnd6m   1/1     Running            3          3m28s
 
 Session 模式和 Application 模式集群都支持使用 [Kubernetes 高可用服务]({{< ref "docs/deployment/ha/kubernetes_ha" >}})。需要在 [flink-configuration-configmap.yaml](#common-cluster-resource-definitions) 中添加如下 Flink 配置项。
 
-<span class="label label-info">Note</span> 配置了 HA 存储目录相对应的文件系统必须在运行时可用。相关更多信息，请参阅 [自定义Flink 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) 和 [启用文件系统插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins) 。
+<span class="label label-info">Note</span> 配置了 HA 存储目录相对应的文件系统必须在运行时可用。相关更多信息，请参阅 [自定义Flink 镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization) 和 [启用文件系统插件]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#using-filesystem-plugins)。
 
 ```yaml
 apiVersion: v1
