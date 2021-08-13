@@ -184,7 +184,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 通过查看 Flink 的日志文件，可以很轻松地发现许多常见错误。如果有权访问 Flink 的 Web 用户界面，那么可以在页面上访问 JobManager 和 TaskManager 日志。
 
-如果启动 Flink 出现问题，也可以使用 Kubernetes 工具集访问日志。使用 `kubectl get pods` 命令查看所有运行的 pods 资源。针对上面的快速入门示例，可以看到三个 pod：
+如果启动 Flink 出现问题，也可以使用 Kubernetes 工具集访问日志。使用 `kubectl get pods` 命令查看所有运行的 pods 资源。针对上面的快速入门示例，你可以看到三个 pod：
 
 ```
 $ kubectl get pods
