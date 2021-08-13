@@ -132,7 +132,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 ### Session 集群模式
 
-本页面顶部的[入门](#getting-started)指南中描述了 Session 集群模式的部署。
+本文档开始部分的[入门](#getting-started)指南中描述了 Session 集群模式的部署。
 
 {{< top >}}
 
