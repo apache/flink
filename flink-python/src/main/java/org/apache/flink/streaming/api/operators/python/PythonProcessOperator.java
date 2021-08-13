@@ -71,7 +71,7 @@ public class PythonProcessOperator<IN, OUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 null,
                 null,

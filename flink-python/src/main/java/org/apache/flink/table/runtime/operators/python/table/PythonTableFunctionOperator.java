@@ -156,8 +156,8 @@ public class PythonTableFunctionOperator
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(tableFunction));
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
-        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         return builder.build();
     }
 

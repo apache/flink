@@ -38,8 +38,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Map;
-
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
@@ -58,9 +56,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
 
     /** The TypeInformation of input data. */
     private final TypeInformation<IN> inputTypeInfo;
-
-    /** The options used to configure the Python worker process. */
-    private transient Map<String, String> jobOptions;
 
     /** The TypeInformation of runner input data. */
     private transient TypeInformation<Row> runnerInputTypeInfo;
@@ -118,8 +113,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
         runnerInputHandler = new RunnerInputHandler();
         runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
 
-        jobOptions = config.toMap();
-
         super.open();
     }
 
@@ -160,10 +153,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
     // ----------------------------------------------------------------------
     // Getters
     // ----------------------------------------------------------------------
-
-    protected Map<String, String> getJobOptions() {
-        return jobOptions;
-    }
 
     public TypeInformation<IN> getInputTypeInfo() {
         return inputTypeInfo;

@@ -113,7 +113,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                         getInternalParameters(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,

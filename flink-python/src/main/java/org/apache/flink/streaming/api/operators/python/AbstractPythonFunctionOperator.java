@@ -42,6 +42,7 @@ import org.apache.flink.util.WrappingRuntimeException;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,7 +59,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private static final long serialVersionUID = 1L;
 
-    protected final Configuration config;
+    protected Configuration config;
 
     /**
      * The {@link PythonFunctionRunner} which is responsible for Python user-defined function
@@ -71,6 +72,12 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     /** Number of processed elements in the current bundle. */
     protected transient int elementCount;
+
+    /** The python config. */
+    protected transient PythonConfig pythonConfig;
+
+    /** The options used to configure the Python worker process. */
+    protected transient Map<String, String> jobOptions;
 
     /** Max duration of a bundle. */
     private transient long maxBundleTimeMills;
@@ -86,9 +93,6 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     private transient ExecutorService flushThreadPool;
 
-    /** The python config. */
-    private transient PythonConfig pythonConfig;
-
     public AbstractPythonFunctionOperator(Configuration config) {
         this.config = Preconditions.checkNotNull(config);
         this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -98,6 +102,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     public void open() throws Exception {
         try {
             this.pythonConfig = new PythonConfig(config);
+            this.jobOptions = config.toMap();
             this.maxBundleSize = pythonConfig.getMaxBundleSize();
             if (this.maxBundleSize <= 0) {
                 this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
@@ -281,14 +286,14 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         return elementCount == 0;
     }
 
-    /** Reset the {@link PythonConfig} if needed. */
-    public void setPythonConfig(PythonConfig pythonConfig) {
-        this.pythonConfig = pythonConfig;
+    /** Reset the {@link Configuration} if needed. */
+    public void setConfiguration(Configuration config) {
+        this.config = config;
     }
 
-    /** Returns the {@link PythonConfig}. */
-    public PythonConfig getPythonConfig() {
-        return pythonConfig;
+    /** Returns the {@link Configuration}. */
+    public Configuration getConfiguration() {
+        return config;
     }
 
     /**

@@ -74,7 +74,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     def setUp(self):
         super(StreamDependencyTests, self).setUp()
-        self.t_env.remote_mode = False
+        self.t_env._remote_mode = False
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
@@ -163,6 +163,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.t_env.create_temporary_system_function("add_from_file",
                                                     udf(add_from_file, DataTypes.BIGINT(),
                                                         DataTypes.BIGINT()))
+        self.t_env._remote_mode = True
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -200,7 +201,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
                 raise Exception("The gateway server is not disabled!")
             return i
 
-        self.t_env.remote_mode = True
+        self.t_env._remote_mode = True
         self.t_env.create_temporary_system_function(
             "check_pyflink_gateway_disabled",
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),

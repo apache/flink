@@ -153,8 +153,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
         for (PythonFunctionInfo pythonFunctionInfo : pandasAggFunctions) {
             builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
-        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         return builder.build();
     }
 

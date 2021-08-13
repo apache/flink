@@ -38,8 +38,6 @@ import org.apache.flink.streaming.api.operators.python.collector.RunnerOutputCol
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Map;
-
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter;
 
@@ -59,9 +57,6 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
 
     /** The right input type. */
     private final TypeInformation<IN2> inputTypeInfo2;
-
-    /** The options used to configure the Python worker process. */
-    private transient Map<String, String> jobOptions;
 
     /** The TypeInformation of python worker input data. */
     private transient TypeInformation<Row> runnerInputTypeInfo;
@@ -109,8 +104,6 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
         runnerInputHandler = new RunnerInputHandler();
         runnerOutputCollector = new RunnerOutputCollector<>(new TimestampedCollector<>(output));
 
-        jobOptions = config.toMap();
-
         super.open();
     }
 
@@ -152,10 +145,6 @@ public abstract class AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT>
     // ----------------------------------------------------------------------
     // Getters
     // ----------------------------------------------------------------------
-
-    protected Map<String, String> getJobOptions() {
-        return jobOptions;
-    }
 
     protected TypeInformation<IN1> getLeftInputType() {
         return inputTypeInfo1;
