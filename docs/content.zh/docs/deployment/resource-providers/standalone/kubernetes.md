@@ -53,7 +53,7 @@ under the License.
 
 ### Kubernetes 上的 Flink session 集群
 
-*Flink session 集群* 是以一种长期运行的 Kubernetes Deployment 形式执行的。可以在一个 *session 集群* 上运行多个 Flink 作业。当然，只有 session 集群部署好以后才可以在上面提交 Flink 作业。
+*Flink session 集群* 是以一种长期运行的 Kubernetes Deployment 形式执行的。你可以在一个 *session 集群* 上运行多个 Flink 作业。当然，只有 session 集群部署好以后才可以在上面提交 Flink 作业。
 
 在 Kubernetes 上部署一个基本的 *Flink session 集群* 时，一般包括下面三个组件：
 
