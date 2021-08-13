@@ -81,7 +81,6 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 ## 配置 logback
 
 要将 Flink 与 [logback](https://logback.qos.ch/) 一起使用，必须确保：
-
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j-impl`；
 - Classpath 中存在 `ch.qos.logback:logback-core` 和 `ch.qos.logback:logback-classic`。
 
