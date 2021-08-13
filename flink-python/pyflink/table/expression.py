@@ -16,20 +16,14 @@
 # limitations under the License.
 ################################################################################
 from enum import Enum
-from typing import Union, TypeVar, Generic, Any
+from typing import Union, TypeVar, Generic
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util.java_utils import to_jarray
 
-__all__ = [
-    'Expression',
-    'TimeIntervalUnit',
-    'TimePointUnit',
-    'JsonExistsOnError',
-    'JsonValueOnEmptyOrError'
-]
+__all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
 
 
 _aggregation_doc = """
@@ -356,37 +350,6 @@ class TimePointUnit(Enum):
         gateway = get_gateway()
         JTimePointUnit = gateway.jvm.org.apache.flink.table.expressions.TimePointUnit
         return getattr(JTimePointUnit, self.name)
-
-
-class JsonExistsOnError(Enum):
-    """
-    Behavior in case of errors for json_exists().
-    """
-
-    TRUE = 0,
-    FALSE = 1,
-    UNKNOWN = 2,
-    ERROR = 3
-
-    def _to_j_json_exists_on_error(self):
-        gateway = get_gateway()
-        JJsonExistsOnError = gateway.jvm.org.apache.flink.table.api.JsonExistsOnError
-        return getattr(JJsonExistsOnError, self.name)
-
-
-class JsonValueOnEmptyOrError(Enum):
-    """
-    Behavior in case of emptiness or errors for json_value().
-    """
-
-    NULL = 0,
-    ERROR = 1,
-    DEFAULT = 2
-
-    def _to_j_json_value_on_empty_or_error(self):
-        gateway = get_gateway()
-        JJsonValueOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonValueOnEmptyOrError
-        return getattr(JJsonValueOnEmptyOrError, self.name)
 
 
 T = TypeVar('T')
@@ -1390,71 +1353,6 @@ class Expression(Generic[T]):
                      :py:attr:`~Expression.sha384`, :py:attr:`~Expression.sha512`
         """
         return _binary_op("sha2")(self, hash_length)
-
-    # ---------------------------- JSON functions -----------------------------
-
-    def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
-        """
-        Determines whether a JSON string satisfies a given search criterion.
-
-        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
-
-        Example:
-        ::
-
-            >>> lit('{"a": true}').json_exists('$.a') // true
-            >>> lit('{"a": true}').json_exists('$.b') // false
-            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') // true
-
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) // true
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) // false
-        """
-        if on_error is None:
-            return _binary_op("jsonExists")(self, path)
-        else:
-            return _ternary_op("jsonExists")(self, path, on_error._to_j_json_exists_on_error())
-
-    def json_value(self,
-                   path: str,
-                   returning_type: DataType = DataTypes.STRING(),
-                   on_empty: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
-                   default_on_empty: Any = None,
-                   on_error: JsonValueOnEmptyOrError = JsonValueOnEmptyOrError.NULL,
-                   default_on_error: Any = None) -> 'Expression':
-        """
-        Extracts a scalar from a JSON string.
-
-        This method searches a JSON string for a given path expression and returns the value if the
-        value at that path is scalar. Non-scalar values cannot be returned. By default, the value is
-        returned as `DataTypes.STRING()`. Using `returningType` a different type can be chosen, with
-        types with the following type roots being supported:
-
-        * `VARCHAR`
-        * `BOOLEAN`
-        * `INTEGER`
-        * `DOUBLE`
-
-        For empty path expressions or errors a behavior can be defined to either return `null`,
-        raise an error or return a defined default value instead.
-
-        Examples:
-        ::
-
-            >>> lit('{"a": true}').json_value('$.a')
-            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN())
-            >>> lit('{"a": true}').json_value('lax $.b', \
-                    JsonValueOnEmptyOrError.DEFAULT, false)
-            >>> lit('{"a": true}').json_value('strict $.b', \
-                    JsonValueOnEmptyOrError.NULL, null, JsonValueOnEmptyOrError.DEFAULT, false)
-        """
-        return Expression(getattr(self._j_expr, 'jsonValue')(
-            _get_java_expression(path),
-            _get_java_expression(_to_java_data_type(returning_type)),
-            _get_java_expression(on_empty._to_j_json_value_on_empty_or_error),
-            _get_java_expression(default_on_empty),
-            _get_java_expression(on_error._to_j_json_value_on_empty_or_error),
-            _get_java_expression(default_on_error)))
-
 
 # add the docs
 _make_math_log_doc()
