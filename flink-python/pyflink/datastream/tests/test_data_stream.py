@@ -184,8 +184,8 @@ class DataStreamTests(object):
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
         self.assert_equals_sorted(expected, results)
 
-    @unittest.skip("FLINK-23742")
     def test_keyed_co_process(self):
+        self.env.set_parallelism(1)
         ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
                                        type_info=Types.ROW([Types.STRING(), Types.INT()]))
         ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
