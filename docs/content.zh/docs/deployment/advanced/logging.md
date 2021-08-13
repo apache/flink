@@ -69,7 +69,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 - Classpath 中不存在 `org.apache.logging.log4j:log4j-core`、`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`；
 - 且 Classpath 中存在 `log4j:log4j`、`org.slf4j:slf4j-log4j12`、`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
 
-在 IDE 中使用 Log4j1 ，必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换  Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
+如果在 IDE 中使用 Log4j 1，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须：
 - 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars；
