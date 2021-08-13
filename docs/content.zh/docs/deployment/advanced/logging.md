@@ -95,7 +95,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 Flink 发行版在 `conf` 目录中附带了以下 logback 配置文件，如果启用了 logback，则会自动使用这些文件：
 
 - `logback-session.properties`: Flink 命令行端在启动基于 Yarn 或 Kubernetes 的 Session 集群时使用（例如 `yarn-session.sh` 或 `kubernetes-session.sh`）；
-- `logback-console.properties`：JobManager/Taskmanagers 在前端模式运行时使用（例如 Kubernetes）；
+- `logback-console.properties`：Job-/TaskManagers 在前台模式运行时使用（例如 Kubernetes）；
 - `logback.xml`: 命令行和 Job-/TaskManager 默认使用的日志配置。
 
 {{< hint warning >}}
