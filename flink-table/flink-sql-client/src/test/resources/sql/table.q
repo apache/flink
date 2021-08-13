@@ -89,6 +89,193 @@ CREATE TABLE `default_catalog`.`default_database`.`orders` (
 
 !ok
 
+# test SHOW COLUMNS
+show columns from orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+show columns in orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+show columns from orders like '%u';
+Empty set
+!ok
+
+show columns in orders like '%u';
+Empty set
+!ok
+
+show columns from orders not like '%u';
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+show columns in orders not like '%u';
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+!ok
+
+show columns from orders like '%r';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+!ok
+
+show columns in orders like '%r';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+!ok
+
+show columns from orders not like  '%r';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+!ok
+
+show columns in orders not like  '%r';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+!ok
+
+show columns from orders like '%u%';
++---------+-------------+-------+-----------+--------+-----------+
+|    name |        type |  null |       key | extras | watermark |
++---------+-------------+-------+-----------+--------+-----------+
+|    user |      BIGINT | false | PRI(user) |        |           |
+| product | VARCHAR(32) |  true |           |        |           |
+|  amount |         INT |  true |           |        |           |
++---------+-------------+-------+-----------+--------+-----------+
+3 rows in set
+!ok
+
+show columns in orders like '%u%';
++---------+-------------+-------+-----------+--------+-----------+
+|    name |        type |  null |       key | extras | watermark |
++---------+-------------+-------+-----------+--------+-----------+
+|    user |      BIGINT | false | PRI(user) |        |           |
+| product | VARCHAR(32) |  true |           |        |           |
+|  amount |         INT |  true |           |        |           |
++---------+-------------+-------+-----------+--------+-----------+
+3 rows in set
+!ok
+
+show columns from orders not like '%u%';
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+|  name |                        type |  null | key |        extras |                  watermark |
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+|    ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+2 rows in set
+!ok
+
+show columns in orders not like '%u%';
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+|  name |                        type |  null | key |        extras |                  watermark |
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+|    ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+| ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++-------+-----------------------------+-------+-----+---------------+----------------------------+
+2 rows in set
+!ok
+
+show columns from orders like 'use_';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+!ok
+
+show columns in orders like 'use_';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+!ok
+
+show columns from orders not like 'use_';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+!ok
+
+show columns in orders not like 'use_';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+!ok
+
 # ==========================================================================
 # test alter table rename
 # ==========================================================================

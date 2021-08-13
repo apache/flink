@@ -449,7 +449,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testTableDMLSync(): Unit = {
-    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true));
+    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true))
     val sink1Path = _tempFolder.newFolder().toString
     tEnv.executeSql(
       s"""
@@ -807,6 +807,162 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
     listener.close()
   }
+
+  // `SHOW COLUMNS ......` syntax of flink SQL test cases.
+  @Test
+  def testShowColumnsSyntaxOfSQL(): Unit = {
+
+    initTableAndView()
+    // Tests `SHOW COLUMNS FROM TABLE`.
+    showAllColumnsFromTable()
+    showColumnsWithLikeClauseFromTable()
+    showColumnsWithNotLikeClauseFromTable()
+
+    // Tests `SHOW COLUMNS FROM VIEW`.
+    showAllColumnsFromView()
+    showColumnsWithLikeClauseFromView()
+    showColumnsWithNotLikeClauseFromView()
+
+  }
+
+  private def initTableAndView(): Unit = {
+    val createClause: String =
+      s"""
+         |CREATE TABLE IF NOT EXISTS orders (
+         | `user` BIGINT NOT NULl,
+         | `product` VARCHAR(32),
+         | `amount` INT,
+         | PRIMARY KEY(`user`) NOT ENFORCED
+         |) """.stripMargin
+    var createWithClause: String =
+      s"""
+         |with (
+         | 'connector' = 'datagen'
+         |)""".stripMargin
+    if (!isStreaming) {
+      val sinkPath = _tempFolder.newFolder().toString
+      createWithClause =
+        s"""
+           |with (
+           |  'connector' = 'filesystem',
+           |  'path' = '$sinkPath',
+           |  'format' = 'testcsv'
+           |)""".stripMargin
+    }
+    tEnv.executeSql(createClause + createWithClause)
+    tEnv.executeSql("create view orders_view as select * from orders")
+  }
+
+  private def showAllColumnsFromTable(): Unit = {
+    val expectedResultStr: String = "[" +
+      "+I[user, BIGINT, false, PRI(user), null, null], " +
+      "+I[product, VARCHAR(32), true, null, null, null], " +
+      "+I[amount, INT, true, null, null, null]" +
+      "]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns in orders")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+
+  private def showColumnsWithLikeClauseFromTable(): Unit = {
+    val expectedResultStr: String = "[" +
+      "+I[user, BIGINT, false, PRI(user), null, null], " +
+      "+I[product, VARCHAR(32), true, null, null, null]" +
+      "]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders like '%_r%'")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns in orders like '%_r%'")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+
+  private def showColumnsWithNotLikeClauseFromTable(): Unit = {
+    val expectedResultStr: String = "[+I[amount, INT, true, null, null, null]]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders not like '%_r%'")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns in orders not like '%_r%'")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+
+  private def showAllColumnsFromView(): Unit = {
+    val expectedResultStr: String = "[" +
+      "+I[user, BIGINT, false, null, null, null], " +
+      "+I[product, VARCHAR(32), true, null, null, null], " +
+      "+I[amount, INT, true, null, null, null]" +
+      "]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders_view")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv.
+        executeSql("show columns in orders_view")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+
+  private def showColumnsWithLikeClauseFromView(): Unit = {
+    val expectedResultStr: String = "[" +
+      "+I[user, BIGINT, false, null, null, null], " +
+      "+I[product, VARCHAR(32), true, null, null, null]" +
+      "]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders_view like '%_r%'")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns in orders_view like '%_r%'")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+
+  private def showColumnsWithNotLikeClauseFromView(): Unit = {
+    val expectedResultStr: String = "[+I[amount, INT, true, null, null, null]]"
+    val resultsWithFrom: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns from orders_view not like '%_r%'")
+        .collect()
+    )
+    val resultsWithIn: util.List[Row] = CollectionUtil.iteratorToList(
+      tEnv
+        .executeSql("show columns in orders_view not like '%_r%'")
+        .collect()
+    )
+    assertEquals(expectedResultStr, resultsWithFrom.toString)
+    assertEquals(expectedResultStr, resultsWithIn.toString)
+  }
+  // The end of `SHOW COLUMNS ......` syntax of flink SQL test cases.
 
   def getPersonData: List[(String, Int, Double, String)] = {
     val data = new mutable.MutableList[(String, Int, Double, String)]

@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.functions;
+
+import java.util.regex.Pattern;
 
 /**
  * Utilities for converting SQL {@code LIKE} and {@code SIMILAR} operators to regular expressions.
@@ -43,6 +45,12 @@ public class SqlLikeUtils {
     };
 
     private SqlLikeUtils() {}
+
+    /** SQL like function with escape. */
+    public static boolean like(String s, String pattern, String escape) {
+        final String regex = sqlToRegexLike(pattern, escape);
+        return Pattern.matches(regex, s);
+    }
 
     /** Translates a SQL LIKE pattern to Java regex pattern, with optional escape string. */
     public static String sqlToRegexLike(String sqlPattern, CharSequence escapeStr) {
