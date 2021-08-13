@@ -83,7 +83,7 @@ logical:
     table: BOOLEAN1 && BOOLEAN2
     description: Returns TRUE if BOOLEAN1 and BOOLEAN2 are both TRUE. Supports three-valued logic. E.g., true && Null(BOOLEAN) returns UNKNOWN.
   - sql: NOT boolean
-    table: '!BOOLEAN'
+    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
     description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE; returns UNKNOWN if boolean is UNKNOWN.
   - sql: boolean IS FALSE
     table: BOOLEAN.isFalse

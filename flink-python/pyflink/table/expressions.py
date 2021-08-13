@@ -24,7 +24,7 @@ from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
-__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
+__all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
            'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
@@ -141,6 +141,25 @@ def or_(predicate0: Union[bool, Expression[bool]],
     gateway = get_gateway()
     predicates = to_jarray(gateway.jvm.Object, [_get_java_expression(p) for p in predicates])
     return _ternary_op("or", predicate0, predicate1, predicates)
+
+
+def not_(expression: Expression[bool]) -> Expression[bool]:
+    """
+    Inverts a given boolean expression.
+
+    This method supports a three-valued logic by preserving `NULL`. This means if the input
+    expression is `NULL`, the result will also be `NULL`.
+
+    The resulting type is nullable if and only if the input type is nullable.
+
+    Examples:
+    ::
+
+        >>> not_(lit(True)) # False
+        >>> not_(lit(False)) # True
+        >>> not_(lit(None, DataTypes.BOOLEAN())) # None
+    """
+    return _unary_op("not", expression)
 
 
 """

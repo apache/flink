@@ -158,6 +158,26 @@ public final class Expressions {
     }
 
     /**
+     * Inverts a given boolean expression.
+     *
+     * <p>This method supports a three-valued logic by preserving {@code NULL}. This means if the
+     * input expression is {@code NULL}, the result will also be {@code NULL}.
+     *
+     * <p>The resulting type is nullable if and only if the input type is nullable.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * not(lit(true)) // false
+     * not(lit(false)) // true
+     * not(lit(null, DataTypes.BOOLEAN())) // null
+     * }</pre>
+     */
+    public static ApiExpression not(Object expression) {
+        return apiCall(BuiltInFunctionDefinitions.NOT, expression);
+    }
+
+    /**
      * Offset constant to be used in the {@code preceding} clause of unbounded {@code Over} windows.
      * Use this constant for a time interval. Unbounded over windows start with the first row of a
      * partition.

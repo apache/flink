@@ -766,4 +766,22 @@ trait ImplicitExpressionConversions {
   def or(predicate0: Expression, predicate1: Expression, predicates: Expression*): Expression = {
     Expressions.or(predicate0, predicate1, predicates: _*)
   }
+
+  /**
+   * Inverts a given boolean expression.
+   *
+   * This method supports a three-valued logic by preserving <code>NULL</code>. This means if the
+   * input expression is <code>NULL</code>, the result will also be <code>NULL</code>.
+   *
+   * The resulting type is nullable if and only if the input type is nullable.
+   *
+   * Examples:
+   *
+   * {{{
+   * not(lit(true)) // false
+   * not(lit(false)) // true
+   * not(lit(null, DataTypes.BOOLEAN())) // null
+   * }}}
+   */
+  def not(expression: Expression): Expression = Expressions.not(expression)
 }
