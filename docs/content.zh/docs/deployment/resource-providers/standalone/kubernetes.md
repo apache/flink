@@ -39,6 +39,8 @@ under the License.
 
 本文描述了如何使用 Flink standalone 部署模式在 Kubernetes 上部署 [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) 模式的 Flink 集群。通常我们建议新用户使用 [native Kubernetes 部署]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})模式在 Kubernetes上部署 Flink。
 
+<a name="preparation"></a>
+
 ### 准备
 
 本指南假设存在一个 Kubernets 的运行环境。可以通过运行 `kubectl get nodes` 命令来确保 Kubernetes 环境运行正常，该命令展示所有连接到 Kubernets 集群的 node 节点信息。
