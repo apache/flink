@@ -35,8 +35,102 @@ public class LogicalFunctionsITCase extends BuiltInFunctionTestBase {
     @Parameterized.Parameters(name = "{index}: {0}")
     public static List<TestSpec> testData() {
         List<TestSpec> cases = new ArrayList<>();
+        cases.addAll(and());
+        cases.addAll(or());
         cases.addAll(not());
         return cases;
+    }
+
+    private static List<TestSpec> and() {
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(true, true)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").and($("f1")),
+                                "f0 AND f1",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(true, false)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").and($("f1")),
+                                "f0 AND f1",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(false, true)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").and($("f1")),
+                                "f0 AND f1",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(false, false)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").and($("f1")),
+                                "f0 AND f1",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(true, true)
+                        .andDataTypes(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())
+                        .testResult($("f0").and($("f1")), "f0 AND f1", true, DataTypes.BOOLEAN()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.AND)
+                        .onFieldsWithData(true, null)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN())
+                        .testResult($("f0").and($("f1")), "f0 AND f1", null, DataTypes.BOOLEAN()));
+    }
+
+    private static List<TestSpec> or() {
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(true, true)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").or($("f1")),
+                                "f0 OR f1",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(true, false)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").or($("f1")),
+                                "f0 OR f1",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(false, true)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").or($("f1")),
+                                "f0 OR f1",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(false, false)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").or($("f1")),
+                                "f0 OR f1",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(true, true)
+                        .andDataTypes(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())
+                        .testResult($("f0").or($("f1")), "f0 OR f1", true, DataTypes.BOOLEAN()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(true, null)
+                        .andDataTypes(DataTypes.BOOLEAN().notNull(), DataTypes.BOOLEAN())
+                        .testResult($("f0").or($("f1")), "f0 OR f1", true, DataTypes.BOOLEAN()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.OR)
+                        .onFieldsWithData(null, null)
+                        .andDataTypes(DataTypes.BOOLEAN(), DataTypes.BOOLEAN())
+                        .testResult($("f0").or($("f1")), "f0 OR f1", null, DataTypes.BOOLEAN()));
     }
 
     private static List<TestSpec> not() {
