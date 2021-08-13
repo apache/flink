@@ -61,7 +61,7 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 
 如果有基于 Log4j 1 的自定义配置文件或代码，请查看官方 Log4j [兼容](https://logging.apache.org/log4j/2.x/manual/compatibility.html)和[迁移](https://logging.apache.org/log4j/2.x/manual/migration.html)指南。
 
-<a name="configuring-log4j1"> </a>
+<a name="configuring-log4j1"></a>
 
 ## 配置 Log4j1
 
