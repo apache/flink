@@ -1225,32 +1225,39 @@ public class StreamTaskTest extends TestLogger {
     }
 
     /**
-     * Tests that checkpoints are declined if operators are (partially) closed.
-     *
-     * <p>See FLINK-16383.
+     * Tests exeptions is thrown by triggering checkpoint if operators are closed. This was
+     * initially implemented for FLINK-16383. However after FLINK-2491 operators lifecycle has
+     * changed and now we: (1) redefined close() to dispose(). After closing operators, there should
+     * be no opportunity to invoke anything on the task. close() mentioned in FLINK-16383 is now
+     * more like finish(). (2) We support triggering and performing checkpoints if operators are
+     * finished.
      */
     @Test
-    public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
+    public void testCheckpointFailueOnClosedOperator() throws Throwable {
         ClosingOperator<Integer> operator = new ClosingOperator<>();
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        StreamTaskMailboxTestHarness<Integer> harness =
-                builder.setupOutputForSingletonOperatorChain(operator).build();
-        // keeps the mailbox from suspending
-        harness.setAutoProcess(false);
-        harness.processElement(new StreamRecord<>(1));
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(operator).build()) {
+            // keeps the mailbox from suspending
+            harness.setAutoProcess(false);
+            harness.processElement(new StreamRecord<>(1));
 
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
-        harness.streamTask.operatorChain.closeAllOperators();
-        assertTrue(ClosingOperator.closed.get());
+            harness.streamTask.operatorChain.finishOperators(
+                    harness.streamTask.getActionExecutor());
+            harness.streamTask.operatorChain.closeAllOperators();
+            assertTrue(ClosingOperator.closed.get());
 
-        harness.streamTask.triggerCheckpointOnBarrier(
-                new CheckpointMetaData(1, 0),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                new CheckpointMetricsBuilder());
-        assertEquals(1, harness.getCheckpointResponder().getDeclineReports().size());
+            harness.streamTask.triggerCheckpointOnBarrier(
+                    new CheckpointMetaData(1, 0),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder());
+        } catch (Exception ex) {
+            ExceptionUtils.assertThrowableWithMessage(
+                    ex, "OperatorChain and Task should never be closed at this point");
+        }
     }
 
     @Test
