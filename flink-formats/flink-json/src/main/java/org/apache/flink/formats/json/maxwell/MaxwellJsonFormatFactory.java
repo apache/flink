@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.ALLOW_NON_NUMERIC_NUMBERS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.maxwell.MaxwellJsonFormatOptions.JSON_MAP_NULL_KEY_MODE;
@@ -66,10 +67,12 @@ public class MaxwellJsonFormatFactory
         validateDecodingFormatOptions(formatOptions);
 
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+        final boolean allowNonNumericNumbers = formatOptions.get(ALLOW_NON_NUMERIC_NUMBERS);
         final TimestampFormat timestampFormat =
                 JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
-        return new MaxwellJsonDecodingFormat(ignoreParseErrors, timestampFormat);
+        return new MaxwellJsonDecodingFormat(
+                ignoreParseErrors, allowNonNumericNumbers, timestampFormat);
     }
 
     @Override
@@ -130,6 +133,7 @@ public class MaxwellJsonFormatFactory
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ALLOW_NON_NUMERIC_NUMBERS);
         return options;
     }
 

@@ -61,16 +61,20 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
 
     private final boolean ignoreParseErrors;
 
+    private final boolean allowNonNumericNumbers;
+
     private final TimestampFormat timestampFormat;
 
     public CanalJsonDecodingFormat(
             String database,
             String table,
             boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
             TimestampFormat timestampFormat) {
         this.database = database;
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
     }
@@ -100,6 +104,7 @@ public class CanalJsonDecodingFormat implements DecodingFormat<DeserializationSc
                 .setDatabase(database)
                 .setTable(table)
                 .setIgnoreParseErrors(ignoreParseErrors)
+                .setAllowNonNumericNumbers(allowNonNumericNumbers)
                 .setTimestampFormat(timestampFormat)
                 .build();
     }

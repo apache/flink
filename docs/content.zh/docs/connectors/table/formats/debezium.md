@@ -417,6 +417,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td>Boolean</td>
       <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
     </tr>
+    <tr>
+      <td><h5>debezium-json.allow-non-numeric-numbers</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否支持当前解析字段为 non-numeric 数字（默认为 false，即抛出错误失败）。例如：<code>NaN</code>。</td>
+    </tr>
     </tbody>
 </table>
 

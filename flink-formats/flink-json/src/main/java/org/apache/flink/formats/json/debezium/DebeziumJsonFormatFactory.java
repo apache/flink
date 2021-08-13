@@ -45,6 +45,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatOptions.ALLOW_NON_NUMERIC_NUMBERS;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatOptions.JSON_MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatOptions.JSON_MAP_NULL_KEY_MODE;
@@ -72,10 +73,13 @@ public class DebeziumJsonFormatFactory
 
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
 
+        final boolean allowNonNumericNumbers = formatOptions.get(ALLOW_NON_NUMERIC_NUMBERS);
+
         final TimestampFormat timestampFormat =
                 JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
-        return new DebeziumJsonDecodingFormat(schemaInclude, ignoreParseErrors, timestampFormat);
+        return new DebeziumJsonDecodingFormat(
+                schemaInclude, ignoreParseErrors, allowNonNumericNumbers, timestampFormat);
     }
 
     @Override
@@ -138,6 +142,7 @@ public class DebeziumJsonFormatFactory
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ALLOW_NON_NUMERIC_NUMBERS);
         return options;
     }
 

@@ -88,6 +88,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
+    /** Flag indicating whether to parse non-numeric number fields (default: throw an exception). */
+    private final boolean allowNonNumericNumbers;
+
     /** Names of fields. */
     private final List<String> fieldNames;
 
@@ -107,6 +110,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             @Nullable String database,
             @Nullable String table,
             boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
             TimestampFormat timestampFormat) {
         final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
@@ -118,6 +122,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
+                        allowNonNumericNumbers,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
@@ -125,6 +130,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         this.database = database;
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
         final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
         this.fieldNames = physicalRowType.getFieldNames();
         this.fieldCount = physicalRowType.getFieldCount();
@@ -153,6 +159,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         private String database = null;
         private String table = null;
         private boolean ignoreParseErrors = false;
+        private boolean allowNonNumericNumbers = false;
         private TimestampFormat timestampFormat = TimestampFormat.SQL;
 
         private Builder(
@@ -179,6 +186,11 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             return this;
         }
 
+        public Builder setAllowNonNumericNumbers(boolean allowNonNumericNumbers) {
+            this.allowNonNumericNumbers = allowNonNumericNumbers;
+            return this;
+        }
+
         public Builder setTimestampFormat(TimestampFormat timestampFormat) {
             this.timestampFormat = timestampFormat;
             return this;
@@ -192,6 +204,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                     database,
                     table,
                     ignoreParseErrors,
+                    allowNonNumericNumbers,
                     timestampFormat);
         }
     }
@@ -333,6 +346,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 && Objects.equals(database, that.database)
                 && Objects.equals(table, that.table)
                 && ignoreParseErrors == that.ignoreParseErrors
+                && allowNonNumericNumbers == that.allowNonNumericNumbers
                 && fieldCount == that.fieldCount;
     }
 
@@ -345,6 +359,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 database,
                 table,
                 ignoreParseErrors,
+                allowNonNumericNumbers,
                 fieldCount);
     }
 

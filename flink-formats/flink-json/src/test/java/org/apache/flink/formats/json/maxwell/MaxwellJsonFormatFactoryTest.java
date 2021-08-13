@@ -64,6 +64,7 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
                         Collections.emptyList(),
                         ROW_TYPE_INFO,
                         true,
+                        false,
                         TimestampFormat.ISO_8601);
 
         final MaxwellJsonSerializationSchema expectedSer =
@@ -139,6 +140,20 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
         createTableSink(SCHEMA, tableOptions);
     }
 
+    @Test
+    public void testInvalidOptionForAllowNonNumericNumbers() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("maxwell-json.allow-non-numeric-numbers", "abc"));
+
+        createTableSource(SCHEMA, options);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -166,6 +181,7 @@ public class MaxwellJsonFormatFactoryTest extends TestLogger {
         options.put("maxwell-json.map-null-key.mode", "LITERAL");
         options.put("maxwell-json.map-null-key.literal", "null");
         options.put("maxwell-json.encode.decimal-as-plain-number", "true");
+        options.put("maxwell-json.allow-non-numeric-numbers", "false");
         return options;
     }
 }

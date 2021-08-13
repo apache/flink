@@ -59,12 +59,18 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
 
     private final boolean ignoreParseErrors;
 
+    private final boolean allowNonNumericNumbers;
+
     private final TimestampFormat timestampFormat;
 
     public DebeziumJsonDecodingFormat(
-            boolean schemaInclude, boolean ignoreParseErrors, TimestampFormat timestampFormat) {
+            boolean schemaInclude,
+            boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
+            TimestampFormat timestampFormat) {
         this.schemaInclude = schemaInclude;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
     }
@@ -100,6 +106,7 @@ public class DebeziumJsonDecodingFormat implements DecodingFormat<Deserializatio
                 producedTypeInfo,
                 schemaInclude,
                 ignoreParseErrors,
+                allowNonNumericNumbers,
                 timestampFormat);
     }
 

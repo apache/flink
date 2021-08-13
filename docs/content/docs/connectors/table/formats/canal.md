@@ -288,6 +288,13 @@ Format Options
       <td>String</td>
       <td>An optional regular expression to only read the specific tables changelog rows by regular matching the "table" meta field in the Canal record. The pattern string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Pattern</a>.</td>
     </tr>
+    <tr>
+      <td><h5>canal-json.allow-non-numeric-numbers</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to fail if a field is non-numeric number or not. For example, <code>NaN</code></td>
+    </tr>
     </tbody>
 </table>
 

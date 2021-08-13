@@ -294,6 +294,40 @@ public class CanalJsonSerDeSchemaTest {
                 .build();
     }
 
+    @Test
+    public void testParseNonNumericNumbers() throws Exception {
+        List<String> lines =
+                Arrays.asList(
+                        "{\"data\":[{\"id\":101,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":NaN}],\"type\":\"INSERT\"}",
+                        "{\"data\":[{\"id\":102,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":Infinity}],\"type\":\"INSERT\"}",
+                        "{\"data\":[{\"id\":103,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":-Infinity}],\"type\":\"INSERT\"}");
+
+        CanalJsonDeserializationSchema deserializationSchema =
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE,
+                                Collections.emptyList(),
+                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
+                        .setAllowNonNumericNumbers(true)
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .build();
+
+        SimpleCollector collector = new SimpleCollector();
+        for (String line : lines) {
+            deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
+        }
+
+        List<String> expected =
+                Arrays.asList(
+                        "+I(101,scooter,Small 2-wheel scooter,NaN)",
+                        "+I(102,scooter,Small 2-wheel scooter,Infinity)",
+                        "+I(103,scooter,Small 2-wheel scooter,-Infinity)");
+
+        List<String> actual =
+                collector.list.stream().map(Object::toString).collect(Collectors.toList());
+
+        assertEquals(expected, actual);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------

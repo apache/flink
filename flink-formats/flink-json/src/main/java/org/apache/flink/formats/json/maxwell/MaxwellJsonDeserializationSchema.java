@@ -76,6 +76,9 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
+    /** Flag indicating whether to parse non-numeric number fields (default: throw an exception). */
+    private final boolean allowNonNumericNumbers;
+
     /** Names of physical fields. */
     private final List<String> fieldNames;
 
@@ -87,6 +90,7 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
             List<ReadableMetadata> requestedMetadata,
             TypeInformation<RowData> producedTypeInfo,
             boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
             TimestampFormat timestampFormat) {
         final RowType jsonRowType = createJsonRowType(physicalDataType, requestedMetadata);
         this.jsonDeserializer =
@@ -99,11 +103,13 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                         // failOnMissingField
                         false,
                         ignoreParseErrors,
+                        allowNonNumericNumbers,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters = createMetadataConverters(jsonRowType, requestedMetadata);
         this.producedTypeInfo = producedTypeInfo;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
         final RowType physicalRowType = ((RowType) physicalDataType.getLogicalType());
         this.fieldNames = physicalRowType.getFieldNames();
         this.fieldCount = physicalRowType.getFieldCount();
@@ -213,13 +219,19 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                 && hasMetadata == that.hasMetadata
                 && Objects.equals(producedTypeInfo, that.producedTypeInfo)
                 && ignoreParseErrors == that.ignoreParseErrors
+                && allowNonNumericNumbers == that.allowNonNumericNumbers
                 && fieldCount == that.fieldCount;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                jsonDeserializer, hasMetadata, producedTypeInfo, ignoreParseErrors, fieldCount);
+                jsonDeserializer,
+                hasMetadata,
+                producedTypeInfo,
+                ignoreParseErrors,
+                allowNonNumericNumbers,
+                fieldCount);
     }
 
     // --------------------------------------------------------------------------------------------

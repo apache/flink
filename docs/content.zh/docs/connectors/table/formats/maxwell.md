@@ -251,6 +251,13 @@ Format Options
       <td>Boolean</td>
       <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
     </tr>
+    <tr>
+      <td><h5>maxwell-json.allow-non-numeric-numbers</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to fail if a field is non-numeric number or not. For example, <code>NaN</code></td>
+    </tr>
     </tbody>
 </table>
 

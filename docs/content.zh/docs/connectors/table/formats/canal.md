@@ -284,6 +284,13 @@ Format 参数
       <td>String</td>
       <td>一个可选的正则表达式，通过正则匹配 Canal 记录中的 "table" 元字段，仅读取指定表的 changelog 记录。正则字符串与 Java 的 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Pattern</a> 兼容。</td>
     </tr>
+    <tr>
+      <td><h5>canal-json.allow-non-numeric-numbers</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否支持当前解析字段为 non-numeric 数字（默认为 false，即抛出错误失败）。例如：<code>NaN</code>。</td>
+    </tr>
     </tbody>
 </table>
 

@@ -65,6 +65,7 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                 CanalJsonDeserializationSchema.builder(
                                 PHYSICAL_DATA_TYPE, Collections.emptyList(), ROW_TYPE_INFO)
                         .setIgnoreParseErrors(false)
+                        .setAllowNonNumericNumbers(false)
                         .setTimestampFormat(TimestampFormat.SQL)
                         .build();
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
@@ -155,6 +156,19 @@ public class CanalJsonFormatFactoryTest extends TestLogger {
                         new ValidationException(
                                 "Unsupported value 'invalid' for option map-null-key.mode. Supported values are [LITERAL, FAIL, DROP].")));
         createSerializationSchema(tableOptions);
+    }
+
+    @Test
+    public void testInvalidOptionForAllowNonNumericNumbers() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.put("canal-json.allow-non-numeric-numbers", "abc"));
+
+        createDeserializationSchema(options);
     }
 
     // ------------------------------------------------------------------------

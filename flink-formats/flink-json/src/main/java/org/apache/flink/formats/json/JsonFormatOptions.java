@@ -73,6 +73,13 @@ public class JsonFormatOptions {
                     .withDescription(
                             "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
 
+    public static final ConfigOption<Boolean> ALLOW_NON_NUMERIC_NUMBERS =
+            ConfigOptions.key("allow-non-numeric-numbers")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify whether to deserialize non-numeric number instead of failing, false by default.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------

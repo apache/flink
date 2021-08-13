@@ -37,5 +37,8 @@ public class MaxwellJsonFormatOptions {
     public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
             JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 
+    public static final ConfigOption<Boolean> ALLOW_NON_NUMERIC_NUMBERS =
+            JsonFormatOptions.ALLOW_NON_NUMERIC_NUMBERS;
+
     private MaxwellJsonFormatOptions() {}
 }

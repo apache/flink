@@ -57,6 +57,9 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
+    /** Flag indicating whether to parse non-numeric number fields (default: throw an exception). */
+    private final boolean allowNonNumericNumbers;
+
     /** TypeInformation of the produced {@link RowData}. */
     private final TypeInformation<RowData> resultTypeInfo;
 
@@ -77,6 +80,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
             TypeInformation<RowData> resultTypeInfo,
             boolean failOnMissingField,
             boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
             TimestampFormat timestampFormat) {
         if (ignoreParseErrors && failOnMissingField) {
             throw new IllegalArgumentException(
@@ -85,6 +89,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         this.resultTypeInfo = checkNotNull(resultTypeInfo);
         this.failOnMissingField = failOnMissingField;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
         this.runtimeConverter =
                 new JsonToRowDataConverters(failOnMissingField, ignoreParseErrors, timestampFormat)
                         .createConverter(checkNotNull(rowType));
@@ -95,6 +100,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
             objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         }
         objectMapper.configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true);
+        objectMapper.configure(
+                JsonReadFeature.ALLOW_NON_NUMERIC_NUMBERS.mappedFeature(), allowNonNumericNumbers);
     }
 
     @Override
@@ -142,12 +149,18 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         JsonRowDataDeserializationSchema that = (JsonRowDataDeserializationSchema) o;
         return failOnMissingField == that.failOnMissingField
                 && ignoreParseErrors == that.ignoreParseErrors
+                && allowNonNumericNumbers == that.allowNonNumericNumbers
                 && resultTypeInfo.equals(that.resultTypeInfo)
                 && timestampFormat.equals(that.timestampFormat);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(failOnMissingField, ignoreParseErrors, resultTypeInfo, timestampFormat);
+        return Objects.hash(
+                failOnMissingField,
+                ignoreParseErrors,
+                allowNonNumericNumbers,
+                resultTypeInfo,
+                timestampFormat);
     }
 }

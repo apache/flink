@@ -88,12 +88,16 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
+    /** Flag indicating whether to parse non-numeric number fields (default: throw an exception). */
+    private final boolean allowNonNumericNumbers;
+
     public DebeziumJsonDeserializationSchema(
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
             TypeInformation<RowData> producedTypeInfo,
             boolean schemaInclude,
             boolean ignoreParseErrors,
+            boolean allowNonNumericNumbers,
             TimestampFormat timestampFormat) {
         final RowType jsonRowType =
                 createJsonRowType(physicalDataType, requestedMetadata, schemaInclude);
@@ -106,6 +110,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                         false, // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
                         ignoreParseErrors,
+                        allowNonNumericNumbers,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
         this.metadataConverters =
@@ -113,6 +118,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
         this.producedTypeInfo = producedTypeInfo;
         this.schemaInclude = schemaInclude;
         this.ignoreParseErrors = ignoreParseErrors;
+        this.allowNonNumericNumbers = allowNonNumericNumbers;
     }
 
     @Override
@@ -224,13 +230,19 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                 && hasMetadata == that.hasMetadata
                 && Objects.equals(producedTypeInfo, that.producedTypeInfo)
                 && schemaInclude == that.schemaInclude
-                && ignoreParseErrors == that.ignoreParseErrors;
+                && ignoreParseErrors == that.ignoreParseErrors
+                && allowNonNumericNumbers == that.allowNonNumericNumbers;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                jsonDeserializer, hasMetadata, producedTypeInfo, schemaInclude, ignoreParseErrors);
+                jsonDeserializer,
+                hasMetadata,
+                producedTypeInfo,
+                schemaInclude,
+                ignoreParseErrors,
+                allowNonNumericNumbers);
     }
 
     // --------------------------------------------------------------------------------------------

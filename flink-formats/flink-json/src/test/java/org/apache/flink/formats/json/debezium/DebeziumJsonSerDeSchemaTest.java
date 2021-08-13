@@ -115,6 +115,7 @@ public class DebeziumJsonSerDeSchemaTest {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         false,
                         false,
+                        false,
                         TimestampFormat.ISO_8601);
         SimpleCollector collector = new SimpleCollector();
         deserializationSchema.deserialize(null, collector);
@@ -188,6 +189,7 @@ public class DebeziumJsonSerDeSchemaTest {
                         Collections.emptyList(),
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         schemaInclude,
+                        false,
                         false,
                         TimestampFormat.ISO_8601);
 
@@ -313,6 +315,7 @@ public class DebeziumJsonSerDeSchemaTest {
                         InternalTypeInfo.of(producedDataType.getLogicalType()),
                         schemaInclude,
                         false,
+                        false,
                         TimestampFormat.ISO_8601);
 
         final SimpleCollector collector = new SimpleCollector();
@@ -320,6 +323,39 @@ public class DebeziumJsonSerDeSchemaTest {
 
         assertEquals(1, collector.list.size());
         testConsumer.accept(collector.list.get(0));
+    }
+
+    @Test
+    public void testParseNonNumericNumbers() throws Exception {
+        List<String> lines =
+                Arrays.asList(
+                        "{\"before\":null,\"after\":{\"id\":101,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":NaN},\"op\":\"c\"}",
+                        "{\"before\":null,\"after\":{\"id\":102,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":Infinity},\"op\":\"c\"}",
+                        "{\"before\":null,\"after\":{\"id\":103,\"name\":\"scooter\",\"description\":\"Small 2-wheel scooter\",\"weight\":-Infinity},\"op\":\"c\"}");
+        DebeziumJsonDeserializationSchema deserializationSchema =
+                new DebeziumJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        Collections.emptyList(),
+                        InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
+                        false,
+                        false,
+                        true,
+                        TimestampFormat.ISO_8601);
+        SimpleCollector collector = new SimpleCollector();
+        for (String line : lines) {
+            deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
+        }
+
+        List<String> expected =
+                Arrays.asList(
+                        "+I(101,scooter,Small 2-wheel scooter,NaN)",
+                        "+I(102,scooter,Small 2-wheel scooter,Infinity)",
+                        "+I(103,scooter,Small 2-wheel scooter,-Infinity)");
+
+        List<String> actual =
+                collector.list.stream().map(Object::toString).collect(Collectors.toList());
+
+        assertEquals(expected, actual);
     }
 
     // --------------------------------------------------------------------------------------------

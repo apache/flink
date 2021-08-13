@@ -64,6 +64,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         InternalTypeInfo.of(PHYSICAL_TYPE),
                         false,
                         true,
+                        false,
                         TimestampFormat.ISO_8601);
 
         final Map<String, String> options = getAllOptions();
@@ -124,6 +125,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
                         InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()),
                         true,
                         true,
+                        false,
                         TimestampFormat.ISO_8601);
         final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
@@ -176,6 +178,20 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         createTableSink(SCHEMA, tableOptions);
     }
 
+    @Test
+    public void testInvalidOptionForAllowNonNumericNumbers() {
+        thrown.expect(
+                containsCause(
+                        new IllegalArgumentException(
+                                "Unrecognized option for boolean: abc. Expected either true or false(case insensitive)")));
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> opts.put("debezium-json.allow-non-numeric-numbers", "abc"));
+
+        createTableSource(SCHEMA, options);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -203,6 +219,7 @@ public class DebeziumJsonFormatFactoryTest extends TestLogger {
         options.put("debezium-json.map-null-key.mode", "LITERAL");
         options.put("debezium-json.map-null-key.literal", "null");
         options.put("debezium-json.encode.decimal-as-plain-number", "true");
+        options.put("debezium-json.allow-non-numeric-numbers", "false");
         return options;
     }
 }

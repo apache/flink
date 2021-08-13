@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.canal.CanalJsonFormatOptions.ALLOW_NON_NUMERIC_NUMBERS;
 import static org.apache.flink.formats.json.canal.CanalJsonFormatOptions.DATABASE_INCLUDE;
 import static org.apache.flink.formats.json.canal.CanalJsonFormatOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.canal.CanalJsonFormatOptions.JSON_MAP_NULL_KEY_LITERAL;
@@ -70,10 +71,12 @@ public class CanalJsonFormatFactory
         final String database = formatOptions.getOptional(DATABASE_INCLUDE).orElse(null);
         final String table = formatOptions.getOptional(TABLE_INCLUDE).orElse(null);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
+        final boolean allowNonNumericNumbers = formatOptions.get(ALLOW_NON_NUMERIC_NUMBERS);
         final TimestampFormat timestampFormat =
                 JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
-        return new CanalJsonDecodingFormat(database, table, ignoreParseErrors, timestampFormat);
+        return new CanalJsonDecodingFormat(
+                database, table, ignoreParseErrors, allowNonNumericNumbers, timestampFormat);
     }
 
     @Override
@@ -136,6 +139,7 @@ public class CanalJsonFormatFactory
         options.add(JSON_MAP_NULL_KEY_MODE);
         options.add(JSON_MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        options.add(ALLOW_NON_NUMERIC_NUMBERS);
         return options;
     }
 
