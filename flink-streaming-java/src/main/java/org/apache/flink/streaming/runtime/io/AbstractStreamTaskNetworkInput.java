@@ -30,7 +30,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -55,7 +55,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
-    /** Valve that controls how watermarks and stream statuses are forwarded. */
+    /** Valve that controls how watermarks and watermark statuses are forwarded. */
     protected final StatusWatermarkValve statusWatermarkValve;
 
     protected final int inputIndex;
@@ -137,9 +137,9 @@ public abstract class AbstractStreamTaskNetworkInput<
                     recordOrMark.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
         } else if (recordOrMark.isLatencyMarker()) {
             output.emitLatencyMarker(recordOrMark.asLatencyMarker());
-        } else if (recordOrMark.isStreamStatus()) {
-            statusWatermarkValve.inputStreamStatus(
-                    recordOrMark.asStreamStatus(),
+        } else if (recordOrMark.isWatermarkStatus()) {
+            statusWatermarkValve.inputWatermarkStatus(
+                    recordOrMark.asWatermarkStatus(),
                     flattenedChannelIndices.get(lastChannel),
                     output);
         } else {

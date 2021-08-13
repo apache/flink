@@ -44,11 +44,11 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.util.Arrays;
 import java.util.List;
@@ -267,8 +267,8 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            input.processStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            input.processWatermarkStatus(watermarkStatus);
         }
 
         @Override
@@ -290,8 +290,8 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
-            chainedOutput.emitStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+            chainedOutput.emitWatermarkStatus(watermarkStatus);
         }
     }
 }

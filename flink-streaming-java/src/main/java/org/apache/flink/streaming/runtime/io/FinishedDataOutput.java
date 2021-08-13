@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +45,8 @@ public class FinishedDataOutput<IN> implements PushingAsyncDataInput.DataOutput<
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-        LOG.debug("Unexpected stream status after finish() received.");
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        LOG.debug("Unexpected watermark status after finish() received.");
     }
 
     @Override

@@ -55,7 +55,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.hamcrest.collection.IsMapContaining;
@@ -137,12 +137,12 @@ public class TwoInputStreamTaskTest {
     }
 
     /**
-     * This test verifies that watermarks and stream statuses are correctly forwarded. This also
+     * This test verifies that watermarks and watermark statuses are correctly forwarded. This also
      * checks whether watermarks are forwarded only when we have received watermarks from all
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndStreamStatusForwarding() throws Exception {
+    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
 
         final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
                 new TwoInputStreamTaskTestHarness<>(
@@ -224,12 +224,12 @@ public class TwoInputStreamTaskTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // test whether idle input channels are acknowledged correctly when forwarding watermarks
-        testHarness.processElement(StreamStatus.IDLE, 0, 1);
-        testHarness.processElement(StreamStatus.IDLE, 1, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
         testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
         testHarness.processElement(
                 new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
-        testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
 
         testHarness.waitForInputProcessing();
         expectedOutput.add(new Watermark(initialTime + 5));
@@ -238,18 +238,18 @@ public class TwoInputStreamTaskTest {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make all input channels idle and check that the operator's idle status is forwarded
-        testHarness.processElement(StreamStatus.IDLE, 0, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make some input channels active again and check that the operator's active status is
         // forwarded only once
-        testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
-        testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 1, 0);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 

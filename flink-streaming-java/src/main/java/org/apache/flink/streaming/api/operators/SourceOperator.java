@@ -51,8 +51,8 @@ import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -473,8 +473,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            output.emitStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            output.emitWatermarkStatus(watermarkStatus);
         }
 
         @Override

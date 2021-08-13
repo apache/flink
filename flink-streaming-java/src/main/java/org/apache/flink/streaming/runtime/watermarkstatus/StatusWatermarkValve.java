@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.streamstatus;
+package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -28,21 +28,21 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link
- * StreamStatus} are propagated to downstream outputs, given a set of one or multiple input channels
- * that continuously receive them. Usages of this class need to define the number of input channels
- * that the valve needs to handle, as well as provide a implementation of {@link DataOutput}, which
- * is called by the valve only when it determines a new watermark or stream status can be
- * propagated.
+ * WatermarkStatus} are propagated to downstream outputs, given a set of one or multiple input
+ * channels that continuously receive them. Usages of this class need to define the number of input
+ * channels that the valve needs to handle, as well as provide a implementation of {@link
+ * DataOutput}, which is called by the valve only when it determines a new watermark or watermark
+ * status can be propagated.
  */
 @Internal
 public class StatusWatermarkValve {
 
     // ------------------------------------------------------------------------
-    //	Runtime state for watermark & stream status output determination
+    //	Runtime state for watermark & watermark status output determination
     // ------------------------------------------------------------------------
 
     /**
-     * Array of current status of all input channels. Changes as watermarks & stream statuses are
+     * Array of current status of all input channels. Changes as watermarks & watermark statuses are
      * fed into the valve.
      */
     private final InputChannelStatus[] channelStatuses;
@@ -50,8 +50,8 @@ public class StatusWatermarkValve {
     /** The last watermark emitted from the valve. */
     private long lastOutputWatermark;
 
-    /** The last stream status emitted from the valve. */
-    private StreamStatus lastOutputStreamStatus;
+    /** The last watermark status emitted from the valve. */
+    private WatermarkStatus lastOutputWatermarkStatus;
 
     /**
      * Returns a new {@code StatusWatermarkValve}.
@@ -64,12 +64,12 @@ public class StatusWatermarkValve {
         for (int i = 0; i < numInputChannels; i++) {
             channelStatuses[i] = new InputChannelStatus();
             channelStatuses[i].watermark = Long.MIN_VALUE;
-            channelStatuses[i].streamStatus = StreamStatus.ACTIVE;
+            channelStatuses[i].watermarkStatus = WatermarkStatus.ACTIVE;
             channelStatuses[i].isWatermarkAligned = true;
         }
 
         this.lastOutputWatermark = Long.MIN_VALUE;
-        this.lastOutputStreamStatus = StreamStatus.ACTIVE;
+        this.lastOutputWatermarkStatus = WatermarkStatus.ACTIVE;
     }
 
     /**
@@ -85,8 +85,8 @@ public class StatusWatermarkValve {
             throws Exception {
         // ignore the input watermark if its input channel, or all input channels are idle (i.e.
         // overall the valve is idle).
-        if (lastOutputStreamStatus.isActive()
-                && channelStatuses[channelIndex].streamStatus.isActive()) {
+        if (lastOutputWatermarkStatus.isActive()
+                && channelStatuses[channelIndex].watermarkStatus.isActive()) {
             long watermarkMillis = watermark.getTimestamp();
 
             // if the input watermark's value is less than the last received watermark for its input
@@ -108,21 +108,24 @@ public class StatusWatermarkValve {
     }
 
     /**
-     * Feed a {@link StreamStatus} into the valve. This may trigger the valve to output either a new
-     * Stream Status, for which {@link DataOutput#emitStreamStatus(StreamStatus)} will be called, or
-     * a new Watermark, for which {@link DataOutput#emitWatermark(Watermark)} will be called.
+     * Feed a {@link WatermarkStatus} into the valve. This may trigger the valve to output either a
+     * new Watermark Status, for which {@link DataOutput#emitWatermarkStatus(WatermarkStatus)} will
+     * be called, or a new Watermark, for which {@link DataOutput#emitWatermark(Watermark)} will be
+     * called.
      *
-     * @param streamStatus the stream status to feed to the valve
-     * @param channelIndex the index of the channel that the fed stream status belongs to (index
+     * @param watermarkStatus the watermark status to feed to the valve
+     * @param channelIndex the index of the channel that the fed watermark status belongs to (index
      *     starting from 0)
      */
-    public void inputStreamStatus(StreamStatus streamStatus, int channelIndex, DataOutput<?> output)
+    public void inputWatermarkStatus(
+            WatermarkStatus watermarkStatus, int channelIndex, DataOutput<?> output)
             throws Exception {
-        // only account for stream status inputs that will result in a status change for the input
+        // only account for watermark status inputs that will result in a status change for the
+        // input
         // channel
-        if (streamStatus.isIdle() && channelStatuses[channelIndex].streamStatus.isActive()) {
+        if (watermarkStatus.isIdle() && channelStatuses[channelIndex].watermarkStatus.isActive()) {
             // handle active -> idle toggle for the input channel
-            channelStatuses[channelIndex].streamStatus = StreamStatus.IDLE;
+            channelStatuses[channelIndex].watermarkStatus = WatermarkStatus.IDLE;
 
             // the channel is now idle, therefore not aligned
             channelStatuses[channelIndex].isWatermarkAligned = false;
@@ -145,17 +148,18 @@ public class StatusWatermarkValve {
                     findAndOutputMaxWatermarkAcrossAllChannels(output);
                 }
 
-                lastOutputStreamStatus = StreamStatus.IDLE;
-                output.emitStreamStatus(lastOutputStreamStatus);
+                lastOutputWatermarkStatus = WatermarkStatus.IDLE;
+                output.emitWatermarkStatus(lastOutputWatermarkStatus);
             } else if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
                 // if the watermark of the channel that just became idle equals the last output
                 // watermark (the previous overall min watermark), we may be able to find a new
                 // min watermark from the remaining aligned channels
                 findAndOutputNewMinWatermarkAcrossAlignedChannels(output);
             }
-        } else if (streamStatus.isActive() && channelStatuses[channelIndex].streamStatus.isIdle()) {
+        } else if (watermarkStatus.isActive()
+                && channelStatuses[channelIndex].watermarkStatus.isIdle()) {
             // handle idle -> active toggle for the input channel
-            channelStatuses[channelIndex].streamStatus = StreamStatus.ACTIVE;
+            channelStatuses[channelIndex].watermarkStatus = WatermarkStatus.ACTIVE;
 
             // if the last watermark of the input channel, before it was marked idle, is still
             // larger than
@@ -168,9 +172,9 @@ public class StatusWatermarkValve {
             // if the valve was previously marked to be idle, mark it as active and output an active
             // stream
             // status because at least one of the input channels is now active
-            if (lastOutputStreamStatus.isIdle()) {
-                lastOutputStreamStatus = StreamStatus.ACTIVE;
-                output.emitStreamStatus(lastOutputStreamStatus);
+            if (lastOutputWatermarkStatus.isIdle()) {
+                lastOutputWatermarkStatus = WatermarkStatus.ACTIVE;
+                output.emitWatermarkStatus(lastOutputWatermarkStatus);
             }
         }
     }
@@ -218,15 +222,15 @@ public class StatusWatermarkValve {
      * <p>There are 2 situations where a channel's watermark is not considered aligned:
      *
      * <ul>
-     *   <li>the current stream status of the channel is idle
-     *   <li>the stream status has resumed to be active, but the watermark of the channel hasn't
+     *   <li>the current watermark status of the channel is idle
+     *   <li>the watermark status has resumed to be active, but the watermark of the channel hasn't
      *       caught up to the last output watermark from the valve yet.
      * </ul>
      */
     @VisibleForTesting
     protected static class InputChannelStatus {
         protected long watermark;
-        protected StreamStatus streamStatus;
+        protected WatermarkStatus watermarkStatus;
         protected boolean isWatermarkAligned;
 
         /**
@@ -234,7 +238,7 @@ public class StatusWatermarkValve {
          */
         private static boolean hasActiveChannels(InputChannelStatus[] channelStatuses) {
             for (InputChannelStatus status : channelStatuses) {
-                if (status.streamStatus.isActive()) {
+                if (status.watermarkStatus.isActive()) {
                     return true;
                 }
             }

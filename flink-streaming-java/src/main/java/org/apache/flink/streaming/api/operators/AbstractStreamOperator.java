@@ -51,9 +51,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.Check
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
 
@@ -619,26 +619,27 @@ public abstract class AbstractStreamOperator<OUT>
         processWatermark(mark, 1);
     }
 
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
-        output.emitStreamStatus(streamStatus);
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        output.emitWatermarkStatus(watermarkStatus);
     }
 
-    private void processStreamStatus(StreamStatus streamStatus, int index) throws Exception {
+    private void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+            throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
-        if (combinedWatermark.updateStatus(index, streamStatus.isIdle())) {
+        if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
             processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
         if (wasIdle != combinedWatermark.isIdle()) {
-            output.emitStreamStatus(streamStatus);
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 
-    public final void processStreamStatus1(StreamStatus streamStatus) throws Exception {
-        processStreamStatus(streamStatus, 0);
+    public final void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 0);
     }
 
-    public final void processStreamStatus2(StreamStatus streamStatus) throws Exception {
-        processStreamStatus(streamStatus, 1);
+    public final void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 1);
     }
 
     @Override

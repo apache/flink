@@ -53,9 +53,9 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 
 import org.junit.Test;
@@ -627,7 +627,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             }
 
             @Override
-            public void processStreamStatus(StreamStatus streamStatus) throws Exception {
+            public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
                 throw new IllegalStateException(MESSAGE);
             }
 

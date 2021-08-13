@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,7 +55,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
 
         try {
             if (isIdle) {
-                output.emitStreamStatus(StreamStatus.ACTIVE);
+                output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
                 isIdle = false;
             }
 
@@ -75,7 +75,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         }
 
         try {
-            output.emitStreamStatus(StreamStatus.IDLE);
+            output.emitWatermarkStatus(WatermarkStatus.IDLE);
             isIdle = true;
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
