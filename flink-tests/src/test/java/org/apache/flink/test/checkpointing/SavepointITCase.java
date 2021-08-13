@@ -77,6 +77,7 @@ import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -231,6 +232,7 @@ public class SavepointITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
         env.addSource(new InfiniteTestSource())
+                .setParallelism(1)
                 .name("Infinite Source")
                 .addSink(new FinishingSink<>())
                 // different parallelism to break chaining and add some concurrent tasks
@@ -702,17 +704,20 @@ public class SavepointITCase extends TestLogger {
         Configuration configuration = new Configuration();
         configuration.setString(
                 HighAvailabilityOptions.HA_MODE, FailingSyncSavepointHAFactory.class.getName());
+        final int parallelism = 2;
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
+                                .setNumberSlotsPerTaskManager(parallelism)
                                 .setConfiguration(configuration)
                                 .build());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+        env.setParallelism(parallelism);
+        env.getConfig()
+                .setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
         env.addSource(new InfiniteTestSource())
-                .name("Infinite Source")
+                .name("Infinite test source")
                 .addSink(new DiscardingSink<>());
 
         final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -727,17 +732,12 @@ public class SavepointITCase extends TestLogger {
                 client.stopWithSavepoint(jobGraph.getJobID(), true, savepointDir.getAbsolutePath())
                         .get();
                 fail("The future should fail exceptionally.");
-            } catch (ExecutionException e) {
-                assertThrowable(
-                        e,
-                        ex ->
-                                ex.getMessage()
-                                        .startsWith(
-                                                "org.apache.flink.util.FlinkException: Inconsistent execution state"
-                                                        + " after stopping with savepoint. At least one execution"
-                                                        + " is still in one of the following states: FAILED. "
-                                                        + "A global fail-over is triggered to recover the job"));
+            } catch (ExecutionException ignored) {
+                // expected
             }
+
+            // make sure that we restart all tasks after the savepoint failure
+            waitUntilAllTasksAreRunning(cluster.getRestAddres(), jobGraph.getJobID());
         } finally {
             cluster.after();
         }
@@ -1103,7 +1103,7 @@ public class SavepointITCase extends TestLogger {
         return env.getStreamGraph().getJobGraph();
     }
 
-    private static class InfiniteTestSource implements SourceFunction<Integer> {
+    private static class InfiniteTestSource implements ParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 1L;
         private volatile boolean running = true;
