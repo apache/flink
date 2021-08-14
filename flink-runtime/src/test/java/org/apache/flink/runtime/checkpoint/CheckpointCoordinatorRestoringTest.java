@@ -1257,10 +1257,24 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     }
 
     @Test
-    public void testRestoringPartiallyFinishedChainsFails() throws Exception {
+    public void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
+        // If useUidHash is set to false, the operator states would still be keyed with the
+        // generated ID, which simulates the case of restoring a checkpoint taken after jobs
+        // started. The checker should still be able to access the stored state correctly, otherwise
+        // it would mark op1 as running and pass the check wrongly.
+        testRestoringPartiallyFinishedChainsFails(false);
+    }
+
+    @Test
+    public void testRestoringPartiallyFinishedChainsFailsWithUidHash() throws Exception {
+        testRestoringPartiallyFinishedChainsFails(true);
+    }
+
+    private void testRestoringPartiallyFinishedChainsFails(boolean useUidHash) throws Exception {
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();
-        OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
+        // The op1 has uidHash set.
+        OperatorIDPair op1 = OperatorIDPair.of(new OperatorID(), new OperatorID());
         OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
         OperatorIDPair op3 = OperatorIDPair.generatedIDOnly(new OperatorID());
 
@@ -1272,7 +1286,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
-                op1.getGeneratedOperatorID(),
+                useUidHash ? op1.getUserDefinedOperatorID().get() : op1.getGeneratedOperatorID(),
                 new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
         operatorStates.put(
                 op2.getGeneratedOperatorID(),
