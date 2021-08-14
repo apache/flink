@@ -150,6 +150,7 @@ public class HiveCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
     public static final String HIVE_SITE_FILE = "hive-site.xml";
+    private static final String HIVE_AUTHORIZATION_ENABLED = "hive.security.authorization.enabled";
 
     // Prefix used to distinguish scala/python functions
     private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
@@ -311,10 +312,12 @@ public class HiveCatalog extends AbstractCatalog {
         }
 
         try {
-            if (UserGroupInformation.isSecurityEnabled()) {
-                userName = UserGroupInformation.getCurrentUser().getShortUserName();
-            } else {
-                userName = hiveConf.get("user.name", "").trim();
+            if (hiveConf.getBoolean(HIVE_AUTHORIZATION_ENABLED, false)) {
+                if (UserGroupInformation.isSecurityEnabled()) {
+                    userName = UserGroupInformation.getCurrentUser().getShortUserName();
+                } else {
+                    userName = hiveConf.get("user.name", "").trim();
+                }
             }
         } catch (IOException e) {
             throw new CatalogException("Failed to get userName", e);
