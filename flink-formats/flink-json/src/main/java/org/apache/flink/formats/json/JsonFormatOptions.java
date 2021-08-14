@@ -78,7 +78,7 @@ public class JsonFormatOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Optional flag to specify whether to deserialize non-numeric number instead of failing, false by default.");
+                            "Flag to specify whether to deserialize non-numeric number instead of failing.");
 
     // --------------------------------------------------------------------------------------------
     // Enums
