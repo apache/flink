@@ -45,7 +45,7 @@ Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https:
 to setup Kinesis streams.
 
 ## Configuring Access to Kinesis with IAM
-Make sure to create the appropriate IAM policy to allow reading / writing to / from the Kinesis streams. See examples [here](https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html).
+Make sure to create the appropriate IAM policy to allow reading from / writing to the Kinesis streams. See examples [here](https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html).
 
 Depending on your deployment you would choose a different Credentials Provider to allow access to Kinesis.
 By default, the `AUTO` Credentials Provider is used.
