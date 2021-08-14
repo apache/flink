@@ -83,7 +83,17 @@ public class KafkaSourceReaderMetricsTest {
         assertCommittedOffset(BAR_1, 15513L, metricListener);
 
         assertEquals(
-                4L,
+                0L,
+                metricListener
+                        .getCounter(
+                                KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
+                                KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER)
+                        .getCount());
+
+        kafkaSourceReaderMetrics.recordSucceededCommit();
+
+        assertEquals(
+                1L,
                 metricListener
                         .getCounter(
                                 KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
