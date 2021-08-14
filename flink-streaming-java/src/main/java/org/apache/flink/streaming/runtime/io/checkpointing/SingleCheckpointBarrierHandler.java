@@ -457,7 +457,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     public CompletableFuture<Void> getAllBarriersReceivedFuture(long checkpointId) {
-        if (checkpointId < currentCheckpointId) {
+        if (checkpointId < currentCheckpointId || numOpenChannels == 0) {
             return FutureUtils.completedVoidFuture();
         }
         if (checkpointId > currentCheckpointId) {

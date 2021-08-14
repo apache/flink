@@ -76,7 +76,6 @@ import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTe
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.applyObjectReuse;
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
-import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -355,7 +354,31 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     }
 
     @Test
-    public void testRpcTriggerCheckpointWithSourceChain() throws Exception {
+    public void testTriggerAlignedNoTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggerAlignedWithTimeoutCheckpointWithFinishedChannelsAndSourceChain()
+            throws Exception {
+        testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+                CheckpointOptions.alignedWithTimeout(
+                        CheckpointStorageLocationReference.getDefault(), 10L));
+    }
+
+    private void testTriggerCheckpointWithFinishedChannelsAndSourceChain(
+            CheckpointOptions checkpointOptions) throws Exception {
         ResultPartition[] partitionWriters = new ResultPartition[2];
         try {
             for (int i = 0; i < partitionWriters.length; ++i) {
@@ -371,6 +394,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                             .modifyStreamConfig(
                                     config -> {
                                         config.setCheckpointingEnabled(true);
+                                        config.setUnalignedCheckpointsEnabled(
+                                                checkpointOptions.isUnalignedCheckpoint()
+                                                        || checkpointOptions.isTimeoutable());
                                         config.getConfiguration()
                                                 .set(
                                                         ExecutionCheckpointingOptions
@@ -405,7 +431,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         testHarness.streamTask::notifyCheckpointAbortAsync);
                 testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
-                Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+                CompletableFuture<Boolean> checkpointFuture =
+                        triggerCheckpoint(testHarness, 2, checkpointOptions);
                 testHarness.processAll();
 
                 // The checkpoint 2 would be aligned after received all the EndOfPartitionEvent.
@@ -417,20 +444,16 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after all the inputs have received EndOfPartition.
-                checkpointFuture = triggerCheckpoint(testHarness, 4);
+                checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
 
                 // Notifies the result partition that all records are processed after the
                 // last checkpoint is triggered.
-                checkState(
-                        checkpointFuture instanceof CompletableFuture,
-                        "The trigger future should " + " be also CompletableFuture.");
-                ((CompletableFuture<?>) checkpointFuture)
-                        .thenAccept(
-                                (ignored) -> {
-                                    for (ResultPartition resultPartition : partitionWriters) {
-                                        resultPartition.onSubpartitionAllDataProcessed(0);
-                                    }
-                                });
+                checkpointFuture.thenAccept(
+                        (ignored) -> {
+                            for (ResultPartition resultPartition : partitionWriters) {
+                                resultPartition.onSubpartitionAllDataProcessed(0);
+                            }
+                        });
 
                 // The checkpoint 4 would be triggered successfully.
                 testHarness.processAll();
