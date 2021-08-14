@@ -198,21 +198,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testAcquireLatestCompletedCheckpointId() throws Exception {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        CompletedCheckpointStore checkpoints = createRecoveredCompletedCheckpointStore(1);
-        assertEquals(0, checkpoints.getLatestCheckpointId());
-
-        checkpoints.addCheckpoint(
-                createCheckpoint(2, sharedStateRegistry), new CheckpointsCleaner(), () -> {});
-        assertEquals(2, checkpoints.getLatestCheckpointId());
-
-        checkpoints.addCheckpoint(
-                createCheckpoint(4, sharedStateRegistry), new CheckpointsCleaner(), () -> {});
-        assertEquals(4, checkpoints.getLatestCheckpointId());
-    }
-
     // ---------------------------------------------------------------------------------------------
 
     public static TestCompletedCheckpoint createCheckpoint(

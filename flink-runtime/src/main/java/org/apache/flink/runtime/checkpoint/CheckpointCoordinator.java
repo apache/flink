@@ -191,6 +191,10 @@ public class CheckpointCoordinator {
      */
     private long lastCheckpointCompletionRelativeTime;
 
+    /** The id of the latest completed checkpoint. */
+    @GuardedBy("lock")
+    private long latestCompletedCheckpointId;
+
     /**
      * Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
      * Non-volatile, because only accessed in synchronized scope
@@ -1183,6 +1187,8 @@ public class CheckpointCoordinator {
      */
     private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint)
             throws CheckpointException {
+        assert Thread.holdsLock(lock);
+
         final long checkpointId = pendingCheckpoint.getCheckpointId();
         final CompletedCheckpoint completedCheckpoint;
 
@@ -1242,6 +1248,10 @@ public class CheckpointCoordinator {
                         "Could not complete the pending checkpoint " + checkpointId + '.',
                         CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
                         exception);
+            }
+
+            if (checkpointId > latestCompletedCheckpointId) {
+                latestCompletedCheckpointId = checkpointId;
             }
         } finally {
             pendingCheckpoints.remove(checkpointId);
@@ -1315,8 +1325,8 @@ public class CheckpointCoordinator {
     private void sendAbortedMessages(
             List<ExecutionVertex> tasksToAbort, long checkpointId, long timeStamp) {
         assert (Thread.holdsLock(lock));
-        long latestCompletedCheckpointId = completedCheckpointStore.getLatestCheckpointId();
 
+        final long currentLatestCompletedCheckpointId = latestCompletedCheckpointId;
         // send notification of aborted checkpoints asynchronously.
         executor.execute(
                 () -> {
@@ -1325,7 +1335,7 @@ public class CheckpointCoordinator {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
                             ee.notifyCheckpointAborted(
-                                    checkpointId, latestCompletedCheckpointId, timeStamp);
+                                    checkpointId, currentLatestCompletedCheckpointId, timeStamp);
                         }
                     }
                 });
