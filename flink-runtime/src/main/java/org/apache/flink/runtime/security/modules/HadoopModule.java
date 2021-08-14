@@ -72,9 +72,12 @@ public class HadoopModule implements SecurityModule {
             if (UserGroupInformation.isSecurityEnabled()
                     && !StringUtils.isBlank(securityConfig.getKeytab())
                     && !StringUtils.isBlank(securityConfig.getPrincipal())) {
-                String keytabPath = (new File(securityConfig.getKeytab())).getAbsolutePath();
-
-                UserGroupInformation.loginUserFromKeytab(securityConfig.getPrincipal(), keytabPath);
+                loginUser = UserGroupInformation.getLoginUser();
+                if (loginUser == null || !loginUser.hasKerberosCredentials()) {
+                    String keytabPath = (new File(securityConfig.getKeytab())).getAbsolutePath();
+                    UserGroupInformation.loginUserFromKeytab(
+                            securityConfig.getPrincipal(), keytabPath);
+                }
 
                 loginUser = UserGroupInformation.getLoginUser();
 
