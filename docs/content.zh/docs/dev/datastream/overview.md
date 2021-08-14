@@ -219,7 +219,7 @@ The `execute()` method will wait for the job to finish and then return a
 `JobExecutionResult`, this contains execution times and accumulator results.
 
 If you don't want to wait for the job to finish, you can trigger asynchronous
-job execution by calling `executeAysnc()` on the `StreamExecutionEnvironment`.
+job execution by calling `executeAsync()` on the `StreamExecutionEnvironment`.
 It will return a `JobClient` with which you can communicate with the job you
 just submitted. For instance, here is how to implement the semantics of
 `execute()` by using `executeAsync()`.
