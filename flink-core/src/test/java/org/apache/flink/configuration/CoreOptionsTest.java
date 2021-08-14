@@ -54,16 +54,15 @@ public class CoreOptionsTest {
 
         config.set(patternOption, Arrays.asList("hello", "world"));
 
-        Assert.assertArrayEquals(new String[]{"hello", "world"}, patternGetter.apply(config));
+        Assert.assertArrayEquals(new String[] {"hello", "world"}, patternGetter.apply(config));
 
         config.set(additionalOption, Arrays.asList("how", "are", "you"));
 
         Assert.assertArrayEquals(
-                new String[]{"hello", "world", "how", "are", "you"},
-                patternGetter.apply(config));
+                new String[] {"hello", "world", "how", "are", "you"}, patternGetter.apply(config));
 
         config.set(patternOption, Collections.emptyList());
 
-        Assert.assertArrayEquals(new String[]{"how", "are", "you"}, patternGetter.apply(config));
+        Assert.assertArrayEquals(new String[] {"how", "are", "you"}, patternGetter.apply(config));
     }
 }
