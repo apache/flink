@@ -26,6 +26,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.BufferedInputStream;
@@ -176,6 +177,10 @@ public class CommonTestUtils {
         waitUntilCondition(
                 () -> {
                     final AccessExecutionGraph graph = executionGraphSupplier.get();
+                    Preconditions.checkState(
+                            !graph.getState().isGloballyTerminalState(),
+                            "Graph is in globally terminal state (%s)",
+                            graph.getState());
                     return graph.getState() == JobStatus.RUNNING
                             && graph.getAllVertices().values().stream()
                                     .allMatch(
