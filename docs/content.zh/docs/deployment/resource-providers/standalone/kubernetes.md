@@ -29,7 +29,7 @@ under the License.
 
 <a name="getting-started"></a>
 
-## 入门指南
+## 入门
 
 本 *入门* 指南描述了如何在 [Kubernetes](https://kubernetes.io) 上部署 *Flink Seesion 集群*。
 
