@@ -52,6 +52,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -238,7 +239,8 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     public void testKafkaSourceMetrics() throws Exception {
         final MetricListener metricListener = new MetricListener();
         final String groupId = "testKafkaSourceMetrics";
-        final TopicPartition tp = new TopicPartition(TOPIC, 0);
+        final TopicPartition tp0 = new TopicPartition(TOPIC, 0);
+        final TopicPartition tp1 = new TopicPartition(TOPIC, 1);
 
         try (KafkaSourceReader<Integer> reader =
                 (KafkaSourceReader<Integer>)
@@ -247,28 +249,32 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                                 groupId,
                                 metricListener.getMetricGroup())) {
 
-            KafkaPartitionSplit split =
-                    new KafkaPartitionSplit(tp, KafkaPartitionSplit.EARLIEST_OFFSET);
-            reader.addSplits(Collections.singletonList(split));
+            KafkaPartitionSplit split0 =
+                    new KafkaPartitionSplit(tp0, KafkaPartitionSplit.EARLIEST_OFFSET);
+            KafkaPartitionSplit split1 =
+                    new KafkaPartitionSplit(tp1, KafkaPartitionSplit.EARLIEST_OFFSET);
+            reader.addSplits(Arrays.asList(split0, split1));
 
             TestingReaderOutput<Integer> output = new TestingReaderOutput<>();
             pollUntil(
                     reader,
                     output,
-                    () -> output.getEmittedRecords().size() == NUM_RECORDS_PER_SPLIT,
+                    () -> output.getEmittedRecords().size() == NUM_RECORDS_PER_SPLIT * 2,
                     String.format(
-                            "Failed to poll %d records until timeout", NUM_RECORDS_PER_SPLIT));
+                            "Failed to poll %d records until timeout", NUM_RECORDS_PER_SPLIT * 2));
 
             // Metric "records-consumed-total" of KafkaConsumer should be NUM_RECORDS_PER_SPLIT
             assertEquals(
-                    NUM_RECORDS_PER_SPLIT,
+                    NUM_RECORDS_PER_SPLIT * 2,
                     getKafkaConsumerMetric("records-consumed-total", metricListener));
 
             // Current consuming offset should be NUM_RECORD_PER_SPLIT - 1
-            assertEquals(NUM_RECORDS_PER_SPLIT - 1, getCurrentOffsetMetric(tp, metricListener));
+            assertEquals(NUM_RECORDS_PER_SPLIT - 1, getCurrentOffsetMetric(tp0, metricListener));
+            assertEquals(NUM_RECORDS_PER_SPLIT - 1, getCurrentOffsetMetric(tp1, metricListener));
 
             // No offset is committed till now
-            assertEquals(INITIAL_OFFSET, getCommittedOffsetMetric(tp, metricListener));
+            assertEquals(INITIAL_OFFSET, getCommittedOffsetMetric(tp0, metricListener));
+            assertEquals(INITIAL_OFFSET, getCommittedOffsetMetric(tp1, metricListener));
 
             // Trigger offset commit
             reader.snapshotState(15213L);
@@ -284,7 +290,8 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             assertEquals(1, getKafkaConsumerMetric("commit-total", metricListener));
 
             // Committed offset should be NUM_RECORD_PER_SPLIT
-            assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp, metricListener));
+            assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp0, metricListener));
+            assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp1, metricListener));
 
             // Number of successful commits should be 1
             assertEquals(
