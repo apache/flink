@@ -54,7 +54,10 @@ public class InMemoryReporterRule implements ExternalResource {
     }
 
     @Override
-    public void before() throws Exception {}
+    public void before() {
+        // FLINK-23785: some metrics may be deregistered even after the test case.
+        inMemoryReporter.applyRemovals();
+    }
 
     @Override
     public void afterTestSuccess() {
