@@ -61,6 +61,7 @@ import static org.apache.flink.streaming.runtime.operators.sink.TestSink.END_OF_
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
@@ -309,7 +310,7 @@ public class SinkITCase extends AbstractTestBase {
                             return i;
                         })
                 .sinkTo(TestSink.newBuilder().setWriter(new MetricWriter()).build())
-                .name("TestSink");
+                .name("MetricTestSink");
         JobClient jobClient = env.executeAsync();
 
         beforeBarrier.get().await();
@@ -326,13 +327,8 @@ public class SinkITCase extends AbstractTestBase {
     private void assertSinkMetrics(
             long processedRecordsPerSubtask, int parallelism, int numSplits) {
         List<OperatorMetricGroup> groups =
-                inMemoryReporter.getReporter().findOperatorMetricGroups("TestSink");
-        //        assertThat(groups, hasSize(parallelism));
-        LOG.info(
-                "groups: {}",
-                groups.stream()
-                        .map(g -> Arrays.toString(g.getScopeComponents()))
-                        .collect(Collectors.toList()));
+                inMemoryReporter.getReporter().findOperatorMetricGroups("MetricTestSink");
+        assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
