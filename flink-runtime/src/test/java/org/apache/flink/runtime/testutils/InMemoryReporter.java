@@ -29,6 +29,8 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -52,6 +54,7 @@ import java.util.stream.Stream;
  * that test cases are properly isolated.
  */
 @Experimental
+@ThreadSafe
 public class InMemoryReporter implements MetricReporter {
     private static final ThreadLocal<InMemoryReporter> REPORTERS =
             ThreadLocal.withInitial(InMemoryReporter::new);
@@ -62,7 +65,7 @@ public class InMemoryReporter implements MetricReporter {
 
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryReporter.class);
 
-    private Map<MetricGroup, Map<String, Metric>> metrics = new HashMap<>();
+    private final Map<MetricGroup, Map<String, Metric>> metrics = new HashMap<>();
     private final Set<MetricGroup> removedGroups = new HashSet<>();
 
     @Override
@@ -70,59 +73,99 @@ public class InMemoryReporter implements MetricReporter {
 
     @Override
     public void close() {
-        metrics.clear();
-        REPORTERS.remove();
+        synchronized (this) {
+            metrics.clear();
+            REPORTERS.remove();
+        }
     }
 
     void applyRemovals() {
-        metrics.keySet().removeAll(removedGroups);
-        removedGroups.clear();
+        synchronized (this) {
+            metrics.keySet().removeAll(removedGroups);
+            removedGroups.clear();
+        }
     }
 
     public Map<String, Metric> getMetricsByIdentifiers() {
-        return getMetricStream().collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        synchronized (this) {
+            return getMetricStream().collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        }
     }
 
     public Map<MetricGroup, Map<String, Metric>> getMetricsByGroup() {
-        return metrics;
+        synchronized (this) {
+            // create a deep copy to avoid concurrent modifications
+            return metrics.entrySet().stream()
+                    .collect(Collectors.toMap(Entry::getKey, e -> new HashMap<>(e.getValue())));
+        }
     }
 
     public Map<String, Metric> getMetricsByGroup(MetricGroup metricGroup) {
-        return metrics.get(metricGroup);
+        synchronized (this) {
+            // create a copy of the inner Map to avoid concurrent modifications
+            return new HashMap<>(metrics.get(metricGroup));
+        }
     }
 
     public Map<String, Metric> findMetrics(String identifierPattern) {
-        return getMetricStream(identifierPattern)
-                .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        synchronized (this) {
+            return getMetricStream(identifierPattern)
+                    .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+        }
     }
 
     public Optional<Metric> findMetric(String patternString) {
-        return getMetricStream(patternString).map(Entry::getValue).findFirst();
+        synchronized (this) {
+            return getMetricStream(patternString).map(Entry::getValue).findFirst();
+        }
     }
 
     public Set<MetricGroup> findGroups(String groupPattern) {
-        return getGroupStream(groupPattern).collect(Collectors.toSet());
+        synchronized (this) {
+            return getGroupStream(groupPattern).collect(Collectors.toSet());
+        }
     }
 
     public Optional<MetricGroup> findGroup(String groupPattern) {
-        return getGroupStream(groupPattern).findFirst();
+        synchronized (this) {
+            return getGroupStream(groupPattern).findFirst();
+        }
     }
 
     public List<OperatorMetricGroup> findOperatorMetricGroups(String operatorPattern) {
         Pattern pattern = Pattern.compile(operatorPattern);
-        return metrics.keySet().stream()
-                .filter(
-                        g ->
-                                g instanceof OperatorMetricGroup
-                                        && pattern.matcher(
-                                                        g.getScopeComponents()[
-                                                                g.getScopeComponents().length - 2])
-                                                .find())
-                .map(OperatorMetricGroup.class::cast)
-                .sorted(
-                        Comparator.comparing(
-                                g -> g.getScopeComponents()[g.getScopeComponents().length - 1]))
-                .collect(Collectors.toList());
+        synchronized (this) {
+            return metrics.keySet().stream()
+                    .filter(
+                            g ->
+                                    g instanceof OperatorMetricGroup
+                                            && pattern.matcher(
+                                                            g.getScopeComponents()[
+                                                                    g.getScopeComponents().length
+                                                                            - 2])
+                                                    .find())
+                    .map(OperatorMetricGroup.class::cast)
+                    .sorted(
+                            Comparator.comparing(
+                                    g -> g.getScopeComponents()[g.getScopeComponents().length - 1]))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    @Override
+    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+        MetricGroup metricGroup = unwrap(group);
+        LOG.debug("Registered {} @ {}", metricName, metricGroup);
+        synchronized (this) {
+            metrics.computeIfAbsent(metricGroup, dummy -> new HashMap<>()).put(metricName, metric);
+        }
+    }
+
+    @Override
+    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
+        synchronized (this) {
+            removedGroups.add(unwrap(group));
+        }
     }
 
     private Stream<Entry<String, Metric>> getMetricStream(String identifierPattern) {
@@ -155,22 +198,10 @@ public class InMemoryReporter implements MetricReporter {
                                         nameMetric.getValue()));
     }
 
-    @Override
-    public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-        MetricGroup metricGroup = unwrap(group);
-        LOG.debug("Registered {} @ {}", metricName, metricGroup);
-        metrics.computeIfAbsent(metricGroup, dummy -> new HashMap<>()).put(metricName, metric);
-    }
-
     private MetricGroup unwrap(MetricGroup group) {
         return group instanceof LogicalScopeProvider
                 ? ((LogicalScopeProvider) group).getWrappedMetricGroup()
                 : group;
-    }
-
-    @Override
-    public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-        removedGroups.add(unwrap(group));
     }
 
     /** The factory for the {@link InMemoryReporter}. */
