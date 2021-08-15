@@ -1553,7 +1553,8 @@ under the License.
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
 						<!-- on, unset, or random -->
-						<checkpointing.changelog>random</checkpointing.changelog>
+                        <!-- disable temporarily for 1.14 release -->
+						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
