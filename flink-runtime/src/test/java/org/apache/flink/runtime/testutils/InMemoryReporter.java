@@ -157,8 +157,9 @@ public class InMemoryReporter implements MetricReporter {
 
     @Override
     public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-        LOG.error(group.getMetricIdentifier(metricName));
-        metrics.computeIfAbsent(unwrap(group), dummy -> new HashMap<>()).put(metricName, metric);
+        MetricGroup metricGroup = unwrap(group);
+        LOG.debug("Registered {} @ {}", metricName, metricGroup);
+        metrics.computeIfAbsent(metricGroup, dummy -> new HashMap<>()).put(metricName, metric);
     }
 
     private MetricGroup unwrap(MetricGroup group) {
