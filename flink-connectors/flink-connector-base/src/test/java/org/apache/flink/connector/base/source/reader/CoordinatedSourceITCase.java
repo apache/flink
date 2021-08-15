@@ -99,7 +99,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         int stopAtRecord1 = 3;
         int stopAtRecord2 = numRecordsPerSplit - 1;
         DataStream<Integer> stream =
-                env.fromSource(source, strategy, "TestingSource")
+                env.fromSource(source, strategy, "MetricTestingSource")
                         .map(
                                 i -> {
                                     if (i % numRecordsPerSplit == stopAtRecord1
@@ -129,7 +129,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
             int parallelism,
             int numSplits) {
         List<OperatorMetricGroup> groups =
-                inMemoryReporter.getReporter().findOperatorMetricGroups("TestingSource");
+                inMemoryReporter.getReporter().findOperatorMetricGroups("MetricTestingSource");
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;

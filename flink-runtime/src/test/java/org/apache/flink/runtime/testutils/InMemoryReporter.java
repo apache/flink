@@ -52,6 +52,11 @@ import java.util.stream.Stream;
  *
  * <p>This class can only be accessed through {@link InMemoryReporterRule#getReporter()} to ensure
  * that test cases are properly isolated.
+ *
+ * <p>Note that at this time, there is not a strong guarantee that metrics from one job in test case
+ * A cannot spill over to a job from test case B if both test cases use the same minicluster - even
+ * when run sequentially. To ensure that assertions against metrics are stable, use rather unique
+ * task and operator names and respective metric patterns.
  */
 @Experimental
 @ThreadSafe
