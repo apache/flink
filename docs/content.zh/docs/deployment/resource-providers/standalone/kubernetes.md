@@ -236,7 +236,7 @@ data:
   ...
 ```
 
-此外，必须使用具有创建、编辑、删除 ConfigMap 权限的 service 账号启动 JobManager 和 TaskManager pod。更多信息，请参考[如何为 pod 配置 service 账号](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) 。
+此外，你必须使用具有创建、编辑、删除 ConfigMap 权限的 service 账号启动 JobManager 和 TaskManager pod。请查看[如何为 pod 配置 service 账号](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)获取更多信息。
 
 当启用了高可用，Flink 会使用自己的 HA 服务进行服务发现。因此，JobManager Pod 会使用 IP 地址而不是 Kubernetes 的 service 名称来作为 `jobmanager.rpc.address` 的配置项启动。完整配置请参考[附录](#appendix)。
 
