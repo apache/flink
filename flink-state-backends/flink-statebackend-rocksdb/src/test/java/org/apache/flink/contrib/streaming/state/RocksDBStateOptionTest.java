@@ -112,7 +112,7 @@ public class RocksDBStateOptionTest {
      * queue.
      */
     @Test
-    public void testMisuseOptimizePointLookupWithPriorityQueue() throws IOException {
+    public void testUseOptimizePointLookupWithPriorityQueue() throws IOException {
         RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
