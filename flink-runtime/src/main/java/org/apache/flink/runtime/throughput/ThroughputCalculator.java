@@ -36,36 +36,50 @@ public class ThroughputCalculator {
     }
 
     public void incomingDataSize(long receivedDataSize) {
-        resumeMeasurement();
+        // Force resuming measurement.
+        if (measurementStartTime == NOT_TRACKED) {
+            measurementStartTime = clock.absoluteTimeMillis();
+        }
         currentAccumulatedDataSize += receivedDataSize;
     }
 
-    /** Mark when the time should not be taken into account. */
-    public void pauseMeasurement() {
+    /**
+     * Mark when the time should not be taken into account.
+     *
+     * @param absoluteTimeMillis Current absolute time received outside to avoid performance drop on
+     *     calling {@link Clock#absoluteTimeMillis()} inside of the method.
+     */
+    public void pauseMeasurement(long absoluteTimeMillis) {
         if (measurementStartTime != NOT_TRACKED) {
-            currentMeasurementTime += clock.relativeTimeMillis() - measurementStartTime;
+            currentMeasurementTime += absoluteTimeMillis - measurementStartTime;
         }
         measurementStartTime = NOT_TRACKED;
     }
 
-    /** Mark when the time should be included to the throughput calculation. */
-    public void resumeMeasurement() {
+    /**
+     * Mark when the time should be included to the throughput calculation.
+     *
+     * @param absoluteTimeMillis Current absolute time received outside to avoid performance drop on
+     *     calling {@link Clock#absoluteTimeMillis()} inside of the method.
+     */
+    public void resumeMeasurement(long absoluteTimeMillis) {
         if (measurementStartTime == NOT_TRACKED) {
-            measurementStartTime = clock.relativeTimeMillis();
+            measurementStartTime = absoluteTimeMillis;
         }
     }
 
     /** @return Calculated throughput based on the collected data for the last period. */
     public long calculateThroughput() {
         if (measurementStartTime != NOT_TRACKED) {
-            currentMeasurementTime += clock.relativeTimeMillis() - measurementStartTime;
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            currentMeasurementTime += absoluteTimeMillis - measurementStartTime;
+            measurementStartTime = absoluteTimeMillis;
         }
 
         long throughput =
                 throughputEMA.calculateThroughput(
                         currentAccumulatedDataSize, currentMeasurementTime);
 
-        measurementStartTime = clock.relativeTimeMillis();
         currentAccumulatedDataSize = currentMeasurementTime = 0;
 
         return throughput;

@@ -1543,11 +1543,11 @@ public class StreamTaskTest extends TestLogger {
 
             SystemClock clock = SystemClock.getInstance();
 
-            long startTs = clock.relativeTimeMillis();
+            long startTs = clock.absoluteTimeMillis();
             throughputCalculator.incomingDataSize(incomingDataSize);
             task.invoke();
             long resultThroughput = throughputCalculator.calculateThroughput();
-            long totalDuration = clock.relativeTimeMillis() - startTs;
+            long totalDuration = clock.absoluteTimeMillis() - startTs;
 
             assertThat(
                     resultThroughput,
