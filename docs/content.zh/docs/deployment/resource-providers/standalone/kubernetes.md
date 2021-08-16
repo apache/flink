@@ -187,7 +187,6 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 <a name="debugging-and-log-access"></a>
 
-
 ### 调试和访问日志
 
 通过查看 Flink 的日志文件，可以很轻松地发现许多常见错误。如果你有权访问 Flink 的 Web 用户界面，那么可以在页面上访问 JobManager 和 TaskManager 日志。
@@ -242,9 +241,9 @@ data:
 
 <a name="standby-jobManagers"></a>
 
-####  备用 JobManagers
+####  Standby JobManagers
 
-通常，只启动一个 JobManager pod 就足够了，因为一旦 pod 崩溃，Kubernetes 就会重新启动它。如果要实现更快的恢复，需要将 `jobmanager-session-deployment-ha.yaml` 中的 `replicas` 配置 或 `jobmanager-application-ha.yaml` 中的 `parallelism` 配置设定为大于 `1` 的值来启动备用 JobManagers。
+通常，只启动一个 JobManager pod 就足够了，因为一旦 pod 崩溃，Kubernetes 就会重新启动它。如果要实现更快的恢复，需要将 `jobmanager-session-deployment-ha.yaml` 中的 `replicas` 配置 或 `jobmanager-application-ha.yaml` 中的 `parallelism` 配置设定为大于 `1` 的整型值来启动 Standby JobManagers。
 
 <a name="enabling-queryable-state"></a>
 
