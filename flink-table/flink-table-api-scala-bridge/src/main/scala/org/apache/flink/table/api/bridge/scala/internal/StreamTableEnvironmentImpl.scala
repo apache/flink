@@ -34,9 +34,9 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
+import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner}
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression}
-import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations._
@@ -491,14 +491,8 @@ object StreamTableEnvironmentImpl {
 
     val executor = lookupExecutor(classLoader, settings.getExecutor, executionEnvironment)
 
-    val plannerProperties = settings.toPlannerProperties
-    val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
-      .create(
-        plannerProperties,
-        executor,
-        tableConfig,
-        functionCatalog,
-        catalogManager)
+    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
+      catalogManager, functionCatalog)
 
     new StreamTableEnvironmentImpl(
       catalogManager,

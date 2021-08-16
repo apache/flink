@@ -50,12 +50,11 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
-import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -83,7 +82,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -127,11 +125,11 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             TableConfig tableConfig) {
 
         // temporary solution until FLINK-15635 is fixed
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-        ModuleManager moduleManager = new ModuleManager();
+        final ModuleManager moduleManager = new ModuleManager();
 
-        CatalogManager catalogManager =
+        final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(classLoader)
                         .config(tableConfig.getConfiguration())
@@ -143,21 +141,19 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
                         .executionConfig(executionEnvironment.getConfig())
                         .build();
 
-        FunctionCatalog functionCatalog =
+        final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
         final Executor executor =
                 lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
 
-        Map<String, String> plannerProperties = settings.toPlannerProperties();
-        Planner planner =
-                ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-                        .create(
-                                plannerProperties,
-                                executor,
-                                tableConfig,
-                                functionCatalog,
-                                catalogManager);
+        final Planner planner =
+                PlannerFactoryUtil.createPlanner(
+                        settings.getPlanner(),
+                        executor,
+                        tableConfig,
+                        catalogManager,
+                        functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
