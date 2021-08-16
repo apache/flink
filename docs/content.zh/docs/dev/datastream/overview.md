@@ -42,8 +42,7 @@ DataStream 是什么?
 ----------------------
 
 DataStream API 得名于特殊的 `DataStream` 类，该类用于表示 Flink 程序中的数据集合。你可以想象
-它们是可以包含重复项的不可变数据集合。这些数据可以是有限的，也可以是无限的，但用于处理它们的API是
-相同的。
+它们是可以包含重复项的不可变数据集合。这些数据可以是有限的，也可以是无限的，但用于处理它们的API是相同的。
 
 `DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作（也叫作转换）处理它们。
 
@@ -67,7 +66,7 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 
 现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api" name="org.apache.flink.streaming.api" >}} 中找到。
 
-`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` 对象：
+`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` ：
 
 ```java
 getExecutionEnvironment()
@@ -102,7 +101,7 @@ DataStream<Integer> parsed = input.map(new MapFunction<String, Integer>() {
 });
 ```
 
-这将创建一个新的 DataStream，将原始集合中的每一个字符串转换为一个整数。
+这将通过把原始集合中的每一个字符串转换为一个整数来创建一个新的 DataStream。
 
 一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
@@ -147,7 +146,7 @@ val input: DataSet[String] = ...
 val mapped = input.map { x => x.toInt }
 ```
 
-这将创建一个新的 DataStream，将原始集合中的每一个字符串转换为一个整数。
+这将通过把原始集合中的每一个字符串转换为一个整数来创建一个新的 DataStream。
 
 一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
@@ -290,7 +289,7 @@ Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutio
 
     *重要提示：*
 
-    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
+    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "精确一次" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
     2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
@@ -317,7 +316,7 @@ Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutio
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 附带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
+Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
 通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
@@ -335,7 +334,7 @@ Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutio
 
     *重要提示：*
 
-    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
+    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 “精确一次” 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
     2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
@@ -382,69 +381,37 @@ Data Sinks
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
 {{< tab "Java" >}}
 
-数据 sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。
+Data sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。Flink 自带了许多内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
-Data sinks consume DataStreams and forward them to files, sockets, external systems, or print them.
-Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
-DataStreams:
-
-- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
-  obtained by calling the *toString()* method of each element.
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
-  delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
-
-- `print()` / `printToErr()`  - Prints the *toString()* value
-of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
-prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
-greater than 1, the output will also be prepended with the identifier of the task which produced the output.
-
-- `writeUsingOutputFormat()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
-  custom object-to-bytes conversion.
-
-- `writeToSocket` - Writes elements to a socket according to a `SerializationSchema`
-
-- `addSink` - Invokes a custom sink function. Flink comes bundled with connectors to other systems (such as
-    Apache Kafka) that are implemented as sink functions.
+- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。这些字符串是通过调用每个元素的 toString() 方法获得的。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成 CSV 文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `print()` / `printToErr()`  - 在标准输出/标准错误流上输出每个元素调用 *toString()* 方法返回的值。
+  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同 *print* 的调用。如果并行度大于1，输出结果也将以产生输出的任务的标识符作为前缀。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 方法和自定义文件输出的基类。支持
+  自定义 object 到 byte的转换。
+- `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
+- `addSink` -调用自定义的 sink function。Flink 与其他系统（如Apache Kafka）的连接器捆绑在一起，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Data sinks consume DataStreams and forward them to files, sockets, external systems, or print them.
-Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
-DataStreams:
+Data sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。Flink 自带了许多内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
-- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
-  obtained by calling the *toString()* method of each element.
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
-  delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
-
-- `print()` / `printToErr()`  - Prints the *toString()* value
-of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
-prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
-greater than 1, the output will also be prepended with the identifier of the task which produced the output.
-
-- `writeUsingOutputFormat()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
-  custom object-to-bytes conversion.
-
-- `writeToSocket` - Writes elements to a socket according to a `SerializationSchema`
-
-- `addSink` - Invokes a custom sink function. Flink comes bundled with connectors to other systems (such as
-    Apache Kafka) that are implemented as sink functions.
+- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。这些字符串是通过调用每个元素的 toString() 方法获得的。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成 CSV 文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `print()` / `printToErr()`  - 在标准输出/标准错误流上输出每个元素调用 *toString()* 方法返回的值。
+  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同 *print* 的调用。如果并行度大于1，输出结果也将以产生输出的任务的标识符作为前缀。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 方法和自定义文件输出的基类。支持
+  自定义 object 到 byte的转换。
+- `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
+- `addSink` -调用自定义的 sink function。Flink 与其他系统（如Apache Kafka）的连接器捆绑在一起，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< /tabs >}}
 
-Note that the `write*()` methods on `DataStream` are mainly intended for debugging purposes.
-They are not participating in Flink's checkpointing, this means these functions usually have
-at-least-once semantics. The data flushing to the target system depends on the implementation of the
-OutputFormat. This means that not all elements send to the OutputFormat are immediately showing up
-in the target system. Also, in failure cases, those records might be lost.
+注意，DataStream 的 `write*()` 方法主要用于调试目的。它们不参与 Flink 的检查点，这意味着这些函数拥有至少有一次语义。将数据刷新到目标系统取决于OutputFormat 的实现。这意味着不是所有发送到 OutputFormat 的元素都会立即显示在目标系统中。此外，在失败的情况下，这些记录可能会丢失。
 
-For reliable, exactly-once delivery of a stream into a file system, use the `StreamingFileSink`.
-Also, custom implementations through the `.addSink(...)` method can participate in Flink's checkpointing
-for exactly-once semantics.
+为了可靠地、准确地将 stream 传输到文件系统中，请使用 `StreamingFileSink`。此外，通过自定义实现类的 `.addSink(...)` 方法的也可以参与 Flink 的检查点，以实现精准一次性语义。
 
 {{< top >}}
 
@@ -711,7 +678,7 @@ parallelism = 1).
 
 ### Iterator Data Sink
 
-Flink also provides a sink to collect DataStream results for testing and debugging purposes. It can be used as follows:
+Flink 还提供了一个 sink 来收集 DataStream 的结果，它主要用于测试和调试目的。可以按以下方式使用。
 
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
