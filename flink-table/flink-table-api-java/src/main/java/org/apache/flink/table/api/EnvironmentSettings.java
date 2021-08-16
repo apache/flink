@@ -25,12 +25,10 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 
 import javax.annotation.Nullable;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
@@ -63,13 +61,11 @@ public class EnvironmentSettings {
     private static final EnvironmentSettings DEFAULT_BATCH_MODE_SETTINGS =
             EnvironmentSettings.newInstance().inBatchMode().build();
 
-    public static final String STREAMING_MODE = "streaming-mode";
-    public static final String CLASS_NAME = "class-name";
     public static final String DEFAULT_BUILTIN_CATALOG = "default_catalog";
     public static final String DEFAULT_BUILTIN_DATABASE = "default_database";
 
-    /** Canonical name of the {@link Planner} class to use. */
-    private final String plannerClass;
+    /** Factory identifier of the {@link Planner} to use. */
+    private final String planner;
 
     /** Factory identifier of the {@link Executor} to use. */
     private final String executor;
@@ -93,12 +89,12 @@ public class EnvironmentSettings {
     private final boolean isStreamingMode;
 
     private EnvironmentSettings(
-            @Nullable String plannerClass,
+            String planner,
             @Nullable String executor,
             String builtInCatalogName,
             String builtInDatabaseName,
             boolean isStreamingMode) {
-        this.plannerClass = plannerClass;
+        this.planner = planner;
         this.executor = executor;
         this.builtInCatalogName = builtInCatalogName;
         this.builtInDatabaseName = builtInDatabaseName;
@@ -211,34 +207,23 @@ public class EnvironmentSettings {
         return true;
     }
 
+    /** Returns the identifier of the {@link Planner} to be used. */
+    @Internal
+    public String getPlanner() {
+        return planner;
+    }
+
     /** Returns the {@link Executor} that should submit and execute table programs. */
     @Internal
     public String getExecutor() {
         return executor;
     }
 
-    @Internal
-    public Map<String, String> toPlannerProperties() {
-        Map<String, String> properties = new HashMap<>(toCommonProperties());
-        if (plannerClass != null) {
-            properties.put(CLASS_NAME, plannerClass);
-        }
-        return properties;
-    }
-
-    private Map<String, String> toCommonProperties() {
-        Map<String, String> properties = new HashMap<>();
-        properties.put(STREAMING_MODE, Boolean.toString(isStreamingMode));
-        return properties;
-    }
-
     /** A builder for {@link EnvironmentSettings}. */
     public static class Builder {
-        private static final String BLINK_PLANNER_FACTORY =
-                "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
+        private final String planner = PlannerFactory.DEFAULT_IDENTIFIER;
+        private final String executor = ExecutorFactory.DEFAULT_IDENTIFIER;
 
-        private String plannerClass = BLINK_PLANNER_FACTORY;
-        private String executor = ExecutorFactory.DEFAULT_IDENTIFIER;
         private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
         private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
         private boolean isStreamingMode = true;
@@ -267,7 +252,6 @@ public class EnvironmentSettings {
          */
         @Deprecated
         public Builder useBlinkPlanner() {
-            this.plannerClass = BLINK_PLANNER_FACTORY;
             return this;
         }
 
@@ -284,7 +268,6 @@ public class EnvironmentSettings {
          */
         @Deprecated
         public Builder useAnyPlanner() {
-            this.plannerClass = null;
             return this;
         }
 
@@ -341,11 +324,7 @@ public class EnvironmentSettings {
         /** Returns an immutable instance of {@link EnvironmentSettings}. */
         public EnvironmentSettings build() {
             return new EnvironmentSettings(
-                    plannerClass,
-                    executor,
-                    builtInCatalogName,
-                    builtInDatabaseName,
-                    isStreamingMode);
+                    planner, executor, builtInCatalogName, builtInDatabaseName, isStreamingMode);
         }
     }
 }

@@ -31,15 +31,13 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
 import java.net.URLClassLoader;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
@@ -135,15 +133,9 @@ public class ExecutionContext {
             FunctionCatalog functionCatalog,
             ClassLoader userClassLoader) {
 
-        final Map<String, String> plannerProperties = settings.toPlannerProperties();
         final Planner planner =
-                ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-                        .create(
-                                plannerProperties,
-                                executor,
-                                config,
-                                functionCatalog,
-                                catalogManager);
+                PlannerFactoryUtil.createPlanner(
+                        settings.getPlanner(), executor, config, catalogManager, functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
