@@ -532,7 +532,7 @@ kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1 # 通过设置大于 1 的值来开启备用 JobManager
+  replicas: 1 # 通过设置大于 1 的整型值来开启备用 JobManager
   selector:
     matchLabels:
       app: flink
