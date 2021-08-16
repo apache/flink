@@ -203,10 +203,12 @@ public class CommonTestUtils {
             throw new IllegalArgumentException("The timeout must be positive.");
         }
         long startingTime = System.currentTimeMillis();
-        while (!condition.get() && System.currentTimeMillis() - startingTime < timeoutMs) {
+        boolean conditionResult = condition.get();
+        while (!conditionResult && System.currentTimeMillis() - startingTime < timeoutMs) {
+            conditionResult = condition.get();
             Thread.sleep(1);
         }
-        if (!condition.get()) {
+        if (!conditionResult) {
             throw new TimeoutException(errorMsg);
         }
     }
