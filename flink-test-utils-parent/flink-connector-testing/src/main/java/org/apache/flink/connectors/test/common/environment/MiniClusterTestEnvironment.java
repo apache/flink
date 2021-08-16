@@ -87,7 +87,7 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
         CommonTestUtils.waitForJobStatus(
                 jobClient,
                 Arrays.asList(JobStatus.FAILING, JobStatus.FAILED, JobStatus.RESTARTING),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+                Deadline.fromNow(Duration.ofMinutes(5)));
         afterFailAction.run();
         startTaskManager();
     }
