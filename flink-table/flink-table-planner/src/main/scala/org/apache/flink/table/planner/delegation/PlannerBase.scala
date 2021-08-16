@@ -52,17 +52,17 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_S
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.tools.FrameworkConfig
-
 import java.lang.{Long => JLong}
 import java.util
 import java.util.TimeZone
+
+import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserContext
 
 import _root_.scala.collection.JavaConversions._
 
@@ -156,10 +156,12 @@ abstract class PlannerBase(
   }
 
   def createNewParser: Parser = {
-    val parserProps = Map(TableConfigOptions.TABLE_SQL_DIALECT.key() ->
-      getTableConfig.getSqlDialect.name().toLowerCase)
-    ComponentFactoryService.find(classOf[ParserFactory], parserProps)
-      .create(catalogManager, plannerContext)
+    val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
+    val parserFactory = FactoryUtil.discoverFactory(Thread.currentThread.getContextClassLoader,
+      classOf[ParserFactory], factoryIdentifier)
+
+    val context = new DefaultParserContext(catalogManager, plannerContext)
+    parserFactory.create(context)
   }
 
   override def getParser: Parser = {
