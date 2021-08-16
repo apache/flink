@@ -252,7 +252,7 @@ data:
 如果你为 TaskManager 创建了 `NodePort` service，那么你就可以访问 TaskManager 的 Queryable State 服务：
 
   1. 运行 `kubectl create -f taskmanager-query-state-service.yaml` 来为 `taskmanager` pod 创建 `NodePort` service。`taskmanager-query-state-service.yaml` 的示例文件可以从[附录](#common-cluster-resource-definitions)中找到。
-  2. 运行 `kubectl get svc flink-taskmanager-query-state` 来查询 service 对应 node-port 的端口号。然后可以创建 [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) 来提交状态查询。
+  2. 运行 `kubectl get svc flink-taskmanager-query-state` 来查询 service 对应 node-port 的端口号。然后你就可以创建 [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) 来提交状态查询。
 
 <a name="using-standalone-kubernetes-with-reactive-mode"></a>
 
