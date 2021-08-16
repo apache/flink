@@ -54,7 +54,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -402,8 +401,7 @@ public class MultipleInputStreamTaskTest {
                     public InternalOperatorMetricGroup getOrAddOperator(
                             OperatorID operatorID, String name) {
                         InternalOperatorMetricGroup operatorMetricGroup =
-                                new InternalOperatorMetricGroup(
-                                        NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+                                super.getOrAddOperator(operatorID, name);
                         operatorMetrics.put(name, operatorMetricGroup);
                         return operatorMetricGroup;
                     }
