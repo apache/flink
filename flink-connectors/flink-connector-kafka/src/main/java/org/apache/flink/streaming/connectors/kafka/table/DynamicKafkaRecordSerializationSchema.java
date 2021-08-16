@@ -18,8 +18,9 @@
 package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
@@ -31,10 +32,7 @@ import javax.annotation.Nullable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * SerializationSchema used by {@link KafkaDynamicSink} to configure a {@link
- * org.apache.flink.streaming.connectors.kafka.sink.KafkaSink}.
- */
+/** SerializationSchema used by {@link KafkaDynamicSink} to configure a {@link KafkaSink}. */
 class DynamicKafkaRecordSerializationSchema implements KafkaRecordSerializationSchema<RowData> {
 
     private final String topic;
