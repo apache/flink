@@ -300,7 +300,7 @@ data:
     rootLogger.appenderRef.console.ref = ConsoleAppender
     rootLogger.appenderRef.rolling.ref = RollingFileAppender
 
-    # 如果只想改变 Flink 的日志行为可以取消如下的注释符
+    # 如果你只想改变 Flink 的日志行为则可以取消如下的注释部分
     #logger.flink.name = org.apache.flink
     #logger.flink.level = INFO
 
