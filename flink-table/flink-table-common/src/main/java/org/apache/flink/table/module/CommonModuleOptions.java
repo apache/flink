@@ -30,7 +30,10 @@ public class CommonModuleOptions {
     /**
      * {@link ConfigOption} which is used during module discovery to match it against {@link
      * Factory#factoryIdentifier()}.
+     *
+     * @deprecated This is only required for the legacy factory stack
      */
+    @Deprecated
     public static final ConfigOption<String> MODULE_TYPE =
             ConfigOptions.key("type").stringType().noDefaultValue();
 }

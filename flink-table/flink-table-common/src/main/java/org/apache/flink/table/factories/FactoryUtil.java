@@ -50,6 +50,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -310,30 +311,43 @@ public final class FactoryUtil {
      * instead.
      */
     public static Module createModule(
-            Map<String, String> options, ReadableConfig configuration, ClassLoader classLoader) {
+            String moduleName,
+            Map<String, String> options,
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
+        if (options.containsKey(MODULE_TYPE.key())) {
+            throw new ValidationException(
+                    String.format(
+                            "Option '%s' = '%s' is not supported since module name "
+                                    + "is used to find module",
+                            MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
+        }
+
         try {
+            final Map<String, String> optionsWithType = new HashMap<>(options);
+            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+
             final ModuleFactory legacyFactory =
-                    TableFactoryService.find(ModuleFactory.class, options, classLoader);
-            return legacyFactory.createModule(options);
+                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
+            return legacyFactory.createModule(optionsWithType);
         } catch (NoMatchingTableFactoryException e) {
             final DefaultModuleContext discoveryContext =
                     new DefaultModuleContext(options, configuration, classLoader);
             try {
-                final ModuleFactory factory = getModuleFactory(discoveryContext);
-
-                final Map<String, String> factoryOptions =
-                        options.entrySet().stream()
-                                .filter(entry -> !MODULE_TYPE.key().equals(entry.getKey()))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                final ModuleFactory factory =
+                        discoverFactory(
+                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                                ModuleFactory.class,
+                                moduleName);
 
                 final DefaultModuleContext context =
-                        new DefaultModuleContext(factoryOptions, configuration, classLoader);
+                        new DefaultModuleContext(options, configuration, classLoader);
                 return factory.createModule(context);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
                                 "Unable to create module '%s'.%n%nModule options are:%n%s",
-                                options.get(MODULE_TYPE.key()),
+                                moduleName,
                                 options.entrySet().stream()
                                         .map(
                                                 optionEntry ->
@@ -557,18 +571,6 @@ public final class FactoryUtil {
         }
 
         return discoverFactory(context.getClassLoader(), CatalogFactory.class, catalogType);
-    }
-
-    private static ModuleFactory getModuleFactory(ModuleFactory.Context context) {
-        final String moduleType = context.getOptions().get(MODULE_TYPE.key());
-        if (moduleType == null) {
-            throw new ValidationException(
-                    String.format(
-                            "Module options do not contain an option key '%s' for discovering a module.",
-                            MODULE_TYPE.key()));
-        }
-
-        return discoverFactory(context.getClassLoader(), ModuleFactory.class, moduleType);
     }
 
     private static ValidationException enrichNoMatchingConnectorError(

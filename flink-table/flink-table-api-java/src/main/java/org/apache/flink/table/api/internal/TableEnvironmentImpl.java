@@ -164,7 +164,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
-import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
@@ -1330,20 +1329,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResult loadModule(LoadModuleOperation operation) {
         final String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
-            final Map<String, String> options = new HashMap<>(operation.getOptions());
-            if (options.containsKey(MODULE_TYPE.key())) {
-                throw new ValidationException(
-                        String.format(
-                                "Option '%s' = '%s' is not supported since module name "
-                                        + "is used to find module",
-                                MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
-            }
-
-            options.put(MODULE_TYPE.key(), operation.getModuleName());
-
             final Module module =
                     FactoryUtil.createModule(
-                            options, tableConfig.getConfiguration(), userClassLoader);
+                            operation.getModuleName(),
+                            operation.getOptions(),
+                            tableConfig.getConfiguration(),
+                            userClassLoader);
             moduleManager.loadModule(operation.getModuleName(), module);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {

@@ -19,13 +19,11 @@ package org.apache.flink.table.module.hive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.module.CommonModuleOptions;
 import org.apache.flink.table.module.Module;
 
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -35,13 +33,10 @@ public class HiveModuleFactoryTest {
     public void test() {
         final HiveModule expected = new HiveModule();
 
-        final Map<String, String> options =
-                Collections.singletonMap(
-                        CommonModuleOptions.MODULE_TYPE.key(), HiveModuleFactory.IDENTIFIER);
-
         final Module actualModule =
                 FactoryUtil.createModule(
-                        options,
+                        HiveModuleFactory.IDENTIFIER,
+                        Collections.emptyMap(),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader());
 

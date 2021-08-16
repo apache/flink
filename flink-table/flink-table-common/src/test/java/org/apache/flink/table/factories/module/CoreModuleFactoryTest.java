@@ -20,15 +20,13 @@ package org.apache.flink.table.factories.module;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.module.CommonModuleOptions;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.CoreModuleFactory;
 import org.apache.flink.table.module.Module;
 
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
@@ -42,12 +40,10 @@ public class CoreModuleFactoryTest {
     public void test() {
         final CoreModule expectedModule = CoreModule.INSTANCE;
 
-        final Map<String, String> options = new HashMap<>();
-        options.put(CommonModuleOptions.MODULE_TYPE.key(), CoreModuleFactory.IDENTIFIER);
-
         final Module actualModule =
                 FactoryUtil.createModule(
-                        options,
+                        CoreModuleFactory.IDENTIFIER,
+                        Collections.emptyMap(),
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader());
 
