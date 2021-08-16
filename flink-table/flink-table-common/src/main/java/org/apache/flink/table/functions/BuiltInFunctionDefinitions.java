@@ -65,6 +65,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
+import static org.apache.flink.table.types.inference.TypeStrategies.forceNullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
@@ -1519,7 +1520,7 @@ public final class BuiltInFunctionDefinitions {
                                     ANY,
                                     symbol(JsonValueOnEmptyOrError.class),
                                     ANY))
-                    .outputTypeStrategy(nullable(argument(2)))
+                    .outputTypeStrategy(forceNullable(argument(2)))
                     .runtimeDeferred()
                     .build();
 

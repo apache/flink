@@ -22,13 +22,11 @@ import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -58,24 +56,11 @@ class JsonValueConverter extends CustomizedConverter {
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(context.getRelBuilder());
         final RelDataType returnRelType =
                 typeFactory.createFieldTypeFromLogicalType(
-                        getExplicitReturnType(call).getLogicalType());
+                        call.getOutputDataType().getLogicalType());
 
         return context.getRelBuilder()
                 .getRexBuilder()
                 .makeCall(returnRelType, FlinkSqlOperatorTable.JSON_VALUE, operands);
-    }
-
-    /** Returns the expected return type. */
-    private DataType getExplicitReturnType(CallExpression call) {
-        final Expression expression = call.getChildren().get(2);
-        if (!(expression instanceof TypeLiteralExpression)) {
-            throw new TableException(
-                    String.format(
-                            "Expected a type literal, but got '%s' instead. This is a bug. Please consider filing an issue.",
-                            expression.getClass().getSimpleName()));
-        }
-
-        return ((TypeLiteralExpression) expression).getOutputDataType();
     }
 
     private List<RexNode> getBehaviorOperands(
