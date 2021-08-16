@@ -63,6 +63,7 @@ class TableFunc1 extends TableFunction[String] {
 }
 
 @SerialVersionUID(1L)
+@DataTypeHint("ROW<f0 STRING, f1 INT>")
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
