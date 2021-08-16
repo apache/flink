@@ -322,7 +322,7 @@ data:
     appender.console.layout.type = PatternLayout
     appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 
-    # 将所有 info 级别的日志输出到 rolling file
+    # 将所有 info 级别的日志输出到指定的 rolling file
     appender.rolling.name = RollingFileAppender
     appender.rolling.type = RollingFile
     appender.rolling.append = false
