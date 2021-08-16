@@ -91,7 +91,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1050,6 +1052,56 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void pendingSlotRequestsOfVerticesToRestartWillNotBeFulfilledByReturnedSlots()
+            throws Exception {
+        final int parallelism = 10;
+        final JobGraph jobGraph = sourceSinkJobGraph(parallelism);
+        testExecutionSlotAllocator.disableAutoCompletePendingRequests();
+        testExecutionSlotAllocator.enableCompletePendingRequestsWithReturnedSlots();
+
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        new RestartAllFailoverStrategy.Factory());
+        scheduler.startScheduling();
+
+        final ExecutionVertex ev1 =
+                Iterables.get(scheduler.getExecutionGraph().getAllExecutionVertices(), 0);
+
+        final Set<CompletableFuture<LogicalSlot>> pendingLogicalSlotFutures =
+                testExecutionSlotAllocator.getPendingRequests().values().stream()
+                        .map(SlotExecutionVertexAssignment::getLogicalSlotFuture)
+                        .collect(Collectors.toSet());
+        assertThat(pendingLogicalSlotFutures, hasSize(parallelism * 2));
+
+        testExecutionSlotAllocator.completePendingRequest(ev1.getID());
+        assertThat(
+                pendingLogicalSlotFutures.stream().filter(CompletableFuture::isDone).count(),
+                is(1L));
+
+        final String exceptionMessage = "expected exception";
+        scheduler.updateTaskExecutionState(
+                new TaskExecutionState(
+                        ev1.getCurrentExecutionAttempt().getAttemptId(),
+                        ExecutionState.FAILED,
+                        new RuntimeException(exceptionMessage)));
+
+        assertThat(testExecutionSlotAllocator.getPendingRequests().keySet(), hasSize(0));
+
+        // the failed task will return its slot before triggering failover. And the slot
+        // will be returned and re-assigned to another task which is waiting for a slot.
+        // failover will be triggered after that and the re-assigned slot will be returned
+        // once the attached task is canceled, but the slot will not be assigned to other
+        // tasks which are identified to be restarted soon.
+        assertThat(testExecutionSlotAllocator.getReturnedSlots(), hasSize(2));
+        assertThat(
+                pendingLogicalSlotFutures.stream().filter(CompletableFuture::isCancelled).count(),
+                is(parallelism * 2L - 2L));
+    }
+
+    @Test
     public void testExceptionHistoryWithGlobalFailOver() {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
@@ -1502,6 +1554,21 @@ public class DefaultSchedulerTest extends TestLogger {
 
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+
+        return JobGraphTestUtils.streamingJobGraph(source, sink);
+    }
+
+    private static JobGraph sourceSinkJobGraph(final int parallelism) {
+        final JobVertex source = new JobVertex("source");
+        source.setParallelism(parallelism);
+        source.setInvokableClass(NoOpInvokable.class);
+
+        final JobVertex sink = new JobVertex("sink");
+        sink.setParallelism(parallelism);
+        sink.setInvokableClass(NoOpInvokable.class);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
