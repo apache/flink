@@ -22,11 +22,14 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
@@ -64,6 +67,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
@@ -71,6 +75,8 @@ import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 /** The util class help to prepare Python env and run the python process. */
 final class PythonEnvUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
+
+    private static final String PYTHON_ARCHIVES_DIR = "python-archives";
 
     static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
 
@@ -85,6 +91,8 @@ final class PythonEnvUtils {
     /** Wraps Python exec environment. */
     static class PythonEnvironment {
         String tempDirectory;
+
+        String archivesDirectory;
 
         String pythonExec = OperatingSystem.isWindows() ? "python.exe" : "python";
 
@@ -137,6 +145,48 @@ final class PythonEnvUtils {
                             .collect(Collectors.toList());
             addToPythonPath(env, pythonFiles);
         }
+
+        // 5. set the archives directory as the working directory, then user could access the
+        // content of the archives via relative path
+        if (config.getOptional(PYTHON_ARCHIVES).isPresent()
+                && (config.getOptional(PYTHON_CLIENT_EXECUTABLE).isPresent()
+                        || !StringUtils.isNullOrWhitespaceOnly(
+                                System.getenv(PYFLINK_CLIENT_EXECUTABLE)))) {
+            env.archivesDirectory = String.join(File.separator, tmpDir, PYTHON_ARCHIVES_DIR);
+
+            // extract archives to archives directory
+            config.getOptional(PYTHON_ARCHIVES)
+                    .ifPresent(
+                            pyArchives -> {
+                                for (String archive : pyArchives.split(FILE_DELIMITER)) {
+                                    Path archivePath;
+                                    String targetDir;
+                                    if (archive.contains(PythonDependencyUtils.PARAM_DELIMITER)) {
+                                        String[] filePathAndTargetDir =
+                                                archive.split(
+                                                        PythonDependencyUtils.PARAM_DELIMITER, 2);
+                                        archivePath = new Path(filePathAndTargetDir[0]);
+                                        targetDir = filePathAndTargetDir[1];
+                                    } else {
+                                        archivePath = new Path(archive);
+                                        targetDir = archivePath.getName();
+                                    }
+                                    try {
+                                        ZipUtils.extractZipFileWithPermissions(
+                                                archivePath.getPath(),
+                                                String.join(
+                                                        File.separator,
+                                                        env.archivesDirectory,
+                                                        targetDir));
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(
+                                                "Extract archives to archives directory failed.",
+                                                e);
+                                    }
+                                }
+                            });
+        }
+
         if (entryPointScript != null) {
             addToPythonPath(env, Collections.singletonList(new Path(entryPointScript)));
         }
@@ -268,6 +318,9 @@ final class PythonEnvUtils {
                         "PYTHONPATH",
                         String.join(File.pathSeparator, pythonEnv.pythonPath, defaultPythonPath));
             }
+        }
+        if (pythonEnv.archivesDirectory != null) {
+            pythonProcessBuilder.directory(new File(pythonEnv.archivesDirectory));
         }
         pythonEnv.systemEnv.forEach(env::put);
         commands.add(0, pythonEnv.pythonExec);
