@@ -258,7 +258,7 @@ data:
 
 ### 在 Reactive 模式下使用 Standalone Kubernetes
 
-[Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) 允许在一种模式下运行 Flink，在这种模式下，*Application 集群* 始终根据可用资源调整作业并行度。与 Kubernetes 结合使用，TaskManager 部署的副本数决定了可用资源。增加副本数将扩大作业规模，减少它会触发缩小。通过使用 [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) 也可以自动实现该功能。
+[Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) 允许在 *Application 集群* 始终根据可用资源调整作业并行度的模式下运行 Flink。与 Kubernetes 结合使用，TaskManager 部署的副本数决定了可用资源。增加副本数将扩大作业规模，而减少副本数将会触发缩减作业规模。通过使用 [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) 也可以自动实现该功能。
 
 要在 Kubernetes 上使用 Reactive Mode，请按照[使用 Application 集群部署作业](#deploy-application-cluster) 执行相同的操作。但是要使用 `flink-reactive-mode-configuration-configmap.yaml` 配置文件来代替 `flink-configuration-configmap.yaml`。该文件包含了针对 Flink 的 `scheduler-mode: reactive` 配置。
 
