@@ -28,4 +28,6 @@ public class HiveModuleOptions {
 
     public static final ConfigOption<String> HIVE_VERSION =
             ConfigOptions.key("hive-version").stringType().noDefaultValue();
+
+    private HiveModuleOptions() {}
 }
