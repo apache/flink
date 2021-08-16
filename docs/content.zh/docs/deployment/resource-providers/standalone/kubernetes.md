@@ -25,6 +25,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="kubernetes-setup"></a>
+
 # Kubernetes 安装
 
 <a name="getting-started"></a>
@@ -532,7 +534,7 @@ kind: Deployment
 metadata:
   name: flink-jobmanager
 spec:
-  replicas: 1 # 通过设置大于 1 的整型值来开启备用 JobManager
+  replicas: 1 # 通过设置大于 1 的整型值来开启 Standby JobManager
   selector:
     matchLabels:
       app: flink
@@ -694,7 +696,7 @@ kind: Job
 metadata:
   name: flink-jobmanager
 spec:
-  parallelism: 1 # 通过设置大于 1 的值来开启备用 JobManager
+  parallelism: 1 # 通过设置大于 1 的整型值来开启 Standby JobManager
   template:
     metadata:
       labels:
