@@ -172,11 +172,8 @@ class CorrelateTest extends TableTestBase {
   @Test
   def testFlatMap(): Unit = {
     val util = streamTestUtil()
-
-    val func2 = new TableFunc2
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'f1, 'f2, 'f3)
-    val resultTable = sourceTable
-      .flatMap(func2('f3))
+    val resultTable = sourceTable.flatMap(call(classOf[TableFunc2], 'f3))
     util.verifyExecPlan(resultTable)
   }
 
