@@ -37,6 +37,7 @@ import java.util.Set;
  * db.h</a> for more information.
  */
 public class RocksDBNativeMetricOptions implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     public static final String METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY =
             "state.backend.rocksdb.metrics" + ".column-family-as-variable";
@@ -133,13 +134,22 @@ public class RocksDBNativeMetricOptions implements Serializable {
     public static final ConfigOption<Boolean> ESTIMATE_LIVE_DATA_SIZE =
             ConfigOptions.key(RocksDBProperty.EstimateLiveDataSize.getConfigKey())
                     .defaultValue(false)
-                    .withDescription("Estimate of the amount of live data in bytes.");
+                    .withDescription(
+                            "Estimate of the amount of live data in bytes (usually smaller than sst files size due to space amplification).");
 
     public static final ConfigOption<Boolean> MONITOR_TOTAL_SST_FILES_SIZE =
             ConfigOptions.key(RocksDBProperty.TotalSstFilesSize.getConfigKey())
                     .defaultValue(false)
                     .withDescription(
-                            "Monitor the total size (bytes) of all SST files."
+                            "Monitor the total size (bytes) of all SST files of all versions."
+                                    + "WARNING: may slow down online queries if there are too many files.");
+
+    public static final ConfigOption<Boolean> MONITOR_LIVE_SST_FILES_SIZE =
+            ConfigOptions.key(RocksDBProperty.LiveSstFilesSize.getConfigKey())
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Monitor the total size (bytes) of all SST files belonging to the latest version."
                                     + "WARNING: may slow down online queries if there are too many files.");
 
     public static final ConfigOption<Boolean> ESTIMATE_PENDING_COMPACTION_BYTES =
@@ -268,6 +278,10 @@ public class RocksDBNativeMetricOptions implements Serializable {
             options.enableTotalSstFilesSize();
         }
 
+        if (config.get(MONITOR_LIVE_SST_FILES_SIZE)) {
+            options.enableLiveSstFilesSize();
+        }
+
         if (config.get(ESTIMATE_PENDING_COMPACTION_BYTES)) {
             options.enableEstimatePendingCompactionBytes();
         }
@@ -305,7 +319,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
         return options;
     }
 
-    private Set<String> properties;
+    private final Set<String> properties;
     private boolean columnFamilyAsVariable = COLUMN_FAMILY_AS_VARIABLE.defaultValue();
 
     public RocksDBNativeMetricOptions() {
@@ -411,6 +425,10 @@ public class RocksDBNativeMetricOptions implements Serializable {
      */
     public void enableTotalSstFilesSize() {
         this.properties.add(RocksDBProperty.TotalSstFilesSize.getRocksDBProperty());
+    }
+
+    public void enableLiveSstFilesSize() {
+        this.properties.add(RocksDBProperty.LiveSstFilesSize.getRocksDBProperty());
     }
 
     /**
