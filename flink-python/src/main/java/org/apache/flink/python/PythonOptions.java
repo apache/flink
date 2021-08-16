@@ -148,7 +148,7 @@ public class PythonOptions {
                                                     + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
-                                    .text("1. the command line option \"-pyclientexec\"")
+                                    .text("1. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .linebreak()
