@@ -69,12 +69,11 @@ public class RocksDBStateOptionTest {
      * state.
      */
     @Test
-    public void testMisuseOptimizePointLookupWithMapState() throws Exception {
-        EmbeddedRocksDBStateBackend rocksDBStateBackend =
-                createStateBackendWithOptimizePointLookup();
+    public void testUseOptimizePointLookupWithMapState() throws Exception {
+        RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend,
+                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {
@@ -114,11 +113,10 @@ public class RocksDBStateOptionTest {
      */
     @Test
     public void testMisuseOptimizePointLookupWithPriorityQueue() throws IOException {
-        EmbeddedRocksDBStateBackend rocksDBStateBackend =
-                createStateBackendWithOptimizePointLookup();
+        RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
-                        rocksDBStateBackend,
+                        rocksDBStateBackend.getEmbeddedRocksDBStateBackend(),
                         new MockEnvironmentBuilder().build(),
                         IntSerializer.INSTANCE);
         try {
@@ -155,10 +153,11 @@ public class RocksDBStateOptionTest {
         }
     }
 
-    private EmbeddedRocksDBStateBackend createStateBackendWithOptimizePointLookup() {
-        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend(true);
+    private RocksDBStateBackend createStateBackendWithOptimizePointLookup() throws IOException {
+        RocksDBStateBackend rocksDBStateBackend =
+                new RocksDBStateBackend(tempFolder.newFolder().toURI(), true);
         rocksDBStateBackend.setPriorityQueueStateType(
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+                RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         rocksDBStateBackend.setRocksDBOptions(
                 new RocksDBOptionsFactory() {
 
