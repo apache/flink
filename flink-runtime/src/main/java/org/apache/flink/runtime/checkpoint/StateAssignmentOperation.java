@@ -108,6 +108,7 @@ public class StateAssignmentOperation {
                 OperatorID operatorID =
                         operatorIDPair
                                 .getUserDefinedOperatorID()
+                                .filter(localOperators::containsKey)
                                 .orElse(operatorIDPair.getGeneratedOperatorID());
 
                 OperatorState operatorState = localOperators.remove(operatorID);
