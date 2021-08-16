@@ -31,6 +31,7 @@ import org.rocksdb.InfoLogLevel;
 import org.rocksdb.PlainTableConfig;
 import org.rocksdb.TableFormatConfig;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -42,7 +43,10 @@ import java.util.Set;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPACTION_STYLE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_DIR;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_FILE_NUM;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_LEVEL;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_OPEN_FILES;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MAX_SIZE_LEVEL_BASE;
@@ -77,6 +81,18 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
         if (isOptionConfigured(LOG_LEVEL)) {
             currentOptions.setInfoLogLevel(getLogLevel());
+        }
+
+        if (isOptionConfigured(LOG_DIR)) {
+            currentOptions.setDbLogDir(getLogDir());
+        }
+
+        if (isOptionConfigured(LOG_MAX_FILE_SIZE)) {
+            currentOptions.setMaxLogFileSize(getMaxLogFileSize());
+        }
+
+        if (isOptionConfigured(LOG_FILE_NUM)) {
+            currentOptions.setKeepLogFileNum(getLogFileNum());
         }
 
         return currentOptions;
@@ -179,7 +195,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     }
 
     // --------------------------------------------------------------------------
-    // The log level for DB.
+    // Configuring RocksDB's info log.
     // --------------------------------------------------------------------------
 
     private InfoLogLevel getLogLevel() {
@@ -188,6 +204,65 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
     public DefaultConfigurableOptionsFactory setLogLevel(InfoLogLevel logLevel) {
         setInternal(LOG_LEVEL.key(), logLevel.name());
+        return this;
+    }
+
+    private String getLogDir() {
+        return getInternal(LOG_DIR.key());
+    }
+
+    /**
+     * The directory for RocksDB's logging files.
+     *
+     * @param logDir If empty, log files will be in the same directory as data files<br>
+     *     If non-empty, this directory will be used and the data directory's absolute path will be
+     *     used as the prefix of the log file name.
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setLogDir(String logDir) {
+        Preconditions.checkArgument(
+                new File(logDir).isAbsolute(),
+                "Invalid configuration: " + logDir + " does not point to an absolute path.");
+        setInternal(LOG_DIR.key(), logDir);
+        return this;
+    }
+
+    private long getMaxLogFileSize() {
+        return MemorySize.parseBytes(getInternal(LOG_MAX_FILE_SIZE.key()));
+    }
+
+    /**
+     * The maximum size of RocksDB's file used for logging.
+     *
+     * <p>If the log files becomes larger than this, a new file will be created. If 0, all logs will
+     * be written to one log file.
+     *
+     * @param maxLogFileSize max file size limit
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setMaxLogFileSize(String maxLogFileSize) {
+        Preconditions.checkArgument(
+                MemorySize.parseBytes(maxLogFileSize) >= 0,
+                "Invalid configuration " + maxLogFileSize + " for max log file size.");
+        setInternal(LOG_MAX_FILE_SIZE.key(), maxLogFileSize);
+
+        return this;
+    }
+
+    private long getLogFileNum() {
+        return Long.parseLong(getInternal(LOG_FILE_NUM.key()));
+    }
+
+    /**
+     * The maximum number of files RocksDB should keep for logging.
+     *
+     * @param logFileNum number of files to keep
+     * @return this options factory
+     */
+    public DefaultConfigurableOptionsFactory setLogFileNum(int logFileNum) {
+        Preconditions.checkArgument(
+                logFileNum > 0, "Invalid configuration: Must keep at least one log file.");
+        configuredOptions.put(LOG_FILE_NUM.key(), String.valueOf(logFileNum));
         return this;
     }
 
@@ -360,6 +435,9 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 MAX_BACKGROUND_THREADS,
                 MAX_OPEN_FILES,
                 LOG_LEVEL,
+                LOG_MAX_FILE_SIZE,
+                LOG_FILE_NUM,
+                LOG_DIR,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
@@ -378,6 +456,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
             new HashSet<>(
                     Arrays.asList(
                             MAX_BACKGROUND_THREADS,
+                            LOG_FILE_NUM,
                             MAX_WRITE_BUFFER_NUMBER,
                             MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
 
@@ -442,6 +521,14 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
             Preconditions.checkArgument(
                     ((MemorySize) value).getBytes() > 0,
                     "Configured size for key" + key + " must be larger than 0.");
+        } else if (LOG_MAX_FILE_SIZE.equals(option)) {
+            Preconditions.checkArgument(
+                    ((MemorySize) value).getBytes() >= 0,
+                    "Configured size for key " + key + " must be larger than or equal to 0.");
+        } else if (LOG_DIR.equals(option)) {
+            Preconditions.checkArgument(
+                    new File((String) value).isAbsolute(),
+                    "Configured path for key " + key + " is not absolute.");
         }
     }
 

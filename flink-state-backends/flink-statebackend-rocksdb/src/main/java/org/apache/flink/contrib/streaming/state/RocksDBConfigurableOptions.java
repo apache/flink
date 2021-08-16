@@ -93,6 +93,31 @@ public class RocksDBConfigurableOptions implements Serializable {
                                     NUM_INFO_LOG_LEVELS.name(),
                                     HEADER_LEVEL.name()));
 
+    public static final ConfigOption<MemorySize> LOG_MAX_FILE_SIZE =
+            key("state.backend.rocksdb.log.max-file-size")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum size of RocksDB's file used for logging. "
+                                    + "If the log files becomes larger than this, a new file will be created."
+                                    + "If 0 (default RocksDB setting), all logs will be written to one log file.");
+
+    public static final ConfigOption<Integer> LOG_FILE_NUM =
+            key("state.backend.rocksdb.log.file-num")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The maximum number of files RocksDB should keep for logging (default RocksDB setting: 1000).");
+
+    public static final ConfigOption<String> LOG_DIR =
+            key("state.backend.rocksdb.log.dir")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The directory for RocksDB's logging files. "
+                                    + "If empty (default RocksDB setting), log files will be in the same directory as data files. "
+                                    + "If non-empty, this directory will be used and the data directory's absolute path will be used as the prefix of the log file name.");
+
     // --------------------------------------------------------------------------
     // Provided configurable ColumnFamilyOptions within Flink
     // --------------------------------------------------------------------------
