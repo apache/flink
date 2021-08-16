@@ -262,7 +262,7 @@ data:
 
 要在 Kubernetes 上使用 Reactive Mode，请按照[使用 Application 集群部署作业](#deploy-application-cluster) 完成相同的步骤。但是要使用 `flink-reactive-mode-configuration-configmap.yaml` 配置文件来代替 `flink-configuration-configmap.yaml`。该文件包含了针对 Flink 的 `scheduler-mode: reactive` 配置。
 
-一旦部署了 *Application 集群*，就可以通过修改 `flink-taskmanager` 的部署副本数量来扩大或缩小作业的并行度。
+一旦你部署了 *Application 集群*，就可以通过修改 `flink-taskmanager` 的部署副本数量来扩大或缩小作业的并行度。
 
 
 {{< top >}}
