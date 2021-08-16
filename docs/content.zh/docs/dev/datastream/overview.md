@@ -28,6 +28,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="flink-datastream-api-programming-guide"></a>
+
 # Flink DataStream API 编程指南 
 
 Flink 中的 DataStream 程序是对数据流（例如过滤、更新状态、定义窗口、聚合）进行转换的常规程序。数据流最初是从各种源（例如消息队列、套接字流、文件）创建的。结果通过 sink 返回，例如可以将数据写入文件或标准输出（例如命令行终端）。Flink 程序可以在各种上下文中运行，可以独立运行，也可以嵌入到其它程序中。任务执行可以发生在本地 JVM 中，也可以发生在多台机器的集群上。
@@ -39,13 +41,13 @@ Flink 中的 DataStream 程序是对数据流（例如过滤、更新状态、�
 DataStream 是什么?
 ----------------------
 
-DataStream API 得名于特殊的 `DataStream`  类，该类用于表示 Flink 程序中的数据集合。你可以想象
+DataStream API 得名于特殊的 `DataStream` 类，该类用于表示 Flink 程序中的数据集合。你可以想象
 它们是可以包含重复项的不可变数据集合。这些数据可以是有限的，也可以是无限的，但用于处理它们的API是
 相同的。
 
 `DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作（也叫作转换）处理它们。
 
-通过在 Flink 程序中添加源，你可以创建一个初始化的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用map、filter 等API方法把 `DataStream` 和 派生的流连接在一起。
+通过在 Flink 程序中添加 source，你可以创建一个初始化的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用 map、filter 等API方法把 `DataStream` 和派生的流连接在一起。
 
 <a name="anatomy-of-a-flink-program"></a>
 
@@ -77,7 +79,7 @@ createRemoteEnvironment(String host, int port, String... jarFiles)
 
 通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果在 IDE 中执行你的程序或作为常规 Java 程序，它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})调用它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
 
-为了指定数据源，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像 读 CSV 文件一样，或使用任何第三方提供的数据源。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
+为了指定 data sources，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像读 CSV 文件一样，或使用任何第三方提供的 source。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
 
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -127,7 +129,7 @@ createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
 
 通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果在 IDE 中执行你的程序或作为常规 Java 程序，它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})调用它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
 
-为了指定数据源，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像 读 CSV 文件一样，或使用任何第三方提供的数据源。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
+为了指定 data sources，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像读 CSV 文件一样，或使用任何第三方提供的 source。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
 
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
@@ -264,15 +266,15 @@ nc -lk 9999
 
 <a name="data-sources"></a>
 
-数据源
+Data Sources
 ------------
 
 {{< tabs "8104e62c-db79-40b0-8519-0063e9be791f" >}}
 {{< tab "Java" >}}
 
-源是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个源关联到你的程序。Flink 附带了许多预先实现的源函数，但你总可以编写自定义的源函数，可以为非并行源实现 `SourceFunction` 接口，也可以为并行源实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
+Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 附带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
-通过 `StreamExecutionEnvironment` 可以访问多种预定义的流式源：
+通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
 基于文件：
 
@@ -280,7 +282,7 @@ nc -lk 9999
 
 - `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，数据源可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
     *实现：*
 
@@ -290,7 +292,7 @@ nc -lk 9999
 
     1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，数据源扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭源会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
 基于套接字：
 
@@ -310,14 +312,14 @@ nc -lk 9999
 
 自定义：
 
-- `addSource` - 关联一个新的源函数。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
+- `addSource` - 关联一个新的 source function。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-源是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个源关联到你的程序。Flink 附带了许多预先实现的源函数，但你总可以编写自定义的源函数，可以为非并行源实现 `SourceFunction` 接口，也可以为并行源实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
+Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 附带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
-通过 `StreamExecutionEnvironment` 可以访问多种预定义的流式源：
+通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
 基于文件：
 
@@ -325,7 +327,7 @@ nc -lk 9999
 
 - `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，数据源可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
     *实现：*
 
@@ -335,7 +337,7 @@ nc -lk 9999
 
     1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，数据源扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭源会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
 基于套接字：
 
@@ -355,7 +357,7 @@ nc -lk 9999
 
 自定义：
 
-- `addSource` - 关联一个新的源函数。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
+- `addSource` - 关联一个新的 source function。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
 
 {{< /tab >}}
@@ -365,7 +367,7 @@ nc -lk 9999
 
 <a name="datastream-transformations"></a>
 
-DataStream 转换操作
+DataStream 转换
 --------------------------
 
 有关可用 Stream 转换的概述，请参阅[算子]({{< ref "docs/dev/datastream/operators/overview" >}})。
@@ -374,7 +376,7 @@ DataStream 转换操作
 
 <a name="data-sinks"></a>
 
-数据 Sink
+Data Sinks
 ----------
 
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
@@ -735,7 +737,7 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 
 <a name="where-to-go-next"></a>
 
-下一步去哪里?
+接下来？
 -----------------
 
 * [算法]({{< ref "docs/dev/datastream/operators/overview" >}})：可用算子的使用指南。
