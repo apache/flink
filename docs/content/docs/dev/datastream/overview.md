@@ -236,7 +236,7 @@ happen directly. Rather, each operation is created and added to a dataflow
 graph. The operations are actually executed when the execution is explicitly
 triggered by an `execute()` call on the execution environment.  Whether the
 program is executed locally or on a cluster depends on the type of execution
-environment
+environment.
 
 The lazy evaluation lets you construct sophisticated programs that Flink
 executes as one holistically planned unit.

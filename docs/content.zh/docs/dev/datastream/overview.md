@@ -30,60 +30,42 @@ under the License.
 
 # Flink DataStream API 编程指南 
 
-DataStream programs in Flink are regular programs that implement transformations on data streams
-(e.g., filtering, updating state, defining windows, aggregating). The data streams are initially created from various
-sources (e.g., message queues, socket streams, files). Results are returned via sinks, which may for
-example write the data to files, or to standard output (for example the command line
-terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs.
-The execution can happen in a local JVM, or on clusters of many machines.
+Flink 中的 DataStream 程序是对数据流（例如过滤、更新状态、定义窗口、聚合）进行转换的常规程序。数据流最初是从各种源（例如消息队列、套接字流、文件）创建的。结果通过 sink 返回，例如可以将数据写入文件或标准输出（例如命令行终端）。Flink 程序可以在各种上下文中运行，可以独立运行，也可以嵌入到其它程序中。任务执行可以发生在本地 JVM 中，也可以发生在多台机器的集群上。
 
-In order to create your own Flink DataStream program, we encourage you to start
-with [anatomy of a Flink Program](#anatomy-of-a-flink-program) and gradually
-add your own [stream transformations]({{< ref "docs/dev/datastream/operators/overview" >}}). The remaining sections act as references for additional operations and advanced features.
+为了创建你自己的 Flink DataStream 程序，我们建议你从 [Flink 程序剖析](#anatomy-of-a-flink-program)开始，然后逐渐添加自己的[流转换](({{< ref "docs/dev/datastream/operators/overview" >}}))。指南其余部分用作额外算子和高级特性的参考。
 
-What is a DataStream?
+<a name="what-is-a-datastream"></a>
+
+DataStream 是什么?
 ----------------------
 
-The DataStream API gets its name from the special `DataStream` class that is
-used to represent a collection of data in a Flink program. You can think of
-them as immutable collections of data that can contain duplicates. This data
-can either be finite or unbounded, the API that you use to work on them is the
-same.
+DataStream API 得名于特殊的 `DataStream`  类，该类用于表示 Flink 程序中的数据集合。你可以想象
+它们是可以包含重复项的不可变数据集合。这些数据可以是有限的，也可以是无限的，但用于处理它们的API是
+相同的。
 
-A `DataStream` is similar to a regular Java `Collection` in terms of usage but
-is quite different in some key ways. They are immutable, meaning that once they
-are created you cannot add or remove elements. You can also not simply inspect
-the elements inside but only work on them using the `DataStream` API
-operations, which are also called transformations.
+`DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作（也叫作转换）处理它们。
 
-You can create an initial `DataStream` by adding a source in a Flink program.
-Then you can derive new streams from this and combine them by using API methods
-such as `map`, `filter`, and so on.
+通过在 Flink 程序中添加源，你可以创建一个初始化的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用map、filter 等API方法把 `DataStream` 和 派生的流连接在一起。
 
-Anatomy of a Flink Program
+<a name="anatomy-of-a-flink-program"></a>
+
+Flink 程序剖析
 --------------------------
 
-Flink programs look like regular programs that transform `DataStreams`.  Each
-program consists of the same basic parts:
+Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序由相同的基本部分组成：
 
-1. Obtain an `execution environment`,
-2. Load/create the initial data,
-3. Specify transformations on this data,
-4. Specify where to put the results of your computations,
-5. Trigger the program execution
+1. 获取一个  `execution environment`；
+2. 加载/创建初始数据；
+3. 指定数据相关的转换操作；
+4. 指定计算结果的存储位置；
+5. 触发程序执行。
 
 {{< tabs "fa68701c-59e8-4509-858e-3e8a123eeacf" >}}
 {{< tab "Java" >}}
 
+现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api" name="org.apache.flink.streaming.api" >}} 中找到。
 
-We will now give an overview of each of those steps, please refer to the
-respective sections for more details. Note that all core classes of the Java
-DataStream API can be found in {{< gh_link
-file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api"
-name="org.apache.flink.streaming.api" >}}.
-
-The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
-obtain one using these static methods on `StreamExecutionEnvironment`:
+`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` 对象：
 
 ```java
 getExecutionEnvironment()
@@ -93,18 +75,9 @@ createLocalEnvironment()
 createRemoteEnvironment(String host, int port, String... jarFiles)
 ```
 
-Typically, you only need to use `getExecutionEnvironment()`, since this will do
-the right thing depending on the context: if you are executing your program
-inside an IDE or as a regular Java program it will create a local environment
-that will execute your program on your local machine. If you created a JAR file
-from your program, and invoke it through the [command line]({{< ref "docs/deployment/cli" >}}), the Flink cluster manager will execute your main method and
-`getExecutionEnvironment()` will return an execution environment for executing
-your program on a cluster.
+通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果在 IDE 中执行你的程序或作为常规 Java 程序，它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})调用它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
 
-For specifying data sources the execution environment has several methods to
-read from files using various methods: you can just read them line by line, as
-CSV files, or using any of the other provided sources. To just read a text file
-as a sequence of lines, you can use:
+为了指定数据源，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像 读 CSV 文件一样，或使用任何第三方提供的数据源。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
 
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -112,11 +85,9 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 DataStream<String> text = env.readTextFile("file:///path/to/file");
 ```
 
-This will give you a DataStream on which you can then apply transformations to create new
-derived DataStreams.
+这将为你生成一个 DataStream，然后你可以在上面应用转换来创建新的派生 DataStream。
 
-You apply transformations by calling methods on DataStream with a
-transformation functions. For example, a map transformation looks like this:
+你可以调用 DataStream 上具有转换功能的方法来应用转换。例如，一个 map 的转换如下所示：
 
 ```java
 DataStream<String> input = ...;
@@ -129,12 +100,9 @@ DataStream<Integer> parsed = input.map(new MapFunction<String, Integer>() {
 });
 ```
 
-This will create a new DataStream by converting every String in the original
-collection to an Integer.
+这将创建一个新的 DataStream，将原始集合中的每一个字符串转换为一个整数。
 
-Once you have a DataStream containing your final results, you can write it to
-an outside system by creating a sink. These are just some example methods for
-creating a sink:
+一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
 ```java
 writeAsText(String path)
@@ -145,14 +113,9 @@ print()
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-We will now give an overview of each of those steps, please refer to the
-respective sections for more details. Note that all core classes of the Scala
-DataStream API can be found in {{< gh_link
-file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala"
-name="org.apache.flink.streaming.api.scala" >}}.
+现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala" name="org.apache.flink.streaming.api.scala" >}} 中找到。
 
-The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
-obtain one using these static methods on `StreamExecutionEnvironment`:
+`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` 对象：
 
 ```scala
 getExecutionEnvironment()
@@ -162,18 +125,9 @@ createLocalEnvironment()
 createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
 ```
 
-Typically, you only need to use `getExecutionEnvironment()`, since this will do
-the right thing depending on the context: if you are executing your program
-inside an IDE or as a regular Java program it will create a local environment
-that will execute your program on your local machine. If you created a JAR file
-from your program, and invoke it through the [command line]({{< ref "docs/deployment/cli" >}}), the Flink cluster manager will execute your main method and
-`getExecutionEnvironment()` will return an execution environment for executing
-your program on a cluster.
+通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果在 IDE 中执行你的程序或作为常规 Java 程序，它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})调用它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
 
-For specifying data sources the execution environment has several methods to
-read from files using various methods: you can just read them line by line, as
-CSV files, or using any of the other provided sources. To just read a text file
-as a sequence of lines, you can use:
+为了指定数据源，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像 读 CSV 文件一样，或使用任何第三方提供的数据源。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
 
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
@@ -181,11 +135,9 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val text: DataStream[String] = env.readTextFile("file:///path/to/file")
 ```
 
-This will give you a DataStream on which you can then apply transformations to
-create new derived DataStreams.
+这将为你生成一个 DataStream，然后你可以在上面应用转换来创建新的派生 DataStream。
 
-You apply transformations by calling methods on DataStream with a
-transformation functions. For example, a map transformation looks like this:
+你可以调用 DataStream 上具有转换功能的方法来应用转换。例如，一个 map 的转换如下所示：
 
 ```scala
 val input: DataSet[String] = ...
@@ -193,12 +145,9 @@ val input: DataSet[String] = ...
 val mapped = input.map { x => x.toInt }
 ```
 
-This will create a new DataStream by converting every String in the original
-collection to an Integer.
+这将创建一个新的 DataStream，将原始集合中的每一个字符串转换为一个整数。
 
-Once you have a DataStream containing your final results, you can write it to
-an outside system by creating a sink. These are just some example methods for
-creating a sink:
+一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
 
 ```scala
 writeAsText(path: String)
@@ -209,20 +158,11 @@ print()
 {{< /tab >}}
 {{< /tabs >}}
 
-Once you specified the complete program you need to **trigger the program
-execution** by calling `execute()` on the `StreamExecutionEnvironment`.
-Depending on the type of the `ExecutionEnvironment` the execution will be
-triggered on your local machine or submit your program for execution on a
-cluster.
+一旦指定了完整的程序，需要调用 `StreamExecutionEnvironment` 的 `execute()` 方法来**触发程序执行**。根据 `ExecutionEnvironment` 的类型，执行会在你的本地机器上触发，或将你的程序提交到某个集群上执行。
 
-The `execute()` method will wait for the job to finish and then return a
-`JobExecutionResult`, this contains execution times and accumulator results.
+`execute()` 方法将等待作业完成，然后返回一个 `JobExecutionResult` ，其中包含执行时间和累加器结果。
 
-If you don't want to wait for the job to finish, you can trigger asynchronous
-job execution by calling `executeAsync()` on the `StreamExecutionEnvironment`.
-It will return a `JobClient` with which you can communicate with the job you
-just submitted. For instance, here is how to implement the semantics of
-`execute()` by using `executeAsync()`.
+如果不想等待作业完成，可以通过调用 `StreamExecutionEnvironment` 的 `executeAsync()` 方法来触发作业异步执行。它会返回一个 `JobClient` ，你可以通过它与刚刚提交的作业进行通信。如下是使用 `executeAsync()` 实现 `execute()` 语义的示例。
 
 ```java
 final JobClient jobClient = env.executeAsync();
@@ -230,25 +170,18 @@ final JobClient jobClient = env.executeAsync();
 final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
 ```
 
-That last part about program execution is crucial to understanding when and how
-Flink operations are executed. All Flink programs are executed lazily: When the
-program's main method is executed, the data loading and transformations do not
-happen directly. Rather, each operation is created and added to a dataflow
-graph. The operations are actually executed when the execution is explicitly
-triggered by an `execute()` call on the execution environment.  Whether the
-program is executed locally or on a cluster depends on the type of execution
-environment
+关于程序执行的最后一部分对于理解何时以及如何执行 Flink 算子是至关重要的。所有 Flink 程序都是惰性执行的：当程序的 main 方法被执行时，数据加载和转换不会直接发生。相反，每个算子都被创建并添加到 dataflow 形成的有向图。当执行被执行环境的 `execute()` 方法显示地触发时，这些算子才会真正执行。程序是在本地执行还是在集群上执行取决于执行环境的类型。
 
-The lazy evaluation lets you construct sophisticated programs that Flink
-executes as one holistically planned unit.
+惰性计算让你构建复杂的程序，Flink 将其作为一个整体规划的单元来执行。
 
 {{< top >}}
 
-Example Program
+<a name="example-program"></a>
+
+示例程序
 ---------------
 
-The following program is a complete, working example of streaming window word count application, that counts the
-words coming from a web socket in 5 second windows. You can copy &amp; paste the code to run it locally.
+如下是一个完整、可运行的程序示例，它是基于流窗口的单词统计应用程序，计算 5 秒窗口内来自 Web 套接字的单词数。你可以复制并粘贴代码以在本地运行。
 
 {{< tabs "7ef5e21b-c24f-404f-af39-e21231b15e0d" >}}
 {{< tab "Java" >}}
@@ -319,148 +252,135 @@ object WindowWordCount {
 {{< /tab >}}
 {{< /tabs >}}
 
-To run the example program, start the input stream with netcat first from a terminal:
+要运行示例程序，首先从终端使用 netcat 启动输入流：
 
 ```bash
 nc -lk 9999
 ```
 
-Just type some words hitting return for a new word. These will be the input to the
-word count program. If you want to see counts greater than 1, type the same word again and again within
-5 seconds (increase the window size from 5 seconds if you cannot type that fast &#9786;).
+只需输入一些单词，然后按回车键即可传入新单词。这些将作为单词统计程序的输入。如果想查看大于 1 的计数，在 5 秒内重复输入相同的单词即可（如果无法快速输入，则可以将窗口大小从 5 秒增加 &#9786;）。
 
 {{< top >}}
 
-Data Sources
+<a name="data-sources"></a>
+
+数据源
 ------------
 
 {{< tabs "8104e62c-db79-40b0-8519-0063e9be791f" >}}
 {{< tab "Java" >}}
 
-Sources are where your program reads its input from. You can attach a source to your program by
-using `StreamExecutionEnvironment.addSource(sourceFunction)`. Flink comes with a number of pre-implemented
-source functions, but you can always write your own custom sources by implementing the `SourceFunction`
-for non-parallel sources, or by implementing the `ParallelSourceFunction` interface or extending the
-`RichParallelSourceFunction` for parallel sources.
+源是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个源关联到你的程序。Flink 附带了许多预先实现的源函数，但你总可以编写自定义的源函数，可以为非并行源实现 `SourceFunction` 接口，也可以为并行源实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
-There are several predefined stream sources accessible from the `StreamExecutionEnvironment`:
+通过 `StreamExecutionEnvironment` 可以访问多种预定义的流式源：
 
-File-based:
+基于文件：
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `readTextFile(path)` - 读取文本文件，例如遵守 TextInputFormat 规范的文件，逐行读取并将它们作为字符串返回。
 
-- `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
+- `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE`). Using the `pathFilter`, the user can further exclude files from being processed.
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，数据源可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
-    *IMPLEMENTATION:*
+    *实现：*
 
-    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read multiple splits, one-by-one.
+    在底层，Flink 将文件读取过程拆分为两个子任务，即 *目录监控* 和 *数据读取*。每个子任务都由一个单独的实体实现。监控由单个**非并行**（并行度 = 1）任务实现，而读取由多个并行运行的任务执行。后者的并行度和作业的并行度相等。单个监控任务的作用是扫描目录（定期或仅扫描一次，取决于 `watchType`），找到要处理的文件，将它们划分为 *分片*，并将这些分片分配给下游 reader。Reader 是将实际获取数据的角色。每个分片只能被一个 reader 读取，而一个 reader 可以一个一个地读取多个分片。
 
-    *IMPORTANT NOTES:*
+    *重要提示：*
 
-    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
+    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，数据源扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭源会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
-Socket-based:
+基于套接字：
 
-- `socketTextStream` - Reads from a socket. Elements can be separated by a delimiter.
+- `socketTextStream` - 从套接字读取。元素可以由分隔符分隔。
 
-Collection-based:
+基于集合：
 
-- `fromCollection(Collection)` - Creates a data stream from the Java Java.util.Collection. All elements
-  in the collection must be of the same type.
+- `fromCollection(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。 
+  
+- `fromCollection(Iterator, Class)` - 从迭代器创建数据流。class 参数指定迭代器返回元素的数据类型。
+  
+- `fromElements(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
+  
+- `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
+  
+- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
-- `fromCollection(Iterator, Class)` - Creates a data stream from an iterator. The class specifies the
-  data type of the elements returned by the iterator.
+自定义：
 
-- `fromElements(T ...)` - Creates a data stream from the given sequence of objects. All objects must be
-  of the same type.
-
-- `fromParallelCollection(SplittableIterator, Class)` - Creates a data stream from an iterator, in
-  parallel. The class specifies the data type of the elements returned by the iterator.
-
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
-  parallel.
-
-Custom:
-
-- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
+- `addSource` - 关联一个新的源函数。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Sources are where your program reads its input from. You can attach a source to your program by
-using `StreamExecutionEnvironment.addSource(sourceFunction)`. Flink comes with a number of pre-implemented
-source functions, but you can always write your own custom sources by implementing the `SourceFunction`
-for non-parallel sources, or by implementing the `ParallelSourceFunction` interface or extending the
-`RichParallelSourceFunction` for parallel sources.
+源是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个源关联到你的程序。Flink 附带了许多预先实现的源函数，但你总可以编写自定义的源函数，可以为非并行源实现 `SourceFunction` 接口，也可以为并行源实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
-There are several predefined stream sources accessible from the `StreamExecutionEnvironment`:
+通过 `StreamExecutionEnvironment` 可以访问多种预定义的流式源：
 
-File-based:
+基于文件：
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `readTextFile(path)` - 读取文本文件，例如遵守 TextInputFormat 规范的文件，逐行读取并将它们作为字符串返回。
 
-- `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
+- `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE`). Using the `pathFilter`, the user can further exclude files from being processed.
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，数据源可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
-    *IMPLEMENTATION:*
+    *实现：*
 
-    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read multiple splits, one-by-one.
+    在底层，Flink 将文件读取过程拆分为两个子任务，即 *目录监控* 和 *数据读取*。每个子任务都由一个单独的实体实现。监控由单个**非并行**（并行度 = 1）任务实现，而读取由多个并行运行的任务执行。后者的并行度和作业的并行度相等。单个监控任务的作用是扫描目录（定期或仅扫描一次，取决于 `watchType`），找到要处理的文件，将它们划分为 *分片*，并将这些分片分配给下游 reader。Reader 是将实际获取数据的角色。每个分片只能被一个 reader 读取，而一个 reader 可以一个一个地读取多个分片。
 
-    *IMPORTANT NOTES:*
+    *重要提示：*
 
-    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
+    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "exactly-once" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，数据源扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭源会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
-Socket-based:
+基于套接字：
 
-- `socketTextStream` - Reads from a socket. Elements can be separated by a delimiter.
+- `socketTextStream` - 从套接字读取。元素可以由分隔符分隔。
 
-Collection-based:
+基于集合：
 
-- `fromCollection(Seq)` - Creates a data stream from the Java Java.util.Collection. All elements
-  in the collection must be of the same type.
+- `fromCollection(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。 
+  
+- `fromCollection(Iterator, Class)` - 从迭代器创建数据流。class 参数指定迭代器返回元素的数据类型。
+  
+- `fromElements(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
+  
+- `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
+  
+- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
-- `fromCollection(Iterator)` - Creates a data stream from an iterator. The class specifies the
-  data type of the elements returned by the iterator.
+自定义：
 
-- `fromElements(elements: _*)` - Creates a data stream from the given sequence of objects. All objects must be
-  of the same type.
+- `addSource` - 关联一个新的源函数。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
-- `fromParallelCollection(SplittableIterator)` - Creates a data stream from an iterator, in
-  parallel. The class specifies the data type of the elements returned by the iterator.
-
-- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
-  parallel.
-
-Custom:
-
-- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
 
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
 
-DataStream Transformations
+<a name="datastream-transformations"></a>
+
+DataStream 转换操作
 --------------------------
 
-Please see [operators]({{< ref "docs/dev/datastream/operators/overview" >}}) for an overview of the available stream transformations.
+有关可用 Stream 转换的概述，请参阅[算子]({{< ref "docs/dev/datastream/operators/overview" >}})。
 
 {{< top >}}
 
-Data Sinks
+<a name="data-sinks"></a>
+
+数据 Sink
 ----------
 
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
 {{< tab "Java" >}}
+
+数据 sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。
 
 Data sinks consume DataStreams and forward them to files, sockets, external systems, or print them.
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
@@ -525,6 +445,8 @@ Also, custom implementations through the `.addSink(...)` method can participate 
 for exactly-once semantics.
 
 {{< top >}}
+
+<a name="iterations"></a>
 
 Iterations
 ----------
@@ -628,6 +550,8 @@ val iteratedStream = someIntegers.iterate(
 
 {{< top >}}
 
+<a name=""></a>
+
 Execution Parameters
 --------------------
 
@@ -641,9 +565,13 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 {{< top >}}
 
+<a name=""></a>
+
 ### Fault Tolerance
 
 [State & Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) describes how to enable and configure Flink's checkpointing mechanism.
+
+<a name=""></a>
 
 ### Controlling Latency
 
@@ -681,7 +609,9 @@ A buffer timeout of 0 should be avoided, because it can cause severe performance
 
 {{< top >}}
 
-Debugging
+<a name="debugging"></a>
+
+调试
 ---------
 
 Before running a streaming program in a distributed cluster, it is a good
@@ -691,6 +621,8 @@ programs is usually an incremental process of checking results, debugging, and i
 Flink provides features to significantly ease the development process of data analysis
 programs by supporting local debugging from within an IDE, injection of test data, and collection of
 result data. This section give some hints how to ease the development of Flink programs.
+
+<a name="local-execution-environment"></a>
 
 ### Local Execution Environment
 
@@ -723,6 +655,8 @@ env.execute()
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+<a name="collection-data-sources"></a>
 
 ### Collection Data Sources
 
@@ -771,6 +705,8 @@ val myLongs = env.fromCollection(longIt)
 `Serializable`. Furthermore, collection data sources can not be executed in parallel (
 parallelism = 1).
 
+<a name="iterator-data-sink"></a>
+
 ### Iterator Data Sink
 
 Flink also provides a sink to collect DataStream results for testing and debugging purposes. It can be used as follows:
@@ -797,12 +733,14 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 {{< /tab >}}
 {{< /tabs >}}
 
-Where to go next?
+<a name="where-to-go-next"></a>
+
+下一步去哪里?
 -----------------
 
-* [Operators]({{< ref "docs/dev/datastream/operators/overview" >}}): Specification of available streaming operators.
-* [Event Time]({{< ref "docs/concepts/time" >}}): Introduction to Flink's notion of time.
-* [State & Fault Tolerance]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}): Explanation of how to develop stateful applications.
-* [Connectors]({{< ref "docs/connectors/datastream/overview" >}}): Description of available input and output connectors.
+* [算法]({{< ref "docs/dev/datastream/operators/overview" >}})：可用算子的使用指南。
+* [Event Time]({{< ref "docs/concepts/time" >}})：解释 Flink 中的时间概念。
+* [状态 & 容错]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})：讲解如何开发有状态应用程序。
+* [连接器]({{< ref "docs/connectors/datastream/overview" >}})：描述了所有可用的输入和输出连接器。
 
 {{< top >}}
