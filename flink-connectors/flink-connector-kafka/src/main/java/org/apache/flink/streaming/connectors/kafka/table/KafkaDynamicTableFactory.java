@@ -26,7 +26,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -169,13 +169,11 @@ public class KafkaDynamicTableFactory
         final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 
         // add topic-partition discovery
+        final Optional<Long> partitionDiscoveryInterval =
+                tableOptions.getOptional(SCAN_TOPIC_PARTITION_DISCOVERY).map(Duration::toMillis);
         properties.setProperty(
-                FlinkKafkaConsumerBase.KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS,
-                String.valueOf(
-                        tableOptions
-                                .getOptional(SCAN_TOPIC_PARTITION_DISCOVERY)
-                                .map(Duration::toMillis)
-                                .orElse(FlinkKafkaConsumerBase.PARTITION_DISCOVERY_DISABLED)));
+                KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
+                partitionDiscoveryInterval.orElse(-1L).toString());
 
         final DataType physicalDataType =
                 context.getCatalogTable().getSchema().toPhysicalRowDataType();
@@ -198,7 +196,8 @@ public class KafkaDynamicTableFactory
                 properties,
                 startupOptions.startupMode,
                 startupOptions.specificOffsets,
-                startupOptions.startupTimestampMillis);
+                startupOptions.startupTimestampMillis,
+                context.getObjectIdentifier().asSummaryString());
     }
 
     @Override
@@ -351,7 +350,8 @@ public class KafkaDynamicTableFactory
             Properties properties,
             StartupMode startupMode,
             Map<KafkaTopicPartition, Long> specificStartupOffsets,
-            long startupTimestampMillis) {
+            long startupTimestampMillis,
+            String tableIdentifier) {
         return new KafkaDynamicSource(
                 physicalDataType,
                 keyDecodingFormat,
@@ -365,7 +365,8 @@ public class KafkaDynamicTableFactory
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
-                false);
+                false,
+                tableIdentifier);
     }
 
     protected KafkaDynamicSink createKafkaTableSink(

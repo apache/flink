@@ -1,3 +1,4 @@
+
 ---
 title: Kafka
 weight: 3
@@ -214,10 +215,10 @@ Connector Options
     </tr>
     <tr>
       <td><h5>properties.group.id</h5></td>
-      <td>required by source</td>
+      <td>optional for source, not applicable for sink</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The id of the consumer group for Kafka source, optional for Kafka sink.</td>
+      <td>The id of the consumer group for Kafka source. If group ID is not specified, an automatically generated id "KafkaSource-{tableIdentifier}" will be used.</td>
     </tr>
     <tr>
       <td><h5>properties.*</h5></td>
