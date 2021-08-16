@@ -244,6 +244,15 @@ public class CliFrontendParser {
                             + "Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
+    public static final Option PYCLIENTEXEC_OPTION =
+            new Option(
+                    "pyclientexec",
+                    "pyClientExecutable",
+                    true,
+                    "The path of the Python interpreter used to launch the Python "
+                            + "process when submitting the Python jobs via \"flink run\" or compiling "
+                            + "the Java/Scala jobs containing Python UDFs.");
+
     static {
         HELP_OPTION.setRequired(false);
 
@@ -305,6 +314,8 @@ public class CliFrontendParser {
         PYARCHIVE_OPTION.setRequired(false);
 
         PYEXEC_OPTION.setRequired(false);
+
+        PYCLIENTEXEC_OPTION.setRequired(false);
     }
 
     static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -331,6 +342,7 @@ public class CliFrontendParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
@@ -346,6 +358,7 @@ public class CliFrontendParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 

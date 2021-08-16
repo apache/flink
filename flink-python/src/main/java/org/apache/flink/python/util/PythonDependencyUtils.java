@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
@@ -111,6 +112,12 @@ public class PythonDependencyUtils {
                     PythonOptions.PYTHON_EXECUTABLE,
                     commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
         }
+        if (commandLine.hasOption(PYCLIENTEXEC_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_CLIENT_EXECUTABLE,
+                    commandLine.getOptionValue(PYCLIENTEXEC_OPTION.getOpt()));
+        }
+
         return config;
     }
 
