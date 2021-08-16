@@ -22,12 +22,14 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
@@ -148,20 +150,41 @@ final class PythonEnvUtils {
         // content of the archives via relative path
         if (config.getOptional(PYTHON_ARCHIVES).isPresent()
                 && (config.getOptional(PYTHON_CLIENT_EXECUTABLE).isPresent()
-                        || !System.getenv(PYFLINK_CLIENT_EXECUTABLE).isEmpty())) {
+                        || !StringUtils.isNullOrWhitespaceOnly(
+                                System.getenv(PYFLINK_CLIENT_EXECUTABLE)))) {
             env.archivesDirectory = String.join(File.separator, tmpDir, PYTHON_ARCHIVES_DIR);
-            List<Path> pythonArchives =
-                    Arrays.stream(config.get(PYTHON_ARCHIVES).split(FILE_DELIMITER))
-                            .map(Path::new)
-                            .collect(Collectors.toList());
 
             // extract archives to archives directory
-            for (Path pythonArchive : pythonArchives) {
-                ZipUtils.extractZipFileWithPermissions(
-                        pythonArchive.getPath(),
-                        String.join(
-                                File.separator, env.archivesDirectory, pythonArchive.getName()));
-            }
+            config.getOptional(PYTHON_ARCHIVES)
+                    .ifPresent(
+                            pyArchives -> {
+                                for (String archive : pyArchives.split(FILE_DELIMITER)) {
+                                    Path archivePath;
+                                    String targetDir;
+                                    if (archive.contains(PythonDependencyUtils.PARAM_DELIMITER)) {
+                                        String[] filePathAndTargetDir =
+                                                archive.split(
+                                                        PythonDependencyUtils.PARAM_DELIMITER, 2);
+                                        archivePath = new Path(filePathAndTargetDir[0]);
+                                        targetDir = filePathAndTargetDir[1];
+                                    } else {
+                                        archivePath = new Path(archive);
+                                        targetDir = archivePath.getName();
+                                    }
+                                    try {
+                                        ZipUtils.extractZipFileWithPermissions(
+                                                archivePath.getPath(),
+                                                String.join(
+                                                        File.separator,
+                                                        env.archivesDirectory,
+                                                        targetDir));
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(
+                                                "Extract archives to archives directory failed.",
+                                                e);
+                                    }
+                                }
+                            });
         }
 
         if (entryPointScript != null) {
