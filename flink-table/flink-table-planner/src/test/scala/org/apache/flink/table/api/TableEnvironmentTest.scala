@@ -671,7 +671,7 @@ class TableEnvironmentTest {
       """.stripMargin
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Could not execute LOAD MODULE: (moduleName: [dummy], options: [{dummy-version=2}])." +
+      "Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
         " A module with name 'dummy' already exists")
     tableEnv.executeSql(statement2)
   }
@@ -690,8 +690,9 @@ class TableEnvironmentTest {
       fail("Expected an exception")
     } catch {
       case t: Throwable =>
-        assertThat(t, containsMessage("Could not execute LOAD MODULE: (moduleName: [Dummy], "
-          + "options: [{dummy-version=1}]). Unable to create module 'Dummy'."))
+        assertThat(t, containsMessage(
+          "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
+          + " Unable to create module 'Dummy'."))
     }
 
     val statement2 =

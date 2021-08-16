@@ -21,9 +21,11 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a LOAD MODULE statement. */
@@ -48,10 +50,25 @@ public class LoadModuleOperation implements Operation {
 
     @Override
     public String asSummaryString() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("moduleName", moduleName);
-        params.put("options", options);
-        return OperationUtils.formatWithChildren(
-                "LOAD MODULE", params, Collections.emptyList(), Operation::asSummaryString);
+        final StringBuilder sb = new StringBuilder();
+        sb.append("LOAD MODULE ");
+        sb.append(escapeIdentifier(moduleName));
+        if (!options.isEmpty()) {
+            sb.append(" WITH (");
+
+            sb.append(
+                    options.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            String.format(
+                                                    "'%s' = '%s'",
+                                                    escapeSingleQuotes(entry.getKey()),
+                                                    escapeSingleQuotes(entry.getValue())))
+                            .collect(Collectors.joining(", ")));
+
+            sb.append(")");
+        }
+
+        return sb.toString();
     }
 }
