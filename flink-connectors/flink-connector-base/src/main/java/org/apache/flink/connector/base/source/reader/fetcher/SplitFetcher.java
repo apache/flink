@@ -182,6 +182,10 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         return splitReader;
     }
 
+    public int fetcherId() {
+        return id;
+    }
+
     /** Shutdown the split fetcher. */
     public void shutdown() {
         if (closed.compareAndSet(false, true)) {
