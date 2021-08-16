@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -63,6 +65,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -300,14 +303,15 @@ public class CliClientTest extends TestLogger {
         assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
-    @Test(timeout = 20000)
+    @Test
     public void testCancelExecutionInteractiveMode() throws Exception {
         final MockExecutor mockExecutor = new MockExecutor();
         mockExecutor.isSync = true;
 
         String sessionId = mockExecutor.openSession("test-session");
         Path historyFilePath = historyTempFile();
-        InputStream inputStream = new ByteArrayInputStream("SELECT 1;\n".getBytes());
+        InputStream inputStream =
+                new ByteArrayInputStream("SET 'key'='value';\nSELECT 1;\nSET;\n ".getBytes());
         OutputStream outputStream = new ByteArrayOutputStream(248);
 
         try (CliClient client =
@@ -332,7 +336,9 @@ public class CliClientTest extends TestLogger {
             }
 
             client.getTerminal().raise(Terminal.Signal.INT);
-            assertTrue(thread.isInterrupted());
+            CommonTestUtils.waitUntilCondition(
+                    () -> outputStream.toString().contains("'key' = 'value'"),
+                    Deadline.fromNow(Duration.ofMillis(10000)));
         }
     }
 
@@ -435,7 +441,7 @@ public class CliClientTest extends TestLogger {
         @Override
         public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
-            return null;
+            return this.sessionMap.get(sessionId).getConfigMap();
         }
 
         @Override
