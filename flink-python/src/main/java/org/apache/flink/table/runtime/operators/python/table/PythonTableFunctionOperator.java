@@ -83,6 +83,15 @@ public class PythonTableFunctionOperator
     /** The type serializer for the forwarded fields. */
     private transient RowDataSerializer forwardedInputSerializer;
 
+    /** The current input element which has not been received all python udtf results. */
+    private transient RowData input;
+
+    /** Whether the current input element has joined parts of python udtf results. */
+    private transient boolean hasJoined;
+
+    /** Whether the current received data is the finished result of the current input element. */
+    private transient boolean isFinishResult;
+
     public PythonTableFunctionOperator(
             Configuration config,
             PythonFunctionInfo tableFunction,
@@ -111,6 +120,9 @@ public class PythonTableFunctionOperator
                 PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         udtfOutputTypeSerializer =
                 PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
+        input = null;
+        hasJoined = false;
+        isFinishResult = true;
     }
 
     @Override
@@ -184,11 +196,12 @@ public class PythonTableFunctionOperator
     @Override
     @SuppressWarnings("ConstantConditions")
     public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        RowData input = forwardedInputQueue.poll();
         byte[] rawUdtfResult;
         int length;
-        boolean isFinishResult;
-        boolean hasJoined = false;
+        if (isFinishResult) {
+            input = forwardedInputQueue.poll();
+            hasJoined = false;
+        }
         do {
             rawUdtfResult = resultTuple.f0;
             length = resultTuple.f1;
@@ -208,7 +221,7 @@ public class PythonTableFunctionOperator
                 }
                 rowDataWrapper.collect(reuseJoinedRow.replace(input, udtfResult));
             }
-        } while (!isFinishResult);
+        } while (!isFinishResult && resultTuple != null);
     }
 
     /** The received udtf execution result is a finish message when it is a byte with value 0x00. */
