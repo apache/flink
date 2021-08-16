@@ -35,13 +35,13 @@ import java.util.stream.IntStream;
  * arguments is nullable. Otherwise the type will be not null.
  */
 @Internal
-public final class NullableTypeStrategy implements TypeStrategy {
+public final class NullableIfArgsTypeStrategy implements TypeStrategy {
 
     private final ConstantArgumentCount includedArguments;
 
     private final TypeStrategy initialStrategy;
 
-    public NullableTypeStrategy(
+    public NullableIfArgsTypeStrategy(
             ConstantArgumentCount includedArguments, TypeStrategy initialStrategy) {
         this.includedArguments = Preconditions.checkNotNull(includedArguments);
         this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
@@ -93,7 +93,7 @@ public final class NullableTypeStrategy implements TypeStrategy {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        NullableTypeStrategy that = (NullableTypeStrategy) o;
+        NullableIfArgsTypeStrategy that = (NullableIfArgsTypeStrategy) o;
         return includedArguments.equals(that.includedArguments)
                 && initialStrategy.equals(that.initialStrategy);
     }
