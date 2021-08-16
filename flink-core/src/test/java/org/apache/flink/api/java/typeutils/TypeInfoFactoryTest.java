@@ -39,6 +39,7 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.BOOLEAN_TYPE_IN
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -140,20 +141,28 @@ public class TypeInfoFactoryTest {
 
         assertTrue(typeWithAnnotation instanceof PojoTypeInfo);
         assertTrue(typeWithoutAnnotation instanceof PojoTypeInfo);
+        PojoTypeInfo<?> pojoTypeWithAnnotation = (PojoTypeInfo<?>) typeWithAnnotation;
+        PojoTypeInfo<?> pojoTypeWithoutAnnotation = (PojoTypeInfo<?>) typeWithoutAnnotation;
 
-        assertTrue(((PojoTypeInfo<?>) typeWithAnnotation).getTypeAt(1) instanceof EitherTypeInfo);
-        assertTrue(
-                ((PojoTypeInfo<?>) typeWithoutAnnotation).getTypeAt(1) instanceof GenericTypeInfo);
+        // field outerEither
+        assertTrue(pojoTypeWithAnnotation.getTypeAt(1) instanceof EitherTypeInfo);
+        assertTrue(pojoTypeWithoutAnnotation.getTypeAt(1) instanceof GenericTypeInfo);
+        // field id: type info from field annotation that overrides the class annotation:
+        assertEquals(LONG_TYPE_INFO, pojoTypeWithAnnotation.getTypeAt(0));
+        assertEquals(INT_TYPE_INFO, pojoTypeWithoutAnnotation.getTypeAt(0));
 
         MapFunction<Boolean, WithFieldTypeInfoAnnotation<Boolean, String>> f =
                 new WithFieldTypeInfoAnnotationMapper<>();
         TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, BOOLEAN_TYPE_INFO);
         assertTrue(ti instanceof PojoTypeInfo);
         PojoTypeInfo<?> tiPojo = (PojoTypeInfo<?>) ti;
+        // field outerEither
         assertTrue(tiPojo.getTypeAt(1) instanceof EitherTypeInfo);
         EitherTypeInfo eti = (EitherTypeInfo) tiPojo.getTypeAt(1);
         assertEquals(BOOLEAN_TYPE_INFO, eti.getLeftType());
         assertEquals(STRING_TYPE_INFO, eti.getRightType());
+        // field id: type info from field annotation that overrides the class annotation:
+        assertEquals(LONG_TYPE_INFO, tiPojo.getTypeAt(0));
     }
 
     @Test(expected = InvalidTypesException.class)
@@ -512,6 +521,15 @@ public class TypeInfoFactoryTest {
         }
     }
 
+    public static class IntLikeTypeInfoFactory2 extends TypeInfoFactory<IntLike> {
+        @Override
+        @SuppressWarnings("unchecked")
+        public TypeInformation<IntLike> createTypeInfo(
+                Type t, Map<String, TypeInformation<?>> genericParams) {
+            return (TypeInformation) LONG_TYPE_INFO;
+        }
+    }
+
     // hypothesis:from out package not in the project
     public static class OuterEither<A, B> {
         // empty
@@ -521,12 +539,13 @@ public class TypeInfoFactoryTest {
         @TypeInfo(MyEitherTypeInfoFactory.class)
         public OuterEither<A, B> outerEither;
 
-        public String id;
+        @TypeInfo(IntLikeTypeInfoFactory2.class)
+        public IntLike id;
     }
 
     public static class WithoutFieldTypeInfoAnnotation<A, B> {
         public OuterEither<A, B> outerEither;
-        public String id;
+        public IntLike id;
     }
 
     public static class WithFieldTypeInfoAnnotationMapper<T>
