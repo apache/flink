@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -206,7 +207,9 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                                         broadcastEvent(EndOfData.INSTANCE, false);
                                     }
                                 })
-                        .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
+                        .setupOperatorChain(sourceOperatorFactory)
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
 
             testHarness.getStreamTask().invoke();

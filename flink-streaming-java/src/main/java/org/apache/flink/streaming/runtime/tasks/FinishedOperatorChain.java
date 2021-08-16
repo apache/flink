@@ -56,6 +56,11 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
+    public WatermarkGaugeExposingOutput<StreamRecord<OUT>> getMainOperatorOutput() {
+        return new FinishedOnRestoreMainOperatorOutput<>(streamOutputs);
+    }
+
+    @Override
     public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event) {
         throw new UnsupportedOperationException();
     }

@@ -767,8 +767,9 @@ public class StreamTaskFinalCheckpointsTest {
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setCollectNetworkEvents()
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
-                        .setupOutputForSingletonOperatorChain(
-                                new TestFinishedOnRestoreStreamOperator())
+                        .setupOperatorChain(new TestFinishedOnRestoreStreamOperator())
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
             // Finish the restore, including state initialization and open.
             harness.processAll();

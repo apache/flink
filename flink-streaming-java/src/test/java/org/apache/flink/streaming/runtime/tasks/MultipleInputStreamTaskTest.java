@@ -1049,7 +1049,8 @@ public class MultipleInputStreamTaskTest {
                         .setupOperatorChain(
                                 nonSourceOperatorId,
                                 new LifeCycleMonitorMultipleInputOperatorFactory())
-                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
 
             testHarness.processElement(Watermark.MAX_WATERMARK, 0);

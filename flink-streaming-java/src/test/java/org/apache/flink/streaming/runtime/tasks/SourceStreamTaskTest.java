@@ -715,7 +715,9 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                                         broadcastEvent(EndOfData.INSTANCE, false);
                                     }
                                 })
-                        .setupOutputForSingletonOperatorChain(new StreamSource<>(testSource))
+                        .setupOperatorChain(new StreamSource<>(testSource))
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
             harness.getStreamTask().invoke();
             harness.processAll();
