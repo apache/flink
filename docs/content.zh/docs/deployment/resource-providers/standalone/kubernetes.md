@@ -336,7 +336,7 @@ data:
     appender.rolling.strategy.type = DefaultRolloverStrategy
     appender.rolling.strategy.max = 10
 
-    # 关闭 Netty channel handler 中的不相关（错误）警告
+    # 关闭 Netty channel handler 中不相关的（错误）警告
     logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
@@ -370,14 +370,14 @@ data:
     rootLogger.appenderRef.console.ref = ConsoleAppender
     rootLogger.appenderRef.rolling.ref = RollingFileAppender
 
-    # 如果只想改变 Flink 的日志行为可以取消如下的注释符
+    # 如果你只想改变 Flink 的日志行为则可以取消如下的注释部分
     #logger.flink.name = org.apache.flink
     #logger.flink.level = INFO
 
 
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
-    # 必须手动修改这里的日志级别。
+    # 你必须手动修改这里的日志级别。
     logger.akka.name = akka
     logger.akka.level = INFO
     logger.kafka.name= org.apache.kafka
@@ -393,7 +393,7 @@ data:
     appender.console.layout.type = PatternLayout
     appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
 
-    # 将所有 info 级别的日志输出到 rolling file
+    # 将所有 info 级别的日志输出到指定的 rolling file
     appender.rolling.name = RollingFileAppender
     appender.rolling.type = RollingFile
     appender.rolling.append = false
@@ -407,7 +407,7 @@ data:
     appender.rolling.strategy.type = DefaultRolloverStrategy
     appender.rolling.strategy.max = 10
 
-    # 关闭 Netty channel handler 中的不相关（错误）警告
+    # 关闭 Netty channel handler 中不相关的（错误）警告
     logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
