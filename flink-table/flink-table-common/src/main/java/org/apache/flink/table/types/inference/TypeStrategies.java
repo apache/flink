@@ -23,6 +23,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ForceNullableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
@@ -80,6 +81,11 @@ public final class TypeStrategies {
      */
     public static TypeStrategy mapping(Map<InputTypeStrategy, TypeStrategy> mappings) {
         return new MappingTypeStrategy(mappings);
+    }
+
+    /** Type strategy which forces the given {@param initialStrategy} to be nullable. */
+    public static TypeStrategy forceNullable(TypeStrategy initialStrategy) {
+        return new ForceNullableTypeStrategy(initialStrategy);
     }
 
     /**
