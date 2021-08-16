@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.sink;
+package org.apache.flink.connector.kafka.sink;
 
 import java.util.ArrayList;
 import java.util.Collections;

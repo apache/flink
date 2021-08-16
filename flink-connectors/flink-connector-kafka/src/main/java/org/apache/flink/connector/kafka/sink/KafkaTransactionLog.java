@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.sink;
+package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
@@ -46,9 +46,9 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.connectors.kafka.sink.KafkaTransactionLog.TransactionState.CompleteAbort;
-import static org.apache.flink.streaming.connectors.kafka.sink.KafkaTransactionLog.TransactionState.CompleteCommit;
-import static org.apache.flink.streaming.connectors.kafka.sink.KafkaTransactionLog.TransactionState.Dead;
+import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.CompleteAbort;
+import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.CompleteCommit;
+import static org.apache.flink.connector.kafka.sink.KafkaTransactionLog.TransactionState.Dead;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.kafka.common.internals.Topic.TRANSACTION_STATE_TOPIC_NAME;
 

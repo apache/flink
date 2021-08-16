@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.sink;
+package org.apache.flink.connector.kafka.sink;
 
 import org.junit.Test;
 
@@ -24,19 +24,17 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for serializing and deserialzing {@link KafkaCommittable} with {@link
- * KafkaCommittableSerializer}.
+ * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
+ * KafkaWriterStateSerializer}.
  */
-public class KafkaCommittableSerializerTest {
+public class KafkaWriterStateSerializerTest {
 
-    private static final KafkaCommittableSerializer SERIALIZER = new KafkaCommittableSerializer();
+    private static final KafkaWriterStateSerializer SERIALIZER = new KafkaWriterStateSerializer();
 
     @Test
-    public void testCommittableSerDe() throws IOException {
-        final String transactionalId = "test-id";
-        final short epoch = 5;
-        final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId);
-        final byte[] serialized = SERIALIZER.serialize(committable);
-        assertEquals(committable, SERIALIZER.deserialize(1, serialized));
+    public void testStateSerDe() throws IOException {
+        final KafkaWriterState state = new KafkaWriterState("idPrefix", 1, 2);
+        final byte[] serialized = SERIALIZER.serialize(state);
+        assertEquals(state, SERIALIZER.deserialize(1, serialized));
     }
 }

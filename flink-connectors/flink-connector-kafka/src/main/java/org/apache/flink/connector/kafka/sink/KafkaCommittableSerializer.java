@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka.sink;
+package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -25,8 +25,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-/** A serializer used to serialize {@link KafkaWriterState}. */
-class KafkaWriterStateSerializer implements SimpleVersionedSerializer<KafkaWriterState> {
+class KafkaCommittableSerializer implements SimpleVersionedSerializer<KafkaCommittable> {
 
     @Override
     public int getVersion() {
@@ -34,25 +33,25 @@ class KafkaWriterStateSerializer implements SimpleVersionedSerializer<KafkaWrite
     }
 
     @Override
-    public byte[] serialize(KafkaWriterState state) throws IOException {
+    public byte[] serialize(KafkaCommittable state) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 final DataOutputStream out = new DataOutputStream(baos)) {
-            out.writeInt(state.getSubtaskId());
-            out.writeLong(state.getTransactionalIdOffset());
-            out.writeUTF(state.getTransactionalIdPrefix());
+            out.writeShort(state.getEpoch());
+            out.writeLong(state.getProducerId());
+            out.writeUTF(state.getTransactionalId());
             out.flush();
             return baos.toByteArray();
         }
     }
 
     @Override
-    public KafkaWriterState deserialize(int version, byte[] serialized) throws IOException {
+    public KafkaCommittable deserialize(int version, byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 final DataInputStream in = new DataInputStream(bais)) {
-            final int lastParallelism = in.readInt();
-            final long transactionalOffset = in.readLong();
-            final String transactionalIdPrefx = in.readUTF();
-            return new KafkaWriterState(transactionalIdPrefx, lastParallelism, transactionalOffset);
+            final short epoch = in.readShort();
+            final long producerId = in.readLong();
+            final String transactionalId = in.readUTF();
+            return new KafkaCommittable(producerId, epoch, transactionalId);
         }
     }
 }
