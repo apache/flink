@@ -78,7 +78,7 @@ The compatibility guarantees for restoring state are identical to those when res
 
 ```java
 ExecutionEnvironment bEnv   = ExecutionEnvironment.getExecutionEnvironment();
-ExistingSavepoint savepoint = Savepoint.load(bEnv, "hdfs://path/", new MemoryStateBackend());
+ExistingSavepoint savepoint = Savepoint.load(bEnv, "hdfs://path/", new HashMapStateBackend());
 ```
 
 
@@ -302,7 +302,7 @@ class ClickReader extends WindowReaderFunction<Integer, ClickState, String, Time
 }
 
 ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend());
+ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new HashMapStateBackend());
 
 savepoint
     .window(TumblingEventTimeWindows.of(Time.minutes(1)))
@@ -329,7 +329,7 @@ a savepoint for the Scala DataStream API please manually pass in all type inform
 int maxParallelism = 128;
 
 Savepoint
-    .create(new MemoryStateBackend(), maxParallelism)
+    .create(new HashMapStateBackend(), maxParallelism)
     .withOperator("uid1", transformation1)
     .withOperator("uid2", transformation2)
     .write(savepointPath);
@@ -478,7 +478,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 Savepoint
-    .load(bEnv, new MemoryStateBackend(), oldPath)
+    .load(bEnv, new HashMapStateBackend(), oldPath)
     .withOperator("uid", transformation)
     .write(newPath);
 ```
