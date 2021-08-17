@@ -57,7 +57,7 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 
 1. 获取一个`执行环境`；
 2. 加载/创建初始数据；
-3. 指定数据相关的转换操作；
+3. 指定数据相关的转换；
 4. 指定计算结果的存储位置；
 5. 触发程序执行。
 
@@ -66,7 +66,7 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 
 现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-java/src/main/java/org/apache/flink/streaming/api" name="org.apache.flink.streaming.api" >}} 中找到。
 
-`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` ：
+`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment`：
 
 ```java
 getExecutionEnvironment()
@@ -116,7 +116,7 @@ print()
 
 现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala" name="org.apache.flink.streaming.api.scala" >}} 中找到。
 
-`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment` 对象：
+`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment`：
 
 ```scala
 getExecutionEnvironment()
@@ -384,12 +384,17 @@ Data Sinks
 Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
 - `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
+
 - `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+
 - `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
   可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
+  
 - `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
   自定义 object 到 byte 的转换。
+  
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
+
 - `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
@@ -398,12 +403,17 @@ Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系
 Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
 - `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
+
 - `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+
 - `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
   可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
+  
 - `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
   自定义 object 到 byte 的转换。
+  
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
+
 - `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
@@ -423,7 +433,7 @@ Iterations
 {{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
 {{< tab "Java" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 中。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
 
 ```java
 IterativeStream<Integer> iteration = input.iterate();
@@ -475,7 +485,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 中。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
 
 ```scala
 val iteratedStream = someDataStream.iterate(
@@ -512,7 +522,7 @@ val iteratedStream = someIntegers.iterate(
 
 `StreamExecutionEnvironment` 包含了 `ExecutionConfig`，它允许在运行时设置作业相关的配置值。
 
-大多数参数的说明请参考[执行配置]({{< ref "docs/deployment/config" >}})。这些参数特别适用于 DataStream API：
+大多数参数的说明可参考[执行配置]({{< ref "docs/deployment/config" >}})。这些参数特别适用于 DataStream API：
 
 - `setAutoWatermarkInterval(long milliseconds)`：设置水位线自动发送的时间间隔。你可以使用 `long getAutoWatermarkInterval()` 获取当前配置值。
 
@@ -528,7 +538,7 @@ val iteratedStream = someIntegers.iterate(
 
 ### 控制延迟
 
-默认情况下，元素不会在网络上一一传输（这会导致不必要的网络传输），而是被缓冲。缓冲区的大小（实际在机器之间传输）可以在 Flink 配置文件中设置。虽然此方法有利于优化吞吐量，但当输入流不够快时，它可能会导致延迟问题。要控制吞吐量和延迟，你可以调用执行环境（或单个算子）的 `env.setBufferTimeout(timeoutMillis)` 方法来设置缓冲区填满的最长等待时间。超过此时间后，即使缓冲区没有未满，也会被自动发送。此超时时间的默认值为 100 毫秒。
+默认情况下，元素不会在网络上一一传输（这会导致不必要的网络传输），而是被缓冲。缓冲区的大小（实际在机器之间传输）可以在 Flink 配置文件中设置。虽然此方法有利于优化吞吐量，但当输入流不够快时，它可能会导致延迟问题。要控制吞吐量和延迟，你可以调用执行环境（或单个算子）的 `env.setBufferTimeout(timeoutMillis)` 方法来设置缓冲区填满的最长等待时间。超过此时间后，即使缓冲区没有未满，也会被自动发送。超时时间的默认值为 100 毫秒。
 
 用法：
 
