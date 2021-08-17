@@ -72,6 +72,10 @@ class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):
 
 class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
+    def setUp(self):
+        super(StreamDependencyTests, self).setUp()
+        self.t_env._remote_mode = False
+
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
@@ -79,9 +83,8 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
         self.t_env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
-            import cloudpickle
-            assert os.path.abspath(cloudpickle.__file__).startswith(
-                os.environ['_PYTHON_REQUIREMENTS_INSTALL_DIR'])
+            import cloudpickle  # noqa # pylint: disable=unused-import
+            assert '_PYTHON_REQUIREMENTS_INSTALL_DIR' in os.environ
             return i
 
         self.t_env.create_temporary_system_function("check_requirements",
@@ -156,9 +159,11 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function("add_from_file",
                                                     udf(add_from_file, DataTypes.BIGINT(),
                                                         DataTypes.BIGINT()))
+        self.t_env._remote_mode = True
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -196,6 +201,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
                 raise Exception("The gateway server is not disabled!")
             return i
 
+        self.t_env._remote_mode = True
         self.t_env.create_temporary_system_function(
             "check_pyflink_gateway_disabled",
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),

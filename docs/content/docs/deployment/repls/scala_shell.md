@@ -104,7 +104,7 @@ The example below is a wordcount program using Table API:
 {{< tabs "a5a84572-8c20-46a1-b0bc-7c3347a9ff43" >}}
 {{< tab "stream" >}}
 ```scala
-Scala-Flink> import org.apache.flink.table.functions.TableFunction
+Scala-Flink> val stenv = StreamTableEnvironment.create(senv)
 Scala-Flink> val textSource = stenv.fromDataStream(
   senv.fromElements(
     "To be, or not to be,--that is the question:--",
@@ -112,6 +112,7 @@ Scala-Flink> val textSource = stenv.fromDataStream(
     "The slings and arrows of outrageous fortune",
     "Or to take arms against a sea of troubles,"),
   'text)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
@@ -120,20 +121,21 @@ Scala-Flink> class $Split extends TableFunction[String] {
 Scala-Flink> val split = new $Split
 Scala-Flink> textSource.join(split('text) as 'word).
     groupBy('word).select('word, 'word.count as 'count).
-    toRetractStream[(String, Long)].print
+    toChangelogStream().print
 Scala-Flink> senv.execute("Table Wordcount")
 ```
 {{< /tab >}}
 {{< tab "batch" >}}
 ```scala
-Scala-Flink> import org.apache.flink.table.functions.TableFunction
-Scala-Flink> val textSource = btenv.fromDataSet(
-  benv.fromElements(
+Scala-Flink> val btenv = StreamTableEnvironment.create(senv, EnvironmentSettings.inBatchMode())
+Scala-Flink> val textSource = btenv.fromDataStream(
+  senv.fromElements(
     "To be, or not to be,--that is the question:--",
     "Whether 'tis nobler in the mind to suffer",
     "The slings and arrows of outrageous fortune",
     "Or to take arms against a sea of troubles,"), 
   'text)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
@@ -142,7 +144,7 @@ Scala-Flink> class $Split extends TableFunction[String] {
 Scala-Flink> val split = new $Split
 Scala-Flink> textSource.join(split('text) as 'word).
     groupBy('word).select('word, 'word.count as 'count).
-    toDataSet[(String, Long)].print
+    toDataStream().print
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -155,7 +157,7 @@ The following example is a wordcount program written in SQL:
 {{< tabs "3b210000-4585-497a-8636-c7583d10ff42" >}}
 {{< tab "stream" >}}
 ```scala
-Scala-Flink> import org.apache.flink.table.functions.TableFunction
+Scala-Flink> val stenv = StreamTableEnvironment.create(senv)
 Scala-Flink> val textSource = stenv.fromDataStream(
   senv.fromElements(
     "To be, or not to be,--that is the question:--",
@@ -164,44 +166,46 @@ Scala-Flink> val textSource = stenv.fromDataStream(
     "Or to take arms against a sea of troubles,"), 
   'text)
 Scala-Flink> stenv.createTemporaryView("text_source", textSource)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
     }
   }
-Scala-Flink> stenv.registerFunction("split", new $Split)
+Scala-Flink> stenv.createTemporarySystemFunction("split", new $Split)
 Scala-Flink> val result = stenv.sqlQuery("""SELECT T.word, count(T.word) AS `count` 
     FROM text_source 
     JOIN LATERAL table(split(text)) AS T(word) 
     ON TRUE 
     GROUP BY T.word""")
-Scala-Flink> result.toRetractStream[(String, Long)].print
+Scala-Flink> result.toChangelogStream().print
 Scala-Flink> senv.execute("SQL Wordcount")
 ```
 {{< /tab >}}
 {{< tab "batch" >}}
 ```scala
-Scala-Flink> import org.apache.flink.table.functions.TableFunction
-Scala-Flink> val textSource = btenv.fromDataSet(
-  benv.fromElements(
+Scala-Flink> val btenv = StreamTableEnvironment.create(senv, EnvironmentSettings.inBatchMode())
+Scala-Flink> val textSource = btenv.fromDataStream(
+  senv.fromElements(
     "To be, or not to be,--that is the question:--",
     "Whether 'tis nobler in the mind to suffer",
     "The slings and arrows of outrageous fortune",
     "Or to take arms against a sea of troubles,"), 
   'text)
 Scala-Flink> btenv.createTemporaryView("text_source", textSource)
+Scala-Flink> import org.apache.flink.table.functions.TableFunction
 Scala-Flink> class $Split extends TableFunction[String] {
     def eval(s: String): Unit = {
       s.toLowerCase.split("\\W+").foreach(collect)
     }
   }
-Scala-Flink> btenv.registerFunction("split", new $Split)
+Scala-Flink> btenv.createTemporarySystemFunction("split", new $Split)
 Scala-Flink> val result = btenv.sqlQuery("""SELECT T.word, count(T.word) AS `count` 
     FROM text_source 
     JOIN LATERAL table(split(text)) AS T(word) 
     ON TRUE 
     GROUP BY T.word""")
-Scala-Flink> result.toDataSet[(String, Long)].print
+Scala-Flink> result.toDataStream().print
 ```
 {{< /tab >}}
 {{< /tabs >}}

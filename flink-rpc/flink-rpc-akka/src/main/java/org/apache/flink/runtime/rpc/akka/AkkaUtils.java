@@ -83,7 +83,7 @@ class AkkaUtils {
                 .add("  loggers = [\"akka.event.slf4j.Slf4jLogger\"]")
                 .add("  logging-filter = \"akka.event.slf4j.Slf4jLoggingFilter\"")
                 .add("  log-config-on-start = off")
-                .add("  logger-startup-timeout = 30s")
+                .add("  logger-startup-timeout = 50s")
                 .add("  loglevel = " + getLogLevel())
                 .add("  stdout-loglevel = OFF")
                 .add("  log-dead-letters = " + logLifecycleEvents)

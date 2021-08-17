@@ -224,6 +224,9 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         public void markIdle() {}
 
         @Override
+        public void markActive() {}
+
+        @Override
         public SourceOutput<Integer> createOutputForSplit(String splitId) {
             return this;
         }

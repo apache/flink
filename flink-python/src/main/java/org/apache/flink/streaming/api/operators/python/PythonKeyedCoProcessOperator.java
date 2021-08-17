@@ -40,8 +40,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
-import java.util.Collections;
-
 import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataTypeInfo;
@@ -53,7 +51,7 @@ public class PythonKeyedCoProcessOperator<OUT>
         extends AbstractTwoInputPythonFunctionOperator<Row, Row, OUT>
         implements Triggerable<Row, VoidNamespace> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /** TimerService for current operator to register or fire timer. */
     private transient InternalTimerService<VoidNamespace> internalTimerService;
@@ -112,10 +110,10 @@ public class PythonKeyedCoProcessOperator<OUT>
                 ProtoUtils.createUserDefinedDataStreamStatefulFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
-                        Collections.emptyMap(),
+                        getInternalParameters(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
@@ -221,7 +219,7 @@ public class PythonKeyedCoProcessOperator<OUT>
     public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new PythonKeyedCoProcessOperator<>(
-                getConfig().getConfig(),
+                config,
                 pythonFunctionInfo,
                 getLeftInputType(),
                 getRightInputType(),

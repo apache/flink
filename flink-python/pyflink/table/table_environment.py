@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray
+    to_j_explain_detail_arr, to_jarray, get_field
 
 __all__ = [
     'StreamTableEnvironment',
@@ -91,10 +91,12 @@ class TableEnvironment(object):
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
         self._serializer = serializer
+        self._remote_mode = False
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
         self._set_python_executable_for_local_executor()
+        self._config_chaining_optimization()
 
     @staticmethod
     def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
@@ -1743,6 +1745,26 @@ class TableEnvironment(object):
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        if not self._remote_mode and \
+                is_local_deployment(get_j_env_configuration(self._get_j_env())):
+            from pyflink.common import Configuration
+            _j_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getMergedConfig(
+                self._get_j_env(), self.get_config()._j_table_config)
+            config = Configuration(j_configuration=_j_config)
+            parallelism = int(config.get_string("parallelism.default", "1"))
+
+            if parallelism > 1 and config.contains_key(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
+                import logging
+                logging.warning("Lookback mode is disabled as python archives are used and the "
+                                "parallelism of the job is greater than 1. The Python user-defined "
+                                "functions will be executed in an independent Python process.")
+            else:
+                from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                    BeamFnLoopbackWorkerPoolServicer
+
+                self.get_config().get_configuration().set_string(
+                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
@@ -1757,12 +1779,18 @@ class TableEnvironment(object):
                              name=str(function.__class__.__name__))
         return function
 
+    def _config_chaining_optimization(self):
+        JChainingOptimizingExecutor = get_gateway().jvm.org.apache.flink.table.executor.python.\
+            ChainingOptimizingExecutor
+        exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
+        exec_env_field.set(self._j_tenv,
+                           JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+
 
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
         super(StreamTableEnvironment, self).__init__(j_tenv)
-        self._j_tenv = j_tenv
 
     @staticmethod
     def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore

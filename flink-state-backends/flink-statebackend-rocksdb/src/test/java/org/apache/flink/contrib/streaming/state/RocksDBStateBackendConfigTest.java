@@ -469,6 +469,9 @@ public class RocksDBStateBackendConfigTest {
                         .setMaxBackgroundThreads(4)
                         .setMaxOpenFiles(-1)
                         .setLogLevel(InfoLogLevel.DEBUG_LEVEL)
+                        .setLogDir("/tmp/rocksdb-logs/")
+                        .setLogFileNum(10)
+                        .setMaxLogFileSize("2MB")
                         .setCompactionStyle(CompactionStyle.LEVEL)
                         .setUseDynamicLevelSize(true)
                         .setTargetFileSizeBase("4MB")
@@ -485,7 +488,11 @@ public class RocksDBStateBackendConfigTest {
 
             DBOptions dbOptions = optionsContainer.getDbOptions();
             assertEquals(-1, dbOptions.maxOpenFiles());
+
             assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
+            assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
+            assertEquals(10, dbOptions.keepLogFileNum());
+            assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
 
             ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
             assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());
@@ -514,6 +521,11 @@ public class RocksDBStateBackendConfigTest {
         {
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_BACKGROUND_THREADS, "-1");
             verifyIllegalArgument(RocksDBConfigurableOptions.LOG_LEVEL, "DEBUG");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_DIR, "tmp/rocksdb-logs/");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_DIR, "");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_FILE_NUM, "0");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_FILE_NUM, "-1");
+            verifyIllegalArgument(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE, "-1KB");
             verifyIllegalArgument(RocksDBConfigurableOptions.MAX_WRITE_BUFFER_NUMBER, "-1");
             verifyIllegalArgument(
                     RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE, "-1");
@@ -533,6 +545,9 @@ public class RocksDBStateBackendConfigTest {
         // verify legal configuration
         {
             configuration.setString(RocksDBConfigurableOptions.LOG_LEVEL.key(), "DEBUG_LEVEL");
+            configuration.setString(RocksDBConfigurableOptions.LOG_DIR.key(), "/tmp/rocksdb-logs/");
+            configuration.setString(RocksDBConfigurableOptions.LOG_FILE_NUM.key(), "10");
+            configuration.setString(RocksDBConfigurableOptions.LOG_MAX_FILE_SIZE.key(), "2MB");
             configuration.setString(RocksDBConfigurableOptions.COMPACTION_STYLE.key(), "level");
             configuration.setString(
                     RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE.key(), "TRUE");
@@ -557,6 +572,9 @@ public class RocksDBStateBackendConfigTest {
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
                 assertEquals(InfoLogLevel.DEBUG_LEVEL, dbOptions.infoLogLevel());
+                assertEquals("/tmp/rocksdb-logs/", dbOptions.dbLogDir());
+                assertEquals(10, dbOptions.keepLogFileNum());
+                assertEquals(2 * SizeUnit.MB, dbOptions.maxLogFileSize());
 
                 ColumnFamilyOptions columnOptions = optionsContainer.getColumnOptions();
                 assertEquals(CompactionStyle.LEVEL, columnOptions.compactionStyle());

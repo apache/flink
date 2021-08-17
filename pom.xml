@@ -135,6 +135,7 @@ under the License.
 		<protoc.version>3.17.3</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
 		<okhttp.version>3.14.9</okhttp.version>
+		<testcontainers.version>1.15.3</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -786,6 +787,13 @@ under the License.
 				<groupId>org.yaml</groupId>
 				<artifactId>snakeyaml</artifactId>
 				<version>1.27</version>
+			</dependency>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>${testcontainers.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -1449,6 +1457,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
+						<exclude>flink-connectors/flink-connector-pulsar/src/test/resources/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
@@ -1545,7 +1554,8 @@ under the License.
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
 						<!-- on, unset, or random -->
-						<checkpointing.changelog>random</checkpointing.changelog>
+                        <!-- disable temporarily for 1.14 release -->
+						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>

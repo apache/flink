@@ -27,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -40,7 +39,7 @@ import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import javax.annotation.Nullable;
 
@@ -71,6 +70,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         final SourceReader<T, ?> sourceReader = sourceOperator.getSourceReader();
         final StreamTaskInput<T> input;
 
+        // TODO: should the input be constructed inside the `OperatorChain` class?
         if (operatorChain.isFinishedOnRestore()) {
             input = new StreamTaskFinishedOnRestoreSourceInput<>(sourceOperator, 0, 0);
         } else if (sourceReader instanceof ExternallyInducedSourceReader) {
@@ -87,9 +87,7 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         }
 
         Counter numRecordsOut =
-                ((OperatorMetricGroup) sourceOperator.getMetricGroup())
-                        .getIOMetricGroup()
-                        .getNumRecordsOutCounter();
+                sourceOperator.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
 
         // The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
         // a WatermarkGauge on the input.
@@ -201,8 +199,8 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            output.emitStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 }

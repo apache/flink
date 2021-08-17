@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -33,10 +34,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.Matchers.instanceOf;
@@ -50,6 +54,7 @@ public class StreamTaskTimerTest extends TestLogger {
 
     private StreamTaskTestHarness<?> testHarness;
     private ProcessingTimeService timeService;
+    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Before
     public void setup() throws Exception {
@@ -70,11 +75,12 @@ public class StreamTaskTimerTest extends TestLogger {
     }
 
     @Test
-    public void testOpenCloseAndTimestamps() {
-        // first one spawns thread
-        timeService.registerTimer(System.currentTimeMillis(), timestamp -> {});
-
-        assertEquals(2, StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+    public void testOpenCloseAndTimestamps() throws InterruptedException {
+        // Wait for StreamTask#invoke spawn the timeService threads for the throughput calculation.
+        while (StreamTask.TRIGGER_THREAD_GROUP.activeCount() != 1) {
+            Thread.sleep(1);
+        }
+        // The timeout would happen if spawning the thread failed.
     }
 
     @Test
@@ -179,6 +185,11 @@ public class StreamTaskTimerTest extends TestLogger {
                         BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.setupOutputForSingletonOperatorChain();
+        // Making it impossible to execute the throughput calculation even once during the test.
+        testHarness
+                .getTaskManagerRuntimeInfo()
+                .getConfiguration()
+                .set(TaskManagerOptions.BUFFER_DEBLOAT_PERIOD, Duration.ofMinutes(10));
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
         streamConfig.setChainIndex(0);

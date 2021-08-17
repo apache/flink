@@ -32,7 +32,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.rel.core.JoinRelType;
-import org.junit.Ignore;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import java.util.HashMap;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
 /** Tests for {@link PythonTableFunctionOperator}. */
-@Ignore
 public class PythonTableFunctionOperatorTest
         extends PythonTableFunctionOperatorTestBase<RowData, RowData> {
 

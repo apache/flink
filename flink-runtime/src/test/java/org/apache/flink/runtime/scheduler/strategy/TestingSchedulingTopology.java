@@ -387,12 +387,17 @@ public class TestingSchedulingTopology implements SchedulingTopology {
     /** Builder for {@link TestingSchedulingExecutionVertex}. */
     public class SchedulingExecutionVerticesBuilder {
 
-        private final JobVertexID jobVertexId = new JobVertexID();
+        private JobVertexID jobVertexId = new JobVertexID();
 
         private int parallelism = 1;
 
         public SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
             this.parallelism = parallelism;
+            return this;
+        }
+
+        public SchedulingExecutionVerticesBuilder withJobVertexID(final JobVertexID jobVertexId) {
+            this.jobVertexId = jobVertexId;
             return this;
         }
 

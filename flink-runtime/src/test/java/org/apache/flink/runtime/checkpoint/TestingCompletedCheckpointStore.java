@@ -33,9 +33,6 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
     }
 
     @Override
-    public void recover() {}
-
-    @Override
     public void addCheckpoint(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,

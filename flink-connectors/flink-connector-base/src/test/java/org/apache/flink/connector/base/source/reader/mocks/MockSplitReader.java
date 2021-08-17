@@ -46,10 +46,6 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
     private volatile Thread threadInBlocking;
     private boolean wokenUp;
 
-    public MockSplitReader(int numRecordsPerSplitPerFetch, boolean blockingFetch) {
-        this(numRecordsPerSplitPerFetch, false, blockingFetch);
-    }
-
     private MockSplitReader(
             int numRecordsPerSplitPerFetch,
             boolean separatedFinishedRecord,
@@ -164,7 +160,7 @@ public class MockSplitReader implements SplitReader<int[], MockSourceSplit> {
 
         public MockSplitReader build() {
             return new MockSplitReader(
-                    numRecordsPerSplitPerFetch, blockingFetch, separatedFinishedRecord);
+                    numRecordsPerSplitPerFetch, separatedFinishedRecord, blockingFetch);
         }
     }
 

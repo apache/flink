@@ -27,6 +27,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
 import org.apache.flink.runtime.checkpoint.DefaultLastStateConnectionStateListener;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
@@ -59,6 +60,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cac
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheListener;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.TreeCacheSelector;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.SessionConnectionStateErrorPolicy;
 import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.ZooDefs;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
@@ -207,7 +209,7 @@ public class ZooKeeperUtils {
 
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
-        CuratorFramework cf =
+        final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
                         .connectString(zkQuorum)
                         .sessionTimeoutMs(sessionTimeout)
@@ -216,8 +218,14 @@ public class ZooKeeperUtils {
                         // Curator prepends a '/' manually and throws an Exception if the
                         // namespace starts with a '/'.
                         .namespace(trimStartingSlash(rootWithNamespace))
-                        .aclProvider(aclProvider)
-                        .build();
+                        .aclProvider(aclProvider);
+
+        if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
+            curatorFrameworkBuilder.connectionStateErrorPolicy(
+                    new SessionConnectionStateErrorPolicy());
+        }
+
+        CuratorFramework cf = curatorFrameworkBuilder.build();
 
         cf.start();
 
@@ -257,7 +265,7 @@ public class ZooKeeperUtils {
      */
     public static DefaultLeaderRetrievalService createLeaderRetrievalService(
             final CuratorFramework client) {
-        return createLeaderRetrievalService(client, "");
+        return createLeaderRetrievalService(client, "", new Configuration());
     }
 
     /**
@@ -266,11 +274,13 @@ public class ZooKeeperUtils {
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param path The path for the leader retrieval
+     * @param configuration configuration for further config options
      * @return {@link DefaultLeaderRetrievalService} instance.
      */
     public static DefaultLeaderRetrievalService createLeaderRetrievalService(
-            final CuratorFramework client, final String path) {
-        return new DefaultLeaderRetrievalService(createLeaderRetrievalDriverFactory(client, path));
+            final CuratorFramework client, final String path, final Configuration configuration) {
+        return new DefaultLeaderRetrievalService(
+                createLeaderRetrievalDriverFactory(client, path, configuration));
     }
 
     /**
@@ -281,7 +291,7 @@ public class ZooKeeperUtils {
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
             final CuratorFramework client) {
-        return createLeaderRetrievalDriverFactory(client, "");
+        return createLeaderRetrievalDriverFactory(client, "", new Configuration());
     }
 
     /**
@@ -289,11 +299,26 @@ public class ZooKeeperUtils {
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param path The path for the leader zNode
+     * @param configuration configuration for further config options
      * @return {@link LeaderRetrievalDriverFactory} instance.
      */
     public static ZooKeeperLeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(
-            final CuratorFramework client, final String path) {
-        return new ZooKeeperLeaderRetrievalDriverFactory(client, path);
+            final CuratorFramework client, final String path, final Configuration configuration) {
+        final ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                leaderInformationClearancePolicy;
+
+        if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
+            leaderInformationClearancePolicy =
+                    ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                            .ON_LOST_CONNECTION;
+        } else {
+            leaderInformationClearancePolicy =
+                    ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
+                            .ON_SUSPENDED_CONNECTION;
+        }
+
+        return new ZooKeeperLeaderRetrievalDriverFactory(
+                client, path, leaderInformationClearancePolicy);
     }
 
     /**
@@ -415,6 +440,9 @@ public class ZooKeeperUtils {
                         maxNumberOfCheckpointsToRetain,
                         completedCheckpointStateHandleStore,
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
+                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                completedCheckpointStateHandleStore,
+                                ZooKeeperCheckpointStoreUtil.INSTANCE),
                         executor);
 
         LOG.info(

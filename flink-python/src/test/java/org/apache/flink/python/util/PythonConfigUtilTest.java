@@ -45,15 +45,14 @@ public class PythonConfigUtilTest {
     }
 
     @Test
-    public void testJobName()
-            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
+    public void testJobName() {
         String jobName = "MyTestJob";
         Configuration config = new Configuration();
         config.set(PipelineOptions.NAME, jobName);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 
         env.fromCollection(Collections.singletonList("test")).addSink(new DiscardingSink<>());
-        StreamGraph streamGraph = PythonConfigUtil.generateStreamGraphWithDependencies(env, true);
+        StreamGraph streamGraph = env.getStreamGraph(true);
         assertEquals(jobName, streamGraph.getJobName());
     }
 }

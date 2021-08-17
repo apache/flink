@@ -28,7 +28,7 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
 })
 export class JobManagerLogsComponent implements OnInit {
   logs = '';
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
 
   reload() {
     this.jobManagerService.loadLogs().subscribe(data => {

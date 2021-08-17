@@ -278,7 +278,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
-        ArrayList<StreamElement> expected = new ArrayList<>();
+        ArrayList<Object> expected = new ArrayList<>();
         Collections.addAll(
                 expected,
                 new StreamRecord<>("Hello"),

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException}
@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
-import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
+import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserContext
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
@@ -56,7 +57,6 @@ import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.tools.FrameworkConfig
 
@@ -156,10 +156,12 @@ abstract class PlannerBase(
   }
 
   def createNewParser: Parser = {
-    val parserProps = Map(TableConfigOptions.TABLE_SQL_DIALECT.key() ->
-      getTableConfig.getSqlDialect.name().toLowerCase)
-    ComponentFactoryService.find(classOf[ParserFactory], parserProps)
-      .create(catalogManager, plannerContext)
+    val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
+    val parserFactory = FactoryUtil.discoverFactory(Thread.currentThread.getContextClassLoader,
+      classOf[ParserFactory], factoryIdentifier)
+
+    val context = new DefaultParserContext(catalogManager, plannerContext)
+    parserFactory.create(context)
   }
 
   override def getParser: Parser = {

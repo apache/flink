@@ -30,8 +30,8 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
 import java.util.Map;
@@ -45,9 +45,9 @@ import static java.util.stream.Collectors.toMap;
  * CheckpointedInputGate}.
  *
  * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
- * {@link StreamStatus} events, and forwards them to event subscribers once the {@link
+ * {@link WatermarkStatus} events, and forwards them to event subscribers once the {@link
  * StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or that a
- * {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ * {@link WatermarkStatus} needs to be propagated downstream to denote a status change.
  *
  * <p>Forwarding elements, watermarks, or status elements must be protected by synchronizing on the
  * given lock object. This ensures that we don't call methods on a {@link StreamInputProcessor}
@@ -106,7 +106,7 @@ public final class StreamTaskNetworkInput<T>
                         ChannelStateWriter.SEQUENCE_NUMBER_UNKNOWN,
                         e.getValue().getUnconsumedBuffer());
             } catch (IOException ioException) {
-                throw new CheckpointException(CheckpointFailureReason.EXCEPTION, ioException);
+                throw new CheckpointException(CheckpointFailureReason.IO_EXCEPTION, ioException);
             }
         }
         return checkpointedInputGate.getAllBarriersReceivedFuture(checkpointId);

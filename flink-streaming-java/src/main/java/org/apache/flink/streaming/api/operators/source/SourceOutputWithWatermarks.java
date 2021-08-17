@@ -135,6 +135,11 @@ public class SourceOutputWithWatermarks<T> implements SourceOutput<T> {
         onEventWatermarkOutput.markIdle();
     }
 
+    @Override
+    public void markActive() {
+        onEventWatermarkOutput.markActive();
+    }
+
     public final void emitPeriodicWatermark() {
         watermarkGenerator.onPeriodicEmit(periodicWatermarkOutput);
     }

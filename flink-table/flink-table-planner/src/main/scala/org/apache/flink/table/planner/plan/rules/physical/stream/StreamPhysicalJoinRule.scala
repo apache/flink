@@ -23,8 +23,9 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
+import org.apache.flink.table.planner.plan.utils.JoinUtil.{accessesTimeAttribute, combineJoinInputsRowType, satisfyRegularJoin}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.containsInitialTemporalJoinCondition
+import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -40,51 +41,33 @@ class StreamPhysicalJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
-    if (!join.getJoinType.projectsRight) {
-      // SEMI/ANTI join always converts to StreamExecJoin now
-      return true
-    }
     val left: FlinkLogicalRel = call.rel(1).asInstanceOf[FlinkLogicalRel]
     val right: FlinkLogicalRel = call.rel(2).asInstanceOf[FlinkLogicalRel]
-    val joinRowType = join.getRowType
 
+    if (!satisfyRegularJoin(join, right)) {
+      return false
+    }
+
+    // validate the join
     if (left.isInstanceOf[FlinkLogicalSnapshot]) {
       throw new TableException(
         "Temporal table join only support apply FOR SYSTEM_TIME AS OF on the right table.")
     }
 
-    // this rule shouldn't match temporal table join
-    if (right.isInstanceOf[FlinkLogicalSnapshot] ||
-      TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
-      return false
-    }
+    // INITIAL_TEMPORAL_JOIN_CONDITION should not appear in physical phase in case which fallback
+    // to regular join
+    checkState(!containsInitialTemporalJoinCondition(join.getCondition))
 
-    val (windowBounds, remainingPreds) = extractWindowBounds(join)
-    if (windowBounds.isDefined) {
-      return false
-    }
+    // Time attributes must not be in the output type of a regular join
+    val timeAttrInOutput = join.getRowType.getFieldList
+      .exists(f => FlinkTypeFactory.isTimeIndicatorType(f.getType))
+    checkState(!timeAttrInOutput)
 
-    if (satisfyWindowJoin(join)) {
-      return false
-    }
-
-    // remaining predicate must not access time attributes
-    val remainingPredsAccessTime = remainingPreds.isDefined &&
-      IntervalJoinUtil.accessesTimeAttribute(remainingPreds.get, joinRowType)
-
-    val rowTimeAttrInOutput = joinRowType.getFieldList
-      .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-    if (rowTimeAttrInOutput) {
-      throw new TableException(
-        "Rowtime attributes must not be in the input rows of a regular join. " +
-          "As a workaround you can cast the time attributes of input tables to TIMESTAMP before.")
-    }
-
-    // joins require an equality condition
-    // or a conjunctive predicate with at least one equality condition
-    // and disable outer joins with non-equality predicates(see FLINK-5520)
-    // And do not accept a FlinkLogicalTemporalTableSourceScan as right input
-    !remainingPredsAccessTime
+    // Join condition must not access time attributes
+    val remainingPredsAccessTime = accessesTimeAttribute(
+      join.getCondition, combineJoinInputsRowType(join))
+    checkState(!remainingPredsAccessTime)
+    true
   }
 
   override protected def transform(

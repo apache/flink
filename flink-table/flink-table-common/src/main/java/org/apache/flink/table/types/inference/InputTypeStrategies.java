@@ -38,6 +38,7 @@ import org.apache.flink.table.types.inference.strategies.RootArgumentTypeStrateg
 import org.apache.flink.table.types.inference.strategies.SequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SubsequenceInputTypeStrategy.SubsequenceStrategyBuilder;
 import org.apache.flink.table.types.inference.strategies.SymbolArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.TypeLiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingSequenceInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.WildcardInputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -196,6 +197,10 @@ public final class InputTypeStrategies {
     /** Strategy that checks if an argument is a literal or NULL. */
     public static final LiteralArgumentTypeStrategy LITERAL_OR_NULL =
             new LiteralArgumentTypeStrategy(true);
+
+    /** Strategy that checks if an argument is a type literal. */
+    public static final TypeLiteralArgumentTypeStrategy TYPE_LITERAL =
+            new TypeLiteralArgumentTypeStrategy();
 
     /** Strategy that checks that the argument has a composite type. */
     public static final ArgumentTypeStrategy COMPOSITE = new CompositeArgumentTypeStrategy();

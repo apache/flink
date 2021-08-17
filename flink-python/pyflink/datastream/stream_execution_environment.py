@@ -39,7 +39,8 @@ from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, invoke_method
+from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
+    invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -57,6 +58,7 @@ class StreamExecutionEnvironment(object):
 
     def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
+        self._remote_mode = False
         self.serializer = serializer
 
     def get_config(self) -> ExecutionConfig:
@@ -320,57 +322,6 @@ class StreamExecutionEnvironment(object):
         self._j_stream_execution_environment = \
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
-
-    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
-        """
-        Enable the change log for current state backend. This change log allows operators to persist
-        state changes in a very fine-grained manner. Currently, the change log only applies to keyed
-        state, so non-keyed operator state and channel state are persisted as usual. The 'state'
-        here refers to 'keyed state'. Details are as follows:
-
-        * Stateful operators write the state changes to that log (logging the state), in addition \
-        to applying them to the state tables in RocksDB or the in-mem Hashtable.
-        * An operator can acknowledge a checkpoint as soon as the changes in the log have reached \
-        the durable checkpoint storage.
-        * The state tables are persisted periodically, independent of the checkpoints. We call \
-        this the materialization of the state on the checkpoint storage.
-        * Once the state is materialized on checkpoint storage, the state changelog can be \
-        truncated to the corresponding point.
-
-        It establish a way to drastically reduce the checkpoint interval for streaming
-        applications across state backends. For more details please check the FLIP-158.
-
-        If this method is not called explicitly, it means no preference for enabling the change
-        log. Configs for change log enabling will override in different config levels
-        (job/local/cluster).
-
-        .. seealso:: :func:`is_changelog_state_backend_enabled`
-
-
-        :param enabled: True if enable the change log for state backend explicitly, otherwise
-                        disable the change log.
-        :return: This object.
-
-        .. versionadded:: 1.14.0
-        """
-        self._j_stream_execution_environment = \
-            self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
-        return self
-
-    def is_changelog_state_backend_enabled(self) -> Optional[bool]:
-        """
-        Gets the enable status of change log for state backend.
-
-        .. seealso:: :func:`enable_changelog_state_backend`
-
-        :return: An :class:`Optional[bool]` for the enable status of change log for state backend.
-                 Could be None if user never specify this by calling
-                 :func:`enable_changelog_state_backend`.
-
-        .. versionadded:: 1.14.0
-        """
-        j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
-        return j_ternary_boolean.getAsBoolean()
 
     def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
         """
@@ -918,15 +869,39 @@ class StreamExecutionEnvironment(object):
     def _generate_stream_graph(self, clear_transformations: bool = False, job_name: str = None) \
             -> JavaObject:
         gateway = get_gateway()
+        JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
+        if not self._remote_mode and is_local_deployment(j_configuration):
+            from pyflink.common import Configuration
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            jvm = gateway.jvm
+            env_config = JPythonConfigUtil.getEnvironmentConfig(
+                self._j_stream_execution_environment)
+            parallelism = self.get_parallelism()
+            if parallelism > 1 and env_config.containsKey(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
+                import logging
+                logging.warning("Lookback mode is disabled as python archives are used and the "
+                                "parallelism of the job is greater than 1. The Python user-defined "
+                                "functions will be executed in an independent Python process.")
+            else:
+                config = Configuration(j_configuration=j_configuration)
+                config.set_string(
+                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
+
+        JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
+
         gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
             self._j_stream_execution_environment)
-        j_stream_graph = gateway.jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-                self._j_stream_execution_environment, clear_transformations)
 
+        JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
+            get_field_value(self._j_stream_execution_environment, "transformations"))
+
+        j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
         if job_name is not None:
             j_stream_graph.setJobName(job_name)
-
         return j_stream_graph
 
     def is_unaligned_checkpoints_enabled(self):

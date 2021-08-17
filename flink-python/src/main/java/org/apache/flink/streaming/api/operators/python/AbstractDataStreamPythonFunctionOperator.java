@@ -26,12 +26,28 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
+import java.util.Map;
+
 /** Base class for all Python DataStream operators. */
 @Internal
 public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         extends AbstractPythonFunctionOperator<OUT> implements ResultTypeQueryable<OUT> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
+
+    /** The number of partitions for the partition custom function. */
+    @Nullable private Integer numPartitions = null;
+
+    /**
+     * Whether it contains partition custom function. If true, the variable numPartitions should be
+     * set and the value should be set to the parallelism of the downstream operator.
+     */
+    private boolean containsPartitionCustom;
 
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
@@ -60,6 +76,26 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
 
     public abstract <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo);
+
+    public Map<String, String> getInternalParameters() {
+        Map<String, String> internalParameters = new HashMap<>();
+        if (numPartitions != null) {
+            internalParameters.put(NUM_PARTITIONS, String.valueOf(numPartitions));
+        }
+        return internalParameters;
+    }
+
+    public void setNumPartitions(int numPartitions) {
+        this.numPartitions = numPartitions;
+    }
+
+    public void setContainsPartitionCustom(boolean containsPartitionCustom) {
+        this.containsPartitionCustom = containsPartitionCustom;
+    }
+
+    public boolean containsPartitionCustom() {
+        return this.containsPartitionCustom;
+    }
 
     // ----------------------------------------------------------------------
     // Getters

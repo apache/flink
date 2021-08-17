@@ -96,7 +96,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Flink Sink to produce data into a Kafka topic. By default producer will use {@link
  * FlinkKafkaProducer.Semantic#AT_LEAST_ONCE} semantic. Before using {@link
  * FlinkKafkaProducer.Semantic#EXACTLY_ONCE} please refer to Flink's Kafka connector documentation.
+ *
+ * @deprecated Please use {@link org.apache.flink.connector.kafka.sink.KafkaSink}.
  */
+@Deprecated
 @PublicEvolving
 public class FlinkKafkaProducer<IN>
         extends TwoPhaseCommitSinkFunction<

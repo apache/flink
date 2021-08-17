@@ -15,6 +15,18 @@
             <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
         </tr>
         <tr>
+            <td><h5>cluster.fine-grained-resource-management.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether the cluster uses fine-grained resource management.</td>
+        </tr>
+        <tr>
+            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -49,6 +61,18 @@
             <td style="word-wrap: break-word;">300000</td>
             <td>Long</td>
             <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.max-total-resource.cpu</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Maximum cpu cores the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.max-total-resource.memory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Maximum memory size the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
         </tr>
         <tr>
             <td><h5>slotmanager.number-of-slots.max</h5></td>

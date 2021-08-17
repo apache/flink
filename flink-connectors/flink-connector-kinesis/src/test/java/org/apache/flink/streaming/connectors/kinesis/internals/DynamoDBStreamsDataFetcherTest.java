@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
@@ -62,8 +61,7 @@ public class DynamoDBStreamsDataFetcherTest {
         fetcher.createRecordPublisher(
                 SENTINEL_LATEST_SEQUENCE_NUM.get(),
                 new Properties(),
-                createFakeShardConsumerMetricGroup(
-                        (OperatorMetricGroup) runtimeContext.getMetricGroup()),
+                createFakeShardConsumerMetricGroup(runtimeContext.getMetricGroup()),
                 dummyStreamShardHandle);
 
         verify(kinesis).getShardIterator(dummyStreamShardHandle, LATEST.toString(), null);

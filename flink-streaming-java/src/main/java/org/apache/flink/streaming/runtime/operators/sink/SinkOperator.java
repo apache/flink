@@ -22,7 +22,9 @@ import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -94,6 +96,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
             writerFactory;
 
     private final MailboxExecutor mailboxExecutor;
+    private Counter numRecordsOutCounter;
 
     SinkOperator(
             ProcessingTimeService processingTimeService,
@@ -121,6 +124,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         super.open();
 
         this.currentWatermark = Long.MIN_VALUE;
+        numRecordsOutCounter = getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
     }
 
     @Override
@@ -143,6 +147,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     public void processElement(StreamRecord<InputT> element) throws Exception {
         context.element = element;
         sinkWriter.write(element.getValue(), context);
+        numRecordsOutCounter.inc();
     }
 
     @Override
@@ -193,7 +198,10 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     private Sink.InitContext createInitContext() {
         return new InitContextImpl(
-                getRuntimeContext(), processingTimeService, mailboxExecutor, getMetricGroup());
+                getRuntimeContext(),
+                processingTimeService,
+                mailboxExecutor,
+                InternalSinkWriterMetricGroup.wrap(getMetricGroup()));
     }
 
     private class Context<IN> implements SinkWriter.Context {
@@ -220,7 +228,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
         private final MailboxExecutor mailboxExecutor;
 
-        private final MetricGroup metricGroup;
+        private final SinkWriterMetricGroup metricGroup;
 
         private final StreamingRuntimeContext runtimeContext;
 
@@ -228,7 +236,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
                 StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
-                MetricGroup metricGroup) {
+                SinkWriterMetricGroup metricGroup) {
             this.runtimeContext = checkNotNull(runtimeContext);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
@@ -273,7 +281,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         }
 
         @Override
-        public MetricGroup metricGroup() {
+        public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
         }
     }

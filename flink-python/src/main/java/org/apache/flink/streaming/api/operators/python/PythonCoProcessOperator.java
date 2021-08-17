@@ -29,8 +29,6 @@ import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import java.util.Collections;
-
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -45,7 +43,7 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
 public class PythonCoProcessOperator<IN1, IN2, OUT>
         extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
@@ -74,9 +72,9 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
                 ProtoUtils.createUserDefinedDataStreamFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
-                        Collections.emptyMap(),
+                        getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 null,
                 null,
@@ -119,7 +117,7 @@ public class PythonCoProcessOperator<IN1, IN2, OUT>
     public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
         return new PythonCoProcessOperator<>(
-                getConfig().getConfig(),
+                config,
                 pythonFunctionInfo,
                 getLeftInputType(),
                 getRightInputType(),

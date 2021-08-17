@@ -38,9 +38,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Collections;
-import java.util.Map;
-
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
@@ -56,9 +53,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
-
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
 
     /** The TypeInformation of input data. */
     private final TypeInformation<IN> inputTypeInfo;
@@ -97,7 +91,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo) {
         super(config, pythonFunctionInfo, outputTypeInfo);
-        this.jobOptions = config.toMap();
         this.inputTypeInfo = Preconditions.checkNotNull(inputTypeInfo);
     }
 
@@ -147,10 +140,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
         emitResults();
     }
 
-    public Map<String, String> getInternalParameters() {
-        return Collections.emptyMap();
-    }
-
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor() {
         return createRawTypeCoderInfoDescriptorProto(
                 runnerInputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
@@ -164,10 +153,6 @@ public abstract class AbstractOneInputPythonFunctionOperator<IN, OUT>
     // ----------------------------------------------------------------------
     // Getters
     // ----------------------------------------------------------------------
-
-    protected Map<String, String> getJobOptions() {
-        return jobOptions;
-    }
 
     public TypeInformation<IN> getInputTypeInfo() {
         return inputTypeInfo;

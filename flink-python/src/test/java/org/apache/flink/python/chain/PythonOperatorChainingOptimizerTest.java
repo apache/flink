@@ -51,7 +51,7 @@ import static org.mockito.Mockito.mock;
 public class PythonOperatorChainingOptimizerTest {
 
     @Test
-    public void testChainedTransformationPropertiesCorrectlySet() throws Exception {
+    public void testChainedTransformationPropertiesCorrectlySet() {
         PythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
@@ -97,9 +97,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(keyedProcessTransformation);
         transformations.add(processTransformation);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(2, optimized.size());
 
         OneInputTransformation<?, ?> chainedTransformation =
@@ -139,7 +138,7 @@ public class PythonOperatorChainingOptimizerTest {
     }
 
     @Test
-    public void testChainingMultipleOperators() throws Exception {
+    public void testChainingMultipleOperators() {
         PythonKeyedProcessOperator<?> keyedProcessOperator =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
@@ -177,9 +176,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(processTransformation1);
         transformations.add(processTransformation2);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(2, optimized.size());
 
         OneInputTransformation<?, ?> chainedTransformation =
@@ -197,7 +195,7 @@ public class PythonOperatorChainingOptimizerTest {
     }
 
     @Test
-    public void testChainingNonKeyedOperators() throws Exception {
+    public void testChainingNonKeyedOperators() {
         PythonProcessOperator<?, ?> processOperator1 =
                 createProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
@@ -225,9 +223,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(processTransformation1);
         transformations.add(processTransformation2);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(2, optimized.size());
 
         OneInputTransformation<?, ?> chainedTransformation =
@@ -244,7 +241,7 @@ public class PythonOperatorChainingOptimizerTest {
     }
 
     @Test
-    public void testContinuousKeyedOperators() throws Exception {
+    public void testContinuousKeyedOperators() {
         PythonKeyedProcessOperator<?> keyedProcessOperator1 =
                 createKeyedProcessOperator(
                         "f1",
@@ -275,9 +272,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(processTransformation1);
         transformations.add(processTransformation2);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(3, optimized.size());
 
         assertEquals(processTransformation1, optimized.get(1));
@@ -285,7 +281,7 @@ public class PythonOperatorChainingOptimizerTest {
     }
 
     @Test
-    public void testMultipleChainedOperators() throws Exception {
+    public void testMultipleChainedOperators() {
         PythonKeyedProcessOperator<?> keyedProcessOperator1 =
                 createKeyedProcessOperator(
                         "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
@@ -349,9 +345,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(keyedProcessTransformation2);
         transformations.add(processTransformation3);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(3, optimized.size());
 
         OneInputTransformation<?, ?> chainedTransformation1 =
@@ -381,7 +376,7 @@ public class PythonOperatorChainingOptimizerTest {
     }
 
     @Test
-    public void testChainingTwoInputOperators() throws Exception {
+    public void testChainingTwoInputOperators() {
         PythonKeyedCoProcessOperator<?> keyedCoProcessOperator1 =
                 createCoKeyedProcessOperator(
                         "f1",
@@ -451,9 +446,8 @@ public class PythonOperatorChainingOptimizerTest {
         transformations.add(keyedProcessTransformation);
         transformations.add(processTransformation3);
 
-        PythonOperatorChainingOptimizer optimizer =
-                new PythonOperatorChainingOptimizer(transformations, true);
-        List<Transformation<?>> optimized = optimizer.optimize();
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
         assertEquals(4, optimized.size());
 
         TwoInputTransformation<?, ?, ?> chainedTransformation1 =
@@ -481,6 +475,117 @@ public class PythonOperatorChainingOptimizerTest {
                 ((PythonKeyedProcessOperator<?>) chainedOperator2).getPythonFunctionInfo(),
                 "f5",
                 "f4");
+    }
+
+    @Test
+    public void testChainingUnorderedTransformations() {
+        PythonKeyedProcessOperator<?> keyedProcessOperator =
+                createKeyedProcessOperator(
+                        "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
+        PythonProcessOperator<?, ?> processOperator1 =
+                createProcessOperator("f2", Types.STRING(), Types.LONG());
+        PythonProcessOperator<?, ?> processOperator2 =
+                createProcessOperator("f3", Types.LONG(), Types.INT());
+
+        Transformation<?> sourceTransformation = mock(SourceTransformation.class);
+        OneInputTransformation<?, ?> keyedProcessTransformation =
+                new OneInputTransformation(
+                        sourceTransformation,
+                        "keyedProcess",
+                        keyedProcessOperator,
+                        keyedProcessOperator.getProducedType(),
+                        2);
+        Transformation<?> processTransformation1 =
+                new OneInputTransformation(
+                        keyedProcessTransformation,
+                        "process",
+                        processOperator1,
+                        processOperator1.getProducedType(),
+                        2);
+        Transformation<?> processTransformation2 =
+                new OneInputTransformation(
+                        processTransformation1,
+                        "process",
+                        processOperator2,
+                        processOperator2.getProducedType(),
+                        2);
+
+        List<Transformation<?>> transformations = new ArrayList<>();
+        transformations.add(sourceTransformation);
+        transformations.add(processTransformation2);
+        transformations.add(processTransformation1);
+        transformations.add(keyedProcessTransformation);
+
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
+        assertEquals(2, optimized.size());
+
+        OneInputTransformation<?, ?> chainedTransformation =
+                (OneInputTransformation<?, ?>) optimized.get(1);
+        assertEquals(sourceTransformation.getOutputType(), chainedTransformation.getInputType());
+        assertEquals(processOperator2.getProducedType(), chainedTransformation.getOutputType());
+
+        OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
+        assertTrue(chainedOperator instanceof PythonKeyedProcessOperator);
+        validateChainedPythonFunctions(
+                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                "f3",
+                "f2",
+                "f1");
+    }
+
+    @Test
+    public void testSingleTransformation() {
+        PythonKeyedProcessOperator<?> keyedProcessOperator =
+                createKeyedProcessOperator(
+                        "f1", new RowTypeInfo(Types.INT(), Types.INT()), Types.STRING());
+        PythonProcessOperator<?, ?> processOperator1 =
+                createProcessOperator("f2", Types.STRING(), Types.LONG());
+        PythonProcessOperator<?, ?> processOperator2 =
+                createProcessOperator("f3", Types.LONG(), Types.INT());
+
+        Transformation<?> sourceTransformation = mock(SourceTransformation.class);
+        OneInputTransformation<?, ?> keyedProcessTransformation =
+                new OneInputTransformation(
+                        sourceTransformation,
+                        "keyedProcess",
+                        keyedProcessOperator,
+                        keyedProcessOperator.getProducedType(),
+                        2);
+        Transformation<?> processTransformation1 =
+                new OneInputTransformation(
+                        keyedProcessTransformation,
+                        "process",
+                        processOperator1,
+                        processOperator1.getProducedType(),
+                        2);
+        Transformation<?> processTransformation2 =
+                new OneInputTransformation(
+                        processTransformation1,
+                        "process",
+                        processOperator2,
+                        processOperator2.getProducedType(),
+                        2);
+
+        List<Transformation<?>> transformations = new ArrayList<>();
+        transformations.add(processTransformation2);
+
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
+        assertEquals(2, optimized.size());
+
+        OneInputTransformation<?, ?> chainedTransformation =
+                (OneInputTransformation<?, ?>) optimized.get(0);
+        assertEquals(sourceTransformation.getOutputType(), chainedTransformation.getInputType());
+        assertEquals(processOperator2.getProducedType(), chainedTransformation.getOutputType());
+
+        OneInputStreamOperator<?, ?> chainedOperator = chainedTransformation.getOperator();
+        assertTrue(chainedOperator instanceof PythonKeyedProcessOperator);
+        validateChainedPythonFunctions(
+                ((PythonKeyedProcessOperator<?>) chainedOperator).getPythonFunctionInfo(),
+                "f3",
+                "f2",
+                "f1");
     }
 
     // ----------------------- Utility Methods -----------------------

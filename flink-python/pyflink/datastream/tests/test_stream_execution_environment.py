@@ -51,6 +51,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def setUp(self):
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
+        self.env._remote_mode = True
         self.test_sink = DataStreamTestSinkFunction()
 
     def test_get_config(self):
@@ -177,19 +178,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(output_backend._j_memory_state_backend,
                          input_backend._j_memory_state_backend)
-
-    def test_is_changelog_state_backend_enabled(self):
-        self.assertIsNone(self.env.is_changelog_state_backend_enabled())
-
-    def test_enable_changelog_state_backend(self):
-
-        self.env.enable_changelog_state_backend(True)
-
-        self.assertTrue(self.env.is_changelog_state_backend_enabled())
-
-        self.env.enable_changelog_state_backend(False)
-
-        self.assertFalse(self.env.is_changelog_state_backend_enabled())
 
     def test_get_set_stream_time_characteristic(self):
         default_time_characteristic = self.env.get_stream_time_characteristic()
@@ -363,6 +351,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         get_j_env_configuration(self.env._j_stream_execution_environment).\
             setString("taskmanager.numberOfTaskSlots", "10")
         self.env.add_python_file(python_file_path)
+        self.env._remote_mode = False
         ds = self.env.from_collection([1, 2, 3, 4, 5])
         ds = ds.map(plus_two_map, Types.LONG()) \
                .slot_sharing_group("data_stream") \
@@ -412,6 +401,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         get_j_env_configuration(self.env._j_stream_execution_environment).\
             setString("taskmanager.numberOfTaskSlots", "10")
+        self.env._remote_mode = False
         self.env.add_python_file(python_file_path)
         ds = self.env.from_collection([1, 2, 3, 4, 5])
         ds = ds.map(plus_two_map, Types.LONG()) \
@@ -501,6 +491,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from python_package1 import plus
             return plus(i, 1)
 
+        self.env._remote_mode = False
         ds = self.env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_one).add_sink(self.test_sink)
         self.env.execute("test set requirements with cachd dir")
@@ -526,6 +517,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
+        self.env._remote_mode = False
         ds = self.env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_from_file).add_sink(self.test_sink)
         self.env.execute("test set python archive")
@@ -549,6 +541,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             assert os.environ["python"] == python_exec_link_path
             return i
 
+        self.env._remote_mode = False
         ds = self.env.from_collection([1, 2, 3, 4, 5])
         ds.map(check_python_exec).add_sink(self.test_sink)
         self.env.execute("test set python executable")

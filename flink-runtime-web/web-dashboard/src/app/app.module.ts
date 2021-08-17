@@ -21,7 +21,15 @@ import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { NgZorroAntdModule, NZ_I18N, en_US, NZ_ICONS, NZ_NOTIFICATION_CONFIG } from 'ng-zorro-antd';
+import { NZ_I18N, en_US } from 'ng-zorro-antd/i18n';
+import { NZ_ICONS, NzIconModule } from 'ng-zorro-antd/icon';
+import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { FormsModule } from '@angular/forms';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -69,6 +77,7 @@ import {
 import { StatusService } from 'services';
 import { ConfigurationInterface } from 'interfaces';
 import { AppInterceptor } from './app.interceptor';
+import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
 registerLocaleData(en);
 
@@ -81,17 +90,35 @@ export function AppInitServiceFactory(
   };
 }
 
+const ngZorroConfig: NzConfig = {
+  notification: { nzMaxStack: 1 }
+};
+
 @NgModule({
   declarations: [AppComponent],
-  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule],
+  imports: [
+    BrowserModule,
+    AppRoutingModule,
+    FormsModule,
+    HttpClientModule,
+    BrowserAnimationsModule,
+    NzLayoutModule,
+    NzIconModule,
+    NzMenuModule,
+    NzDividerModule,
+    NzBadgeModule,
+    NzDrawerModule,
+    NzAlertModule,
+    NzNotificationModule
+  ],
   providers: [
     {
       provide: NZ_I18N,
       useValue: en_US
     },
     {
-      provide: NZ_NOTIFICATION_CONFIG,
-      useValue: { nzMaxStack: 1 }
+      provide: NZ_CONFIG,
+      useValue: ngZorroConfig
     },
     {
       provide: NZ_ICONS,

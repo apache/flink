@@ -122,6 +122,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(EndOfData.INSTANCE);
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
@@ -135,7 +136,9 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.processAll();
             testHarness.finishProcessing();
 
-            List<Object> expectedOutput = Collections.singletonList(Watermark.MAX_WATERMARK);
+            Queue<Object> expectedOutput = new LinkedList<>();
+            expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(EndOfData.INSTANCE);
             assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
         }
     }
@@ -301,7 +304,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             // Set initial snapshot if needed.
             builder.setTaskStateSnapshot(checkpointId, snapshot);
         }
-        return builder.setupOutputForSingletonOperatorChain(sourceOperatorFactory, OPERATOR_ID)
+        return builder.setCollectNetworkEvents()
+                .setupOutputForSingletonOperatorChain(sourceOperatorFactory, OPERATOR_ID)
                 .build();
     }
 

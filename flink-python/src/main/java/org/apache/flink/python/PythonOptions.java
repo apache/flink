@@ -145,11 +145,10 @@ public class PythonOptions {
                                     .text(
                                             "The path of the Python interpreter used to launch the Python process when submitting the "
                                                     + "Python jobs via \"flink run\" or compiling the Java/Scala jobs containing Python UDFs. "
-                                                    + "Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+                                                    + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
-                                    .text(
-                                            "1. the configuration 'python.client.executable' defined in the source code;")
+                                    .text("1. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .linebreak()

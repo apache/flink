@@ -28,8 +28,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -161,18 +161,25 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
             currentWatermark = ts;
 
-            if (idle) {
-                idle = false;
-                output.emitStreamStatus(StreamStatus.ACTIVE);
-            }
+            markActive();
 
             output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(ts));
         }
 
         @Override
         public void markIdle() {
-            idle = true;
-            output.emitStreamStatus(StreamStatus.IDLE);
+            if (!idle) {
+                idle = true;
+                output.emitWatermarkStatus(WatermarkStatus.IDLE);
+            }
+        }
+
+        @Override
+        public void markActive() {
+            if (idle) {
+                idle = false;
+                output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
+            }
         }
     }
 }

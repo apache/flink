@@ -69,8 +69,7 @@ Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, 
                +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                        +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -125,8 +124,7 @@ Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, 
                +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                        +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -179,8 +177,7 @@ Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, 
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -234,8 +231,7 @@ Calc(select=[window_start, window_end, window_time, a, cnt, sum_d, max_d, wAvg, 
                +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                        +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -314,16 +310,15 @@ Calc(select=[a, window_start, window_end, EXPR$3, EXPR$4, EXPR$5])
    +- Exchange(distribution=[hash[a]])
       +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[1 h])], select=[a, SUM(cnt) AS sum$0, SUM(sum_d) AS sum$1, MAX(max_d) AS max$2, slice_end('w$) AS $slice_end])
          +- Calc(select=[a, cnt, sum_d, max_d, window_time AS rowtime])
-            +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
+            +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a], orderBy=[cnt DESC], select=[a, window_start, window_end, window_time, cnt, sum_d, max_d])
                +- Exchange(distribution=[hash[a]])
-                  +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d, wAvg, uv])
+                  +- Calc(select=[a, window_start, window_end, window_time, cnt, sum_d, max_d])
                      +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, SUM(sum$1) AS sum_d, MAX(max$2) AS max_d, weightedAvg(weightedavg$3) AS wAvg, COUNT(distinct$0 count$4) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
                         +- Exchange(distribution=[hash[a]])
                            +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, SUM(d) AS sum$1, MAX(d) FILTER $f5 AS max$2, weightedAvg(b, e) AS weightedavg$3, COUNT(distinct$0 c) AS count$4, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                               +- Calc(select=[a, d, IS TRUE(>(b, 1000)) AS $f5, b, e, c, rowtime])
                                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                                    +- Calc(select=[a, b, c, d, e, rowtime, PROCTIME() AS proctime])
-                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e, rowtime])
 ]]>
     </Resource>
   </TestCase>

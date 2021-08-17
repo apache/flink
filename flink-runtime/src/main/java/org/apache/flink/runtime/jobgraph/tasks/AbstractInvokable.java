@@ -218,7 +218,7 @@ public abstract class AbstractInvokable {
      * @return future with value of {@code false} if the checkpoint was not carried out, {@code
      *     true} otherwise
      */
-    public Future<Boolean> triggerCheckpointAsync(
+    public CompletableFuture<Boolean> triggerCheckpointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException(
                 String.format(

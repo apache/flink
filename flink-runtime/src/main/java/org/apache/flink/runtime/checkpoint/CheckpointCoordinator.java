@@ -191,6 +191,10 @@ public class CheckpointCoordinator {
      */
     private long lastCheckpointCompletionRelativeTime;
 
+    /** The id of the latest completed checkpoint. */
+    @GuardedBy("lock")
+    private long latestCompletedCheckpointId;
+
     /**
      * Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
      * Non-volatile, because only accessed in synchronized scope
@@ -1183,6 +1187,8 @@ public class CheckpointCoordinator {
      */
     private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint)
             throws CheckpointException {
+        assert Thread.holdsLock(lock);
+
         final long checkpointId = pendingCheckpoint.getCheckpointId();
         final CompletedCheckpoint completedCheckpoint;
 
@@ -1242,6 +1248,10 @@ public class CheckpointCoordinator {
                         "Could not complete the pending checkpoint " + checkpointId + '.',
                         CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
                         exception);
+            }
+
+            if (checkpointId > latestCompletedCheckpointId) {
+                latestCompletedCheckpointId = checkpointId;
             }
         } finally {
             pendingCheckpoints.remove(checkpointId);
@@ -1315,8 +1325,8 @@ public class CheckpointCoordinator {
     private void sendAbortedMessages(
             List<ExecutionVertex> tasksToAbort, long checkpointId, long timeStamp) {
         assert (Thread.holdsLock(lock));
-        long latestCompletedCheckpointId = completedCheckpointStore.getLatestCheckpointId();
 
+        final long currentLatestCompletedCheckpointId = latestCompletedCheckpointId;
         // send notification of aborted checkpoints asynchronously.
         executor.execute(
                 () -> {
@@ -1325,7 +1335,7 @@ public class CheckpointCoordinator {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
                             ee.notifyCheckpointAborted(
-                                    checkpointId, latestCompletedCheckpointId, timeStamp);
+                                    checkpointId, currentLatestCompletedCheckpointId, timeStamp);
                         }
                     }
                 });
@@ -1369,43 +1379,6 @@ public class CheckpointCoordinator {
     // --------------------------------------------------------------------------------------------
     //  Checkpoint State Restoring
     // --------------------------------------------------------------------------------------------
-
-    /**
-     * Restores the latest checkpointed state.
-     *
-     * @param tasks Map of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
-     * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to restore from.
-     * @param allowNonRestoredState Allow checkpoint state that cannot be mapped to any job vertex
-     *     in tasks.
-     * @return <code>true</code> if state was restored, <code>false</code> otherwise.
-     * @throws IllegalStateException If the CheckpointCoordinator is shut down.
-     * @throws IllegalStateException If no completed checkpoint is available and the <code>
-     *     failIfNoCheckpoint</code> flag has been set.
-     * @throws IllegalStateException If the checkpoint contains state that cannot be mapped to any
-     *     job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
-     *     been set.
-     * @throws IllegalStateException If the max parallelism changed for an operator that restores
-     *     state from this checkpoint.
-     * @throws IllegalStateException If the parallelism changed for an operator that restores
-     *     <i>non-partitioned</i> state from this checkpoint.
-     */
-    @Deprecated
-    public boolean restoreLatestCheckpointedState(
-            Map<JobVertexID, ExecutionJobVertex> tasks,
-            boolean errorIfNoCheckpoint,
-            boolean allowNonRestoredState)
-            throws Exception {
-
-        final OptionalLong restoredCheckpointId =
-                restoreLatestCheckpointedStateInternal(
-                        new HashSet<>(tasks.values()),
-                        OperatorCoordinatorRestoreBehavior.RESTORE_OR_RESET,
-                        errorIfNoCheckpoint,
-                        allowNonRestoredState);
-
-        return restoredCheckpointId.isPresent();
-    }
 
     /**
      * Restores the latest checkpointed state to a set of subtasks. This method represents a "local"
@@ -1521,15 +1494,10 @@ public class CheckpointCoordinator {
             }
 
             // We create a new shared state registry object, so that all pending async disposal
-            // requests from previous
-            // runs will go against the old object (were they can do no harm).
-            // This must happen under the checkpoint lock.
+            // requests from previous runs will go against the old object (were they can do no
+            // harm). This must happen under the checkpoint lock.
             sharedStateRegistry.close();
             sharedStateRegistry = sharedStateRegistryFactory.create(executor);
-
-            // Recover the checkpoints, TODO this could be done only when there is a new leader, not
-            // on each recovery
-            completedCheckpointStore.recover();
 
             // Now, we re-register all (shared) states from the checkpoint store with the new
             // registry
@@ -2132,10 +2100,16 @@ public class CheckpointCoordinator {
     private static CheckpointException getCheckpointException(
             CheckpointFailureReason defaultReason, Throwable throwable) {
 
-        final Optional<CheckpointException> checkpointExceptionOptional =
-                findThrowable(throwable, CheckpointException.class);
-        return checkpointExceptionOptional.orElseGet(
-                () -> new CheckpointException(defaultReason, throwable));
+        final Optional<IOException> ioExceptionOptional =
+                findThrowable(throwable, IOException.class);
+        if (ioExceptionOptional.isPresent()) {
+            return new CheckpointException(CheckpointFailureReason.IO_EXCEPTION, throwable);
+        } else {
+            final Optional<CheckpointException> checkpointExceptionOptional =
+                    findThrowable(throwable, CheckpointException.class);
+            return checkpointExceptionOptional.orElseGet(
+                    () -> new CheckpointException(defaultReason, throwable));
+        }
     }
 
     private static class CheckpointIdAndStorageLocation {

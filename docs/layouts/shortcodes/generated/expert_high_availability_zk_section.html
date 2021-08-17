@@ -39,6 +39,12 @@
             <td>Defines the session timeout for the ZooKeeper session in ms.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.zookeeper.client.tolerate-suspended-connections</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader information to be invalidated or not. In case you set this option to <code class="highlighter-rouge">true</code>, Flink will wait until a ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the effect that Flink is more resilient against temporary connection instabilities at the cost of running more likely into timing issues with ZooKeeper.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
             <td style="word-wrap: break-word;">"/jobgraphs"</td>
             <td>String</td>

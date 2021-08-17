@@ -74,19 +74,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -149,19 +145,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[single])
    +- Calc(select=[a, window_start, window_end])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -223,19 +215,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -248,6 +236,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -260,6 +249,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -272,47 +262,41 @@ ON L.window_start = R.window_start AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -325,6 +309,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -336,6 +321,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -347,47 +333,41 @@ ON L.window_start = R.window_start AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -400,6 +380,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -410,6 +391,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -420,47 +402,41 @@ ON L.window_start = R.window_start AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -473,6 +449,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -485,6 +462,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -497,47 +475,41 @@ ON L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -550,6 +522,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -561,6 +534,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -572,47 +546,41 @@ ON L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -625,6 +593,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -635,6 +604,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -645,47 +615,41 @@ ON L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE($4, DESCRIPTOR($3), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -698,6 +662,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -710,6 +675,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -722,46 +688,42 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *PROCTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($4), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP_LTZ(3) *PROCTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS window_time, cnt, uv])
 :     +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- Calc(select=[a, c, proctime])
 :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+:                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -774,6 +736,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -785,6 +748,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -796,47 +760,41 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 7200000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[2 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[2 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -849,6 +807,7 @@ FROM (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -860,6 +819,7 @@ JOIN (
     a,
     window_start,
     window_end,
+    window_time,
     count(*) as cnt,
     count(distinct c) AS uv
   FROM TABLE(
@@ -871,47 +831,41 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$3], uv=[$4], a0=[$5], window_start0=[$6], window_end0=[$7], cnt0=[$8], uv0=[$9])
-+- LogicalJoin(condition=[AND(=($1, $6), =($2, $7), =($0, $5))], joinType=[inner])
-   :- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-   :  +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-   :     +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-   :        +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-   :           +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-   :              +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-   :                 +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(a=[$0], window_start=[$1], window_end=[$2], cnt=[$4], uv=[$5])
-      +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
-         +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
-            +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
-               +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
-                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
-                     +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(a=[$0], window_start=[$1], window_end=[$2], window_time=[$3], cnt=[$4], uv=[$5], a0=[$6], window_start0=[$7], window_end0=[$8], window_time0=[$9], cnt0=[$10], uv0=[$11])
++- LogicalJoin(condition=[AND(=($1, $7), =($2, $8), =($0, $6))], joinType=[inner])
+   :- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+   :  +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+   :     +- LogicalTableFunctionScan(invocation=[HOP($4, DESCRIPTOR($3), 300000:INTERVAL MINUTE, 600000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+   :        +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+   :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :              +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalAggregate(group=[{0, 1, 2, 3}], cnt=[COUNT()], uv=[COUNT(DISTINCT $4)])
+      +- LogicalProject(a=[$0], window_start=[$5], window_end=[$6], window_time=[$7], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[CUMULATE($4, DESCRIPTOR($3), 600000:INTERVAL MINUTE, 3600000:INTERVAL HOUR)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[$4])
+               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], proctime=[PROCTIME()])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[InnerJoin], where=[AND(=(window_start, window_start0), =(window_end, window_end0), =(a, a0))], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, window_time0, cnt0, uv0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[window_start, window_end, a]])
-:  +- Calc(select=[a, window_start, window_end, cnt, uv])
+:  +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
 :     +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[window_start, window_end, a]])
-   +- Calc(select=[a, window_start, window_end, cnt, uv])
+   +- Calc(select=[a, window_start, window_end, CAST(window_time) AS window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -976,19 +930,15 @@ WindowJoin(leftWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], 
 :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1055,16 +1005,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1127,19 +1077,15 @@ WindowJoin(leftWindow=[HOP(win_start=[window_start], win_end=[window_end], size=
 :     +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[HOP(slice_end=[$slice_end], size=[10 min], slide=[5 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[HOP(time_col=[rowtime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1204,16 +1150,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[HOP(time_col=[proctime], size=[10 min], slide=[5 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1273,18 +1219,14 @@ WindowJoin(leftWindow=[SESSION(win_start=[window_start], win_end=[window_end], g
 :  +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
 :     +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[rowtime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
-:           +- Calc(select=[a, c, rowtime])
-:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[rowtime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, c, rowtime])
-               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                  +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1347,16 +1289,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[SESSION(time_col=[proctime], gap=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1417,19 +1359,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1492,16 +1430,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[proctime], size=[15 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1563,19 +1501,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1638,19 +1572,15 @@ WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], si
 :     +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
 :        +- Exchange(distribution=[hash[a]])
 :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-:              +- Calc(select=[a, c, rowtime])
-:                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-:                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-:                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+:              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 +- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, window_start, window_end])
       +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          +- Exchange(distribution=[hash[a]])
             +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, slice_end('w$) AS $slice_end])
-               +- Calc(select=[a, c, rowtime])
-                  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -2244,19 +2174,15 @@ Calc(select=[rowtime, a, l_cnt, l_uv, r_cnt, r_uv, a0, b, c, rowtime0, PROCTIME_
    :        :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
    :        :        +- Exchange(distribution=[hash[a]])
    :        :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-   :        :              +- Calc(select=[a, c, rowtime])
-   :        :                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :        :                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :        :                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :        :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+   :        :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, window_start, window_end, cnt, uv])
    :              +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
    :                 +- Exchange(distribution=[hash[a]])
    :                    +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-   :                       +- Calc(select=[a, c, rowtime])
-   :                          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                             +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                                +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+   :                       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+   :                          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
@@ -2417,14 +2343,12 @@ Calc(select=[rowtime, a, l_b, l_c, r_b, r_c, a0, b, c, rowtime0, PROCTIME_MATERI
    :        :  +- Calc(select=[a, b, c, window_start, window_end, window_time])
    :        :     +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
    :        :        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :        :           +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :        :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :        :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, b, c, window_start, window_end])
    :              +- WindowTableFunction(window=[TUMBLE(time_col=[rowtime], size=[15 min])], emitPerRecord=[true])
    :                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
@@ -2496,16 +2420,16 @@ Calc(select=[a, window_start, window_end, PROCTIME_MATERIALIZE(window_time) AS w
    :        +- Exchange(distribution=[hash[a]])
    :           +- Calc(select=[a, c, proctime])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+   :                 +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
          +- WindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[proctime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) AS uv, start('w$) AS window_start, end('w$) AS window_end, proctime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, c, proctime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                     +- Calc(select=[a, c, PROCTIME() AS proctime, rowtime])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -2555,19 +2479,15 @@ Calc(select=[window_start, window_end, a, cnt AS l_cnt, uv AS l_uv, cnt0 AS r_cn
          :     +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
          :        +- Exchange(distribution=[hash[a]])
          :           +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-         :              +- Calc(select=[a, c, rowtime])
-         :                 +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         :                    +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-         :                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+         :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+         :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, window_start, window_end, window_time, cnt, uv])
                +- GlobalWindowAggregate(groupBy=[a], window=[CUMULATE(slice_end=[$slice_end], max_size=[1 h], step=[10 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
                   +- Exchange(distribution=[hash[a]])
                      +- LocalWindowAggregate(groupBy=[a], window=[CUMULATE(time_col=[rowtime], max_size=[1 h], step=[10 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
-                        +- Calc(select=[a, c, rowtime])
-                           +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                              +- Calc(select=[a, b, c, rowtime, PROCTIME() AS proctime])
-                                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, rowtime])
+                        +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

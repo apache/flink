@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -58,8 +58,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -158,10 +158,9 @@ public class SubtaskCheckpointCoordinatorTest {
                         .build()) {
             AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
             final OperatorChain<?, ?> operatorChain =
-                    new OperatorChain(
+                    new RegularOperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>(),
-                            false) {
+                            new NonRecordWriter<>()) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -196,10 +195,9 @@ public class SubtaskCheckpointCoordinatorTest {
 
             AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
             final OperatorChain<?, ?> operatorChain =
-                    new OperatorChain(
+                    new RegularOperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>(),
-                            false) {
+                            new NonRecordWriter<>()) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -247,10 +245,8 @@ public class SubtaskCheckpointCoordinatorTest {
                     new CheckpointOptions(
                             SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
-                    new OperatorChain<>(
-                            new NoOpStreamTask<>(new DummyEnvironment()),
-                            new NonRecordWriter<>(),
-                            false),
+                    new RegularOperatorChain<>(
+                            new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
                     false,
                     () -> true);
         }
@@ -353,10 +349,9 @@ public class SubtaskCheckpointCoordinatorTest {
 
             OneInputStreamTask<String, String> task = testHarness.getTask();
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
-                    new OperatorChain<>(
+                    new RegularOperatorChain<>(
                             task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment),
-                            false);
+                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
@@ -465,8 +460,8 @@ public class SubtaskCheckpointCoordinatorTest {
     }
 
     private OperatorChain<?, ?> getOperatorChain(MockEnvironment mockEnvironment) throws Exception {
-        return new OperatorChain<>(
-                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>(), false);
+        return new RegularOperatorChain<>(
+                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>());
     }
 
     private <T> OperatorChain<T, AbstractStreamOperator<T>> operatorChain(
@@ -589,7 +584,7 @@ public class SubtaskCheckpointCoordinatorTest {
         public void setKeyContextElement2(StreamRecord<?> record) {}
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             return null;
         }
 
@@ -622,7 +617,7 @@ public class SubtaskCheckpointCoordinatorTest {
         public void processLatencyMarker(LatencyMarker latencyMarker) {}
 
         @Override
-        public void processStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
     }
 
     private static SubtaskCheckpointCoordinator coordinator(

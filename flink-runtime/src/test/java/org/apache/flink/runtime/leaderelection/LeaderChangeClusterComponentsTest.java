@@ -81,7 +81,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
         miniCluster =
                 new TestingMiniCluster(
-                        new TestingMiniClusterConfiguration.Builder()
+                        TestingMiniClusterConfiguration.newBuilder()
                                 .setNumTaskManagers(NUM_TMS)
                                 .setNumSlotsPerTaskManager(SLOTS_PER_TM)
                                 .build(),

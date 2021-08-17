@@ -311,16 +311,16 @@ public class SqlToOperationConverterTest {
     public void testLoadModule() {
         final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
         final String expectedModuleName = "dummy";
-        final Map<String, String> expectedProperties = new HashMap<>();
-        expectedProperties.put("k1", "v1");
-        expectedProperties.put("k2", "v2");
+        final Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("k1", "v1");
+        expectedOptions.put("k2", "v2");
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assert operation instanceof LoadModuleOperation;
         final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
 
         assertEquals(expectedModuleName, loadModuleOperation.getModuleName());
-        assertEquals(expectedProperties, loadModuleOperation.getProperties());
+        assertEquals(expectedOptions, loadModuleOperation.getOptions());
     }
 
     @Test

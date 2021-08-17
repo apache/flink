@@ -25,12 +25,14 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -138,9 +140,10 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
         // verify chained operator metrics
         {
             // this only returns the existing group and doesn't create a new one
-            final OperatorMetricGroup operatorMetricGroup1 =
+            final InternalOperatorMetricGroup operatorMetricGroup1 =
                     taskMetricGroup.getOrAddOperator(CHAINED_OPERATOR_NAME);
-            final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
+            final InternalOperatorIOMetricGroup ioMetricGroup =
+                    operatorMetricGroup1.getIOMetricGroup();
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 

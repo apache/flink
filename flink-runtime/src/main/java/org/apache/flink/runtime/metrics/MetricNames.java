@@ -75,4 +75,17 @@ public class MetricNames {
     public static final String ESTIMATED_TIME_TO_CONSUME_BUFFERS =
             "estimatedTimeToConsumerBuffersMs";
     public static final String DEBLOATED_BUFFER_SIZE = "debloatedBufferSize";
+
+    // FLIP-33 sink
+    public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    public static final String CURRENT_SEND_TIME = "currentSendTime";
+
+    // FLIP-33 source
+    public static final String NUM_RECORDS_IN_ERRORS = "numRecordsInErrors";
+    public static final String CURRENT_FETCH_EVENT_TIME_LAG = "currentFetchEventTimeLag";
+    public static final String CURRENT_EMIT_EVENT_TIME_LAG = "currentEmitEventTimeLag";
+    public static final String WATERMARK_LAG = "watermarkLag";
+    public static final String PENDING_RECORDS = "pendingRecords";
+    public static final String PENDING_BYTES = "pendingBytes";
+    public static final String SOURCE_IDLE_TIME = "sourceIdleTime";
 }

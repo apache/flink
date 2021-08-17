@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.AcknowledgeIdsForCheckpoint;
@@ -58,7 +58,7 @@ public class PubSubSourceTest {
     @Mock private PubSubSource.AcknowledgeOnCheckpointFactory acknowledgeOnCheckpointFactory;
     @Mock private AcknowledgeOnCheckpoint<String> acknowledgeOnCheckpoint;
     @Mock private StreamingRuntimeContext streamingRuntimeContext;
-    @Mock private MetricGroup metricGroup;
+    @Mock private OperatorMetricGroup metricGroup;
     @Mock private PubSubSubscriberFactory pubSubSubscriberFactory;
     @Mock private Credentials credentials;
     @Mock private PubSubSubscriber pubsubSubscriber;

@@ -295,8 +295,17 @@ public abstract class BuiltInFunctionTestBase {
                 String sqlExpression,
                 Object result,
                 AbstractDataType<?> dataType) {
-            testItems.add(new TableApiResultTestItem(expression, result, dataType));
-            testItems.add(new SqlResultTestItem(sqlExpression, result, dataType));
+            return testResult(expression, sqlExpression, result, dataType, dataType);
+        }
+
+        TestSpec testResult(
+                Expression expression,
+                String sqlExpression,
+                Object result,
+                AbstractDataType<?> tableApiDataType,
+                AbstractDataType<?> sqlDataType) {
+            testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
+            testItems.add(new SqlResultTestItem(sqlExpression, result, sqlDataType));
             return this;
         }
 

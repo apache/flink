@@ -37,6 +37,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -96,6 +97,7 @@ public class SQLClientSchemaRegistryITCase {
         registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
     }
 
+    @Ignore("FLINK-23556")
     @Test(timeout = 120_000)
     public void testReading() throws Exception {
         String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
@@ -160,6 +162,7 @@ public class SQLClientSchemaRegistryITCase {
         assertThat(categories, equalTo(Collections.singletonList("1,electronics,null")));
     }
 
+    @Ignore("FLINK-23556")
     @Test(timeout = 120_000)
     public void testWriting() throws Exception {
         String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();

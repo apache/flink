@@ -26,11 +26,10 @@ import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util.Collections
 
@@ -58,19 +57,7 @@ abstract class CommonPhysicalJoin(
 
   lazy val joinSpec: JoinSpec = JoinUtil.createJoinSpec(this)
 
-  lazy val inputRowType: RelDataType = joinType match {
-    case JoinRelType.SEMI | JoinRelType.ANTI =>
-      // Combines inputs' RowType, the result is different from SEMI/ANTI Join's RowType.
-      SqlValidatorUtil.createJoinType(
-        getCluster.getTypeFactory,
-        getLeft.getRowType,
-        getRight.getRowType,
-        null,
-        Collections.emptyList[RelDataTypeField]
-      )
-    case _ =>
-      getRowType
-  }
+  lazy val inputRowType: RelDataType = JoinUtil.combineJoinInputsRowType(this)
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)

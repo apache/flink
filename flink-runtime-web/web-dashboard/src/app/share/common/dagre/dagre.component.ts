@@ -61,9 +61,9 @@ export class DagreComponent extends NzGraph {
   @ViewChildren('nodeElement') nodeElements: QueryList<ElementRef>;
   @ViewChildren('linkElement') linkElements: QueryList<ElementRef>;
   @ViewChildren(NodeComponent) rectNodeComponents: QueryList<NodeComponent>;
-  @ViewChild(SvgContainerComponent) svgContainer: SvgContainerComponent;
-  @ViewChild('graphElement') graphElement: ElementRef;
-  @ViewChild('overlayElement') overlayElement: ElementRef;
+  @ViewChild(SvgContainerComponent, { static: true }) svgContainer: SvgContainerComponent;
+  @ViewChild('graphElement', { static: true }) graphElement: ElementRef;
+  @ViewChild('overlayElement', { static: true }) overlayElement: ElementRef;
   @Input() xCenter = 2;
   @Input() yCenter = 2;
   @Output() nodeClick = new EventEmitter<LayoutNode | null>();
