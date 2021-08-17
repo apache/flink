@@ -166,7 +166,7 @@ public class ClientTest extends TestLogger {
             Exception testException = new RuntimeException("Expected test Exception");
 
             for (long i = 0L; i < numQueries; i++) {
-                ByteBuf buf = received.poll();
+                ByteBuf buf = received.take();
                 assertNotNull("Receive timed out", buf);
 
                 Channel ch = channel.get();
@@ -462,11 +462,11 @@ public class ClientTest extends TestLogger {
             futures.add(client.sendRequest(serverAddress, request));
             futures.add(client.sendRequest(serverAddress, request));
 
-            ByteBuf buf = received.poll();
+            ByteBuf buf = received.take();
             assertNotNull("Receive timed out", buf);
             buf.release();
 
-            buf = received.poll();
+            buf = received.take();
             assertNotNull("Receive timed out", buf);
             buf.release();
 
