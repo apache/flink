@@ -75,7 +75,23 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
     @Rule public final InMemoryReporterRule inMemoryReporter = InMemoryReporterRule.create();
 
     @Test
-    public void testMetrics() throws Exception {
+    public void testMetricsWithTimestamp() throws Exception {
+        long baseTime = System.currentTimeMillis() - EVENTTIME_LAG;
+        WatermarkStrategy<Integer> strategy =
+                WatermarkStrategy.forGenerator(
+                                context -> new EagerBoundedOutOfOrdernessWatermarks())
+                        .withTimestampAssigner(new LaggingTimestampAssigner(baseTime));
+
+        testMetrics(strategy, true);
+    }
+
+    @Test
+    public void testMetricsWithoutTimestamp() throws Exception {
+        testMetrics(WatermarkStrategy.noWatermarks(), false);
+    }
+
+    private void testMetrics(WatermarkStrategy<Integer> strategy, boolean hasTimestamps)
+            throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         int numSplits = Math.max(1, env.getParallelism() - 2);
         env.getConfig().setAutoWatermarkInterval(1L);
@@ -83,12 +99,6 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         int numRecordsPerSplit = 10;
         MockBaseSource source =
                 new MockBaseSource(numSplits, numRecordsPerSplit, Boundedness.BOUNDED);
-
-        long baseTime = System.currentTimeMillis() - EVENTTIME_LAG;
-        WatermarkStrategy<Integer> strategy =
-                WatermarkStrategy.forGenerator(
-                                context -> new EagerBoundedOutOfOrdernessWatermarks())
-                        .withTimestampAssigner(new LaggingTimestampAssigner(baseTime));
 
         // make sure all parallel instances have processed the same amount of records before
         // validating metrics
@@ -113,11 +123,21 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         JobClient jobClient = env.executeAsync();
 
         beforeBarrier.get().await();
-        assertSourceMetrics(stopAtRecord1 + 1, numRecordsPerSplit, env.getParallelism(), numSplits);
+        assertSourceMetrics(
+                stopAtRecord1 + 1,
+                numRecordsPerSplit,
+                env.getParallelism(),
+                numSplits,
+                hasTimestamps);
         afterBarrier.get().await();
 
         beforeBarrier.get().await();
-        assertSourceMetrics(stopAtRecord2 + 1, numRecordsPerSplit, env.getParallelism(), numSplits);
+        assertSourceMetrics(
+                stopAtRecord2 + 1,
+                numRecordsPerSplit,
+                env.getParallelism(),
+                numSplits,
+                hasTimestamps);
         afterBarrier.get().await();
 
         jobClient.getJobExecutionResult().get();
@@ -127,7 +147,8 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
             long processedRecordsPerSubtask,
             long numTotalPerSubtask,
             int parallelism,
-            int numSplits) {
+            int numSplits,
+            boolean hasTimestamps) {
         List<OperatorMetricGroup> groups =
                 inMemoryReporter.getReporter().findOperatorMetricGroups("MetricTestingSource");
         assertThat(groups, hasSize(parallelism));
@@ -157,21 +178,30 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
             assertThat(
                     metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS),
                     isCounter(equalTo(processedRecordsPerSubtask / 2)));
-            // Timestamp assigner subtracting EVENTTIME_LAG from wall clock
-            assertThat(
-                    metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                    isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
-            // Watermark is derived from timestamp, so it has to be in the same order of magnitude
-            assertThat(
-                    metrics.get(MetricNames.WATERMARK_LAG),
-                    isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
-            // Calculate the additional watermark lag (on top of event time lag)
-            Long watermarkLag =
-                    ((Gauge<Long>) metrics.get(MetricNames.WATERMARK_LAG)).getValue()
-                            - ((Gauge<Long>) metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
-                                    .getValue();
-            // That should correspond to the out-of-order boundedness
-            assertThat(watermarkLag, isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON));
+            if (hasTimestamps) {
+                // Timestamp assigner subtracting EVENTTIME_LAG from wall clock
+                assertThat(
+                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
+                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                // Watermark is derived from timestamp, so it has to be in the same order of
+                // magnitude
+                assertThat(
+                        metrics.get(MetricNames.WATERMARK_LAG),
+                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                // Calculate the additional watermark lag (on top of event time lag)
+                Long watermarkLag =
+                        ((Gauge<Long>) metrics.get(MetricNames.WATERMARK_LAG)).getValue()
+                                - ((Gauge<Long>)
+                                                metrics.get(
+                                                        MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                                        .getValue();
+                // That should correspond to the out-of-order boundedness
+                assertThat(watermarkLag, isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON));
+            } else {
+                // assert that optional metrics are not initialized when no timestamp assigned
+                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG), nullValue());
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
+            }
 
             long pendingRecords = numTotalPerSubtask - processedRecordsPerSubtask;
             assertThat(metrics.get(MetricNames.PENDING_RECORDS), isGauge(equalTo(pendingRecords)));
