@@ -145,7 +145,7 @@ public class HighAvailabilityServicesUtils {
                 return new StandaloneClientHAServices(webMonitorAddress);
             case ZOOKEEPER:
                 final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-                return new ZooKeeperClientHAServices(client);
+                return new ZooKeeperClientHAServices(client, configuration);
             case FACTORY_CLASS:
                 return createCustomClientHAServices(configuration);
             default:

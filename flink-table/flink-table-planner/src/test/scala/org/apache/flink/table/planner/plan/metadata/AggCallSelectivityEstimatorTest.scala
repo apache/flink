@@ -84,6 +84,7 @@ class AggCallSelectivityEstimatorTest {
     rootSchema.add("test", table)
     val plannerContext: PlannerContext =
       new PlannerContext(
+        false,
         tableConfig,
         new FunctionCatalog(tableConfig, catalogManager, new ModuleManager),
         catalogManager,

@@ -20,7 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
@@ -116,7 +116,7 @@ public class SnapshotUtilsTest {
         }
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             ACTUAL_ORDER_TRACKING.add("getMetricGroup");
             return null;
         }

@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntervalJoin
-
+import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil.satisfyIntervalJoin
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 
 import scala.collection.JavaConversions._
 
@@ -38,40 +38,40 @@ class StreamPhysicalIntervalJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
-    val joinRowType = join.getRowType
 
-    // TODO support SEMI/ANTI join
-    if (!join.getJoinType.projectsRight) {
+    if (!satisfyIntervalJoin(join)) {
       return false
     }
 
-    val (windowBounds, _) = extractWindowBounds(join)
+    // validate the join
+    val windowBounds = extractWindowBounds(join)._1.get
 
-    if (windowBounds.isDefined) {
-      if (windowBounds.get.isEventTime) {
-        val leftTimeAttributeType = join.getLeft.getRowType
-          .getFieldList
-          .get(windowBounds.get.getLeftTimeIdx).getType
-        val rightTimeAttributeType = join.getRight.getRowType
-          .getFieldList
-          .get(windowBounds.get.getRightTimeIdx).getType
-        if (leftTimeAttributeType.getSqlTypeName != rightTimeAttributeType.getSqlTypeName) {
-          throw new ValidationException(
-            String.format("Interval join with rowtime attribute requires same rowtime types," +
-              " but the types are %s and %s.",
+    if (windowBounds.isEventTime) {
+      val leftTimeAttributeType = join.getLeft.getRowType
+        .getFieldList
+        .get(windowBounds.getLeftTimeIdx).getType
+      val rightTimeAttributeType = join.getRight.getRowType
+        .getFieldList
+        .get(windowBounds.getRightTimeIdx).getType
+      if (leftTimeAttributeType.getSqlTypeName != rightTimeAttributeType.getSqlTypeName) {
+        throw new ValidationException(
+          String.format("Interval join with rowtime attribute requires same rowtime types," +
+            " but the types are %s and %s.",
             leftTimeAttributeType.toString, rightTimeAttributeType.toString))
-        }
-        true
-      } else {
-        // Check that no event-time attributes are in the input because the processing time window
-        // join does not correctly hold back watermarks.
-        // We rely on projection pushdown to remove unused attributes before the join.
-        !joinRowType.getFieldList.exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
       }
     } else {
-      // the given join does not have valid window bounds. We cannot translate it.
-      false
+      // Check that no event-time attributes are in the input because the processing time window
+      // join does not correctly hold back watermarks.
+      // We rely on projection pushdown to remove unused attributes before the join.
+      val joinRowType = join.getRowType
+      val containsRowTime = joinRowType.getFieldList.exists(f => isRowtimeIndicatorType(f.getType))
+      if (containsRowTime) {
+        throw new TableException(
+          "Interval join with proctime attribute requires no event-time attributes are in the " +
+            "join inputs.")
+      }
     }
+    true
   }
 
   override protected def transform(

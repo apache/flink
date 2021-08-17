@@ -35,6 +35,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -124,11 +125,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             StreamExecutionEnvironment executionEnvironment,
             EnvironmentSettings settings,
             TableConfig tableConfig) {
-
-        if (!settings.isStreamingMode()) {
-            throw new TableException(
-                    "StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
-        }
 
         // temporary solution until FLINK-15635 is fixed
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -451,6 +447,16 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         executionEnvironment.configure(tableConfig.getConfiguration());
 
         return new DataStream<>(executionEnvironment, transformation);
+    }
+
+    @Override
+    public StreamStatementSet createStatementSet() {
+        return new StreamStatementSetImpl(this);
+    }
+
+    void attachAsDataStream(List<ModifyOperation> modifyOperations) {
+        final List<Transformation<?>> transformations = translate(modifyOperations);
+        transformations.forEach(executionEnvironment::addOperator);
     }
 
     @Override

@@ -241,7 +241,7 @@ public interface Environment {
      *
      * @return the throughput calculation service.
      */
-    ThroughputCalculator getThroughputMeter();
+    ThroughputCalculator getThroughputCalculator();
 
     // --------------------------------------------------------------------------------------------
     //  Fields set in the StreamTask to provide access to mailbox and other runtime resources

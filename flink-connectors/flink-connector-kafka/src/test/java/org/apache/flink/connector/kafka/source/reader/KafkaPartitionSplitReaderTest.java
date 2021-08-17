@@ -22,10 +22,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
-import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
 import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
 import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 

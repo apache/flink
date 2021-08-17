@@ -33,10 +33,11 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -50,9 +51,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.Check
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
 
@@ -138,7 +139,7 @@ public abstract class AbstractStreamOperator<OUT>
     // --------------- Metrics ---------------------------
 
     /** Metric group for the operator. */
-    protected transient OperatorMetricGroup metrics;
+    protected transient InternalOperatorMetricGroup metrics;
 
     protected transient LatencyStats latencyStats;
 
@@ -159,7 +160,7 @@ public abstract class AbstractStreamOperator<OUT>
         this.container = containingTask;
         this.config = config;
         try {
-            OperatorMetricGroup operatorMetricGroup =
+            InternalOperatorMetricGroup operatorMetricGroup =
                     environment
                             .getMetricGroup()
                             .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
@@ -248,7 +249,7 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 
@@ -618,26 +619,27 @@ public abstract class AbstractStreamOperator<OUT>
         processWatermark(mark, 1);
     }
 
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
-        output.emitStreamStatus(streamStatus);
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        output.emitWatermarkStatus(watermarkStatus);
     }
 
-    private void processStreamStatus(StreamStatus streamStatus, int index) throws Exception {
+    private void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+            throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
-        if (combinedWatermark.updateStatus(index, streamStatus.isIdle())) {
+        if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
             processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
         if (wasIdle != combinedWatermark.isIdle()) {
-            output.emitStreamStatus(streamStatus);
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 
-    public final void processStreamStatus1(StreamStatus streamStatus) throws Exception {
-        processStreamStatus(streamStatus, 0);
+    public final void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 0);
     }
 
-    public final void processStreamStatus2(StreamStatus streamStatus) throws Exception {
-        processStreamStatus(streamStatus, 1);
+    public final void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
+        processWatermarkStatus(watermarkStatus, 1);
     }
 
     @Override

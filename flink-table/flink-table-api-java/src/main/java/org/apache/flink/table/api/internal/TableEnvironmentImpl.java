@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -78,8 +77,6 @@ import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
@@ -166,7 +163,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces. Only
@@ -794,9 +790,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResult executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
-        String jobName = getJobName("insert-into_" + String.join(",", sinkIdentifierNames));
+        final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
         Pipeline pipeline =
-                execEnv.createPipeline(transformations, tableConfig.getConfiguration(), jobName);
+                execEnv.createPipeline(
+                        transformations, tableConfig.getConfiguration(), defaultJobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             final List<Column> columns = new ArrayList<>();
@@ -831,9 +828,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 new CollectModifyOperation(objectIdentifier, operation);
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
-        String jobName = getJobName("collect");
+        final String defaultJobName = "collect";
         Pipeline pipeline =
-                execEnv.createPipeline(transformations, tableConfig.getConfiguration(), jobName);
+                execEnv.createPipeline(
+                        transformations, tableConfig.getConfiguration(), defaultJobName);
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             CollectResultProvider resultProvider = sinkOperation.getSelectResultProvider();
@@ -1330,21 +1328,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     private TableResult loadModule(LoadModuleOperation operation) {
-        String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
+        final String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
         try {
-            // find module by name
-            Map<String, String> properties = new HashMap<>(operation.getProperties());
-            if (properties.containsKey(MODULE_TYPE)) {
-                throw new ValidationException(
-                        String.format(
-                                "Property 'type' = '%s' is not supported since module name "
-                                        + "is used to find module",
-                                properties.get(MODULE_TYPE)));
-            }
-            properties.put(MODULE_TYPE, operation.getModuleName());
-            final ModuleFactory factory =
-                    TableFactoryService.find(ModuleFactory.class, properties, userClassLoader);
-            moduleManager.loadModule(operation.getModuleName(), factory.createModule(properties));
+            final Module module =
+                    FactoryUtil.createModule(
+                            operation.getModuleName(),
+                            operation.getOptions(),
+                            tableConfig.getConfiguration(),
+                            userClassLoader);
+            moduleManager.loadModule(operation.getModuleName(), module);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (ValidationException e) {
             throw new ValidationException(String.format("%s. %s", exMsg, e.getMessage()), e);
@@ -1595,10 +1587,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 .collect(Collectors.toList());
     }
 
-    private String getJobName(String defaultJobName) {
-        return tableConfig.getConfiguration().getString(PipelineOptions.NAME, defaultJobName);
-    }
-
     /** Get catalog from catalogName or throw a ValidationException if the catalog not exists. */
     private Catalog getCatalogOrThrowException(String catalogName) {
         return getCatalog(catalogName)
@@ -1698,7 +1686,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return transformations;
     }
 
-    private List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+    protected List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
         return planner.translate(modifyOperations);
     }
 

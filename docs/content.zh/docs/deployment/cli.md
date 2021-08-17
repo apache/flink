@@ -480,6 +480,15 @@ related options. Here's an overview of all the Python related options for the ac
             </td>
         </tr>
         <tr>
+            <td><code class="highlighter-rouge">-pyclientexec,--pyClientExecutable</code></td>
+            <td>
+                The path of the Python interpreter used to launch the Python process when submitting
+                the Python jobs via \"flink run\" or compiling the Java/Scala jobs containing
+                Python UDFs.
+                (e.g., --pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
+            </td>
+        </tr>
+        <tr>
             <td><code class="highlighter-rouge">-pyexec,--pyExecutable</code></td>
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker

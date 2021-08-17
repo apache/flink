@@ -90,6 +90,12 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
     private final ListStateDescriptor<State<TXN, CONTEXT>> stateDescriptor;
 
+    /**
+     * Current Transaction Holder, including three states: 1. Normal Transaction: created when a new
+     * snapshot is taken during normal task running 2. Empty Transaction: created when a new
+     * snapshot is taken after the task is finished. At this point, there is no need to initiate
+     * real transactions due to no more input data. 3. null: After task/function is closed.
+     */
     private TransactionHolder<TXN> currentTransactionHolder;
 
     /** Specifies the maximum time a transaction should remain open. */
@@ -106,6 +112,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
      * message will be logged. Value must be in range [0,1]. Negative value disables warnings.
      */
     private double transactionTimeoutWarningRatio = -1;
+
+    /** Whether this sink function as well as its task is finished. */
+    private boolean finished = false;
 
     /**
      * Use default {@link ListStateDescriptor} for internal state serialization. Helpful utilities
@@ -230,11 +239,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
     @Override
     public final void invoke(IN value, Context context) throws Exception {
-        invoke(currentTransactionHolder.handle, value, context);
+        TXN currentTransaction = currentTransaction();
+        checkNotNull(
+                currentTransaction,
+                "Two phase commit sink function with null transaction should not be invoked! ");
+        invoke(currentTransaction, value, context);
     }
 
     @Override
     public final void finish() throws Exception {
+        finished = true;
         finishProcessing(currentTransaction());
     }
 
@@ -332,11 +346,18 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
                 context.getCheckpointId(),
                 currentTransactionHolder);
 
-        preCommit(currentTransactionHolder.handle);
-        pendingCommitTransactions.put(checkpointId, currentTransactionHolder);
-        LOG.debug("{} - stored pending transactions {}", name(), pendingCommitTransactions);
+        if (!currentTransactionHolder.equals(TransactionHolder.empty())) {
+            preCommit(currentTransactionHolder.handle);
+            pendingCommitTransactions.put(checkpointId, currentTransactionHolder);
+            LOG.debug("{} - stored pending transactions {}", name(), pendingCommitTransactions);
+        }
 
-        currentTransactionHolder = beginTransactionInternal();
+        // no need to start new transactions after sink function is closed (no more input data)
+        if (!finished) {
+            currentTransactionHolder = beginTransactionInternal();
+        } else {
+            currentTransactionHolder = TransactionHolder.empty();
+        }
         LOG.debug("{} - started new transaction '{}'", name(), currentTransactionHolder);
 
         state.clear();
@@ -383,6 +404,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
                 {
                     TXN transaction = operatorState.getPendingTransaction().handle;
+
+                    checkNotNull(transaction, "Pending transaction is not expected to be null");
+
                     recoverAndAbort(transaction);
                     handledTransactions.add(transaction);
                     LOG.info(
@@ -460,10 +484,12 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
     public void close() throws Exception {
         super.close();
 
-        if (currentTransactionHolder != null) {
-            abort(currentTransactionHolder.handle);
-            currentTransactionHolder = null;
+        TXN currentTransaction = currentTransaction();
+        if (currentTransaction != null) {
+            abort(currentTransaction);
         }
+
+        currentTransactionHolder = null;
     }
 
     /**
@@ -607,6 +633,8 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
         private final TXN handle;
 
+        private static final TransactionHolder<?> EMPTY = new TransactionHolder<>(null, -1);
+
         /**
          * The system time when {@link #handle} was created. Used to determine if the current
          * transaction has exceeded its timeout specified by {@link #transactionTimeout}.
@@ -621,6 +649,11 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
 
         long elapsedTime(Clock clock) {
             return clock.millis() - transactionStartTime;
+        }
+
+        @SuppressWarnings("unchecked")
+        public static <TXN> TransactionHolder<TXN> empty() {
+            return (TransactionHolder<TXN>) EMPTY;
         }
 
         @Override

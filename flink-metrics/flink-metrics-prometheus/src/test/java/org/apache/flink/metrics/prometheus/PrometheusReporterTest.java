@@ -33,8 +33,9 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
-import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
@@ -215,26 +216,23 @@ public class PrometheusReporterTest extends TestLogger {
 
     @Test
     public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
-        TaskManagerMetricGroup tmMetricGroup =
-                TaskManagerMetricGroup.createTaskManagerMetricGroup(
-                        registry, HOST_NAME, new ResourceID(TASK_MANAGER));
+        JobManagerMetricGroup jmMetricGroup =
+                JobManagerMetricGroup.createJobManagerMetricGroup(registry, HOST_NAME);
 
         String metricName = "metric";
 
         Counter metric1 = new SimpleCounter();
-        FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 =
+        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup1 =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerJobMetricGroup(
-                                registry, tmMetricGroup, JobID.generate(), "job_1"));
+                        jmMetricGroup.addJob(JobID.generate(), "job_1"));
         reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
 
         Counter metric2 = new SimpleCounter();
-        FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 =
+        FrontMetricGroup<JobManagerJobMetricGroup> metricGroup2 =
                 new FrontMetricGroup<>(
                         createReporterScopedSettings(),
-                        new TaskManagerJobMetricGroup(
-                                registry, tmMetricGroup, JobID.generate(), "job_2"));
+                        jmMetricGroup.addJob(JobID.generate(), "job_2"));
         reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
         reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);

@@ -34,7 +34,8 @@ public enum CheckpointFailureReason {
 
     NOT_ALL_REQUIRED_TASKS_RUNNING(true, "Not all required tasks are currently running."),
 
-    EXCEPTION(true, "An Exception occurred while triggering the checkpoint."),
+    IO_EXCEPTION(
+            true, "An Exception occurred while triggering the checkpoint. IO-problem detected."),
 
     CHECKPOINT_ASYNC_EXCEPTION(false, "Asynchronous task checkpoint failed."),
 

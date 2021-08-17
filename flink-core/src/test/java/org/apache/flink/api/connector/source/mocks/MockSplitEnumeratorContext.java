@@ -23,7 +23,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 
@@ -81,8 +81,8 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
     }
 
     @Override
-    public MetricGroup metricGroup() {
-        return new UnregisteredMetricsGroup();
+    public SplitEnumeratorMetricGroup metricGroup() {
+        return UnregisteredMetricsGroup.createSplitEnumeratorMetricGroup();
     }
 
     @Override

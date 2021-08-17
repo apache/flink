@@ -39,15 +39,24 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.alluxio:alluxio-shaded-client:2.5.0-3
 - org.apache.commons:commons-configuration2:2.1.1
 - org.apache.commons:commons-lang3:3.3.2
-- org.apache.hadoop:hadoop-annotations:3.1.0
-- org.apache.hadoop:hadoop-aws:3.1.0
-- org.apache.hadoop:hadoop-auth:3.1.0
-- org.apache.hadoop:hadoop-common:3.1.0
+- org.apache.commons:commons-text:1.4
+- org.apache.hadoop:hadoop-annotations:3.2.2
+- org.apache.hadoop:hadoop-aws:3.2.2
+- org.apache.hadoop:hadoop-auth:3.2.2
+- org.apache.hadoop:hadoop-common:3.2.2
+- org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
+- org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
 - org.apache.htrace:htrace-core4:4.1.0-incubating
-- org.apache.httpcomponents:httpcore:4.4.14
 - org.apache.httpcomponents:httpclient:4.5.13
+- org.apache.httpcomponents:httpcore:4.4.14
 - org.weakref:jmxutils:1.19
+- org.wildfly.openssl:wildfly-openssl:1.0.7.Final
 - software.amazon.ion:ion-java:1.0.2
+
+This project bundles the following dependencies under BSD-2 License (https://opensource.org/licenses/BSD-2-Clause).
+See bundled license files for details.
+
+- dnsjava:dnsjava:2.1.7
 
 This project bundles the following dependencies under the Creative Commons CC0 1.0 Universal Public Domain Dedication License (http://creativecommons.org/publicdomain/zero/1.0/)
 See bundled license files for details.
@@ -57,6 +66,7 @@ See bundled license files for details.
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
+- javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).

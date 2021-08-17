@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -39,14 +40,13 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -60,6 +60,8 @@ import java.util.concurrent.Future;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -142,7 +144,7 @@ public class StreamTaskFinalCheckpointsTest {
             int lastCheckpointId = 6;
             CompletingCheckpointResponder checkpointResponder = new CompletingCheckpointResponder();
             try (StreamTaskMailboxTestHarness<String> testHarness =
-                    createTestHarness(partitionWriters, checkpointResponder)) {
+                    createTestHarness(partitionWriters, checkpointResponder, false)) {
                 // Tests triggering checkpoint when all the inputs are alive.
                 CompletableFuture<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
@@ -196,12 +198,13 @@ public class StreamTaskFinalCheckpointsTest {
 
     private StreamTaskMailboxTestHarness<String> createTestHarness(
             CompletingCheckpointResponder checkpointResponder) throws Exception {
-        return createTestHarness(null, checkpointResponder);
+        return createTestHarness(null, checkpointResponder, false);
     }
 
     private StreamTaskMailboxTestHarness<String> createTestHarness(
             @Nullable ResultPartition[] partitionWriters,
-            CompletingCheckpointResponder checkpointResponder)
+            CompletingCheckpointResponder checkpointResponder,
+            boolean enableUnalignedCheckpoint)
             throws Exception {
         StreamTaskMailboxTestHarnessBuilder<String> testHarnessBuilder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
@@ -215,6 +218,8 @@ public class StreamTaskFinalCheckpointsTest {
                         .modifyStreamConfig(
                                 config -> {
                                     config.setCheckpointingEnabled(true);
+                                    config.setUnalignedCheckpointsEnabled(
+                                            enableUnalignedCheckpoint);
                                     config.getConfiguration()
                                             .set(
                                                     ExecutionCheckpointingOptions
@@ -244,7 +249,7 @@ public class StreamTaskFinalCheckpointsTest {
 
             CompletingCheckpointResponder checkpointResponder = new CompletingCheckpointResponder();
             try (StreamTaskMailboxTestHarness<String> testHarness =
-                    createTestHarness(partitionWriters, checkpointResponder)) {
+                    createTestHarness(partitionWriters, checkpointResponder, false)) {
                 // complete only the third checkpoint
                 checkpointResponder.completeCheckpoints(Collections.singletonList(3L));
                 // finish data on all channels
@@ -339,7 +344,7 @@ public class StreamTaskFinalCheckpointsTest {
                         }
                     };
             try (StreamTaskMailboxTestHarness<String> testHarness =
-                    createTestHarness(partitionWriters, checkpointResponder)) {
+                    createTestHarness(partitionWriters, checkpointResponder, false)) {
 
                 // Tests triggering checkpoint after received all the inputs have received
                 // EndOfPartition.
@@ -475,7 +480,28 @@ public class StreamTaskFinalCheckpointsTest {
     }
 
     @Test
-    public void testTriggeringCheckpointWithFinishedChannels() throws Exception {
+    public void testTriggeringAlignedNoTimeoutCheckpointWithFinishedChannels() throws Exception {
+        testTriggeringCheckpointWithFinishedChannels(
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggeringUnalignedCheckpointWithFinishedChannels() throws Exception {
+        testTriggeringCheckpointWithFinishedChannels(
+                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+    }
+
+    @Test
+    public void testTriggeringAlignedWithTimeoutCheckpointWithFinishedChannels() throws Exception {
+        testTriggeringCheckpointWithFinishedChannels(
+                CheckpointOptions.alignedWithTimeout(
+                        CheckpointStorageLocationReference.getDefault(), 10L));
+    }
+
+    private void testTriggeringCheckpointWithFinishedChannels(CheckpointOptions checkpointOptions)
+            throws Exception {
         ResultPartition[] partitionWriters = new ResultPartition[2];
         try {
             for (int i = 0; i < partitionWriters.length; ++i) {
@@ -486,17 +512,22 @@ public class StreamTaskFinalCheckpointsTest {
 
             int lastCheckpointId = 6;
             try (StreamTaskMailboxTestHarness<String> testHarness =
-                    createTestHarness(partitionWriters, new CompletingCheckpointResponder())) {
+                    createTestHarness(
+                            partitionWriters,
+                            new CompletingCheckpointResponder(),
+                            checkpointOptions.isUnalignedCheckpoint()
+                                    || checkpointOptions.isTimeoutable())) {
 
                 // Tests triggering checkpoint when all the inputs are alive.
-                CompletableFuture<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+                CompletableFuture<Boolean> checkpointFuture =
+                        triggerCheckpoint(testHarness, 2, checkpointOptions);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
                 testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
-                checkpointFuture = triggerCheckpoint(testHarness, 4);
+                checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
                 assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
 
@@ -506,7 +537,8 @@ public class StreamTaskFinalCheckpointsTest {
                 testHarness.processEvent(EndOfData.INSTANCE, 0, 2);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
-                checkpointFuture = triggerCheckpoint(testHarness, lastCheckpointId);
+                checkpointFuture =
+                        triggerCheckpoint(testHarness, lastCheckpointId, checkpointOptions);
 
                 // Notifies the result partition that all records are processed after the
                 // last checkpoint is triggered.
@@ -618,14 +650,20 @@ public class StreamTaskFinalCheckpointsTest {
 
     static CompletableFuture<Boolean> triggerCheckpoint(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
+        return triggerCheckpoint(
+                testHarness, checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation());
+    }
+
+    static CompletableFuture<Boolean> triggerCheckpoint(
+            StreamTaskMailboxTestHarness<String> testHarness,
+            long checkpointId,
+            CheckpointOptions checkpointOptions) {
         testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         return testHarness
                 .getStreamTask()
                 .triggerCheckpointAsync(
                         new CheckpointMetaData(checkpointId, checkpointId * 1000),
-                        CheckpointOptions.alignedNoTimeout(
-                                CheckpointType.CHECKPOINT,
-                                CheckpointStorageLocationReference.getDefault()));
+                        checkpointOptions);
     }
 
     static CompletableFuture<Boolean> triggerStopWithSavepoint(
@@ -713,17 +751,22 @@ public class StreamTaskFinalCheckpointsTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setCollectNetworkEvents()
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
-                        .setupOutputForSingletonOperatorChain(new LifeCycleMonitorOperator<>())
+                        .setupOutputForSingletonOperatorChain(
+                                new TestFinishedOnRestoreStreamOperator())
                         .build()) {
             // Finish the restore, including state initialization and open.
             harness.processAll();
 
             // Try trigger a checkpoint.
             harness.getTaskStateManager().getWaitForReportLatch().reset();
+            CheckpointMetaData checkpointMetaData = new CheckpointMetaData(2, 2);
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault());
             harness.streamTask.triggerCheckpointOnBarrier(
-                    new CheckpointMetaData(2, 2),
-                    new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault()),
+                    checkpointMetaData,
+                    checkpointOptions,
                     new CheckpointMetricsBuilder()
                             .setBytesProcessedDuringAlignment(0)
                             .setAlignmentDurationNanos(0));
@@ -736,12 +779,21 @@ public class StreamTaskFinalCheckpointsTest {
             harness.processAll();
 
             // Finish & close operators.
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 0);
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 1);
+            harness.processElement(Watermark.MAX_WATERMARK, 0, 2);
             harness.waitForTaskCompletion();
             harness.finishProcessing();
 
-            LifeCycleMonitorOperator<String> operator =
-                    (LifeCycleMonitorOperator<String>) harness.getStreamTask().getMainOperator();
-            operator.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+            assertThat(
+                    harness.getOutput(),
+                    contains(
+                            new CheckpointBarrier(
+                                    checkpointMetaData.getCheckpointId(),
+                                    checkpointMetaData.getTimestamp(),
+                                    checkpointOptions),
+                            Watermark.MAX_WATERMARK,
+                            EndOfData.INSTANCE));
         }
     }
 
@@ -775,62 +827,6 @@ public class StreamTaskFinalCheckpointsTest {
         @Override
         public void finish() throws Exception {
             finished = true;
-        }
-    }
-
-    /** A special one-input operator that monitors the lifecycle of the operator. */
-    static class LifeCycleMonitorOperator<T> extends AbstractStreamOperator<T>
-            implements OneInputStreamOperator<T, T> {
-
-        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
-
-        @Override
-        public void open() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
-        }
-
-        @Override
-        public void initializeState(StateInitializationContext context) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.INITIALIZE_STATE);
-        }
-
-        @Override
-        public void processElement(StreamRecord<T> element) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
-        }
-
-        @Override
-        public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PREPARE_SNAPSHOT_PRE_BARRIER);
-        }
-
-        @Override
-        public void snapshotState(StateSnapshotContext context) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.SNAPSHOT_STATE);
-        }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_COMPLETE);
-        }
-
-        @Override
-        public void notifyCheckpointAborted(long checkpointId) throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_ABORT);
-        }
-
-        @Override
-        public void finish() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.FINISH);
-        }
-
-        @Override
-        public void close() throws Exception {
-            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
-        }
-
-        public LifeCycleMonitor getLifeCycleMonitor() {
-            return lifeCycleMonitor;
         }
     }
 

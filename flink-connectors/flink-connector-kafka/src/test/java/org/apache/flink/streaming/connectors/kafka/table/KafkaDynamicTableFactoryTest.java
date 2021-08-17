@@ -20,21 +20,25 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.KafkaSourceEnumState;
+import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
 import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroSerializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
-import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -45,21 +49,24 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TestFormatFactory;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
+import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -84,9 +91,8 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -126,7 +132,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     static {
         KAFKA_SOURCE_PROPERTIES.setProperty("group.id", "dummy");
         KAFKA_SOURCE_PROPERTIES.setProperty("bootstrap.servers", "dummy");
-        KAFKA_SOURCE_PROPERTIES.setProperty("flink.partition-discovery.interval-millis", "1000");
+        KAFKA_SOURCE_PROPERTIES.setProperty("partition.discovery.interval.ms", "1000");
 
         KAFKA_SINK_PROPERTIES.setProperty("group.id", "dummy");
         KAFKA_SINK_PROPERTIES.setProperty("bootstrap.servers", "dummy");
@@ -139,11 +145,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         KAFKA_FINAL_SINK_PROPERTIES.put("transaction.timeout.ms", 3600000);
 
         KAFKA_FINAL_SOURCE_PROPERTIES.putAll(KAFKA_SOURCE_PROPERTIES);
-        KAFKA_FINAL_SOURCE_PROPERTIES.setProperty(
-                "value.deserializer",
-                "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-        KAFKA_FINAL_SOURCE_PROPERTIES.setProperty(
-                "key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     }
 
     private static final String PROPS_SCAN_OFFSETS =
@@ -210,37 +211,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         0);
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
-        // Test Kafka consumer
         ScanTableSource.ScanRuntimeProvider provider =
                 actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
-
-        // Test commitOnCheckpoints flag should be true when set consumer group
-        assertTrue(((FlinkKafkaConsumer<?>) sourceFunction).getEnableCommitOnCheckpoints());
-    }
-
-    @Test
-    public void testTableSourceCommitOnCheckpointsDisabled() {
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(), options -> options.remove("properties.group.id"));
-        final DynamicTableSource tableSource = createTableSource(SCHEMA, modifiedOptions);
-
-        // Test commitOnCheckpoints flag should be false when do not set consumer group.
-        assertThat(tableSource, instanceOf(KafkaDynamicSource.class));
-        ScanTableSource.ScanRuntimeProvider providerWithoutGroupId =
-                ((KafkaDynamicSource) tableSource)
-                        .getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(providerWithoutGroupId, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider functionProviderWithoutGroupId =
-                (SourceFunctionProvider) providerWithoutGroupId;
-        final SourceFunction<RowData> function =
-                functionProviderWithoutGroupId.createSourceFunction();
-        assertFalse(((FlinkKafkaConsumer<?>) function).getEnableCommitOnCheckpoints());
+        assertKafkaSource(provider);
     }
 
     @Test
@@ -281,14 +254,10 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         final KafkaDynamicSource actualKafkaSource = (KafkaDynamicSource) actualSource;
         assertEquals(actualKafkaSource, expectedKafkaSource);
 
-        // Test Kafka consumer
         ScanTableSource.ScanRuntimeProvider provider =
                 actualKafkaSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
-        assertThat(provider, instanceOf(SourceFunctionProvider.class));
-        final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
-        final SourceFunction<RowData> sourceFunction =
-                sourceFunctionProvider.createSourceFunction();
-        assertThat(sourceFunction, instanceOf(FlinkKafkaConsumer.class));
+
+        assertKafkaSource(provider);
     }
 
     @Test
@@ -382,7 +351,14 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
 
     @Test
     public void testTableSink() {
-        final DynamicTableSink actualSink = createTableSink(SCHEMA, getBasicSinkOptions());
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getBasicSinkOptions(),
+                        options -> {
+                            options.put("sink.delivery-guarantee", "exactly-once");
+                            options.put("sink.transactional-id-prefix", "kafka-sink");
+                        });
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, modifiedOptions);
 
         final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
                 new EncodingFormatMock(",");
@@ -398,23 +374,63 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        SinkSemantic.EXACTLY_ONCE,
-                        null);
+                        DeliveryGuarantee.EXACTLY_ONCE,
+                        null,
+                        "kafka-sink");
         assertEquals(expectedSink, actualSink);
 
         // Test kafka producer.
         final KafkaDynamicSink actualKafkaSink = (KafkaDynamicSink) actualSink;
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkFunctionProvider.class));
-        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-        final SinkFunction<RowData> sinkFunction = sinkFunctionProvider.createSinkFunction();
-        assertThat(sinkFunction, instanceOf(FlinkKafkaProducer.class));
+        assertThat(provider, instanceOf(SinkProvider.class));
+        final SinkProvider sinkProvider = (SinkProvider) provider;
+        final Sink<RowData, ?, ?, ?> sinkFunction = sinkProvider.createSink();
+        assertThat(sinkFunction, instanceOf(KafkaSink.class));
+    }
+
+    @Test
+    public void testTableSinkSemanticTranslation() {
+        final List<String> semantics = ImmutableList.of("exactly-once", "at-least-once", "none");
+        final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
+                new EncodingFormatMock(",");
+        for (final String semantic : semantics) {
+            final Map<String, String> modifiedOptions =
+                    getModifiedOptions(
+                            getBasicSinkOptions(),
+                            options -> {
+                                options.put("sink.semantic", semantic);
+                                options.put("sink.transactional-id-prefix", "kafka-sink");
+                            });
+            final DynamicTableSink actualSink = createTableSink(SCHEMA, modifiedOptions);
+            final DynamicTableSink expectedSink =
+                    createExpectedSink(
+                            SCHEMA_DATA_TYPE,
+                            null,
+                            valueEncodingFormat,
+                            new int[0],
+                            new int[] {0, 1, 2},
+                            null,
+                            TOPIC,
+                            KAFKA_SINK_PROPERTIES,
+                            new FlinkFixedPartitioner<>(),
+                            DeliveryGuarantee.valueOf(semantic.toUpperCase().replace("-", "_")),
+                            null,
+                            "kafka-sink");
+            assertEquals(expectedSink, actualSink);
+        }
     }
 
     @Test
     public void testTableSinkWithKeyValue() {
-        final DynamicTableSink actualSink = createTableSink(SCHEMA, getKeyValueOptions());
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getKeyValueOptions(),
+                        options -> {
+                            options.put("sink.delivery-guarantee", "exactly-once");
+                            options.put("sink.transactional-id-prefix", "kafka-sink");
+                        });
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, modifiedOptions);
         final KafkaDynamicSink actualKafkaSink = (KafkaDynamicSink) actualSink;
         // initialize stateful testing formats
         actualKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
@@ -441,8 +457,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_FINAL_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        SinkSemantic.EXACTLY_ONCE,
-                        null);
+                        DeliveryGuarantee.EXACTLY_ONCE,
+                        null,
+                        "kafka-sink");
 
         assertEquals(expectedSink, actualSink);
     }
@@ -468,16 +485,17 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                         TOPIC,
                         KAFKA_SINK_PROPERTIES,
                         new FlinkFixedPartitioner<>(),
-                        SinkSemantic.EXACTLY_ONCE,
-                        100);
+                        DeliveryGuarantee.EXACTLY_ONCE,
+                        100,
+                        "kafka-sink");
         assertEquals(expectedSink, actualSink);
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkFunctionProvider.class));
-        final SinkFunctionProvider sinkFunctionProvider = (SinkFunctionProvider) provider;
-        assertTrue(sinkFunctionProvider.getParallelism().isPresent());
-        assertEquals(100, (long) sinkFunctionProvider.getParallelism().get());
+        assertThat(provider, instanceOf(SinkProvider.class));
+        final SinkProvider sinkProvider = (SinkProvider) provider;
+        assertTrue(sinkProvider.getParallelism().isPresent());
+        assertEquals(100, (long) sinkProvider.getParallelism().get());
     }
 
     @Test
@@ -714,6 +732,25 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     }
 
     @Test
+    public void testExactlyOnceGuaranteeWithoutTransactionalIdPrefix() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new ValidationException(
+                                "sink.transactional-id-prefix must be specified when using DeliveryGuarantee.EXACTLY_ONCE.")));
+        final Map<String, String> modifiedOptions =
+                getModifiedOptions(
+                        getKeyValueOptions(),
+                        options -> {
+                            options.remove(KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX.key());
+                            options.put(
+                                    KafkaConnectorOptions.DELIVERY_GUARANTEE.key(),
+                                    DeliveryGuarantee.EXACTLY_ONCE.toString());
+                        });
+        createTableSink(SCHEMA, modifiedOptions);
+    }
+
+    @Test
     public void testSinkWithTopicListOrTopicPattern() {
         Map<String, String> modifiedOptions =
                 getModifiedOptions(
@@ -838,7 +875,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 startupMode,
                 specificStartupOffsets,
                 startupTimestampMillis,
-                false);
+                false,
+                FactoryMocks.IDENTIFIER.asSummaryString());
     }
 
     private static KafkaDynamicSink createExpectedSink(
@@ -851,8 +889,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             String topic,
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
-            SinkSemantic semantic,
-            @Nullable Integer parallelism) {
+            DeliveryGuarantee deliveryGuarantee,
+            @Nullable Integer parallelism,
+            String transactionalIdPrefix) {
         return new KafkaDynamicSink(
                 physicalDataType,
                 physicalDataType,
@@ -864,10 +903,11 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 topic,
                 properties,
                 partitioner,
-                semantic,
+                deliveryGuarantee,
                 false,
                 SinkBufferFlushMode.DISABLED,
-                parallelism);
+                parallelism,
+                transactionalIdPrefix);
     }
 
     /**
@@ -914,7 +954,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("properties.bootstrap.servers", "dummy");
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put("sink.semantic", SinkSemantic.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.delivery-guarantee", DeliveryGuarantee.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.transactional-id-prefix", "kafka-sink");
         // Format options.
         tableOptions.put("format", TestFormatFactory.IDENTIFIER);
         final String formatDelimiterKey =
@@ -934,7 +975,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("scan.topic-partition-discovery.interval", DISCOVERY_INTERVAL);
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put("sink.semantic", SinkSemantic.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.delivery-guarantee", DeliveryGuarantee.EXACTLY_ONCE.toString());
+        tableOptions.put("sink.transactional-id-prefix", "kafka-sink");
         // Format options.
         tableOptions.put("key.format", TestFormatFactory.IDENTIFIER);
         tableOptions.put(
@@ -953,5 +995,20 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 "value.fields-include",
                 KafkaConnectorOptions.ValueFieldsStrategy.EXCEPT_KEY.toString());
         return tableOptions;
+    }
+
+    private void assertKafkaSource(ScanTableSource.ScanRuntimeProvider provider) {
+        assertThat(provider, instanceOf(DataStreamScanProvider.class));
+        final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
+        final Transformation<RowData> transformation =
+                dataStreamScanProvider
+                        .produceDataStream(StreamExecutionEnvironment.createLocalEnvironment())
+                        .getTransformation();
+        assertThat(transformation, instanceOf(SourceTransformation.class));
+        SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>
+                sourceTransformation =
+                        (SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>)
+                                transformation;
+        assertThat(sourceTransformation.getSource(), instanceOf(KafkaSource.class));
     }
 }

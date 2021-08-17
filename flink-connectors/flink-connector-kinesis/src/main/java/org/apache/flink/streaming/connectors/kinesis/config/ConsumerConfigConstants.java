@@ -312,6 +312,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
     public static final String EFO_HTTP_CLIENT_MAX_CONCURRENCY =
             "flink.stream.efo.http-client.max-concurrency";
 
+    public static final String EFO_HTTP_CLIENT_READ_TIMEOUT_MILLIS =
+            "flink.stream.efo.http-client.read-timeout";
+
     // ------------------------------------------------------------------------
     //  Default values for consumer configuration
     // ------------------------------------------------------------------------
@@ -403,7 +406,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
     public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
-    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONURRENCY = 10_000;
+    public static final int DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY = 10_000;
+
+    public static final Duration DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT = Duration.ofMinutes(6);
 
     /**
      * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

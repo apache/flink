@@ -1354,7 +1354,6 @@ class Expression(Generic[T]):
         """
         return _binary_op("sha2")(self, hash_length)
 
-
 # add the docs
 _make_math_log_doc()
 _make_math_trigonometric_doc()

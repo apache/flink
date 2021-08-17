@@ -108,6 +108,8 @@ public class PipelinedSubpartition extends ResultSubpartition
     /** Writes in-flight data. */
     private ChannelStateWriter channelStateWriter;
 
+    private int bufferSize = Integer.MAX_VALUE;
+
     /**
      * Whether this subpartition is blocked (e.g. by exactly once checkpoint) and is waiting for
      * resumption.
@@ -136,7 +138,7 @@ public class PipelinedSubpartition extends ResultSubpartition
     }
 
     @Override
-    public boolean add(BufferConsumer bufferConsumer, int partialRecordLength) {
+    public int add(BufferConsumer bufferConsumer, int partialRecordLength) {
         return add(bufferConsumer, partialRecordLength, false);
     }
 
@@ -147,7 +149,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 bufferConsumer,
                 parent.getOwningTaskName(),
                 subpartitionInfo);
-        if (!add(bufferConsumer, Integer.MIN_VALUE)) {
+        if (add(bufferConsumer, Integer.MIN_VALUE) == -1) {
             throw new IOException("Buffer consumer couldn't be added to ResultSubpartition");
         }
     }
@@ -165,15 +167,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         LOG.debug("{}: Finished {}.", parent.getOwningTaskName(), this);
     }
 
-    private boolean add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
+    private int add(BufferConsumer bufferConsumer, int partialRecordLength, boolean finish) {
         checkNotNull(bufferConsumer);
 
         final boolean notifyDataAvailable;
         int prioritySequenceNumber = -1;
+        int newBufferSize;
         synchronized (buffers) {
             if (isFinished || isReleased) {
                 bufferConsumer.close();
-                return false;
+                return -1;
             }
 
             // Add the bufferConsumer and update the stats
@@ -185,6 +188,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             notifyDataAvailable = finish || shouldNotifyDataAvailable();
 
             isFinished |= finish;
+            newBufferSize = bufferSize;
         }
 
         if (prioritySequenceNumber != -1) {
@@ -194,7 +198,7 @@ public class PipelinedSubpartition extends ResultSubpartition
             notifyDataAvailable();
         }
 
-        return true;
+        return newBufferSize;
     }
 
     private boolean addBuffer(BufferConsumer bufferConsumer, int partialRecordLength) {
@@ -447,6 +451,16 @@ public class PipelinedSubpartition extends ResultSubpartition
     public int getNumberOfQueuedBuffers() {
         synchronized (buffers) {
             return buffers.size();
+        }
+    }
+
+    @Override
+    public void bufferSize(int desirableNewBufferSize) {
+        if (desirableNewBufferSize < 0) {
+            throw new IllegalArgumentException("New buffer size can not be less than zero");
+        }
+        synchronized (buffers) {
+            bufferSize = desirableNewBufferSize;
         }
     }
 

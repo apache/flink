@@ -264,6 +264,48 @@ public class BufferBuilderAndConsumerTest {
         assertEquals(1, recycler.recycleInvocationCounter);
     }
 
+    @Test
+    public void trimToAvailableSize() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(BUFFER_SIZE / 2);
+        assertEquals(BUFFER_SIZE / 2, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(0);
+        assertEquals(0, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToNegativeSize() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(-1);
+        assertEquals(0, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToSizeLessThanWritten() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.append(toByteBuffer(1, 2, 3));
+
+        bufferBuilder.trim(4);
+        // Should be minimum possible size = 3 * int == 12.
+        assertEquals(12, bufferBuilder.getMaxCapacity());
+    }
+
+    @Test
+    public void trimToSizeGreaterThanMax() {
+        BufferBuilder bufferBuilder = createBufferBuilder();
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+
+        bufferBuilder.trim(BUFFER_SIZE + 1);
+        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+    }
+
     private static void testIsFinished(int writes) {
         BufferBuilder bufferBuilder = createBufferBuilder();
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();

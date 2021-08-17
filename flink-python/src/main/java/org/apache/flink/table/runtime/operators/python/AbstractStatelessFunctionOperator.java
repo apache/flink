@@ -27,7 +27,6 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
@@ -35,9 +34,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -61,9 +58,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     /** The offsets of user-defined function inputs. */
     protected final int[] userDefinedFunctionInputOffsets;
-
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
 
     /** The user-defined function input logical type. */
     protected transient RowType userDefinedFunctionInputType;
@@ -98,7 +92,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
         this.outputType = Preconditions.checkNotNull(outputType);
         this.userDefinedFunctionInputOffsets =
                 Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
-        this.jobOptions = buildJobOptions(config);
     }
 
     @Override
@@ -129,16 +122,13 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-        return new BeamTablePythonFunctionRunner(
+        return BeamTablePythonFunctionRunner.stateless(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
                 jobOptions,
                 getFlinkMetricContainer(),
-                null,
-                null,
-                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -177,12 +167,4 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
             RowType runnerOutType);
 
     public abstract void processElementInternal(IN value) throws Exception;
-
-    private Map<String, String> buildJobOptions(Configuration config) {
-        Map<String, String> jobOptions = new HashMap<>();
-        if (config.containsKey("table.exec.timezone")) {
-            jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
-        }
-        return jobOptions;
-    }
 }

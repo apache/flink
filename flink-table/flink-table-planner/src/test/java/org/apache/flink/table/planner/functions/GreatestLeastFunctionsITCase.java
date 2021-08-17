@@ -56,7 +56,7 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull(),
                                 DataTypes.TIMESTAMP(3).notNull(),
                                 DataTypes.TIMESTAMP(3).notNull())
-                        .testSqlError(
+                        .testSqlValidationError(
                                 "GREATEST(f1, f4)",
                                 "SQL validation failed. Invalid function call:\n"
                                         + "GREATEST(INT NOT NULL, STRING NOT NULL)")
@@ -78,7 +78,7 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "GREATEST(f6, f7)",
                                 LocalDateTime.parse("1970-01-01T00:00:03.001"),
                                 DataTypes.TIMESTAMP(3).notNull())
-                        .testSqlError(
+                        .testSqlValidationError(
                                 "GREATEST(f5, f6)",
                                 "SQL validation failed. Invalid function call:\n"
                                         + "GREATEST(STRING NOT NULL, TIMESTAMP(3) NOT NULL)"),
@@ -91,7 +91,7 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.DECIMAL(3, 2).notNull(),
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull())
-                        .testSqlError(
+                        .testSqlValidationError(
                                 "LEAST(f1, f4)",
                                 "SQL validation failed. Invalid function call:\n"
                                         + "LEAST(INT NOT NULL, STRING NOT NULL)")

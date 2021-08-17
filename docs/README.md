@@ -11,16 +11,11 @@ https://flink.apache.org/ is also generated from the files found here.
 Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
 system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
 
-From this directory:
+From the directory of this module (`docs`):
 
-  * Fetch the theme submodule
-	```sh
-	git submodule update --init --recursive
-	```
-  * Start local server
-	```sh
-	hugo -b "" serve
-	```
+```sh
+./build_docs.sh
+```
 
 The site can be viewed at http://localhost:1313/
 

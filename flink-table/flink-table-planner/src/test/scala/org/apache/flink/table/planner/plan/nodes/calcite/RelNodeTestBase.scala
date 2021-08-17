@@ -51,6 +51,7 @@ class RelNodeTestBase {
   val moduleManager = new ModuleManager
 
   val plannerContext: PlannerContext = new PlannerContext(
+    false,
     tableConfig,
     new FunctionCatalog(tableConfig, catalogManager, moduleManager),
     catalogManager,

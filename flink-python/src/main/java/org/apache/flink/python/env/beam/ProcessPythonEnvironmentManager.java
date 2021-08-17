@@ -24,8 +24,8 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
-import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -51,6 +51,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+
+import static org.apache.flink.python.util.PythonDependencyUtils.PARAM_DELIMITER;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and
@@ -319,16 +321,28 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     private void constructArchivesDirectory(Map<String, String> env) throws IOException {
         if (!dependencyInfo.getArchives().isEmpty()) {
             // set the archives directory as the working directory, then user could access the
-            // content of the archives
-            // via relative path
+            // content of the archives via relative path
             env.put(PYTHON_WORKING_DIR, archivesDirectory);
             LOG.info("Python working dir of python worker: {}", archivesDirectory);
 
             // extract archives to archives directory
             for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
-                ZipUtils.extractZipFileWithPermissions(
-                        entry.getKey(),
-                        String.join(File.separator, archivesDirectory, entry.getValue()));
+                String srcFilePath = entry.getKey();
+
+                String originalFileName;
+                String targetDirName;
+                if (entry.getValue().contains(PARAM_DELIMITER)) {
+                    String[] filePathAndTargetDir = entry.getValue().split(PARAM_DELIMITER, 2);
+                    originalFileName = filePathAndTargetDir[0];
+                    targetDirName = filePathAndTargetDir[1];
+                } else {
+                    originalFileName = entry.getValue();
+                    targetDirName = originalFileName;
+                }
+
+                String targetDirPath =
+                        String.join(File.separator, archivesDirectory, targetDirName);
+                CompressionUtils.extractFile(srcFilePath, targetDirPath, originalFileName);
             }
         }
     }

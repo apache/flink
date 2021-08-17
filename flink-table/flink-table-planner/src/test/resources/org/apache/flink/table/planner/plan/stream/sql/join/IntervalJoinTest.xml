@@ -16,6 +16,94 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testInteravalDiffTimeIndicator">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
+  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$5])
++- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)), <($3, +($9, 5000:INTERVAL SECOND)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a0 AS a])
++- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)) AND (proctime < (rowtime + 5000:INTERVAL SECOND)))], select=[a, proctime, a0, proctime0, rowtime], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime) AS rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInteravalNotCnfCondition">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
+  t1.a = t2.a AND
+  (t1.proctime > t2.proctime - INTERVAL '5' SECOND OR
+   t1.proctime < t2.rowtime + INTERVAL '5' SECOND)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$5])
++- LogicalJoin(condition=[AND(=($0, $5), OR(>($3, -($8, 5000:INTERVAL SECOND)), <($3, +($9, 5000:INTERVAL SECOND))))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a0 AS a])
++- Join(joinType=[InnerJoin], where=[((a = a0) AND ((proctime > (proctime0 - 5000:INTERVAL SECOND)) OR (proctime < (rowtime + 5000:INTERVAL SECOND))))], select=[a, proctime, a0, proctime0, rowtime], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime) AS rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInteravlJoinSingleTimeCondition">
+    <Resource name="sql">
+      <![CDATA[
+SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
+  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$5])
++- LogicalJoin(condition=[AND(=($0, $5), >($3, -($8, 5000:INTERVAL SECOND)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a0 AS a])
++- Join(joinType=[InnerJoin], where=[((a = a0) AND (proctime > (proctime0 - 5000:INTERVAL SECOND)))], select=[a, proctime, a0, proctime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeInnerJoinAndWindowAggregationOnFirst">
     <Resource name="sql">
       <![CDATA[

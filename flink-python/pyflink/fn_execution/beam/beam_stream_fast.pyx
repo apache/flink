@@ -23,6 +23,8 @@
 from libc.stdlib cimport realloc
 from libc.string cimport memcpy
 
+from apache_beam.runners.worker.data_plane import PeriodicThread
+
 cdef class BeamInputStream(LengthPrefixInputStream):
     def __cinit__(self, input_stream, size):
         self._input_buffer_size = size
@@ -54,14 +56,11 @@ cdef class BeamInputStream(LengthPrefixInputStream):
         self._input_data = input_stream.allc
         self._input_pos = input_stream.pos
 
-cdef class BeamOutputStream(LengthPrefixOutputStream):
-    def __cinit__(self, output_stream):
-        self._output_stream = output_stream
-        self._parse_output_stream(output_stream)
-
+cdef class BeamSizeBasedOutputStream(LengthPrefixOutputStream):
     cdef void write(self, char*data, size_t length):
         cdef char bits
         cdef size_t size = length
+        cdef size_t i
         # the length of the variable prefix length will be less than 9 bytes
         if self._output_buffer_size < self._output_pos + length + 9:
             self._output_buffer_size += length + 9
@@ -91,12 +90,36 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         self._output_stream.flush()
         self._output_pos = 0
 
-    cdef void _parse_output_stream(self, BOutputStream output_stream):
+    cdef void reset_output_stream(self, BOutputStream output_stream):
+        self._output_stream = output_stream
         self._output_data = output_stream.data
         self._output_pos = output_stream.pos
         self._output_buffer_size = output_stream.buffer_size
 
-    cdef void _maybe_flush(self):
+    cdef bint _maybe_flush(self):
         if self._output_pos > 10_000_000:
-            self._output_stream.flush()
-            self._output_pos = 0
+            self.flush()
+            return True
+        return False
+
+cdef class BeamTimeBasedOutputStream(BeamSizeBasedOutputStream):
+    def __init__(self, *args, **kwargs):
+        self._flush_event = False
+        self._periodic_flusher = PeriodicThread(1, self.notify_flush)
+        self._periodic_flusher.daemon = True
+        self._periodic_flusher.start()
+
+    cpdef void notify_flush(self):
+        self._flush_event = True
+
+    cpdef void close(self):
+        if self._periodic_flusher:
+            self._periodic_flusher.cancel()
+            self._periodic_flusher = None
+
+    cdef bint _maybe_flush(self):
+        if self._flush_event:
+            self.flush()
+            self._flush_event = False
+        elif BeamSizeBasedOutputStream._maybe_flush(self):
+            self._flush_event = False

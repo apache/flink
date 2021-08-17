@@ -76,6 +76,15 @@ public class PythonOptions {
                                     + "The interval between each profiling is determined by the config options "
                                     + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
 
+    /** The configuration to enable or disable python operator chaining. */
+    public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =
+            ConfigOptions.key("python.operator-chaining.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Python operator chaining allows non-shuffle operations to be co-located in the "
+                                    + "same thread fully avoiding serialization and de-serialization.");
+
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
                     .stringType()
@@ -136,11 +145,10 @@ public class PythonOptions {
                                     .text(
                                             "The path of the Python interpreter used to launch the Python process when submitting the "
                                                     + "Python jobs via \"flink run\" or compiling the Java/Scala jobs containing Python UDFs. "
-                                                    + "Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+                                                    + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
-                                    .text(
-                                            "1. the configuration 'python.client.executable' defined in the source code;")
+                                    .text("1. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .linebreak()

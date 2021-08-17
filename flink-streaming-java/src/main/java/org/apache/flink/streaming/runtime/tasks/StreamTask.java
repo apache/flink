@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -52,7 +53,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -98,6 +98,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -405,13 +407,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         injectChannelStateWriterIntoChannels();
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
-        this.throughputCalculator = environment.getThroughputMeter();
-        this.bufferDebloatPeriod = getTaskConfiguration().get(BUFFER_DEBLOAT_PERIOD).toMillis();
+        this.throughputCalculator = environment.getThroughputCalculator();
+        Configuration taskManagerConf = environment.getTaskManagerInfo().getConfiguration();
 
-        if (getTaskConfiguration().get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+        this.bufferDebloatPeriod = taskManagerConf.get(BUFFER_DEBLOAT_PERIOD).toMillis();
+
+        if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             this.bufferDebloater =
-                    new BufferDebloater(
-                            getTaskConfiguration(), getEnvironment().getAllInputGates());
+                    new BufferDebloater(taskManagerConf, getEnvironment().getAllInputGates());
             environment
                     .getMetricGroup()
                     .gauge(
@@ -623,9 +626,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {
         try {
-            return ((OperatorMetricGroup) streamOperator.getMetricGroup())
-                    .getIOMetricGroup()
-                    .getNumRecordsInCounter();
+            return streamOperator.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
         } catch (Exception e) {
             LOG.warn("An exception occurred during the metrics setup.", e);
             return new SimpleCounter();
@@ -646,10 +647,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         LOG.debug("Initializing {}.", getName());
 
         operatorChain =
-                new OperatorChain<>(
-                        this,
-                        recordWriter,
-                        getEnvironment().getTaskStateManager().isFinishedOnRestore());
+                getEnvironment().getTaskStateManager().isFinishedOnRestore()
+                        ? new FinishedOperatorChain<>(this, recordWriter)
+                        : new RegularOperatorChain<>(this, recordWriter);
         mainOperator = operatorChain.getMainOperator();
 
         // task specific initialization
@@ -1289,7 +1289,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             throws Exception {
 
         LOG.debug(
-                "Starting checkpoint ({}) {} on task {}",
+                "Starting checkpoint {} {} on task {}",
                 checkpointMetaData.getCheckpointId(),
                 checkpointOptions.getCheckpointType(),
                 getName());
@@ -1398,6 +1398,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void notifyCheckpointComplete(long checkpointId) throws Exception {
+        LOG.debug("Notify checkpoint {} complete on task {}", checkpointId, getName());
+
         if (checkpointId <= latestReportCheckpointId) {
             return;
         }
@@ -1703,6 +1705,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      * combine signal for metric and the throughput.
      */
     private static class ThroughputPeriodTimer implements PeriodTimer {
+        private final Clock clock = SystemClock.getInstance();
         private final TimerGauge idleTimerGauge;
         private final ThroughputCalculator throughputCalculator;
 
@@ -1714,14 +1717,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         @Override
         public void markStart() {
-            idleTimerGauge.markStart();
-            throughputCalculator.pauseMeasurement();
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            idleTimerGauge.markStart(absoluteTimeMillis);
+            throughputCalculator.pauseMeasurement(absoluteTimeMillis);
         }
 
         @Override
         public void markEnd() {
-            idleTimerGauge.markEnd();
-            throughputCalculator.resumeMeasurement();
+            long absoluteTimeMillis = clock.absoluteTimeMillis();
+            idleTimerGauge.markEnd(absoluteTimeMillis);
+            throughputCalculator.resumeMeasurement(absoluteTimeMillis);
         }
     }
 

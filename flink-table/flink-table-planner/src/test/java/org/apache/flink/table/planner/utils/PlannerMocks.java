@@ -37,7 +37,6 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 /** A utility class for creating an instance of {@link FlinkPlannerImpl} for testing. */
 public class PlannerMocks {
     public static FlinkPlannerImpl createDefaultPlanner() {
-        final boolean isStreamingMode = false;
         TableConfig tableConfig = new TableConfig();
         CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         ModuleManager moduleManager = new ModuleManager();
@@ -45,11 +44,11 @@ public class PlannerMocks {
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
         PlannerContext plannerContext =
                 new PlannerContext(
+                        false,
                         tableConfig,
                         functionCatalog,
                         catalogManager,
-                        asRootSchema(
-                                new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
+                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
                         new ArrayList<>());
         FlinkPlannerImpl planner =
                 plannerContext.createFlinkPlanner(
@@ -61,7 +60,7 @@ public class PlannerMocks {
                         planner::parser,
                         plannerContext.getSqlExprToRexConverterFactory());
         catalogManager.initSchemaResolver(
-                isStreamingMode,
+                true,
                 ExpressionResolver.resolverFor(
                         tableConfig,
                         name -> {

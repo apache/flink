@@ -19,7 +19,7 @@
 @import "theme";
 
 .wrapper {
-  margin: 24px;
+  margin: 0 @margin-lg @margin-lg @margin-lg;
 }
 
 .header-icon {
@@ -28,7 +28,7 @@
 }
 
 .flink-memory-model {
-  margin-bottom: 24px;
+  margin-bottom: @margin-md;
   ::ng-deep {
     table {
       border-collapse: collapse;
@@ -48,7 +48,6 @@
       }
       td, th {
         border-collapse: collapse;
-        border: 1px solid @border-color-split !important;
         &.table-header {
           background: @table-header-bg !important;
           color: @table-header-color;
@@ -69,8 +68,6 @@ nz-progress {
   }
 }
 
-nz-card {
-  &:last-child {
-    margin-top: 16px;
-  }
+.top-margin {
+  margin-top: @margin-md;
 }

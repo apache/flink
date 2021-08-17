@@ -172,6 +172,11 @@ class CreditBasedSequenceNumberingViewReader
         return receiverId;
     }
 
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        subpartitionView.notifyNewBufferSize(newBufferSize);
+    }
+
     @VisibleForTesting
     int getNumCreditsAvailable() {
         return numCreditsAvailable;

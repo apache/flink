@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.LogicalScopeProvider;
+import org.apache.flink.metrics.MetricGroup;
 
 import java.util.Map;
 
@@ -62,6 +63,11 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
                 getDelimiterFilter(this.settings, filter),
                 this.settings.getReporterIndex(),
                 this.settings.getDelimiter());
+    }
+
+    @Override
+    public MetricGroup getWrappedMetricGroup() {
+        return parentMetricGroup;
     }
 
     @Override

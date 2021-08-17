@@ -165,6 +165,12 @@
             <td>The user-specified annotations that are set to the rest Service. The value should be in the form of a1:v1,a2:v2</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.rest-service.exposed.node-port-address-type</h5></td>
+            <td style="word-wrap: break-word;">InternalIP</td>
+            <td><p>Enum</p></td>
+            <td>The user-specified <a href="https://kubernetes.io/docs/concepts/architecture/nodes/#addresses">address type</a> that is used for filtering node IPs when constructing a <a href="https://kubernetes.io/docs/concepts/services-networking/service/#nodeport">node port</a> connection string. This option is only considered when 'kubernetes.rest-service.exposed.type' is set to 'NodePort'.<br /><br />Possible values:<ul><li>"InternalIP"</li><li>"ExternalIP"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.rest-service.exposed.type</h5></td>
             <td style="word-wrap: break-word;">LoadBalancer</td>
             <td><p>Enum</p></td>

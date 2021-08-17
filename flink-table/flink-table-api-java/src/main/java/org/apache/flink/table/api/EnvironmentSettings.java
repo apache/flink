@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -134,15 +135,9 @@ public class EnvironmentSettings {
         return new Builder();
     }
 
-    /** Creates an instance of {@link EnvironmentSettings} from {@link Configuration}. */
-    public static EnvironmentSettings fromConfiguration(Configuration configuration) {
-        Builder builder = new Builder();
-        if (configuration.get(RUNTIME_MODE).equals(STREAMING)) {
-            builder.inStreamingMode();
-        } else {
-            builder.inBatchMode();
-        }
-
+    /** Creates an instance of {@link EnvironmentSettings} from configuration. */
+    public static EnvironmentSettings fromConfiguration(ReadableConfig configuration) {
+        final Builder builder = new Builder();
         switch (configuration.get(RUNTIME_MODE)) {
             case STREAMING:
                 builder.inStreamingMode();
@@ -151,12 +146,11 @@ public class EnvironmentSettings {
                 builder.inBatchMode();
                 break;
             case AUTOMATIC:
-                throw new UnsupportedOperationException(
-                        "TableEnvironment currently doesn't support `AUTOMATIC` mode.");
             default:
-                throw new IllegalArgumentException(
+                throw new TableException(
                         String.format(
-                                "Unrecognized value '%s' for option '%s'.",
+                                "Unsupported mode '%s' for '%s'. "
+                                        + "Only an explicit BATCH or STREAMING mode is supported in Table API.",
                                 configuration.get(RUNTIME_MODE), RUNTIME_MODE.key()));
         }
 

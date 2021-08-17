@@ -64,4 +64,7 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     public int getNumberOfQueuedBuffers() {
         return 0;
     }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {}
 }

@@ -88,6 +88,7 @@ class FlinkRelMdHandlerTestBase {
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
   new PlannerContext(
+    false,
     tableConfig,
     new FunctionCatalog(tableConfig, catalogManager, moduleManager),
     catalogManager,

@@ -20,13 +20,90 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdint cimport *
+
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
+from apache_beam.utils cimport windowed_value
 from apache_beam.utils.windowed_value cimport WindowedValue
+
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
+from apache_beam.runners.worker.bundle_processor import DataOutputOperation
 from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
+
+
+cdef class InputProcessor:
+
+    cpdef has_next(self):
+        pass
+
+    cpdef next(self):
+        pass
+
+
+cdef class NetworkInputProcessor(InputProcessor):
+
+    def __init__(self, InputStreamWrapper input_stream_wrapper):
+        self._input_stream_wrapper = input_stream_wrapper
+
+    cpdef has_next(self):
+        return self._input_stream_wrapper.has_next()
+
+    cpdef next(self):
+        return self._input_stream_wrapper.next()
+
+
+cdef class IntermediateInputProcessor(InputProcessor):
+
+    def __init__(self, input_values):
+        self._input_values = input_values
+        self._next_value = None
+
+    cpdef has_next(self):
+        try:
+            self._next_value = next(self._input_values)
+        except StopIteration:
+            self._next_value = None
+
+        return self._next_value is not None
+
+    cpdef next(self):
+        return self._next_value
+
+
+cdef class OutputProcessor:
+
+    cpdef process_outputs(self, WindowedValue windowed_value, results):
+        pass
+
+    cpdef close(self):
+        pass
+
+cdef class NetworkOutputProcessor(OutputProcessor):
+
+    def __init__(self, consumer):
+        assert isinstance(consumer, DataOutputOperation)
+        self._consumer = consumer
+        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+
+    cpdef process_outputs(self, WindowedValue windowed_value, results):
+        output_stream = self._consumer.output_stream
+        self._value_coder_impl.encode_to_stream(results, output_stream, True)
+        output_stream.maybe_flush()
+
+    cpdef close(self):
+        if self._value_coder_impl._output_stream:
+            self._value_coder_impl._output_stream.close()
+
+cdef class IntermediateOutputProcessor(OutputProcessor):
+
+    def __init__(self, consumer):
+        self._consumer = consumer
+
+    cpdef process_outputs(self, WindowedValue windowed_value, results):
+        self._consumer.process(windowed_value.with_value(results))
+
 
 cdef class FunctionOperation(Operation):
     """
@@ -36,13 +113,18 @@ cdef class FunctionOperation(Operation):
 
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
-        self.consumer = consumers['output'][0]
-        self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+        consumer = consumers['output'][0]
+        if isinstance(consumer, DataOutputOperation):
+            self._output_processor = NetworkOutputProcessor(consumer)
 
-        if isinstance(self._value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
-            self._is_python_coder = False
+            _value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+            if isinstance(_value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
+                self._is_python_coder = False
+            else:
+                self._is_python_coder = True
         else:
-            self._is_python_coder = True
+            self._output_processor = IntermediateOutputProcessor(consumer)
+            self._is_python_coder = False
 
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
@@ -69,30 +151,28 @@ cdef class FunctionOperation(Operation):
     cpdef teardown(self):
         with self.scoped_finish_state:
             self.operation.close()
+            self._output_processor.close()
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
-        cdef BOutputStream output_stream
-        output_stream = self.consumer.output_stream
+        cdef InputProcessor input_processor
         with self.scoped_process_state:
             if self._is_python_coder:
                 for value in o.value:
-                    self._value_coder_impl.encode_to_stream(
-                        self.process_element(value), output_stream, True)
-                    output_stream.maybe_flush()
+                    self._output_processor.process_outputs(o, self.process_element(value))
             else:
-                input_stream_wrapper = o.value
-                if isinstance(self.operation, BundleOperation):
-                    while input_stream_wrapper.has_next():
-                        self.process_element(input_stream_wrapper.next())
-                    result = self.operation.finish_bundle()
-                    self._value_coder_impl.encode_to_stream(
-                        result, output_stream, True)
+                if isinstance(o.value, InputStreamWrapper):
+                    input_processor = NetworkInputProcessor(o.value)
                 else:
-                    while input_stream_wrapper.has_next():
-                        result = self.process_element(input_stream_wrapper.next())
-                        self._value_coder_impl.encode_to_stream(
-                            result, output_stream, True)
+                    input_processor = IntermediateInputProcessor(o.value)
+                if isinstance(self.operation, BundleOperation):
+                    while input_processor.has_next():
+                        self.process_element(input_processor.next())
+                    self._output_processor.process_outputs(o, self.operation.finish_bundle())
+                else:
+                    while input_processor.has_next():
+                        result = self.process_element(input_processor.next())
+                        self._output_processor.process_outputs(o, result)
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()
@@ -126,12 +206,13 @@ cdef class StatelessFunctionOperation(FunctionOperation):
 cdef class StatefulFunctionOperation(FunctionOperation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls,
                  keyed_state_backend):
-        self.keyed_state_backend = keyed_state_backend
+        self._keyed_state_backend = keyed_state_backend
+        self._reusable_windowed_value = windowed_value.create(None, -1, None, None)
         super(StatefulFunctionOperation, self).__init__(
             name, spec, counter_factory, sampler, consumers, operation_cls)
 
     cdef object generate_operation(self):
-        return self.operation_cls(self.spec, self.keyed_state_backend)
+        return self.operation_cls(self.spec, self._keyed_state_backend)
 
     cpdef void add_timer_info(self, timer_family_id, timer_info):
         # ignore timer_family_id
@@ -139,7 +220,7 @@ cdef class StatefulFunctionOperation(FunctionOperation):
 
     cpdef process_timer(self, tag, timer_data):
         cdef BOutputStream output_stream
-        output_stream = self.consumer.output_stream
-        self._value_coder_impl.encode_to_stream(
+        self._output_processor.process_outputs(
+            self._reusable_windowed_value,
             # the field user_key holds the timer data
-            self.operation.process_timer(timer_data.user_key), output_stream, True)
+            self.operation.process_timer(timer_data.user_key))

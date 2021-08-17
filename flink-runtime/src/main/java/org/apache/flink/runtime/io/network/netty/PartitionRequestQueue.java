@@ -166,15 +166,10 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             return;
         }
 
-        NetworkSequenceViewReader reader = allReaders.get(receiverId);
-        if (reader != null) {
-            operation.accept(reader);
+        NetworkSequenceViewReader reader = obtainReader(receiverId);
 
-            enqueueAvailableReader(reader);
-        } else {
-            throw new IllegalStateException(
-                    "No reader for receiverId = " + receiverId + " exists.");
-        }
+        operation.accept(reader);
+        enqueueAvailableReader(reader);
     }
 
     void acknowledgeAllRecordsProcessed(InputChannelID receiverId) {
@@ -182,13 +177,25 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             return;
         }
 
+        obtainReader(receiverId).acknowledgeAllRecordsProcessed();
+    }
+
+    void notifyNewBufferSize(InputChannelID receiverId, int newBufferSize) {
+        if (fatalError) {
+            return;
+        }
+
+        obtainReader(receiverId).notifyNewBufferSize(newBufferSize);
+    }
+
+    NetworkSequenceViewReader obtainReader(InputChannelID receiverId) {
         NetworkSequenceViewReader reader = allReaders.get(receiverId);
-        if (reader != null) {
-            reader.acknowledgeAllRecordsProcessed();
-        } else {
+        if (reader == null) {
             throw new IllegalStateException(
                     "No reader for receiverId = " + receiverId + " exists.");
         }
+
+        return reader;
     }
 
     /**

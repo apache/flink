@@ -59,6 +59,7 @@ public class ParserImplTest {
             new FunctionCatalog(tableConfig, catalogManager, moduleManager);
     private final PlannerContext plannerContext =
             new PlannerContext(
+                    !isStreamingMode,
                     tableConfig,
                     functionCatalog,
                     catalogManager,

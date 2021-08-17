@@ -50,7 +50,7 @@ public class RuntimeUDFContextTest {
                             new ExecutionConfig(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             assertFalse(ctx.hasBroadcastVariable("some name"));
 
@@ -90,7 +90,7 @@ public class RuntimeUDFContextTest {
                             new ExecutionConfig(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             ctx.setBroadcastVariable("name1", Arrays.asList(1, 2, 3, 4));
             ctx.setBroadcastVariable("name2", Arrays.asList(1.0, 2.0, 3.0, 4.0));
@@ -133,7 +133,7 @@ public class RuntimeUDFContextTest {
                             new ExecutionConfig(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 
@@ -167,7 +167,7 @@ public class RuntimeUDFContextTest {
                             new ExecutionConfig(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 
@@ -198,7 +198,7 @@ public class RuntimeUDFContextTest {
                             new ExecutionConfig(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
 

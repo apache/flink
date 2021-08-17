@@ -25,7 +25,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -302,7 +302,7 @@ public class HybridSourceSplitEnumerator
         }
 
         @Override
-        public MetricGroup metricGroup() {
+        public SplitEnumeratorMetricGroup metricGroup() {
             return realContext.metricGroup();
         }
 

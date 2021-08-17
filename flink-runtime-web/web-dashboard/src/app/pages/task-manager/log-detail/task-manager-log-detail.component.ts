@@ -37,7 +37,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
   isLoading = false;
   taskManagerDetail: TaskManagerDetailInterface;
   isFullScreen = false;
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
 
   constructor(
     private taskManagerService: TaskManagerService,

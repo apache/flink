@@ -784,6 +784,11 @@ class FunctionGenerator private(config: TableConfig) {
     Seq(FLOAT, INTEGER),
     BuiltInMethods.TRUNCATE_FLOAT)
 
+  addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR), BuiltInMethods.JSON_EXISTS)
+  addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR), BuiltInMethods.JSON_EXISTS)
+  addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
+  addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
+
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR), BuiltInMethod.IS_JSON_VALUE.method)
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(VARCHAR), BuiltInMethod.IS_JSON_VALUE.method)
 
@@ -848,19 +853,17 @@ class FunctionGenerator private(config: TableConfig) {
     sqlOperator: SqlOperator,
     operandTypes: Seq[LogicalType],
     resultType: LogicalType)
-  : Option[CallGenerator] = sqlOperator match {
-    // built-in scalar function
-    case _ =>
-      val typeRoots = operandTypes.map(_.getTypeRoot)
-      sqlFunctions.get((sqlOperator, typeRoots))
-        .orElse(sqlFunctions.find(entry => entry._1._1 == sqlOperator
-          && entry._1._2.length == typeRoots.length
-          && entry._1._2.zip(typeRoots).forall {
-          case (DECIMAL, DECIMAL) => true
-          case (x, y) if isPrimitive(x) && isPrimitive(y) => shouldAutoCastTo(y, x) || x == y
-          case (x, y) => x == y
-          case _ => false
-        }).map(_._2))
+  : Option[CallGenerator] = {
+    val typeRoots = operandTypes.map(_.getTypeRoot)
+    sqlFunctions.get((sqlOperator, typeRoots))
+      .orElse(sqlFunctions.find(entry => entry._1._1 == sqlOperator
+        && entry._1._2.length == typeRoots.length
+        && entry._1._2.zip(typeRoots).forall {
+        case (DECIMAL, DECIMAL) => true
+        case (x, y) if isPrimitive(x) && isPrimitive(y) => shouldAutoCastTo(y, x) || x == y
+        case (x, y) => x == y
+        case _ => false
+      }).map(_._2))
   }
 
   /**

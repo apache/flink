@@ -38,8 +38,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.Sorter;
@@ -135,8 +135,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
         {
             Counter tmpNumRecordsIn;
             try {
-                OperatorIOMetricGroup ioMetricGroup =
-                        ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+                InternalOperatorIOMetricGroup ioMetricGroup =
+                        ((InternalOperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
                 ioMetricGroup.reuseInputMetricsForTask();
                 ioMetricGroup.reuseOutputMetricsForTask();
                 tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();

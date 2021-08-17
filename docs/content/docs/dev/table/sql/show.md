@@ -34,10 +34,11 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW DATABASES
 - SHOW CURRENT DATABASE
 - SHOW TABLES
-- SHOW CREATE TABLE 
+- SHOW CREATE TABLE
 - SHOW VIEWS
 - SHOW FUNCTIONS
 - SHOW MODULES
+- SHOW JARS
 
 ## Run a SHOW statement
 
@@ -410,6 +411,8 @@ Flink SQL> SHOW FULL MODULES;
 +-------------+------+
 1 row in set
 
+Flink SQL> SHOW JARS;
+/path/to/addedJar.jar
 
 ```
 {{< /tab >}}
@@ -466,7 +469,7 @@ SHOW CREATE TABLE
 
 Show create table statement for specified table.
 
-<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL. 
+<span class="label label-danger">Attention</span> Currently `SHOW CREATE TABLE` only supports table that is created by Flink SQL DDL.
 
 ## SHOW VIEWS
 
@@ -497,5 +500,15 @@ Show all enabled module names with resolution order.
 
 **FULL**
 Show all loaded modules and enabled status with resolution order.
+
+## SHOW JARS
+
+```sql
+SHOW JARS
+```
+
+Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
+
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` only works in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
 {{< top >}}

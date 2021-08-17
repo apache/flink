@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
@@ -51,6 +52,7 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
@@ -60,6 +62,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOp
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TRANSACTIONAL_ID_PREFIX;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
@@ -532,6 +535,15 @@ class KafkaConnectorOptionsUtil {
                         .noDefaultValue();
         if (!configuration.getOptional(subjectOption).isPresent()) {
             configuration.setString(subjectOption, subject);
+        }
+    }
+
+    static void validateDeliveryGuarantee(ReadableConfig tableOptions) {
+        if (tableOptions.get(DELIVERY_GUARANTEE) == DeliveryGuarantee.EXACTLY_ONCE
+                && !tableOptions.getOptional(TRANSACTIONAL_ID_PREFIX).isPresent()) {
+            throw new ValidationException(
+                    TRANSACTIONAL_ID_PREFIX.key()
+                            + " must be specified when using DeliveryGuarantee.EXACTLY_ONCE.");
         }
     }
 

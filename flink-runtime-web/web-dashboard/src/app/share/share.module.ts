@@ -18,7 +18,6 @@
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NgZorroAntdModule } from 'ng-zorro-antd';
 import { ResizeComponent } from 'share/common/resize/resize.component';
 import { CheckpointBadgeComponent } from 'share/customize/checkpoint-badge/checkpoint-badge.component';
 import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
@@ -33,9 +32,29 @@ import { TaskBadgeComponent } from 'share/customize/task-badge/task-badge.compon
 import { RefreshDownloadComponent } from 'share/customize/refresh-download/refresh-download.component';
 import { BackpressureBadgeComponent } from './customize/backpressure-badge/backpressure-badge.component';
 import { FlameGraphComponent } from './customize/flame-graph/flame-graph.component';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzMessageModule } from 'ng-zorro-antd/message';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @NgModule({
-  imports: [CommonModule, NgZorroAntdModule, PipeModule, DagreModule],
+  imports: [
+    CommonModule,
+    PipeModule,
+    DagreModule,
+    NzCardModule,
+    NzTableModule,
+    NzButtonModule,
+    NzDividerModule,
+    NzToolTipModule,
+    NzMessageModule,
+    NzTabsModule,
+    NzIconModule
+  ],
   declarations: [
     JobBadgeComponent,
     TaskBadgeComponent,
@@ -52,7 +71,6 @@ import { FlameGraphComponent } from './customize/flame-graph/flame-graph.compone
   ],
   exports: [
     JobListComponent,
-    NgZorroAntdModule,
     PipeModule,
     DagreModule,
     FileReadDirective,

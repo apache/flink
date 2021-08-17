@@ -503,7 +503,7 @@ public class MiniCluster implements AutoCloseableAsync {
                 return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
                         configuration, executor);
             default:
-                throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+                throw new IllegalConfigurationException("Unknown HA Services " + haServices);
         }
     }
 

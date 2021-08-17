@@ -35,6 +35,8 @@ import grpc
 import logging
 import sys
 
+from apache_beam.portability.api.beam_fn_api_pb2_grpc import BeamFnExternalWorkerPoolStub
+from apache_beam.portability.api.beam_fn_api_pb2 import StartWorkerRequest
 from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
 from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
 from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
@@ -74,28 +76,41 @@ if __name__ == "__main__":
 
     logging.info("Initializing python harness: %s" % " ".join(sys.argv))
 
-    metadata = [("worker_id", worker_id)]
+    if 'loopback.server.address' in os.environ:
+        params = dict(os.environ)
+        params.update({'SEMI_PERSISTENT_DIRECTORY': semi_persist_dir})
+        with grpc.insecure_channel(os.environ['loopback.server.address']) as channel:
+            client = BeamFnExternalWorkerPoolStub(channel=channel)
+            request = StartWorkerRequest(
+                worker_id=worker_id,
+                provision_endpoint=ApiServiceDescriptor(url=provision_endpoint),
+                params=params)
+            client.StartWorker(request)
+    else:
+        metadata = [("worker_id", worker_id)]
 
-    # read job information from provision stub
-    with grpc.insecure_channel(provision_endpoint) as channel:
-        client = ProvisionServiceStub(channel=channel)
-        info = client.GetProvisionInfo(GetProvisionInfoRequest(), metadata=metadata).info
-        options = json_format.MessageToJson(info.pipeline_options)
-        logging_endpoint = info.logging_endpoint.url
-        control_endpoint = info.control_endpoint.url
+        # read job information from provision stub
+        with grpc.insecure_channel(provision_endpoint) as channel:
+            client = ProvisionServiceStub(channel=channel)
+            info = client.GetProvisionInfo(GetProvisionInfoRequest(), metadata=metadata).info
+            options = json_format.MessageToJson(info.pipeline_options)
+            logging_endpoint = info.logging_endpoint.url
+            control_endpoint = info.control_endpoint.url
 
-    os.environ["WORKER_ID"] = worker_id
-    os.environ["PIPELINE_OPTIONS"] = options
-    os.environ["SEMI_PERSISTENT_DIRECTORY"] = semi_persist_dir
-    os.environ["LOGGING_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-        ApiServiceDescriptor(url=logging_endpoint))
-    os.environ["CONTROL_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-        ApiServiceDescriptor(url=control_endpoint))
+        os.environ["WORKER_ID"] = worker_id
+        os.environ["PIPELINE_OPTIONS"] = options
+        os.environ["SEMI_PERSISTENT_DIRECTORY"] = semi_persist_dir
+        os.environ["LOGGING_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
+            ApiServiceDescriptor(url=logging_endpoint))
+        os.environ["CONTROL_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
+            ApiServiceDescriptor(url=control_endpoint))
 
-    env = dict(os.environ)
+        env = dict(os.environ)
+        with open('/tmp/test.txt', 'a') as fd:
+            fd.write(str(env) + '\n')
 
-    if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
-        exit(0)
+        if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
+            exit(0)
 
-    call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
-         stdout=sys.stdout, stderr=sys.stderr, env=env)
+        call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
+             stdout=sys.stdout, stderr=sys.stderr, env=env)

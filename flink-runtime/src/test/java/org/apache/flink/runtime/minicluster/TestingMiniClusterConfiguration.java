@@ -30,6 +30,15 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 /** Configuration for the {@link TestingMiniCluster}. */
 public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 
+    /**
+     * Create a new {@link Builder builder} for {@link TestingMiniClusterConfiguration}.
+     *
+     * @return New builder instance.
+     */
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
     private final int numberDispatcherResourceManagerComponents;
 
     private final boolean localCommunication;
@@ -70,8 +79,12 @@ public class TestingMiniClusterConfiguration extends MiniClusterConfiguration {
 
         @Nullable private String commonBindAddress = null;
 
-        public Builder setConfiguration(Configuration configuration1) {
-            this.configuration = Preconditions.checkNotNull(configuration1);
+        private Builder() {
+            // No-op.
+        }
+
+        public Builder setConfiguration(Configuration configuration) {
+            this.configuration = Preconditions.checkNotNull(configuration);
             return this;
         }
 

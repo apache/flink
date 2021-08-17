@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -31,14 +32,18 @@ public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices
 
     private final CuratorFramework client;
 
-    public ZooKeeperClientHAServices(@Nonnull CuratorFramework client) {
+    private final Configuration configuration;
+
+    public ZooKeeperClientHAServices(
+            @Nonnull CuratorFramework client, @Nonnull Configuration configuration) {
         this.client = client;
+        this.configuration = configuration;
     }
 
     @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
         return ZooKeeperUtils.createLeaderRetrievalService(
-                client, ZooKeeperUtils.getLeaderPathForRestServer());
+                client, ZooKeeperUtils.getLeaderPathForRestServer(), configuration);
     }
 
     @Override

@@ -64,7 +64,7 @@ class IntervalJoinTest extends TableTestBase {
        """.stripMargin)
 
   /** There should exist exactly two time conditions **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravlJoinSingleTimeCondition(): Unit = {
     val sql =
       """
@@ -75,7 +75,7 @@ class IntervalJoinTest extends TableTestBase {
   }
 
   /** Both time attributes in a join condition must be of the same type **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravalDiffTimeIndicator(): Unit = {
     val sql =
       """
@@ -105,7 +105,7 @@ class IntervalJoinTest extends TableTestBase {
   }
 
   /** The time conditions should be an And condition **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravalNotCnfCondition(): Unit = {
     val sql =
       """

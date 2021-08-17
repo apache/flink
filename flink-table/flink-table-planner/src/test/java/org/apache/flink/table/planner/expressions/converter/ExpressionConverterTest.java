@@ -62,6 +62,7 @@ public class ExpressionConverterTest {
     private final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
     private final PlannerContext plannerContext =
             new PlannerContext(
+                    false,
                     tableConfig,
                     new FunctionCatalog(tableConfig, catalogManager, new ModuleManager()),
                     catalogManager,

@@ -82,8 +82,9 @@ public class TableOperatorWrapperGenerator {
     private int maxParallelism;
     private ResourceSpec minResources;
     private ResourceSpec preferredResources;
-    /** managed memory weight for batch operator. */
-    private long managedMemoryWeight;
+
+    /** Managed memory weight for batch operator in mebibyte. */
+    private int managedMemoryWeight;
 
     public TableOperatorWrapperGenerator(
             List<Transformation<?>> inputTransforms, Transformation<?> tailTransform) {
@@ -139,7 +140,7 @@ public class TableOperatorWrapperGenerator {
         return preferredResources;
     }
 
-    public long getManagedMemoryWeight() {
+    public int getManagedMemoryWeight() {
         return managedMemoryWeight;
     }
 

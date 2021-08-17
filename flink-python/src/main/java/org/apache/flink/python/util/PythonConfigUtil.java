@@ -22,16 +22,13 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.python.PythonConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.python.AbstractDataStreamPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -40,9 +37,15 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 
 /**
  * A Util class to get the {@link StreamExecutionEnvironment} configuration and merged configuration
@@ -62,7 +65,7 @@ public class PythonConfigUtil {
     public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env)
             throws InvocationTargetException, IllegalAccessException, NoSuchFieldException {
         return PythonDependencyUtils.configurePythonDependencies(
-                env.getCachedFiles(), getEnvironmentConfig(env));
+                env.getCachedFiles(), (Configuration) env.getConfiguration());
     }
 
     /**
@@ -90,25 +93,6 @@ public class PythonConfigUtil {
         return (Configuration) configurationField.get(env);
     }
 
-    /**
-     * Generate a {@link StreamGraph} for transformations maintained by current {@link
-     * StreamExecutionEnvironment}, and reset the merged env configurations with dependencies to
-     * every {@link OneInputPythonFunctionOperator}. It is an idempotent operation that can be call
-     * multiple times. Remember that only when need to execute the StreamGraph can we set the
-     * clearTransformations to be True.
-     */
-    public static StreamGraph generateStreamGraphWithDependencies(
-            StreamExecutionEnvironment env, boolean clearTransformations)
-            throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
-        configPythonOperator(env);
-
-        String jobName =
-                getEnvironmentConfig(env)
-                        .getString(
-                                PipelineOptions.NAME, StreamExecutionEnvironment.DEFAULT_JOB_NAME);
-        return env.getStreamGraph(jobName, clearTransformations);
-    }
-
     @SuppressWarnings("unchecked")
     public static void configPythonOperator(StreamExecutionEnvironment env)
             throws IllegalAccessException, InvocationTargetException, NoSuchFieldException {
@@ -129,29 +113,23 @@ public class PythonConfigUtil {
                 AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                         getPythonOperator(transformation);
                 if (pythonFunctionOperator != null) {
-                    Configuration oldConfig = pythonFunctionOperator.getPythonConfig().getConfig();
+                    Configuration oldConfig = pythonFunctionOperator.getConfiguration();
                     // update dependency related configurations for Python operators
-                    pythonFunctionOperator.setPythonConfig(
+                    pythonFunctionOperator.setConfiguration(
                             generateNewPythonConfig(oldConfig, mergedConfig));
                 }
             }
         }
-
-        setPartitionCustomOperatorNumPartitions(transformations);
     }
 
     public static Configuration getMergedConfig(
             StreamExecutionEnvironment env, TableConfig tableConfig) {
-        try {
-            Configuration config = new Configuration(getEnvironmentConfig(env));
-            PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
-            Configuration mergedConfig =
-                    PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
-            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return mergedConfig;
-        } catch (IllegalAccessException | NoSuchFieldException | InvocationTargetException e) {
-            throw new TableException("Method getMergedConfig failed.", e);
-        }
+        Configuration config = new Configuration((Configuration) env.getConfiguration());
+        PythonDependencyUtils.merge(config, tableConfig.getConfiguration());
+        Configuration mergedConfig =
+                PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
+        mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+        return mergedConfig;
     }
 
     @SuppressWarnings("unchecked")
@@ -174,7 +152,7 @@ public class PythonConfigUtil {
     }
 
     /**
-     * Configure the {@link OneInputPythonFunctionOperator} to be chained with the
+     * Configure the {@link AbstractOneInputPythonFunctionOperator} to be chained with the
      * upstream/downstream operator by setting their parallelism, slot sharing group, co-location
      * group to be the same, and applying a {@link ForwardPartitioner}. 1. operator with name
      * "_keyed_stream_values_operator" should align with its downstream operator. 2. operator with
@@ -183,6 +161,9 @@ public class PythonConfigUtil {
     private static void alignTransformation(Transformation<?> transformation)
             throws NoSuchFieldException, IllegalAccessException {
         String transformName = transformation.getName();
+        if (transformation.getInputs().isEmpty()) {
+            return;
+        }
         Transformation<?> inputTransformation = transformation.getInputs().get(0);
         String inputTransformName = inputTransformation.getName();
         if (inputTransformName.equals(KEYED_STREAM_VALUE_OPERATOR_NAME)) {
@@ -239,7 +220,7 @@ public class PythonConfigUtil {
         return null;
     }
 
-    private static boolean isPythonOperator(Transformation<?> transform) {
+    public static boolean isPythonOperator(Transformation<?> transform) {
         if (transform instanceof OneInputTransformation) {
             return isPythonOperator(
                     ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
@@ -263,33 +244,86 @@ public class PythonConfigUtil {
         }
     }
 
+    public static boolean isPythonDataStreamOperator(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return isPythonDataStreamOperator(
+                    ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
+        } else if (transform instanceof TwoInputTransformation) {
+            return isPythonDataStreamOperator(
+                    ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory());
+        } else {
+            return false;
+        }
+    }
+
+    private static boolean isPythonDataStreamOperator(
+            StreamOperatorFactory<?> streamOperatorFactory) {
+        if (streamOperatorFactory instanceof SimpleOperatorFactory) {
+            return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
+                    instanceof AbstractDataStreamPythonFunctionOperator;
+        } else {
+            return false;
+        }
+    }
+
     /**
-     * Generator a new {@link PythonConfig} with the combined config which is derived from
+     * Generator a new {@link Configuration} with the combined config which is derived from
      * oldConfig.
      */
-    private static PythonConfig generateNewPythonConfig(
+    private static Configuration generateNewPythonConfig(
             Configuration oldConfig, Configuration newConfig) {
         Configuration mergedConfig = newConfig.clone();
         mergedConfig.addAll(oldConfig);
-        return new PythonConfig(mergedConfig);
+        return mergedConfig;
     }
 
-    private static void setPartitionCustomOperatorNumPartitions(
+    public static void setPartitionCustomOperatorNumPartitions(
             List<Transformation<?>> transformations) {
         // Update the numPartitions of PartitionCustomOperator after aligned all operators.
-        for (Transformation<?> transformation : transformations) {
-            Transformation<?> firstInputTransformation = transformation.getInputs().get(0);
-            if (firstInputTransformation instanceof PartitionTransformation) {
-                firstInputTransformation = firstInputTransformation.getInputs().get(0);
-            }
-            AbstractPythonFunctionOperator<?> pythonFunctionOperator =
-                    getPythonOperator(firstInputTransformation);
-            if (pythonFunctionOperator instanceof PythonProcessOperator) {
-                PythonProcessOperator<?, ?> partitionCustomFunctionOperator =
-                        (PythonProcessOperator<?, ?>) pythonFunctionOperator;
+        final Set<Transformation<?>> alreadyTransformed = Sets.newIdentityHashSet();
+        final Queue<Transformation<?>> toTransformQueue = Queues.newArrayDeque(transformations);
+        while (!toTransformQueue.isEmpty()) {
+            final Transformation<?> transformation = toTransformQueue.poll();
+            if (!alreadyTransformed.contains(transformation)
+                    && !(transformation instanceof PartitionTransformation)) {
+                alreadyTransformed.add(transformation);
 
-                partitionCustomFunctionOperator.setNumPartitions(transformation.getParallelism());
+                getNonPartitionTransformationInput(transformation)
+                        .ifPresent(
+                                input -> {
+                                    AbstractPythonFunctionOperator<?> pythonFunctionOperator =
+                                            getPythonOperator(input);
+                                    if (pythonFunctionOperator
+                                            instanceof AbstractDataStreamPythonFunctionOperator) {
+                                        AbstractDataStreamPythonFunctionOperator<?>
+                                                pythonDataStreamFunctionOperator =
+                                                        (AbstractDataStreamPythonFunctionOperator<
+                                                                        ?>)
+                                                                pythonFunctionOperator;
+                                        if (pythonDataStreamFunctionOperator
+                                                .containsPartitionCustom()) {
+                                            pythonDataStreamFunctionOperator.setNumPartitions(
+                                                    transformation.getParallelism());
+                                        }
+                                    }
+                                });
+
+                toTransformQueue.addAll(transformation.getInputs());
             }
+        }
+    }
+
+    private static Optional<Transformation<?>> getNonPartitionTransformationInput(
+            Transformation<?> transformation) {
+        if (transformation.getInputs().size() != 1) {
+            return Optional.empty();
+        }
+
+        final Transformation<?> inputTransformation = transformation.getInputs().get(0);
+        if (inputTransformation instanceof PartitionTransformation) {
+            return getNonPartitionTransformationInput(inputTransformation);
+        } else {
+            return Optional.of(inputTransformation);
         }
     }
 }

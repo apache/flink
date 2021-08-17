@@ -105,6 +105,19 @@ You can also find further details on [how Flink sets up Kerberos-based security 
 
 {{< top >}}
 
+## Advanced Configuration
+
+### Tolerating Suspended ZooKeeper Connections
+
+Per default, Flink's ZooKeeper client treats suspended ZooKeeper connections as an error.
+This means that Flink will invalidate all leaderships of its components and thereby triggering a failover if a connection is suspended.
+
+This behaviour might be too disruptive in some cases (e.g., unstable network environment).
+If you are willing to take a more aggressive approach, then you can tolerate suspended ZooKeeper connections and only treat lost connections as an error via [high-availability.zookeeper.client.tolerate-suspended-connections]({{< ref "docs/deployment/config" >}}#high-availability-zookeeper-client-tolerate-suspended-connection).
+Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
+
+For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
+
 ## ZooKeeper Versions
 
 Flink ships with separate ZooKeeper clients for 3.4 and 3.5, with 3.4 being in the `lib` directory of the distribution

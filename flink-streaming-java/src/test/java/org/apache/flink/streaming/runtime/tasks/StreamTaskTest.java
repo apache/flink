@@ -97,6 +97,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -1224,32 +1225,39 @@ public class StreamTaskTest extends TestLogger {
     }
 
     /**
-     * Tests that checkpoints are declined if operators are (partially) closed.
-     *
-     * <p>See FLINK-16383.
+     * Tests exeptions is thrown by triggering checkpoint if operators are closed. This was
+     * initially implemented for FLINK-16383. However after FLINK-2491 operators lifecycle has
+     * changed and now we: (1) redefined close() to dispose(). After closing operators, there should
+     * be no opportunity to invoke anything on the task. close() mentioned in FLINK-16383 is now
+     * more like finish(). (2) We support triggering and performing checkpoints if operators are
+     * finished.
      */
     @Test
-    public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
+    public void testCheckpointFailueOnClosedOperator() throws Throwable {
         ClosingOperator<Integer> operator = new ClosingOperator<>();
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        StreamTaskMailboxTestHarness<Integer> harness =
-                builder.setupOutputForSingletonOperatorChain(operator).build();
-        // keeps the mailbox from suspending
-        harness.setAutoProcess(false);
-        harness.processElement(new StreamRecord<>(1));
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(operator).build()) {
+            // keeps the mailbox from suspending
+            harness.setAutoProcess(false);
+            harness.processElement(new StreamRecord<>(1));
 
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
-        harness.streamTask.operatorChain.closeAllOperators();
-        assertTrue(ClosingOperator.closed.get());
+            harness.streamTask.operatorChain.finishOperators(
+                    harness.streamTask.getActionExecutor());
+            harness.streamTask.operatorChain.closeAllOperators();
+            assertTrue(ClosingOperator.closed.get());
 
-        harness.streamTask.triggerCheckpointOnBarrier(
-                new CheckpointMetaData(1, 0),
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                new CheckpointMetricsBuilder());
-        assertEquals(1, harness.getCheckpointResponder().getDeclineReports().size());
+            harness.streamTask.triggerCheckpointOnBarrier(
+                    new CheckpointMetaData(1, 0),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder());
+        } catch (Exception ex) {
+            ExceptionUtils.assertThrowableWithMessage(
+                    ex, "OperatorChain and Task should never be closed at this point");
+        }
     }
 
     @Test
@@ -1510,7 +1518,7 @@ public class StreamTaskTest extends TestLogger {
                             .build();
             TaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
-            ThroughputCalculator throughputCalculator = environment.getThroughputMeter();
+            ThroughputCalculator throughputCalculator = environment.getThroughputCalculator();
 
             final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
             final RunnableWithException completeFutureTask =
@@ -1535,11 +1543,11 @@ public class StreamTaskTest extends TestLogger {
 
             SystemClock clock = SystemClock.getInstance();
 
-            long startTs = clock.relativeTimeMillis();
+            long startTs = clock.absoluteTimeMillis();
             throughputCalculator.incomingDataSize(incomingDataSize);
             task.invoke();
             long resultThroughput = throughputCalculator.calculateThroughput();
-            long totalDuration = clock.relativeTimeMillis() - startTs;
+            long totalDuration = clock.absoluteTimeMillis() - startTs;
 
             assertThat(
                     resultThroughput,
@@ -1791,7 +1799,7 @@ public class StreamTaskTest extends TestLogger {
                         .addInput(STRING_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
-                        .setThroughputMeter(
+                        .setThroughputCalculator(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
                                     public long calculateThroughput() {
@@ -1846,25 +1854,26 @@ public class StreamTaskTest extends TestLogger {
     public void testBufferSizeRecalculationStartSuccessfully() throws Exception {
         int expectedThroughput = 13333;
         int inputChannels = 3;
-        Consumer<StreamConfig> configuration =
-                (config) -> {
-                    // debloat period doesn't matter, we will schedule debloating manually
-                    config.getConfiguration().set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10));
-                    config.getConfiguration().set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1));
-                    config.getConfiguration().set(BUFFER_DEBLOAT_ENABLED, true);
-                };
+
+        // debloat period doesn't matter, we will schedule debloating manually
+        Configuration config =
+                new Configuration()
+                        .set(BUFFER_DEBLOAT_PERIOD, Duration.ofHours(10))
+                        .set(BUFFER_DEBLOAT_TARGET, Duration.ofSeconds(1))
+                        .set(BUFFER_DEBLOAT_ENABLED, true);
+
         Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
                 StreamTaskTestHarness.createTaskMetricGroup(metrics);
 
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(configuration)
+                        .setTaskManagerRuntimeInfo(new TestingTaskManagerRuntimeInfo(config))
                         .setTaskMetricGroup(taskMetricGroup)
                         .addInput(STRING_TYPE_INFO, inputChannels)
                         .setupOutputForSingletonOperatorChain(
                                 new TestBoundedOneInputStreamOperator())
-                        .setThroughputMeter(
+                        .setThroughputCalculator(
                                 new ThroughputCalculator(SystemClock.getInstance(), 10) {
                                     @Override
                                     public long calculateThroughput() {

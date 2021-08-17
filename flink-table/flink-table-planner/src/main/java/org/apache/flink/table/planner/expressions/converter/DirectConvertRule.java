@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -36,6 +37,7 @@ import static org.apache.flink.table.planner.expressions.converter.ExpressionCon
  * A {@link CallExpressionConvertRule} that performs a simple one-to-one mapping between {@link
  * FunctionDefinition} and a corresponding {@link SqlOperator}.
  */
+@Internal
 public class DirectConvertRule implements CallExpressionConvertRule {
 
     private static final Map<FunctionDefinition, SqlOperator> DEFINITION_OPERATOR_MAP =

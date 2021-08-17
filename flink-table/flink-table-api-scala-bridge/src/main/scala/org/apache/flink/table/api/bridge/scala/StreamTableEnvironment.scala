@@ -584,6 +584,17 @@ trait StreamTableEnvironment extends TableEnvironment {
         table: Table, targetSchema: Schema, changelogMode: ChangelogMode): DataStream[Row]
 
   /**
+   * Returns a [[StatementSet]] that integrates with the Scala-specific [[DataStream]] API.
+   *
+   * It accepts pipelines defined by DML statements or [[Table]] objects. The planner can
+   * optimize all added statements together and then either submit them as one job or attach them
+   * to the underlying [[StreamExecutionEnvironment]].
+   *
+   * @return statement set builder for the Scala-specific [[DataStream]] API
+   */
+  def createStatementSet(): StreamStatementSet
+
+  /**
     * Converts the given [[DataStream]] into a [[Table]] with specified field names.
     *
     * There are two modes for mapping original fields to the fields of the [[Table]]:
@@ -858,7 +869,7 @@ object StreamTableEnvironment {
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
     create(
       executionEnvironment,
-      EnvironmentSettings.newInstance().build())
+      EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration))
   }
 
   /**
@@ -886,7 +897,7 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    val config = new TableConfig();
+    val config = new TableConfig()
     config.addConfiguration(settings.toConfiguration)
     StreamTableEnvironmentImpl
       .create(executionEnvironment, settings, config)
@@ -922,7 +933,7 @@ object StreamTableEnvironment {
     StreamTableEnvironmentImpl
       .create(
         executionEnvironment,
-        EnvironmentSettings.newInstance().build(),
+        EnvironmentSettings.fromConfiguration(tableConfig.getConfiguration),
         tableConfig)
   }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
@@ -34,7 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakup
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
+import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
@@ -117,10 +118,8 @@ class BatchPlanner(
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 
-    val execEnv = getExecEnv
-    ExecutorUtils.setBatchProperties(execEnv)
-    val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
-    ExecutorUtils.setBatchProperties(streamGraph, getTableConfig.getConfiguration)
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")

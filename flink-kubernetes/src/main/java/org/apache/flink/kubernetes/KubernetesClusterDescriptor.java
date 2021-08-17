@@ -108,9 +108,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
             try {
                 // Flink client will always use Kubernetes service to contact with jobmanager. So we
-                // have a pre-configured web
-                // monitor address. Using StandaloneClientHAServices to create RestClusterClient is
-                // reasonable.
+                // have a pre-configured web monitor address. Using StandaloneClientHAServices to
+                // create RestClusterClient is reasonable.
                 return new RestClusterClient<>(
                         configuration,
                         clusterId,

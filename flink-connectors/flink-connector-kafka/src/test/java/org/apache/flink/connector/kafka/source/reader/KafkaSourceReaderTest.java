@@ -25,16 +25,17 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
-import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
 import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -337,7 +338,10 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
             Boundedness boundedness, String groupId, MetricGroup metricGroup) throws Exception {
         return createReader(
-                boundedness, groupId, new TestingReaderContext(new Configuration(), metricGroup));
+                boundedness,
+                groupId,
+                new TestingReaderContext(
+                        new Configuration(), InternalSourceReaderMetricGroup.mock(metricGroup)));
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(

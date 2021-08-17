@@ -46,7 +46,7 @@ import org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
@@ -186,7 +186,7 @@ public abstract class JdbcXaSinkTestBase extends JdbcTestBase {
             }
 
             @Override
-            public MetricGroup getMetricGroup() {
+            public OperatorMetricGroup getMetricGroup() {
                 return null;
             }
 
