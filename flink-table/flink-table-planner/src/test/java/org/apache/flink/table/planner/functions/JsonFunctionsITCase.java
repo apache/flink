@@ -345,33 +345,6 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .onFieldsWithData(jsonValue)
                         .andDataTypes(DataTypes.STRING())
 
-                        // Extract values
-
-                        .testResult(
-                                $("f0").jsonQuery("$.o1"),
-                                "JSON_QUERY(f0, '$.o1')",
-                                "{}",
-                                DataTypes.STRING(),
-                                DataTypes.VARCHAR(2000))
-                        .testResult(
-                                $("f0").jsonQuery("$.a1"),
-                                "JSON_QUERY(f0, '$.a1')",
-                                "[]",
-                                DataTypes.STRING(),
-                                DataTypes.VARCHAR(2000))
-                        .testResult(
-                                $("f0").jsonQuery("$.n1"),
-                                "JSON_QUERY(f0, '$.n1')",
-                                null,
-                                DataTypes.STRING(),
-                                DataTypes.VARCHAR(2000))
-                        .testResult(
-                                $("f0").jsonQuery("$.s1"),
-                                "JSON_QUERY(f0, '$.s1')",
-                                null,
-                                DataTypes.STRING(),
-                                DataTypes.VARCHAR(2000))
-
                         // Wrapping Behavior
 
                         .testResult(
