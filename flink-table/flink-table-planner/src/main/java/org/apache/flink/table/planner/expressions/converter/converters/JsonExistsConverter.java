@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions.converter.converters;
 
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -44,8 +45,7 @@ class JsonExistsConverter extends CustomizedConverter {
         if (call.getChildren().size() >= 3) {
             ((ValueLiteralExpression) call.getChildren().get(2))
                     .getValueAs(JsonExistsOnError.class)
-                    .map(JsonExistsOnError::name)
-                    .map(SqlJsonExistsErrorBehavior::valueOf)
+                    .map(this::convertErrorBehavior)
                     .ifPresent(
                             onErrorBehavior ->
                                     operands.add(
@@ -55,5 +55,20 @@ class JsonExistsConverter extends CustomizedConverter {
         }
 
         return context.getRelBuilder().call(FlinkSqlOperatorTable.JSON_EXISTS, operands);
+    }
+
+    private SqlJsonExistsErrorBehavior convertErrorBehavior(JsonExistsOnError onError) {
+        switch (onError) {
+            case TRUE:
+                return SqlJsonExistsErrorBehavior.TRUE;
+            case FALSE:
+                return SqlJsonExistsErrorBehavior.FALSE;
+            case UNKNOWN:
+                return SqlJsonExistsErrorBehavior.UNKNOWN;
+            case ERROR:
+                return SqlJsonExistsErrorBehavior.ERROR;
+            default:
+                throw new TableException("Unknown ON ERROR behavior: " + onError);
+        }
     }
 }
