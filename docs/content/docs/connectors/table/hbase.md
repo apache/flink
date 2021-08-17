@@ -180,6 +180,15 @@ Connector Options
       <td>Defines the parallelism of the HBase sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
     </tr>
     <tr>
+      <td><h5>sink.skip-wal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Writing option, indicates whether to disable HBase WAL. This can improve performance for writing data to HBase database. 
+      However, disabling the WAL puts the data at risk. The only situation where this is recommended is during a bulk loading.
+    </td>
+    </tr>
+    <tr>
       <td><h5>lookup.async</h5></td>
       <td>optional</td>
       <td>no</td>

@@ -87,6 +87,16 @@ public class HBaseConnectorOptions {
                                     + "Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' "
                                     + "can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
 
+    public static final ConfigOption<Boolean> SINK_SKIP_WAL =
+            ConfigOptions.key("sink.skip-wal")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Writing option, indicates whether to disable HBase WAL. "
+                                    + "This can improve performance for writing data to HBase database. "
+                                    + "However, disabling the WAL puts the data at risk. "
+                                    + "The only situation where this is recommended is during a bulk loading.");
+
     public static final ConfigOption<Boolean> LOOKUP_ASYNC =
             ConfigOptions.key("lookup.async")
                     .booleanType()

@@ -161,6 +161,12 @@ ON myTopic.key = hTable.rowkey;
       <td>为 HBase sink operator 定义并行度。默认情况下，并行度由框架决定，和链在一起的上游 operator 一样。</td>
     </tr>
     <tr>
+      <td><h5>sink.skip-wal</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>写入的参数选项。指示是否禁用HBase WAL。它能提升写入 HBase 数据库的性能。但是，禁用 WAL 会使数据面临风险。唯一推荐使用的场景是 bulk loading。</td>
+    <tr>
       <td><h5>lookup.async</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">false</td>

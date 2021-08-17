@@ -35,16 +35,19 @@ public class HBaseWriteOptions implements Serializable {
     private final long bufferFlushMaxRows;
     private final long bufferFlushIntervalMillis;
     private final Integer parallelism;
+    private final boolean skipWal;
 
     private HBaseWriteOptions(
             long bufferFlushMaxSizeInBytes,
             long bufferFlushMaxMutations,
             long bufferFlushIntervalMillis,
-            Integer parallelism) {
+            Integer parallelism,
+            boolean skipWal) {
         this.bufferFlushMaxSizeInBytes = bufferFlushMaxSizeInBytes;
         this.bufferFlushMaxRows = bufferFlushMaxMutations;
         this.bufferFlushIntervalMillis = bufferFlushIntervalMillis;
         this.parallelism = parallelism;
+        this.skipWal = skipWal;
     }
 
     public long getBufferFlushMaxSizeInBytes() {
@@ -63,6 +66,10 @@ public class HBaseWriteOptions implements Serializable {
         return parallelism;
     }
 
+    public boolean getSkipWal() {
+        return skipWal;
+    }
+
     @Override
     public String toString() {
         return "HBaseWriteOptions{"
@@ -74,6 +81,8 @@ public class HBaseWriteOptions implements Serializable {
                 + bufferFlushIntervalMillis
                 + ", parallelism="
                 + parallelism
+                + ", skipWal="
+                + skipWal
                 + '}';
     }
 
@@ -89,7 +98,8 @@ public class HBaseWriteOptions implements Serializable {
         return bufferFlushMaxSizeInBytes == that.bufferFlushMaxSizeInBytes
                 && bufferFlushMaxRows == that.bufferFlushMaxRows
                 && bufferFlushIntervalMillis == that.bufferFlushIntervalMillis
-                && parallelism == that.parallelism;
+                && parallelism == that.parallelism
+                && skipWal == that.skipWal;
     }
 
     @Override
@@ -98,7 +108,8 @@ public class HBaseWriteOptions implements Serializable {
                 bufferFlushMaxSizeInBytes,
                 bufferFlushMaxRows,
                 bufferFlushIntervalMillis,
-                parallelism);
+                parallelism,
+                skipWal);
     }
 
     /** Creates a builder for {@link HBaseWriteOptions}. */
@@ -113,6 +124,7 @@ public class HBaseWriteOptions implements Serializable {
         private long bufferFlushMaxRows = 0;
         private long bufferFlushIntervalMillis = 0;
         private Integer parallelism;
+        private boolean skipWal;
 
         /**
          * Optional. Sets when to flush a buffered request based on the memory size of rows
@@ -151,13 +163,23 @@ public class HBaseWriteOptions implements Serializable {
             return this;
         }
 
+        /**
+         * Optional. Indicates whether to skip HBase Write Ahead Log (WAL) when write records.
+         * Default to <code>false</code>, i.e. don't skip WAL.
+         */
+        public Builder setSkipWal(boolean skipWal) {
+            this.skipWal = skipWal;
+            return this;
+        }
+
         /** Creates a new instance of {@link HBaseWriteOptions}. */
         public HBaseWriteOptions build() {
             return new HBaseWriteOptions(
                     bufferFlushMaxSizeInBytes,
                     bufferFlushMaxRows,
                     bufferFlushIntervalMillis,
-                    parallelism);
+                    parallelism,
+                    skipWal);
         }
     }
 }

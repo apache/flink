@@ -249,6 +249,19 @@ public class HBaseDynamicTableFactoryTest {
     }
 
     @Test
+    public void testSkipWalOptions() {
+        Map<String, String> options = getAllOptions();
+        options.put("sink.skip-wal", "true");
+
+        ResolvedSchema schema = ResolvedSchema.of(Column.physical(ROWKEY, STRING()));
+
+        DynamicTableSink sink = createTableSink(schema, options);
+        assertTrue(sink instanceof HBaseDynamicTableSink);
+        HBaseDynamicTableSink hbaseSink = (HBaseDynamicTableSink) sink;
+        assertTrue(hbaseSink.getWriteOptions().getSkipWal());
+    }
+
+    @Test
     public void testLookupOptions() {
         Map<String, String> options = getAllOptions();
         options.put("lookup.cache.max-rows", "1000");
