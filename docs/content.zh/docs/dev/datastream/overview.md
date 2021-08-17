@@ -524,7 +524,7 @@ val iteratedStream = someIntegers.iterate(
 
 大多数参数的说明可参考[执行配置]({{< ref "docs/deployment/config" >}})。这些参数特别适用于 DataStream API：
 
-- `setAutoWatermarkInterval(long milliseconds)`：设置水位线自动发送的时间间隔。你可以使用 `long getAutoWatermarkInterval()` 获取当前配置值。
+- `setAutoWatermarkInterval(long milliseconds)`：设置自动发送 watermark 的时间间隔。你可以使用 `long getAutoWatermarkInterval()` 获取当前配置值。
 
 {{< top >}}
 
