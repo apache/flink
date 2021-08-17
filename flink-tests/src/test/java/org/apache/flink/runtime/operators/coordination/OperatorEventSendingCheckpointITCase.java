@@ -308,6 +308,10 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
         private void fullFillPendingRequests() {
             for (int subtask : pendingRequests) {
+                // respond only to requests for which we still have registered readers
+                if (!context.registeredReaders().containsKey(subtask)) {
+                    continue;
+                }
                 super.handleSplitRequest(subtask, null);
             }
             pendingRequests.clear();
