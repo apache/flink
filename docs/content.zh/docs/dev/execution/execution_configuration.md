@@ -79,7 +79,7 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 
 - `registerPojoType(Class<?> type)` Registers the given type with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written. If a type is not registered with Kryo, its entire class-name will be serialized with every instance, leading to much higher I/O costs.
 
-Note that types registered with `registerKryoType()` are not available to Flink's Kryo serializer instance.
+Note that types registered with `registerKryoType()` are not available to Flink's POJO serializer instance.
 
 - `disableAutoTypeRegistration()` Automatic type registration is enabled by default. The automatic type registration is registering all types (including sub-types) used by usercode with Kryo and the POJO serializer.
 
