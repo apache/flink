@@ -41,7 +41,7 @@ Table API 和 SQL 程序的结构
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.api.*;
-import org.apache.flink.table.factories.DataGenOptions;
+import org.apache.flink.connector.datagen.table.DataGenOptions;
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -71,7 +71,7 @@ TableResult tableResult = table2.executeInsert("SinkTable");
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.api._
-import org.apache.flink.table.factories.DataGenOptions
+import org.apache.flink.connector.datagen.table.DataGenOptions
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
