@@ -183,9 +183,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
 
     /** Gets the RocksDB {@link ReadOptions} to be used for read operations. */
     public ReadOptions getReadOptions() {
-        // We ensure total order seek by default to prevent user misuse, see FLINK-17800 for more
-        // details
-        ReadOptions opt = RocksDBOperationUtils.createTotalOrderSeekReadOptions();
+        ReadOptions opt = new ReadOptions();
         handlesToClose.add(opt);
 
         // add user-defined options factory, if specified

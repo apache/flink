@@ -52,27 +52,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests to cover cases that even user misuse some options, RocksDB state-backend could still work
- * as expected or give explicit feedback.
+ * Tests to cover cases that if user choose options previously prone to misuse, embedded RocksDB
+ * state-backend could still work as expected or give explicit feedback.
  *
  * <p>RocksDB state-backend has some internal operations based on RocksDB's APIs which is
  * transparent for users. However, user could still configure options via {@link
  * RocksDBOptionsFactory}, and might lead some operations could not get expected result, e.g.
  * FLINK-17800
  */
-public class RocksDBStateMisuseOptionTest {
+public class RocksDBStateOptionTest {
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     /**
-     * Tests to cover case when user misuse optimizeForPointLookup with iterator interfaces on map
+     * Tests to cover case when user choose optimizeForPointLookup with iterator interfaces on map
      * state.
-     *
-     * <p>The option {@link ColumnFamilyOptions#optimizeForPointLookup(long)} would lead to
-     * iterator.seek with prefix bytes invalid.
      */
     @Test
-    public void testMisuseOptimizePointLookupWithMapState() throws Exception {
+    public void testUseOptimizePointLookupWithMapState() throws Exception {
         RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
@@ -111,14 +108,11 @@ public class RocksDBStateMisuseOptionTest {
     }
 
     /**
-     * Tests to cover case when user misuse optimizeForPointLookup with peek operations on priority
+     * Tests to cover case when user choose optimizeForPointLookup with peek operations on priority
      * queue.
-     *
-     * <p>The option {@link ColumnFamilyOptions#optimizeForPointLookup(long)} would lead to
-     * iterator.seek with prefix bytes invalid.
      */
     @Test
-    public void testMisuseOptimizePointLookupWithPriorityQueue() throws IOException {
+    public void testUseOptimizePointLookupWithPriorityQueue() throws IOException {
         RocksDBStateBackend rocksDBStateBackend = createStateBackendWithOptimizePointLookup();
         RocksDBKeyedStateBackend<Integer> keyedStateBackend =
                 createKeyedStateBackend(
