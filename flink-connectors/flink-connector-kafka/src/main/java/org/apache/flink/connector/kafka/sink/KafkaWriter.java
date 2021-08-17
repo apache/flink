@@ -21,13 +21,17 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.MetricUtil;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricMutableWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.kafka.clients.producer.Callback;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
@@ -65,6 +69,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriter.class);
     private static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
     private static final String KAFKA_PRODUCER_METRIC_NAME = "KafkaProducer";
+    private static final long METRIC_UPDATE_INTERVAL_MILLIS = 500;
 
     private final DeliveryGuarantee deliveryGuarantee;
     private final Properties kafkaProducerConfig;
@@ -75,17 +80,24 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final KafkaRecordSerializationSchema.KafkaSinkContext kafkaSinkContext;
     private final List<FlinkKafkaInternalProducer<byte[], byte[]>> producers = new ArrayList<>();
     private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
-    private final MetricGroup metricGroup;
+    private final SinkWriterMetricGroup metricGroup;
+    private final Counter numBytesOutCounter;
+    private final Sink.ProcessingTimeService timeService;
 
+    private transient Metric byteOutMetric;
     private transient FlinkKafkaInternalProducer<byte[], byte[]> currentProducer;
     private transient KafkaWriterState kafkaWriterState;
     @Nullable private transient volatile Exception producerAsyncException;
+
+    private boolean closed = false;
+    private long lastSync = System.currentTimeMillis();
 
     /**
      * Constructor creating a kafka writer.
      *
      * <p>It will throw a {@link RuntimeException} if {@link
-     * KafkaRecordSerializationSchema#open(SerializationSchema.InitializationContext)} fails.
+     * KafkaRecordSerializationSchema#open(SerializationSchema.InitializationContext,
+     * KafkaRecordSerializationSchema.KafkaSinkContext)} fails.
      *
      * @param deliveryGuarantee the Sink's delivery guarantee
      * @param kafkaProducerConfig the properties to configure the {@link FlinkKafkaInternalProducer}
@@ -114,8 +126,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     }
                     acknowledgeMessage();
                 };
-        this.metricGroup = sinkInitContext.metricGroup();
         checkNotNull(sinkInitContext, "sinkInitContext");
+        this.timeService = sinkInitContext.getProcessingTimeService();
+        this.metricGroup = sinkInitContext.metricGroup();
+        this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
         this.kafkaSinkContext =
                 new DefaultKafkaSinkContext(
                         sinkInitContext.getSubtaskId(),
@@ -130,6 +144,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 recoverAndInitializeState(checkNotNull(recoveredStates, "recoveredStates"));
         this.currentProducer = beginTransaction();
         producers.add(currentProducer);
+        registerMetricSync();
     }
 
     @Override
@@ -159,6 +174,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     @Override
     public void close() throws Exception {
+        closed = true;
         currentProducer.close(Duration.ZERO);
     }
 
@@ -345,6 +361,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     }
 
     private void initMetrics(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
+        byteOutMetric =
+                MetricUtil.getKafkaMetric(
+                        producer.metrics(), "producer-metrics", "outgoing-byte-total");
+        metricGroup.setCurrentSendTimeGauge(() -> computeSendTime(producer));
         if (producer.getKafkaProducerConfig().containsKey(KEY_DISABLE_METRICS)
                 && Boolean.parseBoolean(
                         producer.getKafkaProducerConfig().get(KEY_DISABLE_METRICS).toString())) {
@@ -388,5 +408,29 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     e);
             return Collections.emptyList();
         }
+    }
+
+    private static long computeSendTime(Producer<?, ?> producer) {
+        final Metric sendTime =
+                MetricUtil.getKafkaMetric(
+                        producer.metrics(), "producer-metrics", "request-latency-avg");
+        final Metric queueTime =
+                MetricUtil.getKafkaMetric(
+                        producer.metrics(), "producer-metrics", "record-queue-time-avg");
+        return ((Number) sendTime.metricValue()).longValue()
+                + ((Number) queueTime.metricValue()).longValue();
+    }
+
+    private void registerMetricSync() {
+        timeService.registerProcessingTimer(
+                lastSync + METRIC_UPDATE_INTERVAL_MILLIS,
+                (time) -> {
+                    if (closed) {
+                        return;
+                    }
+                    MetricUtil.sync(byteOutMetric, numBytesOutCounter);
+                    lastSync = time;
+                    registerMetricSync();
+                });
     }
 }
