@@ -69,8 +69,8 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)");
-tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)");
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')");
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')");
 
 // explain SELECT statement through TableEnvironment.explainSql()
 String explanation = tEnv.explainSql(
@@ -102,8 +102,8 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tEnv = StreamTableEnvironment.create(env)
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
-tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
+tEnv.executeSql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
 
 // explain SELECT statement through TableEnvironment.explainSql()
 val explanation = tEnv.explainSql(
@@ -134,8 +134,8 @@ tableResult2.print()
 settings = EnvironmentSettings.new_instance()...
 table_env = StreamTableEnvironment.create(env, settings)
 
-t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
-t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
+t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
+t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH ('connector' = 'datagen')")
 
 # explain SELECT statement through TableEnvironment.explain_sql()
 explanation1 = t_env.explain_sql(
@@ -186,7 +186,7 @@ The `EXPLAIN` result is:
 
 {{< tabs "explain result" >}}
 
-{{< tab "PLAN FOR" >}}
+{{< tab "EXPLAIN PLAN" >}}
 
 ```text
 == Abstract Syntax Tree ==
@@ -212,7 +212,7 @@ Union(all=[true], union=[count, word])
 
 {{< /tab >}}
 
-{{< tab "EXPLAINDETAILS" >}}
+{{< tab "EXPLAIN PLAN WITH DETAILS" >}}
 
 ```text
 == Abstract Syntax Tree ==
