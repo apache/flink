@@ -741,7 +741,6 @@ result.execute_insert("CsvSinkTable")
 Translate and Execute a Query
 -----------------------------
 
-The behavior of translating and executing a query is different for the two planners.
 Table API and SQL queries are translated into [DataStream]({{< ref "docs/dev/datastream/overview" >}}) programs whether their input is streaming or batch.
 A query is internally represented as a logical query plan and is translated in two phases:
 
