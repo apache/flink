@@ -826,7 +826,12 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     of the {@code Table}.
      * @param <T> The type of the {@link DataStream}.
      * @return The converted {@link Table}.
+     * @deprecated Use {@link #fromDataStream(DataStream, Schema)} instead. In most cases, {@link
+     *     #fromDataStream(DataStream)} should already be sufficient. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} that the table runtime can
+     *     consume. The semantics might be slightly different for raw and structured types.
      */
+    @Deprecated
     <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
 
     /**
@@ -1010,7 +1015,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param fields The fields expressions to map original fields of the DataStream to the fields
      *     of the View.
      * @param <T> The type of the {@link DataStream}.
+     * @deprecated Use {@link #createTemporaryView(String, DataStream, Schema)} instead. In most
+     *     cases, {@link #createTemporaryView(String, DataStream)} should already be sufficient. It
+     *     integrates with the new type system and supports all kinds of {@link DataTypes} that the
+     *     table runtime can consume. The semantics might be slightly different for raw and
+     *     structured types.
      */
+    @Deprecated
     <T> void createTemporaryView(String path, DataStream<T> dataStream, Expression... fields);
 
     /**
@@ -1031,7 +1042,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param clazz The class of the type of the resulting {@link DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
+     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
+     *     The semantics might be slightly different for raw and structured types. Use {@code
+     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
+     *     be used as source of truth.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, Class<T> clazz);
 
     /**
@@ -1053,7 +1070,13 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     DataStream}.
      * @param <T> The type of the resulting {@link DataStream}.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
+     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
+     *     The semantics might be slightly different for raw and structured types. Use {@code
+     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
+     *     be used as source of truth.
      */
+    @Deprecated
     <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
 
     /**
@@ -1076,7 +1099,11 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param clazz The class of the requested record type.
      * @param <T> The type of the requested record type.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
+     *     that the table runtime can produce.
      */
+    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz);
 
     /**
@@ -1099,7 +1126,11 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param typeInfo The {@link TypeInformation} of the requested record type.
      * @param <T> The type of the requested record type.
      * @return The converted {@link DataStream}.
+     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
+     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
+     *     that the table runtime can produce.
      */
+    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
 
     /**

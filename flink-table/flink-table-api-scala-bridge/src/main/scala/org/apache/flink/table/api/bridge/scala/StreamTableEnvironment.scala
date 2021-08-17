@@ -619,7 +619,7 @@ trait StreamTableEnvironment extends TableEnvironment {
     *   )
     * }}}
     *
-    * <p>2. Reference input fields by position:
+    * 2. Reference input fields by position:
     * In this mode, fields are simply renamed. Event-time attributes can
     * replace the field on their position in the input data (if it is of correct type) or be
     * appended at the end. Proctime attributes must be appended at the end. This mode can only be
@@ -644,7 +644,13 @@ trait StreamTableEnvironment extends TableEnvironment {
     *               the [[Table]].
     * @tparam T The type of the [[DataStream]].
     * @return The converted [[Table]].
+    * @deprecated Use [[fromDataStream(DataStream, Schema)]] instead. In most cases,
+    *             [[fromDataStream(DataStream)]] should already be sufficient. It integrates with
+    *             the new type system and supports all kinds of [[DataTypes]] that the table runtime
+    *             can consume. The semantics might be slightly different for raw and structured
+    *             types.
     */
+  @deprecated
   def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table
 
   /**
@@ -790,7 +796,13 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param fields The fields expressions to map original fields of the DataStream to the fields of
     *               the View.
     * @tparam T The type of the [[DataStream]].
+    * @deprecated Use [[createTemporaryView(String, DataStream, Schema)]] instead. In most cases,
+    *             [[createTemporaryView(String, DataStream)]] should already be sufficient. It
+    *             integrates with the new type system and supports all kinds of [[DataTypes]] that
+    *             the table runtime can consume. The semantics might be slightly different for raw
+    *             and structured types.
     */
+  @deprecated
   def createTemporaryView[T](path: String, dataStream: DataStream[T], fields: Expression*): Unit
 
   /**
@@ -807,7 +819,13 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param table The [[Table]] to convert.
     * @tparam T The type of the resulting [[DataStream]].
     * @return The converted [[DataStream]].
+    * @deprecated Use [[toDataStream(Table, Class)]] instead. It integrates with the new type
+    *             system and supports all kinds of [[DataTypes]] that the table runtime can produce.
+    *             The semantics might be slightly different for raw and structured types. Use
+    *             `toDataStream(DataTypes.of(Types.of[Class]))` if [[TypeInformation]]
+    *             should be used as source of truth.
     */
+  @deprecated
   def toAppendStream[T: TypeInformation](table: Table): DataStream[T]
 
   /**
@@ -820,7 +838,11 @@ trait StreamTableEnvironment extends TableEnvironment {
     * @param table The [[Table]] to convert.
     * @tparam T The type of the requested data type.
     * @return The converted [[DataStream]].
+    * @deprecated Use [[toChangelogStream(Table, Schema)]] instead. It integrates with the new
+    *             type system and supports all kinds of [[DataTypes]] and every [[ChangelogMode]]
+    *             that the table runtime can produce.
     */
+  @deprecated
   def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)]
 
   /**
