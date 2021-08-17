@@ -37,7 +37,6 @@ export class JobListComponent implements OnInit, OnDestroy {
   destroy$ = new Subject();
   sortName = 'start-time';
   sortValue = 'descend';
-  pageSize = Infinity;
   @Input() completed = false;
   @Input() title: string;
   @Input() jobData$: Observable<JobsItemInterface[]>;

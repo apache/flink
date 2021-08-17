@@ -17,10 +17,12 @@
   -->
 
 <nz-card [nzBordered]="false" [nzTitle]="title" [nzLoading]="isLoading">
-  <nz-table class="no-border" #table
+  <nz-table
+    #table
+    class="no-border"
     [nzSize]="'small'"
     [nzData]="listOfJob"
-    [nzPageSize]="pageSize"
+    [nzFrontPagination]="false"
     [nzShowPagination]="false"
   >
     <thead>
