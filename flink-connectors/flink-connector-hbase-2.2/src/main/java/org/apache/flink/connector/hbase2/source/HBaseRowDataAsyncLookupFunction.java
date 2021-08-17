@@ -108,7 +108,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                 Executors.newFixedThreadPool(
                         THREAD_POOL_SIZE,
                         new ExecutorThreadFactory(
-                                "hbase-aysnc-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
+                                "hbase-async-lookup-worker", Threads.LOGGING_EXCEPTION_HANDLER));
         Configuration config = prepareRuntimeConfiguration();
         CompletableFuture<AsyncConnection> asyncConnectionFuture =
                 ConnectionFactory.createAsyncConnection(config);
