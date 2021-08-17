@@ -55,7 +55,7 @@ Flink 程序剖析
 
 Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序由相同的基本部分组成：
 
-1. 获取一个  `execution environment`；
+1. 获取一个`执行环境`；
 2. 加载/创建初始数据；
 3. 指定数据相关的转换操作；
 4. 指定计算结果的存储位置；
@@ -271,7 +271,7 @@ Data Sources
 {{< tabs "8104e62c-db79-40b0-8519-0063e9be791f" >}}
 {{< tab "Java" >}}
 
-Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 附带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
+Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
 
 通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
@@ -381,37 +381,37 @@ Data Sinks
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
 {{< tab "Java" >}}
 
-Data sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。Flink 自带了许多内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
+Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
-- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。这些字符串是通过调用每个元素的 toString() 方法获得的。
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成 CSV 文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
-- `print()` / `printToErr()`  - 在标准输出/标准错误流上输出每个元素调用 *toString()* 方法返回的值。
-  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同 *print* 的调用。如果并行度大于1，输出结果也将以产生输出的任务的标识符作为前缀。
-- `writeUsingOutputFormat()` / `FileOutputFormat` - 方法和自定义文件输出的基类。支持
-  自定义 object 到 byte的转换。
+- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
+  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
+  自定义 object 到 byte 的转换。
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
-- `addSink` -调用自定义的 sink function。Flink 与其他系统（如Apache Kafka）的连接器捆绑在一起，这些连接器被实现为 sink functions。
+- `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Data sink 消费 DataStream 并将它们转发到文件、套接字、外部系统或输出它们。Flink 自带了许多内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
+Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
-- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。这些字符串是通过调用每个元素的 toString() 方法获得的。
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成 CSV 文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
-- `print()` / `printToErr()`  - 在标准输出/标准错误流上输出每个元素调用 *toString()* 方法返回的值。
-  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同 *print* 的调用。如果并行度大于1，输出结果也将以产生输出的任务的标识符作为前缀。
-- `writeUsingOutputFormat()` / `FileOutputFormat` - 方法和自定义文件输出的基类。支持
-  自定义 object 到 byte的转换。
+- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
+  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
+  自定义 object 到 byte 的转换。
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
-- `addSink` -调用自定义的 sink function。Flink 与其他系统（如Apache Kafka）的连接器捆绑在一起，这些连接器被实现为 sink functions。
+- `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< /tabs >}}
 
-注意，DataStream 的 `write*()` 方法主要用于调试目的。它们不参与 Flink 的检查点，这意味着这些函数拥有至少有一次语义。将数据刷新到目标系统取决于OutputFormat 的实现。这意味着不是所有发送到 OutputFormat 的元素都会立即显示在目标系统中。此外，在失败的情况下，这些记录可能会丢失。
+注意，DataStream 的 `write*()` 方法主要用于调试目的。它们不参与 Flink 的 checkpointing，这意味着这些函数通常具有至少有一次语义。刷新到目标系统的数据取决于 OutputFormat 的实现。这意味着并非所有发送到 OutputFormat 的元素都会立即显示在目标系统中。此外，在失败的情况下，这些记录可能会丢失。
 
-为了可靠地、准确地将 stream 传输到文件系统中，请使用 `StreamingFileSink`。此外，通过自定义实现类的 `.addSink(...)` 方法的也可以参与 Flink 的检查点，以实现精准一次性语义。
+为了将流可靠地、精准一次地传输到文件系统中，请使用 `StreamingFileSink`。此外，通过 `.addSink(...)` 方法调用的自定义实现也可以参与 Flink 的 checkpointing，以实现精准一次的语义。
 
 {{< top >}}
 
@@ -423,35 +423,26 @@ Iterations
 {{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
 {{< tab "Java" >}}
 
-Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
-program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({{< ref "docs/dev/datastream/side_output" >}})
-or a `filter`. Here, we show an example using filters. First, we define an `IterativeStream`
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 中。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
 
 ```java
 IterativeStream<Integer> iteration = input.iterate();
 ```
 
-Then, we specify the logic that will be executed inside the loop using a series of transformations (here
-a simple `map` transformation)
+然后，我们使用一系列转换（这里是一个简单的 `map` 转换）指定将在循环内执行的逻辑
 
 ```java
 DataStream<Integer> iterationBody = iteration.map(/* this is executed many times */);
 ```
 
-To close an iteration and define the iteration tail, call the `closeWith(feedbackStream)` method of the `IterativeStream`.
-The DataStream given to the `closeWith` function will be fed back to the iteration head.
-A common pattern is to use a filter to separate the part of the stream that is fed back,
-and the part of the stream which is propagated forward. These filters can, e.g., define
-the "termination" logic, where an element is allowed to propagate downstream rather
-than being fed back.
+要关闭迭代并定义迭代尾部，请调用 `IterativeStream` 的 `closeWith(feedbackStream)` 方法。提供给 `closeWith` 函数的 DataStream 将反馈给迭代头。一种常见的模式是使用过滤器将反馈的流部分和向前传播的流部分分开。例如，这些过滤器可以定义“终止”逻辑，其中允许元素向下游传播而不是被反馈。
 
 ```java
 iteration.closeWith(iterationBody.filter(/* one part of the stream */));
 DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
 ```
 
-For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
+例如，下面的程序从一系列整数中连续减去 1，直到它们达到零：
 
 ```java
 DataStream<Long> someIntegers = env.generateSequence(0, 1000);
@@ -484,12 +475,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
-program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({{< ref "docs/dev/datastream/side_output" >}})
-or a `filter`. Here, we show an example iteration where the body (the part of the computation that is repeated)
-is a simple map transformation, and the elements that are fed back are distinguished by the elements that
-are forwarded downstream using filters.
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 中。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
 
 ```scala
 val iteratedStream = someDataStream.iterate(
@@ -499,7 +485,7 @@ val iteratedStream = someDataStream.iterate(
 })
 ```
 
-For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
+例如，下面的程序从一系列整数中连续减去 1，直到它们达到零：
 
 ```scala
 val someIntegers: DataStream[Long] = env.generateSequence(0, 1000)
@@ -519,39 +505,32 @@ val iteratedStream = someIntegers.iterate(
 
 {{< top >}}
 
-<a name=""></a>
+<a name="execution-parameters"></a>
 
-Execution Parameters
+执行参数
 --------------------
 
-The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
+`StreamExecutionEnvironment` 包含了 `ExecutionConfig`，它允许在运行时设置作业相关的配置值。
 
-Please refer to [execution configuration]({{< ref "docs/deployment/config" >}})
-for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
+大多数参数的说明请参考[执行配置]({{< ref "docs/deployment/config" >}})。这些参数特别适用于 DataStream API：
 
-- `setAutoWatermarkInterval(long milliseconds)`: Set the interval for automatic watermark emission. You can
-    get the current value with `long getAutoWatermarkInterval()`
+- `setAutoWatermarkInterval(long milliseconds)`：设置水位线自动发送的时间间隔。你可以使用 `long getAutoWatermarkInterval()` 获取当前配置值。
 
 {{< top >}}
 
-<a name=""></a>
+<a name="fault-tolerance"></a>
 
-### Fault Tolerance
+### 容错
 
-[State & Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) describes how to enable and configure Flink's checkpointing mechanism.
+[State & Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) 描述了如何启用和配置 Flink 的 checkpointing 机制。
 
-<a name=""></a>
+<a name="controlling-latency"></a>
 
-### Controlling Latency
+### 控制延迟
 
-By default, elements are not transferred on the network one-by-one (which would cause unnecessary network traffic)
-but are buffered. The size of the buffers (which are actually transferred between machines) can be set in the Flink config files.
-While this method is good for optimizing throughput, it can cause latency issues when the incoming stream is not fast enough.
-To control throughput and latency, you can use `env.setBufferTimeout(timeoutMillis)` on the execution environment
-(or on individual operators) to set a maximum wait time for the buffers to fill up. After this time, the
-buffers are sent automatically even if they are not full. The default value for this timeout is 100 ms.
+默认情况下，元素不会在网络上一一传输（这会导致不必要的网络传输），而是被缓冲。缓冲区的大小（实际在机器之间传输）可以在 Flink 配置文件中设置。虽然此方法有利于优化吞吐量，但当输入流不够快时，它可能会导致延迟问题。要控制吞吐量和延迟，你可以调用执行环境（或单个算子）的 `env.setBufferTimeout(timeoutMillis)` 方法来设置缓冲区填满的最长等待时间。超过此时间后，即使缓冲区没有未满，也会被自动发送。此超时时间的默认值为 100 毫秒。
 
-Usage:
+用法：
 
 {{< tabs "6988880d-fb9f-4f2e-93b6-54cb85fe374c" >}}
 {{< tab "Java" >}}
@@ -572,9 +551,7 @@ env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 {{< /tab >}}
 {{< /tabs >}}
 
-To maximize throughput, set `setBufferTimeout(-1)` which will remove the timeout and buffers will only be
-flushed when they are full. To minimize latency, set the timeout to a value close to 0 (for example 5 or 10 ms).
-A buffer timeout of 0 should be avoided, because it can cause severe performance degradation.
+为了最大限度地提高吞吐量，设置 `setBufferTimeout(-1)` 来删除超时，这样缓冲区仅在它们已满时才会被刷新。要最小化延迟，请将超时设置为接近 0 的值（例如 5 或 10 毫秒）。应避免超时为 0 的缓冲区，因为它会导致严重的性能下降。
 
 {{< top >}}
 
@@ -583,23 +560,17 @@ A buffer timeout of 0 should be avoided, because it can cause severe performance
 调试
 ---------
 
-Before running a streaming program in a distributed cluster, it is a good
-idea to make sure that the implemented algorithm works as desired. Hence, implementing data analysis
-programs is usually an incremental process of checking results, debugging, and improving.
+在分布式集群中运行流程序之前，最好确保实现的算法能按预期工作。因此，实现数据分析程序通常是一个检查结果、调试和改进的增量过程。
 
-Flink provides features to significantly ease the development process of data analysis
-programs by supporting local debugging from within an IDE, injection of test data, and collection of
-result data. This section give some hints how to ease the development of Flink programs.
+Flink 通过提供 IDE 内本地调试、注入测试数据和收集结果数据的特性大大简化了数据分析程序的开发过程。本节给出了一些如何简化 Flink 程序开发的提示。
 
 <a name="local-execution-environment"></a>
 
-### Local Execution Environment
+### 本地执行环境
 
-A `LocalStreamEnvironment` starts a Flink system within the same JVM process it was created in. If you
-start the LocalEnvironment from an IDE, you can set breakpoints in your code and easily debug your
-program.
+`LocalStreamEnvironment` 在创建它的同一个 JVM 进程中启动 Flink 系统。如果你从 IDE 启动 LocalEnvironment，则可以在代码中设置断点并轻松调试程序。
 
-A LocalEnvironment is created and used as follows:
+一个 LocalEnvironment 的创建和使用如下：
 
 {{< tabs "d4afc70f-dce0-43af-8a81-6714fecb34b2" >}}
 {{< tab "Java" >}}
@@ -607,7 +578,7 @@ A LocalEnvironment is created and used as follows:
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
 DataStream<String> lines = env.addSource(/* some source */);
-// build your program
+// 构建你的程序
 
 env.execute();
 ```
@@ -618,7 +589,7 @@ env.execute();
 val env = StreamExecutionEnvironment.createLocalEnvironment()
 
 val lines = env.addSource(/* some source */)
-// build your program
+// 构建你的程序
 
 env.execute()
 ```
@@ -627,27 +598,25 @@ env.execute()
 
 <a name="collection-data-sources"></a>
 
-### Collection Data Sources
+### 集合 Data Sources
 
-Flink provides special data sources which are backed
-by Java collections to ease testing. Once a program has been tested, the sources and sinks can be
-easily replaced by sources and sinks that read from / write to external systems.
+Flink 提供了由 Java 集合支持的特殊 data sources 以简化测试。一旦程序通过测试，sources 和 sinks 可以很容易地被从外部系统读取/写入到外部系统的 sources 和 sinks 替换。
 
-Collection data sources can be used as follows:
+可以按如下方式使用集合 Data Sources：
 
 {{< tabs "d2a2ad42-e763-42bb-abbe-f812adf28953" >}}
 {{< tab "Java" >}}
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-// Create a DataStream from a list of elements
+// 从元素列表创建一个 DataStream
 DataStream<Integer> myInts = env.fromElements(1, 2, 3, 4, 5);
 
-// Create a DataStream from any Java collection
+// 从任何 Java 集合创建一个 DataStream
 List<Tuple2<String, Integer>> data = ...
 DataStream<Tuple2<String, Integer>> myTuples = env.fromCollection(data);
 
-// Create a DataStream from an Iterator
+// 从迭代器创建一个 DataStream
 Iterator<Long> longIt = ...
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
@@ -656,32 +625,31 @@ DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```scala
 val env = StreamExecutionEnvironment.createLocalEnvironment()
 
-// Create a DataStream from a list of elements
+// 从元素列表创建一个 DataStream
 val myInts = env.fromElements(1, 2, 3, 4, 5)
 
-// Create a DataStream from any Collection
+// 从任何 Java 集合创建一个 DataStream
 val data: Seq[(String, Int)] = ...
 val myTuples = env.fromCollection(data)
 
-// Create a DataStream from an Iterator
+// 从迭代器创建一个 DataStream
 val longIt: Iterator[Long] = ...
 val myLongs = env.fromCollection(longIt)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-**Note:** Currently, the collection data source requires that data types and iterators implement
-`Serializable`. Furthermore, collection data sources can not be executed in parallel (
-parallelism = 1).
+**注意：** 目前，集合 data source 要求数据类型和迭代器实现 `Serializable`。此外， 集合 data sources 不能并行执行（parallelism = 1）。
 
 <a name="iterator-data-sink"></a>
 
-### Iterator Data Sink
+### 迭代器 Data Sink
 
-Flink 还提供了一个 sink 来收集 DataStream 的结果，它主要用于测试和调试目的。可以按以下方式使用。
+Flink 还提供了一个 sink 来收集 DataStream 的结果，它用于测试和调试目的。可以按以下方式使用。
 
 {{< tabs "125e228e-13b5-4c77-93a7-c0f436fcdd2f" >}}
 {{< tab "Java" >}}
+
 ```java
 import org.apache.flink.streaming.experimental.DataStreamUtils
 
@@ -708,8 +676,8 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 -----------------
 
 * [算法]({{< ref "docs/dev/datastream/operators/overview" >}})：可用算子的使用指南。
-* [Event Time]({{< ref "docs/concepts/time" >}})：解释 Flink 中的时间概念。
-* [状态 & 容错]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})：讲解如何开发有状态应用程序。
-* [连接器]({{< ref "docs/connectors/datastream/overview" >}})：描述了所有可用的输入和输出连接器。
+* [Event Time]({{< ref "docs/concepts/time" >}})：Flink 中时间概念的介绍。
+* [状态 & 容错]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})：如何开发有状态应用程序的讲解。
+* [连接器]({{< ref "docs/connectors/datastream/overview" >}})：所有可用输入和输出连接器的描述。
 
 {{< top >}}
