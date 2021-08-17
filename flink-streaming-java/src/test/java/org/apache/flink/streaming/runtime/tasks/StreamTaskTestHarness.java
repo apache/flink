@@ -47,6 +47,8 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -113,6 +115,7 @@ public class StreamTaskTestHarness<OUT> {
     public Configuration jobConfig;
     public Configuration taskConfig;
     protected StreamConfig streamConfig;
+    protected TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
     protected TestTaskStateManager taskStateManager;
 
@@ -184,6 +187,10 @@ public class StreamTaskTestHarness<OUT> {
         return taskThread.task.getTimerService();
     }
 
+    public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
+        return taskManagerRuntimeInfo;
+    }
+
     @SuppressWarnings("unchecked")
     public <OP extends StreamOperator<OUT>> OP getHeadOperator() {
         return (OP) taskThread.task.getMainOperator();
@@ -251,14 +258,20 @@ public class StreamTaskTestHarness<OUT> {
     }
 
     public StreamMockEnvironment createEnvironment() {
-        return new StreamMockEnvironment(
-                jobConfig,
-                taskConfig,
-                executionConfig,
-                memorySize,
-                new MockInputSplitProvider(),
-                bufferSize,
-                taskStateManager);
+        StreamMockEnvironment streamMockEnvironment =
+                new StreamMockEnvironment(
+                        jobConfig,
+                        taskConfig,
+                        executionConfig,
+                        memorySize,
+                        new MockInputSplitProvider(),
+                        bufferSize,
+                        taskStateManager);
+        if (taskManagerRuntimeInfo != null) {
+            streamMockEnvironment.setTaskManagerInfo(taskManagerRuntimeInfo);
+        }
+
+        return streamMockEnvironment;
     }
 
     /**
