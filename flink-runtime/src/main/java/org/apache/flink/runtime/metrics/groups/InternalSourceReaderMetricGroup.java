@@ -37,13 +37,14 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         implements SourceReaderMetricGroup {
 
     public static final long ACTIVE = Long.MAX_VALUE;
-    private static final long UNDEFINED = Long.MIN_VALUE;
 
     private final OperatorIOMetricGroup operatorIOMetricGroup;
     private final Clock clock;
     private final Counter numRecordsInErrors;
-    private long lastWatermark = UNDEFINED;
-    private long lastEventTime = UNDEFINED;
+    private boolean watermarkLagRegistered;
+    private boolean eventTimeLagRegistered;
+    private long lastWatermark;
+    private long lastEventTime;
     private long idleStartTime = ACTIVE;
 
     private InternalSourceReaderMetricGroup(
@@ -94,25 +95,23 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
     }
 
     public void watermarkEmitted(long watermark) {
+        lastWatermark = watermark;
         // iff a respective source emits a watermark, Flink can provide the watermark lag
-        if (lastWatermark == UNDEFINED) {
-            lastWatermark = watermark;
+        if (!watermarkLagRegistered) {
             parentMetricGroup.gauge(
                     MetricNames.WATERMARK_LAG, () -> clock.absoluteTimeMillis() - lastWatermark);
-        } else {
-            lastWatermark = watermark;
+            watermarkLagRegistered = true;
         }
     }
 
     public void eventTimeEmitted(long timestamp) {
+        lastEventTime = timestamp;
         // iff a respective source emits a timestamp, Flink can provide the event lag
-        if (lastEventTime == UNDEFINED) {
-            lastEventTime = timestamp;
+        if (!eventTimeLagRegistered) {
             parentMetricGroup.gauge(
                     MetricNames.CURRENT_EMIT_EVENT_TIME_LAG,
                     () -> getLastEmitTime() - lastEventTime);
-        } else {
-            lastEventTime = timestamp;
+            eventTimeLagRegistered = true;
         }
     }
 
