@@ -96,7 +96,7 @@ public class SQLClientSchemaRegistryITCase {
         registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
     }
 
-    @Test(timeout = 120_000)
+    @Test
     public void testReading() throws Exception {
         String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
         String testResultsTopic = "test-results-" + UUID.randomUUID().toString();
@@ -131,6 +131,7 @@ public class SQLClientSchemaRegistryITCase {
                                 + ":9092',",
                         " 'topic' = '" + testCategoryTopic + "',",
                         " 'scan.startup.mode' = 'earliest-offset',",
+                        " 'properties.group.id' = 'test-group',",
                         " 'format' = 'avro-confluent',",
                         " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
@@ -146,6 +147,7 @@ public class SQLClientSchemaRegistryITCase {
                         " 'properties.bootstrap.servers' = '"
                                 + INTER_CONTAINER_KAFKA_ALIAS
                                 + ":9092',",
+                        " 'properties.group.id' = 'test-group',",
                         " 'topic' = '" + testResultsTopic + "',",
                         " 'format' = 'csv',",
                         " 'csv.null-literal' = 'null'",
@@ -160,7 +162,7 @@ public class SQLClientSchemaRegistryITCase {
         assertThat(categories, equalTo(Collections.singletonList("1,electronics,null")));
     }
 
-    @Test(timeout = 120_000)
+    @Test
     public void testWriting() throws Exception {
         String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();
         // Create topic test-avro
@@ -221,7 +223,7 @@ public class SQLClientSchemaRegistryITCase {
     }
 
     private List<Integer> getAllVersions(String behaviourSubject) throws Exception {
-        Deadline deadline = Deadline.fromNow(Duration.ofSeconds(30));
+        Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
         Exception ex =
                 new IllegalStateException(
                         "Could not query schema registry. Negative deadline provided.");
