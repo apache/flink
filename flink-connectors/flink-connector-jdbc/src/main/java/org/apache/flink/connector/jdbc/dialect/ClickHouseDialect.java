@@ -74,6 +74,12 @@ public class ClickHouseDialect extends AbstractDialect {
     }
 
     @Override
+    public Optional<String> getUpsertStatement(
+            String tableName, String[] fieldNames, String[] uniqueKeyFields) {
+        return Optional.of(getInsertIntoStatement(tableName, fieldNames));
+    }
+
+    @Override
     public String getUpdateStatement(
             String tableName, String[] fieldNames, String[] conditionFields) {
         String setClause =
