@@ -45,12 +45,17 @@ import static org.junit.Assert.assertThat;
 
 /** Utils for kafka table tests. */
 public class KafkaTableTestUtils {
-    public static List<Row> collectRows(Table table, int expectedSize) throws Exception {
+    public static List<Row> collectRowsWithTimeout(Table table, int expectedSize, Duration duration)
+            throws Exception {
         final TableResult result = table.execute();
         final List<Row> collectedRows = new ArrayList<>();
+        long before = System.currentTimeMillis();
         try (CloseableIterator<Row> iterator = result.collect()) {
             while (collectedRows.size() < expectedSize && iterator.hasNext()) {
                 collectedRows.add(iterator.next());
+                if (System.currentTimeMillis() - before > duration.toMillis()) {
+                    break;
+                }
             }
         }
         result.getJobClient()

@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRowsWithTimeout;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.comparedWithKeyAndOrder;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
@@ -144,7 +144,9 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Consume stream from Kafka -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 5);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 5, Duration.ofSeconds(30));
 
         final List<Row> expected =
                 Arrays.asList(
@@ -244,7 +246,9 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Consume stream from Kafka -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 5);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM upsert_kafka"), 5, Duration.ofSeconds(30));
 
         final List<Row> expected =
                 Arrays.asList(
@@ -341,7 +345,11 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- read from the upsert sink -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM " + wordCountTable), 11);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM " + wordCountTable),
+                        11,
+                        Duration.ofSeconds(30));
 
         final Map<Row, List<Row>> expected = new HashMap<>();
         expected.put(
@@ -387,7 +395,10 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                         rawWordCountTable, wordCountTable, bootstraps, format, format));
 
         final List<Row> result2 =
-                collectRows(tEnv.sqlQuery("SELECT * FROM " + rawWordCountTable), 8);
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM " + rawWordCountTable),
+                        8,
+                        Duration.ofSeconds(30));
         final Map<Row, List<Row>> expected2 = new HashMap<>();
         expected2.put(
                 Row.of("good"),
@@ -567,7 +578,9 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- consume stream from sink -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM " + userTable), 16);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM " + userTable), 16, Duration.ofSeconds(30));
 
         List<Row> expected =
                 Arrays.asList(
@@ -770,7 +783,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                         format, TestValuesTableFactory.registerData(input)));
 
         final List<Row> result =
-                collectRows(
+                collectRowsWithTimeout(
                         tEnv.sqlQuery(
                                 String.format(
                                         "SELECT p.page_id, p.user_id, p.viewtime, u.user_name, u.upper_region, u.modification_time\n"
@@ -778,7 +791,8 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                                 + "LEFT JOIN %s FOR SYSTEM_TIME AS OF p.viewtime AS u\n"
                                                 + "ON p.user_id = u.user_id",
                                         format, userTable)),
-                        7);
+                        7,
+                        Duration.ofSeconds(30));
 
         assertThat(result, deepEqualTo(expected, true));
     }

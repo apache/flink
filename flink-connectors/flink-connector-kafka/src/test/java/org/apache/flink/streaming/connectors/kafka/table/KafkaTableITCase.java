@@ -45,7 +45,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRowsWithTimeout;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
@@ -303,7 +303,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Consume stream from Kafka -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM kafka"), 3, Duration.ofSeconds(30));
 
         final Map<String, byte[]> headers1 = new HashMap<>();
         headers1.put("k1", new byte[] {(byte) 0xC0, (byte) 0xFF, (byte) 0xEE});
@@ -401,7 +403,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Consume stream from Kafka -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM kafka"), 3, Duration.ofSeconds(30));
 
         final List<Row> expected =
                 Arrays.asList(
@@ -482,7 +486,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- Consume stream from Kafka -------------------
 
-        final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka"), 3);
+        final List<Row> result =
+                collectRowsWithTimeout(
+                        tEnv.sqlQuery("SELECT * FROM kafka"), 3, Duration.ofSeconds(30));
 
         final List<Row> expected =
                 Arrays.asList(
@@ -590,7 +596,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ---------- query temporal join result from Kafka -------------------
         final List<String> result =
-                collectRows(
+                collectRowsWithTimeout(
                                 tEnv.sqlQuery(
                                         "SELECT"
                                                 + "  order_id,"
@@ -605,7 +611,8 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                                 + "FROM ordersTable AS O "
                                                 + "LEFT JOIN productChangelogTable FOR SYSTEM_TIME AS OF O.order_time AS P "
                                                 + "ON O.product_id = P.product_id"),
-                                6)
+                                6,
+                                Duration.ofSeconds(30))
                         .stream()
                         .map(row -> row.toString())
                         .sorted()
