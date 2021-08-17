@@ -161,13 +161,24 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                             operatorName,
                             event);
                     if (event instanceof RequestSplitEvent) {
+                        LOG.info(
+                                "Source {} received split request from parallel task {}",
+                                operatorName,
+                                subtask);
                         enumerator.handleSplitRequest(
                                 subtask, ((RequestSplitEvent) event).hostName());
                     } else if (event instanceof SourceEventWrapper) {
                         enumerator.handleSourceEvent(
                                 subtask, ((SourceEventWrapper) event).getSourceEvent());
                     } else if (event instanceof ReaderRegistrationEvent) {
-                        handleReaderRegistrationEvent((ReaderRegistrationEvent) event);
+                        final ReaderRegistrationEvent registrationEvent =
+                                (ReaderRegistrationEvent) event;
+                        LOG.info(
+                                "Source {} registering reader for parallel task {} @ {}",
+                                operatorName,
+                                subtask,
+                                registrationEvent.location());
+                        handleReaderRegistrationEvent(registrationEvent);
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }
