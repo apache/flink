@@ -25,6 +25,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="kerberos-authentication-setup-and-configuration"></a>
+
 # Kerberos 身份认证设置和配置
 
 本文简要描述了 Flink 如何在各种部署机制(Standalone, native Kubernetes, YARN)、文件系统、connector 以及state backend 的上下文中安全工作。
@@ -105,9 +107,9 @@ Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runt
 
 在 YARN 和 原生 Kubernetes 模式下，keytab 文件会被自动从客户端拷贝到 Flink 容器中。
 
-要启用 Kerberos 身份认证，还需要 Kerberos 配置文件。该文件可以从集群环境中获取，也可以由 Flink 上传。针对后者，需要配置 `security.kerberos.krb5-conf.path` 来指定 Kerberos 配置文件的路径，Flink 会将此文件复制到相应容器或 pod。
+要启用 Kerberos 身份认证，还需要 Kerberos 配置文件。该文件可以从集群环境中获取，也可以由 Flink 上传。针对后者，你需要配置 `security.kerberos.krb5-conf.path` 来指定 Kerberos 配置文件的路径，Flink 会将此文件复制到相应容器或 pod。
 
-有关更多信息，请参阅 <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> 文档。
+请参阅 <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> 文档获取更多相关信息。
 
 <a name="using-kinit-yarn-only"></a>
 
@@ -123,7 +125,7 @@ Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runt
 
 <a name="further-details"></a>
 
-## 更多详细信息
+## 更多细节
 
 <a name="ticket-renewal"></a>
 
