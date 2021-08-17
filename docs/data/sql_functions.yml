@@ -580,18 +580,18 @@ json:
       If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
 
       ```
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}', '$.b');
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
         '$.a[0].b');
 
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' TRUE ON ERROR);
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```

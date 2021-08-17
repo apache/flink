@@ -1410,12 +1410,12 @@ class Expression(Generic[T]):
         Examples:
         ::
 
-            >>> lit('{"a": true}').json_exists('$.a') // True
-            >>> lit('{"a": true}').json_exists('$.b') // False
-            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') // True
+            >>> lit('{"a": true}').json_exists('$.a') # True
+            >>> lit('{"a": true}').json_exists('$.b') # False
+            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') # True
 
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) // True
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) // False
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) # True
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) # False
         """
         if on_error is None:
             return _binary_op("jsonExists")(self, path)
@@ -1448,12 +1448,13 @@ class Expression(Generic[T]):
         Examples:
         ::
 
-            >>> lit('{"a": true}').json_value('$.a')
-            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN())
+            >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
             >>> lit('{"a": true}').json_value('lax $.b', \
-                    JsonValueOnEmptyOrError.DEFAULT, False)
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
             >>> lit('{"a": true}').json_value('strict $.b', \
-                    JsonValueOnEmptyOrError.NULL, None, JsonValueOnEmptyOrError.DEFAULT, False)
+                    JsonValueOnEmptyOrError.NULL, None, \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
         """
         return _varargs_op("jsonValue")(self, path, _to_java_data_type(returning_type),
                                         on_empty._to_j_json_value_on_empty_or_error(),
