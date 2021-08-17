@@ -20,11 +20,17 @@ package org.apache.flink.connector.kafka.sink;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -32,11 +38,14 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
@@ -44,14 +53,18 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.List;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 import java.util.Properties;
+import java.util.stream.IntStream;
 
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertThrows;
 
 /** Tests for the standalone KafkaWriter. */
-@RunWith(Parameterized.class)
 public class KafkaWriterITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
@@ -59,13 +72,12 @@ public class KafkaWriterITCase {
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";
     private static final Network NETWORK = Network.newNetwork();
     private static final String KAFKA_METRIC_WITH_GROUP_NAME = "KafkaProducer.incoming-byte-total";
-
-    private final DeliveryGuarantee guarantee;
+    private static final SinkWriter.Context SINK_WRITER_CONTEXT = new DummySinkWriterContext();
 
     private MetricListener metricListener;
+    private TriggerTimeService timeService;
 
-    @ClassRule
-    public static final KafkaContainer KAFKA_CONTAINER =
+    private static final KafkaContainer KAFKA_CONTAINER =
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
                     .withEmbeddedZookeeper()
                     .withEnv(
@@ -82,49 +94,107 @@ public class KafkaWriterITCase {
                     .withLogConsumer(LOG_CONSUMER)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
-    @Before
+    @BeforeAll
+    public static void beforeAll() {
+        KAFKA_CONTAINER.start();
+    }
+
+    @AfterAll
+    public static void afterAll() {
+        KAFKA_CONTAINER.stop();
+    }
+
+    @BeforeEach
     public void setUp() {
         metricListener = new MetricListener();
+        timeService = new TriggerTimeService();
     }
 
-    @Parameterized.Parameters
-    public static List<DeliveryGuarantee> guarantees() {
-        return ImmutableList.of(
-                DeliveryGuarantee.NONE,
-                DeliveryGuarantee.AT_LEAST_ONCE,
-                DeliveryGuarantee.EXACTLY_ONCE);
-    }
-
-    public KafkaWriterITCase(DeliveryGuarantee guarantee) {
-        this.guarantee = guarantee;
-    }
-
-    @Test
-    public void testRegisterMetrics() throws Exception {
+    @ParameterizedTest
+    @EnumSource(DeliveryGuarantee.class)
+    public void testRegisterMetrics(DeliveryGuarantee guarantee) throws Exception {
         try (final KafkaWriter<Integer> ignored =
-                createWriterWithConfiguration(getKafkaClientConfiguration())) {
+                createWriterWithConfiguration(getKafkaClientConfiguration(), guarantee)) {
             metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME);
         }
     }
 
-    @Test
-    public void testNotRegisterMetrics() throws Exception {
+    @ParameterizedTest
+    @EnumSource(DeliveryGuarantee.class)
+    public void testNotRegisterMetrics(DeliveryGuarantee guarantee) throws Exception {
         final Properties config = getKafkaClientConfiguration();
         config.put("flink.disable-metrics", "true");
-        try (final KafkaWriter<Integer> ignored = createWriterWithConfiguration(config)) {
+        try (final KafkaWriter<Integer> ignored =
+                createWriterWithConfiguration(config, guarantee)) {
             assertThrows(
                     IllegalArgumentException.class,
                     () -> metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME));
         }
     }
 
-    private KafkaWriter<Integer> createWriterWithConfiguration(Properties config) {
+    @Test
+    public void testIncreasingByteOutCounter() throws Exception {
+        final OperatorIOMetricGroup operatorIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
+        final InternalSinkWriterMetricGroup metricGroup =
+                InternalSinkWriterMetricGroup.mock(
+                        metricListener.getMetricGroup(), operatorIOMetricGroup);
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
+            final Counter numBytesOut = operatorIOMetricGroup.getNumBytesOutCounter();
+            Assertions.assertEquals(numBytesOut.getCount(), 0L);
+            writer.write(1, SINK_WRITER_CONTEXT);
+            timeService.trigger();
+            MatcherAssert.assertThat(numBytesOut.getCount(), greaterThan(0L));
+        }
+    }
+
+    @Test
+    public void testCurrentSendTimeMetric() throws Exception {
+        final InternalSinkWriterMetricGroup metricGroup =
+                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup());
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(),
+                        DeliveryGuarantee.AT_LEAST_ONCE,
+                        metricGroup)) {
+            final Gauge<Long> currentSendTime = metricListener.getGauge("currentSendTime");
+            Assertions.assertEquals(currentSendTime.getValue(), 0L);
+            IntStream.range(0, 100)
+                    .forEach(
+                            (run) -> {
+                                try {
+                                    writer.write(1, SINK_WRITER_CONTEXT);
+                                    // Manually flush the records to generate a sendTime
+                                    if (run % 10 == 0) {
+                                        writer.prepareCommit(false);
+                                    }
+                                } catch (IOException e) {
+                                    throw new RuntimeException("Failed writing Kafka record.");
+                                }
+                            });
+            MatcherAssert.assertThat(currentSendTime.getValue(), greaterThan(0L));
+        }
+    }
+
+    private KafkaWriter<Integer> createWriterWithConfiguration(
+            Properties config, DeliveryGuarantee guarantee) {
+        return createWriterWithConfiguration(
+                config,
+                guarantee,
+                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()));
+    }
+
+    private KafkaWriter<Integer> createWriterWithConfiguration(
+            Properties config,
+            DeliveryGuarantee guarantee,
+            SinkWriterMetricGroup sinkWriterMetricGroup) {
         return new KafkaWriter<>(
                 guarantee,
                 config,
                 "test-prefix",
-                new SinkInitContext(
-                        InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup())),
+                new SinkInitContext(sinkWriterMetricGroup, timeService),
                 new DummyRecordSerializer(),
                 new DummySchemaContext(),
                 ImmutableList.of());
@@ -144,9 +214,11 @@ public class KafkaWriterITCase {
     private static class SinkInitContext implements Sink.InitContext {
 
         private final SinkWriterMetricGroup metricGroup;
+        private final Sink.ProcessingTimeService timeService;
 
-        SinkInitContext(SinkWriterMetricGroup metricGroup) {
+        SinkInitContext(SinkWriterMetricGroup metricGroup, Sink.ProcessingTimeService timeService) {
             this.metricGroup = metricGroup;
+            this.timeService = timeService;
         }
 
         @Override
@@ -161,7 +233,7 @@ public class KafkaWriterITCase {
 
         @Override
         public Sink.ProcessingTimeService getProcessingTimeService() {
-            throw new UnsupportedOperationException("Not implemented.");
+            return timeService;
         }
 
         @Override
@@ -184,7 +256,7 @@ public class KafkaWriterITCase {
         @Override
         public ProducerRecord<byte[], byte[]> serialize(
                 Integer element, KafkaSinkContext context, Long timestamp) {
-            throw new UnsupportedOperationException("Not implemented.");
+            return new ProducerRecord<>("topic", ByteBuffer.allocate(4).putInt(element).array());
         }
     }
 
@@ -198,6 +270,44 @@ public class KafkaWriterITCase {
         @Override
         public UserCodeClassLoader getUserCodeClassLoader() {
             throw new UnsupportedOperationException("Not implemented.");
+        }
+    }
+
+    private static class DummySinkWriterContext implements SinkWriter.Context {
+        @Override
+        public long currentWatermark() {
+            return 0;
+        }
+
+        @Override
+        public Long timestamp() {
+            return null;
+        }
+    }
+
+    private static class TriggerTimeService implements Sink.ProcessingTimeService {
+
+        private final PriorityQueue<Tuple2<Long, ProcessingTimeCallback>> registeredCallbacks =
+                new PriorityQueue<>(Comparator.comparingLong(o -> o.f0));
+
+        @Override
+        public long getCurrentProcessingTime() {
+            return 0;
+        }
+
+        @Override
+        public void registerProcessingTimer(
+                long time, ProcessingTimeCallback processingTimerCallback) {
+            registeredCallbacks.add(new Tuple2<>(time, processingTimerCallback));
+        }
+
+        public void trigger() throws IOException, InterruptedException {
+            final Tuple2<Long, ProcessingTimeCallback> registered = registeredCallbacks.poll();
+            if (registered == null) {
+                LOG.warn("Triggered time service but no callback was registered.");
+                return;
+            }
+            registered.f1.onProcessingTime(registered.f0);
         }
     }
 }
