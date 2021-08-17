@@ -520,7 +520,7 @@ val iteratedStream = someIntegers.iterate(
 执行参数
 --------------------
 
-`StreamExecutionEnvironment` 包含了 `ExecutionConfig`，它允许在运行时设置作业相关的配置值。
+`StreamExecutionEnvironment` 包含了 `ExecutionConfig`，它允许在运行时设置作业特定的配置值。
 
 大多数参数的说明可参考[执行配置]({{< ref "docs/deployment/config" >}})。这些参数特别适用于 DataStream API：
 
