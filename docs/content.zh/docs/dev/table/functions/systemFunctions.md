@@ -107,7 +107,7 @@ Known Limitations:
 
 ### 辅助函数
 
-{{< sql_functions_zh "auxilary" >}}
+{{< sql_functions_zh "auxiliary" >}}
 
 聚合函数
 -------------------

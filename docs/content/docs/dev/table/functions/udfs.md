@@ -338,7 +338,7 @@ For a full list of classes that can be implicitly mapped to a data type, see the
 
 **`@DataTypeHint`**
 
-In many scenarios, it is required to support the automatic extraction _inline_ for paramaters and return types of a function
+In many scenarios, it is required to support the automatic extraction _inline_ for parameters and return types of a function
 
 The following example shows how to use data type hints. More information can be found in the documentation of the annotation class.
 

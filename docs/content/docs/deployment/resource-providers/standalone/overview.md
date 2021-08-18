@@ -131,7 +131,7 @@ The log files are located in the `logs/` directory. There's a `.log` file for ea
 Alternatively, logs are available from the Flink web frontend (both for the JobManager and each TaskManager).
 
 By default, Flink is logging on the "INFO" log level, which provides basic information for all obvious issues. For cases where Flink seems to behave wrongly, reducing the log level to "DEBUG" is advised. The logging level is controlled via the `conf/log4.properties` file.
-Setting `rootLogger.level = DEBUG` will boostrap Flink on the DEBUG log level.
+Setting `rootLogger.level = DEBUG` will bootstrap Flink on the DEBUG log level.
 
 There's a dedicated page on the [logging]({{< ref "docs/deployment/advanced/logging" >}}) in Flink.
 

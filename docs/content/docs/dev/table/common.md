@@ -845,7 +845,7 @@ print(table.explain())
 {{< /tab >}}
 {{< /tabs >}}
 
-The result of the above exmaple is
+The result of the above example is
 
 {{< expand "Explain" >}}
 ```text

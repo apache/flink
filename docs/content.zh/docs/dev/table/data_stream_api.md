@@ -201,7 +201,7 @@ In particular, the section discusses how to influence the schema derivation with
 and nested types. It also covers working with event-time and watermarks.
 
 Depending on the kind of query, in many cases the resulting dynamic table is a pipeline that does not
-only produce insert-only changes when coverting the `Table` to a `DataStream` but also produces retractions
+only produce insert-only changes when converting the `Table` to a `DataStream` but also produces retractions
 and other kinds of updates. During table-to-stream conversion, this could lead to an exception similar to
 
 ```

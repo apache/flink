@@ -257,7 +257,7 @@ tables = catalog.list_tables("mydb")
 
 ## Catalog API
 
-Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
+Note: only catalog program APIs are listed here. Users can achieve many of the same functionalities with SQL DDL. 
 For detailed DDL information, please refer to [SQL CREATE DDL]({{< ref "docs/dev/table/sql/create" >}}).
 
 

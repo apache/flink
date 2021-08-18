@@ -139,7 +139,7 @@ used by default.
 Kafka source is designed to support both streaming and batch running mode. By default, the KafkaSource
 is set to run in streaming manner, thus never stops until Flink job fails or is cancelled. You can use
 ```setBounded(OffsetsInitializer)``` to specify stopping offsets and set the source running in
-batch mode. When all partitions have reached their stoping offsets, the source will exit.
+batch mode. When all partitions have reached their stopping offsets, the source will exit.
 
 You can also set KafkaSource running in streaming mode, but still stop at the stopping offset by
 using ```setUnbounded(OffsetsInitializer)```. The source will exit when all partitions reach their

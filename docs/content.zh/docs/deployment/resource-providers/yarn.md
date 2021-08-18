@@ -152,7 +152,7 @@ The Session Mode has two operation modes:
 
 The session mode will create a hidden YARN properties file in `/tmp/.yarn-properties-<username>`, which will be picked up for cluster discovery by the command line interface when submitting a job.
 
-You can also **manually specifiy the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
+You can also **manually specify the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
 
 ```bash 
 ./bin/flink run -t yarn-session \
