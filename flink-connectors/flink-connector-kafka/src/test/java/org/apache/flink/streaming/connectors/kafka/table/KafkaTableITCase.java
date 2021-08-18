@@ -23,10 +23,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
+import org.apache.kafka.common.errors.InvalidTopicException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -45,12 +48,17 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.WritableMetadata.HEADERS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.WritableMetadata.TIMESTAMP;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink.WritableMetadata.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Basic IT cases for the Kafka table source and sink. */
@@ -254,6 +262,254 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         // ------------- cleanup -------------------
         topics.forEach(super::deleteTestTopic);
+    }
+
+    @Test
+    public void testKafkaSinkWithMetadataIncludeTopicOption() {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "metadata_topic_" + format;
+        try {
+            createTestTopic(topic, 1, 1);
+
+            // ---------- Produce an event time stream into Kafka -------------------
+            String groupId = getStandardProps().getProperty("group.id");
+            String bootstraps = getBootstrapServers();
+
+            final String createTable =
+                    String.format(
+                            "CREATE TABLE kafka (\n"
+                                    + "  `physical_1` STRING,\n"
+                                    + "  `physical_2` INT,\n"
+                                    + "  `timestamp` TIMESTAMP(3) METADATA,\n"
+                                    + "  `topic` STRING METADATA,\n"
+                                    + "  `physical_3` BOOLEAN\n"
+                                    + ") WITH (\n"
+                                    + "  'connector' = 'kafka',\n"
+                                    + "  'topic' = '%s',\n"
+                                    + "  'properties.bootstrap.servers' = '%s',\n"
+                                    + "  'properties.group.id' = '%s',\n"
+                                    + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                    + "  %s\n"
+                                    + ")",
+                            topic, bootstraps, groupId, formatOptions());
+
+            tEnv.executeSql(createTable);
+
+            String initialValues =
+                    String.format(
+                            "INSERT INTO kafka\n"
+                                    + "VALUES\n"
+                                    + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', '%s', TRUE),\n"
+                                    + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', '%s', FALSE),\n"
+                                    + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', '%s', TRUE)",
+                            topic, topic, topic);
+            try {
+                tEnv.executeSql(initialValues).await();
+                fail(
+                        "Unable to create the Kafka sink table with table option 'topic' and metadata column 'topic'.");
+            } catch (Exception e) {
+                assertTrue(e instanceof ValidationException);
+                assertEquals(
+                        String.format(
+                                "Invalid metadata key '%s' in column 'topic' of table 'default_catalog.default_database.kafka'. "
+                                        + "The %s class '%s' supports the following metadata keys for writing:\n%s",
+                                TOPIC.key,
+                                DynamicTableSink.class.getSimpleName(),
+                                KafkaDynamicSink.class.getName(),
+                                String.join("\n", Arrays.asList(HEADERS.key, TIMESTAMP.key))),
+                        e.getMessage());
+            }
+        } finally {
+            // ------------- cleanup -------------------
+
+            deleteTestTopic(topic);
+        }
+    }
+
+    @Test
+    public void testKafkaSinkWithMetadataExcludeTopicOption() throws Exception {
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "metadata_topic_" + format;
+        final String test_topic = "test_metadata_topic_" + format;
+        try {
+            createTestTopic(topic, 1, 1);
+            createTestTopic(test_topic, 1, 1);
+
+            // ---------- Produce an event time stream into Kafka -------------------
+            String groupId = getStandardProps().getProperty("group.id");
+            String bootstraps = getBootstrapServers();
+
+            final String createSourceTable =
+                    String.format(
+                            "CREATE TABLE kafka_source (\n"
+                                    + "  `physical_1` STRING,\n"
+                                    + "  `physical_2` INT,\n"
+                                    // metadata fields are out of order on purpose
+                                    // offset is ignored because it might not be deterministic
+                                    + "  `timestamp` TIMESTAMP(3) METADATA,\n"
+                                    + "  `topic` STRING METADATA VIRTUAL,\n"
+                                    + "  `physical_3` BOOLEAN\n"
+                                    + ") WITH (\n"
+                                    + "  'connector' = 'kafka',\n"
+                                    + "  'topic' = '%s',\n"
+                                    + "  'properties.bootstrap.servers' = '%s',\n"
+                                    + "  'properties.group.id' = '%s',\n"
+                                    + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                    + "  %s\n"
+                                    + ")",
+                            topic, bootstraps, groupId, formatOptions());
+
+            String createSinkTable =
+                    String.format(
+                            "CREATE TABLE test_sink (\n"
+                                    + "  `physical_1` STRING,\n"
+                                    + "  `physical_2` INT,\n"
+                                    + "  `timestamp` TIMESTAMP(3) METADATA,\n"
+                                    + "  `physical_3` BOOLEAN\n"
+                                    + ") WITH (\n"
+                                    + "  'connector' = 'kafka',\n"
+                                    + "  'properties.bootstrap.servers' = '%s',\n"
+                                    + "  'properties.group.id' = '%s',\n"
+                                    + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                    + "  %s\n"
+                                    + ")",
+                            bootstraps, groupId, formatOptions());
+
+            tEnv.executeSql(createSourceTable);
+            tEnv.executeSql(createSinkTable);
+
+            // verify whether the insertion of a null value for 'topic' metadata column fails
+            String initialValues =
+                    "INSERT INTO test_sink\n"
+                            + "VALUES\n"
+                            + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', TRUE),\n"
+                            + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', FALSE),\n"
+                            + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', TRUE)";
+            try {
+                tEnv.executeSql(initialValues).await();
+                fail(
+                        "Unable to insert Kafka sink table without the table option 'topic' and the metadata column 'topic'.");
+            } catch (Exception e) {
+                containsCause(
+                        new ValidationException(
+                                "The table option 'topic' and the metadata column 'topic' both are not defined."));
+            }
+
+            createSinkTable =
+                    String.format(
+                            "CREATE TABLE kafka_sink (\n"
+                                    + "  `physical_1` STRING,\n"
+                                    + "  `physical_2` INT,\n"
+                                    + "  `timestamp` TIMESTAMP(3) METADATA,\n"
+                                    + "  `topic` STRING METADATA,\n"
+                                    + "  `physical_3` BOOLEAN\n"
+                                    + ") WITH (\n"
+                                    + "  'connector' = 'kafka',\n"
+                                    + "  'properties.bootstrap.servers' = '%s',\n"
+                                    + "  'properties.group.id' = '%s',\n"
+                                    + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                    + "  %s\n"
+                                    + ")",
+                            bootstraps, groupId, formatOptions());
+
+            tEnv.executeSql(createSinkTable);
+
+            // verify whether the insertion of a null value for 'topic' metadata column fails
+            initialValues =
+                    "INSERT INTO kafka_sink\n"
+                            + "VALUES\n"
+                            + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', TRUE),\n"
+                            + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', FALSE),\n"
+                            + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', TRUE)";
+            try {
+                tEnv.executeSql(initialValues).await();
+                fail(
+                        "Unable to insert Kafka sink table with null value for 'topic' metadata column.");
+            } catch (Exception e) {
+                containsCause(
+                        new ValidationException(
+                                "The metadata column 'topic' must not be null or empty."));
+            }
+
+            // verify whether the insertion of a empty value for 'topic' metadata column fails
+            initialValues =
+                    "INSERT INTO kafka_sink\n"
+                            + "VALUES\n"
+                            + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', '', TRUE),\n"
+                            + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', '', FALSE),\n"
+                            + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', '', TRUE)";
+            try {
+                tEnv.executeSql(initialValues).await();
+                fail(
+                        "Unable to insert Kafka sink table with empty value for 'topic' metadata column.");
+            } catch (Exception e) {
+                containsCause(new InvalidTopicException("Invalid topics: []"));
+            }
+
+            initialValues =
+                    String.format(
+                            "INSERT INTO kafka_sink\n"
+                                    + "VALUES\n"
+                                    + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', '%s', TRUE),\n"
+                                    + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', '%s', FALSE),\n"
+                                    + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', '%s', TRUE)",
+                            topic, topic, test_topic);
+            tEnv.executeSql(initialValues).await();
+
+            // ---------- Consume stream from Kafka -------------------
+
+            final List<Row> result = collectRows(tEnv.sqlQuery("SELECT * FROM kafka_source"), 3);
+
+            final Map<String, byte[]> headers1 = new HashMap<>();
+            headers1.put("k1", new byte[] {(byte) 0xC0, (byte) 0xFF, (byte) 0xEE});
+            headers1.put("k2", new byte[] {(byte) 0xBA, (byte) 0xBE});
+
+            final Map<String, byte[]> headers3 = new HashMap<>();
+            headers3.put("k1", new byte[] {(byte) 0x10});
+            headers3.put("k2", new byte[] {(byte) 0x20});
+
+            final List<Row> expected =
+                    Arrays.asList(
+                            Row.of(
+                                    "data 1",
+                                    1,
+                                    "CreateTime",
+                                    LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                    0,
+                                    headers1,
+                                    0,
+                                    topic,
+                                    true),
+                            Row.of(
+                                    "data 2",
+                                    2,
+                                    "CreateTime",
+                                    LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                    0,
+                                    Collections.emptyMap(),
+                                    0,
+                                    topic,
+                                    false),
+                            Row.of(
+                                    "data 3",
+                                    3,
+                                    "CreateTime",
+                                    LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                    0,
+                                    headers3,
+                                    0,
+                                    test_topic,
+                                    true));
+
+            assertThat(result, deepEqualTo(expected, true));
+        } finally {
+            // ------------- cleanup -------------------
+
+            deleteTestTopic(topic);
+            deleteTestTopic(test_topic);
+        }
     }
 
     @Test
