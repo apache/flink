@@ -75,6 +75,9 @@ public class SimpleStringSchema
 
     @Override
     public String deserialize(byte[] message) {
+        if (message == null) {
+            return null;
+        }
         return new String(message, charset);
     }
 
@@ -85,6 +88,9 @@ public class SimpleStringSchema
 
     @Override
     public byte[] serialize(String element) {
+        if (element == null) {
+            return new byte[0];
+        }
         return element.getBytes(charset);
     }
 

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.nio.charset.Charset;
@@ -27,9 +28,34 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /** Tests for the {@link SimpleStringSchema}. */
 public class SimpleStringSchemaTest {
+
+    private static SimpleStringSchema schemaDefault;
+    private static SimpleStringSchema schemaUTF16BE;
+
+    @BeforeClass
+    public static void setup() {
+        schemaDefault = new SimpleStringSchema();
+        schemaUTF16BE = new SimpleStringSchema(StandardCharsets.UTF_16BE);
+    }
+
+    @Test
+    public void testSerializability() throws Exception {
+        final SimpleStringSchema copy = CommonTestUtils.createCopySerializable(schemaUTF16BE);
+
+        assertEquals(schemaUTF16BE.getCharset(), copy.getCharset());
+    }
+
+    @Test
+    public void testSerialization() {
+        String original = "内容123456789qwertyuiop";
+        byte[] serialized = schemaDefault.serialize(original);
+
+        assertArrayEquals(original.getBytes(StandardCharsets.UTF_8), serialized);
+    }
 
     @Test
     public void testSerializationWithAnotherCharset() {
@@ -37,15 +63,30 @@ public class SimpleStringSchemaTest {
         final String string = "之掃描古籍版實乃姚鼐的";
         final byte[] bytes = string.getBytes(charset);
 
-        assertArrayEquals(bytes, new SimpleStringSchema(charset).serialize(string));
+        assertArrayEquals(bytes, schemaUTF16BE.serialize(string));
         assertEquals(string, new SimpleStringSchema(charset).deserialize(bytes));
     }
 
     @Test
-    public void testSerializability() throws Exception {
-        final SimpleStringSchema schema = new SimpleStringSchema(StandardCharsets.UTF_16LE);
-        final SimpleStringSchema copy = CommonTestUtils.createCopySerializable(schema);
+    public void testSerializeNullValue() {
+        byte[] serialized = schemaDefault.serialize(null);
 
-        assertEquals(schema.getCharset(), copy.getCharset());
+        assertEquals(serialized.length, 0);
+    }
+
+    @Test
+    public void testDeserialization() {
+        String original = "12345ABCDE";
+        byte[] bytes = original.getBytes(StandardCharsets.UTF_8);
+        String deserialized = schemaDefault.deserialize(bytes);
+
+        assertEquals(deserialized, original);
+    }
+
+    @Test
+    public void testDeserializeNullValue() {
+        String deserializedString = schemaDefault.deserialize(null);
+
+        assertNull(deserializedString);
     }
 }
