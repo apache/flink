@@ -20,7 +20,6 @@ package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +31,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The counterpart to the {@link
@@ -86,7 +86,7 @@ public class DefaultLeaderRetrievalService
     @Override
     public void start(LeaderRetrievalListener listener) throws Exception {
         checkNotNull(listener, "Listener must not be null.");
-        Preconditions.checkState(
+        checkState(
                 leaderListener == null,
                 "DefaultLeaderRetrievalService can " + "only be started once.");
 
