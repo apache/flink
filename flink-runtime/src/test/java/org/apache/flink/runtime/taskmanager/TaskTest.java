@@ -106,12 +106,15 @@ public class TaskTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
+    private static boolean wasCleanedUp = false;
+
     @Before
     public void setup() {
         awaitLatch = new OneShotLatch();
         triggerLatch = new OneShotLatch();
 
         shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+        wasCleanedUp = false;
     }
 
     @After
@@ -119,6 +122,34 @@ public class TaskTest extends TestLogger {
         if (shuffleEnvironment != null) {
             shuffleEnvironment.close();
         }
+    }
+
+    @Test
+    public void testCleanupWhenRestoreFails() throws Exception {
+        createTaskBuilder().setInvokable(InvokableWithExceptionInRestore.class).build().run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenInvokeFails() throws Exception {
+        createTaskBuilder().setInvokable(InvokableWithExceptionInInvoke.class).build().run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenCancelledAfterRestore() throws Exception {
+        Task task = createTaskBuilder().setInvokable(InvokableBlockingInRestore.class).build();
+        task.startTaskThread();
+        awaitLatch.await();
+        task.cancelExecution();
+        task.getExecutingThread().join();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
+    public void testCleanupWhenAfterInvokeSucceeded() throws Exception {
+        createTaskBuilder().setInvokable(TestInvokableCorrect.class).build().run();
+        assertTrue(wasCleanedUp);
     }
 
     @Test
@@ -1221,6 +1252,12 @@ public class TaskTest extends TestLogger {
             fail("This should not be called");
             return null;
         }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     private abstract static class InvokableNonInstantiable extends AbstractInvokable {
@@ -1238,6 +1275,12 @@ public class TaskTest extends TestLogger {
         public void invoke() throws Exception {
             throw new Exception("test");
         }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     static final class InvokableWithExceptionInRestore extends AbstractInvokable {
@@ -1252,6 +1295,12 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() throws Exception {}
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     private static final class FailingInvokableWithChainedException extends AbstractInvokable {
@@ -1349,6 +1398,12 @@ public class TaskTest extends TestLogger {
 
         @Override
         public void invoke() throws Exception {}
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
     }
 
     /** {@link AbstractInvokable} which throws {@link RuntimeException} on invoke. */

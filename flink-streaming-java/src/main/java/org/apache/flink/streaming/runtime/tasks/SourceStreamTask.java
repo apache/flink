@@ -167,7 +167,7 @@ public class SourceStreamTask<
     }
 
     @Override
-    protected void cleanup() {
+    protected void cleanUpInternal() {
         // does not hold any resources, so no cleanup needed
     }
 
@@ -197,16 +197,11 @@ public class SourceStreamTask<
     }
 
     @Override
-    protected void cleanUpInvoke() throws Exception {
-        if (isFailing()) {
-            interruptSourceThread(true);
-        }
-        super.cleanUpInvoke();
-    }
-
-    @Override
     protected void cancelTask() {
         if (stopped.compareAndSet(false, true)) {
+            if (isFailing()) {
+                interruptSourceThread(true);
+            }
             cancelOperator(true);
         }
     }

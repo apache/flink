@@ -86,7 +86,7 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
     public void init() {}
 
     @Override
-    protected void cleanup() {
+    protected void cleanUpInternal() {
         mailboxProcessor.allActionsCompleted();
     }
 
