@@ -127,7 +127,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
 
     @After
     public void teardown() throws Exception {
-        containingTask.cleanup();
+        containingTask.cleanUpInternal();
     }
 
     @Test

@@ -761,18 +761,7 @@ public class Task
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            AbstractInvokable finalInvokable = invokable;
-            runWithSystemExitMonitoring(finalInvokable::restore);
-
-            if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
-                throw new CancelTaskException();
-            }
-
-            // notify everyone that we switched to running
-            taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
-
-            runWithSystemExitMonitoring(finalInvokable::invoke);
+            restoreAndInvoke(invokable);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
@@ -929,6 +918,30 @@ public class Task
                         t);
             }
         }
+    }
+
+    private void restoreAndInvoke(AbstractInvokable finalInvokable) throws Exception {
+        try {
+            runWithSystemExitMonitoring(finalInvokable::restore);
+
+            if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
+                throw new CancelTaskException();
+            }
+
+            // notify everyone that we switched to running
+            taskManagerActions.updateTaskExecutionState(
+                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
+
+            runWithSystemExitMonitoring(finalInvokable::invoke);
+        } catch (Throwable throwable) {
+            try {
+                runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable));
+            } catch (Throwable cleanUpThrowable) {
+                throwable.addSuppressed(cleanUpThrowable);
+            }
+            throw throwable;
+        }
+        runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(null));
     }
 
     /**

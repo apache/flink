@@ -164,7 +164,7 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
     public void finishProcessing() throws Exception {
         streamTask.afterInvoke();
-        streamTask.cleanUpInvoke();
+        streamTask.cleanUp(null);
     }
 
     @Override

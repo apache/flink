@@ -382,17 +382,18 @@ public class StreamTaskTest extends TestLogger {
 
         try {
             testHarness.waitForTaskCompletion();
+            throw new RuntimeException("Expected an exception but ran successfully");
         } catch (Exception ex) {
-            // make sure the original exception is the cause and not wrapped
             if (!(ex.getCause() instanceof ExpectedTestException)) {
                 throw ex;
             }
-            // make sure DisposeException is the only suppressed exception
-            if (ex.getCause().getSuppressed().length != 1) {
-                throw ex;
-            }
-            if (!(ex.getCause().getSuppressed()[0]
-                    instanceof FailingTwiceOperator.CloseException)) {
+        }
+
+        try {
+            testHarness.getTask().cleanUp(null);
+        } catch (Exception ex) {
+            // todo: checking for suppression if there are more exceptions during cleanup
+            if (!(ex instanceof FailingTwiceOperator.CloseException)) {
                 throw ex;
             }
         }
@@ -640,7 +641,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
 
         @Override
         protected void cancelTask() throws Exception {
@@ -1705,84 +1706,6 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
-    @Test
-    public void testCleanUpResourcesWhenFailingDuringInit() throws Exception {
-        // given: Configured SourceStreamTask with source which fails during initialization.
-        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        try {
-            // when: The task initializing(restoring).
-            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
-            fail("The task should fail during the restore");
-        } catch (Exception ex) {
-            // then: The task should throw exception from initialization.
-            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
-                throw ex;
-            }
-        }
-
-        // then: The task should clean up all resources even when it failed on init.
-        assertTrue(OpenFailingOperator.wasClosed);
-    }
-
-    @Test
-    public void testRethrowExceptionFromRestoreInsideOfInvoke() throws Exception {
-        // given: Configured SourceStreamTask with source which fails during initialization.
-        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        try {
-            // when: The task invocation without preceded restoring.
-            StreamTaskMailboxTestHarness<Integer> harness =
-                    builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>())
-                            .buildUnrestored();
-
-            harness.streamTask.invoke();
-
-            fail("The task should fail during the restore");
-        } catch (Exception ex) {
-            // then: The task should rethrow exception from initialization.
-            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
-                throw ex;
-            }
-        }
-
-        // and: The task should clean up all resources even when it failed on init.
-        assertTrue(OpenFailingOperator.wasClosed);
-    }
-
-    @Test
-    public void testCleanUpResourcesEvenWhenCancelTaskFails() throws Exception {
-        // given: Configured StreamTask which fails during restoring and then inside of cancelTask.
-        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                (env) ->
-                                        new OneInputStreamTask<String, Integer>(env) {
-                                            @Override
-                                            protected void cancelTask() {
-                                                throw new RuntimeException("Cancel task exception");
-                                            }
-                                        },
-                                BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
-        try {
-            // when: The task initializing(restoring).
-            builder.setupOutputForSingletonOperatorChain(new OpenFailingOperator<>()).build();
-            fail("The task should fail during the restore");
-        } catch (Exception ex) {
-            // then: The task should throw the original exception about the restore fail.
-            if (!ExceptionUtils.findThrowable(ex, ExpectedTestException.class).isPresent()) {
-                throw ex;
-            }
-        }
-
-        // and: The task should clean up all resources even when cancelTask fails.
-        assertTrue(OpenFailingOperator.wasClosed);
-    }
-
     /**
      * This test checks the fact that throughput calculation is started automatically(just to be
      * sure that the scheduler is configured).
@@ -2027,7 +1950,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() throws Exception {}
+        protected void cleanUpInternal() throws Exception {}
     }
 
     /**
@@ -2228,8 +2151,8 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void executeRestore() throws Exception {
-            super.executeRestore();
+        public void restoreInternal() throws Exception {
+            super.restoreInternal();
             restoreInvocationCount++;
         }
 
@@ -2321,7 +2244,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() throws Exception {}
+        protected void cleanUpInternal() throws Exception {}
 
         @Override
         public StreamTaskStateInitializer createStreamTaskStateInitializer() {
@@ -2448,16 +2371,16 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() throws Exception {
+        protected void cleanUpInternal() throws Exception {
             checkTaskThreadInfo();
         }
 
         private void checkTaskThreadInfo() {
             Thread currentThread = Thread.currentThread();
-            Preconditions.checkState(
+            checkState(
                     taskThreadId == currentThread.getId(),
                     "Task's method was called in non task thread.");
-            Preconditions.checkState(
+            checkState(
                     taskClassLoader == currentThread.getContextClassLoader(),
                     "Task's controller class loader has been changed during invocation.");
         }

@@ -203,7 +203,7 @@ public class SynchronousCheckpointITCase {
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
     }
 
     /**

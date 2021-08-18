@@ -128,7 +128,6 @@ import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
-import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
@@ -471,12 +470,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     protected void cancelTask() throws Exception {}
 
-    protected void cleanup() throws Exception {
-        if (inputProcessor != null) {
-            inputProcessor.close();
-        }
-    }
-
     /**
      * This method implements the default action of the task (e.g. processing one event from the
      * input). Implementations should (in general) be non-blocking.
@@ -635,10 +628,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void restore() throws Exception {
-        runWithCleanUpOnFail(this::executeRestore);
+        restoreInternal();
     }
 
-    void executeRestore() throws Exception {
+    void restoreInternal() throws Exception {
         if (isRunning) {
             LOG.debug("Re-restore attempt rejected.");
             return;
@@ -725,16 +718,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void invoke() throws Exception {
-        runWithCleanUpOnFail(this::executeInvoke);
-
-        cleanUpInvoke();
-    }
-
-    private void executeInvoke() throws Exception {
         // Allow invoking method 'invoke' without having to call 'restore' before it.
         if (!isRunning) {
             LOG.debug("Restoring during invoke will be called.");
-            executeRestore();
+            restoreInternal();
         }
 
         // final check to exit early before starting to run
@@ -777,29 +764,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         long throughput = throughputCalculator.calculateThroughput();
         if (bufferDebloater != null) {
             bufferDebloater.recalculateBufferSize(throughput);
-        }
-    }
-
-    private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
-        try {
-            run.run();
-        } catch (Throwable invokeException) {
-            failing = !canceled;
-            try {
-                try {
-                    cancelTask();
-                } catch (Throwable ex) {
-                    invokeException = firstOrSuppressed(ex, invokeException);
-                }
-
-                cleanUpInvoke();
-            }
-            // TODO: investigate why Throwable instead of Exception is used here.
-            catch (Throwable cleanUpException) {
-                rethrowException(firstOrSuppressed(cleanUpException, invokeException));
-            }
-
-            rethrowException(invokeException);
         }
     }
 
@@ -894,7 +858,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 && configuration.isCheckpointingEnabled();
     }
 
-    protected void cleanUpInvoke() throws Exception {
+    @Override
+    public final void cleanUp(Throwable throwable) throws Exception {
+        LOG.debug(
+                "Cleanup StreamTask (operators closed: {}, cancelled: {})",
+                closedOperators,
+                canceled);
+
+        failing = !canceled && throwable != null;
+
+        Exception suppressedException =
+                throwable == null ? null : runAndSuppressThrowable(this::cancelTask, null);
+
         getCompletionFuture().exceptionally(unused -> null).join();
         // clean up everything we initialized
         isRunning = false;
@@ -910,8 +885,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         Thread.interrupted();
 
         // stop all timers and threads
-        Exception suppressedException =
-                runAndSuppressThrowable(this::tryShutdownTimerService, null);
+        suppressedException =
+                runAndSuppressThrowable(this::tryShutdownTimerService, suppressedException);
 
         // stop all asynchronous checkpoint threads
         suppressedException = runAndSuppressThrowable(cancelables::close, suppressedException);
@@ -919,7 +894,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 runAndSuppressThrowable(this::shutdownAsyncThreads, suppressedException);
 
         // we must! perform this cleanup
-        suppressedException = runAndSuppressThrowable(this::cleanup, suppressedException);
+        suppressedException = runAndSuppressThrowable(this::cleanUpInternal, suppressedException);
 
         // if the operators were not closed before, do a hard close
         suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
@@ -938,6 +913,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } else {
             terminationFuture.completeExceptionally(suppressedException);
             throw suppressedException;
+        }
+    }
+
+    protected void cleanUpInternal() throws Exception {
+        if (inputProcessor != null) {
+            inputProcessor.close();
         }
     }
 

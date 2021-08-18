@@ -31,6 +31,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -112,6 +114,17 @@ public abstract class AbstractInvokable {
         // The default implementation does nothing.
         return CompletableFuture.completedFuture(null);
     }
+
+    /**
+     * Cleanup any resources used in {@link #invoke()} OR {@link #restore()}. This method must be
+     * called regardless whether the aforementioned calls succeeded or failed.
+     *
+     * @param throwable iff failure happened during the execution of {@link #restore()} or {@link
+     *     #invoke()}, null otherwise.
+     *     <p>ATTENTION: {@link org.apache.flink.runtime.execution.CancelTaskException
+     *     CancelTaskException} should not be treated as a failure, null must be passed instead.
+     */
+    public void cleanUp(@Nullable Throwable throwable) throws Exception {}
 
     /**
      * Sets whether the thread that executes the {@link #invoke()} method should be interrupted
