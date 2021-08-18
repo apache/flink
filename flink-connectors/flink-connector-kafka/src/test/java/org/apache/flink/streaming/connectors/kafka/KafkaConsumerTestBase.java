@@ -168,7 +168,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     // ------------------------------------------------------------------------
 
     /**
-     * Test that ensures the KafkaConsumer is properly failing if the topic doesnt exist and a wrong
+     * Test that ensures the KafkaConsumer is properly failing if the topic doesn't exist and a wrong
      * broker was specified.
      *
      * @throws Exception

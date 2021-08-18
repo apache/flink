@@ -72,7 +72,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
         POLLING
     }
 
-    /** The EFO registration type reprsents how we are going to de-/register efo consumer. */
+    /** The EFO registration type represents how we are going to de-/register efo consumer. */
     public enum EFORegistrationType {
 
         /**

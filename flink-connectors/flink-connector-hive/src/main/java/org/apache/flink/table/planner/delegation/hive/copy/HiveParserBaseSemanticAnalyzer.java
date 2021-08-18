@@ -2366,7 +2366,7 @@ public class HiveParserBaseSemanticAnalyzer {
                         nullFormat = unescapeSQLString(rowChild.getChild(0).getText());
                         break;
                     default:
-                        throw new AssertionError("Unkown Token: " + rowChild);
+                        throw new AssertionError("Unknown Token: " + rowChild);
                 }
             }
         }

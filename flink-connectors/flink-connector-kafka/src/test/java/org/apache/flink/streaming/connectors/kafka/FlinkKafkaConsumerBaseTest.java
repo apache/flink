@@ -260,7 +260,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     }
 
     /**
-     * Tests that subscribed partitions didn't change when there's no change on the intial topics.
+     * Tests that subscribed partitions didn't change when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
@@ -299,7 +299,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     }
 
     /**
-     * Tests that subscribed partitions are the same when there's no change on the intial topics.
+     * Tests that subscribed partitions are the same when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test

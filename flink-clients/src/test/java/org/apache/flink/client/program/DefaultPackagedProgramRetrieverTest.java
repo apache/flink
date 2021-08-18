@@ -542,7 +542,7 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
             throws MalformedURLException {
         Preconditions.checkArgument(
                 directory.listFiles() != null,
-                "The passed File does not seem to be a directory or is not acessible: "
+                "The passed File does not seem to be a directory or is not accessible: "
                         + directory.getAbsolutePath());
 
         final List<String> relativizedURLs = new ArrayList<>();
