@@ -225,7 +225,7 @@ Related issues:
 ### MapR dependency removed
 
 Dependency on MapR vendor-specific artifacts has been removed, by changing the MapR filesystem connector to work
-purely based on reflection. This does not introduce any regession in the support for the MapR filesystem.
+purely based on reflection. This does not introduce any regression in the support for the MapR filesystem.
 The decision to remove hard dependencies on the MapR artifacts was made due to very flaky access to the secure https
 endpoint of the MapR artifact repository, and affected build stability of Flink.
 
