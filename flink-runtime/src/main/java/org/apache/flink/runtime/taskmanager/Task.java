@@ -972,12 +972,15 @@ public class Task
 
         for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
             taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
-            if (isCanceledOrFailed()) {
-                partitionWriter.fail(getFailureCause());
-            }
         }
 
-        closeNetworkResources();
+        // close network resources
+        if (isCanceledOrFailed()) {
+            failAllResultPartitions();
+        }
+        closeAllResultPartitions();
+        closeAllInputGates();
+
         try {
             taskStateManager.close();
         } catch (Exception e) {
@@ -985,11 +988,13 @@ public class Task
         }
     }
 
-    /**
-     * There are two scenarios to close the network resources. One is from {@link TaskCanceler} to
-     * early release partitions and gates. Another is from task thread during task exiting.
-     */
-    private void closeNetworkResources() {
+    private void failAllResultPartitions() {
+        for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+            partitionWriter.fail(getFailureCause());
+        }
+    }
+
+    private void closeAllResultPartitions() {
         for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
             try {
                 partitionWriter.close();
@@ -999,14 +1004,14 @@ public class Task
                         "Failed to release result partition for task {}.", taskNameWithSubtask, t);
             }
         }
+    }
 
+    private void closeAllInputGates() {
         AbstractInvokable invokable = this.invokable;
         if (invokable == null || !invokable.isUsingNonBlockingInput()) {
-            // Cleanup resources instead of invokable if it is null,
-            // or prevent it from being blocked on input,
-            // or interrupt if it is already blocked.
-            // Not needed for StreamTask (which does NOT use blocking input); for which this could
-            // cause race conditions
+            // Cleanup resources instead of invokable if it is null, or prevent it from being
+            // blocked on input, or interrupt if it is already blocked. Not needed for StreamTask
+            // (which does NOT use blocking input); for which this could cause race conditions
             for (InputGate inputGate : inputGates) {
                 try {
                     inputGate.close();
@@ -1182,7 +1187,6 @@ public class Task
                         Runnable canceler =
                                 new TaskCanceler(
                                         LOG,
-                                        this::closeNetworkResources,
                                         taskCancellationTimeout > 0
                                                 ? taskCancellationTimeout
                                                 : TaskManagerOptions.TASK_CANCELLATION_TIMEOUT
@@ -1588,10 +1592,9 @@ public class Task
      * This runner calls cancel() on the invokable, closes input-/output resources, and initially
      * interrupts the task thread.
      */
-    private static class TaskCanceler implements Runnable {
+    private class TaskCanceler implements Runnable {
 
         private final Logger logger;
-        private final Runnable networkResourcesCloser;
         /** Time to wait after cancellation and interruption before releasing network resources. */
         private final long taskCancellationTimeout;
 
@@ -1601,13 +1604,11 @@ public class Task
 
         TaskCanceler(
                 Logger logger,
-                Runnable networkResourcesCloser,
                 long taskCancellationTimeout,
                 AbstractInvokable invokable,
                 Thread executer,
                 String taskName) {
             this.logger = logger;
-            this.networkResourcesCloser = networkResourcesCloser;
             this.taskCancellationTimeout = taskCancellationTimeout;
             this.invokable = invokable;
             this.executer = executer;
@@ -1640,7 +1641,12 @@ public class Task
                 // in order to unblock async Threads, which produce/consume the
                 // intermediate streams outside of the main Task Thread (like
                 // the Kafka consumer).
-                networkResourcesCloser.run();
+                // Notes: 1) This does not mean to release all network resources,
+                // the task thread itself will release them; 2) We can not close
+                // ResultPartitions here because of possible race conditions with
+                // Task thread so we just call the fail here.
+                failAllResultPartitions();
+                closeAllInputGates();
 
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalError(t);

@@ -250,15 +250,21 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Releases all produced data including both those stored in memory and persisted on disk. */
     protected abstract void releaseInternal();
 
-    @Override
-    public void close() {
+    private void closeBufferPool() {
         if (bufferPool != null) {
             bufferPool.lazyDestroy();
         }
     }
 
     @Override
+    public void close() {
+        closeBufferPool();
+    }
+
+    @Override
     public void fail(@Nullable Throwable throwable) {
+        // the task canceler thread will call this method to early release the output buffer pool
+        closeBufferPool();
         partitionManager.releasePartition(partitionId, throwable);
     }
 
