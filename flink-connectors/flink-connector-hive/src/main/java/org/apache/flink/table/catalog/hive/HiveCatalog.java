@@ -313,11 +313,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         try {
             if (hiveConf.getBoolean(HIVE_AUTHORIZATION_ENABLED, false)) {
-                if (UserGroupInformation.isSecurityEnabled()) {
-                    userName = UserGroupInformation.getCurrentUser().getShortUserName();
-                } else {
-                    userName = hiveConf.get("user.name", "").trim();
-                }
+                userName = UserGroupInformation.getCurrentUser().getShortUserName();
             }
         } catch (IOException e) {
             throw new CatalogException("Failed to get userName", e);

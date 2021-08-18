@@ -73,6 +73,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -82,7 +83,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     @BeforeClass
     public static void init() {
         HiveConf conf = HiveTestUtils.createHiveConf();
-        conf.set("user.name", "test");
+        conf.setBoolean("hive.security.authorization.enabled", true);
         catalog = HiveTestUtils.createHiveCatalog(conf);
         catalog.open();
     }
@@ -100,7 +101,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.createTable(path1, table, false);
 
         Table hiveTable = ((HiveCatalog) catalog).getHiveTable(path1);
-        assertEquals("test", hiveTable.getOwner());
+        assertNotNull(hiveTable.getOwner());
     }
 
     @Test
