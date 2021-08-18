@@ -19,6 +19,7 @@
 package org.apache.flink.table.client;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
@@ -82,6 +83,8 @@ public class SqlClient {
 
             DefaultContext defaultContext = LocalContextUtils.buildDefaultContext(options);
             final Executor executor = new LocalExecutor(defaultContext);
+            Configuration flinkConfig = defaultContext.getFlinkConfig();
+            options.getDynamicConfMap().forEach(flinkConfig::setString);
             executor.start();
 
             // Open an new session

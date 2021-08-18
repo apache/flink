@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Command line options to configure the SQL client. Arguments that have not been specified by the
@@ -40,6 +41,7 @@ public class CliOptions {
     private final String updateStatement;
     private final String historyFilePath;
     private final Configuration pythonConfiguration;
+    private final Map<String, String> dynamicConfMap;
 
     public CliOptions(
             boolean isPrintHelp,
@@ -50,7 +52,8 @@ public class CliOptions {
             List<URL> libraryDirs,
             String updateStatement,
             String historyFilePath,
-            Configuration pythonConfiguration) {
+            Configuration pythonConfiguration,
+            Map<String, String> dynamicConfMap) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
         this.initFile = initFile;
@@ -60,6 +63,7 @@ public class CliOptions {
         this.updateStatement = updateStatement;
         this.historyFilePath = historyFilePath;
         this.pythonConfiguration = pythonConfiguration;
+        this.dynamicConfMap = dynamicConfMap;
     }
 
     public boolean isPrintHelp() {
@@ -96,5 +100,9 @@ public class CliOptions {
 
     public Configuration getPythonConfiguration() {
         return pythonConfiguration;
+    }
+
+    public Map<String, String> getDynamicConfMap() {
+        return dynamicConfMap;
     }
 }

@@ -34,7 +34,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
@@ -137,6 +139,15 @@ public class CliOptionsParser {
                                     + "auto-generate one under your user's home directory.")
                     .build();
 
+    public static final Option OPTION_CONF = Option
+            .builder("c")
+            .required(false)
+            .longOpt("conf")
+            .numberOfArgs(1)
+            .argName("dynamic configuration")
+            .desc("The dynamic configuration that the specified key and value are separated by `=`.")
+            .build();
+
     private static final Options EMBEDDED_MODE_CLIENT_OPTIONS =
             getEmbeddedModeClientOptions(new Options());
     private static final Options GATEWAY_MODE_CLIENT_OPTIONS =
@@ -162,6 +173,7 @@ public class CliOptionsParser {
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
         options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(OPTION_CONF);
         return options;
     }
 
@@ -260,6 +272,30 @@ public class CliOptionsParser {
     //  Line Parsing
     // --------------------------------------------------------------------------------------------
 
+    private static Map<String, String> getDynamicConfiguration(CommandLine line) {
+        String[] optionValues = line.getOptionValues(CliOptionsParser.OPTION_CONF.getOpt());
+        Map<String, String> dynamicConfMap = new HashMap<>();
+        if (optionValues != null && optionValues.length > 0) {
+            for (String conf:  optionValues) {
+                String[] kv = conf.split("=", 2);
+                if (kv.length == 1) {
+                    continue;
+                }
+
+                String key = kv[0].trim();
+                String value = kv[1].trim();
+
+                // sanity check
+                if (key.length() == 0 || value.length() == 0) {
+                    continue;
+                }
+
+                dynamicConfMap.put(key, value);
+            }
+        }
+        return dynamicConfMap;
+    }
+
     public static CliOptions parseEmbeddedModeClient(String[] args) {
         try {
             DefaultParser parser = new DefaultParser();
@@ -273,7 +309,8 @@ public class CliOptionsParser {
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
-                    getPythonConfiguration(line));
+                    getPythonConfiguration(line),
+                    getDynamicConfiguration(line));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
@@ -292,7 +329,8 @@ public class CliOptionsParser {
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
-                    getPythonConfiguration(line));
+                    getPythonConfiguration(line),
+                    getDynamicConfiguration(line));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
@@ -311,7 +349,8 @@ public class CliOptionsParser {
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     null,
                     null,
-                    getPythonConfiguration(line));
+                    getPythonConfiguration(line),
+                    getDynamicConfiguration(line));
         } catch (ParseException e) {
             throw new SqlClientException(e.getMessage());
         }
