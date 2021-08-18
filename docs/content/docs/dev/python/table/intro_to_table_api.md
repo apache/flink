@@ -64,7 +64,7 @@ table_env.execute_sql("""
     )
 """)
 
-# 4. query from source table and perform caculations
+# 4. query from source table and perform calculations
 # create a Table from a Table API query:
 source_table = table_env.from_path("datagen")
 # or create a Table from a SQL query:

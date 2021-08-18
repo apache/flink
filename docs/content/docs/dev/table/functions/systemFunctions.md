@@ -106,7 +106,7 @@ Known Limitations:
 
 ### Auxiliary Functions
 
-{{< sql_functions "auxilary" >}}
+{{< sql_functions "auxiliary" >}}
 
 Aggregate Functions
 -------------------
