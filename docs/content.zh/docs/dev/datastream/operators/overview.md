@@ -24,18 +24,25 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="operators"></a>
+
 # 算子
 
 用户通过算子能将一个或多个 DataStream 转换成新的 DataStream，在应用程序中可以将多个数据转换算子合并成一个复杂的数据流拓扑。
 
-这部分内容将描述 Flink DataStream API 中基本的数据转换API，数据转换后各种数据分区方式，以及算子的链接策略。
+这部分内容将描述 Flink DataStream API 中基本的数据转换 API，数据转换后各种数据分区方式，以及算子的链接策略。
+
+<a name="datastream-transformations"></a>
 
 ## 数据流转换
 
+<a name="map"></a>
+
 ### Map
+
 #### DataStream &rarr; DataStream
 
-Takes one element and produces one element. A map function that doubles the values of the input stream:
+输入一个数据同时输出一个数据。下面是将输入流中数值加倍的 map function：
 
 {{< tabs mapfunc >}}
 {{< tab "Java">}}
@@ -62,10 +69,13 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="flatmap"></a>
+
 ### FlatMap
+
 #### DataStream &rarr; DataStream
 
-Takes one element and produces zero, one, or more elements. A flatmap function that splits sentences to words:
+输入一个数据同时产生零个、一个或多个数据。下面是将句子拆分为单词的 flatmap function：
 
 {{< tabs flatmapfunc >}}
 {{< tab "Java">}}
@@ -94,10 +104,13 @@ data_stream.flat_map(lambda x: x.split(' '), output_type=Types.STRING())
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="filter"></a>
+
 ### Filter
+
 #### DataStream &rarr; DataStream
 
-Evaluates a boolean function for each element and retains those for which the function returns true. A filter that filters out zero values: 
+为每个数据执行一个布尔 function，并保留那些 function 输出值为 true 的元素。下面是过滤掉零值的 filter：
 
 {{< tabs filterfunc >}}
 {{< tab "Java">}}
@@ -123,10 +136,12 @@ data_stream.filter(lambda x: x != 0)
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="keyby"></a>
+
 ### KeyBy
 #### DataStream &rarr; KeyedStream
 
-Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, _keyBy()_ is implemented with hash partitioning. There are different ways to [specify keys]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-datastream).
+在逻辑上将流划分为不相交的分区。具有相同键的记录都分配到同一个分区。在内部， _keyBy()_  是通过哈希分区实现的。有多种[指定键]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-datastream)的方式。
 
 {{< tabs keybyfunc >}}
 {{< tab "Java">}}
@@ -150,18 +165,22 @@ data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result
 {{< /tabs>}}
 
 {{< hint warning >}}
-A type **cannot be a key if**:
 
-1. it is a POJO type but does not override the `hashCode()` method and relies on the `Object.hashCode()` implementation.
-2. it is an array of any type.
+以下情况，一个类**不能作为键**：
+
+1. 它是一种 POJO 类，但没有重写 hashCode() 方法而是依赖于 Object.hashCode() 实现。
+2. 它是任意类的数组。
+
 {{< /hint >}}
+
+<a name="reduce"></a>
 
 ### Reduce
 #### KeyedStream &rarr; DataStream
 
-A "rolling" reduce on a keyed data stream. Combines the current element with the last reduced value and emits the new value.
+在相同键的数据流上“滚动”执行 reduce。将当前元素与最后一次 reduce 得到的值组合然后输出新值。
 
-A reduce function that creates a stream of partial sums:
+下面是创建局部求和的流的 reduce function：
 
 {{< tabs globalreduce >}}
 {{< tab "Java">}}
@@ -188,11 +207,12 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="window"></a>
+
 ### Window
 #### KeyedStream &rarr; WindowedStream
 
-Windows can be defined on already partitioned KeyedStreams. Windows group the data in each key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
-See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complete description of windows.
+可以在已经分区的 KeyedStreams 上定义 Windows。Window 根据某些特征（例如，最近 5 秒内到达的数据）对每个键中的数据进行分组。请参阅 [windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
 
 {{< tabs window >}}
 {{< tab "Java">}}
@@ -214,17 +234,21 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="windowall"></a>
+
 ### WindowAll
 #### DataStream &rarr; AllWindowedStream
 
-Windows can be defined on regular DataStreams. Windows group all the stream events according to some characteristic (e.g., the data that arrived within the last 5 seconds). See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complete description of windows.
+可以在普通 DataStreams 上定义 Window。 Window 根据某些特征（例如，最近 5 秒内到达的数据）对所有流事件进行分组。请参阅[windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
 
 {{< hint warning >}}
-This is in many cases a non-parallel transformation. All records will be gathered in one task for the windowAll operator.
+
+在许多情况下，这是一种非并行转换。所有记录都将收集到 windowAll 算子对应的一个任务中。
 {{< /hint >}}
 
 {{< tabs windowAll >}}
 {{< tab "Java">}}
+
 ```java
 dataStream
   .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)));
@@ -241,14 +265,16 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="window-apply"></a>
+
 ### Window Apply 
 #### WindowedStream &rarr; DataStream
 #### AllWindowedStream &rarr; DataStream
 
-Applies a general function to the window as a whole. Below is a function that manually sums the elements of a window.
+将通用 function 应用于整个窗口。下面是一个手动对窗口内元素求和的 function。
 
 {{< hint info >}}
-If you are using a windowAll transformation, you need to use an `AllWindowFunction` instead.
+如果你使用 windowAll 转换，则需要改用 `AllWindowFunction`。
 {{< /hint >}}
 
 {{< tabs windowapply >}}
@@ -267,7 +293,7 @@ windowedStream.apply(new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, 
     }
 });
 
-// applying an AllWindowFunction on non-keyed window stream
+// 在 non-keyed 窗口流上应用 AllWindowFunction
 allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, Window>() {
     public void apply (Window window,
             Iterable<Tuple2<String, Integer>> values,
@@ -285,19 +311,21 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 ```scala
 windowedStream.apply { WindowFunction }
 
-// applying an AllWindowFunction on non-keyed window stream
+// 在 non-keyed 窗口流上应用 AllWindowFunction
 allWindowedStream.apply { AllWindowFunction }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 尚不支持此功能
 {{< /tab >}}
 {{< /tabs>}}
+
+<a name="windowreduce"></a>
 
 ### WindowReduce
 #### WindowedStream &rarr; DataStream
 
-Applies a functional reduce function to the window and returns the reduced value.
+对窗口应用 reduce function 并返回 reduce 后的值。
 
 {{< tabs windowreduce >}}
 {{< tab "Java" >}}
@@ -319,10 +347,12 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="union"></a>
+
 ### Union
 #### DataStream\* &rarr; DataStream
 
-Union of two or more data streams creating a new stream containing all the elements from all the streams. Note: If you union a data stream with itself you will get each element twice in the resulting stream.
+将两个或多个数据流联合来创建一个包含所有流中数据的新流。注意：如果一个数据流和自身进行联合，这个流中的每个数据将在合并后的流中出现两次。
 
 {{< tabs union >}}
 {{< tab "Java" >}}
@@ -342,10 +372,12 @@ data_stream.union(otherStream1, otherStream2, ...)
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="window-join"></a>
+
 ### Window Join
 #### DataStream,DataStream &rarr; DataStream
 
-Join two data streams on a given key and a common window.
+根据指定的 key 和窗口 join 两个数据流。
 
 {{< tabs windowjoin >}}
 {{< tab "Java" >}}
@@ -369,13 +401,16 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="interval-join"></a>
+
 ### Interval Join
 #### KeyedStream,KeyedStream &rarr; DataStream
 
-Join two elements e1 and e2 of two keyed streams with a common key over a given time interval, so that `e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`.
+将分别属于两个 keyed stream 的元素 e1 和 e2 根据一个共同的 key 和指定的时间范围 Join 在一起，同时满足 `e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`。
 
 {{< tabs intervaljoin >}}
 {{< tab "Java" >}}
+
 ```java
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
@@ -403,13 +438,16 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="window-cogroup"></a>
+
 ### Window CoGroup
 #### DataStream,DataStream &rarr; DataStream
 
-Cogroups two data streams on a given key and a common window.
+根据指定的 key 和窗口将两个数据流组合在一起。
 
 {{< tabs windowcogroup >}}
 {{< tab "Java" >}}
+
 ```java
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
@@ -430,13 +468,16 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="connect"></a>
+
 ### Connect
 #### DataStream,DataStream &rarr; ConnectedStream
 
-"Connects" two data streams retaining their types. Connect allowing for shared state between the two streams.
+“连接” 两个数据流并保留各自的类型。connect 允许在两个流之间共享状态。
 
 {{< tabs connect >}}
 {{< tab "Java" >}}
+
 ```java
 DataStream<Integer> someStream = //...
 DataStream<String> otherStream = //...
@@ -461,13 +502,16 @@ connected_streams = stream_1.connect(stream_2)
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="comap-coflatmap"></a>
+
 ### CoMap, CoFlatMap
 #### ConnectedStream &rarr; DataStream
 
-Similar to map and flatMap on a connected data stream
+类似于在连接的数据流上进行 map 和 flatMap。
 
 {{< tabs comap >}}
 {{< tab "Java" >}}
+
 ```java
 connectedStreams.map(new CoMapFunction<Integer, String, Boolean>() {
     @Override
@@ -533,10 +577,12 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="iterate"></a>
+
 ### Iterate
 #### DataStream &rarr; IterativeStream &rarr; ConnectedStream
 
-Creates a "feedback" loop in the flow, by redirecting the output of one operator to some previous operator. This is especially useful for defining algorithms that continuously update a model. The following code starts with a stream and applies the iteration body continuously. Elements that are greater than 0 are sent back to the feedback channel, and the rest of the elements are forwarded downstream.
+通过将一个算子的输出重定向到某个之前的算子来在流中创建“反馈”循环。这对于定义持续更新模型的算法特别有用。下面的代码从一个流开始，并不断地应用迭代自身。大于 0 的元素被发送回反馈通道，其余元素被转发到下游。
 
 {{< tabs iterate >}}
 {{< tab "Java" >}}
@@ -573,14 +619,18 @@ This feature is not yet supported in Python
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="physical-partitioning"></a>
+
 ## 物理分区
 
 Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
 
-### Custom Partitioning
+<a name="custom-partitioning"></a>
+
+### 自定义分区
 #### DataStream &rarr; DataStream
 
-Uses a user-defined Partitioner to select the target task for each element. 
+使用用户定义的 Partitioner 为每个元素选择目标任务。
 
 {{< tabs custompartitioning >}}
 {{< tab "Java" >}}
@@ -603,10 +653,12 @@ data_stream.partition_custom(lambda key, num_partition: key % partition, lambda 
 {{< /tab >}}
 {{< /tabs>}}
 
-### Random Partitioning
+<a name="random-partitioning"></a>
+
+### 随机分区
 #### DataStream &rarr; DataStream
 
-Partitions elements randomly according to a uniform distribution. 
+将元素随机地均匀划分到分区。
 
 {{< tabs shuffle >}}
 {{< tab "Java" >}}
@@ -626,8 +678,10 @@ data_stream.shuffle()
 {{< /tab >}}
 {{< /tabs>}}
 
+<a name="rescalling"></a>
 
-### Rescaling
+
+### 重新缩放
 #### DataStream &rarr; DataStream
 
 Partitions elements, round-robin, to a subset of downstream operations. This is useful if you want to have pipelines where you, for example, fan out from each parallel instance of a source to a subset of several mappers to distribute load but don't want the full rebalance that rebalance() would incur. This would require only local data transfers instead of transferring data over network, depending on other configuration values such as the number of slots of TaskManagers.
@@ -658,10 +712,12 @@ data_stream.rescale()
 {{< /tab >}}
 {{< /tabs>}}
 
-### Broadcasting
+<a name="broadcasting"></a>
+
+### 广播
 #### DataStream &rarr; DataStream
 
-Broadcasts elements to every partition. 
+将元素广播至所有每个分区 。
 
 {{< tabs broadcast >}}
 {{< tab "Java" >}}
@@ -680,6 +736,8 @@ data_stream.broadcast()
 ```
 {{< /tab >}}
 {{< /tabs>}}
+
+<a name="broadcasting"></a>
 
 ## 算子链和资源组
 
