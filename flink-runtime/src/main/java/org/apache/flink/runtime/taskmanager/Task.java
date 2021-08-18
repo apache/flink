@@ -87,6 +87,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -760,13 +761,8 @@ public class Task
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-            try {
-                // Restore invokable data to the last valid state
-                invokable.restore();
-            } finally {
-                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-            }
+            AbstractInvokable finalInvokable = invokable;
+            runWithSystemExitMonitoring(finalInvokable::restore);
 
             if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
                 throw new CancelTaskException();
@@ -776,17 +772,7 @@ public class Task
             taskManagerActions.updateTaskExecutionState(
                     new TaskExecutionState(executionId, ExecutionState.RUNNING));
 
-            // Monitor user codes from exiting JVM covering user function invocation. This can be
-            // done in a finer-grained way like enclosing user callback functions individually,
-            // but as exit triggered by framework is not performed and expected in this invoke
-            // function anyhow, we can monitor exiting JVM for entire scope.
-            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-            try {
-                // run the invokable
-                invokable.invoke();
-            } finally {
-                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-            }
+            runWithSystemExitMonitoring(finalInvokable::invoke);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
@@ -942,6 +928,21 @@ public class Task
                         executionId,
                         t);
             }
+        }
+    }
+
+    /**
+     * Monitor user codes from exiting JVM covering user function invocation. This can be done in a
+     * finer-grained way like enclosing user callback functions individually, but as exit triggered
+     * by framework is not performed and expected in this invoke function anyhow, we can monitor
+     * exiting JVM for entire scope.
+     */
+    private void runWithSystemExitMonitoring(RunnableWithException action) throws Exception {
+        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+        try {
+            action.run();
+        } finally {
+            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
         }
     }
 
