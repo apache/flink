@@ -946,7 +946,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
     }
 
     /**
-     * Tests that the AysncWaitOperator can restart if checkpointed queue was full.
+     * Tests that the AsyncWaitOperator can restart if checkpointed queue was full.
      *
      * <p>See FLINK-7949
      */
