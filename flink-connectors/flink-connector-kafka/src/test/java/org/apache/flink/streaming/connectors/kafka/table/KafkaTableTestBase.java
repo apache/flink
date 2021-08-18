@@ -145,7 +145,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
 
     // ------------------------ For Debug Logging Purpose ----------------------------------
 
-    protected void scheduleTimeoutLogger(Duration period, Runnable loggingAction) {
+    private void scheduleTimeoutLogger(Duration period, Runnable loggingAction) {
         TimerTask timeoutLoggerTask =
                 new TimerTask() {
                     @Override
@@ -160,11 +160,11 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         loggingTimer.schedule(timeoutLoggerTask, 0L, period.toMillis());
     }
 
-    protected void cancelTimeoutLogger() {
+    private void cancelTimeoutLogger() {
         loggingTimer.cancel();
     }
 
-    protected Map<String, TopicDescription> describeExternalTopics() {
+    private Map<String, TopicDescription> describeExternalTopics() {
         final AdminClient adminClient = AdminClient.create(getStandardProps());
         try {
             final List<String> topics =
@@ -179,7 +179,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         }
     }
 
-    protected void logTopicPartitionStatus(Map<String, TopicDescription> topicDescriptions) {
+    private void logTopicPartitionStatus(Map<String, TopicDescription> topicDescriptions) {
         final Properties properties = getStandardProps();
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, "flink-tests-debugging");
         properties.setProperty(
