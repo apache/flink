@@ -395,6 +395,11 @@ SET 'table.exec.spill-compression.enabled' = 'true';
 SET 'table.exec.spill-compression.block-size' = '128kb';
 ```
 
+Users can use flink SQL Client with -c/--conf k=v, like
+./bin/sql-client.sh -i conf/init.sql -c execution.runtime-mode=batch \
+-c yarn.application.name="test" -f sql/q1.sql -c sql-client.execution.result-mode=TABLEAU \
+-c execution.target=yarn-per-job
+
 This configuration:
 
 - connects to Hive catalogs and uses `MyCatalog` as the current catalog with `MyDatabase` as the current database of the catalog,
