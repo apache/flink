@@ -18,9 +18,8 @@
 package org.apache.flink.runtime.slots;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.util.ResourceCounter;
 
-import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -38,6 +37,6 @@ public interface RequirementMatcher {
      */
     Optional<ResourceProfile> match(
             ResourceProfile resourceProfile,
-            Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements,
+            ResourceCounter totalRequirements,
             Function<ResourceProfile, Integer> numAssignedResourcesLookup);
 }

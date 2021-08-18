@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -79,14 +79,10 @@ under the License.
 									<include>com.yammer.metrics:metrics-core</include>
 									<include>commons-logging:commons-logging</include>
 									<include>commons-lang:commons-lang</include>
-									<include>commons-configuration:commons-configuration</include>
 									<include>commons-codec:commons-codec</include>
 									<include>io.netty:netty-all</include>
 								</includes>
 								<excludes>
-									<exclude>org.apache.hbase:hbase-metrics*</exclude>
-									<exclude>org.apache.hbase:hbase-server*</exclude>
-									<exclude>org.apache.hbase:hbase-hadoop*-compat</exclude>
 									<exclude>org.apache.hbase:hbase-common:jar:tests</exclude>
 								</excludes>
 							</artifactSet>

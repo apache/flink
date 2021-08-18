@@ -27,7 +27,6 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -70,6 +69,7 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.TriConsumer;
 
 import org.junit.After;
@@ -118,8 +118,8 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @ClassRule
-    public static final TestExecutorResource TEST_EXECUTOR_SERVICE_RESOURCE =
-            new TestExecutorResource(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
+    public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
+            new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
 
     @Before
     public void setup() {
@@ -428,8 +428,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         Collections.singletonList(taskResultPartitionDescriptor),
                         Collections.emptyList(),
                         Collections.emptyList(),
-                        Collections.emptyList(),
-                        0);
+                        Collections.emptyList());
 
         final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable();
 
@@ -450,7 +449,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, location) ->
+                                (s, location, ignored) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(ResourceID.generate())))
                         .setOfferSlotsFunction(

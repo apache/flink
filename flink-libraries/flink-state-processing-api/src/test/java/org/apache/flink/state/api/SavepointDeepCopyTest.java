@@ -25,10 +25,13 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -49,6 +52,7 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertThat;
@@ -57,9 +61,10 @@ import static org.junit.Assert.assertThat;
 @RunWith(value = Parameterized.class)
 public class SavepointDeepCopyTest extends AbstractTestBase {
 
+    private static final MemorySize FILE_STATE_SIZE_THRESHOLD = new MemorySize(1);
+
     private static final String TEXT = "The quick brown fox jumps over the lazy dog";
     private static final String RANDOM_VALUE = RandomStringUtils.randomAlphanumeric(120);
-    private static final int FILE_STATE_SIZE_THRESHOLD = 1;
 
     private final StateBackend backend;
 
@@ -70,10 +75,10 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
     @Parameterized.Parameters(name = "State Backend: {0}")
     public static Collection<StateBackend> data() {
         return Arrays.asList(
-                new FsStateBackend(new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD),
-                new RocksDBStateBackend(
-                        new FsStateBackend(
-                                new Path("file:///tmp").toUri(), FILE_STATE_SIZE_THRESHOLD)));
+                new FsStateBackend(new Path("file:///tmp").toUri()),
+                new RocksDBStateBackend(new FsStateBackend(new Path("file:///tmp").toUri())),
+                new HashMapStateBackend(),
+                new EmbeddedRocksDBStateBackend());
     }
 
     /** To bootstrapper a savepoint for testing. */
@@ -151,6 +156,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         // create a savepoint with BootstrapTransformations (one per operator)
         // write the created savepoint to a given path
         Savepoint.create(backend, 128)
+                .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD)
                 .withOperator("Operator1", transformation)
                 .write(savepointPath1);
 
@@ -169,7 +175,10 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         File savepointUrl2 = createAndRegisterTempFile(new AbstractID().toHexString());
         String savepointPath2 = savepointUrl2.getPath();
 
-        ExistingSavepoint savepoint2 = Savepoint.load(env, savepointPath1, backend);
+        ExistingSavepoint savepoint2 =
+                Savepoint.load(env, savepointPath1, backend)
+                        .withConfiguration(FS_SMALL_FILE_THRESHOLD, FILE_STATE_SIZE_THRESHOLD);
+
         savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
         env.execute("create savepoint2");
 

@@ -30,6 +30,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +199,33 @@ public class JarFileCheckerTest extends TestLogger {
                                         "class contents",
                                         Arrays.asList("web", "3rdpartylicenses.txt")))),
                 is(0));
+    }
+
+    @Test
+    public void testForbiddenLGPLongTextDetected() throws Exception {
+        assertThat(
+                JarFileChecker.checkJar(
+                        createJar(
+                                Entry.fileEntry(VALID_NOTICE_CONTENTS, VALID_NOTICE_PATH),
+                                Entry.fileEntry(VALID_LICENSE_CONTENTS, VALID_LICENSE_PATH),
+                                Entry.fileEntry(
+                                        "some GNU Lesser General public License text",
+                                        Collections.singletonList("some_file.txt")))),
+                is(1));
+    }
+
+    @Test
+    public void testForbiddenLGPMultiLineLongTextWithCommentAndLeadingWhitespaceDetected()
+            throws Exception {
+        assertThat(
+                JarFileChecker.checkJar(
+                        createJar(
+                                Entry.fileEntry(VALID_NOTICE_CONTENTS, VALID_NOTICE_PATH),
+                                Entry.fileEntry(VALID_LICENSE_CONTENTS, VALID_LICENSE_PATH),
+                                Entry.fileEntry(
+                                        "some GNU Lesser General public \n\t\t//#License text",
+                                        Collections.singletonList("some_file.txt")))),
+                is(1));
     }
 
     private static class Entry {

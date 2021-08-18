@@ -26,6 +26,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificRecord;
 
+import javax.annotation.Nullable;
+
+import java.util.Map;
+
 /**
  * Serialization schema that serializes to Avro binary format that uses Confluent Schema Registry.
  *
@@ -57,38 +61,83 @@ public class ConfluentRegistryAvroSerializationSchema<T>
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * avro schema and writes the writer schema to Confluent Schema Registry.
+     * Avro schema and writes the writer schema to Confluent Schema Registry.
      *
      * @param tClass the type to be serialized
      * @param subject subject of schema registry to produce
-     * @param schemaRegistryUrl url of schema registry to connect
-     * @return Serialized record
+     * @param schemaRegistryUrl URL of schema registry to connect
+     * @return serialized record
      */
     public static <T extends SpecificRecord>
             ConfluentRegistryAvroSerializationSchema<T> forSpecific(
                     Class<T> tClass, String subject, String schemaRegistryUrl) {
-        return new ConfluentRegistryAvroSerializationSchema<>(
-                tClass,
-                null,
-                new CachedSchemaCoderProvider(
-                        subject, schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY));
+        return forSpecific(tClass, subject, schemaRegistryUrl, null);
     }
 
     /**
      * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
-     * avro schema and writes the writer schema to Confluent Schema Registry.
+     * Avro schema and writes the writer schema to Confluent Schema Registry.
+     *
+     * @param tClass the type to be serialized
+     * @param subject subject of schema registry to produce
+     * @param schemaRegistryUrl URL of schema registry to connect
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return serialized record
+     */
+    public static <T extends SpecificRecord>
+            ConfluentRegistryAvroSerializationSchema<T> forSpecific(
+                    Class<T> tClass,
+                    String subject,
+                    String schemaRegistryUrl,
+                    @Nullable Map<String, ?> registryConfigs) {
+        return new ConfluentRegistryAvroSerializationSchema<>(
+                tClass,
+                null,
+                new CachedSchemaCoderProvider(
+                        subject,
+                        schemaRegistryUrl,
+                        DEFAULT_IDENTITY_MAP_CAPACITY,
+                        registryConfigs));
+    }
+
+    /**
+     * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
+     * Avro schema and writes the writer schema to Confluent Schema Registry.
      *
      * @param subject subject of schema registry to produce
      * @param schema schema that will be used for serialization
-     * @param schemaRegistryUrl url of schema registry to connect
-     * @return Serialized record in form of byte array
+     * @param schemaRegistryUrl URL of schema registry to connect
+     * @return serialized record
      */
     public static ConfluentRegistryAvroSerializationSchema<GenericRecord> forGeneric(
             String subject, Schema schema, String schemaRegistryUrl) {
+        return forGeneric(subject, schema, schemaRegistryUrl, null);
+    }
+
+    /**
+     * Creates {@link AvroSerializationSchema} that produces byte arrays that were generated from
+     * Avro schema and writes the writer schema to Confluent Schema Registry.
+     *
+     * @param subject subject of schema registry to produce
+     * @param schema schema that will be used for serialization
+     * @param schemaRegistryUrl URL of schema registry to connect
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return serialized record
+     */
+    public static ConfluentRegistryAvroSerializationSchema<GenericRecord> forGeneric(
+            String subject,
+            Schema schema,
+            String schemaRegistryUrl,
+            @Nullable Map<String, ?> registryConfigs) {
         return new ConfluentRegistryAvroSerializationSchema<>(
                 GenericRecord.class,
                 schema,
                 new CachedSchemaCoderProvider(
-                        subject, schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY));
+                        subject,
+                        schemaRegistryUrl,
+                        DEFAULT_IDENTITY_MAP_CAPACITY,
+                        registryConfigs));
     }
 }

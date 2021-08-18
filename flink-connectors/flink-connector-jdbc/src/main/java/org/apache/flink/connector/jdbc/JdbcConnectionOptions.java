@@ -32,20 +32,20 @@ public class JdbcConnectionOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
     protected final String url;
-    protected final String driverName;
+    @Nullable protected final String driverName;
     protected final int connectionCheckTimeoutSeconds;
     @Nullable protected final String username;
     @Nullable protected final String password;
 
     protected JdbcConnectionOptions(
             String url,
-            String driverName,
-            String username,
-            String password,
+            @Nullable String driverName,
+            @Nullable String username,
+            @Nullable String password,
             int connectionCheckTimeoutSeconds) {
         Preconditions.checkArgument(connectionCheckTimeoutSeconds > 0);
         this.url = Preconditions.checkNotNull(url, "jdbc url is empty");
-        this.driverName = Preconditions.checkNotNull(driverName, "driver name is empty");
+        this.driverName = driverName;
         this.username = username;
         this.password = password;
         this.connectionCheckTimeoutSeconds = connectionCheckTimeoutSeconds;
@@ -55,6 +55,7 @@ public class JdbcConnectionOptions implements Serializable {
         return url;
     }
 
+    @Nullable
     public String getDriverName() {
         return driverName;
     }

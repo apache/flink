@@ -36,11 +36,6 @@ import java.util.concurrent.RunnableFuture;
  * @param <T> type of the snapshot result.
  */
 public final class SnapshotStrategyRunner<T extends StateObject, SR extends SnapshotResources> {
-    /** Flag to tell how the strategy should be executed. */
-    public enum ExecutionType {
-        SYNCHRONOUS,
-        ASYNCHRONOUS
-    }
 
     private static final Logger LOG = LoggerFactory.getLogger(SnapshotStrategyRunner.class);
 
@@ -58,13 +53,13 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
     @Nonnull private final SnapshotStrategy<T, SR> snapshotStrategy;
     @Nonnull private final CloseableRegistry cancelStreamRegistry;
 
-    @Nonnull private final ExecutionType executionType;
+    @Nonnull private final SnapshotExecutionType executionType;
 
     public SnapshotStrategyRunner(
             @Nonnull String description,
             @Nonnull SnapshotStrategy<T, SR> snapshotStrategy,
             @Nonnull CloseableRegistry cancelStreamRegistry,
-            @Nonnull ExecutionType executionType) {
+            @Nonnull SnapshotExecutionType executionType) {
         this.description = description;
         this.snapshotStrategy = snapshotStrategy;
         this.cancelStreamRegistry = cancelStreamRegistry;
@@ -110,7 +105,7 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
                     }
                 }.toAsyncSnapshotFutureTask(cancelStreamRegistry);
 
-        if (executionType == ExecutionType.SYNCHRONOUS) {
+        if (executionType == SnapshotExecutionType.SYNCHRONOUS) {
             asyncSnapshotTask.run();
         }
 

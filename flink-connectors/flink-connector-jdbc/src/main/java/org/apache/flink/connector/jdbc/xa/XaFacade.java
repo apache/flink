@@ -27,7 +27,6 @@ import javax.transaction.xa.Xid;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -40,7 +39,7 @@ import java.util.function.Supplier;
  *   <li>{@link #open}
  *   <li>{@link #start} transaction
  *   <li>{@link #getConnection}, write some data
- *   <li>{@link #endAndPrepare} (or {@link #failOrRollback})
+ *   <li>{@link #endAndPrepare} (or {@link #failAndRollback})
  *   <li>{@link #commit} / {@link #rollback}
  *   <li>{@link #close}
  * </ol>
@@ -52,8 +51,12 @@ public interface XaFacade extends JdbcConnectionProvider, Serializable, AutoClos
 
     /** @return a non-serializable instance. */
     static XaFacade fromXaDataSourceSupplier(
-            Supplier<XADataSource> dataSourceSupplier, Optional<Integer> timeoutSec) {
-        return new XaFacadeImpl(dataSourceSupplier, timeoutSec);
+            Supplier<XADataSource> dataSourceSupplier,
+            Integer timeoutSec,
+            boolean transactionPerConnection) {
+        return transactionPerConnection
+                ? new XaFacadePoolingImpl(() -> new XaFacadeImpl(dataSourceSupplier, timeoutSec))
+                : new XaFacadeImpl(dataSourceSupplier, timeoutSec);
     }
 
     void open() throws Exception;
@@ -61,10 +64,10 @@ public interface XaFacade extends JdbcConnectionProvider, Serializable, AutoClos
     boolean isOpen();
 
     /** Start a new transaction. */
-    void start(Xid xid) throws TransientXaException;
+    void start(Xid xid) throws Exception;
 
     /** End and then prepare the transaction. Transaction can't be resumed afterwards. */
-    void endAndPrepare(Xid xid) throws TransientXaException, EmptyXaTransactionException;
+    void endAndPrepare(Xid xid) throws Exception;
 
     /**
      * Commit previously prepared transaction.
@@ -81,7 +84,7 @@ public interface XaFacade extends JdbcConnectionProvider, Serializable, AutoClos
      * End transaction as {@link javax.transaction.xa.XAResource#TMFAIL failed}; in case of error,
      * try to roll it back.
      */
-    void failOrRollback(Xid xid) throws TransientXaException;
+    void failAndRollback(Xid xid) throws TransientXaException;
 
     /**
      * Note: this can block on some non-MVCC databases if there are ended not prepared transactions.

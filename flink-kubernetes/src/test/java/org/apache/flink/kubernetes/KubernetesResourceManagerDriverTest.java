@@ -18,25 +18,29 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriverTestBase;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,10 +48,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link KubernetesResourceManagerDriver}. */
@@ -82,7 +86,12 @@ public class KubernetesResourceManagerDriverTest
                                                     .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
                                                     .thenAccept(requestResourceFuture::complete));
                             final KubernetesPod pod =
-                                    createPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                                    new TestingKubernetesPod(
+                                            createPodFuture
+                                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                                    .getName(),
+                                            true,
+                                            false);
 
                             // prepare validation:
                             // - complete requestResourceFuture in main thread with correct
@@ -143,7 +152,7 @@ public class KubernetesResourceManagerDriverTest
                 runTest(
                         () -> {
                             final Throwable testingError = new Throwable("testing error");
-                            getPodCallbackHandler().handleFatalError(testingError);
+                            getPodCallbackHandler().handleError(testingError);
                             assertThat(
                                     onErrorFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS),
                                     is(testingError));
@@ -157,7 +166,7 @@ public class KubernetesResourceManagerDriverTest
         new Context() {
             {
                 final KubernetesPod previousAttemptPod =
-                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true);
+                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true, true);
                 final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
                 final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture =
                         new CompletableFuture<>();
@@ -189,6 +198,31 @@ public class KubernetesResourceManagerDriverTest
         };
     }
 
+    @Test
+    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
+            throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            getPodCallbackHandler()
+                                    .handleError(
+                                            new KubernetesTooOldResourceVersionException(
+                                                    new Exception("too old resource version")));
+                            // Verify the old watch is closed and a new one is created
+                            CommonTestUtils.waitUntilCondition(
+                                    () -> getPodsWatches().size() == 2,
+                                    Deadline.fromNow(Duration.ofSeconds(TIMEOUT_SEC)),
+                                    String.format(
+                                            "New watch is not created in %s seconds.",
+                                            TIMEOUT_SEC));
+                            assertThat(getPodsWatches().get(0).isClosed(), is(true));
+                            assertThat(getPodsWatches().get(1).isClosed(), is(false));
+                        });
+            }
+        };
+    }
+
     @Override
     protected ResourceManagerDriverTestBase<KubernetesWorkerNode>.Context createContext() {
         return new Context();
@@ -202,6 +236,9 @@ public class KubernetesResourceManagerDriverTest
                 setWatchPodsAndDoCallbackFuture = new CompletableFuture<>();
         private final CompletableFuture<Void> closeKubernetesWatchFuture =
                 new CompletableFuture<>();
+
+        private final List<TestingFlinkKubeClient.MockKubernetesWatch> podsWatches =
+                new ArrayList<>();
         private final CompletableFuture<String> stopAndCleanupClusterFuture =
                 new CompletableFuture<>();
         private final CompletableFuture<KubernetesPod> createTaskManagerPodFuture =
@@ -213,18 +250,26 @@ public class KubernetesResourceManagerDriverTest
                         .setWatchPodsAndDoCallbackFunction(
                                 (ignore, handler) -> {
                                     setWatchPodsAndDoCallbackFuture.complete(handler);
-                                    return new TestingFlinkKubeClient.MockKubernetesWatch() {
-                                        @Override
-                                        public void close() {
-                                            closeKubernetesWatchFuture.complete(null);
-                                        }
-                                    };
+                                    final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                            new TestingFlinkKubeClient.MockKubernetesWatch() {
+                                                @Override
+                                                public void close() {
+                                                    super.close();
+                                                    closeKubernetesWatchFuture.complete(null);
+                                                }
+                                            };
+                                    podsWatches.add(watch);
+                                    return watch;
                                 })
                         .setStopAndCleanupClusterConsumer(stopAndCleanupClusterFuture::complete)
                         .setCreateTaskManagerPodFunction(
                                 (pod) -> {
                                     createTaskManagerPodFuture.complete(pod);
-                                    getPodCallbackHandler().onAdded(Collections.singletonList(pod));
+                                    getPodCallbackHandler()
+                                            .onAdded(
+                                                    Collections.singletonList(
+                                                            new TestingKubernetesPod(
+                                                                    pod.getName(), true, false)));
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .setStopPodFunction(
@@ -233,7 +278,7 @@ public class KubernetesResourceManagerDriverTest
                                     return FutureUtils.completedVoidFuture();
                                 });
 
-        private TestingKubeClientFactory kubeClientFactory;
+        private TestingFlinkKubeClient flinkKubeClient;
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesPod> getPodCallbackHandler() {
             try {
@@ -244,13 +289,17 @@ public class KubernetesResourceManagerDriverTest
             return null;
         }
 
+        List<TestingFlinkKubeClient.MockKubernetesWatch> getPodsWatches() {
+            return podsWatches;
+        }
+
         @Override
         protected void prepareRunTest() {
             flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
             flinkConfig.setString(
                     TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
-            kubeClientFactory = new TestingKubeClientFactory(flinkKubeClientBuilder);
+            flinkKubeClient = flinkKubeClientBuilder.build();
         }
 
         @Override
@@ -262,7 +311,7 @@ public class KubernetesResourceManagerDriverTest
         @Override
         protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver() {
             return new KubernetesResourceManagerDriver(
-                    flinkConfig, kubeClientFactory, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
+                    flinkConfig, flinkKubeClient, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
         }
 
         @Override
@@ -313,7 +362,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
 
             assertThat(
                     resourceRequirements
@@ -327,7 +381,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
         }
 
         @Override
@@ -378,7 +437,7 @@ public class KubernetesResourceManagerDriverTest
 
                         sendPodTerminatedEvent.accept(
                                 Collections.singletonList(
-                                        new TestingKubernetesPod(pod.getName(), true)));
+                                        new TestingKubernetesPod(pod.getName(), true, true)));
 
                         // make sure finishing validation
                         validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);

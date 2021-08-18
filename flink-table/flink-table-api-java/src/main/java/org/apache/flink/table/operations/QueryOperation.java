@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.List;
 
@@ -34,7 +34,7 @@ import java.util.List;
 public interface QueryOperation extends Operation {
 
     /** Resolved schema of this operation. */
-    TableSchema getTableSchema();
+    ResolvedSchema getResolvedSchema();
 
     /**
      * Returns a string that fully serializes this instance. The serialized string can be used for

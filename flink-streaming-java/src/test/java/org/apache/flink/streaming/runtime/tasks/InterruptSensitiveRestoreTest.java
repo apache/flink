@@ -254,11 +254,14 @@ public class InterruptSensitiveRestoreTest {
                         SourceStreamTask.class.getName(),
                         taskConfig);
 
-        TestTaskStateManager taskStateManager = new TestTaskStateManager();
-        taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
-        taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
-                Collections.singletonMap(
-                        taskRestore.getRestoreCheckpointId(), taskRestore.getTaskStateSnapshot()));
+        TestTaskStateManager taskStateManager =
+                TestTaskStateManager.builder()
+                        .setReportedCheckpointId(taskRestore.getRestoreCheckpointId())
+                        .setJobManagerTaskStateSnapshotsByCheckpointId(
+                                Collections.singletonMap(
+                                        taskRestore.getRestoreCheckpointId(),
+                                        taskRestore.getTaskStateSnapshot()))
+                        .build();
 
         return new Task(
                 jobInformation,
@@ -269,7 +272,6 @@ public class InterruptSensitiveRestoreTest {
                 0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                0,
                 mock(MemoryManager.class),
                 mock(IOManager.class),
                 shuffleEnvironment,

@@ -132,7 +132,8 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
     }
 
     @Override
-    public PendingSplitsCheckpoint<HiveSourceSplit> snapshotState() throws Exception {
+    public PendingSplitsCheckpoint<HiveSourceSplit> snapshotState(long checkpointId)
+            throws Exception {
         Collection<HiveSourceSplit> remainingSplits =
                 (Collection<HiveSourceSplit>) (Collection<?>) splitAssigner.remainingSplits();
         return new ContinuousHivePendingSplitsCheckpoint(

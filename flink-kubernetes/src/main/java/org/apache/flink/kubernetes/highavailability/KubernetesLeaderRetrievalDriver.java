@@ -19,8 +19,9 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInformationFromConfigMap;
@@ -46,29 +48,37 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG =
             LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
+    private final FlinkKubeClient kubeClient;
+
     private final String configMapName;
 
     private final LeaderRetrievalEventHandler leaderRetrievalEventHandler;
-
-    private final KubernetesWatch kubernetesWatch;
 
     private final FatalErrorHandler fatalErrorHandler;
 
     private volatile boolean running;
 
+    private final Watch kubernetesWatch;
+
     public KubernetesLeaderRetrievalDriver(
             FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
             String configMapName,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             FatalErrorHandler fatalErrorHandler) {
-        checkNotNull(kubeClient, "Kubernetes client");
+        this.kubeClient = checkNotNull(kubeClient, "Kubernetes client");
         this.configMapName = checkNotNull(configMapName, "ConfigMap name");
         this.leaderRetrievalEventHandler =
                 checkNotNull(leaderRetrievalEventHandler, "LeaderRetrievalEventHandler");
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
         kubernetesWatch =
-                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+                checkNotNull(configMapSharedWatcher, "ConfigMap Shared Informer")
+                        .watch(
+                                configMapName,
+                                new ConfigMapCallbackHandlerImpl(),
+                                watchExecutorService);
 
         running = true;
     }
@@ -81,6 +91,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
         running = false;
 
         LOG.info("Stopping {}.", this);
+
         kubernetesWatch.close();
     }
 
@@ -114,10 +125,10 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
         }
 
         @Override
-        public void handleFatalError(Throwable throwable) {
+        public void handleError(Throwable throwable) {
             fatalErrorHandler.onFatalError(
                     new LeaderRetrievalException(
-                            "Error while watching the ConfigMap " + configMapName));
+                            "Error while watching the ConfigMap " + configMapName, throwable));
         }
     }
 

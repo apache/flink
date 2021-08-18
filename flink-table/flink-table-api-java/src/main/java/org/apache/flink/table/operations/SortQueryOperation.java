@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
@@ -68,8 +68,8 @@ public class SortQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return child.getTableSchema();
+    public ResolvedSchema getResolvedSchema() {
+        return child.getResolvedSchema();
     }
 
     @Override

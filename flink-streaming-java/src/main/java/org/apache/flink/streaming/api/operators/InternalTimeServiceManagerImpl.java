@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -45,7 +44,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An entity keeping all the time-related services. Right now, this is only a {@link
@@ -75,20 +73,16 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
-    private final boolean useLegacySynchronousSnapshots;
-
     private InternalTimeServiceManagerImpl(
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
-            ProcessingTimeService processingTimeService,
-            boolean useLegacySynchronousSnapshots) {
+            ProcessingTimeService processingTimeService) {
 
         this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
         this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
         this.keyContext = Preconditions.checkNotNull(keyContext);
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
-        this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
         this.timerServices = new HashMap<>();
     }
@@ -99,25 +93,17 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      * <p><b>IMPORTANT:</b> Keep in sync with {@link InternalTimeServiceManager.Provider}.
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
-            CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+            CheckpointableKeyedStateBackend<K> keyedStateBackend,
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
             throws Exception {
-        final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
-        final boolean requiresSnapshotLegacyTimers =
-                keyedStatedBackend instanceof AbstractKeyedStateBackend
-                        && ((AbstractKeyedStateBackend<K>) keyedStatedBackend)
-                                .requiresLegacySynchronousTimerSnapshots();
+        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
-                        keyGroupRange,
-                        keyContext,
-                        keyedStatedBackend,
-                        processingTimeService,
-                        requiresSnapshotLegacyTimers);
+                        keyGroupRange, keyContext, keyedStateBackend, processingTimeService);
 
         // and then initialize the timer services
         for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
@@ -198,15 +184,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     //////////////////				Fault Tolerance Methods				///////////////////
 
     @Override
-    public boolean isUsingLegacyRawKeyedStateSnapshots() {
-        return useLegacySynchronousSnapshots;
-    }
-
-    @Override
     public void snapshotToRawKeyedState(KeyedStateCheckpointOutputStream out, String operatorName)
             throws Exception {
-        checkState(useLegacySynchronousSnapshots);
-
         try {
             KeyGroupsList allKeyGroups = out.getKeyGroupList();
             for (int keyGroupIdx : allKeyGroups) {

@@ -152,7 +152,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
     // ---------------- helper methods -----------------
 
-    protected abstract SourceReader<Integer, SplitT> createReader();
+    protected abstract SourceReader<Integer, SplitT> createReader() throws Exception;
 
     protected abstract List<SplitT> getSplits(
             int numSplits, int numRecordsPerSplit, Boundedness boundedness);
@@ -222,6 +222,9 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 
         @Override
         public void markIdle() {}
+
+        @Override
+        public void markActive() {}
 
         @Override
         public SourceOutput<Integer> createOutputForSplit(String splitId) {

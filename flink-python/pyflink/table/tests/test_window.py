@@ -20,7 +20,8 @@ from py4j.protocol import Py4JJavaError
 
 from pyflink.table import expressions as expr
 from pyflink.table.window import Session, Slide, Tumble, Over
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
 class StreamTableWindowTests(PyFlinkStreamTableTestCase):
@@ -30,8 +31,8 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
         t = t_env.from_elements([(1, 1, "Hello")], ['a', 'b', 'c'])
 
         result = t.over_window(
-            Over.partition_by("c")
-                .order_by("a")
+            Over.partition_by(t.c)
+                .order_by(t.a)
                 .preceding(expr.row_interval(2))
                 .following(expr.CURRENT_ROW)
                 .alias("w"))

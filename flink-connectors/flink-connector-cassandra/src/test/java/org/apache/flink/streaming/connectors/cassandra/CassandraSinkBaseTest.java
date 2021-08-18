@@ -19,11 +19,11 @@ package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
@@ -101,7 +101,7 @@ public class CassandraSinkBaseTest {
         casSinkFunc.open(new Configuration());
 
         Exception cause = new RuntimeException();
-        casSinkFunc.enqueueCompletableFuture(FutureUtils.getFailedFuture(cause));
+        casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
         casSinkFunc.invoke("hello");
         try {
             casSinkFunc.close();
@@ -116,7 +116,7 @@ public class CassandraSinkBaseTest {
     public void testThrowErrorOnInvoke() throws Exception {
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
             Exception cause = new RuntimeException();
-            casSinkFunc.enqueueCompletableFuture(FutureUtils.getFailedFuture(cause));
+            casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
 
             casSinkFunc.invoke("hello");
 
@@ -137,8 +137,8 @@ public class CassandraSinkBaseTest {
 
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink(failureHandler)) {
 
-            casSinkFunc.enqueueCompletableFuture(FutureUtils.getFailedFuture(cause));
-            casSinkFunc.enqueueCompletableFuture(FutureUtils.getFailedFuture(cause));
+            casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
+            casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
 
             casSinkFunc.invoke("hello");
             casSinkFunc.invoke("world");
@@ -152,7 +152,7 @@ public class CassandraSinkBaseTest {
         try (OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 createOpenedTestHarness(casSinkFunc)) {
             Exception cause = new RuntimeException();
-            casSinkFunc.enqueueCompletableFuture(FutureUtils.getFailedFuture(cause));
+            casSinkFunc.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
 
             casSinkFunc.invoke("hello");
 

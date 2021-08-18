@@ -19,18 +19,16 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunction;
 import org.apache.flink.connector.jdbc.xa.XaFacade;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import javax.sql.XADataSource;
 
-import java.util.Optional;
 import java.util.function.Function;
 
 /** Facade to create JDBC {@link SinkFunction sinks}. */
@@ -70,17 +68,13 @@ public class JdbcSink {
             JdbcExecutionOptions executionOptions,
             JdbcConnectionOptions connectionOptions) {
         return new GenericJdbcSinkFunction<>(
-                new JdbcBatchingOutputFormat<>(
+                new JdbcOutputFormat<>(
                         new SimpleJdbcConnectionProvider(connectionOptions),
                         executionOptions,
-                        context -> {
-                            Preconditions.checkState(
-                                    !context.getExecutionConfig().isObjectReuseEnabled(),
-                                    "objects can not be reused with JDBC sink function");
-                            return JdbcBatchStatementExecutor.simple(
-                                    sql, statementBuilder, Function.identity());
-                        },
-                        JdbcBatchingOutputFormat.RecordExtractor.identity()));
+                        context ->
+                                JdbcBatchStatementExecutor.simple(
+                                        sql, statementBuilder, Function.identity()),
+                        JdbcOutputFormat.RecordExtractor.identity()));
     }
 
     /**
@@ -96,7 +90,6 @@ public class JdbcSink {
      * @param <T> type of data in {@link
      *     org.apache.flink.streaming.runtime.streamrecord.StreamRecord StreamRecord}.
      * @param executionOptions parameters of execution, such as batch size and maximum retries
-     * @param connectionOptions parameters of connection, such as JDBC URL
      * @param exactlyOnceOptions exactly-once options
      * @param dataSourceSupplier supplies the {@link XADataSource}
      */
@@ -104,7 +97,6 @@ public class JdbcSink {
             String sql,
             JdbcStatementBuilder<T> statementBuilder,
             JdbcExecutionOptions executionOptions,
-            JdbcConnectionOptions connectionOptions,
             JdbcExactlyOnceOptions exactlyOnceOptions,
             SerializableSupplier<XADataSource> dataSourceSupplier) {
         return new JdbcXaSinkFunction<>(
@@ -112,7 +104,8 @@ public class JdbcSink {
                 statementBuilder,
                 XaFacade.fromXaDataSourceSupplier(
                         dataSourceSupplier,
-                        Optional.ofNullable(exactlyOnceOptions.getTimeoutSec())),
+                        exactlyOnceOptions.getTimeoutSec(),
+                        exactlyOnceOptions.isTransactionPerConnection()),
                 executionOptions,
                 exactlyOnceOptions);
     }

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -43,7 +44,7 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
@@ -105,12 +106,17 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
+        public JobID getJobId() {
+            return runtimeContext.getJobId();
+        }
+
+        @Override
         public String getTaskName() {
             return runtimeContext.getTaskName();
         }
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             return runtimeContext.getMetricGroup();
         }
 
@@ -289,6 +295,11 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             throw new UnsupportedOperationException(
                     "Iteration aggregators are not supported in rich async functions.");
+        }
+
+        @Override
+        public JobID getJobId() {
+            return iterationRuntimeContext.getJobId();
         }
     }
 }

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -232,6 +232,34 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
         final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
 
         slotPool.removeSlots(ResourceID.generate());
+    }
+
+    @Test
+    public void testContainsFreeSlotReturnsTrueIfSlotIsFree() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+        final AllocatedSlot allocatedSlot = createAllocatedSlot(ResourceID.generate());
+
+        slotPool.addSlots(Collections.singleton(allocatedSlot), 0);
+
+        assertTrue(slotPool.containsFreeSlot(allocatedSlot.getAllocationId()));
+    }
+
+    @Test
+    public void testContainsFreeSlotReturnsFalseIfSlotDoesNotExist() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+
+        assertFalse(slotPool.containsFreeSlot(new AllocationID()));
+    }
+
+    @Test
+    public void testContainsFreeSlotReturnsFalseIfSlotIsReserved() {
+        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+        final AllocatedSlot allocatedSlot = createAllocatedSlot(ResourceID.generate());
+
+        slotPool.addSlots(Collections.singleton(allocatedSlot), 0);
+        slotPool.reserveFreeSlot(allocatedSlot.getAllocationId());
+
+        assertFalse(slotPool.containsFreeSlot(allocatedSlot.getAllocationId()));
     }
 
     private void assertSlotPoolContainsSlots(

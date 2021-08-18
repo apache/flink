@@ -24,18 +24,20 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Default implementation of {@link LogicalVertex}. It is an adapter of {@link JobVertex}. */
-public class DefaultLogicalVertex
-        implements LogicalVertex<DefaultLogicalVertex, DefaultLogicalResult> {
+public class DefaultLogicalVertex implements LogicalVertex {
 
     private final JobVertex jobVertex;
 
     private final Function<IntermediateDataSetID, DefaultLogicalResult> resultRetriever;
+
+    private final List<LogicalEdge> inputEdges;
 
     DefaultLogicalVertex(
             final JobVertex jobVertex,
@@ -43,6 +45,10 @@ public class DefaultLogicalVertex
 
         this.jobVertex = checkNotNull(jobVertex);
         this.resultRetriever = checkNotNull(resultRetriever);
+        this.inputEdges =
+                jobVertex.getInputs().stream()
+                        .map(DefaultLogicalEdge::new)
+                        .collect(Collectors.toList());
     }
 
     @Override
@@ -65,5 +71,10 @@ public class DefaultLogicalVertex
                 .map(IntermediateDataSet::getId)
                 .map(resultRetriever)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Iterable<? extends LogicalEdge> getInputs() {
+        return inputEdges;
     }
 }

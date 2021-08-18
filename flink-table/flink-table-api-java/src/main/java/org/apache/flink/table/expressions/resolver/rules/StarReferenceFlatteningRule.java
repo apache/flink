@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
 import java.util.ArrayList;
@@ -55,6 +56,15 @@ final class StarReferenceFlatteningRule implements ResolverRule {
             } else {
                 return singletonList(unresolvedReference);
             }
+        }
+
+        @Override
+        public List<Expression> visit(UnresolvedCallExpression unresolvedCall) {
+            final List<Expression> newArgs =
+                    unresolvedCall.getChildren().stream()
+                            .flatMap(e -> e.accept(this).stream())
+                            .collect(Collectors.toList());
+            return singletonList(unresolvedCall.replaceArgs(newArgs));
         }
 
         @Override

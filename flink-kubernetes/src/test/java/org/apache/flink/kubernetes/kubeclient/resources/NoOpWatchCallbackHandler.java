@@ -49,7 +49,7 @@ public class NoOpWatchCallbackHandler<T> implements FlinkKubeClient.WatchCallbac
     }
 
     @Override
-    public void handleFatalError(Throwable throwable) {
+    public void handleError(Throwable throwable) {
         // noop
     }
 }

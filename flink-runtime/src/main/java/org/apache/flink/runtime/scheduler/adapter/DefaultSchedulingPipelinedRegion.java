@@ -19,8 +19,11 @@
 
 package org.apache.flink.runtime.scheduler.adapter;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingPipelinedRegion;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -28,21 +31,34 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Default implementation of {@link SchedulingPipelinedRegion}. */
 public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
 
     private final Map<ExecutionVertexID, DefaultExecutionVertex> executionVertices;
 
-    private Set<DefaultResultPartition> consumedResults;
+    private Set<ConsumedPartitionGroup> blockingConsumedPartitionGroups;
 
-    public DefaultSchedulingPipelinedRegion(Set<DefaultExecutionVertex> defaultExecutionVertices) {
+    private final Function<IntermediateResultPartitionID, DefaultResultPartition>
+            resultPartitionRetriever;
+
+    public DefaultSchedulingPipelinedRegion(
+            Set<DefaultExecutionVertex> defaultExecutionVertices,
+            Function<IntermediateResultPartitionID, DefaultResultPartition>
+                    resultPartitionRetriever) {
+
         Preconditions.checkNotNull(defaultExecutionVertices);
 
         this.executionVertices = new HashMap<>();
         for (DefaultExecutionVertex executionVertex : defaultExecutionVertices) {
             this.executionVertices.put(executionVertex.getId(), executionVertex);
         }
+
+        this.resultPartitionRetriever = checkNotNull(resultPartitionRetriever);
     }
 
     @Override
@@ -60,23 +76,38 @@ public class DefaultSchedulingPipelinedRegion implements SchedulingPipelinedRegi
         return executionVertex;
     }
 
-    @Override
-    public Iterable<DefaultResultPartition> getConsumedResults() {
-        if (consumedResults == null) {
-            initializeConsumedResults();
-        }
-        return consumedResults;
-    }
-
-    private void initializeConsumedResults() {
-        final Set<DefaultResultPartition> consumedResults = new HashSet<>();
+    private void initializeAllBlockingConsumedPartitionGroups() {
+        final Set<ConsumedPartitionGroup> consumedPartitionGroupSet = new HashSet<>();
         for (DefaultExecutionVertex executionVertex : executionVertices.values()) {
-            for (DefaultResultPartition resultPartition : executionVertex.getConsumedResults()) {
-                if (!executionVertices.containsKey(resultPartition.getProducer().getId())) {
-                    consumedResults.add(resultPartition);
+            for (ConsumedPartitionGroup consumedPartitionGroup :
+                    executionVertex.getConsumedPartitionGroups()) {
+                SchedulingResultPartition consumedPartition =
+                        resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
+
+                checkState(
+                        consumedPartition.getConsumerVertexGroups().size() <= 1,
+                        "Currently there has to be exactly one consumer for each partition in real jobs.");
+
+                if (consumedPartition.getResultType().isBlocking()) {
+                    consumedPartitionGroupSet.add(consumedPartitionGroup);
                 }
             }
         }
-        this.consumedResults = Collections.unmodifiableSet(consumedResults);
+
+        this.blockingConsumedPartitionGroups =
+                Collections.unmodifiableSet(consumedPartitionGroupSet);
+    }
+
+    @Override
+    public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
+        if (blockingConsumedPartitionGroups == null) {
+            initializeAllBlockingConsumedPartitionGroups();
+        }
+        return blockingConsumedPartitionGroups;
+    }
+
+    @Override
+    public boolean contains(final ExecutionVertexID vertexId) {
+        return executionVertices.containsKey(vertexId);
     }
 }

@@ -18,17 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,13 +46,11 @@ import static org.junit.Assert.assertThat;
 
 /** Upsert-kafka IT cases. */
 @RunWith(Parameterized.class)
-public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
+public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String CSV_FORMAT = "csv";
     private static final String AVRO_FORMAT = "avro";
-
-    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     @Parameterized.Parameter public String format;
 
@@ -67,25 +59,10 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         return new Object[] {JSON_FORMAT, CSV_FORMAT, AVRO_FORMAT};
     }
 
-    protected StreamExecutionEnvironment env;
-    protected StreamTableEnvironment tEnv;
+    @Rule public final LegacyRowResource usesLegacyRows = LegacyRowResource.INSTANCE;
 
     private static final String USERS_TOPIC = "users";
     private static final String WORD_COUNT_TOPIC = "word_count";
-
-    @Before
-    public void setup() {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4); // set default parallelism to 4
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-    }
 
     @Test
     public void testAggregate() throws Exception {
@@ -129,7 +106,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // k_user_id and user_id have different data types to verify the correct mapping,
         // fields are reordered on purpose
@@ -227,7 +204,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1); // use single partition to guarantee orders in tests
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // compared to the partial value test we cannot support both k_user_id and user_id in a full
         // value due to duplicate names after key prefix stripping,
@@ -315,7 +292,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void wordCountToUpsertKafka(String wordCountTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // ------------- test data ---------------
 
@@ -465,7 +442,7 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
     }
 
     private void writeChangelogToUpsertKafkaWithMetadata(String userTable) throws Exception {
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
 
         // ------------- test data ---------------
 

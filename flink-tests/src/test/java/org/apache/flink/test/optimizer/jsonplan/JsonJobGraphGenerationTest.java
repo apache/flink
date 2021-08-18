@@ -257,13 +257,16 @@ public class JsonJobGraphGenerationTest {
 
             JsonNode idField = rootNode.get("jid");
             JsonNode nameField = rootNode.get("name");
+            JsonNode typeField = rootNode.get("type");
             JsonNode arrayField = rootNode.get("nodes");
 
             assertNotNull(idField);
             assertNotNull(nameField);
+            assertNotNull(typeField);
             assertNotNull(arrayField);
             assertTrue(idField.isTextual());
             assertTrue(nameField.isTextual());
+            assertTrue(typeField.isTextual());
             assertTrue(arrayField.isArray());
 
             ArrayNode array = (ArrayNode) arrayField;

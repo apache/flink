@@ -40,7 +40,7 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
@@ -56,8 +56,8 @@ import java.util.concurrent.Executor;
 
 /** Handler returning the details for the specified job. */
 public class JobDetailsHandler
-        extends AbstractExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
-        implements JsonArchivist {
+        extends AbstractAccessExecutionGraphHandler<JobDetailsInfo, JobMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
 
     private final MetricFetcher metricFetcher;
 
@@ -148,6 +148,7 @@ public class JobDetailsHandler
                 startTime,
                 endTime,
                 duration,
+                executionGraph.getArchivedExecutionConfig().getMaxParallelism(),
                 now,
                 timestamps,
                 jobVertexInfos,
@@ -223,6 +224,7 @@ public class JobDetailsHandler
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
                 ejv.getName(),
+                ejv.getMaxParallelism(),
                 ejv.getParallelism(),
                 jobVertexState,
                 startTime,

@@ -33,6 +33,7 @@ import org.apache.flink.streaming.util.MockSerializationSchema;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
@@ -63,7 +64,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Suite of {@link FlinkKinesisProducer} tests. */
-public class FlinkKinesisProducerTest {
+public class FlinkKinesisProducerTest extends TestLogger {
 
     @Rule public ExpectedException exception = ExpectedException.none();
 

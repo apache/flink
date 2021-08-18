@@ -30,6 +30,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -152,46 +153,57 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 memoryConfiguration);
     }
 
+    @JsonIgnore
     public ResourceID getResourceId() {
         return resourceId;
     }
 
+    @JsonIgnore
     public String getAddress() {
         return address;
     }
 
+    @JsonIgnore
     public int getDataPort() {
         return dataPort;
     }
 
+    @JsonIgnore
     public int getJmxPort() {
         return jmxPort;
     }
 
+    @JsonIgnore
     public long getLastHeartbeat() {
         return lastHeartbeat;
     }
 
+    @JsonIgnore
     public int getNumberSlots() {
         return numberSlots;
     }
 
+    @JsonIgnore
     public int getNumberAvailableSlots() {
         return numberAvailableSlots;
     }
 
+    @JsonIgnore
     public ResourceProfileInfo getTotalResource() {
         return totalResource;
     }
 
+    @JsonIgnore
     public ResourceProfileInfo getFreeResource() {
         return freeResource;
     }
 
+    @JsonIgnore
     public HardwareDescription getHardwareDescription() {
         return hardwareDescription;
     }
 
+    @JsonIgnore
     public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
         return memoryConfiguration;
     }

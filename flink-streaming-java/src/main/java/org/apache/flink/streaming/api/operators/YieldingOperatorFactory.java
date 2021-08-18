@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 
 /**
  * An operator that needs access to the {@link MailboxExecutor} to yield to downstream operators

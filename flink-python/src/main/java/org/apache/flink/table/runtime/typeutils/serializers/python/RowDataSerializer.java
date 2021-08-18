@@ -44,7 +44,7 @@ import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
 /**
  * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be
  * encoded as the first 2 bits instead of the first byte. Currently Python doesn't support RowData
- * natively, so we can't use RowDataSerializer in blink directly.
+ * natively, so we can't use RowDataSerializer directly.
  */
 @Internal
 public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {

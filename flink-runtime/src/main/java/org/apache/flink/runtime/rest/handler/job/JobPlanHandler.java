@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.IOException;
@@ -40,8 +40,9 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /** Handler serving the job execution plan. */
-public class JobPlanHandler extends AbstractExecutionGraphHandler<JobPlanInfo, JobMessageParameters>
-        implements JsonArchivist {
+public class JobPlanHandler
+        extends AbstractAccessExecutionGraphHandler<JobPlanInfo, JobMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
 
     public JobPlanHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,

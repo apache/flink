@@ -60,10 +60,16 @@ public class TaskKvStateRegistry {
     public void registerKvState(
             KeyGroupRange keyGroupRange,
             String registrationName,
-            InternalKvState<?, ?, ?> kvState) {
+            InternalKvState<?, ?, ?> kvState,
+            ClassLoader userClassLoader) {
         KvStateID kvStateId =
                 registry.registerKvState(
-                        jobId, jobVertexId, keyGroupRange, registrationName, kvState);
+                        jobId,
+                        jobVertexId,
+                        keyGroupRange,
+                        registrationName,
+                        kvState,
+                        userClassLoader);
         registeredKvStates.add(new KvStateInfo(keyGroupRange, registrationName, kvStateId));
     }
 

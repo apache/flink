@@ -23,8 +23,8 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
@@ -97,7 +97,7 @@ public class WindowReader<W extends Window> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If savepoint does not contain the specified uid.
      */
-    public <T, K> DataSet<T> reduce(
+    public <T, K> DataSource<T> reduce(
             String uid,
             ReduceFunction<T> function,
             TypeInformation<K> keyType,
@@ -122,7 +122,7 @@ public class WindowReader<W extends Window> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If savepoint does not contain the specified uid.
      */
-    public <K, T, OUT> DataSet<OUT> reduce(
+    public <K, T, OUT> DataSource<OUT> reduce(
             String uid,
             ReduceFunction<T> function,
             WindowReaderFunction<T, OUT, K, W> readerFunction,
@@ -153,7 +153,7 @@ public class WindowReader<W extends Window> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If savepoint does not contain the specified uid.
      */
-    public <K, T, ACC, R> DataSet<R> aggregate(
+    public <K, T, ACC, R> DataSource<R> aggregate(
             String uid,
             AggregateFunction<T, ACC, R> aggregateFunction,
             TypeInformation<K> keyType,
@@ -182,7 +182,7 @@ public class WindowReader<W extends Window> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If savepoint does not contain the specified uid.
      */
-    public <K, T, ACC, R, OUT> DataSet<OUT> aggregate(
+    public <K, T, ACC, R, OUT> DataSource<OUT> aggregate(
             String uid,
             AggregateFunction<T, ACC, R> aggregateFunction,
             WindowReaderFunction<R, OUT, K, W> readerFunction,
@@ -213,7 +213,7 @@ public class WindowReader<W extends Window> {
      * @return A {@code DataSet} of objects read from keyed state.
      * @throws IOException If the savepoint does not contain the specified uid.
      */
-    public <K, T, OUT> DataSet<OUT> process(
+    public <K, T, OUT> DataSource<OUT> process(
             String uid,
             WindowReaderFunction<T, OUT, K, W> readerFunction,
             TypeInformation<K> keyType,
@@ -227,7 +227,7 @@ public class WindowReader<W extends Window> {
         return readWindowOperator(uid, outputType, operator);
     }
 
-    private <K, T, OUT> DataSet<OUT> readWindowOperator(
+    private <K, T, OUT> DataSource<OUT> readWindowOperator(
             String uid,
             TypeInformation<OUT> outputType,
             WindowReaderOperator<?, K, T, W, OUT> operator)

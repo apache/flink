@@ -20,11 +20,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -34,60 +30,41 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.SimpleTimerService;
-import org.apache.flink.streaming.api.TimerService;
-import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
-import org.apache.flink.table.runtime.functions.CleanupState;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /**
- * Base class for {@link PythonStreamGroupAggregateOperator} and {@link
- * PythonStreamGroupTableAggregateOperator}.
+ * Base class for {@link AbstractPythonStreamGroupAggregateOperator} and {@link
+ * PythonStreamGroupWindowAggregateOperator}.
  */
 @Internal
 public abstract class AbstractPythonStreamAggregateOperator
-        extends AbstractOneInputPythonFunctionOperator<RowData, RowData>
-        implements Triggerable<RowData, VoidNamespace>, CleanupState {
+        extends AbstractOneInputPythonFunctionOperator<RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
-    @VisibleForTesting
-    protected static final String FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN =
-            "flink:coder:schema:aggregate_function:v1";
-
     @VisibleForTesting static final byte NORMAL_RECORD = 0;
 
-    private static final byte TRIGGER_TIMER = 1;
+    @VisibleForTesting static final byte TRIGGER_TIMER = 1;
 
     private final PythonAggregateFunctionInfo[] aggregateFunctions;
 
@@ -99,9 +76,6 @@ public abstract class AbstractPythonStreamAggregateOperator
     /** The output logical type. */
     protected final RowType outputType;
 
-    /** The options used to configure the Python worker process. */
-    private final Map<String, String> jobOptions;
-
     /** The array of the key indexes. */
     private final int[] grouping;
 
@@ -111,12 +85,6 @@ public abstract class AbstractPythonStreamAggregateOperator
     /** Generate retract messages if true. */
     private final boolean generateUpdateBefore;
 
-    /** The minimum time in milliseconds until state which was not updated will be retained. */
-    private final long minRetentionTime;
-
-    /** The maximum time in milliseconds until state which was not updated will be retained. */
-    private final long maxRetentionTime;
-
     /** The maximum NUMBER of the states cached in Python side. */
     private final int stateCacheSize;
 
@@ -125,15 +93,13 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private final int mapStateWriteCacheSize;
 
-    /**
-     * Indicates whether state cleaning is enabled. Can be calculated from the `minRetentionTime`.
-     */
-    private final boolean stateCleaningEnabled;
-
     private transient Object keyForTimerService;
 
     /** The user-defined function input logical type. */
     protected transient RowType userDefinedFunctionInputType;
+
+    /** The user-defined function output logical type. */
+    protected transient RowType userDefinedFunctionOutputType;
 
     /** The TypeSerializer for udf execution results. */
     transient TypeSerializer<RowData> udfOutputTypeSerializer;
@@ -142,27 +108,19 @@ public abstract class AbstractPythonStreamAggregateOperator
     transient TypeSerializer<RowData> udfInputTypeSerializer;
 
     /** Reusable InputStream used to holding the execution results to be deserialized. */
-    private transient ByteArrayInputStreamWithPos bais;
+    protected transient ByteArrayInputStreamWithPos bais;
 
     /** InputStream Wrapper. */
-    private transient DataInputViewStreamWrapper baisWrapper;
+    protected transient DataInputViewStreamWrapper baisWrapper;
 
     /** Reusable OutputStream used to holding the serialized input elements. */
-    private transient ByteArrayOutputStreamWithPos baos;
+    protected transient ByteArrayOutputStreamWithPos baos;
 
     /** OutputStream Wrapper. */
-    private transient DataOutputViewStreamWrapper baosWrapper;
-
-    private transient TimerService timerService;
-
-    // holds the latest registered cleanup timer
-    private transient ValueState<Long> cleanupTimeState;
-
-    private transient UpdatableRowData reuseRowData;
-    private transient UpdatableRowData reuseTimerRowData;
+    protected transient DataOutputViewStreamWrapper baosWrapper;
 
     /** The collector used to collect records. */
-    private transient StreamRecordRowDataWrappingCollector rowDataWrapper;
+    protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
     public AbstractPythonStreamAggregateOperator(
             Configuration config,
@@ -172,21 +130,15 @@ public abstract class AbstractPythonStreamAggregateOperator
             DataViewUtils.DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
-            boolean generateUpdateBefore,
-            long minRetentionTime,
-            long maxRetentionTime) {
+            boolean generateUpdateBefore) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
         this.aggregateFunctions = aggregateFunctions;
         this.dataViewSpecs = dataViewSpecs;
-        this.jobOptions = buildJobOptions(config);
         this.grouping = grouping;
         this.indexOfCountStar = indexOfCountStar;
         this.generateUpdateBefore = generateUpdateBefore;
-        this.minRetentionTime = minRetentionTime;
-        this.maxRetentionTime = maxRetentionTime;
-        this.stateCleaningEnabled = minRetentionTime > 1;
         this.stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         this.mapStateReadCacheSize = config.get(PythonOptions.MAP_STATE_READ_CACHE_SIZE);
         this.mapStateWriteCacheSize = config.get(PythonOptions.MAP_STATE_WRITE_CACHE_SIZE);
@@ -195,33 +147,18 @@ public abstract class AbstractPythonStreamAggregateOperator
     @Override
     @SuppressWarnings("unchecked")
     public void open() throws Exception {
-        List<RowType.RowField> fields = new ArrayList<>();
-        fields.add(new RowType.RowField("record_type", new TinyIntType()));
-        fields.add(new RowType.RowField("row", inputType));
-        fields.add(new RowType.RowField("timestamp", new BigIntType()));
-        fields.add(new RowType.RowField("key", getKeyType()));
-        userDefinedFunctionInputType = new RowType(fields);
-        udfInputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
-        udfOutputTypeSerializer = PythonTypeUtils.toBlinkTypeSerializer(outputType);
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
-        timerService =
-                new SimpleTimerService(
-                        getInternalTimerService(
-                                "state-clean-timer", VoidNamespaceSerializer.INSTANCE, this));
-        // The structure is:  [type]|[normal record]|[timestamp of timer]|[row key of timer]
-        // If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
-        // If the type is 'TRIGGER_TIMER', store the timestamp in 3rd column and the row key in 4th
-        // column.
-        reuseRowData = new UpdatableRowData(GenericRowData.of(NORMAL_RECORD, null, null, null), 4);
-        reuseTimerRowData =
-                new UpdatableRowData(GenericRowData.of(TRIGGER_TIMER, null, null, null), 4);
+        userDefinedFunctionInputType = createUserDefinedFunctionInputType();
+        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
+        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
+        udfOutputTypeSerializer =
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
-        initCleanupTimeState();
         super.open();
+        configJobOptions();
     }
 
     @Override
@@ -233,39 +170,18 @@ public abstract class AbstractPythonStreamAggregateOperator
         emitResults();
     }
 
-    /** Invoked when an event-time timer fires. */
-    @Override
-    public void onEventTime(InternalTimer<RowData, VoidNamespace> timer) {}
-
-    /** Invoked when a processing-time timer fires. */
-    @Override
-    public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
-        if (stateCleaningEnabled) {
-            RowData key = timer.getKey();
-            long timestamp = timer.getTimestamp();
-            reuseTimerRowData.setLong(2, timestamp);
-            reuseTimerRowData.setField(3, key);
-            udfInputTypeSerializer.serialize(reuseTimerRowData, baosWrapper);
-            pythonFunctionRunner.process(baos.toByteArray());
-            baos.reset();
-            elementCount++;
-        }
-    }
-
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return new BeamTableStatefulPythonFunctionRunner(
+        return BeamTablePythonFunctionRunner.stateful(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                userDefinedFunctionInputType,
-                outputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
                 jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
+                getWindowSerializer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -277,16 +193,9 @@ public abstract class AbstractPythonStreamAggregateOperator
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
-    }
-
-    @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawUdfResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        bais.setBuffer(rawUdfResult, 0, length);
-        RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
-        rowDataWrapper.collect(udfResult);
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
+                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
     }
 
     /**
@@ -311,7 +220,7 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     @VisibleForTesting
     TypeSerializer getKeySerializer() {
-        return PythonTypeUtils.toBlinkTypeSerializer(getKeyType());
+        return PythonTypeUtils.toInternalSerializer(getKeyType());
     }
 
     protected RowType getKeyType() {
@@ -320,18 +229,22 @@ public abstract class AbstractPythonStreamAggregateOperator
         return selector.getProducedType().toRowType();
     }
 
+    TypeSerializer getWindowSerializer() {
+        return null;
+    }
+
     /**
      * Gets the proto representation of the Python user-defined aggregate functions to be executed.
      */
     protected FlinkFnApi.UserDefinedAggregateFunctions getUserDefinedFunctionsProto() {
         FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
                 FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));
         builder.setGenerateUpdateBefore(generateUpdateBefore);
         builder.setIndexOfCountStar(indexOfCountStar);
         builder.setKeyType(toProtoType(getKeyType()));
-        builder.setStateCleaningEnabled(stateCleaningEnabled);
         builder.setStateCacheSize(stateCacheSize);
         builder.setMapStateReadCacheSize(mapStateReadCacheSize);
         builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
@@ -341,56 +254,35 @@ public abstract class AbstractPythonStreamAggregateOperator
                 specs = dataViewSpecs[i];
             }
             builder.addUdfs(
-                    PythonOperatorUtils.getUserDefinedAggregateFunctionProto(
-                            aggregateFunctions[i], specs));
+                    ProtoUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
         }
         return builder.build();
     }
 
     public abstract String getFunctionUrn();
 
-    private Map<String, String> buildJobOptions(Configuration config) {
-        Map<String, String> jobOptions = new HashMap<>();
-        if (config.containsKey("table.exec.timezone")) {
-            jobOptions.put("table.exec.timezone", config.getString("table.exec.timezone", null));
-        }
+    public abstract void processElementInternal(RowData value) throws Exception;
+
+    public abstract RowType createUserDefinedFunctionInputType();
+
+    public abstract RowType createUserDefinedFunctionOutputType();
+
+    private void configJobOptions() {
         jobOptions.put(
                 PythonOptions.STATE_CACHE_SIZE.key(),
                 String.valueOf(config.get(PythonOptions.STATE_CACHE_SIZE)));
         jobOptions.put(
                 PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
                 String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
-        return jobOptions;
     }
 
-    private void initCleanupTimeState() {
-        if (stateCleaningEnabled) {
-            ValueStateDescriptor<Long> inputCntDescriptor =
-                    new ValueStateDescriptor<>("PythonAggregateCleanupTime", Types.LONG);
-            cleanupTimeState = getRuntimeContext().getState(inputCntDescriptor);
-        }
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createRowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 
-    private void processElementInternal(RowData value) throws Exception {
-        long currentTime = timerService.currentProcessingTime();
-        registerProcessingCleanupTimer(currentTime);
-        reuseRowData.setField(1, value);
-        udfInputTypeSerializer.serialize(reuseRowData, baosWrapper);
-        pythonFunctionRunner.process(baos.toByteArray());
-        baos.reset();
-    }
-
-    private void registerProcessingCleanupTimer(long currentTime) throws Exception {
-        if (stateCleaningEnabled) {
-            synchronized (getKeyedStateBackend()) {
-                getKeyedStateBackend().setCurrentKey(getCurrentKey());
-                registerProcessingCleanupTimer(
-                        cleanupTimeState,
-                        currentTime,
-                        minRetentionTime,
-                        maxRetentionTime,
-                        timerService);
-            }
-        }
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 }

@@ -21,13 +21,12 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Provides a mapping from {@link ExecutionAttemptID} to {@link ExecutionVertex} for currently
@@ -41,8 +40,9 @@ public class ExecutionAttemptMappingProvider {
     /** The cached mapping, which would only be updated on miss. */
     private final LinkedHashMap<ExecutionAttemptID, ExecutionVertex> cachedTasksById;
 
-    public ExecutionAttemptMappingProvider(List<ExecutionVertex> tasks) {
-        this.tasks = checkNotNull(tasks);
+    public ExecutionAttemptMappingProvider(Iterable<ExecutionVertex> tasksIterable) {
+        this.tasks = new ArrayList<>();
+        tasksIterable.forEach(this.tasks::add);
 
         this.cachedTasksById =
                 new LinkedHashMap<ExecutionAttemptID, ExecutionVertex>(tasks.size()) {

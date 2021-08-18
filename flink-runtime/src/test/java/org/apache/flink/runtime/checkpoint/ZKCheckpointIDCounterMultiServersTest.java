@@ -64,7 +64,7 @@ public final class ZKCheckpointIDCounterMultiServersTest extends TestLogger {
                             connectionLossLatch, reconnectedLatch);
 
             ZooKeeperCheckpointIDCounter idCounter =
-                    new ZooKeeperCheckpointIDCounter(client, "/checkpoint-id-counter", listener);
+                    new ZooKeeperCheckpointIDCounter(client, listener);
             idCounter.start();
 
             AtomicLong localCounter = new AtomicLong(1L);

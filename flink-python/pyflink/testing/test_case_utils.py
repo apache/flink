@@ -26,18 +26,16 @@ import unittest
 from abc import abstractmethod
 
 from py4j.java_gateway import JavaObject
-from py4j.protocol import Py4JJavaError
 
 from pyflink.common import JobExecutionResult
-from pyflink.table import TableConfig
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.table.sources import CsvTableSource
-from pyflink.dataset.execution_environment import ExecutionEnvironment
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
-from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
+from pyflink.table.table_environment import TableEnvironment
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import add_jars_to_context_class_loader, to_jarray
+from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -45,23 +43,6 @@ else:
     log_level = logging.INFO
 logging.basicConfig(stream=sys.stdout, level=log_level,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-
-def get_private_field(java_obj, field_name):
-    try:
-        field = java_obj.getClass().getDeclaredField(field_name)
-        field.setAccessible(True)
-        return field.get(java_obj)
-    except Py4JJavaError:
-        cls = java_obj.getClass()
-        while cls.getSuperclass() is not None:
-            cls = cls.getSuperclass()
-            try:
-                field = cls.getDeclaredField(field_name)
-                field.setAccessible(True)
-                return field.get(java_obj)
-            except Py4JJavaError:
-                pass
 
 
 def exec_insert_table(table, table_path) -> JobExecutionResult:
@@ -146,72 +127,56 @@ class PyFlinkTestCase(unittest.TestCase):
 
 class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     """
-    Base class for stream tests.
+    Base class for table stream tests.
     """
 
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.t_env = StreamTableEnvironment.create(
-            self.env,
-            environment_settings=EnvironmentSettings.new_instance()
-                .in_streaming_mode().use_old_planner().build())
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
+        self.t_env._remote_mode = True
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
+    """
+    Base class for table batch tests.
+    """
+
+    def setUp(self):
+        super(PyFlinkBatchTableTestCase, self).setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
+        self.t_env._remote_mode = True
+
+
+class PyFlinkStreamingTestCase(PyFlinkTestCase):
+    """
+    Base class for streaming tests.
+    """
+
+    def setUp(self):
+        super(PyFlinkStreamingTestCase, self).setUp()
+        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env.set_parallelism(2)
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        self.env._remote_mode = True
+
+
+class PyFlinkBatchTestCase(PyFlinkTestCase):
     """
     Base class for batch tests.
     """
 
     def setUp(self):
-        super(PyFlinkBatchTableTestCase, self).setUp()
-        self.env = ExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
-        self.t_env = BatchTableEnvironment.create(self.env, TableConfig())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-    def collect(self, table):
-        j_table = table._j_table
-        gateway = get_gateway()
-        row_result = self.t_env._j_tenv\
-            .toDataSet(j_table, gateway.jvm.Class.forName("org.apache.flink.types.Row")).collect()
-        string_result = [java_row.toString() for java_row in row_result]
-        return string_result
-
-
-class PyFlinkBlinkStreamTableTestCase(PyFlinkTestCase):
-    """
-    Base class for stream tests of blink planner.
-    """
-
-    def setUp(self):
-        super(PyFlinkBlinkStreamTableTestCase, self).setUp()
+        super(PyFlinkBatchTestCase, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
-        self.t_env = StreamTableEnvironment.create(
-            self.env, environment_settings=EnvironmentSettings.new_instance()
-                .in_streaming_mode().use_blink_planner().build())
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkBlinkBatchTableTestCase(PyFlinkTestCase):
-    """
-    Base class for batch tests of blink planner.
-    """
-
-    def setUp(self):
-        super(PyFlinkBlinkBatchTableTestCase, self).setUp()
-        self.t_env = BatchTableEnvironment.create(
-            environment_settings=EnvironmentSettings.new_instance()
-            .in_batch_mode().use_blink_planner().build())
-        self.t_env._j_tenv.getPlanner().getExecEnv().setParallelism(2)
-        self.t_env.get_config().get_configuration().set_string(
-            "python.fn-execution.bundle.size", "1")
+        self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+        self.env._remote_mode = True
 
 
 class PythonAPICompletenessTestCase(object):
@@ -330,37 +295,3 @@ class TestEnv(object):
         for item in self.result:
             result[item.f0] = item.f1
         return result
-
-
-class MLTestCase(PyFlinkTestCase):
-    """
-    Base class for testing ML.
-    """
-
-    _inited = False
-
-    @staticmethod
-    def _ensure_path(pattern):
-        if not glob.glob(pattern):
-            raise unittest.SkipTest(
-                "'%s' is not available. Will skip the related tests." % pattern)
-
-    @classmethod
-    def _ensure_initialized(cls):
-        if MLTestCase._inited:
-            return
-
-        flink_source_root_dir = _find_flink_source_root()
-        api_path_pattern = (
-            "flink-ml-parent/flink-ml-api/target/flink-ml-api*-SNAPSHOT.jar")
-        lib_path_pattern = (
-            "flink-ml-parent/flink-ml-lib/target/flink-ml-lib*-SNAPSHOT.jar")
-
-        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, api_path_pattern))
-        MLTestCase._ensure_path(os.path.join(flink_source_root_dir, lib_path_pattern))
-
-        MLTestCase._inited = True
-
-    def setUp(self):
-        super(MLTestCase, self).setUp()
-        MLTestCase._ensure_initialized()

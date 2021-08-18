@@ -22,7 +22,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -38,15 +41,18 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteChannelState
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.After;
 import org.junit.Before;
@@ -63,10 +69,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -88,6 +97,7 @@ import static org.mockito.Mockito.when;
  * correctly handled.
  */
 public class TaskTest extends TestLogger {
+    private static final String RESTORE_EXCEPTION_MSG = "TestExceptionInRestore";
 
     private static OneShotLatch awaitLatch;
     private static OneShotLatch triggerLatch;
@@ -135,6 +145,7 @@ public class TaskTest extends TestLogger {
         assertNull(task.getFailureCause());
         assertNull(task.getInvokable());
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.FINISHED, task, null);
     }
@@ -288,6 +299,28 @@ public class TaskTest extends TestLogger {
     }
 
     @Test
+    public void testExecutionFailsInRestore() throws Exception {
+        final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableWithExceptionInRestore.class)
+                        .setTaskManagerActions(taskManagerActions)
+                        .build();
+
+        task.run();
+
+        assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        assertTrue(task.isCanceledOrFailed());
+        assertNotNull(task.getFailureCause());
+        assertNotNull(task.getFailureCause().getMessage());
+        assertThat(task.getFailureCause().getMessage(), containsString(RESTORE_EXCEPTION_MSG));
+
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
+        taskManagerActions.validateListenerMessage(
+                ExecutionState.FAILED, task, new Exception(RESTORE_EXCEPTION_MSG));
+    }
+
+    @Test
     public void testExecutionFailsInInvoke() throws Exception {
         final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
         final Task task =
@@ -304,6 +337,7 @@ public class TaskTest extends TestLogger {
         assertNotNull(task.getFailureCause().getMessage());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -326,9 +360,40 @@ public class TaskTest extends TestLogger {
         final Throwable cause = task.getFailureCause();
         assertTrue(cause instanceof IOException);
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new IOException("test"));
+    }
+
+    @Test
+    public void testCancelDuringRestore() throws Exception {
+        final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableBlockingInRestore.class)
+                        .setTaskManagerActions(taskManagerActions)
+                        .build();
+
+        // run the task asynchronous
+        task.startTaskThread();
+
+        // wait till the task is in restore
+        awaitLatch.await();
+
+        task.cancelExecution();
+        assertTrue(
+                task.getExecutionState() == ExecutionState.CANCELING
+                        || task.getExecutionState() == ExecutionState.CANCELED);
+
+        task.getExecutingThread().join();
+
+        assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+        assertTrue(task.isCanceledOrFailed());
+        assertNull(task.getFailureCause());
+
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
+        taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
     }
 
     @Test
@@ -357,8 +422,37 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertNull(task.getFailureCause());
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
+    }
+
+    @Test
+    public void testFailExternallyDuringRestore() throws Exception {
+        final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableBlockingInRestore.class)
+                        .setTaskManagerActions(taskManagerActions)
+                        .build();
+
+        // run the task asynchronous
+        task.startTaskThread();
+
+        // wait till the task is in invoke
+        awaitLatch.await();
+
+        task.failExternally(new Exception(RESTORE_EXCEPTION_MSG));
+
+        task.getExecutingThread().join();
+
+        assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        assertTrue(task.isCanceledOrFailed());
+        assertThat(task.getFailureCause().getMessage(), containsString(RESTORE_EXCEPTION_MSG));
+
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
+        taskManagerActions.validateListenerMessage(
+                ExecutionState.FAILED, task, new Exception(RESTORE_EXCEPTION_MSG));
     }
 
     @Test
@@ -384,6 +478,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -407,6 +502,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("test"));
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("test"));
@@ -440,6 +536,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertNull(task.getFailureCause());
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.CANCELED, task, null);
     }
@@ -471,6 +568,7 @@ public class TaskTest extends TestLogger {
         assertTrue(task.isCanceledOrFailed());
         assertTrue(task.getFailureCause().getMessage().contains("external"));
 
+        taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new Exception("external"));
@@ -548,6 +646,7 @@ public class TaskTest extends TestLogger {
             expected.put(state, ExecutionState.FAILED);
         }
 
+        expected.put(ExecutionState.INITIALIZING, initialTaskState);
         expected.put(ExecutionState.RUNNING, initialTaskState);
         expected.put(ExecutionState.SCHEDULED, initialTaskState);
         expected.put(ExecutionState.DEPLOYING, initialTaskState);
@@ -571,7 +670,7 @@ public class TaskTest extends TestLogger {
             assertEquals(expected.get(state), newTaskState);
         }
 
-        assertEquals(4, producingStateCounter);
+        assertEquals(5, producingStateCounter);
     }
 
     /** Tests the trigger partition state update future completions. */
@@ -989,6 +1088,71 @@ public class TaskTest extends TestLogger {
         assertFalse(task.isBackPressured());
     }
 
+    @Test
+    public void testDeclineCheckpoint() throws Exception {
+        TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(InvokableDeclingingCheckpoints.class)
+                        .setCheckpointResponder(testCheckpointResponder)
+                        .build();
+        assertCheckpointDeclined(
+                task,
+                testCheckpointResponder,
+                1,
+                CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
+
+        task.startTaskThread();
+        try {
+            awaitLatch.await();
+            assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.REJECTED_EXECUTION_CHECKPOINT_ID,
+                    CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING);
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.THROWING_CHECKPOINT_ID,
+                    CheckpointFailureReason.TASK_FAILURE);
+            assertCheckpointDeclined(
+                    task,
+                    testCheckpointResponder,
+                    InvokableDeclingingCheckpoints.TRIGGERING_FAILED_CHECKPOINT_ID,
+                    CheckpointFailureReason.TASK_FAILURE);
+        } finally {
+            triggerLatch.trigger();
+            task.getExecutingThread().join();
+        }
+        assertEquals(ExecutionState.FINISHED, task.getTerminationFuture().getNow(null));
+    }
+
+    private void assertCheckpointDeclined(
+            Task task,
+            TestCheckpointResponder testCheckpointResponder,
+            long checkpointId,
+            CheckpointFailureReason failureReason) {
+        CheckpointOptions checkpointOptions =
+                CheckpointOptions.alignedNoTimeout(
+                        CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+        task.triggerCheckpointBarrier(checkpointId, 1, checkpointOptions);
+
+        assertEquals(1, testCheckpointResponder.getDeclineReports().size());
+        assertEquals(
+                checkpointId, testCheckpointResponder.getDeclineReports().get(0).getCheckpointId());
+        assertEquals(
+                failureReason,
+                testCheckpointResponder
+                        .getDeclineReports()
+                        .get(0)
+                        .getCause()
+                        .getCheckpointFailureReason());
+
+        testCheckpointResponder.clear();
+    }
+
     // ------------------------------------------------------------------------
     //  customized TaskManagerActions
     // ------------------------------------------------------------------------
@@ -1009,7 +1173,6 @@ public class TaskTest extends TestLogger {
                 final TaskExecutionState taskState = queue.take();
                 assertNotNull("There is no additional listener message", state);
 
-                assertEquals(task.getJobID(), taskState.getJobID());
                 assertEquals(task.getExecutionId(), taskState.getID());
                 assertEquals(state, taskState.getExecutionState());
 
@@ -1054,8 +1217,9 @@ public class TaskTest extends TestLogger {
         public void invoke() {}
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             fail("This should not be called");
+            return null;
         }
     }
 
@@ -1076,6 +1240,20 @@ public class TaskTest extends TestLogger {
         }
     }
 
+    static final class InvokableWithExceptionInRestore extends AbstractInvokable {
+        public InvokableWithExceptionInRestore(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void restore() throws Exception {
+            throw new Exception(RESTORE_EXCEPTION_MSG);
+        }
+
+        @Override
+        public void invoke() throws Exception {}
+    }
+
     private static final class FailingInvokableWithChainedException extends AbstractInvokable {
         public FailingInvokableWithChainedException(Environment environment) {
             super(environment);
@@ -1087,10 +1265,12 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {}
+        public Future<Void> cancel() {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
-    private static final class InvokableBlockingWithTrigger extends AbstractInvokable {
+    private static class InvokableBlockingWithTrigger extends AbstractInvokable {
         public InvokableBlockingWithTrigger(Environment environment) {
             super(environment);
         }
@@ -1100,6 +1280,35 @@ public class TaskTest extends TestLogger {
             awaitLatch.trigger();
 
             triggerLatch.await();
+        }
+    }
+
+    private static class InvokableDeclingingCheckpoints extends InvokableBlockingWithTrigger {
+        public static final int REJECTED_EXECUTION_CHECKPOINT_ID = 2;
+        public static final int THROWING_CHECKPOINT_ID = 3;
+        public static final int TRIGGERING_FAILED_CHECKPOINT_ID = 4;
+
+        public InvokableDeclingingCheckpoints(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+            long checkpointId = checkpointMetaData.getCheckpointId();
+            switch (Math.toIntExact(checkpointId)) {
+                case REJECTED_EXECUTION_CHECKPOINT_ID:
+                    throw new RejectedExecutionException();
+                case THROWING_CHECKPOINT_ID:
+                    CompletableFuture<Boolean> result = new CompletableFuture<>();
+                    result.completeExceptionally(new ExpectedTestException());
+                    return result;
+                case TRIGGERING_FAILED_CHECKPOINT_ID:
+                    return CompletableFuture.completedFuture(false);
+                default:
+                    throw new UnsupportedOperationException(
+                            "Unsupported checkpointId: " + checkpointId);
+            }
         }
     }
 
@@ -1119,6 +1328,27 @@ public class TaskTest extends TestLogger {
                 }
             }
         }
+    }
+
+    private static final class InvokableBlockingInRestore extends AbstractInvokable {
+        public InvokableBlockingInRestore(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void restore() throws Exception {
+            awaitLatch.trigger();
+
+            // block forever
+            synchronized (this) {
+                while (true) {
+                    wait();
+                }
+            }
+        }
+
+        @Override
+        public void invoke() throws Exception {}
     }
 
     /** {@link AbstractInvokable} which throws {@link RuntimeException} on invoke. */
@@ -1188,11 +1418,12 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() throws Exception {
+        public Future<Void> cancel() throws Exception {
             synchronized (this) {
                 triggerLatch.trigger();
                 wait();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1214,11 +1445,12 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             synchronized (lock) {
                 // do nothing but a placeholder
                 triggerLatch.trigger();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -1242,7 +1474,9 @@ public class TaskTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {}
+        public Future<Void> cancel() {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     // ------------------------------------------------------------------------

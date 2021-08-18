@@ -87,7 +87,7 @@ public class InputOutputFormatVertex extends JobVertex {
                 setInputSplitSource(inputFormat);
             }
 
-            // configure input formats and invoke initializeGlobal()
+            // configure output formats and invoke initializeGlobal()
             Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =
                     formatContainer.getOutputFormats();
             for (Map.Entry<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> entry :
@@ -125,7 +125,7 @@ public class InputOutputFormatVertex extends JobVertex {
             // set user classloader before calling user code
             Thread.currentThread().setContextClassLoader(loader);
 
-            // configure input formats and invoke finalizeGlobal()
+            // configure output formats and invoke finalizeGlobal()
             Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats =
                     formatContainer.getOutputFormats();
             for (Map.Entry<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> entry :

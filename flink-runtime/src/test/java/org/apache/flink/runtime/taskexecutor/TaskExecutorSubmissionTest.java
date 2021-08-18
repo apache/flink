@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -64,6 +63,7 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -342,7 +342,9 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setUpdateTaskExecutionStateFunction(
                                 taskExecutionState -> {
                                     if (taskExecutionState != null
-                                            && taskExecutionState.getID().equals(eid1)) {
+                                            && taskExecutionState.getID().equals(eid1)
+                                            && taskExecutionState.getExecutionState()
+                                                    == ExecutionState.RUNNING) {
                                         return FutureUtils.completedExceptionally(
                                                 new ExecutionGraphException(
                                                         "The execution attempt "
@@ -691,8 +693,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 producedPartitions,
                 inputGates,
                 Collections.emptyList(),
-                Collections.emptyList(),
-                0);
+                Collections.emptyList());
     }
 
     static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
@@ -711,8 +712,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             List<ResultPartitionDeploymentDescriptor> producedPartitions,
             List<InputGateDeploymentDescriptor> inputGates,
             Collection<PermanentBlobKey> requiredJarFiles,
-            Collection<URL> requiredClasspaths,
-            int targetSlotNumber)
+            Collection<URL> requiredClasspaths)
             throws IOException {
 
         JobInformation jobInformation =
@@ -746,7 +746,6 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 new AllocationID(),
                 subtaskIndex,
                 attemptNumber,
-                targetSlotNumber,
                 null,
                 producedPartitions,
                 inputGates);

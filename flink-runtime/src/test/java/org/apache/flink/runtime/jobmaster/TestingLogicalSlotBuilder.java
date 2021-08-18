@@ -29,7 +29,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 public class TestingLogicalSlotBuilder {
     private TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
     private TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-    private int slotNumber = 0;
     private AllocationID allocationId = new AllocationID();
     private SlotRequestId slotRequestId = new SlotRequestId();
     private SlotOwner slotOwner = new DummySlotOwner();
@@ -43,11 +42,6 @@ public class TestingLogicalSlotBuilder {
     public TestingLogicalSlotBuilder setTaskManagerLocation(
             TaskManagerLocation taskManagerLocation) {
         this.taskManagerLocation = taskManagerLocation;
-        return this;
-    }
-
-    public TestingLogicalSlotBuilder setSlotNumber(int slotNumber) {
-        this.slotNumber = slotNumber;
         return this;
     }
 
@@ -76,7 +70,6 @@ public class TestingLogicalSlotBuilder {
         return new TestingLogicalSlot(
                 taskManagerLocation,
                 taskManagerGateway,
-                slotNumber,
                 allocationId,
                 slotRequestId,
                 automaticallyCompleteReleaseFuture,

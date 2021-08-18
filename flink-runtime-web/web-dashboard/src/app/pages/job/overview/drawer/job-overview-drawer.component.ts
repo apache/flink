@@ -54,7 +54,8 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     { title: 'Watermarks', path: 'watermarks' },
     { title: 'Accumulators', path: 'accumulators' },
     { title: 'BackPressure', path: 'backpressure' },
-    { title: 'Metrics', path: 'metrics' }
+    { title: 'Metrics', path: 'metrics' },
+    { title: 'FlameGraph', path: 'flamegraph' }
   ];
   fullScreen = false;
   private cachePath = this.listOfNavigation[0].path;

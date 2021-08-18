@@ -19,73 +19,37 @@ limitations under the License.
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.util.FlinkRuntimeException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
+/** A simple implementation of {@link OperatorCoordinator.Context} for testing purposes. */
 public class MockOperatorCoordinatorContext implements OperatorCoordinator.Context {
+
     private final OperatorID operatorID;
     private final ClassLoader userCodeClassLoader;
     private final int numSubtasks;
-    private final boolean failEventSending;
 
-    private final Map<Integer, List<OperatorEvent>> eventsToOperator;
     private boolean jobFailed;
     private Throwable jobFailureReason;
 
     public MockOperatorCoordinatorContext(OperatorID operatorID, int numSubtasks) {
-        this(operatorID, numSubtasks, true);
-    }
-
-    public MockOperatorCoordinatorContext(
-            OperatorID operatorID, int numSubtasks, boolean failEventSending) {
-        this(
-                operatorID,
-                numSubtasks,
-                failEventSending,
-                MockOperatorCoordinatorContext.class.getClassLoader());
+        this(operatorID, numSubtasks, MockOperatorCoordinatorContext.class.getClassLoader());
     }
 
     public MockOperatorCoordinatorContext(OperatorID operatorID, ClassLoader userCodeClassLoader) {
-        this(operatorID, 1, true, userCodeClassLoader);
+        this(operatorID, 1, userCodeClassLoader);
     }
 
     public MockOperatorCoordinatorContext(
-            OperatorID operatorID,
-            int numSubtasks,
-            boolean failEventSending,
-            ClassLoader userCodeClassLoader) {
+            OperatorID operatorID, int numSubtasks, ClassLoader userCodeClassLoader) {
         this.operatorID = operatorID;
         this.numSubtasks = numSubtasks;
-        this.eventsToOperator = new HashMap<>();
         this.jobFailed = false;
         this.jobFailureReason = null;
-        this.failEventSending = failEventSending;
         this.userCodeClassLoader = userCodeClassLoader;
     }
 
     @Override
     public OperatorID getOperatorId() {
         return operatorID;
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> sendEvent(OperatorEvent evt, int targetSubtask)
-            throws TaskNotRunningException {
-        eventsToOperator.computeIfAbsent(targetSubtask, subtaskId -> new ArrayList<>()).add(evt);
-        if (failEventSending) {
-            CompletableFuture<Acknowledge> future = new CompletableFuture<>();
-            future.completeExceptionally(
-                    new FlinkRuntimeException("Testing Exception to fail event sending."));
-            return future;
-        } else {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        }
     }
 
     @Override
@@ -105,14 +69,6 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     }
 
     // -------------------------------
-
-    public List<OperatorEvent> getEventsToOperatorBySubtaskId(int subtaskId) {
-        return eventsToOperator.get(subtaskId);
-    }
-
-    public Map<Integer, List<OperatorEvent>> getEventsToOperator() {
-        return eventsToOperator;
-    }
 
     public boolean isJobFailed() {
         return jobFailed;

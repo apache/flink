@@ -19,14 +19,16 @@
 package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 
 import java.util.HashMap;
@@ -35,13 +37,35 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 
-/** A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators. */
+/**
+ * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators. Used
+ * mostly in CollectionExecutor and can be removed along with the DataSet API.
+ */
 @Internal
 public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 
     private final HashMap<String, Object> initializedBroadcastVars = new HashMap<>();
 
     private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<>();
+    private final JobID jobID;
+
+    @VisibleForTesting
+    public RuntimeUDFContext(
+            TaskInfo taskInfo,
+            ClassLoader userCodeClassLoader,
+            ExecutionConfig executionConfig,
+            Map<String, Future<Path>> cpTasks,
+            Map<String, Accumulator<?, ?>> accumulators,
+            OperatorMetricGroup metrics) {
+        this(
+                taskInfo,
+                userCodeClassLoader,
+                executionConfig,
+                cpTasks,
+                accumulators,
+                metrics,
+                new JobID());
+    }
 
     public RuntimeUDFContext(
             TaskInfo taskInfo,
@@ -49,7 +73,8 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
             ExecutionConfig executionConfig,
             Map<String, Future<Path>> cpTasks,
             Map<String, Accumulator<?, ?>> accumulators,
-            MetricGroup metrics) {
+            OperatorMetricGroup metrics,
+            JobID jobID) {
         super(
                 taskInfo,
                 SimpleUserCodeClassLoader.create(userCodeClassLoader),
@@ -57,6 +82,7 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
                 accumulators,
                 cpTasks,
                 metrics);
+        this.jobID = jobID;
     }
 
     @Override
@@ -112,6 +138,11 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
                         "The broadcast variable with name '" + name + "' has not been set.");
             }
         }
+    }
+
+    @Override
+    public JobID getJobId() {
+        return jobID;
     }
 
     @Override

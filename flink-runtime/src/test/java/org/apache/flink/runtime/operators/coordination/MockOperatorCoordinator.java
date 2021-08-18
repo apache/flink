@@ -54,6 +54,11 @@ public final class MockOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
         throw new UnsupportedOperationException();
     }

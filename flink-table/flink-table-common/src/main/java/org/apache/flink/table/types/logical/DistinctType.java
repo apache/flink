@@ -46,6 +46,7 @@ import java.util.Objects;
  */
 @PublicEvolving
 public final class DistinctType extends UserDefinedType {
+    private static final long serialVersionUID = 1L;
 
     /** A builder for a {@link DistinctType}. Intended for future extensibility. */
     public static final class Builder {

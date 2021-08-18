@@ -46,16 +46,22 @@ public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFac
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
             throws Exception {
 
         return ZooKeeperUtils.createCompletedCheckpoints(
-                client, config, jobId, maxNumberOfCheckpointsToRetain, executor);
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        client, ZooKeeperUtils.getPathForJob(jobId)),
+                config,
+                maxNumberOfCheckpointsToRetain,
+                executor);
     }
 
     @Override
     public CheckpointIDCounter createCheckpointIDCounter(JobID jobID) throws Exception {
-        return ZooKeeperUtils.createCheckpointIDCounter(client, config, jobID);
+        return ZooKeeperUtils.createCheckpointIDCounter(
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        client, ZooKeeperUtils.getPathForJob(jobID)));
     }
 }

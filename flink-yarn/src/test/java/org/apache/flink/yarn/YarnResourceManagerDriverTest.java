@@ -32,7 +32,7 @@ import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -105,7 +105,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                     MemorySize.ofMebiBytes(256),
                     MemorySize.ofMebiBytes(256),
                     MemorySize.ZERO,
-                    MemorySize.ZERO);
+                    MemorySize.ZERO,
+                    Collections.emptyList());
 
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
@@ -322,7 +323,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                         MemorySize.ofMebiBytes(50),
                         MemorySize.ofMebiBytes(50),
                         MemorySize.ZERO,
-                        MemorySize.ZERO);
+                        MemorySize.ZERO,
+                        Collections.emptyList());
         final TaskExecutorProcessSpec taskExecutorProcessSpec2 =
                 new TaskExecutorProcessSpec(
                         new CPUResource(2),
@@ -333,7 +335,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                         MemorySize.ofMebiBytes(500),
                         MemorySize.ofMebiBytes(500),
                         MemorySize.ZERO,
-                        MemorySize.ZERO);
+                        MemorySize.ZERO,
+                        Collections.emptyList());
 
         new Context() {
             {

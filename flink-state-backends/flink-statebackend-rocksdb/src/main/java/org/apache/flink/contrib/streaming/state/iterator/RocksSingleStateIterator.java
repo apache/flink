@@ -23,13 +23,11 @@ import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
 
-import java.io.Closeable;
-
 /**
  * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to
  * the iterator. Used by {@link RocksStatesPerKeyGroupMergeIterator}.
  */
-class RocksSingleStateIterator implements Closeable {
+class RocksSingleStateIterator implements SingleStateIterator {
 
     /**
      * @param iterator underlying {@link RocksIteratorWrapper}
@@ -45,19 +43,30 @@ class RocksSingleStateIterator implements Closeable {
     private byte[] currentKey;
     private final int kvStateId;
 
-    public byte[] getCurrentKey() {
+    @Override
+    public void next() {
+        iterator.next();
+        if (iterator.isValid()) {
+            currentKey = iterator.key();
+        }
+    }
+
+    @Override
+    public boolean isValid() {
+        return iterator.isValid();
+    }
+
+    @Override
+    public byte[] key() {
         return currentKey;
     }
 
-    public void setCurrentKey(byte[] currentKey) {
-        this.currentKey = currentKey;
+    @Override
+    public byte[] value() {
+        return iterator.value();
     }
 
-    @Nonnull
-    public RocksIteratorWrapper getIterator() {
-        return iterator;
-    }
-
+    @Override
     public int getKvStateId() {
         return kvStateId;
     }

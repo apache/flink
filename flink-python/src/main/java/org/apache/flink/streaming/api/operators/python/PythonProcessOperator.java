@@ -20,15 +20,18 @@ package org.apache.flink.streaming.api.operators.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.types.Row;
+
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * {@link PythonProcessOperator} is responsible for launching beam runner which will start a python
@@ -36,60 +39,64 @@ import org.apache.flink.types.Row;
  */
 @Internal
 public class PythonProcessOperator<IN, OUT>
-        extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT> {
+        extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
-    private static final long serialVersionUID = 1L;
-
-    private static final String PROCESS_FUNCTION_URN = "flink:transform:process_function:v1";
-
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
-
-    /** Reusable row for normal data runner inputs. */
-    private transient Row reusableInput;
+    private static final long serialVersionUID = 2L;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
 
     public PythonProcessOperator(
             Configuration config,
+            DataStreamPythonFunctionInfo pythonFunctionInfo,
             TypeInformation<IN> inputTypeInfo,
-            TypeInformation<OUT> outputTypeInfo,
-            DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                Types.ROW(Types.LONG, Types.LONG, inputTypeInfo),
-                outputTypeInfo,
-                pythonFunctionInfo);
+            TypeInformation<OUT> outputTypeInfo) {
+        super(config, pythonFunctionInfo, inputTypeInfo, outputTypeInfo);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        reusableInput = new Row(3);
         currentWatermark = Long.MIN_VALUE;
     }
 
     @Override
-    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        byte[] rawResult = resultTuple.f0;
-        int length = resultTuple.f1;
-        if (PythonOperatorUtils.endOfLastFlatMap(length, rawResult)) {
-            bufferedTimestamp.poll();
-        } else {
-            bais.setBuffer(rawResult, 0, length);
-            OUT runnerOutput = runnerOutputTypeSerializer.deserialize(baisWrapper);
-            collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-            collector.collect(runnerOutput);
-        }
+    public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
+        return new BeamDataStreamPythonFunctionRunner(
+                getRuntimeContext().getTaskName(),
+                createPythonEnvironmentManager(),
+                STATELESS_FUNCTION_URN,
+                ProtoUtils.createUserDefinedDataStreamFunctionProtos(
+                        getPythonFunctionInfo(),
+                        getRuntimeContext(),
+                        getInternalParameters(),
+                        inBatchExecutionMode(getKeyedStateBackend())),
+                jobOptions,
+                getFlinkMetricContainer(),
+                null,
+                null,
+                null,
+                null,
+                getContainingTask().getEnvironment().getMemoryManager(),
+                getOperatorConfig()
+                        .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                ManagedMemoryUseCase.PYTHON,
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getTaskManagerInfo()
+                                        .getConfiguration(),
+                                getContainingTask()
+                                        .getEnvironment()
+                                        .getUserCodeClassLoader()
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(),
+                createOutputCoderInfoDescriptor(),
+                null);
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        reusableInput.setField(0, element.getTimestamp());
-        reusableInput.setField(1, currentWatermark);
-        reusableInput.setField(2, element.getValue());
-        element.replace(reusableInput);
-        super.processElement(element);
+        processElement(element.getTimestamp(), currentWatermark, element.getValue());
     }
 
     @Override
@@ -99,12 +106,9 @@ public class PythonProcessOperator<IN, OUT>
     }
 
     @Override
-    public String getFunctionUrn() {
-        return PROCESS_FUNCTION_URN;
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return FLAT_MAP_CODER_URN;
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonProcessOperator<>(
+                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
     }
 }

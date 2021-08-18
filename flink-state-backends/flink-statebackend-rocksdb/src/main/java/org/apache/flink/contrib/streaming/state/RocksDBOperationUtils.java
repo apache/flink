@@ -104,16 +104,6 @@ public class RocksDBOperationUtils {
         return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
     }
 
-    /**
-     * Create a total order read option to avoid user misuse, see FLINK-17800 for more details.
-     *
-     * <p>Note, remember to close the generated {@link ReadOptions} when dispose.
-     */
-    // TODO We would remove this method once we bump RocksDB version larger than 6.2.2.
-    public static ReadOptions createTotalOrderSeekReadOptions() {
-        return new ReadOptions().setTotalOrderSeek(true);
-    }
-
     public static void registerKvStateInformation(
             Map<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation,
             RocksDBNativeMetricMonitor nativeMetricMonitor,
@@ -248,8 +238,16 @@ public class RocksDBOperationUtils {
     public static void addColumnFamilyOptionsToCloseLater(
             List<ColumnFamilyOptions> columnFamilyOptions, ColumnFamilyHandle columnFamilyHandle) {
         try {
-            if (columnFamilyHandle != null && columnFamilyHandle.getDescriptor() != null) {
-                columnFamilyOptions.add(columnFamilyHandle.getDescriptor().getOptions());
+            // IMPORTANT NOTE: Do not call ColumnFamilyHandle#getDescriptor() just to judge if it
+            // return null and then call it again when it return is not null. That will cause
+            // task manager native memory used by RocksDB can't be released timely after job
+            // restart.
+            // The problem can find in : https://issues.apache.org/jira/browse/FLINK-21986
+            if (columnFamilyHandle != null) {
+                ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyHandle.getDescriptor();
+                if (columnFamilyDescriptor != null) {
+                    columnFamilyOptions.add(columnFamilyDescriptor.getOptions());
+                }
             }
         } catch (RocksDBException e) {
             // ignore
@@ -270,11 +268,15 @@ public class RocksDBOperationUtils {
 
         final double highPriorityPoolRatio = memoryConfig.getHighPriorityPoolRatio();
         final double writeBufferRatio = memoryConfig.getWriteBufferRatio();
+        final boolean usingPartitionedIndexFilters = memoryConfig.isUsingPartitionedIndexFilters();
 
         final LongFunctionWithException<RocksDBSharedResources, Exception> allocator =
                 (size) ->
                         RocksDBMemoryControllerUtils.allocateRocksDBSharedResources(
-                                size, writeBufferRatio, highPriorityPoolRatio);
+                                size,
+                                writeBufferRatio,
+                                highPriorityPoolRatio,
+                                usingPartitionedIndexFilters);
 
         try {
             if (memoryConfig.isUsingFixedMemoryPerSlot()) {

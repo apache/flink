@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
@@ -61,26 +62,26 @@ public class CliOptionsParser {
                     .desc("The identifier for a session. 'default' is the default identifier.")
                     .build();
 
-    public static final Option OPTION_ENVIRONMENT =
-            Option.builder("e")
+    public static final Option OPTION_INIT_FILE =
+            Option.builder("i")
                     .required(false)
-                    .longOpt("environment")
+                    .longOpt("init")
                     .numberOfArgs(1)
-                    .argName("environment file")
+                    .argName("initialization file")
                     .desc(
-                            "The environment properties to be imported into the session. "
-                                    + "It might overwrite default environment properties.")
+                            "Script file that used to init the session context. "
+                                    + "If get error in execution, the sql client will exit. Notice it's not allowed to add query or insert into the init file.")
                     .build();
 
-    public static final Option OPTION_DEFAULTS =
-            Option.builder("d")
+    public static final Option OPTION_FILE =
+            Option.builder("f")
                     .required(false)
-                    .longOpt("defaults")
+                    .longOpt("file")
                     .numberOfArgs(1)
-                    .argName("environment file")
+                    .argName("script file")
                     .desc(
-                            "The environment properties with which every new session is initialized. "
-                                    + "Properties might be overwritten by session properties.")
+                            "Script file that should be executed. In this mode, "
+                                    + "the client will not open an interactive terminal.")
                     .build();
 
     public static final Option OPTION_JAR =
@@ -107,6 +108,7 @@ public class CliOptionsParser {
                                     + "functions, table sources, or sinks. Can be used multiple times.")
                     .build();
 
+    @Deprecated
     public static final Option OPTION_UPDATE =
             Option.builder("u")
                     .required(false)
@@ -114,11 +116,14 @@ public class CliOptionsParser {
                     .numberOfArgs(1)
                     .argName("SQL update statement")
                     .desc(
-                            "Experimental (for testing only!): Instructs the SQL Client to immediately execute "
-                                    + "the given update statement after starting up. The process is shut down after the "
-                                    + "statement has been submitted to the cluster and returns an appropriate return code. "
-                                    + "Currently, this feature is only supported for INSERT INTO statements that declare "
-                                    + "the target sink table.")
+                            String.format(
+                                    "Deprecated Experimental (for testing only!) feature: Instructs the SQL Client to immediately execute "
+                                            + "the given update statement after starting up. The process is shut down after the "
+                                            + "statement has been submitted to the cluster and returns an appropriate return code. "
+                                            + "Currently, this feature is only supported for INSERT INTO statements that declare "
+                                            + "the target sink table."
+                                            + "Please use option -%s to submit update statement.",
+                                    OPTION_FILE.getOpt()))
                     .build();
 
     public static final Option OPTION_HISTORY =
@@ -146,8 +151,8 @@ public class CliOptionsParser {
     public static Options getEmbeddedModeClientOptions(Options options) {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_ENVIRONMENT);
-        options.addOption(OPTION_DEFAULTS);
+        options.addOption(OPTION_INIT_FILE);
+        options.addOption(OPTION_FILE);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
         options.addOption(OPTION_UPDATE);
@@ -156,31 +161,32 @@ public class CliOptionsParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
     public static Options getGatewayModeClientOptions(Options options) {
         buildGeneralOptions(options);
         options.addOption(OPTION_SESSION);
-        options.addOption(OPTION_ENVIRONMENT);
         options.addOption(OPTION_UPDATE);
         options.addOption(OPTION_HISTORY);
         options.addOption(PYFILES_OPTION);
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
     public static Options getGatewayModeGatewayOptions(Options options) {
         buildGeneralOptions(options);
-        options.addOption(OPTION_DEFAULTS);
         options.addOption(OPTION_JAR);
         options.addOption(OPTION_LIBRARY);
         options.addOption(PYFILES_OPTION);
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
@@ -216,8 +222,9 @@ public class CliOptionsParser {
         formatter.setLeftPadding(5);
         formatter.setWidth(80);
 
-        System.out.println("\nMode \"embedded\" submits Flink jobs from the local machine.");
-        System.out.println("\n  Syntax: embedded [OPTIONS]");
+        System.out.println(
+                "\nMode \"embedded\" (default) submits Flink jobs from the local machine.");
+        System.out.println("\n  Syntax: [embedded] [OPTIONS]");
         formatter.setSyntaxPrefix("  \"embedded\" mode options:");
         formatter.printHelp(" ", EMBEDDED_MODE_CLIENT_OPTIONS);
 
@@ -260,8 +267,8 @@ public class CliOptionsParser {
             return new CliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
-                    checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
+                    checkUrl(line, CliOptionsParser.OPTION_FILE),
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
@@ -279,7 +286,7 @@ public class CliOptionsParser {
             return new CliOptions(
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     checkSessionId(line),
-                    checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
+                    null,
                     null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
@@ -299,7 +306,7 @@ public class CliOptionsParser {
                     line.hasOption(CliOptionsParser.OPTION_HELP.getOpt()),
                     null,
                     null,
-                    checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
+                    null,
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
                     null,
@@ -327,6 +334,7 @@ public class CliOptionsParser {
                     .distinct()
                     .map(
                             (url) -> {
+                                checkFilePath(url);
                                 try {
                                     return Path.fromLocalFile(new File(url).getAbsoluteFile())
                                             .toUri()
@@ -343,6 +351,14 @@ public class CliOptionsParser {
                     .collect(Collectors.toList());
         }
         return null;
+    }
+
+    public static void checkFilePath(String filePath) {
+        Path path = new Path(filePath);
+        String scheme = path.toUri().getScheme();
+        if (scheme != null && !scheme.equals("file")) {
+            throw new SqlClientException("SQL Client only supports to load files in local.");
+        }
     }
 
     private static String checkSessionId(CommandLine line) {

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -36,7 +37,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -89,7 +90,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     public StreamingRuntimeContext(
             Environment env,
             Map<String, Accumulator<?, ?>> accumulators,
-            MetricGroup operatorMetricGroup,
+            OperatorMetricGroup operatorMetricGroup,
             OperatorID operatorID,
             ProcessingTimeService processingTimeService,
             @Nullable KeyedStateStore keyedStateStore,
@@ -156,6 +157,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public TaskManagerRuntimeInfo getTaskManagerRuntimeInfo() {
         return taskEnvironment.getTaskManagerInfo();
+    }
+
+    @Override
+    public JobID getJobId() {
+        return taskEnvironment.getJobID();
     }
 
     @Override

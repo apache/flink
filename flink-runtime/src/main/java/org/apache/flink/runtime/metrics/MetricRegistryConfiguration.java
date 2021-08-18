@@ -21,7 +21,6 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -31,8 +30,6 @@ import org.slf4j.LoggerFactory;
 public class MetricRegistryConfiguration {
 
     private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
-
-    private static volatile MetricRegistryConfiguration defaultConfiguration;
 
     // scope formats for the different components
     private final ScopeFormats scopeFormats;
@@ -74,9 +71,11 @@ public class MetricRegistryConfiguration {
      * Create a metric registry configuration object from the given {@link Configuration}.
      *
      * @param configuration to generate the metric registry configuration from
+     * @param maximumFrameSize the maximum message size that the RPC system supports
      * @return Metric registry configuration generated from the configuration
      */
-    public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
+    public static MetricRegistryConfiguration fromConfiguration(
+            Configuration configuration, long maximumFrameSize) {
         ScopeFormats scopeFormats;
         try {
             scopeFormats = ScopeFormats.fromConfig(configuration);
@@ -93,25 +92,10 @@ public class MetricRegistryConfiguration {
             delim = '.';
         }
 
-        final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
-
         // padding to account for serialization overhead
         final long messageSizeLimitPadding = 256;
 
         return new MetricRegistryConfiguration(
                 scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
-    }
-
-    public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
-        // create the default metric registry configuration only once
-        if (defaultConfiguration == null) {
-            synchronized (MetricRegistryConfiguration.class) {
-                if (defaultConfiguration == null) {
-                    defaultConfiguration = fromConfiguration(new Configuration());
-                }
-            }
-        }
-
-        return defaultConfiguration;
     }
 }

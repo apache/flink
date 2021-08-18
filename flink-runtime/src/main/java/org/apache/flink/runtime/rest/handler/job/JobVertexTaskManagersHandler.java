@@ -43,7 +43,7 @@ import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
@@ -62,8 +62,9 @@ import java.util.concurrent.Executor;
  * and metrics of all its subtasks aggregated by TaskManager.
  */
 public class JobVertexTaskManagersHandler
-        extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters>
-        implements JsonArchivist {
+        extends AbstractAccessExecutionGraphHandler<
+                JobVertexTaskManagersInfo, JobVertexMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
     private MetricFetcher metricFetcher;
 
     public JobVertexTaskManagersHandler(

@@ -22,9 +22,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.util.DefaultIndenter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -68,7 +71,7 @@ public final class RestAPIStabilityTest extends TestLogger {
     }
 
     @Test
-    public void testDispatcherRestAPIStability() throws IOException {
+    public void testDispatcherRestAPIStability() throws IOException, ConfigurationException {
         final String versionedSnapshotFileName =
                 String.format(SNAPSHOT_RESOURCE_PATTERN, apiVersion.getURLVersionPrefix());
 
@@ -98,7 +101,9 @@ public final class RestAPIStabilityTest extends TestLogger {
             final String versionedSnapshotFileName, final RestAPISnapshot snapshot)
             throws IOException {
         OBJECT_MAPPER
-                .writerWithDefaultPrettyPrinter()
+                .writer(
+                        new DefaultPrettyPrinter()
+                                .withObjectIndenter(new DefaultIndenter().withLinefeed("\n")))
                 .writeValue(new File("src/test/resources/" + versionedSnapshotFileName), snapshot);
         System.out.println(
                 "REST API snapshot "
@@ -157,7 +162,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
-                                + " being set.");
+                                + " being set. If you see this message in a CI pipeline, rerun the test locally and commit the generated changes.");
             }
         }
 

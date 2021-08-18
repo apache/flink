@@ -58,9 +58,6 @@ import static org.apache.flink.util.IOUtils.closeQuietly;
 
 final class SpanningWrapper {
 
-    private static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes
-    private static final int DEFAULT_FILE_BUFFER_SIZE = 2 * 1024 * 1024;
-
     private static final Logger LOG = LoggerFactory.getLogger(SpanningWrapper.class);
 
     private final byte[] initialBuffer = new byte[1024];
@@ -93,20 +90,16 @@ final class SpanningWrapper {
 
     private DataInputViewStreamWrapper spillFileReader;
 
-    private int thresholdForSpilling;
-
-    SpanningWrapper(String[] tempDirs) {
-        this(tempDirs, DEFAULT_THRESHOLD_FOR_SPILLING, DEFAULT_FILE_BUFFER_SIZE);
-    }
+    private final int thresholdForSpilling;
 
     SpanningWrapper(String[] tempDirectories, int threshold, int fileBufferSize) {
-        this.tempDirs = tempDirectories;
-        this.lengthBuffer = ByteBuffer.allocate(LENGTH_BYTES);
-        this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
-        this.recordLength = -1;
-        this.serializationReadBuffer = new DataInputDeserializer();
-        this.buffer = initialBuffer;
-        this.thresholdForSpilling = threshold;
+        tempDirs = tempDirectories;
+        lengthBuffer = ByteBuffer.allocate(LENGTH_BYTES);
+        lengthBuffer.order(ByteOrder.BIG_ENDIAN);
+        recordLength = -1;
+        serializationReadBuffer = new DataInputDeserializer();
+        buffer = initialBuffer;
+        thresholdForSpilling = threshold;
         this.fileBufferSize = fileBufferSize;
     }
 
@@ -319,7 +312,7 @@ final class SpanningWrapper {
                                 + ". Attempt "
                                 + attempt,
                         e);
-                tempDirs = (String[]) ArrayUtils.remove(tempDirs, dirIndex);
+                tempDirs = ArrayUtils.remove(tempDirs, dirIndex);
             }
         }
 

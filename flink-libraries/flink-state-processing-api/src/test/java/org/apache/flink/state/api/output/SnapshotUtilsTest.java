@@ -18,14 +18,12 @@
 
 package org.apache.flink.state.api.output;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.ttl.mock.MockCheckpointStorage;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -55,12 +53,9 @@ public class SnapshotUtilsTest {
     @Test
     public void testSnapshotUtilsLifecycle() throws Exception {
         StreamOperator<Void> operator = new LifecycleOperator();
-        CheckpointStorageWorkerView storage =
-                new MockCheckpointStorage().createCheckpointStorage(new JobID());
-
         Path path = new Path(folder.newFolder().getAbsolutePath());
 
-        SnapshotUtils.snapshot(operator, 0, 0L, true, false, storage, path);
+        SnapshotUtils.snapshot(operator, 0, 0L, true, false, new Configuration(), path);
 
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
     }
@@ -74,13 +69,13 @@ public class SnapshotUtilsTest {
         }
 
         @Override
-        public void close() throws Exception {
-            ACTUAL_ORDER_TRACKING.add("close");
+        public void finish() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("finish");
         }
 
         @Override
-        public void dispose() throws Exception {
-            ACTUAL_ORDER_TRACKING.add("dispose");
+        public void close() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("close");
         }
 
         @Override
@@ -116,7 +111,7 @@ public class SnapshotUtilsTest {
         }
 
         @Override
-        public MetricGroup getMetricGroup() {
+        public OperatorMetricGroup getMetricGroup() {
             ACTUAL_ORDER_TRACKING.add("getMetricGroup");
             return null;
         }

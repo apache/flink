@@ -70,7 +70,7 @@ public class NoticeFileChecker {
             Pattern.compile(
                     "- ([^ :]+):([^:]+):([^ ]+)($| )|.*bundles \"([^:]+):([^:]+):([^\"]+)\".*");
 
-    int run(File buildResult, Path root) throws IOException {
+    static int run(File buildResult, Path root) throws IOException {
         int severeIssueCount = 0;
         // parse included dependencies from build output
         Multimap<String, IncludedDependency> modulesWithBundledDependencies =
@@ -108,7 +108,7 @@ public class NoticeFileChecker {
                         .collect(Collectors.toList()));
         for (String moduleWithoutNotice : shadingModules) {
             if (!MODULES_SKIPPING_DEPLOYMENT.contains(moduleWithoutNotice)) {
-                LOG.warn(
+                LOG.error(
                         "Module {} is missing a NOTICE file. It has shaded dependencies: {}",
                         moduleWithoutNotice,
                         modulesWithShadedDependencies.get(moduleWithoutNotice));

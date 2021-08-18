@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -24,7 +25,9 @@ import org.apache.flink.runtime.util.EvictingBoundedList;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Optional;
 
+/** {@code ArchivedExecutionVertex} is a readonly representation of {@link ExecutionVertex}. */
 public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializable {
 
     private static final long serialVersionUID = -6708241535015028576L;
@@ -33,7 +36,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
     private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
-    /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations */
+    /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
     private final String taskNameWithSubtask;
 
     private final ArchivedExecution currentExecution; // this field must never be null
@@ -88,8 +91,8 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
     }
 
     @Override
-    public String getFailureCauseAsString() {
-        return currentExecution.getFailureCauseAsString();
+    public Optional<ErrorInfo> getFailureInfo() {
+        return currentExecution.getFailureInfo();
     }
 
     @Override

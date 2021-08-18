@@ -19,8 +19,8 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
@@ -56,7 +56,8 @@ public class MiniClusterResourceConfiguration
         private Configuration configuration = new Configuration();
         private int numberTaskManagers = 1;
         private int numberSlotsPerTaskManager = 1;
-        private Time shutdownTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+        private Time shutdownTimeout =
+                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
 

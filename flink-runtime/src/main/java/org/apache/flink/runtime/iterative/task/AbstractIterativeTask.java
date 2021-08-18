@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -30,7 +31,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
@@ -61,6 +62,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /** The abstract base class for all tasks able to participate in an iteration. */
@@ -86,6 +88,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
     private int superstepNum = 1;
 
     private volatile boolean terminationRequested;
+
+    private final CompletableFuture<Void> terminationCompletionFuture = new CompletableFuture<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -182,7 +186,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
     }
 
     @Override
-    public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
+    public DistributedRuntimeUDFContext createRuntimeContext(OperatorMetricGroup metrics) {
         Environment env = getEnvironment();
 
         return new IterativeRuntimeUdfContext(
@@ -192,7 +196,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
                 env.getDistributedCacheEntries(),
                 this.accumulatorMap,
                 metrics,
-                env.getExternalResourceInfoProvider());
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -309,9 +314,14 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
     }
 
     @Override
-    public void cancel() throws Exception {
+    public void terminationCompleted() {
+        this.terminationCompletionFuture.complete(null);
+    }
+
+    @Override
+    public Future<Void> cancel() throws Exception {
         requestTermination();
-        super.cancel();
+        return this.terminationCompletionFuture;
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -398,8 +408,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
                 ExecutionConfig executionConfig,
                 Map<String, Future<Path>> cpTasks,
                 Map<String, Accumulator<?, ?>> accumulatorMap,
-                MetricGroup metrics,
-                ExternalResourceInfoProvider externalResourceInfoProvider) {
+                OperatorMetricGroup metrics,
+                ExternalResourceInfoProvider externalResourceInfoProvider,
+                JobID jobID) {
             super(
                     taskInfo,
                     userCodeClassLoader,
@@ -407,7 +418,8 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
                     cpTasks,
                     accumulatorMap,
                     metrics,
-                    externalResourceInfoProvider);
+                    externalResourceInfoProvider,
+                    jobID);
         }
 
         @Override
@@ -424,6 +436,11 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
         @SuppressWarnings("unchecked")
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
+        }
+
+        @Override
+        public JobID getJobId() {
+            return runtimeUdfContext.getJobId();
         }
 
         @Override

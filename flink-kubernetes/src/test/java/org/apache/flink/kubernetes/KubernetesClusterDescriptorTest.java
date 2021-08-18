@@ -48,9 +48,9 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link KubernetesClusterDescriptor}. */
@@ -78,6 +78,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testDeploySessionCluster() throws Exception {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
         checkClusterClient(clusterClient);
         checkUpdatedConfigAndResourceSetting();
@@ -86,6 +87,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         flinkConfig.setString(
                 HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
@@ -115,6 +117,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     @Test
     public void testKillCluster() throws Exception {
+        flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
         deploySessionCluster();
 
         assertEquals(2, kubeClient.services().list().getItems().size());

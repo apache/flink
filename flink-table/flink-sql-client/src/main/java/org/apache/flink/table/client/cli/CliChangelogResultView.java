@@ -32,16 +32,19 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
+import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -55,11 +58,19 @@ public class CliChangelogResultView
     private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
 
+    private final ZoneId sessionTimeZone;
     private LocalTime lastRetrieval;
     private int scrolling;
 
     public CliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+        super(
+                client,
+                resultDescriptor,
+                PrintUtils.columnWidthsByType(
+                        resultDescriptor.getResultSchema().getColumns(),
+                        resultDescriptor.maxColumnWidth(),
+                        PrintUtils.NULL_COLUMN,
+                        PrintUtils.ROW_KIND_COLUMN));
 
         if (client.isPlainTerminal()) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
@@ -69,6 +80,10 @@ public class CliChangelogResultView
         previousResults = null;
         // rows are always appended at the tail and deleted from the head of the list
         results = new LinkedList<>();
+
+        this.sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -76,16 +91,6 @@ public class CliChangelogResultView
     @Override
     protected String[] getRow(String[] resultRow) {
         return Arrays.copyOfRange(resultRow, 1, resultRow.length);
-    }
-
-    @Override
-    protected int computeColumnWidth(int idx) {
-        // change column has a fixed length
-        if (idx == 0) {
-            return 3;
-        } else {
-            return MAX_COLUMN_WIDTH;
-        }
     }
 
     @Override
@@ -103,7 +108,7 @@ public class CliChangelogResultView
     @Override
     protected void refresh() {
         // retrieve change record
-        final TypedResult<List<Tuple2<Boolean, Row>>> result;
+        final TypedResult<List<Row>> result;
         try {
             result =
                     client.getExecutor()
@@ -124,18 +129,17 @@ public class CliChangelogResultView
                 stopRetrieval(false);
                 break;
             default:
-                List<Tuple2<Boolean, Row>> changes = result.getPayload();
+                List<Row> changes = result.getPayload();
 
-                for (Tuple2<Boolean, Row> change : changes) {
+                for (Row change : changes) {
                     // convert row
-                    final String[] changeRow = new String[change.f1.getArity() + 1];
-                    final String[] row = PrintUtils.rowToString(change.f1);
-                    System.arraycopy(row, 0, changeRow, 1, row.length);
-                    if (change.f0) {
-                        changeRow[0] = "+";
-                    } else {
-                        changeRow[0] = "-";
-                    }
+                    final String[] row =
+                            PrintUtils.rowToString(
+                                    change,
+                                    NULL_COLUMN,
+                                    true,
+                                    resultDescriptor.getResultSchema(),
+                                    sessionTimeZone);
 
                     // update results
 
@@ -145,7 +149,7 @@ public class CliChangelogResultView
                     if (results.size() >= DEFAULT_MAX_ROW_COUNT) {
                         results.remove(0);
                     }
-                    results.add(changeRow);
+                    results.add(row);
 
                     scrolling++;
                 }
@@ -275,21 +279,19 @@ public class CliChangelogResultView
 
     @Override
     protected List<AttributedString> computeMainHeaderLines() {
-        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
-
         // add change column
-        schemaHeader.append(' ');
-        schemaHeader.style(AttributedStyle.DEFAULT.underline());
-        schemaHeader.append("+/-");
-        schemaHeader.style(AttributedStyle.DEFAULT);
+        List<String> columnNames = new ArrayList<>(columnWidths.length);
+        columnNames.add("op");
+        columnNames.addAll(resultDescriptor.getResultSchema().getColumnNames());
 
-        Arrays.stream(resultDescriptor.getResultSchema().getFieldNames())
+        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
+        IntStream.range(0, columnNames.size())
                 .forEach(
-                        s -> {
+                        idx -> {
+                            schemaHeader.style(AttributedStyle.DEFAULT);
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);
-                            schemaHeader.style(AttributedStyle.DEFAULT);
+                            normalizeColumn(schemaHeader, columnNames.get(idx), columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());

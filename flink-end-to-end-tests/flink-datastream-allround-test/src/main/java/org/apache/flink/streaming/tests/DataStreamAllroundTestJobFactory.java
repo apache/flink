@@ -32,9 +32,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
@@ -197,9 +196,10 @@ public class DataStreamAllroundTestJobFactory {
 
     private static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state_backend")
-                    .defaultValue("file")
+                    .defaultValue("hashmap")
                     .withDescription(
-                            "Supported values are 'file' for FsStateBackend and 'rocks' for RocksDBStateBackend.");
+                            "Supported values are 'hashmap' for HashMapStateBackend and 'rocks' "
+                                    + "for EmbeddedRocksDBStateBackend.");
 
     private static final ConfigOption<String> STATE_BACKEND_CHECKPOINT_DIR =
             ConfigOptions.key("state_backend.checkpoint_directory")
@@ -211,12 +211,6 @@ public class DataStreamAllroundTestJobFactory {
                     .defaultValue(false)
                     .withDescription(
                             "Activate or deactivate incremental snapshots if RocksDBStateBackend is selected.");
-
-    private static final ConfigOption<Boolean> STATE_BACKEND_FILE_ASYNC =
-            ConfigOptions.key("state_backend.file.async")
-                    .defaultValue(true)
-                    .withDescription(
-                            "Activate or deactivate asynchronous snapshots if FileStateBackend is selected.");
 
     private static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_KEYSPACE =
             ConfigOptions.key("sequence_generator_source.keyspace").defaultValue(200);
@@ -271,6 +265,9 @@ public class DataStreamAllroundTestJobFactory {
                         : CheckpointingMode.AT_LEAST_ONCE;
 
         env.enableCheckpointing(checkpointInterval, checkpointingMode);
+
+        final String checkpointDir = pt.getRequired(STATE_BACKEND_CHECKPOINT_DIR.key());
+        env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
 
         boolean enableExternalizedCheckpoints =
                 pt.getBoolean(
@@ -352,23 +349,15 @@ public class DataStreamAllroundTestJobFactory {
             final StreamExecutionEnvironment env, final ParameterTool pt) throws IOException {
         final String stateBackend = pt.get(STATE_BACKEND.key(), STATE_BACKEND.defaultValue());
 
-        final String checkpointDir = pt.getRequired(STATE_BACKEND_CHECKPOINT_DIR.key());
-
-        if ("file".equalsIgnoreCase(stateBackend)) {
-            boolean asyncCheckpoints =
-                    pt.getBoolean(
-                            STATE_BACKEND_FILE_ASYNC.key(),
-                            STATE_BACKEND_FILE_ASYNC.defaultValue());
-
-            env.setStateBackend((StateBackend) new FsStateBackend(checkpointDir, asyncCheckpoints));
+        if ("hashmap".equalsIgnoreCase(stateBackend)) {
+            env.setStateBackend(new HashMapStateBackend());
         } else if ("rocks".equalsIgnoreCase(stateBackend)) {
             boolean incrementalCheckpoints =
                     pt.getBoolean(
                             STATE_BACKEND_ROCKS_INCREMENTAL.key(),
                             STATE_BACKEND_ROCKS_INCREMENTAL.defaultValue());
 
-            env.setStateBackend(
-                    (StateBackend) new RocksDBStateBackend(checkpointDir, incrementalCheckpoints));
+            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
         } else {
             throw new IllegalArgumentException("Unknown backend requested: " + stateBackend);
         }

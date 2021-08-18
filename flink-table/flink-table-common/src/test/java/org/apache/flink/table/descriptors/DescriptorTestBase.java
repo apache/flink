@@ -43,6 +43,10 @@ public abstract class DescriptorTestBase {
     @Test
     public void testValidation() {
         final List<Descriptor> descriptors = descriptors();
+        if (descriptors.isEmpty()) {
+            return;
+        }
+
         final List<Map<String, String>> properties = properties();
 
         Preconditions.checkArgument(descriptors.size() == properties.size());

@@ -158,7 +158,7 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      *
      * @return Checkpoint recovery factory
      */
-    CheckpointRecoveryFactory getCheckpointRecoveryFactory();
+    CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception;
 
     /**
      * Gets the submitted job graph store for the job manager.
@@ -237,4 +237,12 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
      *     up data stored by them.
      */
     void closeAndCleanupAllData() throws Exception;
+
+    /**
+     * Deletes all data for specified job stored by these services in external stores.
+     *
+     * @param jobID The identifier of the job to cleanup.
+     * @throws Exception Thrown, if an exception occurred while cleaning data stored by them.
+     */
+    default void cleanupJobData(JobID jobID) throws Exception {}
 }

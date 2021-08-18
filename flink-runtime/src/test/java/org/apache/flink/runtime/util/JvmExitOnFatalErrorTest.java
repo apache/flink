@@ -54,6 +54,8 @@ import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
@@ -68,6 +70,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -85,7 +88,7 @@ import static org.mockito.Mockito.mock;
  * Test that verifies the behavior of blocking shutdown hooks and of the {@link
  * JvmShutdownSafeguard} that guards against it.
  */
-public class JvmExitOnFatalErrorTest {
+public class JvmExitOnFatalErrorTest extends TestLogger {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -198,11 +201,15 @@ public class JvmExitOnFatalErrorTest {
                                 TestLocalRecoveryConfig.disabled(),
                                 executor);
 
+                final StateChangelogStorage<?> changelogStorage =
+                        new InMemoryStateChangelogStorage();
+
                 final TaskStateManager slotStateManager =
                         new TaskStateManagerImpl(
                                 jid,
                                 executionAttemptID,
                                 localStateStore,
+                                changelogStorage,
                                 null,
                                 mock(CheckpointResponder.class));
 
@@ -216,7 +223,6 @@ public class JvmExitOnFatalErrorTest {
                                 0, // attemptNumber
                                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                                0, // targetSlotNumber
                                 memoryManager,
                                 ioManager,
                                 shuffleEnvironment,

@@ -1,0 +1,239 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+// 
+//   http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+@import "github";
+
+.link {
+    padding-bottom: 5px;
+}
+
+.appetizer {
+	color: #FBB142;
+}
+
+.maindish {
+	color: #7E4F89;
+}
+
+.dessert {
+    color: #E6526F;
+}
+
+.book-menu nav {
+	background: #f8f8f8;
+}
+
+.book-page {
+	padding: 2rem 2rem;
+}
+
+.book-search input {
+	background: white;
+}
+
+.markdown a {
+	text-decoration: none;
+	color: #05b;
+}
+
+.markdown a:visited {
+	text-decoration: none;
+	color: #05b;
+}
+
+.markdown {
+    line-height: 1.43;
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-weight: 500;
+        padding-top: 0;
+        margin-top: 1em;
+    }
+}
+
+body {
+    letter-spacing: normal;
+    -webkit-font-smoothing: auto;
+}
+
+aside nav ul {
+  li {
+    margin: 0.5em 0;
+  }
+}
+
+.book-search {
+	border: 2px solid #ebebeb;
+}
+
+@media screen and (max-width: 768px) {
+    .toc {
+        display: none;
+    }
+}
+
+aside.book-menu nav {
+    a:hover {
+        font-weight: bold;
+        opacity: 1.0;
+    }
+
+    a.active {
+        font-weight: bold;
+        color: var(--body-font-color);
+    }
+}
+
+aside.book-menu > li {
+    padding: 10px 5px 5px 5px;
+}
+
+aside.book-toc {
+    h3 {
+        margin-top: 0;
+        padding-top: 0;
+        font-size: 1.2em;
+    }
+}
+
+html {
+    line-height: 1.43;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.1;
+}
+
+h1, h2, h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+h2, h3, h4 {
+    padding-top: 1em;
+}
+
+h1 {
+    font-size: 36px;
+}
+
+h2 {
+    font-size: 30px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+h3 {
+    font-size: 24px;
+}
+
+h4 {
+    font-size: 18px;
+}
+
+.markdown code {
+    background: white;
+    padding: 0;
+    border-radius: 0;
+}
+
+pre.chroma code {
+    line-height: 1.43;
+}
+
+.book-languages {
+    border: 2px solid black; 
+}
+
+.menu-break {
+    opacity: 0.1;
+}
+
+#book-search-results {
+    padding: 2px;
+    background-color: white;
+}
+
+.label {
+    display: inline;
+    padding: .2em .6em .3em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25em;
+    background-color: #337ab7;
+}
+
+.expand-toc {
+    position: fixed;
+    top: 2em;
+    right: 5em;
+    display: none;
+}
+
+.container {
+    max-width: 90rem;
+}
+
+#book-search-input:focus {
+    outline: none;
+}
+
+.rest-api h5 {
+    margin-top: .5em;
+    margin-bottom: .5em;
+    font-size: 1em;
+}
+
+.rest-api tbody {
+    display: table;
+    width: 100%;
+    background: white;
+}
+
+.rest-api td {
+    background: white;
+}
+
+.rest-api .book-expand label {
+    padding: 0rem 0rem;
+    background: white;
+}
+
+.rest-api .book-expand {
+    background: white;
+}
+
+.rest-api .book-expand .book-expand-head {
+    background: white;
+}
+
+.configuration td {
+    background: white;
+}
+
+.markdown table tr:nth-child(2n) {
+    background: white;
+} 

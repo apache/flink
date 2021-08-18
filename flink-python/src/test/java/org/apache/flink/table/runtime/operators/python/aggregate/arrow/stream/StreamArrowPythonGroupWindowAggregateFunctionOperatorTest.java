@@ -28,6 +28,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
+import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
+import org.apache.flink.table.planner.expressions.PlannerWindowStart;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
@@ -45,6 +48,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -62,6 +66,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
         extends AbstractStreamArrowPythonAggregateFunctionOperatorTest {
+
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
     public void testGroupWindowAggregateFunction() throws Exception {
@@ -450,9 +456,13 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 windowAssigner,
                 trigger,
                 0,
-                new int[] {0, 1},
+                new PlannerNamedWindowProperty[] {
+                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
+                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                },
                 groupingSet,
-                udafInputOffsets);
+                udafInputOffsets,
+                UTC_ZONE_ID);
     }
 
     private static class PassThroughStreamArrowPythonGroupWindowAggregateFunctionOperator
@@ -467,9 +477,10 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                 WindowAssigner windowAssigner,
                 Trigger trigger,
                 long allowedLateness,
-                int[] namedProperties,
+                PlannerNamedWindowProperty[] namedProperties,
                 int[] groupingSet,
-                int[] udafInputOffsets) {
+                int[] udafInputOffsets,
+                ZoneId shiftTimeZone) {
             super(
                     config,
                     pandasAggFunctions,
@@ -481,7 +492,8 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     allowedLateness,
                     namedProperties,
                     groupingSet,
-                    udafInputOffsets);
+                    udafInputOffsets,
+                    shiftTimeZone);
         }
 
         @Override
@@ -493,7 +505,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);

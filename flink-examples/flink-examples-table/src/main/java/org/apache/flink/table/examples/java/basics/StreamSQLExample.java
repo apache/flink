@@ -18,27 +18,29 @@
 
 package org.apache.flink.table.examples.java.basics;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.util.Arrays;
-import java.util.Objects;
-
-import static org.apache.flink.table.api.Expressions.$;
 
 /**
- * Simple example for demonstrating the use of SQL on a Stream Table in Java.
+ * Simple example for demonstrating the use of SQL on a table backed by a {@link DataStream} in Java
+ * DataStream API.
  *
- * <p>Usage: <code>StreamSQLExample --planner &lt;blink|flink&gt;</code><br>
+ * <p>In particular, the example shows how to
  *
- * <p>This example shows how to: - Convert DataStreams to Tables - Register a Table under a name -
- * Run a StreamSQL query on the registered Table
+ * <ul>
+ *   <li>convert two bounded data streams to tables,
+ *   <li>register a table as a view under a name,
+ *   <li>run a stream SQL query on registered and unregistered tables,
+ *   <li>and convert the table back to a data stream.
+ * </ul>
+ *
+ * <p>The example executes a single Flink job. The results are written to stdout.
  */
-public class StreamSQLExample {
+public final class StreamSQLExample {
 
     // *************************************************************************
     //     PROGRAM
@@ -46,59 +48,47 @@ public class StreamSQLExample {
 
     public static void main(String[] args) throws Exception {
 
-        final ParameterTool params = ParameterTool.fromArgs(args);
-        String planner = params.has("planner") ? params.get("planner") : "blink";
+        // set up the Java DataStream API
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // set up execution environment
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment tEnv;
-        if (Objects.equals(planner, "blink")) { // use blink planner in streaming mode
-            EnvironmentSettings settings =
-                    EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-            tEnv = StreamTableEnvironment.create(env, settings);
-        } else if (Objects.equals(planner, "flink")) { // use flink planner in streaming mode
-            EnvironmentSettings settings =
-                    EnvironmentSettings.newInstance().inStreamingMode().useOldPlanner().build();
-            tEnv = StreamTableEnvironment.create(env, settings);
-        } else {
-            System.err.println(
-                    "The planner is incorrect. Please run 'StreamSQLExample --planner <planner>', "
-                            + "where planner (it is either flink or blink, and the default is blink) indicates whether the "
-                            + "example uses flink planner or blink planner.");
-            return;
-        }
+        // set up the Java Table API
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        DataStream<Order> orderA =
+        final DataStream<Order> orderA =
                 env.fromCollection(
                         Arrays.asList(
                                 new Order(1L, "beer", 3),
                                 new Order(1L, "diaper", 4),
                                 new Order(3L, "rubber", 2)));
 
-        DataStream<Order> orderB =
+        final DataStream<Order> orderB =
                 env.fromCollection(
                         Arrays.asList(
                                 new Order(2L, "pen", 3),
                                 new Order(2L, "rubber", 3),
                                 new Order(4L, "beer", 1)));
 
-        // convert DataStream to Table
-        Table tableA = tEnv.fromDataStream(orderA, $("user"), $("product"), $("amount"));
-        // register DataStream as Table
-        tEnv.createTemporaryView("OrderB", orderB, $("user"), $("product"), $("amount"));
+        // convert the first DataStream to a Table object
+        // it will be used "inline" and is not registered in a catalog
+        final Table tableA = tableEnv.fromDataStream(orderA);
+
+        // convert the second DataStream and register it as a view
+        // it will be accessible under a name
+        tableEnv.createTemporaryView("TableB", orderB);
 
         // union the two tables
-        Table result =
-                tEnv.sqlQuery(
+        final Table result =
+                tableEnv.sqlQuery(
                         "SELECT * FROM "
                                 + tableA
                                 + " WHERE amount > 2 UNION ALL "
-                                + "SELECT * FROM OrderB WHERE amount < 2");
+                                + "SELECT * FROM TableB WHERE amount < 2");
 
-        tEnv.toAppendStream(result, Order.class).print();
+        // convert the Table back to an insert-only DataStream of type `Order`
+        tableEnv.toDataStream(result, Order.class).print();
 
-        // after the table program is converted to DataStream program,
-        // we must use `env.execute()` to submit the job.
+        // after the table program is converted to a DataStream program,
+        // we must use `env.execute()` to submit the job
         env.execute();
     }
 
@@ -112,8 +102,10 @@ public class StreamSQLExample {
         public String product;
         public int amount;
 
+        // for POJO detection in DataStream API
         public Order() {}
 
+        // for structured type detection in Table API
         public Order(Long user, String product, int amount) {
             this.user = user;
             this.product = product;

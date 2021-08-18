@@ -20,7 +20,7 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.extended.leaderelection.LeaderCallbacks;
@@ -52,6 +52,8 @@ public class KubernetesLeaderElector {
 
     @VisibleForTesting
     public static final String LEADER_ANNOTATION_KEY = "control-plane.alpha.kubernetes.io/leader";
+
+    private final Object lock = new Object();
 
     private final ExecutorService executorService =
             Executors.newSingleThreadExecutor(
@@ -92,11 +94,20 @@ public class KubernetesLeaderElector {
     }
 
     public void run() {
-        executorService.submit(internalLeaderElector::run);
+        synchronized (lock) {
+            if (executorService.isShutdown()) {
+                LOG.debug(
+                        "Ignoring KubernetesLeaderElector.run call because the leader elector has already been shut down.");
+            } else {
+                executorService.execute(internalLeaderElector::run);
+            }
+        }
     }
 
     public void stop() {
-        executorService.shutdownNow();
+        synchronized (lock) {
+            executorService.shutdownNow();
+        }
     }
 
     public static boolean hasLeadership(KubernetesConfigMap configMap, String lockIdentity) {

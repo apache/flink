@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
+
+import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
@@ -62,18 +65,26 @@ public class UnionInputGateTest extends InputGateTestBase {
                 };
 
         inputChannels[0][0].readBuffer(); // 0 => 0
+        inputChannels[0][0].readEndOfData(); // 0 => 0
         inputChannels[0][0].readEndOfPartitionEvent(); // 0 => 0
         inputChannels[1][2].readBuffer(); // 2 => 5
+        inputChannels[1][2].readEndOfData(); // 2 => 5
         inputChannels[1][2].readEndOfPartitionEvent(); // 2 => 5
         inputChannels[1][0].readBuffer(); // 0 => 3
         inputChannels[1][1].readBuffer(); // 1 => 4
         inputChannels[0][1].readBuffer(); // 1 => 1
         inputChannels[1][3].readBuffer(); // 3 => 6
+        inputChannels[0][1].readEndOfData(); // 1 => 1
+        inputChannels[1][3].readEndOfData(); // 3 => 6
         inputChannels[0][1].readEndOfPartitionEvent(); // 1 => 1
         inputChannels[1][3].readEndOfPartitionEvent(); // 3 => 6
         inputChannels[0][2].readBuffer(); // 1 => 2
+        inputChannels[0][2].readEndOfData(); // 1 => 2
         inputChannels[0][2].readEndOfPartitionEvent(); // 1 => 2
         inputChannels[1][4].readBuffer(); // 4 => 7
+        inputChannels[1][4].readEndOfData(); // 4 => 7
+        inputChannels[1][1].readEndOfData(); // 0 => 3
+        inputChannels[1][0].readEndOfData(); // 0 => 3
         inputChannels[1][4].readEndOfPartitionEvent(); // 4 => 7
         inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
         inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
@@ -100,6 +111,17 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(union, true, 7, true); // gate 2, channel 1
         verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
         verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
+        verifyBufferOrEvent(union, false, 0, true); // gate 1, channel 0
+        verifyBufferOrEvent(union, false, 4, true); // gate 1, channel 1
+        verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
+        assertFalse(union.hasReceivedEndOfData());
+        verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
+        verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
+        verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
+        verifyBufferOrEvent(union, false, 7, true); // gate 2, channel 4
+        assertTrue(union.hasReceivedEndOfData());
+        assertFalse(union.isFinished());
+        verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 2, channel 1
         verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
         verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
@@ -121,6 +143,26 @@ public class UnionInputGateTest extends InputGateTestBase {
         inputGate2.setInputChannels(inputChannel2);
 
         testIsAvailable(new UnionInputGate(inputGate1, inputGate2), inputGate1, inputChannel1);
+    }
+
+    @Test
+    public void testAvailability() throws IOException, InterruptedException {
+        final SingleInputGate inputGate1 = createInputGate(1);
+        TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
+        inputGate1.setInputChannels(inputChannel1);
+
+        final SingleInputGate inputGate2 = createInputGate(1);
+        TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0, false, true);
+        inputGate2.setInputChannels(inputChannel2);
+
+        UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
+
+        inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(1));
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(2));
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertEquals(1, inputGate.getNext().get().getBuffer().getSize());
+        assertTrue(inputGate.getAvailableFuture().isDone());
     }
 
     @Test
@@ -186,5 +228,23 @@ public class UnionInputGateTest extends InputGateTestBase {
         assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
         // Check that updated input channel is visible via UnionInputGate
         assertThat(unionInputGate.getChannel(1), Matchers.is(inputChannel2));
+    }
+
+    @Test
+    public void testEmptyPull() throws IOException, InterruptedException {
+        final SingleInputGate inputGate1 = createInputGate(1);
+        TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
+        inputGate1.setInputChannels(inputChannel1);
+
+        final SingleInputGate inputGate2 = createInputGate(1);
+        TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0, false, true);
+        inputGate2.setInputChannels(inputChannel2);
+
+        UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
+
+        inputChannel1.notifyChannelNonEmpty();
+        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertFalse(inputGate.pollNext().isPresent());
+        assertFalse(inputGate.getAvailableFuture().isDone());
     }
 }

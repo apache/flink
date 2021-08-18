@@ -25,7 +25,6 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -49,23 +49,27 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Testing implementation of the {@link SchedulerNG}. */
 public class TestingSchedulerNG implements SchedulerNG {
-    private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<JobStatus> jobTerminationFuture;
     private final Runnable startSchedulingRunnable;
-    private final Consumer<Throwable> suspendConsumer;
+    private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
     private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
+    private final Consumer<Throwable> handleGlobalFailureConsumer;
 
     private TestingSchedulerNG(
-            CompletableFuture<Void> terminationFuture,
+            CompletableFuture<JobStatus> jobTerminationFuture,
             Runnable startSchedulingRunnable,
-            Consumer<Throwable> suspendConsumer,
-            BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction) {
-        this.terminationFuture = terminationFuture;
+            Supplier<CompletableFuture<Void>> closeAsyncSupplier,
+            BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
+            Consumer<Throwable> handleGlobalFailureConsumer) {
+        this.jobTerminationFuture = jobTerminationFuture;
         this.startSchedulingRunnable = startSchedulingRunnable;
-        this.suspendConsumer = suspendConsumer;
+        this.closeAsyncSupplier = closeAsyncSupplier;
         this.triggerSavepointFunction = triggerSavepointFunction;
+        this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
     }
 
     @Override
@@ -78,20 +82,22 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
-    public void suspend(Throwable cause) {
-        suspendConsumer.accept(cause);
+    public CompletableFuture<Void> closeAsync() {
+        return closeAsyncSupplier.get();
     }
 
     @Override
     public void cancel() {}
 
     @Override
-    public CompletableFuture<Void> getTerminationFuture() {
-        return terminationFuture;
+    public CompletableFuture<JobStatus> getJobTerminationFuture() {
+        return jobTerminationFuture;
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {}
+    public void handleGlobalFailure(Throwable cause) {
+        handleGlobalFailureConsumer.accept(cause);
+    }
 
     @Override
     public boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
@@ -120,7 +126,7 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
-    public ArchivedExecutionGraph requestJob() {
+    public ExecutionGraphInfo requestJob() {
         failOperation();
         return null;
     }
@@ -189,8 +195,7 @@ public class TestingSchedulerNG implements SchedulerNG {
     }
 
     @Override
-    public CompletableFuture<String> stopWithSavepoint(
-            String targetDirectory, boolean advanceToEndOfEventTime) {
+    public CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate) {
         failOperation();
         return null;
     }
@@ -221,14 +226,16 @@ public class TestingSchedulerNG implements SchedulerNG {
 
     /** Builder for the TestingSchedulerNG. */
     public static final class Builder {
-        private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+        private CompletableFuture<JobStatus> jobTerminationFuture = new CompletableFuture<>();
         private Runnable startSchedulingRunnable = () -> {};
-        private Consumer<Throwable> suspendConsumer = ignored -> {};
+        private Supplier<CompletableFuture<Void>> closeAsyncSupplier =
+                FutureUtils::completedVoidFuture;
         private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
                 (ignoredA, ignoredB) -> new CompletableFuture<>();
+        private Consumer<Throwable> handleGlobalFailureConsumer = (ignored) -> {};
 
-        public Builder setTerminationFuture(CompletableFuture<Void> terminationFuture) {
-            this.terminationFuture = terminationFuture;
+        public Builder setJobTerminationFuture(CompletableFuture<JobStatus> jobTerminationFuture) {
+            this.jobTerminationFuture = jobTerminationFuture;
             return this;
         }
 
@@ -237,8 +244,8 @@ public class TestingSchedulerNG implements SchedulerNG {
             return this;
         }
 
-        public Builder setSuspendConsumer(Consumer<Throwable> suspendConsumer) {
-            this.suspendConsumer = suspendConsumer;
+        public Builder setCloseAsyncSupplier(Supplier<CompletableFuture<Void>> closeAsyncSupplier) {
+            this.closeAsyncSupplier = closeAsyncSupplier;
             return this;
         }
 
@@ -248,12 +255,19 @@ public class TestingSchedulerNG implements SchedulerNG {
             return this;
         }
 
+        public Builder setHandleGlobalFailureConsumer(
+                Consumer<Throwable> handleGlobalFailureConsumer) {
+            this.handleGlobalFailureConsumer = handleGlobalFailureConsumer;
+            return this;
+        }
+
         public TestingSchedulerNG build() {
             return new TestingSchedulerNG(
-                    terminationFuture,
+                    jobTerminationFuture,
                     startSchedulingRunnable,
-                    suspendConsumer,
-                    triggerSavepointFunction);
+                    closeAsyncSupplier,
+                    triggerSavepointFunction,
+                    handleGlobalFailureConsumer);
         }
     }
 }

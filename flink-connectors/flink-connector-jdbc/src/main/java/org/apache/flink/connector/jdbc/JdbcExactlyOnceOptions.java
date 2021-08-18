@@ -50,24 +50,28 @@ import java.util.Optional;
 @PublicEvolving
 public class JdbcExactlyOnceOptions implements Serializable {
 
-    private static final boolean DEFAULT_RECOVERED_AND_ROLLBACK = false;
+    private static final boolean DEFAULT_RECOVERED_AND_ROLLBACK = true;
     private static final int DEFAULT_MAX_COMMIT_ATTEMPTS = 3;
     private static final boolean DEFAULT_ALLOW_OUT_OF_ORDER_COMMITS = false;
+    public static final boolean DEFAULT_TRANSACTION_PER_CONNECTION = false;
 
     private final boolean discoverAndRollbackOnRecovery;
     private final int maxCommitAttempts;
     private final boolean allowOutOfOrderCommits;
     private final Integer timeoutSec;
+    private final boolean transactionPerConnection;
 
     private JdbcExactlyOnceOptions(
             boolean discoverAndRollbackOnRecovery,
             int maxCommitAttempts,
             boolean allowOutOfOrderCommits,
-            Optional<Integer> timeoutSec) {
+            Optional<Integer> timeoutSec,
+            boolean transactionPerConnection) {
         this.discoverAndRollbackOnRecovery = discoverAndRollbackOnRecovery;
         this.maxCommitAttempts = maxCommitAttempts;
         this.allowOutOfOrderCommits = allowOutOfOrderCommits;
         this.timeoutSec = timeoutSec.orElse(null);
+        this.transactionPerConnection = transactionPerConnection;
         Preconditions.checkArgument(this.maxCommitAttempts > 0, "maxCommitAttempts should be > 0");
     }
 
@@ -91,6 +95,10 @@ public class JdbcExactlyOnceOptions implements Serializable {
         return timeoutSec;
     }
 
+    public boolean isTransactionPerConnection() {
+        return transactionPerConnection;
+    }
+
     public static JDBCExactlyOnceOptionsBuilder builder() {
         return new JDBCExactlyOnceOptionsBuilder();
     }
@@ -101,8 +109,13 @@ public class JdbcExactlyOnceOptions implements Serializable {
         private int maxCommitAttempts = DEFAULT_MAX_COMMIT_ATTEMPTS;
         private boolean allowOutOfOrderCommits = DEFAULT_ALLOW_OUT_OF_ORDER_COMMITS;
         private Optional<Integer> timeoutSec = Optional.empty();
+        private boolean transactionPerConnection = DEFAULT_TRANSACTION_PER_CONNECTION;
 
-        /** Toggle discovery and rollback of transactions upon recovery. */
+        /**
+         * Toggle discovery and rollback of prepared transactions upon recovery to prevent new
+         * transactions from being blocked by the older ones. Each subtask rollbacks its own
+         * transaction. This flag must be disabled when rescaling to prevent data loss.
+         */
         public JDBCExactlyOnceOptionsBuilder withRecoveredAndRollback(
                 boolean recoveredAndRollback) {
             this.recoveredAndRollback = recoveredAndRollback;
@@ -134,9 +147,33 @@ public class JdbcExactlyOnceOptions implements Serializable {
             return this;
         }
 
+        /**
+         * Set whether the same connection can be used for multiple XA transactions. A transaction
+         * is prepared each time a checkpoint is performed; it is committed once the checkpoint is
+         * confirmed. There can be multiple un-confirmed checkpoints and therefore multiple prepared
+         * transactions.
+         *
+         * <p>Some databases support this natively (e.g. Oracle); while others only allow a single
+         * XA transaction per connection (e.g. MySQL, PostgreSQL).
+         *
+         * <p>If enabled, each transaction uses a separate connection from a pool. The database
+         * limit of open connections might need to be adjusted.
+         *
+         * <p>Disabled by default.
+         */
+        public JDBCExactlyOnceOptionsBuilder withTransactionPerConnection(
+                boolean transactionPerConnection) {
+            this.transactionPerConnection = transactionPerConnection;
+            return this;
+        }
+
         public JdbcExactlyOnceOptions build() {
             return new JdbcExactlyOnceOptions(
-                    recoveredAndRollback, maxCommitAttempts, allowOutOfOrderCommits, timeoutSec);
+                    recoveredAndRollback,
+                    maxCommitAttempts,
+                    allowOutOfOrderCommits,
+                    timeoutSec,
+                    transactionPerConnection);
         }
     }
 }

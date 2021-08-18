@@ -21,20 +21,34 @@ package org.apache.flink.kubernetes;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
+import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.NodeListBuilder;
+import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
+import io.fabric8.mockwebserver.dsl.DelayPathable;
+import io.fabric8.mockwebserver.dsl.HttpMethodable;
+import io.fabric8.mockwebserver.dsl.MockServerExpectation;
+import io.fabric8.mockwebserver.dsl.ReturnOrWebsocketable;
+import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * Base class for {@link KubernetesClusterDescriptorTest} and {@link
@@ -45,6 +59,32 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
     protected static final int REST_PORT = 9021;
     protected static final int NODE_PORT = 31234;
 
+    protected void mockExpectedNodesFromServerSide(List<String> addresses) {
+        final List<Node> nodes = new ArrayList<>();
+        Collections.shuffle(addresses);
+        for (String address : addresses) {
+            final String[] parts = address.split(":");
+            Preconditions.checkState(
+                    parts.length == 2, "Address should be in format \"<type>:<ip>\".");
+            nodes.add(
+                    new NodeBuilder()
+                            .withStatus(
+                                    new NodeStatusBuilder()
+                                            .withAddresses(
+                                                    new NodeAddressBuilder()
+                                                            .withType(parts[0])
+                                                            .withAddress(parts[1])
+                                                            .build())
+                                            .build())
+                            .build());
+        }
+        server.expect()
+                .get()
+                .withPath("/api/v1/nodes")
+                .andReturn(200, new NodeListBuilder().withItems(nodes).build())
+                .always();
+    }
+
     protected void mockExpectedServiceFromServerSide(Service expectedService) {
         final String serviceName = expectedService.getMetadata().getName();
         final String path =
@@ -53,14 +93,35 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
     }
 
     protected void mockCreateConfigMapAlreadyExisting(ConfigMap configMap) {
-        final String path = String.format("/api/v1/namespaces/%s/configmaps", NAMESPACE);
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps",
+                        configMap.getApiVersion(), configMap.getMetadata().getNamespace());
         server.expect().post().withPath(path).andReturn(500, configMap).always();
     }
 
+    protected void mockGetConfigMapFailed(ConfigMap configMap) {
+        mockConfigMapRequest(configMap, HttpMethodable::get);
+    }
+
     protected void mockReplaceConfigMapFailed(ConfigMap configMap) {
-        final String name = configMap.getMetadata().getName();
-        final String path = String.format("/api/v1/namespaces/%s/configmaps/%s", NAMESPACE, name);
-        server.expect().put().withPath(path).andReturn(500, configMap).always();
+        mockConfigMapRequest(configMap, HttpMethodable::put);
+    }
+
+    private void mockConfigMapRequest(
+            ConfigMap configMap,
+            Function<
+                            MockServerExpectation,
+                            DelayPathable<
+                                    ReturnOrWebsocketable<TimesOnceableOrHttpHeaderable<Void>>>>
+                    methodTypeSetter) {
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps/%s",
+                        configMap.getApiVersion(),
+                        configMap.getMetadata().getNamespace(),
+                        configMap.getMetadata().getName());
+        methodTypeSetter.apply(server.expect()).withPath(path).andReturn(500, configMap).always();
     }
 
     protected Service buildExternalServiceWithLoadBalancer(
@@ -76,7 +137,8 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         .withLoadBalancer(
                                 new LoadBalancerStatus(
                                         Collections.singletonList(
-                                                new LoadBalancerIngress(hostname, ip))))
+                                                new LoadBalancerIngress(
+                                                        hostname, ip, new ArrayList<>()))))
                         .build();
 
         return buildExternalService(

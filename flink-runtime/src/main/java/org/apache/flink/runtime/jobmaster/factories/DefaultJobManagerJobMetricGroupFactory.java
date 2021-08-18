@@ -39,6 +39,6 @@ public class DefaultJobManagerJobMetricGroupFactory implements JobManagerJobMetr
 
     @Override
     public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
-        return jobManagerMetricGroup.addJob(jobGraph);
+        return jobManagerMetricGroup.addJob(jobGraph.getJobID(), jobGraph.getName());
     }
 }

@@ -84,10 +84,13 @@ public class PythonConfig implements Serializable {
     private final boolean isUsingManagedMemory;
 
     /** The Configuration that contains execution configs and dependencies info. */
-    private final Configuration mergedConfig;
+    private final Configuration config;
+
+    /** Whether profile is enabled. */
+    private final boolean profileEnabled;
 
     public PythonConfig(Configuration config) {
-        mergedConfig = config;
+        this.config = config;
         maxBundleSize = config.get(PythonOptions.MAX_BUNDLE_SIZE);
         maxBundleTimeMills = config.get(PythonOptions.MAX_BUNDLE_TIME_MILLS);
         maxArrowBatchSize = config.get(PythonOptions.MAX_ARROW_BATCH_SIZE);
@@ -106,6 +109,7 @@ public class PythonConfig implements Serializable {
         pythonExec = config.get(PythonOptions.PYTHON_EXECUTABLE);
         metricEnabled = config.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
         isUsingManagedMemory = config.getBoolean(PythonOptions.USE_MANAGED_MEMORY);
+        profileEnabled = config.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
     }
 
     public int getMaxBundleSize() {
@@ -144,11 +148,15 @@ public class PythonConfig implements Serializable {
         return metricEnabled;
     }
 
+    public boolean isProfileEnabled() {
+        return profileEnabled;
+    }
+
     public boolean isUsingManagedMemory() {
         return isUsingManagedMemory;
     }
 
-    public Configuration getMergedConfig() {
-        return mergedConfig;
+    public Configuration getConfig() {
+        return config;
     }
 }

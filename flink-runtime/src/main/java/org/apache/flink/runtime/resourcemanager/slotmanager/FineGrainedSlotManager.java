@@ -20,25 +20,27 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.slots.ResourceCounter;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +79,9 @@ public class FineGrainedSlotManager implements SlotManager {
     /** Timeout after which an unused TaskManager is released. */
     private final Time taskManagerTimeout;
 
+    /** Delay of the requirement change check in the slot manager. */
+    private final Time requirementsCheckDelay;
+
     private final SlotManagerMetricGroup slotManagerMetricGroup;
 
     private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
@@ -86,9 +91,12 @@ public class FineGrainedSlotManager implements SlotManager {
      */
     private final boolean waitResultConsumedBeforeRelease;
 
+    private final CPUResource maxTotalCpu;
+    private final MemorySize maxTotalMem;
+
     private boolean sendNotEnoughResourceNotifications = true;
 
-    private Set<JobID> unfulfillableJobs = new HashSet<>();
+    private final Set<JobID> unfulfillableJobs = new HashSet<>();
 
     /** ResourceManager's id. */
     @Nullable private ResourceManagerId resourceManagerId;
@@ -101,6 +109,10 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> taskManagerTimeoutsCheck;
 
+    @Nullable private ScheduledFuture<?> lastResourceRequirementsCheck;
+
+    @Nullable private CompletableFuture<Void> requirementsCheckFuture;
+
     /** True iff the component has been started. */
     private boolean started;
 
@@ -111,7 +123,8 @@ public class FineGrainedSlotManager implements SlotManager {
             ResourceTracker resourceTracker,
             TaskManagerTracker taskManagerTracker,
             SlotStatusSyncer slotStatusSyncer,
-            ResourceAllocationStrategy resourceAllocationStrategy) {
+            ResourceAllocationStrategy resourceAllocationStrategy,
+            Time requirementCheckDelay) {
 
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 
@@ -119,6 +132,7 @@ public class FineGrainedSlotManager implements SlotManager {
         this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
         this.waitResultConsumedBeforeRelease =
                 slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
+        this.requirementsCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
 
         this.slotManagerMetricGroup = Preconditions.checkNotNull(slotManagerMetricGroup);
 
@@ -127,10 +141,15 @@ public class FineGrainedSlotManager implements SlotManager {
         this.slotStatusSyncer = Preconditions.checkNotNull(slotStatusSyncer);
         this.resourceAllocationStrategy = Preconditions.checkNotNull(resourceAllocationStrategy);
 
+        this.maxTotalCpu = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalCpu());
+        this.maxTotalMem = Preconditions.checkNotNull(slotManagerConfiguration.getMaxTotalMem());
+
         resourceManagerId = null;
         resourceActions = null;
         mainThreadExecutor = null;
         taskManagerTimeoutsCheck = null;
+        lastResourceRequirementsCheck = null;
+        requirementsCheckFuture = null;
 
         started = false;
     }
@@ -202,10 +221,17 @@ public class FineGrainedSlotManager implements SlotManager {
 
         LOG.info("Suspending the slot manager.");
 
+        slotManagerMetricGroup.close();
+
         // stop the timeout checks for the TaskManagers
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
             taskManagerTimeoutsCheck = null;
+        }
+
+        if (lastResourceRequirementsCheck != null) {
+            lastResourceRequirementsCheck.cancel(false);
+            lastResourceRequirementsCheck = null;
         }
 
         slotStatusSyncer.close();
@@ -228,7 +254,6 @@ public class FineGrainedSlotManager implements SlotManager {
         LOG.info("Closing the slot manager.");
 
         suspend();
-        slotManagerMetricGroup.close();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -236,12 +261,22 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public void clearResourceRequirements(JobID jobId) {
+        jobMasterTargetAddresses.remove(jobId);
+        resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
+    }
+
+    @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         checkInit();
-        LOG.debug(
-                "Received resource requirements from job {}: {}",
-                resourceRequirements.getJobId(),
-                resourceRequirements.getResourceRequirements());
+        if (resourceRequirements.getResourceRequirements().isEmpty()) {
+            LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
+        } else {
+            LOG.info(
+                    "Received resource requirements from job {}: {}",
+                    resourceRequirements.getJobId(),
+                    resourceRequirements.getResourceRequirements());
+        }
 
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
             jobMasterTargetAddresses.remove(resourceRequirements.getJobId());
@@ -251,7 +286,7 @@ public class FineGrainedSlotManager implements SlotManager {
         }
         resourceTracker.notifyResourceRequirements(
                 resourceRequirements.getJobId(), resourceRequirements.getResourceRequirements());
-        checkResourceRequirements();
+        checkResourceRequirementsWithDelay();
     }
 
     /**
@@ -272,7 +307,7 @@ public class FineGrainedSlotManager implements SlotManager {
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile) {
         checkInit();
-        LOG.debug(
+        LOG.info(
                 "Registering task executor {} under {} at the slot manager.",
                 taskExecutorConnection.getResourceID(),
                 taskExecutorConnection.getInstanceID());
@@ -287,25 +322,42 @@ public class FineGrainedSlotManager implements SlotManager {
             reportSlotStatus(taskExecutorConnection.getInstanceID(), initialSlotReport);
             return false;
         } else {
+            Optional<PendingTaskManagerId> matchedPendingTaskManagerOptional =
+                    initialSlotReport.hasAllocatedSlot()
+                            ? Optional.empty()
+                            : findMatchingPendingTaskManager(
+                                    totalResourceProfile, defaultSlotResourceProfile);
+
+            if (!matchedPendingTaskManagerOptional.isPresent()
+                    && isMaxTotalResourceExceededAfterAdding(totalResourceProfile)) {
+                LOG.info(
+                        "Releasing task manager {}. The max total resource limitation <{}, {}> is reached.",
+                        taskExecutorConnection.getResourceID(),
+                        maxTotalCpu,
+                        maxTotalMem.toHumanReadableString());
+                resourceActions.releaseResource(
+                        taskExecutorConnection.getInstanceID(),
+                        new FlinkException("The max total resource limitation is reached."));
+                return false;
+            }
+
             taskManagerTracker.addTaskManager(
                     taskExecutorConnection, totalResourceProfile, defaultSlotResourceProfile);
+
             if (initialSlotReport.hasAllocatedSlot()) {
                 slotStatusSyncer.reportSlotStatus(
                         taskExecutorConnection.getInstanceID(), initialSlotReport);
-            } else {
-                Optional<PendingTaskManagerId> matchedPendingTaskManagerOptional =
-                        findMatchingPendingTaskManager(
-                                totalResourceProfile, defaultSlotResourceProfile);
-                if (matchedPendingTaskManagerOptional.isPresent()) {
-                    PendingTaskManagerId pendingTaskManager =
-                            matchedPendingTaskManagerOptional.get();
-                    allocateSlotsForRegisteredPendingTaskManager(
-                            pendingTaskManager, taskExecutorConnection.getInstanceID());
-                    taskManagerTracker.removePendingTaskManager(pendingTaskManager);
-                    return true;
-                }
             }
-            checkResourceRequirements();
+
+            if (matchedPendingTaskManagerOptional.isPresent()) {
+                PendingTaskManagerId pendingTaskManager = matchedPendingTaskManagerOptional.get();
+                allocateSlotsForRegisteredPendingTaskManager(
+                        pendingTaskManager, taskExecutorConnection.getInstanceID());
+                taskManagerTracker.removePendingTaskManager(pendingTaskManager);
+                return true;
+            }
+
+            checkResourceRequirementsWithDelay();
             return true;
         }
     }
@@ -324,21 +376,13 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private Optional<PendingTaskManagerId> findMatchingPendingTaskManager(
             ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
-        List<PendingTaskManagerId> matchedPendingTaskManagers =
-                taskManagerTracker.getPendingTaskManagers().stream()
-                        .filter(
-                                pendingTaskManager ->
-                                        pendingTaskManager
-                                                        .getTotalResourceProfile()
-                                                        .equals(totalResourceProfile)
-                                                && pendingTaskManager
-                                                        .getDefaultSlotResourceProfile()
-                                                        .equals(defaultSlotResourceProfile))
-                        .map(PendingTaskManager::getPendingTaskManagerId)
-                        .collect(Collectors.toList());
+        Collection<PendingTaskManager> matchedPendingTaskManagers =
+                taskManagerTracker.getPendingTaskManagersByTotalAndDefaultSlotResourceProfile(
+                        totalResourceProfile, defaultSlotResourceProfile);
 
         Optional<PendingTaskManagerId> matchedPendingTaskManagerIdsWithAllocatedSlots =
                 matchedPendingTaskManagers.stream()
+                        .map(PendingTaskManager::getPendingTaskManagerId)
                         .filter(
                                 (pendingTaskManagerId) ->
                                         !taskManagerTracker
@@ -350,7 +394,9 @@ public class FineGrainedSlotManager implements SlotManager {
         if (matchedPendingTaskManagerIdsWithAllocatedSlots.isPresent()) {
             return matchedPendingTaskManagerIdsWithAllocatedSlots;
         } else {
-            return matchedPendingTaskManagers.stream().findAny();
+            return matchedPendingTaskManagers.stream()
+                    .map(PendingTaskManager::getPendingTaskManagerId)
+                    .findAny();
         }
     }
 
@@ -358,7 +404,7 @@ public class FineGrainedSlotManager implements SlotManager {
     public boolean unregisterTaskManager(InstanceID instanceId, Exception cause) {
         checkInit();
 
-        LOG.debug("Unregistering task executor {} from the slot manager.", instanceId);
+        LOG.info("Unregistering task executor {} from the slot manager.", instanceId);
 
         if (taskManagerTracker.getRegisteredTaskManager(instanceId).isPresent()) {
             Set<AllocationID> allocatedSlots =
@@ -373,7 +419,7 @@ public class FineGrainedSlotManager implements SlotManager {
             }
             taskManagerTracker.removeTaskManager(instanceId);
             if (!allocatedSlots.isEmpty()) {
-                checkResourceRequirements();
+                checkResourceRequirementsWithDelay();
             }
 
             return true;
@@ -401,7 +447,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
         if (taskManagerTracker.getRegisteredTaskManager(instanceId).isPresent()) {
             if (!slotStatusSyncer.reportSlotStatus(instanceId, slotReport)) {
-                checkResourceRequirements();
+                checkResourceRequirementsWithDelay();
             }
             return true;
         } else {
@@ -427,7 +473,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
         if (taskManagerTracker.getAllocatedOrPendingSlot(allocationId).isPresent()) {
             slotStatusSyncer.freeSlot(allocationId);
-            checkResourceRequirements();
+            checkResourceRequirementsWithDelay();
         } else {
             LOG.debug(
                     "Trying to free a slot {} which has not been allocated. Ignoring this message.",
@@ -439,10 +485,33 @@ public class FineGrainedSlotManager implements SlotManager {
     // Requirement matching
     // ---------------------------------------------------------------------------------------------
 
+    /**
+     * Depending on the implementation of {@link ResourceAllocationStrategy}, checking resource
+     * requirements and potentially making a re-allocation can be heavy. In order to cover more
+     * changes with each check, thus reduce the frequency of unnecessary re-allocations, the checks
+     * are performed with a slight delay.
+     */
+    private void checkResourceRequirementsWithDelay() {
+        if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
+            LOG.info("Scheduling the resource requirement check.");
+            requirementsCheckFuture = new CompletableFuture<>();
+            lastResourceRequirementsCheck =
+                    scheduledExecutor.schedule(
+                            () -> mainThreadExecutor.execute(this::checkResourceRequirements),
+                            requirementsCheckDelay.toMilliseconds(),
+                            TimeUnit.MILLISECONDS);
+        }
+    }
+
+    /**
+     * DO NOT call this method directly. Use {@link #checkResourceRequirementsWithDelay()} instead.
+     */
     private void checkResourceRequirements() {
+        LOG.info("Matching resource requirements against available resources.");
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
+            requirementsCheckFuture.complete(null);
             return;
         }
 
@@ -452,26 +521,16 @@ public class FineGrainedSlotManager implements SlotManager {
                                 Collectors.toMap(
                                         Map.Entry::getKey, e -> new ArrayList<>(e.getValue())));
 
-        final Map<InstanceID, Tuple2<ResourceProfile, ResourceProfile>> availableResources =
-                taskManagerTracker.getRegisteredTaskManagers().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        TaskManagerInfo::getInstanceId,
-                                        taskManager ->
-                                                Tuple2.of(
-                                                        taskManager.getAvailableResource(),
-                                                        taskManager
-                                                                .getDefaultSlotResourceProfile())));
         final ResourceAllocationResult result =
                 resourceAllocationStrategy.tryFulfillRequirements(
-                        missingResources,
-                        availableResources,
-                        new ArrayList<>(taskManagerTracker.getPendingTaskManagers()));
+                        missingResources, taskManagerTracker);
 
         // Allocate slots according to the result
+        LOG.info("Allocating slots for the resource requirements.");
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
 
         // Allocate task managers according to the result
+        LOG.info("Allocating task managers for the resource requirements.");
         final Set<PendingTaskManagerId> failAllocations =
                 allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
 
@@ -496,6 +555,7 @@ public class FineGrainedSlotManager implements SlotManager {
                         jobId, resourceTracker.getAcquiredResources(jobId));
             }
         }
+        requirementsCheckFuture.complete(null);
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
@@ -505,7 +565,7 @@ public class FineGrainedSlotManager implements SlotManager {
             for (Map.Entry<InstanceID, ResourceCounter> tmEntry : jobEntry.getValue().entrySet()) {
                 final InstanceID instanceID = tmEntry.getKey();
                 for (Map.Entry<ResourceProfile, Integer> slotEntry :
-                        tmEntry.getValue().getResourceProfilesWithCount().entrySet()) {
+                        tmEntry.getValue().getResourcesWithCount()) {
                     for (int i = 0; i < slotEntry.getValue(); ++i) {
                         allocationFutures.add(
                                 slotStatusSyncer.allocateSlot(
@@ -522,7 +582,7 @@ public class FineGrainedSlotManager implements SlotManager {
                         (s, t) -> {
                             if (t != null) {
                                 // If there is allocation failure, we need to trigger it again.
-                                checkResourceRequirements();
+                                checkResourceRequirementsWithDelay();
                             }
                         },
                         mainThreadExecutor);
@@ -549,58 +609,62 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public int getNumberRegisteredSlots() {
-        return taskManagerTracker.getClusterResourceOverview().getNumberRegisteredSlots();
+        return taskManagerTracker.getNumberRegisteredSlots();
     }
 
     @Override
     public int getNumberRegisteredSlotsOf(InstanceID instanceId) {
-        return taskManagerTracker
-                .getClusterResourceOverview()
-                .getNumberRegisteredSlotsOf(instanceId);
+        return taskManagerTracker.getNumberRegisteredSlotsOf(instanceId);
     }
 
     @Override
     public int getNumberFreeSlots() {
-        return taskManagerTracker.getClusterResourceOverview().getNumberFreeSlots();
+        return taskManagerTracker.getNumberFreeSlots();
     }
 
     @Override
     public int getNumberFreeSlotsOf(InstanceID instanceId) {
-        return taskManagerTracker.getClusterResourceOverview().getNumberFreeSlotsOf(instanceId);
+        return taskManagerTracker.getNumberFreeSlotsOf(instanceId);
     }
 
     @Override
     public Map<WorkerResourceSpec, Integer> getRequiredResources() {
         return taskManagerTracker.getPendingTaskManagers().stream()
-                .map(PendingTaskManager::getTotalResourceProfile)
-                .map(WorkerResourceSpec::fromTotalResourceProfile)
+                .map(
+                        pendingTaskManager ->
+                                WorkerResourceSpec.fromTotalResourceProfile(
+                                        pendingTaskManager.getTotalResourceProfile(),
+                                        pendingTaskManager.getNumSlots()))
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.summingInt(e -> 1)));
     }
 
     @Override
     public ResourceProfile getRegisteredResource() {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResource();
+        return taskManagerTracker.getRegisteredResource();
     }
 
     @Override
     public ResourceProfile getRegisteredResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getRegisteredResourceOf(instanceID);
     }
 
     @Override
     public ResourceProfile getFreeResource() {
-        return taskManagerTracker.getClusterResourceOverview().getFreeResource();
+        return taskManagerTracker.getFreeResource();
     }
 
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getClusterResourceOverview().getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getFreeResourceOf(instanceID);
     }
 
     @Override
-    public int getNumberPendingSlotRequests() {
-        // only exists for testing purposes
-        throw new UnsupportedOperationException();
+    public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
+        return taskManagerTracker.getRegisteredTaskManager(instanceID)
+                .map(TaskManagerInfo::getAllocatedSlots).map(Map::values)
+                .orElse(Collections.emptyList()).stream()
+                .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
+                .collect(Collectors.toList());
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -646,16 +710,26 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
         final FlinkException cause = new FlinkException("TaskManager exceeded the idle timeout.");
-        LOG.debug(
+        LOG.info(
                 "Release TaskManager {} because it exceeded the idle timeout.",
                 timedOutTaskManagerId);
         resourceActions.releaseResource(timedOutTaskManagerId, cause);
     }
 
     private boolean allocateResource(PendingTaskManager pendingTaskManager) {
+        if (isMaxTotalResourceExceededAfterAdding(pendingTaskManager.getTotalResourceProfile())) {
+            LOG.info(
+                    "Could not allocate {}. Max total resource limitation <{}, {}> is reached.",
+                    pendingTaskManager,
+                    maxTotalCpu,
+                    maxTotalMem.toHumanReadableString());
+            return false;
+        }
+
         if (!resourceActions.allocateResource(
                 WorkerResourceSpec.fromTotalResourceProfile(
-                        pendingTaskManager.getTotalResourceProfile()))) {
+                        pendingTaskManager.getTotalResourceProfile(),
+                        pendingTaskManager.getNumSlots()))) {
             // resource cannot be allocated
             return false;
         }
@@ -681,5 +755,14 @@ public class FineGrainedSlotManager implements SlotManager {
         Preconditions.checkNotNull(resourceManagerId);
         Preconditions.checkNotNull(mainThreadExecutor);
         Preconditions.checkNotNull(resourceActions);
+    }
+
+    private boolean isMaxTotalResourceExceededAfterAdding(ResourceProfile newResource) {
+        final ResourceProfile totalResourceAfterAdding =
+                newResource
+                        .merge(taskManagerTracker.getRegisteredResource())
+                        .merge(taskManagerTracker.getPendingResource());
+        return totalResourceAfterAdding.getCpuCores().compareTo(maxTotalCpu) > 0
+                || totalResourceAfterAdding.getTotalMemory().compareTo(maxTotalMem) > 0;
     }
 }

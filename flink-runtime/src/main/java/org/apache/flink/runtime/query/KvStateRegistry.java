@@ -87,11 +87,13 @@ public class KvStateRegistry {
             JobVertexID jobVertexId,
             KeyGroupRange keyGroupRange,
             String registrationName,
-            InternalKvState<?, ?, ?> kvState) {
+            InternalKvState<?, ?, ?> kvState,
+            ClassLoader userClassLoader) {
 
         KvStateID kvStateId = new KvStateID();
 
-        if (registeredKvStates.putIfAbsent(kvStateId, new KvStateEntry<>(kvState)) == null) {
+        if (registeredKvStates.putIfAbsent(kvStateId, new KvStateEntry<>(kvState, userClassLoader))
+                == null) {
             final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
 
             if (listener != null) {

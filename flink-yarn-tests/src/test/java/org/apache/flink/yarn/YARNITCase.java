@@ -27,6 +27,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -134,6 +135,7 @@ public class YARNITCase extends YarnTestBase {
 
     private void deployPerJob(Configuration configuration, JobGraph jobGraph, boolean withDist)
             throws Exception {
+        jobGraph.setJobType(JobType.STREAMING);
         try (final YarnClusterDescriptor yarnClusterDescriptor =
                 withDist
                         ? createYarnClusterDescriptor(configuration)
@@ -225,7 +227,7 @@ public class YARNITCase extends YarnTestBase {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
+        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
 
         return configuration;

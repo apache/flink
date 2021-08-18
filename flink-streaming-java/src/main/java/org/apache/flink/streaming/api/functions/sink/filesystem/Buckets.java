@@ -339,6 +339,13 @@ public class Buckets<IN, BucketID> {
         }
     }
 
+    public void closePartFileForBucket(BucketID bucketID) throws Exception {
+        Bucket<IN, BucketID> bucket = activeBuckets.get(bucketID);
+        if (bucket != null) {
+            bucket.closePartFile();
+        }
+    }
+
     public void close() {
         if (activeBuckets != null) {
             activeBuckets.values().forEach(Bucket::disposePartFile);

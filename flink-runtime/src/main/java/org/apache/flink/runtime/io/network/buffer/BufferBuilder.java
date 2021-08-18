@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -35,10 +34,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * written data.
  */
 @NotThreadSafe
-public class BufferBuilder {
+public class BufferBuilder implements AutoCloseable {
+    private final Buffer buffer;
     private final MemorySegment memorySegment;
-
-    private final BufferRecycler recycler;
+    private int maxCapacity;
 
     private final SettablePositionMarker positionMarker = new SettablePositionMarker();
 
@@ -46,7 +45,8 @@ public class BufferBuilder {
 
     public BufferBuilder(MemorySegment memorySegment, BufferRecycler recycler) {
         this.memorySegment = checkNotNull(memorySegment);
-        this.recycler = checkNotNull(recycler);
+        this.buffer = new NetworkBuffer(memorySegment, recycler);
+        this.maxCapacity = buffer.getMaxCapacity();
     }
 
     /**
@@ -74,7 +74,7 @@ public class BufferBuilder {
         checkState(
                 !bufferConsumerCreated, "Two BufferConsumer shouldn't exist for one BufferBuilder");
         bufferConsumerCreated = true;
-        return new BufferConsumer(memorySegment, recycler, positionMarker, currentReaderPosition);
+        return new BufferConsumer(buffer.retainBuffer(), positionMarker, currentReaderPosition);
     }
 
     /** Same as {@link #append(ByteBuffer)} but additionally {@link #commit()} the appending. */
@@ -144,21 +144,21 @@ public class BufferBuilder {
     }
 
     public int getMaxCapacity() {
-        return memorySegment.size();
+        return maxCapacity;
     }
 
-    @VisibleForTesting
-    public BufferRecycler getRecycler() {
-        return recycler;
+    /**
+     * The result capacity can not be greater than allocated memorySegment. It also can not be less
+     * than already written data.
+     */
+    public void trim(int newSize) {
+        maxCapacity =
+                Math.min(Math.max(newSize, positionMarker.getCached()), buffer.getMaxCapacity());
     }
 
-    public void recycle() {
-        recycler.recycle(memorySegment);
-    }
-
-    @VisibleForTesting
-    public MemorySegment getMemorySegment() {
-        return memorySegment;
+    @Override
+    public void close() {
+        buffer.recycleBuffer();
     }
 
     /**

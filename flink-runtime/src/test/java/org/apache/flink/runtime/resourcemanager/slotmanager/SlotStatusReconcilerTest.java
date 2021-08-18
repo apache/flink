@@ -69,11 +69,11 @@ public class SlotStatusReconcilerTest extends TestLogger {
                         TASK_EXECUTOR_CONNECTION);
 
         // free -> free
-        reconciler.executeStateTransition(slot, null);
+        assertThat(reconciler.executeStateTransition(slot, null), is(false));
         assertThat(stateTransitionTracker.stateTransitions, empty());
 
         // free -> allocated
-        reconciler.executeStateTransition(slot, jobId1);
+        assertThat(reconciler.executeStateTransition(slot, jobId1), is(true));
         assertThat(
                 stateTransitionTracker.stateTransitions.remove(),
                 is(transitionWithTargetStateForJob(SlotState.PENDING, jobId1)));
@@ -97,13 +97,13 @@ public class SlotStatusReconcilerTest extends TestLogger {
                         TASK_EXECUTOR_CONNECTION);
         slot.startAllocation(jobId1);
 
-        // pending -> free; should not trigger any transition because we are expecting a slot
+        // pending vs. free; should not trigger any transition because we are expecting a slot
         // allocation in the future
-        reconciler.executeStateTransition(slot, null);
+        assertThat(reconciler.executeStateTransition(slot, null), is(false));
         assertThat(stateTransitionTracker.stateTransitions, empty());
 
         // pending -> allocated
-        reconciler.executeStateTransition(slot, jobId1);
+        assertThat(reconciler.executeStateTransition(slot, jobId1), is(true));
         assertThat(
                 stateTransitionTracker.stateTransitions.remove(),
                 is(transitionWithTargetStateForJob(SlotState.ALLOCATED, jobId1)));
@@ -125,8 +125,8 @@ public class SlotStatusReconcilerTest extends TestLogger {
                         TASK_EXECUTOR_CONNECTION);
         slot.startAllocation(jobId1);
 
-        // pending -> allocated
-        reconciler.executeStateTransition(slot, jobId2);
+        // pending(job1) -> free -> pending(job2) -> allocated(job2)
+        assertThat(reconciler.executeStateTransition(slot, jobId2), is(true));
         assertThat(
                 stateTransitionTracker.stateTransitions.remove(),
                 is(transitionWithTargetStateForJob(SlotState.FREE, jobId1)));
@@ -155,11 +155,11 @@ public class SlotStatusReconcilerTest extends TestLogger {
         slot.completeAllocation();
 
         // allocated -> allocated
-        reconciler.executeStateTransition(slot, jobId1);
+        assertThat(reconciler.executeStateTransition(slot, jobId1), is(false));
         assertThat(stateTransitionTracker.stateTransitions, empty());
 
         // allocated -> free
-        reconciler.executeStateTransition(slot, null);
+        assertThat(reconciler.executeStateTransition(slot, null), is(true));
         assertThat(
                 stateTransitionTracker.stateTransitions.remove(),
                 is(transitionWithTargetStateForJob(SlotState.FREE, jobId1)));
@@ -182,8 +182,8 @@ public class SlotStatusReconcilerTest extends TestLogger {
         slot.startAllocation(jobId1);
         slot.completeAllocation();
 
-        // allocated -> allocated
-        reconciler.executeStateTransition(slot, jobId2);
+        // allocated(job1) -> free -> pending(job2) -> allocated(job2)
+        assertThat(reconciler.executeStateTransition(slot, jobId2), is(true));
         assertThat(
                 stateTransitionTracker.stateTransitions.remove(),
                 is(transitionWithTargetStateForJob(SlotState.FREE, jobId1)));

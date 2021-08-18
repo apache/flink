@@ -20,9 +20,11 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -185,29 +187,83 @@ public final class Expressions {
     public static final ApiExpression CURRENT_RANGE =
             apiCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
 
-    /** Returns the current SQL date in UTC time zone. */
+    /**
+     * Returns the current SQL date in local time zone, the return type of this expression is {@link
+     * DataTypes#DATE()}.
+     */
     public static ApiExpression currentDate() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_DATE);
     }
 
-    /** Returns the current SQL time in UTC time zone. */
+    /**
+     * Returns the current SQL time in local time zone, the return type of this expression is {@link
+     * DataTypes#TIME()}.
+     */
     public static ApiExpression currentTime() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_TIME);
     }
 
-    /** Returns the current SQL timestamp in UTC time zone. */
+    /**
+     * Returns the current SQL timestamp in local time zone, the return type of this expression is
+     * {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
+     */
     public static ApiExpression currentTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_TIMESTAMP);
     }
 
-    /** Returns the current SQL time in local time zone. */
+    /**
+     * Returns the current watermark for the given rowtime attribute, or {@code NULL} if no common
+     * watermark of all upstream operations is available at the current operation in the pipeline.
+     *
+     * <p>The function returns the watermark with the same type as the rowtime attribute, but with
+     * an adjusted precision of 3. For example, if the rowtime attribute is {@link
+     * DataTypes#TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(9)}, the function will return {@link
+     * DataTypes#TIMESTAMP_LTZ(int) TIMESTAMP_LTZ(3)}.
+     *
+     * <p>If no watermark has been emitted yet, the function will return {@code NULL}. Users must
+     * take care of this when comparing against it, e.g. in order to filter out late data you can
+     * use
+     *
+     * <pre>{@code
+     * WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+     * }</pre>
+     */
+    public static ApiExpression currentWatermark(Object rowtimeAttribute) {
+        return apiCall(BuiltInFunctionDefinitions.CURRENT_WATERMARK, rowtimeAttribute);
+    }
+
+    /**
+     * Returns the current SQL time in local time zone, the return type of this expression is {@link
+     * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
+     */
     public static ApiExpression localTime() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIME);
     }
 
-    /** Returns the current SQL timestamp in local time zone. */
+    /**
+     * Returns the current SQL timestamp in local time zone, the return type of this expression is
+     * {@link DataTypes#TIMESTAMP()}.
+     */
     public static ApiExpression localTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP);
+    }
+
+    /**
+     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>The supported precision is 0 or 3:
+     *
+     * <ul>
+     *   <li>0 means the numericEpochTime is in second.
+     *   <li>3 means the numericEpochTime is in millisecond.
+     * </ul>
+     *
+     * @param numericEpochTime The epoch time with numeric type.
+     * @param precision The precision to indicate the epoch time is in second or millisecond.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(Object numericEpochTime, Object precision) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime, precision);
     }
 
     /**
@@ -431,6 +487,21 @@ public final class Expressions {
     }
 
     /**
+     * Source watermark declaration for {@link Schema}.
+     *
+     * <p>This is a marker function that doesn't have concrete runtime implementation. It can only
+     * be used as a single expression in {@link Schema.Builder#watermark(String, Expression)}. The
+     * declaration will be pushed down into a table source that implements the {@link
+     * SupportsSourceWatermark} interface. The source will emit system-defined watermarks
+     * afterwards.
+     *
+     * <p>Please check the documentation whether the connector supports source watermarks.
+     */
+    public static ApiExpression sourceWatermark() {
+        return apiCall(BuiltInFunctionDefinitions.SOURCE_WATERMARK);
+    }
+
+    /**
      * Ternary conditional operator that decides which of two other expressions should be evaluated
      * based on a evaluated boolean condition.
      *
@@ -540,7 +611,7 @@ public final class Expressions {
      * table-valued functions are not supported. Sub-queries are also not allowed.
      */
     public static ApiExpression callSql(String sqlExpression) {
-        return apiCall(BuiltInFunctionDefinitions.CALL_SQL, sqlExpression);
+        return apiSqlCall(sqlExpression);
     }
 
     private static ApiExpression apiCall(FunctionDefinition functionDefinition, Object... args) {
@@ -567,5 +638,9 @@ public final class Expressions {
                         .map(ApiExpressionUtils::objectToExpression)
                         .collect(Collectors.toList());
         return new ApiExpression(unresolvedCall(functionDefinition, arguments));
+    }
+
+    private static ApiExpression apiSqlCall(String sqlExpression) {
+        return new ApiExpression(new SqlCallExpression(sqlExpression));
     }
 }

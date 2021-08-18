@@ -32,6 +32,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URISyntaxException;
@@ -79,9 +81,6 @@ public class JobGraph implements Serializable {
 
     /** Name of this job. */
     private final String jobName;
-
-    /** The mode in which the job is scheduled. */
-    private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
 
     private JobType jobType = JobType.BATCH;
 
@@ -137,7 +136,7 @@ public class JobGraph implements Serializable {
      * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
      * @param jobName The name of the job.
      */
-    public JobGraph(JobID jobId, String jobName) {
+    public JobGraph(@Nullable JobID jobId, String jobName) {
         this.jobID = jobId == null ? new JobID() : jobId;
         this.jobName = jobName == null ? "(unnamed job)" : jobName;
 
@@ -150,29 +149,6 @@ public class JobGraph implements Serializable {
     }
 
     /**
-     * Constructs a new job graph with no name, a random job ID, the given {@link ExecutionConfig},
-     * and the given job vertices. The ExecutionConfig will be serialized and can't be modified
-     * afterwards.
-     *
-     * @param vertices The vertices to add to the graph.
-     */
-    public JobGraph(JobVertex... vertices) {
-        this(null, vertices);
-    }
-
-    /**
-     * Constructs a new job graph with the given name, the given {@link ExecutionConfig}, a random
-     * job ID, and the given job vertices. The ExecutionConfig will be serialized and can't be
-     * modified afterwards.
-     *
-     * @param jobName The name of the job.
-     * @param vertices The vertices to add to the graph.
-     */
-    public JobGraph(String jobName, JobVertex... vertices) {
-        this(null, jobName, vertices);
-    }
-
-    /**
      * Constructs a new job graph with the given name, the given {@link ExecutionConfig}, the given
      * jobId or a random one if null supplied, and the given job vertices. The ExecutionConfig will
      * be serialized and can't be modified afterwards.
@@ -181,7 +157,7 @@ public class JobGraph implements Serializable {
      * @param jobName The name of the job.
      * @param vertices The vertices to add to the graph.
      */
-    public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
+    public JobGraph(@Nullable JobID jobId, String jobName, JobVertex... vertices) {
         this(jobId, jobName);
 
         for (JobVertex vertex : vertices) {
@@ -233,14 +209,6 @@ public class JobGraph implements Serializable {
         return serializedExecutionConfig;
     }
 
-    public void setScheduleMode(ScheduleMode scheduleMode) {
-        this.scheduleMode = scheduleMode;
-    }
-
-    public ScheduleMode getScheduleMode() {
-        return scheduleMode;
-    }
-
     public void setJobType(JobType type) {
         this.jobType = type;
     }
@@ -285,7 +253,14 @@ public class JobGraph implements Serializable {
      */
     public void setExecutionConfig(ExecutionConfig executionConfig) throws IOException {
         checkNotNull(executionConfig, "ExecutionConfig must not be null.");
-        this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
+        setSerializedExecutionConfig(new SerializedValue<>(executionConfig));
+    }
+
+    void setSerializedExecutionConfig(SerializedValue<ExecutionConfig> serializedExecutionConfig) {
+        this.serializedExecutionConfig =
+                checkNotNull(
+                        serializedExecutionConfig,
+                        "The serialized ExecutionConfig must not be null.");
     }
 
     /**

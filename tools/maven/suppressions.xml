@@ -47,7 +47,7 @@ under the License.
 
 	    <!-- Have to use guava directly -->
 	    <suppress
-			files="OverConvertRule.java|CustomizedConvertRule.java"
+			files="OverConvertRule.java|InConverter.java"
 			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
@@ -78,5 +78,8 @@ under the License.
 		<!-- target directory is not relevant for checkstyle -->
 		<suppress
 			files="[\\/]target[\\/]"
+			checks=".*"/>
+		<suppress
+			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
 			checks=".*"/>
 </suppressions>

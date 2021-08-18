@@ -39,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumul
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.IOException;
@@ -53,7 +53,7 @@ import java.util.concurrent.Executor;
 public class SubtaskExecutionAttemptAccumulatorsHandler
         extends AbstractSubtaskAttemptHandler<
                 SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     /**
      * Instantiates a new Abstract job vertex handler.

@@ -20,6 +20,7 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -41,7 +42,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -79,12 +80,17 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
+    public JobID getJobId() {
+        return ctx.getJobId();
+    }
+
+    @Override
     public String getTaskName() {
         return ctx.getTaskName();
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return ctx.getMetricGroup();
     }
 

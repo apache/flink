@@ -1124,19 +1124,19 @@ public class CliFrontend {
         final List<CustomCommandLine> customCommandLines =
                 loadCustomCommandLines(configuration, configurationDirectory);
 
+        int retCode = 31;
         try {
             final CliFrontend cli = new CliFrontend(configuration, customCommandLines);
 
             SecurityUtils.install(new SecurityConfiguration(cli.configuration));
-            int retCode =
-                    SecurityUtils.getInstalledContext().runSecured(() -> cli.parseAndRun(args));
-            System.exit(retCode);
+            retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.parseAndRun(args));
         } catch (Throwable t) {
             final Throwable strippedThrowable =
                     ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
             LOG.error("Fatal error while running command line interface.", strippedThrowable);
             strippedThrowable.printStackTrace();
-            System.exit(31);
+        } finally {
+            System.exit(retCode);
         }
     }
 

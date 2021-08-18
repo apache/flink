@@ -87,10 +87,13 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 
     @Override
     public void clear(W window, TriggerContext ctx) throws Exception {
+        // State could be merged into new window.
         ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
-        long timestamp = fireTimestamp.get();
-        ctx.deleteProcessingTimeTimer(timestamp);
-        fireTimestamp.clear();
+        Long timestamp = fireTimestamp.get();
+        if (timestamp != null) {
+            ctx.deleteProcessingTimeTimer(timestamp);
+            fireTimestamp.clear();
+        }
     }
 
     @Override
@@ -99,8 +102,15 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     }
 
     @Override
-    public void onMerge(W window, OnMergeContext ctx) {
+    public void onMerge(W window, OnMergeContext ctx) throws Exception {
+        // States for old windows will lose after the call.
         ctx.mergePartitionedState(stateDesc);
+
+        // Register timer for this new window.
+        Long nextFireTimestamp = ctx.getPartitionedState(stateDesc).get();
+        if (nextFireTimestamp != null) {
+            ctx.registerProcessingTimeTimer(nextFireTimestamp);
+        }
     }
 
     @VisibleForTesting

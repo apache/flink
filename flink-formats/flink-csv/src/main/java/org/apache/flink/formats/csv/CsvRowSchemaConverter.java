@@ -105,7 +105,8 @@ public final class CsvRowSchemaConverter {
                             Types.SQL_TIMESTAMP,
                             Types.LOCAL_DATE,
                             Types.LOCAL_TIME,
-                            Types.LOCAL_DATE_TIME));
+                            Types.LOCAL_DATE_TIME,
+                            Types.INSTANT));
 
     /**
      * Types that can be converted to ColumnType.STRING.

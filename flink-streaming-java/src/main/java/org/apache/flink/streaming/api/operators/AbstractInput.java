@@ -23,6 +23,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import javax.annotation.Nullable;
 
@@ -63,6 +64,11 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN> {
     @Override
     public void processLatencyMarker(LatencyMarker latencyMarker) throws Exception {
         owner.reportOrForwardLatencyMarker(latencyMarker);
+    }
+
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        owner.processWatermarkStatus(watermarkStatus, inputId);
     }
 
     @Override

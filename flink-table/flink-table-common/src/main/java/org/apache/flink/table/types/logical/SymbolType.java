@@ -39,6 +39,7 @@ import java.util.Objects;
  */
 @PublicEvolving
 public final class SymbolType<T extends TableSymbol> extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "SYMBOL('%s')";
 
@@ -52,6 +53,10 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
     public SymbolType(Class<T> symbolClass) {
         this(true, symbolClass);
+    }
+
+    public Class<T> getSymbolClass() {
+        return symbolClass;
     }
 
     @Override

@@ -45,7 +45,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
 
     // ------------------------------------------------------------------------
 
-    public TaskManagerJobMetricGroup(
+    TaskManagerJobMetricGroup(
             MetricRegistry registry,
             TaskManagerMetricGroup parent,
             JobID jobId,

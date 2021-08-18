@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -42,8 +42,8 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-    private final StreamTaskInput<IN> input;
-    private final DataOutput<IN> output;
+    private StreamTaskInput<IN> input;
+    private DataOutput<IN> output;
 
     private final BoundedMultiInput endOfInputAware;
 
@@ -61,11 +61,17 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
-        InputStatus status = input.emitNext(output);
+    public DataInputStatus processInput() throws Exception {
+        DataInputStatus status = input.emitNext(output);
 
-        if (status == InputStatus.END_OF_INPUT) {
+        if (status == DataInputStatus.END_OF_DATA) {
             endOfInputAware.endInput(input.getInputIndex() + 1);
+            output = new FinishedDataOutput<>();
+        } else if (status == DataInputStatus.END_OF_RECOVERY) {
+            if (input instanceof RecoverableStreamTaskInput) {
+                input = ((RecoverableStreamTaskInput<IN>) input).finishRecovery();
+            }
+            return DataInputStatus.MORE_AVAILABLE;
         }
 
         return status;
@@ -73,7 +79,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         return input.prepareSnapshot(channelStateWriter, checkpointId);
     }
 

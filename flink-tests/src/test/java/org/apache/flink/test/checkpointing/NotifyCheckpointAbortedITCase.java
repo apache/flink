@@ -39,12 +39,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.BackendBuildingException;
@@ -60,7 +59,6 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -90,7 +88,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.runtime.state.SnapshotStrategyRunner.ExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.junit.Assert.assertEquals;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
@@ -129,6 +127,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                                 .build());
         cluster.before();
 
+        NormalSource.reset();
         NormalMap.reset();
         DeclineSink.reset();
         TestingCompletedCheckpointStore.reset();
@@ -185,7 +184,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         resetAllOperatorsNotifyAbortedLatches();
         verifyAllOperatorsNotifyAbortedTimes(1);
 
-        DeclineSink.waitLatch.trigger();
+        NormalSource.waitLatch.trigger();
         log.info("Verifying whether all operators have been notified of checkpoint-2 aborted.");
         verifyAllOperatorsNotifyAborted();
         log.info("Verified that all operators have been notified of checkpoint-2 aborted.");
@@ -211,9 +210,11 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     }
 
     /** Normal source function. */
-    private static class NormalSource implements SourceFunction<Tuple2<Integer, Integer>> {
+    private static class NormalSource
+            implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
         private static final long serialVersionUID = 1L;
         protected volatile boolean running;
+        private static final OneShotLatch waitLatch = new OneShotLatch();
 
         NormalSource() {
             this.running = true;
@@ -235,6 +236,20 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         @Override
         public void cancel() {
             this.running = false;
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            if (context.getCheckpointId() == DECLINE_CHECKPOINT_ID) {
+                waitLatch.await();
+            }
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
+
+        static void reset() {
+            waitLatch.reset();
         }
     }
 
@@ -286,7 +301,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
     private static class DeclineSink extends StreamSink<Integer> {
         private static final long serialVersionUID = 1L;
         private static final OneShotLatch notifiedAbortedLatch = new OneShotLatch();
-        private static final OneShotLatch waitLatch = new OneShotLatch();
         private static final AtomicInteger notifiedAbortedTimes = new AtomicInteger(0);
 
         public DeclineSink() {
@@ -297,14 +311,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
 
         @Override
-        public void snapshotState(StateSnapshotContext context) throws Exception {
-            if (context.getCheckpointId() == DECLINE_CHECKPOINT_ID) {
-                DeclineSink.waitLatch.await();
-            }
-            super.snapshotState(context);
-        }
-
-        @Override
         public void notifyCheckpointAborted(long checkpointId) {
             notifiedAbortedTimes.incrementAndGet();
             notifiedAbortedLatch.trigger();
@@ -312,7 +318,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
 
         static void reset() {
             notifiedAbortedLatch.reset();
-            waitLatch.reset();
             notifiedAbortedTimes.set(0);
         }
     }
@@ -411,20 +416,6 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         }
     }
 
-    private static class TestingHaServices extends EmbeddedHaServices {
-        private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
-        TestingHaServices(CheckpointRecoveryFactory checkpointRecoveryFactory, Executor executor) {
-            super(executor);
-            this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-        }
-
-        @Override
-        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-            return checkpointRecoveryFactory;
-        }
-    }
-
     /** An extension of {@link StandaloneCompletedCheckpointStore}. */
     private static class TestingCompletedCheckpointStore
             extends StandaloneCompletedCheckpointStore {
@@ -465,11 +456,10 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         @Override
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) {
-            return new TestingHaServices(
-                    PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs(
-                            new TestingCompletedCheckpointStore(),
-                            new StandaloneCheckpointIDCounter()),
-                    executor);
+            final CheckpointRecoveryFactory checkpointRecoveryFactory =
+                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                            maxCheckpoints -> new TestingCompletedCheckpointStore());
+            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 }

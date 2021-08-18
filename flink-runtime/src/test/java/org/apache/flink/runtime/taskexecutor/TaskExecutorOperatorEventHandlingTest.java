@@ -31,8 +31,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -68,7 +68,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
         rpcService = new TestingRpcService();
         metricRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
         metricRegistry.startQueryService(rpcService, new ResourceID("mqs"));
     }
 
@@ -93,7 +93,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
             final TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             final CompletableFuture<?> resultFuture =
                     tmGateway.sendOperatorEventToTask(
-                            eid, new OperatorID(), new SerializedValue<>(null));
+                            eid, new OperatorID(), new SerializedValue<>(new TestOperatorEvent()));
 
             assertThat(
                     resultFuture,
@@ -182,8 +182,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
-                Collections.emptyList(),
-                0);
+                Collections.emptyList());
     }
 
     // ------------------------------------------------------------------------
@@ -198,7 +197,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws InterruptedException {
+        public void doInvoke() throws InterruptedException {
             waitUntilCancelled();
         }
 
@@ -217,7 +216,7 @@ public class TaskExecutorOperatorEventHandlingTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws Exception {
+        public void doInvoke() throws Exception {
             getEnvironment()
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(

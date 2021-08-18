@@ -21,10 +21,11 @@ package org.apache.flink.test.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.rules.TemporaryFolder;
@@ -66,7 +68,12 @@ public final class BackendSwitchSpecs {
     }
 
     /** Specification for a {@link RocksDBKeyedStateBackend}. */
-    static final BackendSwitchSpec ROCKS = new RocksSpec();
+    static final BackendSwitchSpec ROCKS =
+            new RocksSpec(EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+
+    /** Specification for a {@link RocksDBKeyedStateBackend} which stores its timers on heap. */
+    static final BackendSwitchSpec ROCKS_HEAP_TIMERS =
+            new RocksSpec(EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
 
     /** Specification for a {@link HeapKeyedStateBackend}. */
     static final BackendSwitchSpec HEAP = new HeapSpec();
@@ -74,6 +81,11 @@ public final class BackendSwitchSpecs {
     private static final class RocksSpec implements BackendSwitchSpec {
 
         private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        private final PriorityQueueStateType queueStateType;
+
+        public RocksSpec(PriorityQueueStateType queueStateType) {
+            this.queueStateType = queueStateType;
+        }
 
         @Override
         public CheckpointableKeyedStateBackend<String> createBackend(
@@ -97,8 +109,9 @@ public final class BackendSwitchSpecs {
                             keyGroupRange,
                             new ExecutionConfig(),
                             TestLocalRecoveryConfig.disabled(),
-                            RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                            queueStateType,
                             TtlTimeProvider.DEFAULT,
+                            LatencyTrackingStateConfig.disabled(),
                             new UnregisteredMetricsGroup(),
                             stateHandles,
                             UncompressedStreamCompressionDecorator.INSTANCE,
@@ -113,7 +126,7 @@ public final class BackendSwitchSpecs {
 
         @Override
         public String toString() {
-            return "ROCKS";
+            return "ROCKS(" + queueStateType + ")";
         }
     }
 
@@ -133,6 +146,7 @@ public final class BackendSwitchSpecs {
                             keyGroupRange,
                             executionConfig,
                             TtlTimeProvider.DEFAULT,
+                            LatencyTrackingStateConfig.disabled(),
                             stateHandles,
                             AbstractStateBackend.getCompressionDecorator(executionConfig),
                             TestLocalRecoveryConfig.disabled(),

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Objects;
@@ -32,7 +33,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>the string representation of watermark generation expression.
  *   <li>the data type of the computation result of watermark generation expression.
  * </ol>
+ *
+ * @deprecated See {@link ResolvedSchema} and {@link org.apache.flink.table.catalog.WatermarkSpec}.
  */
+@Deprecated
 public class WatermarkSpec {
 
     private final String rowtimeAttribute;

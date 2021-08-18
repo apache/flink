@@ -31,7 +31,9 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -44,10 +46,16 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
@@ -126,8 +134,20 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private TimestampsAndWatermarks<OUT> eventTimeLogic;
 
-    /** Indicating whether the source operator has been closed. */
-    private boolean closed;
+    /** A mode to control the behaviour of the {@link #emitNext(DataOutput)} method. */
+    private OperatingMode operatingMode;
+
+    private final CompletableFuture<Void> finished = new CompletableFuture<>();
+    private final CompletableFuture<Void> forcedStop = new CompletableFuture<>();
+
+    private enum OperatingMode {
+        READING,
+        OUTPUT_NOT_INITIALIZED,
+        SOURCE_STOPPED,
+        DATA_FINISHED
+    }
+
+    private InternalSourceReaderMetricGroup sourceMetricGroup;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -148,6 +168,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.configuration = checkNotNull(configuration);
         this.localHostname = checkNotNull(localHostname);
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
+        this.operatingMode = OperatingMode.OUTPUT_NOT_INITIALIZED;
     }
 
     /**
@@ -166,17 +187,15 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (sourceReader != null) {
             return;
         }
-
-        final MetricGroup metricGroup = getMetricGroup();
-        assert metricGroup != null;
+        sourceMetricGroup = InternalSourceReaderMetricGroup.wrap(getMetricGroup());
 
         final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
-                    public MetricGroup metricGroup() {
-                        return metricGroup;
+                    public SourceReaderMetricGroup metricGroup() {
+                        return sourceMetricGroup;
                     }
 
                     @Override
@@ -204,6 +223,24 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     public void sendSourceEventToCoordinator(SourceEvent event) {
                         operatorEventGateway.sendEventToCoordinator(new SourceEventWrapper(event));
                     }
+
+                    @Override
+                    public UserCodeClassLoader getUserCodeClassLoader() {
+                        return new UserCodeClassLoader() {
+                            @Override
+                            public ClassLoader asClassLoader() {
+                                return getRuntimeContext().getUserCodeClassLoader();
+                            }
+
+                            @Override
+                            public void registerReleaseHookIfAbsent(
+                                    String releaseHookName, Runnable releaseHook) {
+                                getRuntimeContext()
+                                        .registerUserCodeClassLoaderReleaseHookIfAbsent(
+                                                releaseHookName, releaseHook);
+                            }
+                        };
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);
@@ -219,13 +256,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             eventTimeLogic =
                     TimestampsAndWatermarks.createProgressiveEventTimeLogic(
                             watermarkStrategy,
-                            getMetricGroup(),
+                            sourceMetricGroup,
                             getProcessingTimeService(),
                             getExecutionConfig().getAutoWatermarkInterval());
         } else {
             eventTimeLogic =
                     TimestampsAndWatermarks.createNoOpEventTimeLogic(
-                            watermarkStrategy, getMetricGroup());
+                            watermarkStrategy, sourceMetricGroup);
         }
 
         // restore the state if necessary.
@@ -244,41 +281,91 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
+        super.finish();
+
+        finished.complete(null);
+    }
+
+    public CompletableFuture<Void> stop() {
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+            case READING:
+                this.operatingMode = OperatingMode.SOURCE_STOPPED;
+                forcedStop.complete(null);
+                break;
+        }
+        return finished;
+    }
+
+    @Override
+    public void close() throws Exception {
         if (sourceReader != null) {
             sourceReader.close();
         }
-        closed = true;
         super.close();
     }
 
     @Override
-    public void dispose() throws Exception {
-        // We also need to close the source reader to make sure the resources
-        // are released if the task does not finish normally.
-        if (!closed && sourceReader != null) {
-            sourceReader.close();
+    public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
+        // guarding an assumptions we currently make due to the fact that certain classes
+        // assume a constant output, this assumption does not need to stand if we emitted all
+        // records. In that case the output will change to FinishedDataOutput
+        assert lastInvokedOutput == output
+                || lastInvokedOutput == null
+                || this.operatingMode == OperatingMode.DATA_FINISHED;
+
+        // short circuit the hot path. Without this short circuit (READING handled in the
+        // switch/case) InputBenchmark.mapSink was showing a performance regression.
+        if (operatingMode == OperatingMode.READING) {
+            return convertToInternalStatus(pollNext());
+        }
+        return emitNextNotReading(output);
+    }
+
+    private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+                currentMainOutput =
+                        eventTimeLogic.createMainOutput(
+                                new MetricTrackingOutput<>(output, sourceMetricGroup));
+                lastInvokedOutput = output;
+                this.operatingMode = OperatingMode.READING;
+                return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+            case SOURCE_STOPPED:
+                this.operatingMode = OperatingMode.DATA_FINISHED;
+                return DataInputStatus.END_OF_DATA;
+            case DATA_FINISHED:
+                return DataInputStatus.END_OF_INPUT;
+            case READING:
+            default:
+                throw new IllegalStateException("Unknown operating mode: " + operatingMode);
         }
     }
 
-    @Override
-    public InputStatus emitNext(DataOutput<OUT> output) throws Exception {
-        // guarding an assumptions we currently make due to the fact that certain classes
-        // assume a constant output
-        assert lastInvokedOutput == output || lastInvokedOutput == null;
-
-        // short circuit the common case (every invocation except the first)
-        if (currentMainOutput != null) {
-            return sourceReader.pollNext(currentMainOutput);
+    private DataInputStatus convertToInternalStatus(InputStatus inputStatus) {
+        switch (inputStatus) {
+            case MORE_AVAILABLE:
+                return DataInputStatus.MORE_AVAILABLE;
+            case NOTHING_AVAILABLE:
+                return DataInputStatus.NOTHING_AVAILABLE;
+            case END_OF_INPUT:
+                this.operatingMode = OperatingMode.DATA_FINISHED;
+                return DataInputStatus.END_OF_DATA;
+            default:
+                throw new IllegalArgumentException("Unknown input status: " + inputStatus);
         }
+    }
 
-        // this creates a batch or streaming output based on the runtime mode
-        currentMainOutput = eventTimeLogic.createMainOutput(output);
-        lastInvokedOutput = output;
-        return sourceReader.pollNext(currentMainOutput);
+    private InputStatus pollNext() throws Exception {
+        InputStatus inputStatus = sourceReader.pollNext(currentMainOutput);
+        if (inputStatus == InputStatus.NOTHING_AVAILABLE) {
+            sourceMetricGroup.idlingStarted();
+        }
+        return inputStatus;
     }
 
     @Override
@@ -290,7 +377,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public CompletableFuture<?> getAvailableFuture() {
-        return sourceReader.isAvailable();
+        switch (operatingMode) {
+            case OUTPUT_NOT_INITIALIZED:
+            case READING:
+                CompletableFuture<Void> sourceReaderAvailable = sourceReader.isAvailable();
+                return sourceReaderAvailable == AvailabilityProvider.AVAILABLE
+                        ? sourceReaderAvailable
+                        : CompletableFuture.anyOf(sourceReaderAvailable, forcedStop);
+            case SOURCE_STOPPED:
+            case DATA_FINISHED:
+                return AvailabilityProvider.AVAILABLE;
+            default:
+                throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
     }
 
     @Override
@@ -346,5 +445,41 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private static class MetricTrackingOutput<OUT> implements DataOutput<OUT> {
+        private final DataOutput<OUT> output;
+        private final InternalSourceReaderMetricGroup sourceMetricGroup;
+
+        public MetricTrackingOutput(
+                DataOutput<OUT> output, InternalSourceReaderMetricGroup sourceMetricGroup) {
+            this.output = output;
+            this.sourceMetricGroup = sourceMetricGroup;
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<OUT> streamRecord) throws Exception {
+            output.emitRecord(streamRecord);
+            this.sourceMetricGroup.recordEmitted();
+            if (streamRecord.hasTimestamp()) {
+                this.sourceMetricGroup.eventTimeEmitted(streamRecord.getTimestamp());
+            }
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            output.emitWatermark(watermark);
+            this.sourceMetricGroup.watermarkEmitted(watermark.getTimestamp());
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            output.emitWatermarkStatus(watermarkStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            output.emitLatencyMarker(latencyMarker);
+        }
     }
 }

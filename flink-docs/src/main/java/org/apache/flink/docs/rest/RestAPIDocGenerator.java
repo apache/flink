@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.util.ConfigurationException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.SerializableString;
@@ -99,7 +100,7 @@ public class RestAPIDocGenerator {
      * @param args args[0] contains the directory into which the generated files are placed
      * @throws IOException if any file operation failed
      */
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ConfigurationException {
         String outputDirectory = args[0];
 
         for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
@@ -160,7 +161,7 @@ public class RestAPIDocGenerator {
 
         StringBuilder sb = new StringBuilder();
         {
-            sb.append("<table class=\"table table-bordered\">\n");
+            sb.append("<table class=\"rest-api table table-bordered\">\n");
             sb.append("  <tbody>\n");
             sb.append("    <tr>\n");
             sb.append(
@@ -220,32 +221,44 @@ public class RestAPIDocGenerator {
         {
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append(
-                    "        <button data-toggle=\"collapse\" data-target=\"#"
-                            + reqHash
-                            + "\">Request</button>\n");
-            sb.append("        <div id=\"" + reqHash + "\" class=\"collapse\">\n");
+            sb.append("      <div class=\"book-expand\">\n");
+            sb.append("        <label>\n");
+            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
+            sb.append("            <span>Request</span>\n");
+            sb.append("            &nbsp;");
+            sb.append("            <span>▾</span>\n");
+            sb.append("          </div>\n");
+            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
+            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
             sb.append("          <pre>\n");
             sb.append("            <code>\n");
             sb.append(requestEntry);
             sb.append("            </code>\n");
             sb.append("          </pre>\n");
-            sb.append("         </div>\n");
+            sb.append("          </div>\n");
+            sb.append("        </label>\n");
+            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("    <tr>\n");
             sb.append("      <td colspan=\"2\">\n");
-            sb.append(
-                    "        <button data-toggle=\"collapse\" data-target=\"#"
-                            + resHash
-                            + "\">Response</button>\n");
-            sb.append("        <div id=\"" + resHash + "\" class=\"collapse\">\n");
+            sb.append("      <div class=\"book-expand\">\n");
+            sb.append("        <label>\n");
+            sb.append("          <div class=\"book-expand-head flex justify-between\">\n");
+            sb.append("            <span>Response</span>\n");
+            sb.append("            &nbsp;");
+            sb.append("            <span>▾</span>\n");
+            sb.append("          </div>\n");
+            sb.append("          <input type=\"checkbox\" class=\"hidden\">\n");
+            sb.append("          <div class=\"book-expand-content markdown-inner\">\n");
             sb.append("          <pre>\n");
             sb.append("            <code>\n");
             sb.append(responseEntry);
             sb.append("            </code>\n");
             sb.append("          </pre>\n");
-            sb.append("         </div>\n");
+            sb.append("          </div>\n");
+            sb.append("        </label>\n");
+            sb.append("      </div>\n");
             sb.append("      </td>\n");
             sb.append("    </tr>\n");
             sb.append("  </tbody>\n");

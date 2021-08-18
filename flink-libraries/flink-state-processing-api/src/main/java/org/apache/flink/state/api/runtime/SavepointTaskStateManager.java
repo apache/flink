@@ -20,6 +20,7 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -58,6 +60,11 @@ final class SavepointTaskStateManager implements TaskStateManager {
     public void reportIncompleteTaskStateSnapshots(
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {}
 
+    @Override
+    public boolean isFinishedOnRestore() {
+        return false;
+    }
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
@@ -74,6 +81,22 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Override
     public SequentialChannelStateReader getSequentialChannelStateReader() {
         return SequentialChannelStateReader.NO_OP;
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        throw new UnsupportedOperationException(MSG);
     }
 
     @Override

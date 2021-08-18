@@ -43,7 +43,7 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -58,6 +58,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
@@ -104,7 +105,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
                             "-j",
                             "fake.jar",
                             "-D",
-                            AkkaOptions.ASK_TIMEOUT.key() + "=5 min",
+                            AkkaOptions.ASK_TIMEOUT_DURATION.key() + "=5 min",
                             "-D",
                             CoreOptions.FLINK_JVM_OPTIONS.key() + "=-DappName=foobar",
                             "-D",
@@ -112,7 +113,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
                         });
 
         Configuration executorConfig = cli.toConfiguration(cmd);
-        assertEquals("5 min", executorConfig.get(AkkaOptions.ASK_TIMEOUT));
+        assertEquals(Duration.ofMinutes(5), executorConfig.get(AkkaOptions.ASK_TIMEOUT_DURATION));
         assertEquals("-DappName=foobar", executorConfig.get(CoreOptions.FLINK_JVM_OPTIONS));
         assertEquals("changeit", executorConfig.get(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD));
     }

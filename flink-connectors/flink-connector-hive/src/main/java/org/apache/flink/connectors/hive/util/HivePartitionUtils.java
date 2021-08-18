@@ -20,21 +20,22 @@ package org.apache.flink.connectors.hive.util;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveTablePartition;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -52,12 +53,54 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** Utils to load hive partitions from HiveMetaStore. */
 public class HivePartitionUtils {
 
+    /** Parse partition string specs into object values. */
+    public static Map<String, Object> parsePartitionValues(
+            Map<String, String> partitionSpecs,
+            String[] fieldNames,
+            DataType[] fieldTypes,
+            String defaultPartitionName,
+            HiveShim shim) {
+        checkArgument(fieldNames.length == fieldTypes.length);
+        List<String> fieldNameList = Arrays.asList(fieldNames);
+        Map<String, Object> partitionColValues = new HashMap<>();
+        for (Map.Entry<String, String> spec : partitionSpecs.entrySet()) {
+            String partitionKey = spec.getKey();
+            String valueString = spec.getValue();
+
+            int index = fieldNameList.indexOf(partitionKey);
+            if (index < 0) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Partition spec %s and column names %s doesn't match",
+                                partitionSpecs, fieldNameList));
+            }
+            LogicalType partitionType = fieldTypes[index].getLogicalType();
+            final Object value =
+                    restorePartitionValueFromType(
+                            shim, valueString, partitionType, defaultPartitionName);
+            partitionColValues.put(partitionKey, value);
+        }
+        return partitionColValues;
+    }
+
     public static Object restorePartitionValueFromType(
-            HiveShim shim, String valStr, DataType type) {
-        LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+            HiveShim shim, String valStr, LogicalType partitionType, String defaultPartitionName) {
+        if (defaultPartitionName.equals(valStr)) {
+            if (LogicalTypeChecks.hasFamily(partitionType, LogicalTypeFamily.CHARACTER_STRING)) {
+                // this keeps align with Hive,
+                // maybe it should be null for string columns as well
+                return defaultPartitionName;
+            } else {
+                return null;
+            }
+        }
+
+        LogicalTypeRoot typeRoot = partitionType.getTypeRoot();
         // note: it's not a complete list ofr partition key types that Hive support, we may need add
         // more later.
         switch (typeRoot) {
@@ -80,12 +123,12 @@ public class HivePartitionUtils {
                 return Double.valueOf(valStr);
             case DATE:
                 return HiveInspectors.toFlinkObject(
-                        HiveInspectors.getObjectInspector(type),
+                        HiveInspectors.getObjectInspector(partitionType),
                         shim.toHiveDate(Date.valueOf(valStr)),
                         shim);
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return HiveInspectors.toFlinkObject(
-                        HiveInspectors.getObjectInspector(type),
+                        HiveInspectors.getObjectInspector(partitionType),
                         shim.toHiveTimestamp(Timestamp.valueOf(valStr)),
                         shim);
             default:
@@ -95,7 +138,7 @@ public class HivePartitionUtils {
                 new IllegalArgumentException(
                         String.format(
                                 "Can not convert %s to type %s for partition value",
-                                valStr, type)));
+                                valStr, partitionType)));
     }
 
     /**
@@ -106,22 +149,18 @@ public class HivePartitionUtils {
             JobConf jobConf,
             String hiveVersion,
             ObjectPath tablePath,
-            CatalogTable catalogTable,
-            HiveShim hiveShim,
+            List<String> partitionColNames,
             List<Map<String, String>> remainingPartitions) {
         List<HiveTablePartition> allHivePartitions = new ArrayList<>();
         try (HiveMetastoreClientWrapper client =
                 HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {
             String dbName = tablePath.getDatabaseName();
             String tableName = tablePath.getObjectName();
-            List<String> partitionColNames = catalogTable.getPartitionKeys();
             Table hiveTable = client.getTable(dbName, tableName);
-            Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable);
+            Properties tableProps =
+                    HiveReflectionUtils.getTableMetadata(
+                            HiveShimLoader.loadHiveShim(hiveVersion), hiveTable);
             if (partitionColNames != null && partitionColNames.size() > 0) {
-                final String defaultPartitionName =
-                        jobConf.get(
-                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
                 List<Partition> partitions = new ArrayList<>();
                 if (remainingPartitions != null) {
                     for (Map<String, String> spec : remainingPartitions) {
@@ -136,14 +175,7 @@ public class HivePartitionUtils {
                 }
                 for (Partition partition : partitions) {
                     HiveTablePartition hiveTablePartition =
-                            toHiveTablePartition(
-                                    catalogTable.getPartitionKeys(),
-                                    catalogTable.getSchema().getFieldNames(),
-                                    catalogTable.getSchema().getFieldDataTypes(),
-                                    hiveShim,
-                                    tableProps,
-                                    defaultPartitionName,
-                                    partition);
+                            toHiveTablePartition(partitionColNames, tableProps, partition);
                     allHivePartitions.add(hiveTablePartition);
                 }
             } else {
@@ -157,7 +189,7 @@ public class HivePartitionUtils {
 
     public static List<String> partitionSpecToValues(
             Map<String, String> spec, List<String> partitionColNames) {
-        Preconditions.checkArgument(
+        checkArgument(
                 spec.size() == partitionColNames.size()
                         && spec.keySet().containsAll(partitionColNames),
                 "Partition spec (%s) and partition column names (%s) doesn't match",
@@ -167,35 +199,15 @@ public class HivePartitionUtils {
     }
 
     public static HiveTablePartition toHiveTablePartition(
-            List<String> partitionKeys,
-            String[] fieldNames,
-            DataType[] fieldTypes,
-            HiveShim shim,
-            Properties tableProps,
-            String defaultPartitionName,
-            Partition partition) {
+            List<String> partitionKeys, Properties tableProps, Partition partition) {
         StorageDescriptor sd = partition.getSd();
-        Map<String, Object> partitionColValues = new HashMap<>();
-        List<String> nameList = Arrays.asList(fieldNames);
+        Map<String, String> partitionSpec = new HashMap<>();
         for (int i = 0; i < partitionKeys.size(); i++) {
             String partitionColName = partitionKeys.get(i);
             String partitionValue = partition.getValues().get(i);
-            DataType type = fieldTypes[nameList.indexOf(partitionColName)];
-            Object partitionObject;
-            if (defaultPartitionName.equals(partitionValue)) {
-                LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
-                // while this is inline with Hive, seems it should be null for string columns as
-                // well
-                partitionObject =
-                        typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR
-                                ? defaultPartitionName
-                                : null;
-            } else {
-                partitionObject = restorePartitionValueFromType(shim, partitionValue, type);
-            }
-            partitionColValues.put(partitionColName, partitionObject);
+            partitionSpec.put(partitionColName, partitionValue);
         }
-        return new HiveTablePartition(sd, partitionColValues, tableProps);
+        return new HiveTablePartition(sd, partitionSpec, tableProps);
     }
 
     public static FileStatus[] getFileStatusRecurse(Path path, int expectLevel, FileSystem fs) {

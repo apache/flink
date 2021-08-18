@@ -32,7 +32,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Union
 
 from pyflink.common.types import _create_row
-from pyflink.util.utils import to_jarray, is_instance_of
+from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
 
@@ -1245,27 +1245,40 @@ class RowType(DataType):
         if self._need_serialize_any_field:
             # Only calling to_sql_type function for fields that need conversion
             if isinstance(obj, dict):
-                return tuple(f.to_sql_type(obj.get(n)) if c else obj.get(n)
-                             for n, f, c in zip(self.names, self.fields, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
+            elif isinstance(obj, Row) and hasattr(obj, "_fields"):
+                return (obj.get_row_kind().value,) + tuple(
+                    f.to_sql_type(obj.get(n)) if c else obj.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value, ) + tuple(
+                    f.to_sql_type(v) if c else v
+                    for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif isinstance(obj, (tuple, list, Row)):
-                return tuple(f.to_sql_type(v) if c else v
-                             for f, v, c in zip(self.fields, obj, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(v) if c else v
+                    for f, v, c in zip(self.fields, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(f.to_sql_type(d.get(n)) if c else d.get(n)
-                             for n, f, c in zip(self.names, self.fields, self._need_conversion))
+                return (RowKind.INSERT.value,) + tuple(
+                    f.to_sql_type(d.get(n)) if c else d.get(n)
+                    for n, f, c in zip(self.names, self.fields, self._need_conversion))
             else:
                 raise ValueError("Unexpected tuple %r with RowType" % obj)
         else:
             if isinstance(obj, dict):
-                return tuple(obj.get(n) for n in self.names)
+                return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.names)
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
-                return tuple(obj[n] for n in self.names)
-            elif isinstance(obj, (list, tuple, Row)):
-                return tuple(obj)
+                return (obj.get_row_kind().value,) + tuple(obj[n] for n in self.names)
+            elif isinstance(obj, Row):
+                return (obj.get_row_kind().value,) + tuple(obj)
+            elif isinstance(obj, (list, tuple)):
+                return (RowKind.INSERT.value,) + tuple(obj)
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
-                return tuple(d.get(n) for n in self.names)
+                return (RowKind.INSERT.value,) + tuple(d.get(n) for n in self.names)
             else:
                 raise ValueError("Unexpected tuple %r with RowType" % obj)
 
@@ -1282,6 +1295,16 @@ class RowType(DataType):
         else:
             values = obj
         return _create_row(self.names, values)
+
+
+class RawType(DataType):
+    """
+    Logical type of pickled byte array type.
+    """
+
+    def from_sql_type(self, obj):
+        import pickle
+        return pickle.loads(obj)
 
 
 class UserDefinedType(DataType):
@@ -1878,6 +1901,8 @@ def _from_java_type(j_data_type):
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)
+        elif is_instance_of(logical_type, gateway.jvm.RawType):
+            data_type = RawType()
         else:
             raise TypeError("Unsupported type: %s, it is not supported yet in current python type"
                             " system" % j_data_type)
@@ -1961,7 +1986,7 @@ def _to_java_data_type(data_type: DataType):
     elif isinstance(data_type, BinaryType):
         j_data_type = JDataTypes.BINARY(data_type.length)
     elif isinstance(data_type, DecimalType):
-        j_data_type = JDataTypes.Decimal(data_type.precision, data_type.scale)
+        j_data_type = JDataTypes.DECIMAL(data_type.precision, data_type.scale)
     elif isinstance(data_type, DateType):
         j_data_type = JDataTypes.DATE()
     elif isinstance(data_type, TimeType):
@@ -2667,8 +2692,22 @@ class DataTypes(object):
                           It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
 
-        .. note:: `LocalZonedTimestampType` is currently only supported in blink planner and the
-                  precision must be 3.
+        .. note:: `LocalZonedTimestampType` only supports precision of 3 currently.
+        """
+        return LocalZonedTimestampType(precision, nullable)
+
+    @staticmethod
+    def TIMESTAMP_LTZ(precision: int = 6, nullable: bool = True) \
+            -> LocalZonedTimestampType:
+        """
+        Data type of a timestamp WITH LOCAL time zone.
+        This is a shortcut for ``DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)``.
+
+        :param precision: int, the number of digits of fractional seconds.
+                          It must have a value between 0 and 9 (both inclusive). (default: 6)
+        :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. seealso:: :func:`~DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)`
         """
         return LocalZonedTimestampType(precision, nullable)
 

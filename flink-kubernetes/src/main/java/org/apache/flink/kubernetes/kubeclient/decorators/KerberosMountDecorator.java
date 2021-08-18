@@ -25,7 +25,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+import org.apache.flink.shaded.guava30.com.google.common.io.Files;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -60,7 +60,7 @@ public class KerberosMountDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-        PodBuilder podBuilder = new PodBuilder(flinkPod.getPod());
+        PodBuilder podBuilder = new PodBuilder(flinkPod.getPodWithoutMainContainer());
         ContainerBuilder containerBuilder = new ContainerBuilder(flinkPod.getMainContainer());
 
         if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab())

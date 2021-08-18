@@ -23,7 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapWatcher;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMapSharedInformer;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -32,12 +32,16 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
+import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -49,6 +53,7 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,9 +61,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -68,27 +73,28 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(Fabric8FlinkKubeClient.class);
 
-    private final NamespacedKubernetesClient internalClient;
     private final String clusterId;
     private final String namespace;
     private final int maxRetryAttempts;
+    private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
 
-    private final Executor kubeClientExecutorService;
+    private final NamespacedKubernetesClient internalClient;
+    private final ExecutorService kubeClientExecutorService;
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
-            Supplier<Executor> asyncExecutorFactory) {
-        this.internalClient = checkNotNull(client);
+            ExecutorService executorService) {
         this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
-
         this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
-
         this.maxRetryAttempts =
                 flinkConfig.getInteger(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
-
-        this.kubeClientExecutorService = asyncExecutorFactory.get();
+        this.nodePortAddressType =
+                flinkConfig.get(
+                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
+        this.internalClient = checkNotNull(client);
+        this.kubeClientExecutorService = checkNotNull(executorService);
     }
 
     @Override
@@ -97,7 +103,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         final List<HasMetadata> accompanyingResources = kubernetesJMSpec.getAccompanyingResources();
 
         // create Deployment
-        LOG.debug("Start to create deployment with spec {}", deployment.getSpec().toString());
+        LOG.debug(
+                "Start to create deployment with spec {}{}",
+                System.lineSeparator(),
+                KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
         final Deployment createdDeployment =
                 this.internalClient.apps().deployments().create(deployment);
 
@@ -133,9 +142,10 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                             Collections.singletonList(kubernetesPod.getInternalResource()));
 
                     LOG.debug(
-                            "Start to create pod with metadata {}, spec {}",
-                            kubernetesPod.getInternalResource().getMetadata(),
-                            kubernetesPod.getInternalResource().getSpec());
+                            "Start to create pod with spec {}{}",
+                            System.lineSeparator(),
+                            KubernetesUtils.tryToGetPrettyPrintYaml(
+                                    kubernetesPod.getInternalResource()));
 
                     this.internalClient.pods().create(kubernetesPod.getInternalResource());
                 },
@@ -256,68 +266,54 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<Boolean> checkAndUpdateConfigMap(
             String configMapName,
-            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> function) {
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
         return FutureUtils.retry(
-                () ->
-                        CompletableFuture.supplyAsync(
-                                () ->
-                                        getConfigMap(configMapName)
-                                                .map(
-                                                        configMap ->
-                                                                function.apply(configMap)
-                                                                        .map(
-                                                                                updatedConfigMap -> {
-                                                                                    try {
-                                                                                        this
-                                                                                                .internalClient
-                                                                                                .configMaps()
-                                                                                                .withName(
-                                                                                                        configMapName)
-                                                                                                .lockResourceVersion(
-                                                                                                        updatedConfigMap
-                                                                                                                .getResourceVersion())
-                                                                                                .replace(
-                                                                                                        updatedConfigMap
-                                                                                                                .getInternalResource());
-                                                                                    } catch (
-                                                                                            Throwable
-                                                                                                    throwable) {
-                                                                                        LOG.debug(
-                                                                                                "Failed to update ConfigMap {} with data {} because of concurrent "
-                                                                                                        + "modifications. Trying again.",
-                                                                                                configMap
-                                                                                                        .getName(),
-                                                                                                configMap
-                                                                                                        .getData());
-                                                                                        throw throwable;
-                                                                                    }
-                                                                                    return true;
-                                                                                })
-                                                                        .orElse(false))
-                                                .orElseThrow(
-                                                        () ->
-                                                                new CompletionException(
-                                                                        new KubernetesException(
-                                                                                "Cannot retry checkAndUpdateConfigMap with configMap "
-                                                                                        + configMapName
-                                                                                        + " because it does not exist."))),
-                                kubeClientExecutorService),
+                () -> attemptCheckAndUpdateConfigMap(configMapName, updateFunction),
                 maxRetryAttempts,
                 // Only KubernetesClientException is retryable
-                throwable ->
-                        ExceptionUtils.findThrowable(throwable, KubernetesClientException.class)
-                                .isPresent(),
+                t -> ExceptionUtils.findThrowable(t, KubernetesClientException.class).isPresent(),
                 kubeClientExecutorService);
     }
 
-    @Override
-    public KubernetesWatch watchConfigMaps(
-            String name, WatchCallbackHandler<KubernetesConfigMap> callbackHandler) {
-        return new KubernetesWatch(
-                this.internalClient
-                        .configMaps()
-                        .withName(name)
-                        .watch(new KubernetesConfigMapWatcher(callbackHandler)));
+    private CompletableFuture<Boolean> attemptCheckAndUpdateConfigMap(
+            String configMapName,
+            Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    final KubernetesConfigMap configMap =
+                            getConfigMap(configMapName)
+                                    .orElseThrow(
+                                            () ->
+                                                    new CompletionException(
+                                                            new KubernetesException(
+                                                                    "Cannot retry checkAndUpdateConfigMap with configMap "
+                                                                            + configMapName
+                                                                            + " because it does not exist.")));
+                    final Optional<KubernetesConfigMap> maybeUpdate =
+                            updateFunction.apply(configMap);
+                    if (maybeUpdate.isPresent()) {
+                        try {
+                            internalClient
+                                    .configMaps()
+                                    .withName(configMapName)
+                                    .lockResourceVersion(maybeUpdate.get().getResourceVersion())
+                                    .replace(maybeUpdate.get().getInternalResource());
+                            return true;
+                        } catch (Throwable throwable) {
+                            LOG.debug(
+                                    "Failed to update ConfigMap {} with data {}. Trying again.",
+                                    configMap.getName(),
+                                    configMap.getData());
+                            // the client implementation does not expose the different kind of error
+                            // causes to a degree that we could do a more fine-grained error
+                            // handling here
+                            throw new CompletionException(
+                                    new PossibleInconsistentStateException(throwable));
+                        }
+                    }
+                    return false;
+                },
+                kubeClientExecutorService);
     }
 
     @Override
@@ -335,8 +331,24 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
+    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(
+            Map<String, String> labels) {
+        return new KubernetesConfigMapSharedInformer(this.internalClient, labels);
+    }
+
+    @Override
     public void close() {
         this.internalClient.close();
+        ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.kubeClientExecutorService);
+    }
+
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        if (!file.exists()) {
+            throw new FlinkRuntimeException(
+                    String.format("Pod template file %s does not exist.", file));
+        }
+        return new KubernetesPod(this.internalClient.pods().load(file).get());
     }
 
     private void setOwnerReference(Deployment deployment, List<HasMetadata> resources) {
@@ -423,8 +435,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 address = loadBalancer.getIngress().get(0).getHostname();
             }
         } else {
-            // Use node port
-            address = this.internalClient.getMasterUrl().getHost();
+            // Use node port. Node port is accessible on any node within kubernetes cluster. We'll
+            // only consider IPs with the configured address type.
+            address =
+                    internalClient.nodes().list().getItems().stream()
+                            .flatMap(node -> node.getStatus().getAddresses().stream())
+                            .filter(
+                                    nodeAddress ->
+                                            nodePortAddressType
+                                                    .name()
+                                                    .equals(nodeAddress.getType()))
+                            .map(NodeAddress::getAddress)
+                            .filter(ip -> !ip.isEmpty())
+                            .findAny()
+                            .orElse(null);
+            if (address == null) {
+                LOG.warn(
+                        "Unable to find any node ip with type [{}]. Please see [{}] config option for more details.",
+                        nodePortAddressType,
+                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE.key());
+            }
         }
         boolean noAddress = address == null || address.isEmpty();
         return noAddress ? Optional.empty() : Optional.of(new Endpoint(address, restPort));

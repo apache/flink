@@ -34,6 +34,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
  *
@@ -48,6 +50,8 @@ class CreditBasedSequenceNumberingViewReader
     private final InputChannelID receiverId;
 
     private final PartitionRequestQueue requestQueue;
+
+    private final int initialCredit;
 
     private volatile ResultSubpartitionView subpartitionView;
 
@@ -65,8 +69,10 @@ class CreditBasedSequenceNumberingViewReader
 
     CreditBasedSequenceNumberingViewReader(
             InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+        checkArgument(initialCredit >= 0, "Must be non-negative.");
 
         this.receiverId = receiverId;
+        this.initialCredit = initialCredit;
         this.numCreditsAvailable = initialCredit;
         this.requestQueue = requestQueue;
     }
@@ -80,7 +86,7 @@ class CreditBasedSequenceNumberingViewReader
 
         synchronized (requestLock) {
             if (subpartitionView == null) {
-                // This this call can trigger a notification we have to
+                // This call can trigger a notification we have to
                 // schedule a separate task at the event loop that will
                 // start consuming this. Otherwise the reference to the
                 // view cannot be available in getNextBuffer().
@@ -102,7 +108,17 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void resumeConsumption() {
+        if (initialCredit == 0) {
+            // reset available credit if no exclusive buffer is available at the
+            // consumer side for all floating buffers must have been released
+            numCreditsAvailable = 0;
+        }
         subpartitionView.resumeConsumption();
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() {
+        subpartitionView.acknowledgeAllDataProcessed();
     }
 
     @Override
@@ -120,11 +136,12 @@ class CreditBasedSequenceNumberingViewReader
      * buffers.
      *
      * @implSpec BEWARE: this must be in sync with {@link #getNextDataType(BufferAndBacklog)}, such
-     *     that {@code getNextDataType(bufferAndBacklog) != NONE <=> isAvailable()}!
+     *     that {@code getNextDataType(bufferAndBacklog) != NONE <=>
+     *     AvailabilityWithBacklog#isAvailable()}!
      */
     @Override
-    public boolean isAvailable() {
-        return subpartitionView.isAvailable(numCreditsAvailable);
+    public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog() {
+        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable);
     }
 
     /**
@@ -134,8 +151,9 @@ class CreditBasedSequenceNumberingViewReader
      * <p>Returns the next data type only if the next buffer is an event or the reader has both
      * available credits and buffers.
      *
-     * @implSpec BEWARE: this must be in sync with {@link #isAvailable()}, such that {@code
-     *     getNextDataType(bufferAndBacklog) != NONE <=> isAvailable()}!
+     * @implSpec BEWARE: this must be in sync with {@link #getAvailabilityAndBacklog()}, such that
+     *     {@code getNextDataType(bufferAndBacklog) != NONE <=>
+     *     AvailabilityWithBacklog#isAvailable()}!
      * @param bufferAndBacklog current buffer and backlog including information about the next
      *     buffer
      * @return the next data type if the next buffer can be pulled immediately or {@link
@@ -154,14 +172,19 @@ class CreditBasedSequenceNumberingViewReader
         return receiverId;
     }
 
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        subpartitionView.notifyNewBufferSize(newBufferSize);
+    }
+
     @VisibleForTesting
     int getNumCreditsAvailable() {
         return numCreditsAvailable;
     }
 
     @VisibleForTesting
-    boolean hasBuffersAvailable() {
-        return subpartitionView.isAvailable(Integer.MAX_VALUE);
+    ResultSubpartitionView.AvailabilityWithBacklog hasBuffersAvailable() {
+        return subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE);
     }
 
     @Nullable
@@ -179,6 +202,11 @@ class CreditBasedSequenceNumberingViewReader
         } else {
             return null;
         }
+    }
+
+    @Override
+    public boolean needAnnounceBacklog() {
+        return initialCredit == 0 && numCreditsAvailable == 0;
     }
 
     @Override

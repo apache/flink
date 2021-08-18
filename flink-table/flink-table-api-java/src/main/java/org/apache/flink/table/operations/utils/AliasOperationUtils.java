@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
@@ -53,9 +53,9 @@ final class AliasOperationUtils {
      * @return validated list of aliases
      */
     static List<Expression> createAliasList(List<Expression> aliases, QueryOperation child) {
-        TableSchema childSchema = child.getTableSchema();
+        ResolvedSchema childSchema = child.getResolvedSchema();
 
-        if (aliases.size() > childSchema.getFieldCount()) {
+        if (aliases.size() > childSchema.getColumnCount()) {
             throw new ValidationException("Aliasing more fields than we actually have.");
         }
 
@@ -64,11 +64,12 @@ final class AliasOperationUtils {
                         .map(f -> f.accept(aliasLiteralValidator))
                         .collect(Collectors.toList());
 
-        String[] childNames = childSchema.getFieldNames();
-        return IntStream.range(0, childNames.length)
+        List<String> childNames = childSchema.getColumnNames();
+        return IntStream.range(0, childNames.size())
                 .mapToObj(
                         idx -> {
-                            UnresolvedReferenceExpression oldField = unresolvedRef(childNames[idx]);
+                            UnresolvedReferenceExpression oldField =
+                                    unresolvedRef(childNames.get(idx));
                             if (idx < fieldAliases.size()) {
                                 ValueLiteralExpression alias = fieldAliases.get(idx);
                                 return unresolvedCall(

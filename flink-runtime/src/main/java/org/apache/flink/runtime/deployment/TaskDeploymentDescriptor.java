@@ -128,9 +128,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
     /** The list of consumed intermediate result partitions. */
     private final List<InputGateDeploymentDescriptor> inputGates;
 
-    /** Slot number to run the sub task in on the target machine. */
-    private final int targetSlotNumber;
-
     /** Information to restore the task. This can be null if there is no state to restore. */
     @Nullable private final JobManagerTaskRestore taskRestore;
 
@@ -142,7 +139,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
             AllocationID allocationId,
             int subtaskIndex,
             int attemptNumber,
-            int targetSlotNumber,
             @Nullable JobManagerTaskRestore taskRestore,
             List<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
             List<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
@@ -160,10 +156,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
         Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
         this.attemptNumber = attemptNumber;
-
-        Preconditions.checkArgument(
-                0 <= targetSlotNumber, "The target slot number must be positive.");
-        this.targetSlotNumber = targetSlotNumber;
 
         this.taskRestore = taskRestore;
 
@@ -234,15 +226,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
         return attemptNumber;
     }
 
-    /**
-     * Gets the number of the slot into which the task is to be deployed.
-     *
-     * @return The number of the target slot.
-     */
-    public int getTargetSlotNumber() {
-        return targetSlotNumber;
-    }
-
     public List<ResultPartitionDeploymentDescriptor> getProducedPartitions() {
         return producedPartitions;
     }
@@ -302,6 +285,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
             SerializedValue<TaskInformation> serializedValue =
                     SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
             serializedTaskInformation = new NonOffloaded<>(serializedValue);
+        }
+
+        for (InputGateDeploymentDescriptor inputGate : inputGates) {
+            inputGate.loadBigData(blobService, jobId);
         }
 
         // make sure that the serialized job and task information fields are filled

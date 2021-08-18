@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
@@ -47,11 +48,11 @@ import java.time.ZoneOffset;
 import java.util.Arrays;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.SQL_TIME_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.ISO8601_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.SQL_TIME_FORMAT;
 
 /** Tool class used to convert from {@link RowData} to {@link JsonNode}. * */
 @Internal
@@ -63,14 +64,14 @@ public class RowDataToJsonConverters implements Serializable {
     private final TimestampFormat timestampFormat;
 
     /** The handling mode when serializing null keys for map data. */
-    private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+    private final JsonFormatOptions.MapNullKeyMode mapNullKeyMode;
 
     /** The string literal when handling mode for map null key LITERAL. is */
     private final String mapNullKeyLiteral;
 
     public RowDataToJsonConverters(
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral) {
         this.timestampFormat = timestampFormat;
         this.mapNullKeyMode = mapNullKeyMode;
@@ -285,7 +286,7 @@ public class RowDataToJsonConverters implements Serializable {
                                     String.format(
                                             "JSON format doesn't support to serialize map data with null keys. "
                                                     + "You can drop null key entries or encode null in literals by specifying %s option.",
-                                            JsonOptions.MAP_NULL_KEY_MODE.key()));
+                                            JsonFormatOptions.MAP_NULL_KEY_MODE.key()));
                         default:
                             throw new RuntimeException(
                                     "Unsupported map null key mode. Validator should have checked that.");
@@ -329,8 +330,15 @@ public class RowDataToJsonConverters implements Serializable {
             RowData row = (RowData) value;
             for (int i = 0; i < fieldCount; i++) {
                 String fieldName = fieldNames[i];
-                Object field = fieldGetters[i].getFieldOrNull(row);
-                node.set(fieldName, fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                try {
+                    Object field = fieldGetters[i].getFieldOrNull(row);
+                    node.set(
+                            fieldName,
+                            fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                } catch (Throwable t) {
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldName), t);
+                }
             }
             return node;
         };

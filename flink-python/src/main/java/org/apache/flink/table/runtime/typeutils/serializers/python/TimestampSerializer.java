@@ -33,9 +33,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 /**
- * Uses similar serialization/deserialization of SqlTimestampSerializer in blink to serialize
- * Timestamp. It not only deals with Daylight saving time problem and precision problem, but also
- * makes the serialized value consistent between the legacy planner and the blink planner.
+ * Uses similar serialization/deserialization of SqlTimestampSerializer to serialize Timestamp. It
+ * deals with Daylight saving time problem and precision problem.
  */
 @Internal
 public class TimestampSerializer extends TypeSerializerSingleton<Timestamp> {

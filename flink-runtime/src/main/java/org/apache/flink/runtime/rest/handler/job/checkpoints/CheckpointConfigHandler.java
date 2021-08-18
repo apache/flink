@@ -24,7 +24,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.job.AbstractExecutionGraphHandler;
+import org.apache.flink.runtime.rest.handler.job.AbstractAccessExecutionGraphHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -36,7 +36,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeader
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -49,8 +49,8 @@ import java.util.concurrent.Executor;
 
 /** Handler which serves the checkpoint configuration. */
 public class CheckpointConfigHandler
-        extends AbstractExecutionGraphHandler<CheckpointConfigInfo, JobMessageParameters>
-        implements JsonArchivist {
+        extends AbstractAccessExecutionGraphHandler<CheckpointConfigInfo, JobMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
 
     public CheckpointConfigHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -130,7 +130,8 @@ public class CheckpointConfigHandler
                     stateBackendName,
                     checkpointStorageName,
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
-                    checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber());
+                    checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
+                    checkpointCoordinatorConfiguration.getAlignedCheckpointTimeout());
         }
     }
 }

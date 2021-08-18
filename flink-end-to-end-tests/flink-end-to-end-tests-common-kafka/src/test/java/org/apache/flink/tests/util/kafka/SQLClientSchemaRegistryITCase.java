@@ -24,6 +24,7 @@ import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
+import org.apache.flink.util.DockerImageVersions;
 
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
@@ -36,6 +37,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -71,7 +73,7 @@ public class SQLClientSchemaRegistryITCase {
 
     @Rule
     public final KafkaContainer kafka =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
                     .withNetwork(network)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
@@ -95,6 +97,7 @@ public class SQLClientSchemaRegistryITCase {
         registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
     }
 
+    @Ignore("FLINK-23556")
     @Test(timeout = 120_000)
     public void testReading() throws Exception {
         String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
@@ -131,7 +134,7 @@ public class SQLClientSchemaRegistryITCase {
                         " 'topic' = '" + testCategoryTopic + "',",
                         " 'scan.startup.mode' = 'earliest-offset',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082'",
                         ");",
@@ -159,6 +162,7 @@ public class SQLClientSchemaRegistryITCase {
         assertThat(categories, equalTo(Collections.singletonList("1,electronics,null")));
     }
 
+    @Ignore("FLINK-23556")
     @Test(timeout = 120_000)
     public void testWriting() throws Exception {
         String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();
@@ -181,13 +185,13 @@ public class SQLClientSchemaRegistryITCase {
                                 + ":9092',",
                         " 'topic' = '" + testUserBehaviorTopic + "',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082"
                                 + "'",
                         ");",
                         "",
-                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', CAST (1234 AS TIMESTAMP(3)));");
+                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', TO_TIMESTAMP(FROM_UNIXTIME(1234)));");
 
         executeSqlStatements(sqlLines);
 

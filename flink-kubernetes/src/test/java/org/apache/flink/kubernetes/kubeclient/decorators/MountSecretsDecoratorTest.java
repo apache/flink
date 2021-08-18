@@ -56,8 +56,12 @@ public class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
     public void testWhetherPodOrContainerIsDecorated() {
         final FlinkPod resultFlinkPod = mountSecretsDecorator.decorateFlinkPod(baseFlinkPod);
 
-        assertFalse(VolumeTestUtils.podHasVolume(baseFlinkPod.getPod(), SECRET_NAME + "-volume"));
-        assertTrue(VolumeTestUtils.podHasVolume(resultFlinkPod.getPod(), SECRET_NAME + "-volume"));
+        assertFalse(
+                VolumeTestUtils.podHasVolume(
+                        baseFlinkPod.getPodWithoutMainContainer(), SECRET_NAME + "-volume"));
+        assertTrue(
+                VolumeTestUtils.podHasVolume(
+                        resultFlinkPod.getPodWithoutMainContainer(), SECRET_NAME + "-volume"));
 
         assertFalse(
                 VolumeTestUtils.containerHasVolume(

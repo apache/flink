@@ -25,8 +25,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.state.StateBackendLoader;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils for configuration and calculations related to managed memory and its various use cases. */
 public enum ManagedMemoryUtils {
@@ -154,5 +156,17 @@ public enum ManagedMemoryUtils {
                         MANAGED_MEMORY_FRACTION_SCALE,
                         BigDecimal.ROUND_DOWN)
                 .doubleValue();
+    }
+
+    public static void validateUseCaseWeightsNotConflict(
+            Map<ManagedMemoryUseCase, Integer> weights1,
+            Map<ManagedMemoryUseCase, Integer> weights2) {
+        weights1.forEach(
+                (useCase, weight1) ->
+                        checkState(
+                                weights2.getOrDefault(useCase, weight1).equals(weight1),
+                                String.format(
+                                        "Conflict managed memory consumer weights for '%s' were configured: '%d' and '%d'.",
+                                        useCase, weight1, weights2.get(useCase))));
     }
 }

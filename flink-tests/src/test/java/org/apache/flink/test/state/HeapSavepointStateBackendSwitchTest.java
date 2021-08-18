@@ -23,8 +23,8 @@ import org.apache.flink.test.state.BackendSwitchSpecs.BackendSwitchSpec;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /** Tests for switching a HEAP state backend to a different one. */
 @RunWith(Parameterized.class)
@@ -33,8 +33,8 @@ public class HeapSavepointStateBackendSwitchTest extends SavepointStateBackendSw
         super(BackendSwitchSpecs.HEAP, toBackend);
     }
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "Target Backend: {0}")
     public static Collection<BackendSwitchSpec> targetBackends() {
-        return Collections.singletonList(BackendSwitchSpecs.HEAP);
+        return Arrays.asList(BackendSwitchSpecs.HEAP, BackendSwitchSpecs.ROCKS);
     }
 }

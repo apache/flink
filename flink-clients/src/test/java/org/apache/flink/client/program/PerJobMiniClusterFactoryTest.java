@@ -24,9 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -34,7 +34,9 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.is;
@@ -114,22 +116,6 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testSubmissionError() throws Exception {
-        PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
-
-        // JobGraph is not a valid job
-        JobGraph jobGraph = new JobGraph();
-
-        assertThrows(
-                "Could not instantiate JobManager",
-                ExecutionException.class,
-                () ->
-                        perJobMiniClusterFactory
-                                .submitJob(jobGraph, ClassLoader.getSystemClassLoader())
-                                .get());
-    }
-
-    @Test
     public void testMultipleExecutions() throws Exception {
         PerJobMiniClusterFactory perJobMiniClusterFactory = initializeMiniCluster();
         {
@@ -180,19 +166,14 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
     }
 
     private static JobGraph getNoopJobGraph() {
-        JobGraph jobGraph = new JobGraph();
-        JobVertex jobVertex = new JobVertex("jobVertex");
-        jobVertex.setInvokableClass(NoOpInvokable.class);
-        jobGraph.addVertex(jobVertex);
-        return jobGraph;
+        return JobGraphTestUtils.singleNoOpJobGraph();
     }
 
     private static JobGraph getCancellableJobGraph() {
-        JobGraph jobGraph = new JobGraph();
         JobVertex jobVertex = new JobVertex("jobVertex");
         jobVertex.setInvokableClass(MyCancellableInvokable.class);
-        jobGraph.addVertex(jobVertex);
-        return jobGraph;
+        jobVertex.setParallelism(1);
+        return JobGraphTestUtils.streamingJobGraph(jobVertex);
     }
 
     /** Invokable which waits until it is cancelled. */
@@ -206,7 +187,7 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         }
 
         @Override
-        public void invoke() throws Exception {
+        public void doInvoke() throws Exception {
             synchronized (lock) {
                 while (running) {
                     lock.wait();
@@ -215,11 +196,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         }
 
         @Override
-        public void cancel() {
+        public Future<Void> cancel() {
             synchronized (lock) {
                 running = false;
                 lock.notifyAll();
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

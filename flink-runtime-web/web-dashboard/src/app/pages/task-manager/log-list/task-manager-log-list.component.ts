@@ -27,6 +27,8 @@ export class TaskManagerLogListComponent implements OnInit {
   listOfLog: { name: string; size: number }[] = [];
   isLoading = true;
 
+  trackByName = (_: number, log: { name: string; size: number }) => log.name;
+
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {

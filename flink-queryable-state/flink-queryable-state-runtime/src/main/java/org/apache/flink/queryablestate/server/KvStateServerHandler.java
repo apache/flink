@@ -31,6 +31,7 @@ import org.apache.flink.runtime.query.KvStateInfo;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -109,14 +110,19 @@ public class KvStateServerHandler
             final KvStateEntry<K, N, V> entry, final byte[] serializedKeyAndNamespace)
             throws Exception {
 
-        final InternalKvState<K, N, V> state = entry.getState();
-        final KvStateInfo<K, N, V> infoForCurrentThread = entry.getInfoForCurrentThread();
+        return LambdaUtil.withContextClassLoader(
+                entry.getUserClassLoader(),
+                () -> {
+                    final InternalKvState<K, N, V> state = entry.getState();
+                    final KvStateInfo<K, N, V> infoForCurrentThread =
+                            entry.getInfoForCurrentThread();
 
-        return state.getSerializedValue(
-                serializedKeyAndNamespace,
-                infoForCurrentThread.getKeySerializer(),
-                infoForCurrentThread.getNamespaceSerializer(),
-                infoForCurrentThread.getStateValueSerializer());
+                    return state.getSerializedValue(
+                            serializedKeyAndNamespace,
+                            infoForCurrentThread.getKeySerializer(),
+                            infoForCurrentThread.getNamespaceSerializer(),
+                            infoForCurrentThread.getStateValueSerializer());
+                });
     }
 
     @Override

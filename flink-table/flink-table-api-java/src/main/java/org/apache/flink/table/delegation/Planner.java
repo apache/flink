@@ -87,23 +87,11 @@ public interface Planner {
     String explain(List<Operation> operations, ExplainDetail... extraDetails);
 
     /**
-     * Returns completion hints for the given statement at the given cursor position. The completion
-     * happens case insensitively.
-     *
-     * @param statement Partial or slightly incorrect SQL statement
-     * @param position cursor position
-     * @return completion hints that fit at the current cursor position
-     */
-    String[] getCompletionHints(String statement, int position);
-
-    /**
      * Get the json plan of the given {@link ModifyOperation}s.
      *
      * <p>The json plan is the string json representation of an optimized ExecNode plan for the
      * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
      * deserialized to an ExecNode plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *
@@ -116,8 +104,6 @@ public interface Planner {
 
     /**
      * Returns the execution plan for the given json plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *
@@ -135,8 +121,6 @@ public interface Planner {
      * <p>The json plan is the string json representation of an optimized ExecNode plan for the
      * given statement. An ExecNode plan can be serialized to json plan, and a json plan can be
      * deserialized to an ExecNode plan.
-     *
-     * <p>NOTES: Only the Blink planner supports this method.
      *
      * <p><b>NOTES:</b>: This is an experimental feature now.
      *

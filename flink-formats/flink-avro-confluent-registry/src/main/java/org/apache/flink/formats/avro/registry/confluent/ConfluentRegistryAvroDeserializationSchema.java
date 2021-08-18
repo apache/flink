@@ -28,6 +28,8 @@ import org.apache.avro.specific.SpecificRecord;
 
 import javax.annotation.Nullable;
 
+import java.util.Map;
+
 /**
  * Deserialization schema that deserializes from Avro binary format using {@link SchemaCoder} that
  * uses Confluent Schema Registry.
@@ -60,8 +62,10 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 
     /**
      * Creates {@link ConfluentRegistryAvroDeserializationSchema} that produces {@link
-     * GenericRecord} using provided reader schema and looks up writer schema in Confluent Schema
-     * Registry.
+     * GenericRecord} using the provided reader schema and looks up the writer schema in the
+     * Confluent Schema Registry.
+     *
+     * <p>By default, this method supports up to 1000 cached schema versions.
      *
      * @param schema schema of produced records
      * @param url url of schema registry to connect
@@ -74,25 +78,65 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 
     /**
      * Creates {@link ConfluentRegistryAvroDeserializationSchema} that produces {@link
-     * GenericRecord} using provided reader schema and looks up writer schema in Confluent Schema
-     * Registry.
+     * GenericRecord} using the provided reader schema and looks up the writer schema in the
+     * Confluent Schema Registry.
      *
      * @param schema schema of produced records
      * @param url url of schema registry to connect
-     * @param identityMapCapacity maximum number of cached schema versions (default: 1000)
+     * @param identityMapCapacity maximum number of cached schema versions
      * @return deserialized record in form of {@link GenericRecord}
      */
     public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(
             Schema schema, String url, int identityMapCapacity) {
-        return new ConfluentRegistryAvroDeserializationSchema<>(
-                GenericRecord.class,
-                schema,
-                new CachedSchemaCoderProvider(url, identityMapCapacity));
+        return forGeneric(schema, url, identityMapCapacity, null);
     }
 
     /**
-     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from avro
-     * schema and looks up writer schema in Confluent Schema Registry.
+     * Creates {@link ConfluentRegistryAvroDeserializationSchema} that produces {@link
+     * GenericRecord} using the provided reader schema and looks up the writer schema in the
+     * Confluent Schema Registry.
+     *
+     * <p>By default, this method supports up to 1000 cached schema versions.
+     *
+     * @param schema schema of produced records
+     * @param url URL of schema registry to connect
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return deserialized record in form of {@link GenericRecord}
+     */
+    public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(
+            Schema schema, String url, @Nullable Map<String, ?> registryConfigs) {
+        return forGeneric(schema, url, DEFAULT_IDENTITY_MAP_CAPACITY, registryConfigs);
+    }
+
+    /**
+     * Creates {@link ConfluentRegistryAvroDeserializationSchema} that produces {@link
+     * GenericRecord} using the provided reader schema and looks up the writer schema in the
+     * Confluent Schema Registry.
+     *
+     * @param schema schema of produced records
+     * @param url URL of schema registry to connect
+     * @param identityMapCapacity maximum number of cached schema versions
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return deserialized record in form of {@link GenericRecord}
+     */
+    public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(
+            Schema schema,
+            String url,
+            int identityMapCapacity,
+            @Nullable Map<String, ?> registryConfigs) {
+        return new ConfluentRegistryAvroDeserializationSchema<>(
+                GenericRecord.class,
+                schema,
+                new CachedSchemaCoderProvider(null, url, identityMapCapacity, registryConfigs));
+    }
+
+    /**
+     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
+     * schema and looks up the writer schema in the Confluent Schema Registry.
+     *
+     * <p>By default, this method supports up to 1000 cached schema versions.
      *
      * @param tClass class of record to be produced
      * @param url url of schema registry to connect
@@ -100,22 +144,62 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
      */
     public static <T extends SpecificRecord>
             ConfluentRegistryAvroDeserializationSchema<T> forSpecific(Class<T> tClass, String url) {
-        return forSpecific(tClass, url, DEFAULT_IDENTITY_MAP_CAPACITY);
+        return forSpecific(tClass, url, DEFAULT_IDENTITY_MAP_CAPACITY, null);
     }
 
     /**
-     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from avro
-     * schema and looks up writer schema in Confluent Schema Registry.
+     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
+     * schema and looks up the writer schema in the Confluent Schema Registry.
      *
      * @param tClass class of record to be produced
      * @param url url of schema registry to connect
-     * @param identityMapCapacity maximum number of cached schema versions (default: 1000)
+     * @param identityMapCapacity maximum number of cached schema versions
      * @return deserialized record
      */
     public static <T extends SpecificRecord>
             ConfluentRegistryAvroDeserializationSchema<T> forSpecific(
                     Class<T> tClass, String url, int identityMapCapacity) {
+        return forSpecific(tClass, url, identityMapCapacity, null);
+    }
+
+    /**
+     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
+     * schema and looks up the writer schema in the Confluent Schema Registry.
+     *
+     * <p>By default, this method supports up to 1000 cached schema versions.
+     *
+     * @param tClass class of record to be produced
+     * @param url URL of schema registry to connect
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return deserialized record
+     */
+    public static <T extends SpecificRecord>
+            ConfluentRegistryAvroDeserializationSchema<T> forSpecific(
+                    Class<T> tClass, String url, @Nullable Map<String, ?> registryConfigs) {
+        return forSpecific(tClass, url, DEFAULT_IDENTITY_MAP_CAPACITY, registryConfigs);
+    }
+
+    /**
+     * Creates {@link AvroDeserializationSchema} that produces classes that were generated from Avro
+     * schema and looks up the writer schema in the Confluent Schema Registry.
+     *
+     * @param tClass class of record to be produced
+     * @param url URL of schema registry to connect
+     * @param identityMapCapacity maximum number of cached schema versions
+     * @param registryConfigs map with additional schema registry configs (for example SSL
+     *     properties)
+     * @return deserialized record
+     */
+    public static <T extends SpecificRecord>
+            ConfluentRegistryAvroDeserializationSchema<T> forSpecific(
+                    Class<T> tClass,
+                    String url,
+                    int identityMapCapacity,
+                    @Nullable Map<String, ?> registryConfigs) {
         return new ConfluentRegistryAvroDeserializationSchema<>(
-                tClass, null, new CachedSchemaCoderProvider(url, identityMapCapacity));
+                tClass,
+                null,
+                new CachedSchemaCoderProvider(null, url, identityMapCapacity, registryConfigs));
     }
 }

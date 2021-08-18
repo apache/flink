@@ -51,7 +51,7 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -89,6 +89,7 @@ public final class TestTaskBuilder {
     private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
 
     public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
         this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -185,6 +186,11 @@ public final class TestTaskBuilder {
         return this;
     }
 
+    public TestTaskBuilder setCheckpointResponder(TestCheckpointResponder testCheckpointResponder) {
+        this.testCheckpointResponder = testCheckpointResponder;
+        return this;
+    }
+
     public Task build() throws Exception {
         final JobVertexID jobVertexId = new JobVertexID();
 
@@ -216,7 +222,6 @@ public final class TestTaskBuilder {
                 0,
                 resultPartitions,
                 inputGates,
-                0,
                 MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
                 mock(IOManager.class),
                 shuffleEnvironment,
@@ -227,7 +232,7 @@ public final class TestTaskBuilder {
                 new TestTaskStateManager(),
                 taskManagerActions,
                 new MockInputSplitProvider(),
-                new TestCheckpointResponder(),
+                testCheckpointResponder,
                 new NoOpTaskOperatorEventGateway(),
                 new TestGlobalAggregateManager(),
                 classLoaderHandle,

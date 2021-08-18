@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
@@ -111,6 +112,12 @@ public class PythonDependencyUtils {
                     PythonOptions.PYTHON_EXECUTABLE,
                     commandLine.getOptionValue(PYEXEC_OPTION.getOpt()));
         }
+        if (commandLine.hasOption(PYCLIENTEXEC_OPTION.getOpt())) {
+            config.set(
+                    PythonOptions.PYTHON_CLIENT_EXECUTABLE,
+                    commandLine.getOptionValue(PYCLIENTEXEC_OPTION.getOpt()));
+        }
+
         return config;
     }
 
@@ -235,13 +242,10 @@ public class PythonDependencyUtils {
          * @param archivePath The path of the archive file.
          * @param targetDir The name of the target directory.
          */
-        private void addPythonArchive(String archivePath, @Nullable String targetDir) {
+        private void addPythonArchive(String archivePath, String targetDir) {
             Preconditions.checkNotNull(archivePath);
             if (!internalConfig.contains(PYTHON_ARCHIVES)) {
                 internalConfig.set(PYTHON_ARCHIVES, new HashMap<>());
-            }
-            if (targetDir == null) {
-                targetDir = new File(archivePath).getName();
             }
             String fileKey =
                     generateUniqueFileKey(
@@ -282,10 +286,13 @@ public class PythonDependencyUtils {
                                         String[] filePathAndTargetDir =
                                                 archive.split(PARAM_DELIMITER, 2);
                                         archivePath = filePathAndTargetDir[0];
-                                        targetDir = filePathAndTargetDir[1];
+                                        targetDir =
+                                                new File(archivePath).getName()
+                                                        + PARAM_DELIMITER
+                                                        + filePathAndTargetDir[1];
                                     } else {
                                         archivePath = archive;
-                                        targetDir = null;
+                                        targetDir = new File(archivePath).getName();
                                     }
                                     addPythonArchive(archivePath, targetDir);
                                 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
@@ -50,7 +51,7 @@ public class JobExecutionITCase extends TestLogger {
         final JobGraph jobGraph = createJobGraph(parallelism);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
-                new TestingMiniClusterConfiguration.Builder()
+                TestingMiniClusterConfiguration.newBuilder()
                         .setNumSlotsPerTaskManager(numSlotsPerTaskExecutor)
                         .setNumTaskManagers(numTaskExecutors)
                         .setLocalCommunication(true)
@@ -90,8 +91,6 @@ public class JobExecutionITCase extends TestLogger {
         receiver.connectNewDataSetAsInput(
                 sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
-
-        return jobGraph;
+        return JobGraphTestUtils.streamingJobGraph(sender, receiver);
     }
 }

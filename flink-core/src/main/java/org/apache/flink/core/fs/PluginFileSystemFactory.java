@@ -19,6 +19,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
 import java.net.URI;
@@ -67,7 +68,8 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         return String.format("Plugin %s", inner.getClass().getName());
     }
 
-    static class ClassLoaderFixingFileSystem extends FileSystem {
+    static class ClassLoaderFixingFileSystem extends FileSystem
+            implements WrappingProxy<FileSystem> {
         private final FileSystem inner;
         private final ClassLoader loader;
 
@@ -190,7 +192,8 @@ public class PluginFileSystemFactory implements FileSystemFactory {
             }
         }
 
-        public FileSystem getInner() {
+        @Override
+        public FileSystem getWrappedDelegate() {
             return inner;
         }
     }

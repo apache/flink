@@ -32,30 +32,14 @@ import java.util.List;
 
 /** XaSinkStateSerializer. */
 @Internal
-final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFunctionState> {
+public final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFunctionState> {
 
     private static final TypeSerializerSnapshot<JdbcXaSinkFunctionState> SNAPSHOT =
-            new SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState>(XaSinkStateSerializer::new) {
-                private static final int VERSION = 1;
-
-                @Override
-                public void writeSnapshot(DataOutputView out) throws IOException {
-                    super.writeSnapshot(out);
-                    out.writeInt(VERSION);
-                }
-
-                @Override
-                public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader)
-                        throws IOException {
-                    super.readSnapshot(readVersion, in, classLoader);
-                    in.readInt();
-                }
-            };
-
+            new XaSinkStateSimpleXaTypeSerializerSnapshot();
     private final TypeSerializer<Xid> xidSerializer;
     private final TypeSerializer<CheckpointAndXid> checkpointAndXidSerializer;
 
-    XaSinkStateSerializer() {
+    public XaSinkStateSerializer() {
         this(new XidSerializer(), new CheckpointAndXidSerializer());
     }
 
@@ -148,5 +132,28 @@ final class XaSinkStateSerializer extends TypeSerializer<JdbcXaSinkFunctionState
     @Override
     public TypeSerializerSnapshot<JdbcXaSinkFunctionState> snapshotConfiguration() {
         return SNAPSHOT;
+    }
+
+    /** Simple {@link TypeSerializerSnapshot} for {@link XaSinkStateSerializer}. */
+    public static class XaSinkStateSimpleXaTypeSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<JdbcXaSinkFunctionState> {
+        private static final int VERSION = 1;
+
+        public XaSinkStateSimpleXaTypeSerializerSnapshot() {
+            super(XaSinkStateSerializer::new);
+        }
+
+        @Override
+        public void writeSnapshot(DataOutputView out) throws IOException {
+            super.writeSnapshot(out);
+            out.writeInt(VERSION);
+        }
+
+        @Override
+        public void readSnapshot(int readVersion, DataInputView in, ClassLoader classLoader)
+                throws IOException {
+            super.readSnapshot(readVersion, in, classLoader);
+            in.readInt();
+        }
     }
 }

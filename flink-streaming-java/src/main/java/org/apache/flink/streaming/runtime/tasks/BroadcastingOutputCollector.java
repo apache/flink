@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -33,22 +33,24 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
 
     protected final Output<StreamRecord<T>>[] outputs;
     private final Random random = new XORShiftRandom();
-    private final StreamStatusProvider streamStatusProvider;
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-    public BroadcastingOutputCollector(
-            Output<StreamRecord<T>>[] outputs, StreamStatusProvider streamStatusProvider) {
+    public BroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
         this.outputs = outputs;
-        this.streamStatusProvider = streamStatusProvider;
     }
 
     @Override
     public void emitWatermark(Watermark mark) {
         watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-        if (streamStatusProvider.getStreamStatus().isActive()) {
-            for (Output<StreamRecord<T>> output : outputs) {
-                output.emitWatermark(mark);
-            }
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.emitWatermark(mark);
+        }
+    }
+
+    @Override
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 

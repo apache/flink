@@ -307,6 +307,18 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 || resultSubpartitionState.hasState();
     }
 
+    public Builder toBuilder() {
+        return builder()
+                .setManagedKeyedState(managedKeyedState)
+                .setManagedOperatorState(managedOperatorState)
+                .setRawOperatorState(rawOperatorState)
+                .setRawKeyedState(rawKeyedState)
+                .setInputChannelState(inputChannelState)
+                .setResultSubpartitionState(resultSubpartitionState)
+                .setInputRescalingDescriptor(inputRescalingDescriptor)
+                .setOutputRescalingDescriptor(outputRescalingDescriptor);
+    }
+
     public static Builder builder() {
         return new Builder();
     }

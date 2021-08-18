@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -74,6 +74,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import static java.util.Collections.emptyList;
 
@@ -185,7 +187,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
     /** The accumulator map used in the RuntimeContext. */
     protected Map<String, Accumulator<?, ?>> accumulatorMap;
 
-    private OperatorMetricGroup metrics;
+    private InternalOperatorMetricGroup metrics;
+    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     // --------------------------------------------------------------------------------------------
     //                                  Constructor
@@ -361,6 +364,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
 
             clearReaders(inputReaders);
             clearWriters(eventualOutputs);
+            terminationFuture.complete(null);
         }
 
         if (this.running) {
@@ -375,7 +379,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
     }
 
     @Override
-    public void cancel() throws Exception {
+    public Future<Void> cancel() throws Exception {
         this.running = false;
 
         if (LOG.isDebugEnabled()) {
@@ -389,6 +393,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
         } finally {
             closeLocalStrategiesAndCaches();
         }
+        return terminationFuture;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1134,7 +1139,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
                         this.accumulatorMap);
     }
 
-    public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
+    public DistributedRuntimeUDFContext createRuntimeContext(OperatorMetricGroup metrics) {
         Environment env = getEnvironment();
 
         return new DistributedRuntimeUDFContext(
@@ -1144,7 +1149,8 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
                 env.getDistributedCacheEntries(),
                 this.accumulatorMap,
                 metrics,
-                env.getExternalResourceInfoProvider());
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
     }
 
     // --------------------------------------------------------------------------------------------

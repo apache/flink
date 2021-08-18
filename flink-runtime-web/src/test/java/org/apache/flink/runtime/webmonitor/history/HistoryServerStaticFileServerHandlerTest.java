@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -35,7 +36,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.core.Is.is;
 
 /** Tests for the HistoryServerStaticFileServerHandler. */
-public class HistoryServerStaticFileServerHandlerTest {
+public class HistoryServerStaticFileServerHandlerTest extends TestLogger {
 
     @Rule public TemporaryFolder tmp = new TemporaryFolder();
 

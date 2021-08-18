@@ -18,22 +18,25 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.AlterHiveDatabaseOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.CatalogTestUtil;
-import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -44,10 +47,14 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
+import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
@@ -55,11 +62,14 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -80,27 +90,6 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
     public void testCreateTable_Streaming() throws Exception {}
 
-    @Override
-    @Test
-    public void testAlterDb() throws Exception {
-        // altering Hive DB merges properties, which is different from generic DB
-        CatalogDatabase db = createDb();
-        catalog.createDatabase(db1, db, false);
-
-        CatalogDatabase newDb = createAnotherDb();
-        newDb.getProperties().put(ALTER_DATABASE_OP, AlterHiveDatabaseOp.CHANGE_PROPS.name());
-        catalog.alterDatabase(db1, newDb, false);
-
-        Map<String, String> mergedProps = new HashMap<>(db.getProperties());
-        mergedProps.putAll(newDb.getProperties());
-
-        assertTrue(
-                catalog.getDatabase(db1)
-                        .getProperties()
-                        .entrySet()
-                        .containsAll(mergedProps.entrySet()));
-    }
-
     @Test
     // verifies that input/output formats and SerDe are set for Hive tables
     public void testCreateTable_StorageFormatSet() throws Exception {
@@ -117,6 +106,67 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     // ------ table and column stats ------
+
+    @Test
+    public void testViewCompatibility() throws Exception {
+        // we always store view schema via properties now
+        // make sure non-generic views created previously can still be used
+        catalog.createDatabase(db1, createDb(), false);
+        Table hiveView =
+                org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(
+                        path1.getDatabaseName(), path1.getObjectName());
+        // mark as a view
+        hiveView.setTableType(TableType.VIRTUAL_VIEW.name());
+        final String originQuery = "view origin query";
+        final String expandedQuery = "view expanded query";
+        hiveView.setViewOriginalText(originQuery);
+        hiveView.setViewExpandedText(expandedQuery);
+        // set schema in SD
+        Schema schema =
+                Schema.newBuilder()
+                        .fromFields(
+                                new String[] {"i", "s"},
+                                new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()})
+                        .build();
+        List<FieldSchema> fields = new ArrayList<>();
+        for (Schema.UnresolvedColumn column : schema.getColumns()) {
+            String name = column.getName();
+            DataType type = (DataType) ((Schema.UnresolvedPhysicalColumn) column).getDataType();
+            fields.add(
+                    new FieldSchema(
+                            name, HiveTypeUtil.toHiveTypeInfo(type, true).getTypeName(), null));
+        }
+        hiveView.getSd().setCols(fields);
+        // test mark as non-generic with is_generic
+        hiveView.getParameters().put(CatalogPropertiesUtil.IS_GENERIC, "false");
+        // add some other properties
+        hiveView.getParameters().put("k1", "v1");
+
+        ((HiveCatalog) catalog).client.createTable(hiveView);
+        CatalogBaseTable baseTable = catalog.getTable(path1);
+        assertTrue(baseTable instanceof CatalogView);
+        CatalogView catalogView = (CatalogView) baseTable;
+        assertEquals(schema, catalogView.getUnresolvedSchema());
+        assertEquals(originQuery, catalogView.getOriginalQuery());
+        assertEquals(expandedQuery, catalogView.getExpandedQuery());
+        assertEquals("v1", catalogView.getOptions().get("k1"));
+
+        // test mark as non-generic with connector
+        hiveView.setDbName(path3.getDatabaseName());
+        hiveView.setTableName(path3.getObjectName());
+        hiveView.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
+        hiveView.getParameters().put(CONNECTOR.key(), IDENTIFIER);
+
+        ((HiveCatalog) catalog).client.createTable(hiveView);
+        baseTable = catalog.getTable(path3);
+        assertTrue(baseTable instanceof CatalogView);
+        catalogView = (CatalogView) baseTable;
+        assertEquals(schema, catalogView.getUnresolvedSchema());
+        assertEquals(originQuery, catalogView.getOriginalQuery());
+        assertEquals(expandedQuery, catalogView.getExpandedQuery());
+        assertEquals("v1", catalogView.getOptions().get("k1"));
+    }
+
     @Test
     public void testAlterTableColumnStatistics() throws Exception {
         String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
@@ -266,7 +316,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogConfig.IS_GENERIC, "false");
+        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));

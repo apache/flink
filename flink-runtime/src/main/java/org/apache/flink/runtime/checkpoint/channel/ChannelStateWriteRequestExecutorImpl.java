@@ -45,7 +45,6 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 
     private static final Logger LOG =
             LoggerFactory.getLogger(ChannelStateWriteRequestExecutorImpl.class);
-    private static final int DEFAULT_HANDOVER_CAPACITY = 10_000;
 
     private final ChannelStateWriteRequestDispatcher dispatcher;
     private final BlockingDeque<ChannelStateWriteRequest> deque;
@@ -56,7 +55,7 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
 
     ChannelStateWriteRequestExecutorImpl(
             String taskName, ChannelStateWriteRequestDispatcher dispatcher) {
-        this(taskName, dispatcher, new LinkedBlockingDeque<>(DEFAULT_HANDOVER_CAPACITY));
+        this(taskName, dispatcher, new LinkedBlockingDeque<>());
     }
 
     ChannelStateWriteRequestExecutorImpl(

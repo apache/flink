@@ -24,7 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
@@ -74,7 +74,7 @@ public class DefaultSchedulerComponents {
     }
 
     static DefaultSchedulerComponents createSchedulerComponents(
-            final ScheduleMode scheduleMode,
+            final JobType jobType,
             final boolean isApproximateLocalRecoveryEnabled,
             final Configuration jobMasterConfiguration,
             final SlotPool slotPool,
@@ -84,11 +84,11 @@ public class DefaultSchedulerComponents {
                 !isApproximateLocalRecoveryEnabled,
                 "Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
         return createPipelinedRegionSchedulerComponents(
-                scheduleMode, jobMasterConfiguration, slotPool, slotRequestTimeout);
+                jobType, jobMasterConfiguration, slotPool, slotRequestTimeout);
     }
 
     private static DefaultSchedulerComponents createPipelinedRegionSchedulerComponents(
-            final ScheduleMode scheduleMode,
+            final JobType jobType,
             final Configuration jobMasterConfiguration,
             final SlotPool slotPool,
             final Time slotRequestTimeout) {
@@ -103,7 +103,7 @@ public class DefaultSchedulerComponents {
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 new SlotSharingExecutionSlotAllocatorFactory(
                         physicalSlotProvider,
-                        scheduleMode != ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        jobType == JobType.STREAMING,
                         bulkChecker,
                         slotRequestTimeout);
         return new DefaultSchedulerComponents(

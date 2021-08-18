@@ -191,6 +191,11 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
         public Optional<DataType> getOutputDataType() {
             return originalCallContext.getOutputDataType();
         }
+
+        @Override
+        public boolean isGroupedAggregation() {
+            return originalCallContext.isGroupedAggregation();
+        }
     }
 
     /** A Builder for {@link SubsequenceInputTypeStrategy}. */

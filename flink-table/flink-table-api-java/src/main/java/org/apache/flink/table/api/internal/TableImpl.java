@@ -28,14 +28,16 @@ import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
@@ -102,13 +104,13 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public TableSchema getSchema() {
-        return operationTree.getTableSchema();
+    public ResolvedSchema getResolvedSchema() {
+        return operationTree.getResolvedSchema();
     }
 
     @Override
     public void printSchema() {
-        System.out.println(getSchema());
+        System.out.println(getResolvedSchema());
     }
 
     @Override
@@ -168,7 +170,7 @@ public class TableImpl implements Table {
     @Override
     public Table as(String field, String... fields) {
         final List<Expression> fieldsExprs;
-        if (fields.length == 0 && operationTree.getTableSchema().getFieldCount() > 1) {
+        if (fields.length == 0 && operationTree.getResolvedSchema().getColumnCount() > 1) {
             fieldsExprs = ExpressionParser.parseExpressionList(field);
         } else {
             fieldsExprs = new ArrayList<>();
@@ -570,6 +572,28 @@ public class TableImpl implements Table {
                         Collections.emptyMap());
 
         return tableEnvironment.executeInternal(Collections.singletonList(operation));
+    }
+
+    @Override
+    public TableResult executeInsert(TableDescriptor descriptor) {
+        return executeInsert(descriptor, false);
+    }
+
+    @Override
+    public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
+                        tableEnvironment.getCatalogManager().getDataTypeFactory(),
+                        getResolvedSchema().toSourceRowDataType(),
+                        descriptor.getSchema().orElse(null),
+                        false);
+        final TableDescriptor updatedDescriptor =
+                descriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
+
+        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
+        return executeInsert(path, overwrite);
     }
 
     @Override

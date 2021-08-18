@@ -32,11 +32,17 @@ final class RocksDBSharedResources implements AutoCloseable {
     private final WriteBufferManager writeBufferManager;
     private final long writeBufferManagerCapacity;
 
+    private final boolean usingPartitionedIndexFilters;
+
     RocksDBSharedResources(
-            Cache cache, WriteBufferManager writeBufferManager, long writeBufferManagerCapacity) {
+            Cache cache,
+            WriteBufferManager writeBufferManager,
+            long writeBufferManagerCapacity,
+            boolean usingPartitionedIndexFilters) {
         this.cache = cache;
         this.writeBufferManager = writeBufferManager;
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+        this.usingPartitionedIndexFilters = usingPartitionedIndexFilters;
     }
 
     public Cache getCache() {
@@ -49,6 +55,10 @@ final class RocksDBSharedResources implements AutoCloseable {
 
     public long getWriteBufferManagerCapacity() {
         return writeBufferManagerCapacity;
+    }
+
+    public boolean isUsingPartitionedIndexFilters() {
+        return usingPartitionedIndexFilters;
     }
 
     @Override

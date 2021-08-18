@@ -19,8 +19,8 @@
 package org.apache.flink.table.expressions.resolver.lookups;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.operations.QueryOperation;
 
@@ -87,13 +87,13 @@ public class FieldReferenceLookup {
 
     private static Map<String, FieldReferenceExpression> prepareFieldsInInput(
             QueryOperation input, int inputIdx) {
-        TableSchema tableSchema = input.getTableSchema();
-        return IntStream.range(0, tableSchema.getFieldCount())
+        ResolvedSchema resolvedSchema = input.getResolvedSchema();
+        return IntStream.range(0, resolvedSchema.getColumnCount())
                 .mapToObj(
                         i ->
                                 new FieldReferenceExpression(
-                                        tableSchema.getFieldName(i).get(),
-                                        tableSchema.getFieldDataType(i).get(),
+                                        resolvedSchema.getColumnNames().get(i),
+                                        resolvedSchema.getColumnDataTypes().get(i),
                                         inputIdx,
                                         i))
                 .collect(

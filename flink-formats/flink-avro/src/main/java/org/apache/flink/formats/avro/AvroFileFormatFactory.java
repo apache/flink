@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
@@ -41,19 +41,17 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_OUTPUT_CODEC;
+
 /** Avro format factory for file system. */
+@Internal
 public class AvroFileFormatFactory implements BulkWriterFormatFactory {
 
     public static final String IDENTIFIER = "avro";
-
-    public static final ConfigOption<String> AVRO_OUTPUT_CODEC =
-            ConfigOptions.key("codec")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The compression codec for avro");
 
     @Override
     public EncodingFormat<BulkWriter.Factory<RowData>> createEncodingFormat(
@@ -107,21 +105,23 @@ public class AvroFileFormatFactory implements BulkWriterFormatFactory {
             this.rowType = rowType;
             this.factory =
                     new AvroWriterFactory<>(
-                            (AvroBuilder<GenericRecord>)
-                                    out -> {
-                                        Schema schema =
-                                                AvroSchemaConverter.convertToSchema(rowType);
-                                        DatumWriter<GenericRecord> datumWriter =
-                                                new GenericDatumWriter<>(schema);
-                                        DataFileWriter<GenericRecord> dataFileWriter =
-                                                new DataFileWriter<>(datumWriter);
+                            new AvroBuilder<GenericRecord>() {
+                                @Override
+                                public DataFileWriter<GenericRecord> createWriter(OutputStream out)
+                                        throws IOException {
+                                    Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+                                    DatumWriter<GenericRecord> datumWriter =
+                                            new GenericDatumWriter<>(schema);
+                                    DataFileWriter<GenericRecord> dataFileWriter =
+                                            new DataFileWriter<>(datumWriter);
 
-                                        if (codec != null) {
-                                            dataFileWriter.setCodec(CodecFactory.fromString(codec));
-                                        }
-                                        dataFileWriter.create(schema, out);
-                                        return dataFileWriter;
-                                    });
+                                    if (codec != null) {
+                                        dataFileWriter.setCodec(CodecFactory.fromString(codec));
+                                    }
+                                    dataFileWriter.create(schema, out);
+                                    return dataFileWriter;
+                                }
+                            });
         }
 
         @Override

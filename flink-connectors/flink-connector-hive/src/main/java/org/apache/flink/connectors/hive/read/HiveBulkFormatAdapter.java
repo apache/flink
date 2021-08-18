@@ -24,6 +24,8 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.ArrayResultIterator;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.formats.parquet.ParquetColumnarRowInputFormat;
 import org.apache.flink.orc.OrcColumnarRowFileInputFormat;
 import org.apache.flink.orc.nohive.OrcNoHiveColumnarRowInputFormat;
@@ -71,10 +73,6 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
     private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
     private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
 
-    private static final PartitionFieldExtractor<HiveSourceSplit> PARTITION_FIELD_EXTRACTOR =
-            (split, fieldName, fieldType) ->
-                    split.getHiveTablePartition().getPartitionSpec().get(fieldName);
-
     private final JobConfWrapper jobConfWrapper;
     private final List<String> partitionKeys;
     private final String[] fieldNames;
@@ -83,6 +81,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
     private final HiveShim hiveShim;
     private final RowType producedRowType;
     private final boolean useMapRedReader;
+    private final PartitionFieldExtractor<HiveSourceSplit> partitionFieldExtractor;
 
     public HiveBulkFormatAdapter(
             JobConfWrapper jobConfWrapper,
@@ -100,6 +99,9 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
         this.producedRowType = producedRowType;
         this.useMapRedReader = useMapRedReader;
+        this.partitionFieldExtractor =
+                new PartitionFieldExtractorImpl(
+                        hiveShim, JobConfUtils.getDefaultPartitionName(jobConfWrapper));
     }
 
     @Override
@@ -133,17 +135,29 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
     private BulkFormat<RowData, ? super HiveSourceSplit> createBulkFormatForSplit(
             HiveSourceSplit split) {
         if (!useMapRedReader && useParquetVectorizedRead(split.getHiveTablePartition())) {
+            LOG.debug(String.format("Use native parquet reader for %s.", split.toString()));
             return ParquetColumnarRowInputFormat.createPartitionedFormat(
                     jobConfWrapper.conf(),
                     producedRowType,
                     partitionKeys,
-                    PARTITION_FIELD_EXTRACTOR,
+                    partitionFieldExtractor,
                     DEFAULT_SIZE,
                     hiveVersion.startsWith("3"),
                     false);
         } else if (!useMapRedReader && useOrcVectorizedRead(split.getHiveTablePartition())) {
+            LOG.debug(String.format("Use native orc reader for %s.", split.toString()));
             return createOrcFormat();
         } else {
+            if (useMapRedReader) {
+                LOG.debug(
+                        String.format(
+                                "Use MapReduce RecordReader reader for %s.", split.toString()));
+            } else {
+                LOG.debug(
+                        String.format(
+                                "Use MapReduce RecordReader reader because the conditions of vectorized read are not met for %s.",
+                                split.toString()));
+            }
             return new HiveMapRedBulkFormat();
         }
     }
@@ -154,7 +168,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
                         jobConfWrapper.conf(),
                         tableRowType(),
                         partitionKeys,
-                        PARTITION_FIELD_EXTRACTOR,
+                        partitionFieldExtractor,
                         computeSelectedFields(),
                         Collections.emptyList(),
                         DEFAULT_SIZE)
@@ -163,7 +177,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
                         jobConfWrapper.conf(),
                         tableRowType(),
                         partitionKeys,
-                        PARTITION_FIELD_EXTRACTOR,
+                        partitionFieldExtractor,
                         computeSelectedFields(),
                         Collections.emptyList(),
                         DEFAULT_SIZE);
@@ -388,5 +402,25 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
             selectedFields[i] = index;
         }
         return selectedFields;
+    }
+
+    private static class PartitionFieldExtractorImpl
+            implements PartitionFieldExtractor<HiveSourceSplit> {
+
+        private static final long serialVersionUID = 1L;
+        private final HiveShim hiveShim;
+        private final String defaultPartitionName;
+
+        private PartitionFieldExtractorImpl(HiveShim hiveShim, String defaultPartitionName) {
+            this.hiveShim = hiveShim;
+            this.defaultPartitionName = defaultPartitionName;
+        }
+
+        @Override
+        public Object extract(HiveSourceSplit split, String fieldName, LogicalType fieldType) {
+            String valueString = split.getHiveTablePartition().getPartitionSpec().get(fieldName);
+            return HivePartitionUtils.restorePartitionValueFromType(
+                    hiveShim, valueString, fieldType, defaultPartitionName);
+        }
     }
 }

@@ -1,0 +1,189 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+	<TestCase name="testFullFilterMatchWithWatermark">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable WHERE LOWER(d) = 'hello']]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[=(LOWER($3), _UTF-16LE'hello')])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[equals(lower(d), 'hello')]]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testPartialFilterMatchWithWatermark">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable WHERE LOWER(d) = 'h' AND d IS NOT NULL]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=(LOWER($3), _UTF-16LE'h'), IS NOT NULL($3))])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, c, d], where=[d IS NOT NULL])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[equals(lower(d), 'h')]]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testPartialFilterMatchWithWatermark">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable WHERE LOWER(d) = 'h' AND d IS NOT NULL]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[AND(=(LOWER($3), _UTF-16LE'h'), IS NOT NULL($3))])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, c, d], where=[d IS NOT NULL])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[equals(lower(d), 'h')]]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNoFilterMatchWithWatermark">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable WHERE b > 5]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
++- LogicalFilter(condition=[>($1, 5)])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, c, d], where=[(b > 5)])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[]]], fields=[a, b, c, d])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testComputedColumnPushdownAcrossWatermark">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM WithWatermark WHERE lowercase_name = 'foo']]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(event_time=[$0], name=[$1], lowercase_name=[$2])
++- LogicalFilter(condition=[=($2, _UTF-16LE'foo')])
+   +- LogicalWatermarkAssigner(rowtime=[event_time], watermark=[$0])
+      +- LogicalProject(event_time=[$0], name=[$1], lowercase_name=[LOWER($1)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, WithWatermark]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[Reinterpret(event_time) AS event_time, name, CAST(_UTF-16LE'foo':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS lowercase_name])
++- TableSourceScan(table=[[default_catalog, default_database, WithWatermark, watermark=[$0], filter=[equals(lower(name), 'foo')]]], fields=[event_time, name])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFullPushdownWithoutWatermarkAssigner">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM NoWatermark WHERE LOWER(name) = 'foo' AND UPPER(name) = 'FOO']]>
+		</Resource>
+		<Resource name="ast" >
+			<![CDATA[
+LogicalProject(name=[$0], event_time=[$1])
++- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), =(UPPER($0), _UTF-16LE'FOO'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NoWatermark]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, NoWatermark, filter=[and(equals(lower(name), 'foo'), equals(upper(name), 'FOO'))]]], fields=[name, event_time])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFilterPushdownWithUdf">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM UdfTable WHERE UPPER(f) = 'welcome']]>
+		</Resource>
+		<Resource name="ast" >
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
++- LogicalFilter(condition=[=(UPPER($4), _UTF-16LE'welcome')])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)], f=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
++- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func($2, $0), $0), $0)], filter=[equals(upper(f), 'welcome')]]], fields=[a, b, c, f])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFilterPushdownWithUdf">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM UdfTable WHERE UPPER(f) = 'welcome']]>
+		</Resource>
+		<Resource name="ast" >
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
++- LogicalFilter(condition=[=(UPPER($4), _UTF-16LE'welcome')])
+   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)], f=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
++- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func($2, $0), $0), $0)], filter=[equals(upper(f), 'welcome')]]], fields=[a, b, c, f])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testPartialPushdownWithoutWatermarkAssigner">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM NoWatermark WHERE LOWER(name) = 'foo' AND name IS NOT NULL]]>
+		</Resource>
+		<Resource name="ast" >
+			<![CDATA[
+LogicalProject(name=[$0], event_time=[$1])
++- LogicalFilter(condition=[AND(=(LOWER($0), _UTF-16LE'foo'), IS NOT NULL($0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NoWatermark]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[name, event_time], where=[name IS NOT NULL])
++- TableSourceScan(table=[[default_catalog, default_database, NoWatermark, filter=[equals(lower(name), 'foo')]]], fields=[name, event_time])
+]]>
+		</Resource>
+	</TestCase>
+</Root>

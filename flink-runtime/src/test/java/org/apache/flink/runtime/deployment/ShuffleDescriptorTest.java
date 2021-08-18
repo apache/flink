@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.util.TestLogger;
 
@@ -54,32 +55,48 @@ public class ShuffleDescriptorTest extends TestLogger {
     @Test
     public void testMixedLocalRemoteUnknownDeployment() throws Exception {
         ResourceID consumerResourceID = ResourceID.generate();
+        JobID jobID = new JobID();
 
         // Local and remote channel are only allowed for certain execution
         // states.
         for (ExecutionState state : ExecutionState.values()) {
             ResultPartitionID localPartitionId = new ResultPartitionID();
             ResultPartitionDeploymentDescriptor localPartition =
-                    createResultPartitionDeploymentDescriptor(localPartitionId, consumerResourceID);
+                    createResultPartitionDeploymentDescriptor(
+                            jobID, localPartitionId, consumerResourceID);
 
             ResultPartitionID remotePartitionId = new ResultPartitionID();
             ResultPartitionDeploymentDescriptor remotePartition =
                     createResultPartitionDeploymentDescriptor(
-                            remotePartitionId, ResourceID.generate());
+                            jobID, remotePartitionId, ResourceID.generate());
 
             ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
             ShuffleDescriptor localShuffleDescriptor =
                     getConsumedPartitionShuffleDescriptor(
-                            localPartitionId, state, localPartition, true);
+                            localPartitionId,
+                            state,
+                            localPartition,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
             ShuffleDescriptor remoteShuffleDescriptor =
                     getConsumedPartitionShuffleDescriptor(
-                            remotePartitionId, state, remotePartition, true);
+                            remotePartitionId,
+                            state,
+                            remotePartition,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
             ShuffleDescriptor unknownShuffleDescriptor =
-                    getConsumedPartitionShuffleDescriptor(unknownPartitionId, state, null, true);
+                    getConsumedPartitionShuffleDescriptor(
+                            unknownPartitionId,
+                            state,
+                            null,
+                            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                                    .CAN_BE_UNKNOWN);
 
             // These states are allowed
             if (state == ExecutionState.RUNNING
+                    || state == ExecutionState.INITIALIZING
                     || state == ExecutionState.FINISHED
                     || state == ExecutionState.SCHEDULED
                     || state == ExecutionState.DEPLOYING) {
@@ -141,7 +158,10 @@ public class ShuffleDescriptorTest extends TestLogger {
         // This should work if lazy deployment is allowed
         ShuffleDescriptor unknownSdd =
                 getConsumedPartitionShuffleDescriptor(
-                        unknownPartitionId, ExecutionState.CREATED, null, true);
+                        unknownPartitionId,
+                        ExecutionState.CREATED,
+                        null,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN);
 
         assertThat(unknownSdd, instanceOf(UnknownShuffleDescriptor.class));
         assertThat(unknownSdd.isUnknown(), is(true));
@@ -150,7 +170,10 @@ public class ShuffleDescriptorTest extends TestLogger {
         try {
             // Fail if lazy deployment is *not* allowed
             getConsumedPartitionShuffleDescriptor(
-                    unknownPartitionId, ExecutionState.CREATED, null, false);
+                    unknownPartitionId,
+                    ExecutionState.CREATED,
+                    null,
+                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint.MUST_BE_KNOWN);
             fail("Did not throw expected ExecutionGraphException");
         } catch (IllegalStateException ignored) {
         }
@@ -160,14 +183,15 @@ public class ShuffleDescriptorTest extends TestLogger {
             ResultPartitionID id,
             ExecutionState state,
             @Nullable ResultPartitionDeploymentDescriptor producedPartition,
-            boolean allowLazyDeployment) {
+            TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                    partitionLocationConstraint) {
         ShuffleDescriptor shuffleDescriptor =
                 TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor(
                         id,
                         ResultPartitionType.PIPELINED,
                         true,
                         state,
-                        allowLazyDeployment,
+                        partitionLocationConstraint,
                         producedPartition);
         assertThat(shuffleDescriptor, is(notNullValue()));
         assertThat(shuffleDescriptor.getResultPartitionID(), is(id));
@@ -175,7 +199,7 @@ public class ShuffleDescriptorTest extends TestLogger {
     }
 
     private static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-            ResultPartitionID id, ResourceID location)
+            JobID jobID, ResultPartitionID id, ResourceID location)
             throws ExecutionException, InterruptedException {
         ProducerDescriptor producerDescriptor =
                 new ProducerDescriptor(
@@ -186,8 +210,9 @@ public class ShuffleDescriptorTest extends TestLogger {
         PartitionDescriptor partitionDescriptor =
                 PartitionDescriptorBuilder.newBuilder().setPartitionId(id.getPartitionId()).build();
         ShuffleDescriptor shuffleDescriptor =
-                NettyShuffleMaster.INSTANCE
-                        .registerPartitionWithProducer(partitionDescriptor, producerDescriptor)
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER
+                        .registerPartitionWithProducer(
+                                jobID, partitionDescriptor, producerDescriptor)
                         .get();
         return new ResultPartitionDeploymentDescriptor(
                 partitionDescriptor, shuffleDescriptor, 1, true);

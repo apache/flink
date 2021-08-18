@@ -20,10 +20,11 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEventHandler;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
@@ -70,14 +72,16 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
     private final LeaderElectionEventHandler leaderElectionEventHandler;
 
-    private final KubernetesWatch kubernetesWatch;
-
     private final FatalErrorHandler fatalErrorHandler;
 
     private volatile boolean running;
 
+    private final Watch kubernetesWatch;
+
     public KubernetesLeaderElectionDriver(
             FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
             KubernetesLeaderElectionConfiguration leaderConfig,
             LeaderElectionEventHandler leaderElectionEventHandler,
             FatalErrorHandler fatalErrorHandler) {
@@ -99,7 +103,11 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         running = true;
         leaderElector.run();
         kubernetesWatch =
-                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+                checkNotNull(configMapSharedWatcher, "ConfigMap Shared Informer")
+                        .watch(
+                                configMapName,
+                                new ConfigMapCallbackHandlerImpl(),
+                                watchExecutorService);
     }
 
     @Override
@@ -111,6 +119,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         LOG.info("Closing {}.", this);
         leaderElector.stop();
+
         kubernetesWatch.close();
     }
 
@@ -234,7 +243,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         }
 
         @Override
-        public void handleFatalError(Throwable throwable) {
+        public void handleError(Throwable throwable) {
             fatalErrorHandler.onFatalError(
                     new LeaderElectionException(
                             "Error while watching the ConfigMap " + configMapName, throwable));

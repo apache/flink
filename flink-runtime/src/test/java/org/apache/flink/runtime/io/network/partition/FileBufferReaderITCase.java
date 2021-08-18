@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
@@ -29,8 +30,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -105,6 +106,11 @@ public class FileBufferReaderITCase extends TestLogger {
         } else {
             configuration = new Configuration();
         }
+
+        // Increases the handshake timeout to avoid connection reset/close issues
+        // if the netty server thread could not response in time, like when it is
+        // busy reading the files.
+        configuration.setInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
         configuration.setString(RestOptions.BIND_PORT, "0");
         configuration.setString(
                 NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
@@ -146,10 +152,7 @@ public class FileBufferReaderITCase extends TestLogger {
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-        final JobGraph jobGraph = new JobGraph(source, sink);
-        jobGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
-
-        return jobGraph;
+        return JobGraphTestUtils.batchJobGraph(source, sink);
     }
 
     /**

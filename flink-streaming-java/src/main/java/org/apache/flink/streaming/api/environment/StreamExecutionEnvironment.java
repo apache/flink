@@ -31,6 +31,9 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -48,13 +51,16 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
 import org.apache.flink.core.execution.JobClient;
@@ -63,6 +69,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -96,6 +103,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -104,11 +112,14 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -130,8 +141,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment {
 
-    /** The default name to use for a streaming job if no other name has been specified. */
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    /**
+     * The default name to use for a streaming job if no other name has been specified.
+     *
+     * @deprecated This constant does not fit well to batch runtime mode.
+     */
+    @Deprecated
+    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 
     /** The time characteristic that is used if none other is set. */
     private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
@@ -166,6 +182,12 @@ public class StreamExecutionEnvironment {
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
 
+    /** Whether to enable ChangelogStateBackend, default value is unset. */
+    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
+
+    /** The default savepoint directory used by the job. */
+    private Path defaultSavepointDirectory;
+
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
@@ -174,11 +196,23 @@ public class StreamExecutionEnvironment {
 
     private final PipelineExecutorServiceLoader executorServiceLoader;
 
-    private final Configuration configuration;
+    /**
+     * Currently, configuration is split across multiple member variables and classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}. This architecture makes it quite difficult to
+     * handle/merge/enrich configuration or restrict access in other APIs.
+     *
+     * <p>In the long-term, this {@link Configuration} object should be the source of truth for
+     * newly added {@link ConfigOption}s that are relevant for DataStream API. Make sure to also
+     * update {@link #configure(ReadableConfig, ClassLoader)}.
+     */
+    protected final Configuration configuration;
 
     private final ClassLoader userClassloader;
 
     private final List<JobListener> jobListeners = new ArrayList<>();
+
+    // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
     // Constructor and Properties
@@ -241,10 +275,6 @@ public class StreamExecutionEnvironment {
         // other ways assume
         // that the env is already instantiated so they will overwrite the value passed here.
         this.configure(this.configuration, this.userClassloader);
-    }
-
-    protected Configuration getConfiguration() {
-        return this.configuration;
     }
 
     protected ClassLoader getUserClassloader() {
@@ -324,6 +354,30 @@ public class StreamExecutionEnvironment {
                         + maxParallelism);
 
         config.setMaxParallelism(maxParallelism);
+        return this;
+    }
+
+    /**
+     * Register a slot sharing group with its resource spec.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment registerSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        final ResourceSpec resourceSpec =
+                SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup);
+        if (!resourceSpec.equals(ResourceSpec.UNKNOWN)) {
+            this.slotSharingGroupResources.put(
+                    slotSharingGroup.getName(),
+                    ResourceProfile.fromResourceSpec(
+                            SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup),
+                            MemorySize.ZERO));
+        }
         return this;
     }
 
@@ -538,13 +592,13 @@ public class StreamExecutionEnvironment {
         return checkpointCfg.isForceCheckpointing();
     }
 
-    /** Returns whether Unaligned Checkpoints are enabled. */
+    /** Returns whether unaligned checkpoints are enabled. */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
         return checkpointCfg.isUnalignedCheckpointsEnabled();
     }
 
-    /** Returns whether Unaligned Checkpoints are force-enabled. */
+    /** Returns whether unaligned checkpoints are force-enabled. */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
         return checkpointCfg.isForceUnalignedCheckpoints();
@@ -562,27 +616,30 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Sets the state backend that describes how to store and checkpoint operator state. It defines
-     * both which data structures hold state during execution (for example hash tables, RockDB, or
-     * other data stores) as well as where checkpointed data will be persisted.
+     * Sets the state backend that describes how to store operator. It defines the data structures
+     * that hold state during execution (for example hash tables, RocksDB, or other data stores).
      *
      * <p>State managed by the state backend includes both keyed state that is accessible on {@link
      * org.apache.flink.streaming.api.datastream.KeyedStream keyed streams}, as well as state
      * maintained directly by the user code that implements {@link
      * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction}.
      *
-     * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example maintains
-     * the state in heap memory, as objects. It is lightweight without extra dependencies, but can
-     * checkpoint only small states (some counters).
+     * <p>The {@link org.apache.flink.runtime.state.hashmap.HashMapStateBackend} maintains state in
+     * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
+     * heap memory.
      *
-     * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend} stores
-     * checkpoints of the state (also maintained as heap objects) in files. When using a replicated
-     * file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost
-     * upon failures of individual nodes and that streaming program can be executed highly available
-     * and strongly consistent (assuming that Flink is run in high-availability mode).
+     * <p>In contrast, the {@code EmbeddedRocksDBStateBackend} stores its state in an embedded
+     * {@code RocksDB} instance. This state backend can store very large state that exceeds memory
+     * and spills to local disk. All key/value state (including windows) is stored in the key/value
+     * index of RocksDB.
+     *
+     * <p>In both cases, fault tolerance is managed via the jobs {@link
+     * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
+     * backends persist during a checkpoint.
      *
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
+     * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
@@ -598,6 +655,56 @@ public class StreamExecutionEnvironment {
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
+        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        return this;
+    }
+
+    /**
+     * Gets the default savepoint directory for this Job.
+     *
+     * @see #setDefaultSavepointDirectory(Path)
+     */
+    @Nullable
+    @PublicEvolving
+    public Path getDefaultSavepointDirectory() {
+        return defaultSavepointDirectory;
     }
 
     /**
@@ -787,6 +894,21 @@ public class StreamExecutionEnvironment {
      * configuration}. If a key is not present, the current value of a field will remain untouched.
      *
      * @param configuration a configuration to read the values from
+     */
+    @PublicEvolving
+    public void configure(ReadableConfig configuration) {
+        configure(configuration, userClassloader);
+    }
+
+    /**
+     * Sets all relevant options contained in the {@link ReadableConfig} such as e.g. {@link
+     * StreamPipelineOptions#TIME_CHARACTERISTIC}. It will reconfigure {@link
+     * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
+     *
+     * <p>It will change the value of a setting only if a corresponding option was set in the {@code
+     * configuration}. If a key is not present, the current value of a field will remain untouched.
+     *
+     * @param configuration a configuration to read the values from
      * @param classLoader a class loader to use when loading classes
      */
     @PublicEvolving
@@ -817,21 +939,38 @@ public class StreamExecutionEnvironment {
                 .ifPresent(
                         runtimeMode ->
                                 this.configuration.set(ExecutionOptions.RUNTIME_MODE, runtimeMode));
+
+        configuration
+                .getOptional(ExecutionOptions.BATCH_SHUFFLE_MODE)
+                .ifPresent(
+                        shuffleMode ->
+                                this.configuration.set(
+                                        ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode));
+
         configuration
                 .getOptional(ExecutionOptions.SORT_INPUTS)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.SORT_INPUTS, sortInputs));
+                                this.configuration.set(ExecutionOptions.SORT_INPUTS, sortInputs));
         configuration
                 .getOptional(ExecutionOptions.USE_BATCH_STATE_BACKEND)
                 .ifPresent(
                         sortInputs ->
-                                this.getConfiguration()
-                                        .set(ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
+                                this.configuration.set(
+                                        ExecutionOptions.USE_BATCH_STATE_BACKEND, sortInputs));
         configuration
                 .getOptional(PipelineOptions.NAME)
-                .ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
+                .ifPresent(jobName -> this.configuration.set(PipelineOptions.NAME, jobName));
+
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                .ifPresent(
+                        flag ->
+                                this.configuration.set(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                        flag));
+
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
     }
@@ -1039,12 +1178,7 @@ public class StreamExecutionEnvironment {
         // must not have null elements and mixed elements
         FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
 
-        SourceFunction<OUT> function;
-        try {
-            function = new FromElementsFunction<>(typeInfo.createSerializer(getConfig()), data);
-        } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        SourceFunction<OUT> function = new FromElementsFunction<>(data);
         return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
                 .setParallelism(1);
     }
@@ -1762,7 +1896,7 @@ public class StreamExecutionEnvironment {
      * @throws Exception which occurs during job execution.
      */
     public JobExecutionResult execute() throws Exception {
-        return execute(getJobName());
+        return execute(getStreamGraph());
     }
 
     /**
@@ -1778,8 +1912,9 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
-        return execute(getStreamGraph(jobName));
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return execute(streamGraph);
     }
 
     /**
@@ -1854,7 +1989,7 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public final JobClient executeAsync() throws Exception {
-        return executeAsync(getJobName());
+        return executeAsync(getStreamGraph());
     }
 
     /**
@@ -1871,7 +2006,10 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        return executeAsync(getStreamGraph(checkNotNull(jobName)));
+        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return executeAsync(streamGraph);
     }
 
     /**
@@ -1921,62 +2059,63 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
+     * Getter of the {@link StreamGraph} of the streaming job. This call clears previously
+     * registered {@link Transformation transformations}.
      *
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
     public StreamGraph getStreamGraph() {
-        return getStreamGraph(getJobName());
+        return getStreamGraph(true);
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
+     * Getter of the {@link StreamGraph} of the streaming job with the option to clear previously
+     * registered {@link Transformation transformations}. Clearing the transformations allows, for
+     * example, to not re-execute the same operations when calling {@link #execute()} multiple
+     * times.
      *
-     * @param jobName Desired name of the job
-     * @return The streamgraph representing the transformations
-     */
-    @Internal
-    public StreamGraph getStreamGraph(String jobName) {
-        return getStreamGraph(jobName, true);
-    }
-
-    /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph StreamGraph} of the
-     * streaming job with the option to clear previously registered {@link Transformation
-     * transformations}. Clearing the transformations allows, for example, to not re-execute the
-     * same operations when calling {@link #execute()} multiple times.
-     *
-     * @param jobName Desired name of the job
      * @param clearTransformations Whether or not to clear previously registered transformations
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
-    public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
-        StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+    public StreamGraph getStreamGraph(boolean clearTransformations) {
+        final StreamGraph streamGraph = getStreamGraphGenerator(transformations).generate();
         if (clearTransformations) {
-            this.transformations.clear();
+            transformations.clear();
         }
         return streamGraph;
     }
 
-    private StreamGraphGenerator getStreamGraphGenerator() {
+    /**
+     * Generates a {@link StreamGraph} that consists of the given {@link Transformation
+     * transformations} and is configured with the configuration of this environment.
+     *
+     * <p>This method does not access or clear the previously registered transformations.
+     *
+     * @param transformations list of transformations that the graph should contain
+     * @return The stream graph representing the transformations
+     */
+    @Internal
+    public StreamGraph generateStreamGraph(List<Transformation<?>> transformations) {
+        return getStreamGraphGenerator(transformations).generate();
+    }
+
+    private StreamGraphGenerator getStreamGraphGenerator(List<Transformation<?>> transformations) {
         if (transformations.size() <= 0) {
             throw new IllegalStateException(
                     "No operators defined in streaming topology. Cannot execute.");
         }
 
-        final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
-
-        return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
-                .setRuntimeExecutionMode(executionMode)
+        return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
                 .setStateBackend(defaultStateBackend)
+                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
+                .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout);
+                .setDefaultBufferTimeout(bufferTimeout)
+                .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
     /**
@@ -1987,7 +2126,7 @@ public class StreamExecutionEnvironment {
      * @return The execution plan of the program, as a JSON String.
      */
     public String getExecutionPlan() {
-        return getStreamGraph(getJobName(), false).getStreamingPlanAsJSON();
+        return getStreamGraph(false).getStreamingPlanAsJSON();
     }
 
     /**
@@ -2017,6 +2156,22 @@ public class StreamExecutionEnvironment {
     public void addOperator(Transformation<?> transformation) {
         Preconditions.checkNotNull(transformation, "transformation must not be null.");
         this.transformations.add(transformation);
+    }
+
+    /**
+     * Gives read-only access to the underlying configuration of this environment.
+     *
+     * <p>Note that the returned configuration might not be complete. It only contains options that
+     * have initialized the environment via {@link #StreamExecutionEnvironment(Configuration)} or
+     * options that are not represented in dedicated configuration classes such as {@link
+     * ExecutionConfig} or {@link CheckpointConfig}.
+     *
+     * <p>Use {@link #configure(ReadableConfig, ClassLoader)} to set options that are specific to
+     * this environment.
+     */
+    @Internal
+    public ReadableConfig getConfiguration() {
+        return new UnmodifiableConfiguration(configuration);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2291,9 +2446,5 @@ public class StreamExecutionEnvironment {
             }
         }
         return (T) resolvedTypeInfo;
-    }
-
-    private String getJobName() {
-        return configuration.getString(PipelineOptions.NAME, DEFAULT_JOB_NAME);
     }
 }

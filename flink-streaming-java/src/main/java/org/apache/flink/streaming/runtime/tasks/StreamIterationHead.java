@@ -81,7 +81,8 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
                 output.collect(nextRecord);
             }
         } else {
-            controller.allActionsCompleted();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
     }
 

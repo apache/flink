@@ -50,9 +50,14 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
      * @param name Key name in ConfigMap or child path name in ZooKeeper
      * @param state State to be added
      * @throws AlreadyExistException if the name already exists
+     * @throws PossibleInconsistentStateException if the write operation failed. This indicates that
+     *     it's not clear whether the new state was successfully written to distributed coordination
+     *     system or not. No state was discarded. Proper error handling has to be applied on the
+     *     caller's side.
      * @throws Exception if persisting state or writing state handle failed
      */
-    RetrievableStateHandle<T> addAndLock(String name, T state) throws Exception;
+    RetrievableStateHandle<T> addAndLock(String name, T state)
+            throws PossibleInconsistentStateException, Exception;
 
     /**
      * Replaces a state handle in the distributed coordination system and discards the old state
@@ -64,9 +69,13 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
      *     operation snuck in.
      * @param state State to be replace with
      * @throws NotExistException if the name does not exist
+     * @throws PossibleInconsistentStateException if a failure occurred during the update operation
+     *     for which it's unclear whether the operation actually succeeded or not. No state was
+     *     discarded. The method's caller should handle this case properly.
      * @throws Exception if persisting state or writing state handle failed
      */
-    void replace(String name, R resourceVersion, T state) throws Exception;
+    void replace(String name, R resourceVersion, T state)
+            throws PossibleInconsistentStateException, Exception;
 
     /**
      * Returns resource version of state handle with specific name on the underlying storage.

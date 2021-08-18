@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
@@ -28,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -89,9 +89,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                             getCurrentExecution(sourceVertex, executionGraph);
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    sourceExecution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    sourceExecution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, empty());
                 });
 
@@ -103,9 +101,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                             getCurrentExecution(operatorVertex, executionGraph);
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    operatorExecution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    operatorExecution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, hasSize(1));
                     assertThat(
                             releasedPartitions.remove(),
@@ -127,9 +123,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     final Execution sinkExecution = getCurrentExecution(sinkVertex, executionGraph);
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    sinkExecution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    sinkExecution.getAttemptId(), ExecutionState.FINISHED));
 
                     assertThat(releasedPartitions, hasSize(1));
                     assertThat(
@@ -187,9 +181,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     // consumer o1 was not finished
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    sourceExecution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    sourceExecution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, empty());
                 });
 
@@ -207,9 +199,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     }
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    operator1Execution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    operator1Execution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, empty());
                 });
 
@@ -221,9 +211,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     // finished
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    operator2Execution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    operator2Execution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, empty());
                 });
 
@@ -243,9 +231,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     // finish o3; this should not result in any release calls since o2 was reset
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
-                                    executionGraph.getJobID(),
-                                    operator3Execution.getAttemptId(),
-                                    ExecutionState.FINISHED));
+                                    operator3Execution.getAttemptId(), ExecutionState.FINISHED));
                     assertThat(releasedPartitions, empty());
                 });
     }
@@ -262,7 +248,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
             final JobMasterPartitionTracker partitionTracker, final JobVertex... vertices)
             throws Exception {
 
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test job", vertices);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(vertices);
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.newSchedulerBuilder(
                                 jobGraph, mainThreadExecutor.getMainThreadExecutor())

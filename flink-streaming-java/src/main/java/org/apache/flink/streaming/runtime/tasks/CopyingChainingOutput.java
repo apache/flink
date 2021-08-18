@@ -18,10 +18,13 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
+
+import javax.annotation.Nullable;
 
 final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 
@@ -30,9 +33,17 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
     public CopyingChainingOutput(
             OneInputStreamOperator<T, ?> operator,
             TypeSerializer<T> serializer,
-            OutputTag<T> outputTag,
-            StreamStatusProvider streamStatusProvider) {
-        super(operator, streamStatusProvider, outputTag);
+            @Nullable OutputTag<T> outputTag) {
+        super(operator, outputTag);
+        this.serializer = serializer;
+    }
+
+    public CopyingChainingOutput(
+            Input<T> input,
+            TypeSerializer<T> serializer,
+            OperatorMetricGroup operatorMetricGroup,
+            @Nullable OutputTag<T> outputTag) {
+        super(input, operatorMetricGroup, outputTag);
         this.serializer = serializer;
     }
 

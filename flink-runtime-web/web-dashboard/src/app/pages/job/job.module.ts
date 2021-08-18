@@ -29,9 +29,34 @@ import { JobRoutingModule } from './job-routing.module';
 import { JobComponent } from './job.component';
 import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ShareModule, JobRoutingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ShareModule,
+    JobRoutingModule,
+    NzTableModule,
+    NzButtonModule,
+    NzTabsModule,
+    NzCardModule,
+    NzDividerModule,
+    NzCollapseModule,
+    NzEmptyModule,
+    NzSkeletonModule,
+    NzAlertModule,
+    NzPopconfirmModule
+  ],
   declarations: [
     JobComponent,
     JobStatusComponent,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.util.OperatingSystem;
 
@@ -41,6 +42,8 @@ import java.util.Properties;
  * startup options, or the JVM version.
  */
 public class EnvironmentInformation {
+    @VisibleForTesting public static final String UNKNOWN_COMMIT_ID = "DecafC0ffeeD0d0F00d";
+    @VisibleForTesting public static final String UNKNOWN_COMMIT_ID_ABBREV = "DeadD0d0";
 
     private static final Logger LOG = LoggerFactory.getLogger(EnvironmentInformation.class);
 
@@ -113,8 +116,6 @@ public class EnvironmentInformation {
     private static final class Versions {
         private static final Instant DEFAULT_TIME_INSTANT = Instant.EPOCH;
         private static final String DEFAULT_TIME_STRING = "1970-01-01T00:00:00+0000";
-        private static final String UNKNOWN_COMMIT_ID = "DecafC0ffeeD0d0F00d";
-        private static final String UNKNOWN_COMMIT_ID_ABBREV = "DeadD0d0";
         private String projectVersion = UNKNOWN;
         private String scalaVersion = UNKNOWN;
         private Instant gitBuildTime = DEFAULT_TIME_INSTANT;

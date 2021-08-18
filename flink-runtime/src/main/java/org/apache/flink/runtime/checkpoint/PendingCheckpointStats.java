@@ -136,7 +136,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
         this.trackerCallback = checkNotNull(trackerCallback);
         this.currentStateSize = currentStateSize;
-        this.currentPersistedData = processedData;
+        this.currentProcessedData = processedData;
         this.currentPersistedData = persistedData;
         this.latestAcknowledgedSubtask = latestAcknowledgedSubtask;
         this.currentNumAcknowledgedSubtasks = acknowledgedSubtaskCount;

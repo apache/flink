@@ -111,7 +111,7 @@ public class PartitionMonitorTest {
                     @Override
                     public HiveTablePartition toHiveTablePartition(Partition partition) {
                         StorageDescriptor sd = partition.getSd();
-                        Map<String, Object> partitionColValues = new HashMap<>();
+                        Map<String, String> partitionColValues = new HashMap<>();
                         for (String partCol : partition.getValues()) {
                             String[] arr = partCol.split("=");
                             Asserts.check(

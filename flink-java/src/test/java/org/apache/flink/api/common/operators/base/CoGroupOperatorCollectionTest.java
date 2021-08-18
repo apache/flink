@@ -88,7 +88,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
                             executionConfig,
                             cpTasks,
                             accumulators,
-                            new UnregisteredMetricsGroup());
+                            UnregisteredMetricsGroup.createOperatorMetricGroup());
 
             {
                 SumCoGroup udf1 = new SumCoGroup();

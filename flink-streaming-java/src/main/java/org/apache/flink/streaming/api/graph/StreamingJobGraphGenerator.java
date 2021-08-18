@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
+import org.apache.flink.runtime.jobgraph.topology.LogicalVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -55,15 +57,16 @@ import org.apache.flink.runtime.util.config.memory.ManagedMemoryUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
-import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -81,12 +84,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -161,8 +164,6 @@ public class StreamingJobGraphGenerator {
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
 
-        // make sure that all vertices start immediately
-        jobGraph.setScheduleMode(streamGraph.getScheduleMode());
         jobGraph.enableApproximateLocalRecovery(
                 streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
 
@@ -194,7 +195,16 @@ public class StreamingJobGraphGenerator {
 
         jobGraph.setSavepointRestoreSettings(streamGraph.getSavepointRestoreSettings());
 
-        JobGraphUtils.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
+        final Map<String, DistributedCache.DistributedCacheEntry> distributedCacheEntries =
+                JobGraphUtils.prepareUserArtifactEntries(
+                        streamGraph.getUserArtifacts().stream()
+                                .collect(Collectors.toMap(e -> e.f0, e -> e.f1)),
+                        jobGraph.getJobID());
+
+        for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
+                distributedCacheEntries.entrySet()) {
+            jobGraph.addUserArtifact(entry.getKey(), entry.getValue());
+        }
 
         // set the ExecutionConfig last when it has been finalized
         try {
@@ -225,7 +235,15 @@ public class StreamingJobGraphGenerator {
                     && !checkpointConfig.isForceUnalignedCheckpoints()) {
                 throw new UnsupportedOperationException(
                         "Unaligned Checkpoints are currently not supported for iterative jobs, "
-                                + " as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+                                + "as rescaling would require alignment (in addition to the reduced checkpointing guarantees)."
+                                + "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
+            }
+            if (checkpointConfig.isUnalignedCheckpointsEnabled()
+                    && !checkpointConfig.isForceUnalignedCheckpoints()
+                    && streamGraph.getStreamNodes().stream().anyMatch(this::hasCustomPartitioner)) {
+                throw new UnsupportedOperationException(
+                        "Unaligned checkpoints are currently not supported for custom partitioners, "
+                                + "as rescaling is not guaranteed to work correctly."
                                 + "\nThe user can force Unaligned Checkpoints by using 'execution.checkpointing.unaligned.forced'");
             }
 
@@ -249,6 +267,11 @@ public class StreamingJobGraphGenerator {
             LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
             checkpointConfig.enableUnalignedCheckpoints(false);
         }
+    }
+
+    private boolean hasCustomPartitioner(StreamNode node) {
+        return node.getOutEdges().stream()
+                .anyMatch(edge -> edge.getPartitioner() instanceof CustomPartitionerWrapper);
     }
 
     private void setPhysicalEdges() {
@@ -347,7 +370,10 @@ public class StreamingJobGraphGenerator {
         final Map<Integer, OperatorChainInfo> chainEntryPoints =
                 buildChainedInputsAndGetHeadInputs(hashes, legacyHashes);
         final Collection<OperatorChainInfo> initialEntryPoints =
-                new ArrayList<>(chainEntryPoints.values());
+                chainEntryPoints.entrySet().stream()
+                        .sorted(Comparator.comparing(Map.Entry::getKey))
+                        .map(Map.Entry::getValue)
+                        .collect(Collectors.toList());
 
         // iterate over a copy of the values, because this map gets concurrently modified
         for (OperatorChainInfo info : initialEntryPoints) {
@@ -696,13 +722,19 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
+        config.setChangelogStateBackendEnabled(streamGraph.isChangelogStateBackendEnabled());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
+        config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+        config.getConfiguration()
+                .set(
+                        ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                        streamGraph.isEnableCheckpointsAfterTasksFinish());
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
-        config.setAlignmentTimeout(checkpointCfg.getAlignmentTimeout());
+        config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
@@ -754,7 +786,7 @@ public class StreamingJobGraphGenerator {
         StreamPartitioner<?> partitioner = edge.getPartitioner();
 
         ResultPartitionType resultPartitionType;
-        switch (edge.getShuffleMode()) {
+        switch (edge.getExchangeMode()) {
             case PIPELINED:
                 resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
                 break;
@@ -766,13 +798,13 @@ public class StreamingJobGraphGenerator {
                 break;
             default:
                 throw new UnsupportedOperationException(
-                        "Data exchange mode " + edge.getShuffleMode() + " is not supported yet.");
+                        "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
 
         checkAndResetBufferTimeout(resultPartitionType, edge);
 
         JobEdge jobEdge;
-        if (isPointwisePartitioner(partitioner)) {
+        if (partitioner.isPointwise()) {
             jobEdge =
                     downStreamVertex.connectNewDataSetAsInput(
                             headVertex, DistributionPattern.POINTWISE, resultPartitionType);
@@ -811,13 +843,8 @@ public class StreamingJobGraphGenerator {
         }
     }
 
-    private static boolean isPointwisePartitioner(StreamPartitioner<?> partitioner) {
-        return partitioner instanceof ForwardPartitioner
-                || partitioner instanceof RescalePartitioner;
-    }
-
     private ResultPartitionType determineResultPartitionType(StreamPartitioner<?> partitioner) {
-        switch (streamGraph.getGlobalDataExchangeMode()) {
+        switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;
             case FORWARD_EDGES_PIPELINED:
@@ -827,7 +854,7 @@ public class StreamingJobGraphGenerator {
                     return ResultPartitionType.BLOCKING;
                 }
             case POINTWISE_EDGES_PIPELINED:
-                if (isPointwisePartitioner(partitioner)) {
+                if (partitioner.isPointwise()) {
                     return ResultPartitionType.PIPELINED_BOUNDED;
                 } else {
                     return ResultPartitionType.BLOCKING;
@@ -839,7 +866,7 @@ public class StreamingJobGraphGenerator {
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
-                                + streamGraph.getGlobalDataExchangeMode());
+                                + streamGraph.getGlobalStreamExchangeMode());
         }
     }
 
@@ -856,7 +883,7 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && (edge.getPartitioner() instanceof ForwardPartitioner)
-                && edge.getShuffleMode() != ShuffleMode.BATCH
+                && edge.getExchangeMode() != StreamExchangeMode.BATCH
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 
@@ -950,7 +977,7 @@ public class StreamingJobGraphGenerator {
         final Map<JobVertexID, SlotSharingGroup> vertexRegionSlotSharingGroups =
                 buildVertexRegionSlotSharingGroups();
 
-        for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+        for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
             final JobVertex vertex = entry.getValue();
             final String slotSharingGroupKey =
@@ -995,8 +1022,8 @@ public class StreamingJobGraphGenerator {
         final boolean allRegionsInSameSlotSharingGroup =
                 streamGraph.isAllVerticesInSameSlotSharingGroupByDefault();
 
-        final Set<DefaultLogicalPipelinedRegion> regions =
-                new DefaultLogicalTopology(jobGraph).getLogicalPipelinedRegions();
+        final Iterable<DefaultLogicalPipelinedRegion> regions =
+                DefaultLogicalTopology.fromJobGraph(jobGraph).getAllPipelinedRegions();
         for (DefaultLogicalPipelinedRegion region : regions) {
             final SlotSharingGroup regionSlotSharingGroup;
             if (allRegionsInSameSlotSharingGroup) {
@@ -1009,8 +1036,8 @@ public class StreamingJobGraphGenerator {
                         .ifPresent(regionSlotSharingGroup::setResourceProfile);
             }
 
-            for (JobVertexID jobVertexID : region.getVertexIDs()) {
-                vertexRegionSlotSharingGroups.put(jobVertexID, regionSlotSharingGroup);
+            for (LogicalVertex vertex : region.getVertices()) {
+                vertexRegionSlotSharingGroups.put(vertex.getId(), regionSlotSharingGroup);
             }
         }
 
@@ -1021,7 +1048,7 @@ public class StreamingJobGraphGenerator {
         final Map<String, Tuple2<SlotSharingGroup, CoLocationGroupImpl>> coLocationGroups =
                 new HashMap<>();
 
-        for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+        for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
             final StreamNode node = streamGraph.getStreamNode(entry.getKey());
             final JobVertex vertex = entry.getValue();
@@ -1070,7 +1097,7 @@ public class StreamingJobGraphGenerator {
         // maps a job vertex ID to IDs of all operators in the vertex
         final Map<JobVertexID, Set<Integer>> vertexOperators = new HashMap<>();
 
-        for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+        for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
             final int headOperatorId = entry.getKey();
             final JobVertex jobVertex = entry.getValue();
 
@@ -1292,9 +1319,15 @@ public class StreamingJobGraphGenerator {
                                 .setTolerableCheckpointFailureNumber(
                                         cfg.getTolerableCheckpointFailureNumber())
                                 .setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
-                                .setAlignmentTimeout(cfg.getAlignmentTimeout())
+                                .setCheckpointIdOfIgnoredInFlightData(
+                                        cfg.getCheckpointIdOfIgnoredInFlightData())
+                                .setAlignedCheckpointTimeout(
+                                        cfg.getAlignedCheckpointTimeout().toMillis())
+                                .setEnableCheckpointsAfterTasksFinish(
+                                        streamGraph.isEnableCheckpointsAfterTasksFinish())
                                 .build(),
                         serializedStateBackend,
+                        streamGraph.isChangelogStateBackendEnabled(),
                         serializedCheckpointStorage,
                         serializedHooks);
 

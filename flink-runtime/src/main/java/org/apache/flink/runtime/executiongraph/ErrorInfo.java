@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
@@ -35,7 +39,33 @@ public class ErrorInfo implements Serializable {
 
     private final long timestamp;
 
-    public ErrorInfo(Throwable exception, long timestamp) {
+    /**
+     * Instantiates an {@code ErrorInfo} to cover inconsistent behavior due to FLINK-21376.
+     *
+     * @param exception The error cause that might be {@code null}.
+     * @param timestamp The timestamp the error was noticed.
+     * @return a {@code ErrorInfo} containing a generic {@link FlinkException} in case of a missing
+     *     error cause.
+     */
+    public static ErrorInfo createErrorInfoWithNullableCause(
+            @Nullable Throwable exception, long timestamp) {
+        return new ErrorInfo(handleMissingThrowable(exception), timestamp);
+    }
+
+    /**
+     * Utility method to cover FLINK-21376.
+     *
+     * @param throwable The actual exception.
+     * @return a {@link FlinkException} if no exception was passed.
+     */
+    public static Throwable handleMissingThrowable(@Nullable Throwable throwable) {
+        return throwable != null
+                ? throwable
+                : new FlinkException(
+                        "Unknown cause for Execution failure (this might be caused by FLINK-21376).");
+    }
+
+    public ErrorInfo(@Nonnull Throwable exception, long timestamp) {
         Preconditions.checkNotNull(exception);
         Preconditions.checkArgument(timestamp > 0);
 

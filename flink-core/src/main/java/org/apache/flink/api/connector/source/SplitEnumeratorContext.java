@@ -19,7 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -36,7 +36,7 @@ import java.util.function.BiConsumer;
 @PublicEvolving
 public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
-    MetricGroup metricGroup();
+    SplitEnumeratorMetricGroup metricGroup();
 
     /**
      * Send a source event to a source reader. The source reader is identified by its subtask id.
@@ -92,7 +92,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
     /**
      * Invoke the callable and handover the return value to the handler which will be executed by
-     * the source coordinator. When this method is invoked multiple times, The <code>Coallble</code>
+     * the source coordinator. When this method is invoked multiple times, The <code>Callable</code>
      * s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
@@ -110,7 +110,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
     /**
      * Invoke the given callable periodically and handover the return value to the handler which
      * will be executed by the source coordinator. When this method is invoked multiple times, The
-     * <code>Coallble</code>s may be executed in a thread pool concurrently.
+     * <code>Callable</code>s may be executed in a thread pool concurrently.
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
      * especially the states that will be a part of the {@link SplitEnumerator#snapshotState()}.

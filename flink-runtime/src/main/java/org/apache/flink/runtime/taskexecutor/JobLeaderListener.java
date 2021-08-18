@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -58,4 +59,14 @@ public interface JobLeaderListener {
      * @param throwable cause
      */
     void handleError(Throwable throwable);
+
+    /**
+     * Callback if a job manager rejected the connection attempts of a task manager.
+     *
+     * @param jobId jobId identifying the job to connect to
+     * @param targetAddress targetAddress of the responsible job manager
+     * @param rejection rejection containing more information about the rejection
+     */
+    void jobManagerRejectedRegistration(
+            JobID jobId, String targetAddress, JMTMRegistrationRejection rejection);
 }

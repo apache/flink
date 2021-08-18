@@ -32,11 +32,13 @@ import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp.Capability;
 
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
@@ -53,13 +55,21 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     private int page;
     private LocalTime lastRetrieval;
     private int previousResultsPage;
+    private final ZoneId sessionTimeZone;
 
     private static final int DEFAULT_REFRESH_INTERVAL = 3; // every 1s
     private static final int MIN_REFRESH_INTERVAL = 1; // every 100ms
     private static final int LAST_PAGE = 0;
 
     public CliTableResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+        super(
+                client,
+                resultDescriptor,
+                PrintUtils.columnWidthsByType(
+                        resultDescriptor.getResultSchema().getColumns(),
+                        resultDescriptor.maxColumnWidth(),
+                        PrintUtils.NULL_COLUMN,
+                        null));
 
         refreshInterval = DEFAULT_REFRESH_INTERVAL;
         pageCount = 1;
@@ -68,6 +78,9 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
         previousResults = Collections.emptyList();
         previousResultsPage = 1;
         results = Collections.emptyList();
+        this.sessionTimeZone =
+                CliUtils.getSessionTimeZone(
+                        client.getExecutor().getSessionConfig(client.getSessionId()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -75,11 +88,6 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     @Override
     protected String[] getRow(String[] resultRow) {
         return resultRow;
-    }
-
-    @Override
-    protected int computeColumnWidth(int idx) {
-        return MAX_COLUMN_WIDTH;
     }
 
     @Override
@@ -264,13 +272,15 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     protected List<AttributedString> computeMainHeaderLines() {
         final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
 
-        Arrays.stream(resultDescriptor.getResultSchema().getFieldNames())
+        IntStream.range(0, resultDescriptor.getResultSchema().getColumnCount())
                 .forEach(
-                        s -> {
-                            schemaHeader.append(' ');
-                            schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, MAX_COLUMN_WIDTH);
+                        idx -> {
                             schemaHeader.style(AttributedStyle.DEFAULT);
+                            schemaHeader.append(' ');
+                            String columnName =
+                                    resultDescriptor.getResultSchema().getColumnNames().get(idx);
+                            schemaHeader.style(AttributedStyle.DEFAULT.underline());
+                            normalizeColumn(schemaHeader, columnName, columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());
@@ -298,7 +308,14 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 
         // convert page
         final List<String[]> stringRows =
-                rows.stream().map(PrintUtils::rowToString).collect(Collectors.toList());
+                rows.stream()
+                        .map(
+                                r ->
+                                        PrintUtils.rowToString(
+                                                r,
+                                                resultDescriptor.getResultSchema(),
+                                                sessionTimeZone))
+                        .collect(Collectors.toList());
 
         // update results
         if (previousResultsPage == retrievalPage) {

@@ -40,7 +40,7 @@ import java.io.IOException;
  * Base class for {@link State} implementations that store state in a RocksDB database.
  *
  * <p>State is not stored in this class but in the {@link org.rocksdb.RocksDB} instance that the
- * {@link RocksDBStateBackend} manages and checkpoints.
+ * {@link EmbeddedRocksDBStateBackend} manages and checkpoints.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.

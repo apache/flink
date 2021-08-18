@@ -1,0 +1,304 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCannotProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, b + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], EXPR$2=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotProjectWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c, d, b + 1 FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], d=[+($0, 1)], EXPR$3=[+($1, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectFieldAccessWithITEMWithConstantIndex">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.`Mid`.data_arr[2].`value`, `Result`.`Mid`.data_arr FROM NestedItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], data_arr=[$2.Mid.data_arr])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0, 2).value], data_arr=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testComplicatedNestedProject">
+    <Resource name="sql">
+      <![CDATA[SELECT id,    deepNested.nested1.name AS nestedName,
+    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum
+FROM NestedTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedSum=[+($3..value, $3.nested..value)])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1], nestedSum=[+($2, $3)])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNestedWith._.value, deepNestedWith._nested_.value]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProject">
+    <Resource name="sql">
+      <![CDATA[SELECT id,
+    deepNested.nested1.name AS nestedName,
+    nested.`value` AS nestedValue,
+    deepNested.nested2.flag AS nestedFlag,
+    deepNested.nested2.num AS nestedNum
+FROM NestedTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], nestedFlag=[$1.nested2.flag], nestedNum=[$1.nested2.num])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], nestedName=[$1], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$3])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectFieldAccessWithITEM">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.`Mid`.data_arr[ID].`value`, `Result`.`Mid`.data_map['item'].`value` FROM NestedItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, $0).value], EXPR$1=[ITEM($2.Mid.data_map, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0, $2).value], EXPR$1=[ITEM($1, _UTF-16LE'item').value])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr, Result_Mid_data_map, ID]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedProjectFieldAccessWithITEMContainsTopLevelAccess">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.`Mid`.data_arr[2].`value`, `Result`.`Mid`.data_arr[ID].`value`, `Result`.`Mid`.data_map['item'].`value`, `Result`.`Mid` FROM NestedItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], EXPR$1=[ITEM($2.Mid.data_arr, $0).value], EXPR$2=[ITEM($2.Mid.data_map, _UTF-16LE'item').value], Mid=[$2.Mid])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0.data_arr, 2).value], EXPR$1=[ITEM($0.data_arr, $1).value], EXPR$2=[ITEM($0.data_map, _UTF-16LE'item').value], Mid=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid, ID]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestProjectWithMetadata">
+    <Resource name="sql">
+      <![CDATA[SELECT id,    deepNested.nested1 AS nested1,
+    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM MetadataTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1], results=[+(+($1.value, $2), $3)])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestProjectWithUpsertSource">
+    <Resource name="sql">
+      <![CDATA[SELECT id,    deepNested.nested1 AS nested1,
+    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+FROM MetadataTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], nested1=[$1], results=[+(+($1.value, $2), $3)])
++- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithMapType">
+    <Resource name="sql">
+      <![CDATA[SELECT id, testMap['e']
+FROM NestedTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], EXPR$1=[ITEM($5, _UTF-16LE'e')])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(id=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, testMap]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldAccessWithITEM">
+    <Resource name="sql">
+      <![CDATA[SELECT `Result`.data_arr[ID].`value`, `Result`.data_map['item'].`value`, `outer_array`[1], `outer_array`[ID], `outer_map`['item'] FROM ItemTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($3, 1)], EXPR$3=[ITEM($3, $0)], EXPR$4=[ITEM($4, _UTF-16LE'item')])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($2, 1)], EXPR$3=[ITEM($2, $1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithoutInputRef">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(1) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
++- LogicalProject($f0=[0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithUdf">
+    <Resource name="sql">
+      <![CDATA[SELECT a, TRIM(c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectWithUdfWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, my_udf(d) FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[my_udf(+($0, 1))])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[a]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProjectWithVirtualColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d=[+($0, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], d=[+($0, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable, project=[a]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

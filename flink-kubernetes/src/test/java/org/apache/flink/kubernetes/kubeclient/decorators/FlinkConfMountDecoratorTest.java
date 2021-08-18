@@ -47,11 +47,11 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator.getFlinkConfConfigMapName;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link FlinkConfMountDecorator}. */
 public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
@@ -77,7 +77,9 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
     @Test
     public void testWhetherPodOrContainerIsDecorated() {
         final FlinkPod resultFlinkPod = flinkConfMountDecorator.decorateFlinkPod(baseFlinkPod);
-        assertNotEquals(baseFlinkPod.getPod(), resultFlinkPod.getPod());
+        assertNotEquals(
+                baseFlinkPod.getPodWithoutMainContainer(),
+                resultFlinkPod.getPodWithoutMainContainer());
         assertNotEquals(baseFlinkPod.getMainContainer(), resultFlinkPod.getMainContainer());
     }
 
@@ -133,7 +135,9 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withItems(expectedKeyToPaths)
                                 .endConfigMap()
                                 .build());
-        assertEquals(expectedVolumes, resultFlinkPod.getPod().getSpec().getVolumes());
+        assertEquals(
+                expectedVolumes,
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes());
 
         final List<VolumeMount> expectedVolumeMounts =
                 Collections.singletonList(
@@ -169,7 +173,9 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withItems(expectedKeyToPaths)
                                 .endConfigMap()
                                 .build());
-        assertEquals(expectedVolumes, resultFlinkPod.getPod().getSpec().getVolumes());
+        assertEquals(
+                expectedVolumes,
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes());
     }
 
     @Test
@@ -197,7 +203,9 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withItems(expectedKeyToPaths)
                                 .endConfigMap()
                                 .build());
-        assertEquals(expectedVolumes, resultFlinkPod.getPod().getSpec().getVolumes());
+        assertEquals(
+                expectedVolumes,
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes());
     }
 
     @Test
@@ -230,7 +238,9 @@ public class FlinkConfMountDecoratorTest extends KubernetesJobManagerTestBase {
                                 .withItems(expectedKeyToPaths)
                                 .endConfigMap()
                                 .build());
-        assertEquals(expectedVolumes, resultFlinkPod.getPod().getSpec().getVolumes());
+        assertEquals(
+                expectedVolumes,
+                resultFlinkPod.getPodWithoutMainContainer().getSpec().getVolumes());
     }
 
     @Test

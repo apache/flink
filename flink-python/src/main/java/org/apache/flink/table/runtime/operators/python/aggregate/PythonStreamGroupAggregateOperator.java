@@ -26,9 +26,9 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-/** The Python AggregateFunction operator for the blink planner. */
+/** The Python AggregateFunction operator. */
 @Internal
-public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamAggregateOperator {
+public class PythonStreamGroupAggregateOperator extends AbstractPythonStreamGroupAggregateOperator {
 
     private static final long serialVersionUID = 1L;
 

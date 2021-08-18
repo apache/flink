@@ -18,21 +18,31 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.KubernetesResource;
+import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
 import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_INFORMATION;
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesLeaderElectionDriver} and {@link
@@ -52,16 +62,27 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
         KubernetesLeaderElectionDriver leaderElectionDriver = null;
         KubernetesLeaderRetrievalDriver leaderRetrievalDriver = null;
 
+        final FlinkKubeClient flinkKubeClient = kubernetesResource.getFlinkKubeClient();
+        final Configuration configuration = kubernetesResource.getConfiguration();
+
+        final String clusterId = configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+        final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
+                flinkKubeClient.createConfigMapSharedWatcher(
+                        KubernetesUtils.getConfigMapLabels(
+                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+        final ExecutorService watchExecutorService = Executors.newCachedThreadPool();
+
+        final TestingLeaderElectionEventHandler electionEventHandler =
+                new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
+
         try {
-            final TestingLeaderElectionEventHandler electionEventHandler =
-                    new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
             leaderElectionDriver =
                     new KubernetesLeaderElectionDriver(
-                            kubernetesResource.getFlinkKubeClient(),
+                            flinkKubeClient,
+                            configMapSharedWatcher,
+                            watchExecutorService,
                             new KubernetesLeaderElectionConfiguration(
-                                    configMapName,
-                                    UUID.randomUUID().toString(),
-                                    kubernetesResource.getConfiguration()),
+                                    configMapName, UUID.randomUUID().toString(), configuration),
                             electionEventHandler,
                             electionEventHandler::handleError);
             electionEventHandler.init(leaderElectionDriver);
@@ -70,7 +91,9 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                     new TestingLeaderRetrievalEventHandler();
             leaderRetrievalDriver =
                     new KubernetesLeaderRetrievalDriver(
-                            kubernetesResource.getFlinkKubeClient(),
+                            flinkKubeClient,
+                            configMapSharedWatcher,
+                            watchExecutorService,
                             configMapName,
                             retrievalEventHandler,
                             retrievalEventHandler::handleError);
@@ -88,13 +111,16 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
             assertThat(
                     retrievalEventHandler.getAddress(), is(LEADER_INFORMATION.getLeaderAddress()));
         } finally {
+            electionEventHandler.close();
             if (leaderElectionDriver != null) {
                 leaderElectionDriver.close();
             }
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
             }
-            kubernetesResource.getFlinkKubeClient().deleteConfigMap(configMapName).get();
+            flinkKubeClient.deleteConfigMap(configMapName).get();
+            configMapSharedWatcher.close();
+            ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, watchExecutorService);
         }
     }
 }

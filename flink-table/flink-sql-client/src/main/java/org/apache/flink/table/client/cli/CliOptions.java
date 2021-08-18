@@ -20,6 +20,8 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.configuration.Configuration;
 
+import javax.annotation.Nullable;
+
 import java.net.URL;
 import java.util.List;
 
@@ -31,8 +33,8 @@ public class CliOptions {
 
     private final boolean isPrintHelp;
     private final String sessionId;
-    private final URL environment;
-    private final URL defaults;
+    private final URL initFile;
+    private final URL sqlFile;
     private final List<URL> jars;
     private final List<URL> libraryDirs;
     private final String updateStatement;
@@ -42,8 +44,8 @@ public class CliOptions {
     public CliOptions(
             boolean isPrintHelp,
             String sessionId,
-            URL environment,
-            URL defaults,
+            URL initFile,
+            URL sqlFile,
             List<URL> jars,
             List<URL> libraryDirs,
             String updateStatement,
@@ -51,8 +53,8 @@ public class CliOptions {
             Configuration pythonConfiguration) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
-        this.environment = environment;
-        this.defaults = defaults;
+        this.initFile = initFile;
+        this.sqlFile = sqlFile;
         this.jars = jars;
         this.libraryDirs = libraryDirs;
         this.updateStatement = updateStatement;
@@ -68,12 +70,12 @@ public class CliOptions {
         return sessionId;
     }
 
-    public URL getEnvironment() {
-        return environment;
+    public @Nullable URL getInitFile() {
+        return initFile;
     }
 
-    public URL getDefaults() {
-        return defaults;
+    public @Nullable URL getSqlFile() {
+        return sqlFile;
     }
 
     public List<URL> getJars() {

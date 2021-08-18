@@ -34,18 +34,14 @@ public class ResourceManagerRuntimeServicesConfiguration {
 
     private final SlotManagerConfiguration slotManagerConfiguration;
 
-    private final boolean enableDeclarativeResourceManagement;
-
     private final boolean enableFineGrainedResourceManagement;
 
     public ResourceManagerRuntimeServicesConfiguration(
             Time jobTimeout,
             SlotManagerConfiguration slotManagerConfiguration,
-            boolean enableDeclarativeResourceManagement,
             boolean enableFineGrainedResourceManagement) {
         this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
         this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
-        this.enableDeclarativeResourceManagement = enableDeclarativeResourceManagement;
         this.enableFineGrainedResourceManagement = enableFineGrainedResourceManagement;
     }
 
@@ -55,10 +51,6 @@ public class ResourceManagerRuntimeServicesConfiguration {
 
     public SlotManagerConfiguration getSlotManagerConfiguration() {
         return slotManagerConfiguration;
-    }
-
-    public boolean isDeclarativeResourceManagementEnabled() {
-        return enableDeclarativeResourceManagement;
     }
 
     public boolean isEnableFineGrainedResourceManagement() {
@@ -91,16 +83,10 @@ public class ResourceManagerRuntimeServicesConfiguration {
                 SlotManagerConfiguration.fromConfiguration(
                         configuration, defaultWorkerResourceSpec);
 
-        final boolean enableDeclarativeResourceManagement =
-                ClusterOptions.isDeclarativeResourceManagementEnabled(configuration);
-
         final boolean enableFineGrainedResourceManagement =
                 ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
 
         return new ResourceManagerRuntimeServicesConfiguration(
-                jobTimeout,
-                slotManagerConfiguration,
-                enableDeclarativeResourceManagement,
-                enableFineGrainedResourceManagement);
+                jobTimeout, slotManagerConfiguration, enableFineGrainedResourceManagement);
     }
 }

@@ -30,8 +30,8 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
 
     @Test
     public void testParseGroupingKey() {
-        PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
-        Map<String, String> groupingKey = reporter.parseGroupingKey("k1=v1;k2=v2");
+        Map<String, String> groupingKey =
+                PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=v1;k2=v2");
         Assert.assertNotNull(groupingKey);
         Assert.assertEquals("v1", groupingKey.get("k1"));
         Assert.assertEquals("v2", groupingKey.get("k2"));
@@ -39,14 +39,14 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
 
     @Test
     public void testParseIncompleteGroupingKey() {
-        PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
-        Map<String, String> groupingKey = reporter.parseGroupingKey("k1=");
+        Map<String, String> groupingKey =
+                PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=");
         Assert.assertTrue(groupingKey.isEmpty());
 
-        groupingKey = reporter.parseGroupingKey("=v1");
+        groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("=v1");
         Assert.assertTrue(groupingKey.isEmpty());
 
-        groupingKey = reporter.parseGroupingKey("k1");
+        groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("k1");
         Assert.assertTrue(groupingKey.isEmpty());
     }
 }

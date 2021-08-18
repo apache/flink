@@ -30,9 +30,8 @@ import javax.annotation.Nonnull;
 /** ZooKeeper based implementation for {@link ClientHighAvailabilityServices}. */
 public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices {
 
-    private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
-
     private final CuratorFramework client;
+
     private final Configuration configuration;
 
     public ZooKeeperClientHAServices(
@@ -44,7 +43,7 @@ public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices
     @Override
     public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
         return ZooKeeperUtils.createLeaderRetrievalService(
-                client, configuration, REST_SERVER_LEADER_PATH);
+                client, ZooKeeperUtils.getLeaderPathForRestServer(), configuration);
     }
 
     @Override
