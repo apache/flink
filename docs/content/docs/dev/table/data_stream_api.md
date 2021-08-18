@@ -329,7 +329,7 @@ updates for each incoming record. However, in cases where the input streams are 
 a result can be computed more efficiently by leveraging batch processing principles. Both DataStream
 API and Table API offer a specialized *batch runtime mode*.
 
-The following example shows that the unified pipeline is able to process both batch and streaming data
+The following example illustrates that the unified pipeline is able to process both batch and streaming data
 by just switching a flag.
 
 {{< tabs "61a8a0b8-c38b-48f3-b52e-563546139380" >}}
@@ -697,11 +697,19 @@ val tableEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMod
 {{< /tab >}}
 {{< /tabs >}}
 
-Setting the runtime mode has the following implications (among others):
+One must meet the following prerequisites before setting the runtime mode to `BATCH`:
 
-- All sources must declare themselves as bounded. Otherwise an exception is thrown.
+- All sources must declare themselves as bounded.
 
-- Currently, table sources must emit insert-only changes. Otherwise an exception is thrown.
+- Currently, table sources must emit insert-only changes.
+
+- Operators need a sufficient amount of [off-heap memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)
+for sorting and other intermediate results.
+
+- All table operations must be available in batch mode. Currently, some of them are only available in
+streaming mode. Please check the corresponding Table API & SQL pages.
+
+A batch execution has the following implications (among others):
 
 - Progressive watermarks are neither generated nor used in operators. However, sources emit a maximum
 watermark before shutting down.
@@ -709,21 +717,14 @@ watermark before shutting down.
 - Exchanges between tasks might be blocking according to the [`execution.batch-shuffle-mode`]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode).
 This also means potentially less resource requirements compared to executing the same pipeline in streaming mode.
 
-- Checkpointing must be disabled. Artificial state backends are inserted.
+- Checkpointing is disabled. Artificial state backends are inserted.
 
-- Operators need a sufficient amount of [off-heap memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)
-for sorting and other intermediate results.
-
-- Table operations are not producing incremental updates but only a complete final result which converts
+- Table operations don't produce incremental updates but only a complete final result which converts
 to an insert-only changelog stream.
 
-- Some table operations might not be available in batch mode. Please check the corresponding Table API & SQL
-pages.
-
 {{< hint info >}}
-Since batch processing can be considered as *a special case of stream processing*, we recommend to
-implement a streaming pipeline first as it is the most general implementation for both bounded and
-unbounded data.
+Since batch processing can be considered as *a special case of stream processing*, we recommend implementing
+a streaming pipeline first as it is the most general implementation for both bounded and unbounded data.
 {{< /hint >}}
 
 The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}). Many sources offer options that implicitly make the connector bounded, for example,
