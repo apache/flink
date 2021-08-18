@@ -41,10 +41,6 @@ class ExpressionCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase
             'toExpr',
             'getChildren',
 
-            # The following methods need to be implemented still
-            'jsonExists',
-            'jsonValue',
-
             # The following methods have been replaced with the built-in methods in Python,
             # such as __and__ for and to be more Pythonic.
             'and',
