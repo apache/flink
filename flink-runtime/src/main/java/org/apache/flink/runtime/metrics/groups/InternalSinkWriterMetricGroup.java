@@ -55,6 +55,12 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
                 metricGroup, UnregisteredMetricsGroup.createOperatorIOMetricGroup());
     }
 
+    @VisibleForTesting
+    public static InternalSinkWriterMetricGroup mock(
+            MetricGroup metricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
+        return new InternalSinkWriterMetricGroup(metricGroup, operatorIOMetricGroup);
+    }
+
     @Override
     public OperatorIOMetricGroup getIOMetricGroup() {
         return operatorIOMetricGroup;
