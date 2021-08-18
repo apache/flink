@@ -61,11 +61,6 @@ public class TestBoundedTwoInputOperator extends AbstractStreamOperator<String>
         super.finish();
     }
 
-    @Override
-    public void close() throws Exception {
-        output("[" + name + "]: Bye");
-    }
-
     private void output(String record) {
         output.collect(new StreamRecord<>(record));
     }

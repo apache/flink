@@ -286,9 +286,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 Watermark.MAX_WATERMARK,
                 new StreamRecord<>("[Source0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Finish"),
-                new StreamRecord<>("[Operator1]: Bye"),
-                new StreamRecord<>("[Source0]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -330,7 +328,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         expectedOutput.add(new StreamRecord<>("Hello"));
-        expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -1040,12 +1037,6 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
 
             output("[" + name + "]: Finish");
             super.finish();
-        }
-
-        @Override
-        public void close() throws Exception {
-            output("[" + name + "]: Bye");
-            super.close();
         }
 
         private void output(String record) {
