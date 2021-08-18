@@ -73,11 +73,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -215,8 +217,7 @@ public class KinesisDataFetcher<T> {
     /** The factory used to create record publishers that consumer from Kinesis shards. */
     private final RecordPublisherFactory recordPublisherFactory;
 
-    /** Thread that executed runFetcher(). */
-    private volatile Thread mainThread;
+    private final CompletableFuture<Void> cancelFuture = new CompletableFuture<>();
 
     /**
      * The current number of shards that are actively read by this fetcher.
@@ -511,8 +512,6 @@ public class KinesisDataFetcher<T> {
             return;
         }
 
-        this.mainThread = Thread.currentThread();
-
         // ------------------------------------------------------------------------
         //  Procedures before starting the infinite while loop:
         // ------------------------------------------------------------------------
@@ -748,9 +747,10 @@ public class KinesisDataFetcher<T> {
             // interval if the running flag was set to false during the middle of the while loop
             if (running && discoveryIntervalMillis != 0) {
                 try {
-                    Thread.sleep(discoveryIntervalMillis);
-                } catch (InterruptedException iex) {
-                    // the sleep may be interrupted by shutdownFetcher()
+                    cancelFuture.get(discoveryIntervalMillis, TimeUnit.MILLISECONDS);
+                    LOG.debug("Cancelled discovery");
+                } catch (TimeoutException iex) {
+                    // timeout is expected when fetcher is not cancelled
                 }
             }
         }
@@ -821,10 +821,7 @@ public class KinesisDataFetcher<T> {
         } finally {
             shardConsumersExecutor.shutdownNow();
 
-            if (mainThread != null) {
-                mainThread
-                        .interrupt(); // the main thread may be sleeping for the discovery interval
-            }
+            cancelFuture.complete(null);
 
             if (watermarkTracker != null) {
                 watermarkTracker.close();
