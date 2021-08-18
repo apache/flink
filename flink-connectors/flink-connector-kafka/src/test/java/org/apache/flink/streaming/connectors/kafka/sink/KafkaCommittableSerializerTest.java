@@ -24,7 +24,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for serializing and deserialzing {@link KafkaCommittable} with {@link
+ * Tests for serializing and deserializing {@link KafkaCommittable} with {@link
  * KafkaCommittableSerializer}.
  */
 public class KafkaCommittableSerializerTest {

@@ -24,7 +24,7 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
+ * Tests for serializing and deserializing {@link KafkaWriterState} with {@link
  * KafkaWriterStateSerializer}.
  */
 public class KafkaWriterStateSerializerTest {
