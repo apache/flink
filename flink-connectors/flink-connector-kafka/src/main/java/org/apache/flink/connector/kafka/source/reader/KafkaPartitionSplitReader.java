@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
@@ -75,14 +76,15 @@ public class KafkaPartitionSplitReader<T>
     private final SimpleCollector<T> collector;
     private final String groupId;
     private final int subtaskId;
+
     private final KafkaSourceReaderMetrics kafkaSourceReaderMetrics;
 
     public KafkaPartitionSplitReader(
             Properties props,
             KafkaRecordDeserializationSchema<T> deserializationSchema,
-            int subtaskId,
+            SourceReaderContext context,
             KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
-        this.subtaskId = subtaskId;
+        this.subtaskId = context.getIndexOfSubtask();
         this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
         Properties consumerProps = new Properties();
         consumerProps.putAll(props);
@@ -92,7 +94,10 @@ public class KafkaPartitionSplitReader<T>
         this.deserializationSchema = deserializationSchema;
         this.collector = new SimpleCollector<>();
         this.groupId = consumerProps.getProperty(ConsumerConfig.GROUP_ID_CONFIG);
+
+        // Metric registration
         maybeRegisterKafkaConsumerMetrics(props, kafkaSourceReaderMetrics, consumer);
+        this.kafkaSourceReaderMetrics.registerNumBytesIn(consumer);
     }
 
     @Override
@@ -173,12 +178,20 @@ public class KafkaPartitionSplitReader<T>
                 kafkaSourceReaderMetrics.recordCurrentOffset(
                         tp, recordsFromPartition.get(recordsFromPartition.size() - 1).offset());
             }
+
+            // Track this partition's record lag if it never appears before
+            kafkaSourceReaderMetrics.maybeAddRecordsLagMetric(consumer, tp);
         }
         // Unassign the partitions that has finished.
         if (!finishedPartitions.isEmpty()) {
+            finishedPartitions.forEach(kafkaSourceReaderMetrics::removeRecordsLagMetric);
             unassignPartitions(finishedPartitions);
         }
         recordsBySplits.prepareForRead();
+
+        // Update numBytesIn
+        kafkaSourceReaderMetrics.updateNumBytesInCounter();
+
         return recordsBySplits;
     }
 

@@ -21,6 +21,7 @@ package org.apache.flink.connector.kafka.source.metrics;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
@@ -46,7 +47,8 @@ public class KafkaSourceReaderMetricsTest {
         MetricListener metricListener = new MetricListener();
 
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
-                new KafkaSourceReaderMetrics(metricListener.getMetricGroup());
+                new KafkaSourceReaderMetrics(
+                        InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
 
         kafkaSourceReaderMetrics.registerTopicPartition(FOO_0);
         kafkaSourceReaderMetrics.registerTopicPartition(FOO_1);
@@ -69,7 +71,8 @@ public class KafkaSourceReaderMetricsTest {
         MetricListener metricListener = new MetricListener();
 
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
-                new KafkaSourceReaderMetrics(metricListener.getMetricGroup());
+                new KafkaSourceReaderMetrics(
+                        InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
 
         kafkaSourceReaderMetrics.registerTopicPartition(FOO_0);
         kafkaSourceReaderMetrics.registerTopicPartition(FOO_1);
@@ -102,7 +105,8 @@ public class KafkaSourceReaderMetricsTest {
     public void testNonTrackingTopicPartition() {
         MetricListener metricListener = new MetricListener();
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
-                new KafkaSourceReaderMetrics(metricListener.getMetricGroup());
+                new KafkaSourceReaderMetrics(
+                        InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> kafkaSourceReaderMetrics.recordCurrentOffset(FOO_0, 15213L));
@@ -115,7 +119,8 @@ public class KafkaSourceReaderMetricsTest {
     public void testFailedCommit() {
         MetricListener metricListener = new MetricListener();
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
-                new KafkaSourceReaderMetrics(metricListener.getMetricGroup());
+                new KafkaSourceReaderMetrics(
+                        InternalSourceReaderMetricGroup.mock(metricListener.getMetricGroup()));
         kafkaSourceReaderMetrics.recordFailedCommit();
         final Optional<Counter> commitsFailedCounter =
                 metricListener.getCounter(
