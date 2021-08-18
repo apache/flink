@@ -24,11 +24,6 @@ under the License.
 
 # DataStream API Integration
 
-{{< hint info >}}
-This page only discusses the integration with DataStream API in JVM languages such as Java or Scala.
-For Python, see the [Python API]({{< ref "docs/dev/python/overview" >}}) area.
-{{< /hint >}}
-
 Both Table API and DataStream API are equally important when it comes to defining a data
 processing pipeline.
 
@@ -44,11 +39,6 @@ in real-time processing scenarios that might be initialized with historical data
 For efficient execution, both APIs offer processing bounded streams in an optimized batch execution
 mode. However, since batch is just a special case of streaming, it is also possible to run pipelines
 of bounded streams in regular streaming execution mode.
-
-{{< hint warning >}}
-Both DataStream API and Table API provide their own way of enabling the batch execution mode at the
-moment. In the near future, this will be further unified.
-{{< /hint >}}
 
 Pipelines in one API can be defined end-to-end without dependencies on the other API. However, it
 might be useful to mix both APIs for various reasons:
@@ -78,14 +68,6 @@ Converting between DataStream and Table
 Flink provides a specialized `StreamTableEnvironment` for integrating with the
 DataStream API. Those environments extend the regular `TableEnvironment` with additional methods
 and take the `StreamExecutionEnvironment` used in the DataStream API as a parameter.
-
-{{< hint warning >}}
-Currently, the `StreamTableEnvironment` does not support enabling the batch execution mode yet. Nevertheless,
-bounded streams can be processed there using the streaming execution mode but with lower efficiency.
-
-Note, however, that the general `TableEnvironment` can work in both streaming execution or optimized batch
-execution mode.
-{{< /hint >}}
 
 The following code shows an example of how to go back and forth between the two APIs. Column names
 and types of the `Table` are automatically derived from the `TypeInformation` of the `DataStream`.
@@ -123,9 +105,9 @@ resultStream.print();
 env.execute();
 
 // prints:
-// +I[ALICE]
-// +I[BOB]
-// +I[JOHN]
+// +I[Alice]
+// +I[Bob]
+// +I[John]
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -156,9 +138,9 @@ resultStream.print()
 env.execute()
 
 // prints:
-// +I[ALICE]
-// +I[BOB]
-// +I[JOHN]
+// +I[Alice]
+// +I[Bob]
+// +I[John]
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -189,9 +171,9 @@ res_ds.print()
 env.execute()
 
 # prints:
-# +I[ALICE]
-# +I[BOB]
-# +I[JOHN]
+# +I[Alice]
+# +I[Bob]
+# +I[John]
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -303,7 +285,7 @@ from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment
 from pyflink.common.typeinfo import Types
 
-#create environments of both APIs
+# create environments of both APIs
 env = StreamExecutionEnvironment.get_execution_environment()
 t_env = StreamTableEnvironment.create(env)
 
@@ -340,6 +322,93 @@ The complete semantics of `fromChangelogStream` and `toChangelogStream` can be f
 In particular, the section discusses how to influence the schema derivation with more complex and nested
 types. It covers working with event-time and watermarks. It discusses how to declare a primary key and
 changelog mode for the input and output streams.
+
+The example above shows how the final result is computed incrementally by continuously emitting [row-wise
+updates]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) for each incoming record. However, in
+cases where the input streams are finite (i.e. *bounded*), a result can be computed more efficiently
+by leveraging batch processing principles.
+
+In batch processing, operators can be executed in successive stages that consume the entire input table
+before emitting results. For example, a join operator can sort both bounded inputs before performing
+the actual joining (i.e. *sort-merge join algorithm*), or build a hash table from one input before
+consuming the other (i.e. build/probe phase of the *hash join algorithm*).
+
+Both DataStream API and Table API offer a specialized *batch runtime mode*.
+
+The following example illustrates that the unified pipeline is able to process both batch and streaming data
+by just switching a flag.
+
+{{< tabs "61a8a0b8-c38b-48f3-b52e-563546139380" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
+// setup DataStream API
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// set the batch runtime mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+// uncomment this for streaming mode
+// env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
+
+// setup Table API
+// the table environment adopts the runtime mode during initialization
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// define the same pipeline as above
+
+// prints in BATCH mode:
+// +I[Bob, 10]
+// +I[Alice, 112]
+
+// prints in STREAMING mode:
+// +I[Alice, 12]
+// +I[Bob, 10]
+// -U[Alice, 12]
+// +U[Alice, 112]
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+
+// setup DataStream API
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+// set the batch runtime mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH)
+
+// uncomment this for streaming mode
+// env.setRuntimeMode(RuntimeExecutionMode.STREAMING)
+
+// setup Table API
+// the table environment adopts the runtime mode during initialization
+val tableEnv = StreamTableEnvironment.create(env)
+
+// define the same pipeline as above
+
+// prints in BATCH mode:
+// +I[Bob, 10]
+// +I[Alice, 112]
+
+// prints in STREAMING mode:
+// +I[Alice, 12]
+// +I[Bob, 10]
+// -U[Alice, 12]
+// +U[Alice, 112]
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Once the changelog is applied to an external system (e.g. a key-value store), one can see that both
+modes are able to produce exactly the same output table. By consuming all input data before emitting
+results, the changelog of the batch mode consists solely of insert-only changes. See
+also the [dedicated batch mode section below](#batch-runtime-mode) for more insights.
 
 ### Dependencies and Imports
 
@@ -402,8 +471,8 @@ import org.apache.flink.table.api.bridge.scala._
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
 However, it cannot be guaranteed that further changes to the configuration of `StreamExecutionEnvironment`
-are propagated to the `StreamTableEnvironment` after its instantiation. Also, the reverse propagation
-of options from Table API to DataStream API is not supported.
+are propagated to the `StreamTableEnvironment` after its instantiation. The propagation of options
+from Table API to DataStream API happens during planning.
 
 We recommend setting all configuration options in DataStream API early before switching to Table API.
 
@@ -508,24 +577,19 @@ behavior is slightly different between Table API and DataStream API.
 
 **DataStream API**
 
-The DataStream API's `StreamExecutionEnvironment` acts as a _builder pattern_ to construct
+The DataStream API's `StreamExecutionEnvironment` uses a _builder pattern_ to construct
 a complex pipeline. The pipeline possibly splits into multiple branches that might or might not end with
-a sink.
-
-At least one sink must be defined. Otherwise, the following exception is thrown:
-```
-java.lang.IllegalStateException: No operators defined in streaming topology. Cannot execute.
-```
+a sink. The environment buffers all these defined branches until it comes to job submission.
 
 `StreamExecutionEnvironment.execute()` submits the entire constructed pipeline and clears the builder
 afterward. In other words: no sources and sinks are declared anymore, and a new pipeline can be
 added to the builder. Thus, every DataStream program usually ends with a call to `StreamExecutionEnvironment.execute()`.
 Alternatively, `DataStream.executeAndCollect()` implicitly defines a sink for streaming the results to
-the local client and only executes the current branch.
+the local client.
 
 **Table API**
 
-In the Table API, branching pipelines is only supported within a `StatementSet` where each branch must
+In the Table API, branching pipelines are only supported within a `StatementSet` where each branch must
 declare a final sink. Both `TableEnvironment` and also `StreamTableEnvironment` do not offer a dedicated
 general `execute()` method. Instead, they offer methods for submitting a single source-to-sink
 pipeline or a statement set:
@@ -574,6 +638,303 @@ table.execute().print()
 // executes the DataStream API pipeline with the sink defined in (1) as a
 // Flink job, (2) was already running before
 env.execute()
+```
+
+{{< top >}}
+
+Batch Runtime Mode
+------------------
+
+The *batch runtime mode* is a specialized execution mode for *bounded* Flink programs.
+
+Generally speaking, *boundedness* is a property of a data source that tells us whether all the records
+coming from that source are known before execution or whether new data will show up, potentially
+indefinitely. A job, in turn, is bounded if all its sources are bounded, and unbounded otherwise.
+
+*Streaming runtime mode*, on the other hand, can be used for both bounded and unbounded jobs.
+
+For more information on the different execution modes, see also the corresponding [DataStream API section]({{< ref "docs/dev/datastream/execution_mode" >}}).
+
+The Table API & SQL planner provides a set of specialized optimizer rules and runtime operators for either
+of the two modes.
+
+Currently, the runtime mode is not derived automatically from sources, thus, it must be set explicitly
+or will be adopted from `StreamExecutionEnvironment` when instantiating a `StreamTableEnvironment`:
+
+{{< tabs "f786b6ff-facc-4102-8833-3669f2fdef38" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+
+// adopt mode from StreamExecutionEnvironment
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// or
+
+// set mode explicitly for StreamTableEnvironment
+// it will be propagated to StreamExecutionEnvironment during planning
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMode());
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.common.RuntimeExecutionMode
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.api.EnvironmentSettings
+
+// adopt mode from StreamExecutionEnvironment
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setRuntimeMode(RuntimeExecutionMode.BATCH)
+val tableEnv = StreamTableEnvironment.create(env)
+
+// or
+
+// set mode explicitly for StreamTableEnvironment
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tableEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inBatchMode)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+One must meet the following prerequisites before setting the runtime mode to `BATCH`:
+
+- All sources must declare themselves as bounded.
+
+- Currently, table sources must emit insert-only changes.
+
+- Operators need a sufficient amount of [off-heap memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory)
+for sorting and other intermediate results.
+
+- All table operations must be available in batch mode. Currently, some of them are only available in
+streaming mode. Please check the corresponding Table API & SQL pages.
+
+A batch execution has the following implications (among others):
+
+- Progressive watermarks are neither generated nor used in operators. However, sources emit a maximum
+watermark before shutting down.
+
+- Exchanges between tasks might be blocking according to the [`execution.batch-shuffle-mode`]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode).
+This also means potentially less resource requirements compared to executing the same pipeline in streaming mode.
+
+- Checkpointing is disabled. Artificial state backends are inserted.
+
+- Table operations don't produce incremental updates but only a complete final result which converts
+to an insert-only changelog stream.
+
+{{< hint info >}}
+Since batch processing can be considered as *a special case of stream processing*, we recommend implementing
+a streaming pipeline first as it is the most general implementation for both bounded and unbounded data.
+
+In theory, a streaming pipeline can execute all operators. However, in practice, some operations might
+not make much sense as they would lead to ever-growing state and are therefore not supported. A global
+sort would be an example that is only available in batch mode. Simply put: it should be possible to
+run a working streaming pipeline in batch mode but not necessarily vice versa.
+{{< /hint >}}
+
+The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}).
+Many sources offer options that implicitly make the connector bounded, for example, by defining a
+terminating offset or timestamp. In our example, we limit the number of rows with the `number-of-rows`
+option.
+
+{{< tabs "3f5f5d4e-cd03-48d1-9309-917a6cf55aaa" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
+
+Table table =
+    tableEnv.from(
+        TableDescriptor.forConnector("datagen")
+            .option("number-of-rows", "10") // make the source bounded
+            .schema(
+                Schema.newBuilder()
+                    .column("uid", DataTypes.TINYINT())
+                    .column("payload", DataTypes.STRING())
+                    .build())
+            .build());
+
+// convert the Table to a DataStream and further transform the pipeline
+tableEnv.toDataStream(table)
+    .keyBy(r -> r.<Byte>getFieldAs("uid"))
+    .map(r -> "My custom operator: " + r.<String>getFieldAs("payload"))
+    .executeAndCollect()
+    .forEachRemaining(System.out::println);
+
+// prints:
+// My custom operator: 9660912d30a43c7b035e15bd...
+// My custom operator: 29f5f706d2144f4a4f9f52a0...
+// ...
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
+
+val table =
+    tableEnv.from(
+        TableDescriptor.forConnector("datagen")
+            .option("number-of-rows", "10") // make the source bounded
+            .schema(
+                Schema.newBuilder()
+                    .column("uid", DataTypes.TINYINT())
+                    .column("payload", DataTypes.STRING())
+                    .build())
+            .build());
+
+// convert the Table to a DataStream and further transform the pipeline
+tableEnv.toDataStream(table)
+    .keyBy(r => r.getFieldAs[Byte]("uid"))
+    .map(r => "My custom operator: " + r.getFieldAs[String]("payload"))
+    .executeAndCollect()
+    .foreach(println)
+
+// prints:
+// My custom operator: 9660912d30a43c7b035e15bd...
+// My custom operator: 29f5f706d2144f4a4f9f52a0...
+// ...
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Changelog Unification
+
+In most cases, the pipeline definition itself can remain constant in both Table API and DataStream API
+when switching from streaming to batch mode and vice versa. However, as mentioned before, the resulting
+changelog streams might differ due to the avoidance of incremental operations in batch mode.
+
+Time-based operations that rely on event-time and leverage watermarks as a completeness marker are able
+to produce an insert-only changelog stream that is independent of the runtime mode.
+
+The following Java example illustrates a Flink program that is not only unified on an API level but also
+in the resulting changelog stream. The example joins two tables in SQL (`UserTable` and `OrderTable`) using
+an interval join based on the time attributes in both tables (`ts`). It uses DataStream API to implement
+a custom operator that deduplicates the user name using a `KeyedProcessFunction` and value state.
+
+```java
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
+
+// setup DataStream API
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+// use BATCH or STREAMING mode
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+// setup Table API
+StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+
+// create a user stream
+DataStream<Row> userStream = env
+    .fromElements(
+        Row.of(LocalDateTime.parse("2021-08-21T13:00:00"), 1, "Alice"),
+        Row.of(LocalDateTime.parse("2021-08-21T13:05:00"), 2, "Bob"),
+        Row.of(LocalDateTime.parse("2021-08-21T13:10:00"), 2, "Bob"))
+    .returns(
+        Types.ROW_NAMED(
+            new String[] {"ts", "uid", "name"},
+            Types.LOCAL_DATE_TIME, Types.INT, Types.STRING));
+
+// create an order stream
+DataStream<Row> orderStream = env
+    .fromElements(
+        Row.of(LocalDateTime.parse("2021-08-21T13:02:00"), 1, 122),
+        Row.of(LocalDateTime.parse("2021-08-21T13:07:00"), 2, 239),
+        Row.of(LocalDateTime.parse("2021-08-21T13:11:00"), 2, 999))
+    .returns(
+        Types.ROW_NAMED(
+            new String[] {"ts", "uid", "amount"},
+            Types.LOCAL_DATE_TIME, Types.INT, Types.INT));
+
+// create corresponding tables
+tableEnv.createTemporaryView(
+    "UserTable",
+    userStream,
+    Schema.newBuilder()
+        .column("ts", DataTypes.TIMESTAMP(3))
+        .column("uid", DataTypes.INT())
+        .column("name", DataTypes.STRING())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build());
+
+tableEnv.createTemporaryView(
+    "OrderTable",
+    orderStream,
+    Schema.newBuilder()
+        .column("ts", DataTypes.TIMESTAMP(3))
+        .column("uid", DataTypes.INT())
+        .column("amount", DataTypes.INT())
+        .watermark("ts", "ts - INTERVAL '1' SECOND")
+        .build());
+
+// perform interval join
+Table joinedTable =
+    tableEnv.sqlQuery(
+        "SELECT U.name, O.amount " +
+        "FROM UserTable U, OrderTable O " +
+        "WHERE U.uid = O.uid AND O.ts BETWEEN U.ts AND U.ts + INTERVAL '5' MINUTES");
+
+DataStream<Row> joinedStream = tableEnv.toDataStream(joinedTable);
+
+joinedStream.print();
+
+// implement a custom operator using ProcessFunction and value state
+joinedStream
+    .keyBy(r -> r.<String>getFieldAs("name"))
+    .process(
+        new KeyedProcessFunction<String, Row, String>() {
+
+          ValueState<String> seen;
+
+          @Override
+          public void open(Configuration parameters) {
+              seen = getRuntimeContext().getState(
+                  new ValueStateDescriptor<>("seen", String.class));
+          }
+
+          @Override
+          public void processElement(Row row, Context ctx, Collector<String> out)
+                  throws Exception {
+              String name = row.getFieldAs("name");
+              if (seen.value() == null) {
+                  seen.update(name);
+                  out.collect(name);
+              }
+          }
+        })
+    .print();
+
+// execute unified pipeline
+env.execute();
+
+// prints (in both BATCH and STREAMING mode):
+// +I[Bob, 239]
+// +I[Alice, 122]
+// +I[Bob, 999]
+//
+// Bob
+// Alice
 ```
 
 {{< top >}}
@@ -2320,7 +2681,6 @@ val dataStreamAgain1: DataStream[Row] = table
 // call toChangelogStream() implicitly on the Table object
 val dataStreamAgain2: DataStream[Row] = table.toChangelogStream
 ```
-
 {{< top >}}
 
 Mapping between TypeInformation and DataType
@@ -2344,6 +2704,16 @@ correctly via the DataStream API's reflective type extraction facilities. If the
 `TypeInformation` is a `CompositeType`, it will be flattened in the first level when deriving a table's
 schema.
 
+{{< hint warning >}}
+The DataStream API is not always able to extract a more specific `TypeInformation` based on [reflection](https://www.oracle.com/technical-resources/articles/java/javareflection.html).
+This often happens silently and leads to `GenericTypeInfo` that is backed by the generic Kryo serializer.
+
+For example, the `Row` class cannot be analyzed reflectively and always needs an explicit type information
+declaration. If no proper type information is declared in DataStream API, the row will show as `RAW`
+data type and the Table API is unable to access its fields. Use `.map(...).returns(TypeInformation)`
+in Java or `.map(...)(TypeInformation)` in Scala to declare type information explicitly.
+{{< /hint >}}
+
 ### TypeInformation to DataType
 
 The following rules apply when converting `TypeInformation` to a `DataType`:
@@ -2364,7 +2734,8 @@ If that is not found during the conversion, the field order will be alphabetical
 configuration is used to materialize the serializer of the raw type. Composite nested fields will not
 be accessible then.
 
-- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}} for the full translation logic.
+- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}}
+for the full translation logic.
 
 Use `DataTypes.of(TypeInformation)` to call the above logic in custom schema declaration or in UDFs.
 
@@ -2378,6 +2749,7 @@ Afterward, the type information semantics of the DataStream API need to be consi
 {{< /hint >}}
 
 {{< top >}}
+
 
 Legacy Conversion
 -----------------
