@@ -63,12 +63,6 @@ public class TestBoundedOneInputStreamOperator extends AbstractStreamOperator<St
         super.finish();
     }
 
-    @Override
-    public void close() throws Exception {
-        output("[" + name + "]: Bye");
-        super.close();
-    }
-
     private void output(String record) {
         output.collect(new StreamRecord<>(record));
     }

@@ -718,9 +718,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 new StreamRecord<>("[Operator0]: End of input"),
                 new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Finish"),
-                new StreamRecord<>("[Operator1]: Bye"),
-                new StreamRecord<>("[Operator0]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
         assertThat(testHarness.getOutput(), containsInAnyOrder(expected.toArray()));
     }
