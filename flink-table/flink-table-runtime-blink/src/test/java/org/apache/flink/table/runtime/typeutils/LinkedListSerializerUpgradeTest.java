@@ -112,7 +112,7 @@ public class LinkedListSerializerUpgradeTest
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<LinkedList<Long>>>
-        schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(MigrationVersion version) {
             if (version.isNewerVersionThan(MigrationVersion.v1_13)) {
                 return TypeSerializerMatchers.isCompatibleAsIs();
             } else {
