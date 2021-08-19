@@ -312,6 +312,20 @@ abstract class StateWithExecutionGraph implements State {
         }
     }
 
+    void maybeArchiveExecutionFailure(TaskExecutionStateTransition taskExecutionStateTransition) {
+
+        if (taskExecutionStateTransition.getExecutionState() != ExecutionState.FAILED) {
+            return;
+        }
+        Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
+        archiveExecutionFailure(
+                getExecutionVertexId(taskExecutionStateTransition.getID()),
+                cause == null
+                        ? new FlinkException(
+                                "Unknown failure cause. Probably related to FLINK-21376.")
+                        : cause);
+    }
+
     void archiveExecutionFailure(
             @Nullable ExecutionVertexID failingExecutionVertexId, Throwable cause) {
         Set<ExecutionVertexID> concurrentVertexIds =

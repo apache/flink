@@ -74,6 +74,7 @@ class Failing extends StateWithExecutionGraph {
 
     @Override
     boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+        maybeArchiveExecutionFailure(taskExecutionStateTransition);
         return getExecutionGraph().updateState(taskExecutionStateTransition);
     }
 

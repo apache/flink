@@ -997,21 +997,14 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             new TaskExecutionStateTransition(
                                     new TaskExecutionState(
                                             attemptId, ExecutionState.FAILED, expectedException)));
-                    latch.trigger();
-                });
-
-        latch.await();
-        final OneShotLatch latch2 = new OneShotLatch();
-        singleThreadMainThreadExecutor.execute(
-                () -> {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionStateTransition(
                                     new TaskExecutionState(
                                             attemptId, ExecutionState.FAILED, expectedException2)));
-                    latch2.trigger();
+                    latch.trigger();
                 });
 
-        latch2.await();
+        latch.await();
 
         List<Throwable> foundExceptions = new ArrayList<>();
         scheduler
