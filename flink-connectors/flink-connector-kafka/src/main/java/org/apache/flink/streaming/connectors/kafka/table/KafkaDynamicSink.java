@@ -213,6 +213,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                         getMetadataPositions(physicalChildren),
                                         upsertMode))
                         .build();
+
         if (flushMode.isEnabled() && upsertMode) {
             return (DataStreamSinkProvider)
                     dataStream -> {
@@ -221,17 +222,18 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                         .getExecutionEnvironment()
                                         .getConfig()
                                         .isObjectReuseEnabled();
+                        final TypeSerializer<RowData> rowDataTypeSerializer =
+                                createRowDataTypeSerializer(
+                                        context, dataStream.getExecutionConfig());
                         final ReducingUpsertSink<?> sink =
                                 new ReducingUpsertSink<>(
                                         kafkaSink,
                                         physicalDataType,
                                         keyProjection,
                                         flushMode,
+                                        rowDataTypeSerializer,
                                         objectReuse
-                                                ? createRowDataTypeSerializer(
-                                                                context,
-                                                                dataStream.getExecutionConfig())
-                                                        ::copy
+                                                ? rowDataTypeSerializer::copy
                                                 : Function.identity());
                         final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
                         if (parallelism != null) {

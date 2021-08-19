@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
@@ -26,9 +27,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A wrapper of a {@link Sink}. It will buffer the data emitted by the wrapper {@link SinkWriter}
@@ -37,12 +42,14 @@ import java.util.function.Function;
  * <p>The sink provides eventual consistency guarantees without the need of a two-phase protocol
  * because the updates are idempotent therefore duplicates have no effect.
  */
-class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState, Void> {
+class ReducingUpsertSink<WriterState>
+        implements Sink<RowData, Void, ReducingUpsertWriterState<WriterState>, Void> {
 
     private final Sink<RowData, ?, WriterState, ?> wrappedSink;
     private final DataType physicalDataType;
     private final int[] keyProjection;
     private final SinkBufferFlushMode bufferFlushMode;
+    private final TypeSerializer<RowData> rowDataTypeSerializer;
     private final Function<RowData, RowData> valueCopyFunction;
 
     ReducingUpsertSink(
@@ -50,19 +57,27 @@ class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState
             DataType physicalDataType,
             int[] keyProjection,
             SinkBufferFlushMode bufferFlushMode,
+            TypeSerializer<RowData> rowDataTypeSerializer,
             Function<RowData, RowData> valueCopyFunction) {
-        this.wrappedSink = wrappedSink;
-        this.physicalDataType = physicalDataType;
-        this.keyProjection = keyProjection;
-        this.bufferFlushMode = bufferFlushMode;
-        this.valueCopyFunction = valueCopyFunction;
+        this.wrappedSink = checkNotNull(wrappedSink);
+        this.physicalDataType = checkNotNull(physicalDataType);
+        this.keyProjection = checkNotNull(keyProjection);
+        this.bufferFlushMode = checkNotNull(bufferFlushMode);
+        this.rowDataTypeSerializer = checkNotNull(rowDataTypeSerializer);
+        this.valueCopyFunction = checkNotNull(valueCopyFunction);
     }
 
     @Override
-    public SinkWriter<RowData, Void, WriterState> createWriter(
-            InitContext context, List<WriterState> states) throws IOException {
+    public SinkWriter<RowData, Void, ReducingUpsertWriterState<WriterState>> createWriter(
+            InitContext context, List<ReducingUpsertWriterState<WriterState>> states)
+            throws IOException {
         final SinkWriter<RowData, ?, WriterState> wrapperWriter =
-                wrappedSink.createWriter(context, states);
+                wrappedSink.createWriter(
+                        context,
+                        states.stream()
+                                .map(ReducingUpsertWriterState::getWrappedStates)
+                                .flatMap(Collection::stream)
+                                .collect(Collectors.toList()));
         return new ReducingUpsertWriter<>(
                 wrapperWriter,
                 physicalDataType,
@@ -73,8 +88,12 @@ class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<WriterState>> getWriterStateSerializer() {
-        return wrappedSink.getWriterStateSerializer();
+    public Optional<SimpleVersionedSerializer<ReducingUpsertWriterState<WriterState>>>
+            getWriterStateSerializer() {
+        return Optional.of(
+                new ReducingUpsertWriterStateSerializer<>(
+                        rowDataTypeSerializer,
+                        wrappedSink.getWriterStateSerializer().orElse(null)));
     }
 
     @Override
