@@ -285,7 +285,12 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     private void jobAlreadyDone() {
-        resultFuture.completeExceptionally(new JobNotFinishedException(getJobID()));
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(
+                        new ExecutionGraphInfo(
+                                jobMasterServiceProcessFactory.createArchivedExecutionGraph(
+                                        JobStatus.FAILED,
+                                        new JobAlreadyDoneException(getJobID())))));
     }
 
     private RunningJobsRegistry.JobSchedulingStatus getJobSchedulingStatus() throws FlinkException {

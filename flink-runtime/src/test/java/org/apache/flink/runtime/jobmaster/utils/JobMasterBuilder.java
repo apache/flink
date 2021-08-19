@@ -219,11 +219,6 @@ public class JobMasterBuilder {
         }
 
         @Override
-        public void jobFinishedByOther() {
-            jobFinishedByOtherFuture.complete(null);
-        }
-
-        @Override
         public void jobMasterFailed(Throwable cause) {
             jobMasterFailedFuture.complete(cause);
         }
