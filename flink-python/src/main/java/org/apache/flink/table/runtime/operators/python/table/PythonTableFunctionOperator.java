@@ -54,6 +54,15 @@ public class PythonTableFunctionOperator
     /** The TypeSerializer for udtf input elements. */
     private transient TypeSerializer<Row> udtfInputTypeSerializer;
 
+    /** The current input element which has not been received all python udtf results. */
+    private transient CRow input;
+
+    /** Whether the current input element has joined parts of python udtf results. */
+    private transient boolean hasJoined;
+
+    /** Whether the current received data is the finished result of the current input element. */
+    private transient boolean isFinishResult;
+
     public PythonTableFunctionOperator(
             Configuration config,
             PythonFunctionInfo tableFunction,
@@ -79,17 +88,21 @@ public class PythonTableFunctionOperator
                 PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
         udtfInputTypeSerializer =
                 PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+        input = null;
+        hasJoined = false;
+        isFinishResult = true;
     }
 
     @Override
     @SuppressWarnings("ConstantConditions")
     public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-        CRow input = forwardedInputQueue.poll();
         byte[] rawUdtfResult;
         int length;
-        boolean isFinishResult;
-        boolean hasJoined = false;
         Row udtfResult;
+        if (isFinishResult) {
+            input = forwardedInputQueue.poll();
+            hasJoined = false;
+        }
         do {
             rawUdtfResult = resultTuple.f0;
             length = resultTuple.f1;
@@ -109,7 +122,7 @@ public class PythonTableFunctionOperator
                 cRowWrapper.setChange(input.change());
                 cRowWrapper.collect(Row.join(input.row(), udtfResult));
             }
-        } while (!isFinishResult);
+        } while (!isFinishResult && resultTuple != null);
     }
 
     @Override
