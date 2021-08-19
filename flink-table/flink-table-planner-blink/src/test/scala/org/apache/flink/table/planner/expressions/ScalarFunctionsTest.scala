@@ -3655,6 +3655,29 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "sha2('test', f44)",
       "SHA2('test', f44)",
       expectedSha256)
+
+    // bytes test
+    testSqlApi("MD5(cast('test' as varbinary))", expectedMd5)
+    testSqlApi("SHA1(cast('test' as varbinary))", expectedSha1)
+    testSqlApi("SHA224(cast('test' as varbinary))", expectedSha224)
+    testSqlApi("SHA2(cast('test' as varbinary), 224)", expectedSha224)
+    testSqlApi("SHA256(cast('test' as varbinary))", expectedSha256)
+    testSqlApi("SHA2(cast('test' as varbinary), 256)", expectedSha256)
+    testSqlApi("SHA384(cast('test' as varbinary))", expectedSha384)
+    testSqlApi("SHA2(cast('test' as varbinary), 384)", expectedSha384)
+    testSqlApi("SHA512(cast('test' as varbinary))", expectedSha512)
+    testSqlApi("SHA2(cast('test' as varbinary), 512)", expectedSha512)
+
+    testSqlApi("MD5(cast(null as varbinary))", "null")
+    testSqlApi("SHA1(cast(null as varbinary))", "null")
+    testSqlApi("SHA224(cast(null as varbinary))", "null")
+    testSqlApi("SHA2(cast(null as varbinary), 224)", "null")
+    testSqlApi("SHA256(cast(null as varbinary))", "null")
+    testSqlApi("SHA2(cast(null as varbinary), 256)", "null")
+    testSqlApi("SHA384(cast(null as varbinary))", "null")
+    testSqlApi("SHA2(cast(null as varbinary), 384)", "null")
+    testSqlApi("SHA512(cast(null as varbinary))", "null")
+    testSqlApi("SHA2(cast(null as varbinary), 512)", "null")
   }
 
   // ----------------------------------------------------------------------------------------------
