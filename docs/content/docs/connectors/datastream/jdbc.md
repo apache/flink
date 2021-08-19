@@ -32,15 +32,8 @@ To use it, add the following dependency to your project (along with your JDBC dr
 
 {{< artifact flink-connector-jdbc withScalaVersion >}}
 
-A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
-
-| Driver      |      Group Id      |      Artifact Id       |      JAR         |
-| :-----------| :------------------| :----------------------| :----------------|
-| MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
-| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
-
 Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+A driver dependency is also required to connect to a specified database. Please consult your database documentation on how to add the corresponding driver.
 
 ## `JdbcSink.sink`
 
