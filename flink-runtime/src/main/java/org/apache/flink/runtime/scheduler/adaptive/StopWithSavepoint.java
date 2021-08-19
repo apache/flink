@@ -54,8 +54,6 @@ import java.util.concurrent.ScheduledFuture;
 class StopWithSavepoint extends StateWithExecutionGraph {
 
     private final Context context;
-    private final ClassLoader userCodeClassLoader;
-
     private final CompletableFuture<String> operationFuture;
 
     private final CheckpointScheduling checkpointScheduling;
@@ -75,9 +73,14 @@ class StopWithSavepoint extends StateWithExecutionGraph {
             Logger logger,
             ClassLoader userCodeClassLoader,
             CompletableFuture<String> savepointFuture) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader);
         this.context = context;
-        this.userCodeClassLoader = userCodeClassLoader;
         this.checkpointScheduling = checkpointScheduling;
         this.operationFuture = new CompletableFuture<>();
 

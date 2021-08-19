@@ -155,7 +155,8 @@ public class FailingTest extends TestLogger {
                 executionGraphHandler,
                 operatorCoordinatorHandler,
                 log,
-                testFailureCause);
+                testFailureCause,
+                ClassLoader.getSystemClassLoader());
     }
 
     private static class MockFailingContext extends MockStateWithExecutionGraphContext

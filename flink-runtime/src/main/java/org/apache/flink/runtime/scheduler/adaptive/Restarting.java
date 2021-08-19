@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -47,8 +49,15 @@ class Restarting extends StateWithExecutionGraph {
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Logger logger,
-            Duration backoffTime) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            Duration backoffTime,
+            ClassLoader userCodeClassLoader) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader);
         this.context = context;
         this.backoffTime = backoffTime;
 
@@ -86,6 +95,15 @@ class Restarting extends StateWithExecutionGraph {
 
     @Override
     boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+        ExecutionVertexID executionVertexId =
+                getExecutionVertexId(taskExecutionStateTransition.getID());
+        Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
+        archiveExecutionFailure(
+                executionVertexId,
+                cause == null
+                        ? new FlinkException(
+                                "Unknown failure cause. Probably related to FLINK-21376.")
+                        : cause);
         return getExecutionGraph().updateState(taskExecutionStateTransition);
     }
 
@@ -137,6 +155,7 @@ class Restarting extends StateWithExecutionGraph {
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final Duration backoffTime;
+        private final ClassLoader userCodeClassLoader;
 
         public Factory(
                 Context context,
@@ -144,13 +163,15 @@ class Restarting extends StateWithExecutionGraph {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Logger log,
-                Duration backoffTime) {
+                Duration backoffTime,
+                ClassLoader userCodeClassLoader) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.backoffTime = backoffTime;
+            this.userCodeClassLoader = userCodeClassLoader;
         }
 
         public Class<Restarting> getStateClass() {
@@ -164,7 +185,8 @@ class Restarting extends StateWithExecutionGraph {
                     executionGraphHandler,
                     operatorCoordinatorHandler,
                     log,
-                    backoffTime);
+                    backoffTime,
+                    userCodeClassLoader);
         }
     }
 }

@@ -127,7 +127,8 @@ public class RestartingTest extends TestLogger {
                 executionGraphHandler,
                 operatorCoordinatorHandler,
                 log,
-                Duration.ZERO);
+                Duration.ZERO,
+                ClassLoader.getSystemClassLoader());
     }
 
     public Restarting createRestartingState(MockRestartingContext ctx)

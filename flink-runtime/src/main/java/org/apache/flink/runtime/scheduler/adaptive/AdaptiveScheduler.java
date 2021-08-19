@@ -817,7 +817,8 @@ public class AdaptiveScheduler
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
-                        LOG));
+                        LOG,
+                        userCodeClassLoader));
     }
 
     @Override
@@ -844,7 +845,8 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        backoffTime));
+                        backoffTime,
+                        userCodeClassLoader));
         numRestarts++;
     }
 
@@ -861,7 +863,8 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        failureCause));
+                        failureCause,
+                        userCodeClassLoader));
     }
 
     @Override

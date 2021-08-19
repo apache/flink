@@ -37,8 +37,15 @@ class Canceling extends StateWithExecutionGraph {
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Logger logger) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            Logger logger,
+            ClassLoader userCodeClassLoader) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader);
         this.context = context;
 
         getExecutionGraph().cancel();
@@ -80,18 +87,21 @@ class Canceling extends StateWithExecutionGraph {
         private final ExecutionGraph executionGraph;
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
+        private final ClassLoader userCodeClassLoader;
 
         public Factory(
                 Context context,
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Logger log) {
+                Logger log,
+                ClassLoader userCodeClassLoader) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
+            this.userCodeClassLoader = userCodeClassLoader;
         }
 
         public Class<Canceling> getStateClass() {
@@ -104,7 +114,8 @@ class Canceling extends StateWithExecutionGraph {
                     executionGraph,
                     executionGraphHandler,
                     operatorCoordinatorHandler,
-                    log);
+                    log,
+                    userCodeClassLoader);
         }
     }
 }

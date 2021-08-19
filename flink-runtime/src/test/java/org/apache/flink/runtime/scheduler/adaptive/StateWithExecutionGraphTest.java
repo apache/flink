@@ -173,7 +173,12 @@ public class StateWithExecutionGraphTest extends TestLogger {
         executionGraph.transitionToRunning();
 
         return new TestingStateWithExecutionGraph(
-                context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, log);
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                log,
+                ClassLoader.getSystemClassLoader());
     }
 
     private static final class TestingStateWithExecutionGraph extends StateWithExecutionGraph {
@@ -186,13 +191,15 @@ public class StateWithExecutionGraphTest extends TestLogger {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Logger logger) {
+                Logger logger,
+                ClassLoader userCodeClassLoader) {
             super(
                     context,
                     executionGraph,
                     executionGraphHandler,
                     operatorCoordinatorHandler,
-                    logger);
+                    logger,
+                    userCodeClassLoader);
         }
 
         public CompletableFuture<JobStatus> getGloballyTerminalStateFuture() {

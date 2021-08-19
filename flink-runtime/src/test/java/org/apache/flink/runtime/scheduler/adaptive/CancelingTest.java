@@ -150,7 +150,8 @@ public class CancelingTest extends TestLogger {
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
-                        log);
+                        log,
+                        ClassLoader.getSystemClassLoader());
         return canceling;
     }
 }

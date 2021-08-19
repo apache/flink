@@ -49,8 +49,6 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     private final Context context;
 
-    private final ClassLoader userCodeClassLoader;
-
     Executing(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -58,9 +56,14 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
             Logger logger,
             Context context,
             ClassLoader userCodeClassLoader) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader);
         this.context = context;
-        this.userCodeClassLoader = userCodeClassLoader;
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 

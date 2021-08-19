@@ -89,18 +89,22 @@ abstract class StateWithExecutionGraph implements State {
 
     private final Logger logger;
 
+    protected final ClassLoader userCodeClassLoader;
+
     StateWithExecutionGraph(
             Context context,
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Logger logger) {
+            Logger logger,
+            ClassLoader userCodeClassLoader) {
         this.context = context;
         this.executionGraph = executionGraph;
         this.executionGraphHandler = executionGraphHandler;
         this.operatorCoordinatorHandler = operatorCoordinatorHandler;
         this.kvStateHandler = new KvStateHandler(executionGraph);
         this.logger = logger;
+        this.userCodeClassLoader = userCodeClassLoader;
 
         FutureUtils.assertNoException(
                 executionGraph
