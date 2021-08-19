@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.types.Row;
@@ -47,6 +48,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.OUTPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TEST_DATA;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 
 /** Tests for the {@link JdbcOutputFormat}. */
@@ -83,6 +85,90 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
                         JdbcExecutionOptions.defaults());
         // FLINK-17544: There should be no NPE thrown from this method
         format.close();
+    }
+
+    /**
+     * Test that the delete executor in {@link TableJdbcUpsertOutputFormat} is updated when {@link
+     * JdbcOutputFormat#attemptFlush()} fails.
+     */
+    @Test
+    public void testDeleteExecutorUpdatedOnReconnect() throws Exception {
+        // first fail flush from the main executor
+        boolean[] exceptionThrown = {false};
+        // then record whether the delete executor was updated
+        // and check it on the next flush attempt
+        boolean[] deleteExecutorPrepared = {false};
+        boolean[] deleteExecuted = {false};
+        format =
+                new TableJdbcUpsertOutputFormat(
+                        new SimpleJdbcConnectionProvider(
+                                JdbcConnectorOptions.builder()
+                                        .setDBUrl(getDbMetadata().getUrl())
+                                        .setTableName(OUTPUT_TABLE)
+                                        .build()) {
+                            @Override
+                            public boolean isConnectionValid() throws SQLException {
+                                return false; // trigger reconnect and re-prepare on flush failure
+                            }
+                        },
+                        JdbcExecutionOptions.builder()
+                                .withMaxRetries(1)
+                                .withBatchIntervalMs(Long.MAX_VALUE) // disable periodic flush
+                                .build(),
+                        ctx ->
+                                new JdbcBatchStatementExecutor<Row>() {
+
+                                    @Override
+                                    public void executeBatch() throws SQLException {
+                                        if (!exceptionThrown[0]) {
+                                            exceptionThrown[0] = true;
+                                            throw new SQLException();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void prepareStatements(Connection connection) {}
+
+                                    @Override
+                                    public void addToBatch(Row record) {}
+
+                                    @Override
+                                    public void closeStatements() {}
+                                },
+                        ctx ->
+                                new JdbcBatchStatementExecutor<Row>() {
+                                    @Override
+                                    public void prepareStatements(Connection connection) {
+                                        if (exceptionThrown[0]) {
+                                            deleteExecutorPrepared[0] = true;
+                                        }
+                                    }
+
+                                    @Override
+                                    public void addToBatch(Row record) {}
+
+                                    @Override
+                                    public void executeBatch() {
+                                        deleteExecuted[0] = true;
+                                    }
+
+                                    @Override
+                                    public void closeStatements() {}
+                                });
+        RuntimeContext context = Mockito.mock(RuntimeContext.class);
+        ExecutionConfig config = Mockito.mock(ExecutionConfig.class);
+        doReturn(config).when(context).getExecutionConfig();
+        doReturn(true).when(config).isObjectReuseEnabled();
+        format.setRuntimeContext(context);
+        format.open(0, 1);
+
+        format.writeRecord(Tuple2.of(false /* false = delete*/, toRow(TEST_DATA[0])));
+        format.flush();
+
+        assertTrue("Delete should be executed", deleteExecuted[0]);
+        assertTrue(
+                "Delete executor should be prepared" + exceptionThrown[0],
+                deleteExecutorPrepared[0]);
     }
 
     @Test
