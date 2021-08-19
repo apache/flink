@@ -289,7 +289,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         final String jobName = jobGraph.getName();
         final JobID jid = jobGraph.getJobID();
 
-        log.info("Initializing job {} ({}).", jobName, jid);
+        log.info("Initializing job '{}' ({}).", jobName, jid);
 
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
@@ -395,13 +395,16 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     /** Suspend the job and shutdown all other services including rpc. */
     @Override
     public CompletableFuture<Void> onStop() {
-        log.info("Stopping the JobMaster for job {}({}).", jobGraph.getName(), jobGraph.getJobID());
+        log.info(
+                "Stopping the JobMaster for job '{}' ({}).",
+                jobGraph.getName(),
+                jobGraph.getJobID());
 
         // make sure there is a graceful exit
         return stopJobExecution(
                         new FlinkException(
                                 String.format(
-                                        "Stopping JobMaster for job %s(%s).",
+                                        "Stopping JobMaster for job '%s' (%s).",
                                         jobGraph.getName(), jobGraph.getJobID())))
                 .exceptionally(
                         exception -> {
@@ -868,7 +871,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         startJobMasterServices();
 
         log.info(
-                "Starting execution of job {} ({}) under job master id {}.",
+                "Starting execution of job '{}' ({}) under job master id {}.",
                 jobGraph.getName(),
                 jobGraph.getJobID(),
                 getFencingToken());
