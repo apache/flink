@@ -280,56 +280,6 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 false,
                                 DataTypes.BOOLEAN().notNull()),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
-                        .onFieldsWithData("42")
-                        .andDataTypes(DataTypes.STRING())
-                        .testResult(
-                                $("f0").isJson(), "f0 IS JSON", true, DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.SCALAR),
-                                "f0 IS JSON SCALAR",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.ARRAY),
-                                "f0 IS JSON ARRAY",
-                                false,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.OBJECT),
-                                "f0 IS JSON OBJECT",
-                                false,
-                                DataTypes.BOOLEAN().notNull()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
-                        .onFieldsWithData("[]")
-                        .andDataTypes(DataTypes.STRING())
-                        .testResult(
-                                $("f0").isJson(), "f0 IS JSON", true, DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.SCALAR),
-                                "f0 IS JSON SCALAR",
-                                false,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.ARRAY),
-                                "f0 IS JSON ARRAY",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f0").isJson(JsonType.OBJECT),
-                                "f0 IS JSON OBJECT",
-                                false,
-                                DataTypes.BOOLEAN().notNull()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("{}")
                         .andDataTypes(DataTypes.STRING())
                         .testResult(
