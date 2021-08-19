@@ -41,13 +41,11 @@ public class DynamoDbProducerBuilder {
     private int queueLimit;
     private WriterRetryPolicy retryPolicy;
     private DynamoDbProducer.Listener listener;
-    private boolean failOnError;
     private RestartPolicy restartPolicy;
 
-    public DynamoDbProducerBuilder(DynamoDbClient client, ProducerType type, boolean failOnError) {
+    public DynamoDbProducerBuilder(DynamoDbClient client, ProducerType type) {
         this.client = client;
         this.type = type;
-        this.failOnError = failOnError;
         this.batchSize = DEFAULT_BATCH_SIZE;
         this.queueLimit = DEFAULT_INTERNAL_QUEUE_LIMIT;
         this.retryPolicy = new DefaultBatchWriterRetryPolicy();
