@@ -32,6 +32,8 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -46,10 +48,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.types.RowKind.DELETE;
 import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -260,6 +265,40 @@ public class ReducingUpsertWriterTest {
                                 TimestampData.fromInstant(Instant.parse("2021-03-30T18:00:00Z")))));
 
         compareCompactedResult(expected, writer.rowDataCollectors);
+    }
+
+    @Test
+    public void testSnapshotReduceBuffer() throws Exception {
+        final MockedSinkWriter writer = new MockedSinkWriter();
+        final ReducingUpsertWriter<?> bufferedWriter = createBufferedWriter(writer);
+        final ImmutableList<RowData> bufferedData =
+                ImmutableList.<RowData>of(
+                        GenericRowData.ofKind(
+                                UPDATE_AFTER,
+                                1001,
+                                StringData.fromString("Java public for dummies"),
+                                StringData.fromString("Tan Ah Teck"),
+                                11.11,
+                                11,
+                                TimestampData.fromInstant(Instant.parse("2021-03-30T15:00:00Z"))),
+                        GenericRowData.ofKind(
+                                UPDATE_AFTER,
+                                1002,
+                                StringData.fromString("More Java for dummies"),
+                                StringData.fromString("Tan Ah Teck"),
+                                22.22,
+                                22,
+                                TimestampData.fromInstant(Instant.parse("2021-03-30T16:00:00Z"))));
+        writeData(bufferedWriter, bufferedData.iterator());
+
+        final List<? extends ReducingUpsertWriterState<?>> snapshots =
+                bufferedWriter.snapshotState();
+        assertEquals(1, snapshots.size());
+        assertThat(
+                snapshots.get(0).getReduceBuffer().values().stream()
+                        .map(t -> t.f0)
+                        .collect(Collectors.toList()),
+                containsInAnyOrder(bufferedData.get(0), bufferedData.get(1)));
     }
 
     private void compareCompactedResult(
