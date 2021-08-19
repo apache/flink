@@ -43,8 +43,6 @@ SQL hints 一般可以用于以下：
 
 因此，它非常适合用于交互式终端中的特定查询，例如，在 SQL-CLI 中，你可以通过添加动态选项`/*+ OPTIONS('csv.ignore-parse-errors'='true') */`来指定忽略 CSV 源的解析错误。
 
-<b>注意：</b>动态表选项默认值禁止使用，因为它可能会更改查询的语义。你需要将配置项 `table.dynamic-table-options.enabled` 显式设置为 `true`（默认值为 false），请参阅 [Configuration]({{< ref "docs/dev/table/config" >}}) 了解有关如何设置配置选项的详细信息。
-
 <a name="syntax"></a>
 ### 语法
 为了不破坏 SQL 兼容性，我们使用 Oracle 风格的 SQL hints 语法：
