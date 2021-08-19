@@ -25,6 +25,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,7 +41,8 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, WriterState> {
+class ReducingUpsertWriter<WriterState>
+        implements SinkWriter<RowData, Void, ReducingUpsertWriterState<WriterState>> {
 
     private final SinkWriter<RowData, ?, WriterState> wrappedWriter;
     private final WrappedContext wrappedContext = new WrappedContext();
@@ -91,8 +94,9 @@ class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, Wri
     }
 
     @Override
-    public List<WriterState> snapshotState() throws IOException {
-        return wrappedWriter.snapshotState();
+    public List<ReducingUpsertWriterState<WriterState>> snapshotState() throws IOException {
+        return ImmutableList.of(
+                new ReducingUpsertWriterState<>(reduceBuffer, wrappedWriter.snapshotState()));
     }
 
     @Override
