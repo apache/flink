@@ -6,6 +6,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.dynamodb.config.AWSConfigConstants;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
@@ -37,7 +38,7 @@ public class DynamoDbSinkTest {
     @Test
     public void testSinkIsSerializable() {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
         assertTrue(InstantiationUtil.isSerializable(sink));
     }
 
@@ -48,7 +49,7 @@ public class DynamoDbSinkTest {
     @Test
     public void testBatchFailureRethrownOnInvoke() throws Throwable {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
 
         final OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -82,7 +83,7 @@ public class DynamoDbSinkTest {
     @Test
     public void testBatchFailureRethrownOnCheckpoint() throws Throwable {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
 
         final OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -119,7 +120,7 @@ public class DynamoDbSinkTest {
     @Test
     public void testBatchFailureRethrownOnClose() throws Throwable {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
 
         final OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -155,7 +156,7 @@ public class DynamoDbSinkTest {
     @Test(timeout = 5000)
     public void testBatchFailureRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
 
         final OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -209,7 +210,7 @@ public class DynamoDbSinkTest {
     @Test(timeout = 5000)
     public void testAtLeastOnceSink() throws Throwable {
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
 
         final OneInputStreamOperatorTestHarness<String, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -264,7 +265,7 @@ public class DynamoDbSinkTest {
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
 
         final DummyDynamoDbSink<String> sink =
-                new DummyDynamoDbSink<>(new DummySinkFunction(), new Properties());
+                new DummyDynamoDbSink<>(new DummySinkFunction(), getStandardProperties());
         sink.setQueueLimit(1);
 
         OneInputStreamOperatorTestHarness<String, Object> testHarness =
@@ -369,15 +370,17 @@ public class DynamoDbSinkTest {
         public void manualCompletePendingRequest(Throwable throwable) {
             completed++;
             batchRequests.get(completed - 1);
-            ProducerWriteRequest batchRequest =
+            ProducerWriteRequest producerWriteRequest =
                     new ProducerWriteRequest("", "", ImmutableList.of());
-            listener.beforeWrite("123", batchRequest);
+            listener.beforeWrite("123", producerWriteRequest);
 
             if (throwable == null) {
                 listener.afterWrite(
-                        "123", batchRequest, new ProducerWriteResponse("123", true, 2, null, 10L));
+                        "123",
+                        producerWriteRequest,
+                        new ProducerWriteResponse("123", true, 2, null, 10L));
             } else {
-                listener.afterWrite("123", batchRequest, throwable);
+                listener.afterWrite("123L", producerWriteRequest, throwable);
             }
         }
 
@@ -468,5 +471,11 @@ public class DynamoDbSinkTest {
         public void process(String element, RuntimeContext ctx, DynamoDbProducer producer) {
             producer.produce(PutItemRequest.builder().build());
         }
+    }
+
+    private static Properties getStandardProperties() {
+        Properties config = new Properties();
+        config.setProperty(AWSConfigConstants.AWS_REGION, "eu-west-1");
+        return config;
     }
 }

@@ -27,11 +27,14 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
+import org.apache.flink.streaming.connectors.dynamodb.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.dynamodb.util.TimeoutLatch;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
 
 import java.util.Properties;
@@ -89,11 +92,11 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     /** Field for async exception. */
     private transient volatile Throwable thrownException;
 
-    /**
-     * Provided to the user via the {@link DynamoDbSinkFunction} to add {@link WriteRequest
-     * WriteRequest}.
-     */
-    private transient DynamoDBWriter dynamoDBWriter;
+    /** The DynamoDb Producer builder. */
+    private transient DynamoDbProducerBuilder dynamoDbProducerBuilder;
+
+    /** DynamoDb Client created by AWS2Util. */
+    private transient DynamoDbClient client;
 
     private transient DynamoDbProducer producer;
 
@@ -138,6 +141,7 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     @Override
     public void open(Configuration parameters) {
         backpressureLatch = new TimeoutLatch();
+        client = AwsV2Util.createDynamoDbClient(configProps);
         this.producer = buildDynamoDBProducer(new DynamoDbProducerListener());
         final MetricGroup dynamoDBSinkMetricGroup =
                 getRuntimeContext().getMetricGroup().addGroup(DYNAMO_DB_PRODUCER_METRIC_GROUP);
@@ -162,8 +166,12 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
 
     @Override
     public void close() throws Exception {
-        LOG.info("Closing producer");
+        LOG.info("Closing sink");
         super.close();
+        if (client != null) {
+            client.close();
+            client = null;
+        }
         if (producer != null) {
             LOG.info("Flushing outstanding {} records", producer.getOutstandingRecordsCount());
             // try to flush all outstanding records
@@ -200,7 +208,10 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
      */
     @VisibleForTesting
     protected DynamoDbProducer buildDynamoDBProducer(DynamoDbProducer.Listener listener) {
-        return new MockDynamoDbProducer(listener);
+        return new DynamoDbProducerBuilder(client, ProducerType.BatchAsync)
+                .setQueueLimit(queueLimit)
+                .setListener(listener)
+                .build();
     }
 
     /** Check if there are any asynchronous exceptions. If so, rethrow the exception. */
