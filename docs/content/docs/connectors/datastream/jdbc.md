@@ -182,9 +182,31 @@ env.execute();
 ```
 Postgres XADataSource Example:
 ```java
-PGXADataSource pgxaDataSource = new PGXADataSource();
-pgxaDataSource.setUrl(
-"jdbc:postgresql://localhost:5432/postgres");
+
+### `XADataSource` examples
+PostgreSQL `XADataSource` example:
+```java
+PGXADataSource xaDataSource = new org.postgresql.xa.PGXADataSource();
+xaDataSource.setUrl("jdbc:postgresql://localhost:5432/postgres");
+xaDataSource.setUser(username);
+xaDataSource.setPassword(password);
 ```
+
+MySQL `XADataSource` example:
+```java
+MysqlXADataSource xaDataSource = new com.mysql.cj.jdbc.MysqlXADataSource();
+xaDataSource.setUrl("jdbc:mysql://localhost:3306/");
+xaDataSource.setUser(username);
+xaDataSource.setPassword(password);
+```
+
+Oracle `XADataSource` example:
+```java
+OracleXADataSource xaDataSource = new oracle.jdbc.xa.OracleXADataSource();
+xaDataSource.setURL("jdbc:oracle:oci8:@");
+xaDataSource.setUser("scott");
+xaDataSource.setPassword("tiger");
+```
+Please also take Oracle connection pooling into account.
 
 Please refer to the `JdbcXaSinkFunction` documentation for more details.
