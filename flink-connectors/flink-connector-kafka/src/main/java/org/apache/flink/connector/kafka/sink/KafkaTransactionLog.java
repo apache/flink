@@ -106,7 +106,7 @@ class KafkaTransactionLog implements AutoCloseable {
                         subtaskIdCheckpointOffsetMapping,
                         main.getSubtaskId());
         this.consumer = new KafkaConsumer<>(consumerConfig);
-        this.consumer.subscribe(ImmutableList.of(TRANSACTION_STATE_TOPIC_NAME));
+        this.consumer.assign(getAllPartitions());
     }
 
     /**
