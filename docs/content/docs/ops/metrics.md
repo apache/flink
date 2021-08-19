@@ -1266,12 +1266,12 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     <tr>
       <td>backPressuredTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is back pressured per second.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>busyTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is busy (neither idle nor back pressured) per second. Can be NaN, if the value could not be calculated.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
@@ -1281,7 +1281,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     </tr>
     <tr>
       <td>debloatedBufferSize</td>
-      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the ammount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
+      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the amount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
       <td>Gauge</td>
     </tr>
     <tr>

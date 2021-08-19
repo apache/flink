@@ -566,7 +566,7 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
       <td>
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{< ref "docs/deployment/config" >}}">Configuration</a> and
-        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuation</a>. <br> <br>
+        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
         The following code is an example showing how to set the configuration options through this API:
 ```python
 # set the parallelism to 8

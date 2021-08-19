@@ -137,8 +137,12 @@ public class KafkaSourceReaderMetrics {
      */
     public void recordCommittedOffset(TopicPartition tp, long offset) {
         checkTopicPartitionTracked(tp);
-        commitsSucceeded.inc();
         offsets.get(tp).committedOffset = offset;
+    }
+
+    /** Mark a successful commit. */
+    public void recordSucceededCommit() {
+        commitsSucceeded.inc();
     }
 
     /** Mark a failure commit. */

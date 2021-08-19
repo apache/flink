@@ -26,7 +26,7 @@ under the License.
 
 # State Processor API
 
-Apache Flink's State Processor API provides powerful functionality to reading, writing, and modifing savepoints and checkpoints using Flink’s batch DataSet API.
+Apache Flink's State Processor API provides powerful functionality to reading, writing, and modifying savepoints and checkpoints using Flink’s batch DataSet API.
 Due to the [interoperability of DataSet and Table API](https://ci.apache.org/projects/flink/flink-docs-master/dev/table/common.html#integration-with-datastream-and-dataset-api), you can even use relational Table API or SQL queries to analyze and process state data.
 
 For example, you can take a savepoint of a running stream processing application and analyze it with a DataSet batch program to verify that the application behaves correctly.
@@ -78,7 +78,7 @@ The compatibility guarantees for restoring state are identical to those when res
 
 ```java
 ExecutionEnvironment bEnv   = ExecutionEnvironment.getExecutionEnvironment();
-ExistingSavepoint savepoint = Savepoint.load(bEnv, "hdfs://path/", new MemoryStateBackend());
+ExistingSavepoint savepoint = Savepoint.load(bEnv, "hdfs://path/", new HashMapStateBackend());
 ```
 
 
@@ -302,7 +302,7 @@ class ClickReader extends WindowReaderFunction<Integer, ClickState, String, Time
 }
 
 ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new MemoryStateBackend());
+ExistingSavepoint savepoint = Savepoint.load(batchEnv, "hdfs://checkpoint-dir", new HashMapStateBackend());
 
 savepoint
     .window(TumblingEventTimeWindows.of(Time.minutes(1)))
@@ -329,7 +329,7 @@ a savepoint for the Scala DataStream API please manually pass in all type inform
 int maxParallelism = 128;
 
 Savepoint
-    .create(new MemoryStateBackend(), maxParallelism)
+    .create(new HashMapStateBackend(), maxParallelism)
     .withOperator("uid1", transformation1)
     .withOperator("uid2", transformation2)
     .write(savepointPath);
@@ -478,7 +478,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 Savepoint
-    .load(bEnv, new MemoryStateBackend(), oldPath)
+    .load(bEnv, new HashMapStateBackend(), oldPath)
     .withOperator("uid", transformation)
     .write(newPath);
 ```

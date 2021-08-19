@@ -429,9 +429,9 @@ catalogs:
 {{< /tab >}}
 {{< /tabs >}}
 
-#### PostgresSQL 元空间映射
+#### PostgreSQL 元空间映射
 
-除了数据库之外，postgresSQL 还有一个额外的命名空间 `schema`。一个 Postgres 实例可以拥有多个数据库，每个数据库可以拥有多个 schema，其中一个 schema 默认名为 “public”，每个 schema 可以包含多张表。
+除了数据库之外，postgreSQL 还有一个额外的命名空间 `schema`。一个 Postgres 实例可以拥有多个数据库，每个数据库可以拥有多个 schema，其中一个 schema 默认名为 “public”，每个 schema 可以包含多张表。
 在 Flink 中，当查询由 Postgres catalog 注册的表时，用户可以使用 `schema_name.table_name` 或只有 `table_name`，其中 `schema_name` 是可选的，默认值为 “public”。
 
 因此，Flink Catalog 和 Postgres 之间的元空间映射如下：
@@ -461,7 +461,7 @@ SELECT * FROM `custom_schema.test_table2`;
 
 数据类型映射
 ----------------
-Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、PostgresSQL、Derby 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
+Flink 支持连接到多个使用方言（dialect）的数据库，如 MySQL、PostgreSQL、Derby 等。其中，Derby 通常是用于测试目的。下表列出了从关系数据库数据类型到 Flink SQL 数据类型的类型映射，映射表可以使得在 Flink 中定义 JDBC 表更加简单。
 
 <table class="table table-bordered">
     <thead>

@@ -271,7 +271,7 @@ catalog.dropDatabase("mydb", false);
 // alter database
 catalog.alterDatabase("mydb", new CatalogDatabaseImpl(...), false);
 
-// get databse
+// get database
 catalog.getDatabase("mydb");
 
 // check if a database exist

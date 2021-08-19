@@ -106,8 +106,6 @@ if __name__ == "__main__":
             ApiServiceDescriptor(url=control_endpoint))
 
         env = dict(os.environ)
-        with open('/tmp/test.txt', 'a') as fd:
-            fd.write(str(env) + '\n')
 
         if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
             exit(0)

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -461,8 +462,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         public void emitRecord(StreamRecord<OUT> streamRecord) throws Exception {
             output.emitRecord(streamRecord);
             this.sourceMetricGroup.recordEmitted();
-            if (streamRecord.hasTimestamp()) {
-                this.sourceMetricGroup.eventTimeEmitted(streamRecord.getTimestamp());
+            long timestamp = streamRecord.getTimestamp();
+            if (timestamp != TimestampAssigner.NO_TIMESTAMP) {
+                this.sourceMetricGroup.eventTimeEmitted(timestamp);
             }
         }
 

@@ -196,7 +196,7 @@ public final class StateBootstrapWrapperOperator<
                         operator.getContainingTask()
                                 .getConfiguration()
                                 .isUnalignedCheckpointsEnabled(),
-                        operator.getContainingTask().getCheckpointStorage(),
+                        operator.getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 
         output.collect(new StreamRecord<>(state));
