@@ -376,9 +376,10 @@ public class KafkaSinkITCase extends TestLogger {
         return standardProps;
     }
 
-    private Consumer<byte[], byte[]> createTestConsumer(String topic) {
+    private static Consumer<byte[], byte[]> createTestConsumer(
+            String topic, Properties properties) {
         final Properties consumerConfig = new Properties();
-        consumerConfig.putAll(getKafkaClientConfiguration());
+        consumerConfig.putAll(properties);
         consumerConfig.put("key.deserializer", ByteArrayDeserializer.class.getName());
         consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
         consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
@@ -403,8 +404,14 @@ public class KafkaSinkITCase extends TestLogger {
     }
 
     private List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(String topic) {
+        Properties properties = getKafkaClientConfiguration();
+        return drainAllRecordsFromTopic(topic, properties);
+    }
+
+    static List<ConsumerRecord<byte[], byte[]>> drainAllRecordsFromTopic(
+            String topic, Properties properties) {
         final List<ConsumerRecord<byte[], byte[]>> collectedRecords = new ArrayList<>();
-        try (Consumer<byte[], byte[]> consumer = createTestConsumer(topic)) {
+        try (Consumer<byte[], byte[]> consumer = createTestConsumer(topic, properties)) {
             ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_DURATION);
             // Drain the kafka topic till all records are consumed
             while (!records.isEmpty()) {
