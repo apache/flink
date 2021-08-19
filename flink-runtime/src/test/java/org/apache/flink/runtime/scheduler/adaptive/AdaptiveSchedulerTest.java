@@ -112,6 +112,7 @@ import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGr
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -947,6 +948,84 @@ public class AdaptiveSchedulerTest extends TestLogger {
         assertThat(failure.getTimestamp(), lessThanOrEqualTo(end));
         assertThat(failure.getTaskManagerLocation(), is(nullValue()));
         assertThat(failure.getFailingTaskName(), is(nullValue()));
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskConcurrentFailure() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        final int numAvailableSlots = 4;
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                            taskManagerGateway);
+                });
+        taskManagerGateway.waitForSubmissions(numAvailableSlots, Duration.ofSeconds(5));
+
+        final Exception expectedException = new Exception("local failure");
+        final Exception expectedException2 = new Exception("local failure 2");
+        Iterable<ArchivedExecutionVertex> executionVertices =
+                scheduler.requestJob().getArchivedExecutionGraph().getAllExecutionVertices();
+
+        ExecutionAttemptID attemptId =
+                executionVertices.iterator().next().getCurrentExecutionAttempt().getAttemptId();
+        final long start = System.currentTimeMillis();
+        final OneShotLatch latch = new OneShotLatch();
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                    latch.trigger();
+                });
+
+        latch.await();
+        final OneShotLatch latch2 = new OneShotLatch();
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException2)));
+                    latch2.trigger();
+                });
+
+        latch2.await();
+
+        List<Throwable> foundExceptions = new ArrayList<>();
+        scheduler
+                .requestJob()
+                .getExceptionHistory()
+                .forEach(
+                        eh -> {
+                            foundExceptions.add(
+                                    eh.getException()
+                                            .deserializeError(ClassLoader.getSystemClassLoader()));
+                        });
+
+        assertThat(
+                foundExceptions, containsInAnyOrder(is(expectedException), is(expectedException)));
     }
 
     @Test(expected = IllegalStateException.class)
