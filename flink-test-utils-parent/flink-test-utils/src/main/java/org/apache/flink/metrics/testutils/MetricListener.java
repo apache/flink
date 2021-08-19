@@ -29,6 +29,7 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * A MetricListener listens metric and group registration under the provided root metric group, and
@@ -75,25 +76,22 @@ public class MetricListener {
      * metric group can be reached by identifier ("myGroup", "myMetric")
      *
      * @param identifier identifier relative to the root metric group
-     * @return Registered metric
+     * @return Optional registered metric
      */
-    public <T extends Metric> T getMetric(Class<T> metricType, String... identifier) {
-        String actualIdentifier =
-                ROOT_METRIC_GROUP_NAME + DELIMITER + String.join(DELIMITER, identifier);
-        if (!metrics.containsKey(actualIdentifier)) {
-            throw new IllegalArgumentException(
-                    String.format("Metric '%s' is not registered", actualIdentifier));
+    public <T extends Metric> Optional<T> getMetric(Class<T> metricType, String... identifier) {
+        if (!metrics.containsKey(getActualIdentifier(identifier))) {
+            return Optional.empty();
         }
-        return metricType.cast(metrics.get(actualIdentifier));
+        return Optional.of(metricType.cast(metrics.get(getActualIdentifier(identifier))));
     }
 
     /**
      * Get registered {@link Meter} with identifier relative to the root metric group.
      *
      * @param identifier identifier relative to the root metric group
-     * @return Registered meter
+     * @return Optional registered meter
      */
-    public Meter getMeter(String... identifier) {
+    public Optional<Meter> getMeter(String... identifier) {
         return getMetric(Meter.class, identifier);
     }
 
@@ -101,9 +99,9 @@ public class MetricListener {
      * Get registered {@link Counter} with identifier relative to the root metric group.
      *
      * @param identifier identifier relative to the root metric group
-     * @return Registered counter
+     * @return Optional registered counter
      */
-    public Counter getCounter(String... identifier) {
+    public Optional<Counter> getCounter(String... identifier) {
         return getMetric(Counter.class, identifier);
     }
 
@@ -111,9 +109,9 @@ public class MetricListener {
      * Get registered {@link Histogram} with identifier relative to the root metric group.
      *
      * @param identifier identifier relative to the root metric group
-     * @return Registered histogram
+     * @return Optional registered histogram
      */
-    public Histogram getHistogram(String... identifier) {
+    public Optional<Histogram> getHistogram(String... identifier) {
         return getMetric(Histogram.class, identifier);
     }
 
@@ -121,10 +119,18 @@ public class MetricListener {
      * Get registered {@link Gauge} with identifier relative to the root metric group.
      *
      * @param identifier identifier relative to the root metric group
-     * @return Registered gauge
+     * @return Optional registered gauge
      */
     @SuppressWarnings("unchecked")
-    public <T> Gauge<T> getGauge(String... identifier) {
-        return (Gauge<T>) getMetric(Gauge.class, identifier);
+    public <T> Optional<Gauge<T>> getGauge(String... identifier) {
+        if (!metrics.containsKey(getActualIdentifier(identifier))) {
+            return Optional.empty();
+        } else {
+            return Optional.of((Gauge<T>) metrics.get(getActualIdentifier(identifier)));
+        }
+    }
+
+    private String getActualIdentifier(String... identifier) {
+        return ROOT_METRIC_GROUP_NAME + DELIMITER + String.join(DELIMITER, identifier);
     }
 }

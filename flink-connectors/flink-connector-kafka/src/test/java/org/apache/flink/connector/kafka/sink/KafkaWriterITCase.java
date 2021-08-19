@@ -57,12 +57,13 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
 public class KafkaWriterITCase {
@@ -115,7 +116,7 @@ public class KafkaWriterITCase {
     public void testRegisterMetrics(DeliveryGuarantee guarantee) throws Exception {
         try (final KafkaWriter<Integer> ignored =
                 createWriterWithConfiguration(getKafkaClientConfiguration(), guarantee)) {
-            metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME);
+            assertTrue(metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME).isPresent());
         }
     }
 
@@ -126,9 +127,8 @@ public class KafkaWriterITCase {
         config.put("flink.disable-metrics", "true");
         try (final KafkaWriter<Integer> ignored =
                 createWriterWithConfiguration(config, guarantee)) {
-            assertThrows(
-                    IllegalArgumentException.class,
-                    () -> metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME));
+            Assertions.assertFalse(
+                    metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME).isPresent());
         }
     }
 
@@ -159,8 +159,10 @@ public class KafkaWriterITCase {
                         getKafkaClientConfiguration(),
                         DeliveryGuarantee.AT_LEAST_ONCE,
                         metricGroup)) {
-            final Gauge<Long> currentSendTime = metricListener.getGauge("currentSendTime");
-            Assertions.assertEquals(currentSendTime.getValue(), 0L);
+            final Optional<Gauge<Long>> currentSendTime =
+                    metricListener.getGauge("currentSendTime");
+            assertTrue(currentSendTime.isPresent());
+            Assertions.assertEquals(currentSendTime.get().getValue(), 0L);
             IntStream.range(0, 100)
                     .forEach(
                             (run) -> {
@@ -174,7 +176,7 @@ public class KafkaWriterITCase {
                                     throw new RuntimeException("Failed writing Kafka record.");
                                 }
                             });
-            MatcherAssert.assertThat(currentSendTime.getValue(), greaterThan(0L));
+            MatcherAssert.assertThat(currentSendTime.get().getValue(), greaterThan(0L));
         }
     }
 

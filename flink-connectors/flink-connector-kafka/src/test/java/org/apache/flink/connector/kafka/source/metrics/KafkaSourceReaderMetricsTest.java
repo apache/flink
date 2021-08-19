@@ -18,16 +18,20 @@
 
 package org.apache.flink.connector.kafka.source.metrics;
 
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.testutils.MetricListener;
 
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
 
+import java.util.Optional;
+
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /** Unit test for {@link KafkaSourceReaderMetrics}. */
 public class KafkaSourceReaderMetricsTest {
@@ -82,23 +86,16 @@ public class KafkaSourceReaderMetricsTest {
         assertCommittedOffset(BAR_0, 18613L, metricListener);
         assertCommittedOffset(BAR_1, 15513L, metricListener);
 
-        assertEquals(
-                0L,
-                metricListener
-                        .getCounter(
-                                KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
-                                KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER)
-                        .getCount());
+        final Optional<Counter> commitsSucceededCounter =
+                metricListener.getCounter(
+                        KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
+                        KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER);
+        assertTrue(commitsSucceededCounter.isPresent());
+        assertEquals(0L, commitsSucceededCounter.get().getCount());
 
         kafkaSourceReaderMetrics.recordSucceededCommit();
 
-        assertEquals(
-                1L,
-                metricListener
-                        .getCounter(
-                                KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
-                                KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER)
-                        .getCount());
+        assertEquals(1L, commitsSucceededCounter.get().getCount());
     }
 
     @Test
@@ -120,47 +117,41 @@ public class KafkaSourceReaderMetricsTest {
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(metricListener.getMetricGroup());
         kafkaSourceReaderMetrics.recordFailedCommit();
-        assertEquals(
-                1L,
-                metricListener
-                        .getCounter(
-                                KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
-                                KafkaSourceReaderMetrics.COMMITS_FAILED_METRIC_COUNTER)
-                        .getCount());
+        final Optional<Counter> commitsFailedCounter =
+                metricListener.getCounter(
+                        KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
+                        KafkaSourceReaderMetrics.COMMITS_FAILED_METRIC_COUNTER);
+        assertTrue(commitsFailedCounter.isPresent());
+        assertEquals(1L, commitsFailedCounter.get().getCount());
     }
 
     // ----------- Assertions --------------
 
     private void assertCurrentOffset(
             TopicPartition tp, long expectedOffset, MetricListener metricListener) {
-        assertGaugeValueEquals(
-                expectedOffset,
+        final Optional<Gauge<Long>> currentOffsetGauge =
                 metricListener.getGauge(
                         KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
                         TOPIC_GROUP,
                         tp.topic(),
                         PARTITION_GROUP,
                         String.valueOf(tp.partition()),
-                        KafkaSourceReaderMetrics.CURRENT_OFFSET_METRIC_GAUGE),
-                Long.class);
+                        KafkaSourceReaderMetrics.CURRENT_OFFSET_METRIC_GAUGE);
+        assertTrue(currentOffsetGauge.isPresent());
+        assertEquals(expectedOffset, (long) currentOffsetGauge.get().getValue());
     }
 
     private void assertCommittedOffset(
             TopicPartition tp, long expectedOffset, MetricListener metricListener) {
-        assertGaugeValueEquals(
-                expectedOffset,
+        final Optional<Gauge<Long>> committedOffsetGauge =
                 metricListener.getGauge(
                         KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP,
                         TOPIC_GROUP,
                         tp.topic(),
                         PARTITION_GROUP,
                         String.valueOf(tp.partition()),
-                        KafkaSourceReaderMetrics.COMMITTED_OFFSET_METRIC_GAUGE),
-                Long.class);
-    }
-
-    private <T> void assertGaugeValueEquals(T expected, Gauge<?> gauge, Class<T> type) {
-        final T actual = type.cast(gauge.getValue());
-        assertEquals(expected, actual);
+                        KafkaSourceReaderMetrics.COMMITTED_OFFSET_METRIC_GAUGE);
+        assertTrue(committedOffsetGauge.isPresent());
+        assertEquals(expectedOffset, (long) committedOffsetGauge.get().getValue());
     }
 }
