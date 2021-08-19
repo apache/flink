@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -83,6 +84,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_CAP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
@@ -1289,6 +1291,52 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     // JSON functions
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>Specifying the optional {@param type} argument puts a constraint on which type of JSON
+     * object is allowed. If the string is valid JSON, but not that type, {@code false} is returned.
+     * The default is {@link JsonType#VALUE}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("1").isJson() // true
+     * lit("[]").isJson() // true
+     * lit("{}").isJson() // true
+     *
+     * lit("\"abc\"").isJson() // true
+     * lit("abc").isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // false
+     *
+     * lit("1").isJson(JsonType.SCALAR) // true
+     * lit("1").isJson(JsonType.ARRAY) // false
+     * lit("1").isJson(JsonType.OBJECT) // false
+     *
+     * lit("{}").isJson(JsonType.SCALAR) // false
+     * lit("{}").isJson(JsonType.ARRAY) // false
+     * lit("{}").isJson(JsonType.OBJECT) // true
+     * }</pre>
+     *
+     * @param type The type of JSON object to validate against.
+     * @return {@code true} if the string is a valid JSON of the given {@param type}, {@code false}
+     *     otherwise.
+     */
+    public OutType isJson(JsonType type) {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr(), valueLiteral(type)));
+    }
+
+    /**
+     * Determine whether a given string is valid JSON.
+     *
+     * <p>This is a shortcut for {@code isJson(JsonType.VALUE)}. See {@link #isJson(JsonType)}.
+     *
+     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise.
+     */
+    public OutType isJson() {
+        return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr()));
+    }
 
     /**
      * Returns whether a JSON string satisfies a given search criterion.

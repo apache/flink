@@ -27,6 +27,7 @@ __all__ = [
     'Expression',
     'TimeIntervalUnit',
     'TimePointUnit',
+    'JsonType',
     'JsonExistsOnError',
     'JsonValueOnEmptyOrError'
 ]
@@ -395,6 +396,22 @@ class JsonValueOnEmptyOrError(Enum):
         gateway = get_gateway()
         JJsonValueOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonValueOnEmptyOrError
         return getattr(JJsonValueOnEmptyOrError, self.name)
+
+
+class JsonType(Enum):
+    """
+    Types of JSON objects for is_json().
+    """
+
+    VALUE = 0,
+    SCALAR = 1,
+    ARRAY = 2,
+    OBJECT = 3
+
+    def _to_j_json_type(self):
+        gateway = get_gateway()
+        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
+        return getattr(JJsonType, self.name)
 
 
 T = TypeVar('T')
@@ -1400,6 +1417,38 @@ class Expression(Generic[T]):
         return _binary_op("sha2")(self, hash_length)
 
     # ---------------------------- JSON functions -----------------------------
+
+    def is_json(self, json_type: JsonType = None) -> 'Expression[bool]':
+        """
+        Determine whether a given string is valid JSON.
+
+        Specifying the optional `json_type` argument puts a constraint on which type of JSON object
+        is allowed. If the string is valid JSON, but not that type, `false` is returned. The default
+        is `JsonType.VALUE`.
+
+        Examples:
+        ::
+
+            >>> lit('1').is_json() # True
+            >>> lit('[]').is_json() # True
+            >>> lit('{}').is_json() # True
+
+            >>> lit('"abc"').is_json() # True
+            >>> lit('abc').is_json() # False
+            >>> null_of(DataTypes.STRING()).is_json() # False
+
+            >>> lit('1').is_json(JsonType.SCALAR) # True
+            >>> lit('1').is_json(JsonType.ARRAY) # False
+            >>> lit('1').is_json(JsonType.OBJECT) # False
+
+            >>> lit('{}').is_json(JsonType.SCALAR) # False
+            >>> lit('{}').is_json(JsonType.ARRAY) # False
+            >>> lit('{}').is_json(JsonType.OBJECT) # True
+        """
+        if json_type is None:
+            return _unary_op("isJson")(self)
+        else:
+            return _binary_op("isJson")(self, json_type._to_j_json_type())
 
     def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
         """

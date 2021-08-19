@@ -21,6 +21,7 @@ package org.apache.flink.table.functions;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
@@ -1487,6 +1488,20 @@ public final class BuiltInFunctionDefinitions {
     // --------------------------------------------------------------------------------------------
     // JSON functions
     // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition IS_JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("IS_JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            symbol(JsonType.class))))
+                    .outputTypeStrategy(explicit(DataTypes.BOOLEAN().notNull()))
+                    .runtimeDeferred()
+                    .build();
 
     public static final BuiltInFunctionDefinition JSON_EXISTS =
             BuiltInFunctionDefinition.newBuilder()
