@@ -215,15 +215,6 @@ public class DefaultJobMasterServiceProcess
     }
 
     @Override
-    public void jobFinishedByOther() {
-        LOG.debug(
-                "Job {} under leader id {} has been finished by another process.",
-                jobId,
-                leaderSessionId);
-        resultFuture.completeExceptionally(new JobNotFinishedException(jobId));
-    }
-
-    @Override
     public void jobMasterFailed(Throwable cause) {
         LOG.debug("Job {} under leader id {} failed.", jobId, leaderSessionId);
         resultFuture.completeExceptionally(cause);
