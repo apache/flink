@@ -19,7 +19,10 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 
+import javax.annotation.Nullable;
+
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * This class holds the necessary information to construct a new {@link FlinkKafkaInternalProducer}
@@ -30,11 +33,17 @@ class KafkaCommittable {
     private final long producerId;
     private final short epoch;
     private final String transactionalId;
+    @Nullable private FlinkKafkaInternalProducer<?, ?> producer;
 
-    public KafkaCommittable(long producerId, short epoch, String transactionalId) {
+    public KafkaCommittable(
+            long producerId,
+            short epoch,
+            String transactionalId,
+            @Nullable FlinkKafkaInternalProducer<?, ?> producer) {
         this.producerId = producerId;
         this.epoch = epoch;
         this.transactionalId = transactionalId;
+        this.producer = producer;
     }
 
     public static KafkaCommittable of(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
@@ -42,7 +51,8 @@ class KafkaCommittable {
                 producer.getProducerId(),
                 producer.getEpoch(),
                 producer.getKafkaProducerConfig()
-                        .getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG));
+                        .getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG),
+                producer);
     }
 
     public long getProducerId() {
@@ -55,6 +65,10 @@ class KafkaCommittable {
 
     public String getTransactionalId() {
         return transactionalId;
+    }
+
+    public Optional<FlinkKafkaInternalProducer<?, ?>> getProducer() {
+        return Optional.ofNullable(producer);
     }
 
     @Override

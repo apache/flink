@@ -58,8 +58,7 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
         final String transactionalId = committable.getTransactionalId();
         LOG.debug("Committing Kafka transaction {}", transactionalId);
         try (FlinkKafkaInternalProducer<?, ?> producer =
-                new FlinkKafkaInternalProducer<>(createKafkaProducerConfig(transactionalId))) {
-            producer.resumeTransaction(committable.getProducerId(), committable.getEpoch());
+                committable.getProducer().orElseGet(() -> createProducer(committable))) {
             producer.commitTransaction();
         } catch (InvalidTxnStateException | ProducerFencedException e) {
             // That means we have committed this transaction before.
@@ -69,6 +68,18 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
                     e,
                     committable);
         }
+    }
+
+    /**
+     * Creates a producer that can commit into the same transaction as the upstream producer that
+     * was serialized into {@link KafkaCommittable}.
+     */
+    private FlinkKafkaInternalProducer<?, ?> createProducer(KafkaCommittable committable) {
+        FlinkKafkaInternalProducer<?, ?> producer =
+                new FlinkKafkaInternalProducer<>(
+                        createKafkaProducerConfig(committable.getTransactionalId()));
+        producer.resumeTransaction(committable.getProducerId(), committable.getEpoch());
+        return producer;
     }
 
     private Properties createKafkaProducerConfig(String transactionalId) {

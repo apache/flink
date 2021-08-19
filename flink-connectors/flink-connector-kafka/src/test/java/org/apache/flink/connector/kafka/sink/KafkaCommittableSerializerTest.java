@@ -37,7 +37,7 @@ public class KafkaCommittableSerializerTest extends TestLogger {
     public void testCommittableSerDe() throws IOException {
         final String transactionalId = "test-id";
         final short epoch = 5;
-        final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId);
+        final KafkaCommittable committable = new KafkaCommittable(1L, epoch, transactionalId, null);
         final byte[] serialized = SERIALIZER.serialize(committable);
         assertEquals(committable, SERIALIZER.deserialize(1, serialized));
     }
