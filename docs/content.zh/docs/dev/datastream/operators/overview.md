@@ -42,7 +42,7 @@ under the License.
 
 #### DataStream &rarr; DataStream
 
-输入一个数据同时输出一个数据。下面是将输入流中数值加倍的 map function：
+输入一个元素同时输出一个元素。下面是将输入流中元素数值加倍的 map function：
 
 {{< tabs mapfunc >}}
 {{< tab "Java">}}
@@ -75,7 +75,7 @@ data_stream.map(lambda x: 2 * x, output_type=Types.INT())
 
 #### DataStream &rarr; DataStream
 
-输入一个数据同时产生零个、一个或多个数据。下面是将句子拆分为单词的 flatmap function：
+输入一个元素同时产生零个、一个或多个元素。下面是将句子拆分为单词的 flatmap function：
 
 {{< tabs flatmapfunc >}}
 {{< tab "Java">}}
@@ -110,7 +110,7 @@ data_stream.flat_map(lambda x: x.split(' '), output_type=Types.STRING())
 
 #### DataStream &rarr; DataStream
 
-为每个数据执行一个布尔 function，并保留那些 function 输出值为 true 的元素。下面是过滤掉零值的 filter：
+为每个元素执行一个布尔 function，并保留那些 function 输出值为 true 的元素。下面是过滤掉零值的 filter：
 
 {{< tabs filterfunc >}}
 {{< tab "Java">}}
@@ -141,10 +141,11 @@ data_stream.filter(lambda x: x != 0)
 ### KeyBy
 #### DataStream &rarr; KeyedStream
 
-在逻辑上将流划分为不相交的分区。具有相同键的记录都分配到同一个分区。在内部， _keyBy()_  是通过哈希分区实现的。有多种[指定键]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-datastream)的方式。
+在逻辑上将流划分为不相交的分区。具有相同 key 的记录都分配到同一个分区。在内部， _keyBy()_  是通过哈希分区实现的。有多种[指定 key ]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}#keyed-datastream)的方式。
 
 {{< tabs keybyfunc >}}
 {{< tab "Java">}}
+
 ```java
 dataStream.keyBy(value -> value.getSomeKey());
 dataStream.keyBy(value -> value.f0);
@@ -166,7 +167,7 @@ data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result
 
 {{< hint warning >}}
 
-以下情况，一个类**不能作为键**：
+以下情况，一个类**不能作为 key**：
 
 1. 它是一种 POJO 类，但没有重写 hashCode() 方法而是依赖于 Object.hashCode() 实现。
 2. 它是任意类的数组。
@@ -178,9 +179,9 @@ data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) // Key by the result
 ### Reduce
 #### KeyedStream &rarr; DataStream
 
-在相同键的数据流上“滚动”执行 reduce。将当前元素与最后一次 reduce 得到的值组合然后输出新值。
+在相同 key 的数据流上“滚动”执行 reduce。将当前元素与最后一次 reduce 得到的值组合然后输出新值。
 
-下面是创建局部求和的流的 reduce function：
+下面是创建局部求和流的 reduce function：
 
 {{< tabs globalreduce >}}
 {{< tab "Java">}}
@@ -212,10 +213,11 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 ### Window
 #### KeyedStream &rarr; WindowedStream
 
-可以在已经分区的 KeyedStreams 上定义 Windows。Window 根据某些特征（例如，最近 5 秒内到达的数据）对每个键中的数据进行分组。请参阅 [windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
+可以在已经分区的 KeyedStreams 上定义 Window。Window 根据某些特征（例如，最近 5 秒内到达的数据）对每个 key Stream 中的数据进行分组。请参阅 [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) 获取有关 window 的完整说明。
 
 {{< tabs window >}}
 {{< tab "Java">}}
+
 ```java
 dataStream
   .keyBy(value -> value.f0)
@@ -230,7 +232,7 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -239,11 +241,11 @@ This feature is not yet supported in Python
 ### WindowAll
 #### DataStream &rarr; AllWindowedStream
 
-可以在普通 DataStreams 上定义 Window。 Window 根据某些特征（例如，最近 5 秒内到达的数据）对所有流事件进行分组。请参阅[windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
+可以在普通 DataStream 上定义 Window。 Window 根据某些特征（例如，最近 5 秒内到达的数据）对所有流事件进行分组。请参阅[windows]({{< ref "docs/dev/datastream/operators/windows" >}})获取有关 window 的完整说明。
 
 {{< hint warning >}}
 
-在许多情况下，这是一种非并行转换。所有记录都将收集到 windowAll 算子对应的一个任务中。
+这适用于非并行转换的大多数场景。所有记录都将收集到 windowAll 算子对应的一个任务中。
 {{< /hint >}}
 
 {{< tabs windowAll >}}
@@ -261,7 +263,7 @@ dataStream
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -316,7 +318,7 @@ allWindowedStream.apply { AllWindowFunction }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Python 尚不支持此功能
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -343,7 +345,7 @@ windowedStream.reduce { _ + _ }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -397,7 +399,7 @@ dataStream.join(otherStream)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -406,7 +408,7 @@ This feature is not yet supported in Python
 ### Interval Join
 #### KeyedStream,KeyedStream &rarr; DataStream
 
-将分别属于两个 keyed stream 的元素 e1 和 e2 根据一个共同的 key 和指定的时间范围 Join 在一起，同时满足 `e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`。
+根据 key 相等满足指定的时间范围内（`e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound`）的条件将分别属于两个 keyed stream 的元素 e1 和 e2  Join 在一起。
 
 {{< tabs intervaljoin >}}
 {{< tab "Java" >}}
@@ -434,7 +436,7 @@ keyedStream.intervalJoin(otherKeyedStream)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -464,7 +466,7 @@ dataStream.coGroup(otherStream)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -615,7 +617,7 @@ initialStream.iterate {
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+Python 中尚不支持此特性。
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -684,13 +686,13 @@ data_stream.shuffle()
 ### 重新缩放
 #### DataStream &rarr; DataStream
 
-Partitions elements, round-robin, to a subset of downstream operations. This is useful if you want to have pipelines where you, for example, fan out from each parallel instance of a source to a subset of several mappers to distribute load but don't want the full rebalance that rebalance() would incur. This would require only local data transfers instead of transferring data over network, depending on other configuration values such as the number of slots of TaskManagers.
+将元素以 Round-robin 轮询的方式分发到下游算子。如果你想实现数据管道，这将很有用，例如，想将数据源多个并发实例的数据分发到多个下游 map 来实现负载分配，但又不想像 rebalance() 那样引起完全重新平衡。该算子将只会到本地数据传输而不是网络数据传输，这取决于其它配置值，例如 TaskManager 的 slot 数量。
 
-The subset of downstream operations to which the upstream operation sends elements depends on the degree of parallelism of both the upstream and downstream operation. For example, if the upstream operation has parallelism 2 and the downstream operation has parallelism 6, then one upstream operation would distribute elements to three downstream operations while the other upstream operation would distribute to the other three downstream operations. If, on the other hand, the downstream operation has parallelism 2 while the upstream operation has parallelism 6 then three upstream operations would distribute to one downstream operation while the other three upstream operations would distribute to the other downstream operation.
+上游算子将元素发往哪些下游的算子实例集合同时取决于上游和下游算子的并行度。例如，如果上游算子并行度为 2，下游算子的并发度为 6， 那么上游算子的其中一个并行实例将数据分发到下游算子的三个并行实例， 另外一个上游算子的并行实例则将数据分发到下游算子的另外三个并行实例中。再如，当下游算子的并行度为2，而上游算子的并行度为 6 的时候，那么上游算子中的三个并行实例将会分发数据至下游算子的其中一个并行实例，而另外三个上游算子的并行实例则将数据分发至另下游算子的另外一个并行实例。
 
-In cases where the different parallelisms are not multiples of each other one or several downstream operations will have a differing number of inputs from upstream operations.
+当算子的并行度不是彼此的倍数时，一个或多个下游算子将从上游算子获取到不同数量的输入。
 
-Please see this figure for a visualization of the connection pattern in the above example:
+请参阅下图来可视化地感知上述示例中的连接模式：
 
 {{< img src="/fig/rescale.svg" alt="Checkpoint barriers in data streams" >}}
 
@@ -717,7 +719,7 @@ data_stream.rescale()
 ### 广播
 #### DataStream &rarr; DataStream
 
-将元素广播至所有每个分区 。
+将元素广播到每个分区 。
 
 {{< tabs broadcast >}}
 {{< tab "Java" >}}
@@ -739,21 +741,25 @@ data_stream.broadcast()
 
 <a name="broadcasting"></a>
 
-## 算子链和资源组
+## Task 链和资源组
 
 将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外， Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
-如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注 意的是， 这些方法只能在 `DataStream` 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()` 这样调用，而不能 someStream.startNewChain()这样。
+如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注意的是，这些方法只能在 `DataStream` 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()` 这样调用，而不能 `someStream.startNewChain()` 这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看slots 槽。 你可以根据需要手动地将各个算子隔离到不同的 slot 中。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看 slots 。 你可以根据需要手动地将各个算子隔离到不同的 slot 中。 
 
-### Start New Chain
+<a name="start-new-chain"></a>
 
-Begin a new chain, starting with this operator.
-The two mappers will be chained, and filter will not be chained to the first mapper. 
+### 创建新链
+
+基于当前算子创建一个新的 task 链。
+
+后面两个 map 将被链接起来，而 filter 和第一个 map 不会链接在一起。
 
 {{< tabs startnewchain >}}
 {{< tab "Java" >}}
+
 ```java
 someStream.filter(...).map(...).startNewChain().map(...);
 ```
@@ -770,9 +776,11 @@ some_stream.filter(...).map(...).start_new_chain().map(...)
 {{< /tab >}}
 {{< /tabs>}}
 
-### Disable Chaining
+<a name="disable-chaining"></a>
 
-Do not chain the map operator.
+### 禁止链接
+
+禁止和 map 算子链接在一起。
 
 {{< tabs disablechaining >}}
 {{< tab "Java" >}}
@@ -792,9 +800,11 @@ some_stream.map(...).disable_chaining()
 {{< /tab >}}
 {{< /tabs>}}
 
-### Set Slot Sharing Group
+<a name="set-slot-sharing-group"></a>
 
-Set the slot sharing group of an operation. Flink will put operations with the same slot sharing group into the same slot while keeping operations that don't have the slot sharing group in other slots. This can be used to isolate slots. The slot sharing group is inherited from input operations if all input operations are in the same slot sharing group. The name of the default slot sharing group is "default", operations can explicitly be put into this group by calling slotSharingGroup("default"). 
+### 配置 Slot 共享组
+
+为某个算子设置 slot 共享组。Flink 会将同一个 slot 共享组的算子放在同一个 slot 中，而将不在同一 slot 共享组的算子保留在其它 slot 中。这可用于隔离 slot 。如果所有输入算子都属于同一个 slot 共享组，那么 slot 共享组从将继承输入算子所在的 slot。slot 共享组的默认名称是 “default”，可以调用 slotSharingGroup(“default”) 来显式地将算子放入该组。
 
 {{< tabs slotsharing >}}
 {{< tab "Java" >}}
