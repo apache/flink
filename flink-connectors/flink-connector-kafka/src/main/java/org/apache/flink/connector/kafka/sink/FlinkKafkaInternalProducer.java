@@ -23,6 +23,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.internals.TransactionManager;
 import org.apache.kafka.clients.producer.internals.TransactionalRequestResult;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     private final Properties kafkaProducerConfig;
     @Nullable private final String transactionalId;
+    private volatile boolean inTransaction;
 
     public FlinkKafkaInternalProducer(Properties properties) {
         super(properties);
@@ -57,9 +59,31 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     @Override
     public void flush() {
         super.flush();
-        if (transactionalId != null) {
+        if (inTransaction) {
             flushNewPartitions();
         }
+    }
+
+    @Override
+    public void beginTransaction() throws ProducerFencedException {
+        super.beginTransaction();
+        inTransaction = true;
+    }
+
+    @Override
+    public void abortTransaction() throws ProducerFencedException {
+        super.abortTransaction();
+        inTransaction = false;
+    }
+
+    @Override
+    public void commitTransaction() throws ProducerFencedException {
+        super.commitTransaction();
+        inTransaction = false;
+    }
+
+    public boolean isInTransaction() {
+        return inTransaction;
     }
 
     public Properties getKafkaProducerConfig() {
