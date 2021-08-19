@@ -28,7 +28,10 @@ import org.apache.flink.metrics.testutils.MetricListener;
 
 import org.junit.Test;
 
+import java.util.Optional;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link MetricListener}. */
 public class MetricListenerTest {
@@ -51,13 +54,15 @@ public class MetricListenerTest {
         // Counter
         final Counter counter = metricGroup.counter(COUNTER_NAME);
         counter.inc(15213);
-        final Counter registeredCounter = metricListener.getCounter(COUNTER_NAME);
-        assertEquals(15213L, registeredCounter.getCount());
+        final Optional<Counter> registeredCounter = metricListener.getCounter(COUNTER_NAME);
+        assertTrue(registeredCounter.isPresent());
+        assertEquals(15213L, registeredCounter.get().getCount());
 
         // Gauge
         metricGroup.gauge(GAUGE_NAME, () -> 15213);
-        final Gauge<Integer> registeredGauge = metricListener.getGauge(GAUGE_NAME);
-        assertEquals(Integer.valueOf(15213), registeredGauge.getValue());
+        final Optional<Gauge<Integer>> registeredGauge = metricListener.getGauge(GAUGE_NAME);
+        assertTrue(registeredGauge.isPresent());
+        assertEquals(Integer.valueOf(15213), registeredGauge.get().getValue());
 
         // Meter
         metricGroup.meter(
@@ -79,9 +84,10 @@ public class MetricListenerTest {
                         return 18213L;
                     }
                 });
-        final Meter registeredMeter = metricListener.getMeter(METER_NAME);
-        assertEquals(15213.0, registeredMeter.getRate(), 0.1);
-        assertEquals(18213L, registeredMeter.getCount());
+        final Optional<Meter> registeredMeter = metricListener.getMeter(METER_NAME);
+        assertTrue(registeredMeter.isPresent());
+        assertEquals(15213.0, registeredMeter.get().getRate(), 0.1);
+        assertEquals(18213L, registeredMeter.get().getCount());
 
         // Histogram
         metricGroup.histogram(
@@ -100,8 +106,9 @@ public class MetricListenerTest {
                         return null;
                     }
                 });
-        final Histogram registeredHistogram = metricListener.getHistogram(HISTOGRAM_NAME);
-        assertEquals(15213L, registeredHistogram.getCount());
+        final Optional<Histogram> registeredHistogram = metricListener.getHistogram(HISTOGRAM_NAME);
+        assertTrue(registeredHistogram.isPresent());
+        assertEquals(15213L, registeredHistogram.get().getCount());
     }
 
     @Test
@@ -118,14 +125,20 @@ public class MetricListenerTest {
         groupB2.counter(COUNTER_NAME).inc(15513L);
 
         // groupA.groupA_1.testCounter
-        assertEquals(
-                18213L, metricListener.getCounter(GROUP_A, GROUP_A_1, COUNTER_NAME).getCount());
+        final Optional<Counter> counterA =
+                metricListener.getCounter(GROUP_A, GROUP_A_1, COUNTER_NAME);
+        assertTrue(counterA.isPresent());
+        assertEquals(18213L, counterA.get().getCount());
 
         // groupB.groupB_1.testGauge
-        assertEquals(15213L, metricListener.getGauge(GROUP_B, GROUP_B_1, GAUGE_NAME).getValue());
+        final Optional<Gauge<Long>> gauge = metricListener.getGauge(GROUP_B, GROUP_B_1, GAUGE_NAME);
+        assertTrue(gauge.isPresent());
+        assertEquals(15213L, (long) gauge.get().getValue());
 
         // groupB.groupB_2.testCounter
-        assertEquals(
-                15513L, metricListener.getCounter(GROUP_B, GROUP_B_2, COUNTER_NAME).getCount());
+        final Optional<Counter> counterB =
+                metricListener.getCounter(GROUP_B, GROUP_B_2, COUNTER_NAME);
+        assertTrue(counterB.isPresent());
+        assertEquals(15513L, counterB.get().getCount());
     }
 }
