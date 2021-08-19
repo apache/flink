@@ -82,7 +82,7 @@ public class NettyShuffleMemoryControlTestProgram {
                 mapParallelism);
         checkArgument(
                 reduceParallelism > 0,
-                "The number of reduce tasks should be positve, but it is {}",
+                "The number of reduce tasks should be positive, but it is {}",
                 reduceParallelism);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
