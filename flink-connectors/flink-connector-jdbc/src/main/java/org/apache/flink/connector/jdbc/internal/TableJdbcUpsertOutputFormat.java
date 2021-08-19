@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.jdbc.internal;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
@@ -45,24 +46,35 @@ class TableJdbcUpsertOutputFormat
     private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
 
     private JdbcBatchStatementExecutor<Row> deleteExecutor;
-    private final JdbcDmlOptions dmlOptions;
+    private final StatementExecutorFactory<JdbcBatchStatementExecutor<Row>>
+            deleteStatementExecutorFactory;
 
     TableJdbcUpsertOutputFormat(
             JdbcConnectionProvider connectionProvider,
             JdbcDmlOptions dmlOptions,
             JdbcExecutionOptions batchOptions) {
-        super(
+        this(
                 connectionProvider,
                 batchOptions,
                 ctx -> createUpsertRowExecutor(dmlOptions, ctx),
-                tuple2 -> tuple2.f1);
-        this.dmlOptions = dmlOptions;
+                ctx -> createDeleteExecutor(dmlOptions, ctx));
+    }
+
+    @VisibleForTesting
+    TableJdbcUpsertOutputFormat(
+            JdbcConnectionProvider connectionProvider,
+            JdbcExecutionOptions batchOptions,
+            StatementExecutorFactory<JdbcBatchStatementExecutor<Row>> statementExecutorFactory,
+            StatementExecutorFactory<JdbcBatchStatementExecutor<Row>>
+                    deleteStatementExecutorFactory) {
+        super(connectionProvider, batchOptions, statementExecutorFactory, tuple2 -> tuple2.f1);
+        this.deleteStatementExecutorFactory = deleteStatementExecutorFactory;
     }
 
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
         super.open(taskNumber, numTasks);
-        deleteExecutor = createDeleteExecutor();
+        deleteExecutor = deleteStatementExecutorFactory.apply(getRuntimeContext());
         try {
             deleteExecutor.prepareStatements(connectionProvider.getConnection());
         } catch (SQLException e) {
@@ -70,7 +82,8 @@ class TableJdbcUpsertOutputFormat
         }
     }
 
-    private JdbcBatchStatementExecutor<Row> createDeleteExecutor() {
+    private static JdbcBatchStatementExecutor<Row> createDeleteExecutor(
+            JdbcDmlOptions dmlOptions, RuntimeContext ctx) {
         int[] pkFields =
                 Arrays.stream(dmlOptions.getFieldNames())
                         .mapToInt(Arrays.asList(dmlOptions.getFieldNames())::indexOf)
@@ -117,6 +130,13 @@ class TableJdbcUpsertOutputFormat
     protected void attemptFlush() throws SQLException {
         super.attemptFlush();
         deleteExecutor.executeBatch();
+    }
+
+    @Override
+    public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {
+        super.updateExecutor(reconnect);
+        deleteExecutor.closeStatements();
+        deleteExecutor.prepareStatements(connectionProvider.getConnection());
     }
 
     private static JdbcBatchStatementExecutor<Row> createKeyedRowExecutor(
