@@ -184,6 +184,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     @Override
     public void close() throws Exception {
+        if (currentProducer.isInTransaction()) {
+            currentProducer.abortTransaction();
+        }
+        currentProducer.flush();
         closed = true;
         currentProducer.close(Duration.ZERO);
     }
