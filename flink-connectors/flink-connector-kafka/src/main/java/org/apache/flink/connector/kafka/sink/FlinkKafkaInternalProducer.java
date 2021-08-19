@@ -33,6 +33,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Properties;
 
 /**
@@ -84,6 +85,11 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     public boolean isInTransaction() {
         return inTransaction;
+    }
+
+    @Override
+    public void close() {
+        super.close(Duration.ZERO);
     }
 
     public Properties getKafkaProducerConfig() {
