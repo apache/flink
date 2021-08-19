@@ -51,7 +51,7 @@ class KafkaCommittableSerializer implements SimpleVersionedSerializer<KafkaCommi
             final short epoch = in.readShort();
             final long producerId = in.readLong();
             final String transactionalId = in.readUTF();
-            return new KafkaCommittable(producerId, epoch, transactionalId);
+            return new KafkaCommittable(producerId, epoch, transactionalId, null);
         }
     }
 }
