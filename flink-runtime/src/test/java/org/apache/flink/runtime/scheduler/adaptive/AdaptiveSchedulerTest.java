@@ -1018,7 +1018,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         });
 
         assertThat(
-                foundExceptions, containsInAnyOrder(is(expectedException), is(expectedException)));
+                foundExceptions, containsInAnyOrder(is(expectedException), is(expectedException2)));
     }
 
     @Test(expected = IllegalStateException.class)
