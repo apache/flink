@@ -69,8 +69,8 @@ public class FailureHandlingResultSnapshot {
     /**
      * Creates a {@code FailureHandlingResultSnapshot} based on passed parameters.
      *
-     * @param failingExecutionVertexId an {@link Optional} of the {@link ExecutionVertexID} the
-     *     failure originates from, or {@code None}.
+     * @param failingExecutionVertexId an {@link ExecutionVertexID} the failure originates from, or
+     *     {@code None}.
      * @param rootCause the failure reason.
      * @param concurrentVertexIds {@link ExecutionVertexID} Task vertices concurrently failing with
      *     the {@code failingExecutionVertexID}.
@@ -80,7 +80,7 @@ public class FailureHandlingResultSnapshot {
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
-            ExecutionVertexID failingExecutionVertexId,
+            @Nullable ExecutionVertexID failingExecutionVertexId,
             Throwable rootCause,
             Set<ExecutionVertexID> concurrentVertexIds,
             long timestamp,
