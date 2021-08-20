@@ -70,25 +70,25 @@ public class FileSystemCommitterTest {
         FileSystemCommitter committer =
                 new FileSystemCommitter(fileSystemFactory, metaStoreFactory, true, tmpPath, 2);
 
-        createFile("cp-1/task-1/p1=0/p2=0/", "f1", "f2");
-        createFile("cp-1/task-2/p1=0/p2=0/", "f3");
-        createFile("cp-1/task-2/p1=0/p2=1/", "f4");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-1/p1=0/p2=0/", "f1", "f2");
+        createFile("task-2/p1=0/p2=0/", "f3");
+        createFile("task-2/p1=0/p2=1/", "f4");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f4").exists());
 
-        createFile("cp-1/task-2/p1=0/p2=1/", "f5");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-2/p1=0/p2=1/", "f5");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
 
         committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 2);
-        createFile("cp-1/task-2/p1=0/p2=1/", "f6");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-2/p1=0/p2=1/", "f6");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
         Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f6").exists());
     }
@@ -98,20 +98,20 @@ public class FileSystemCommitterTest {
         FileSystemCommitter committer =
                 new FileSystemCommitter(fileSystemFactory, metaStoreFactory, true, tmpPath, 0);
 
-        createFile("cp-1/task-1/", "f1", "f2");
-        createFile("cp-1/task-2/", "f3");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-1/", "f1", "f2");
+        createFile("task-2/", "f3");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "f1").exists());
         Assert.assertTrue(new File(outputFile, "f2").exists());
         Assert.assertTrue(new File(outputFile, "f3").exists());
 
-        createFile("cp-1/task-2/", "f4");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-2/", "f4");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "f4").exists());
 
         committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 0);
-        createFile("cp-1/task-2/", "f5");
-        committer.commitUpToCheckpoint(1);
+        createFile("task-2/", "f5");
+        committer.commitPartitions();
         Assert.assertTrue(new File(outputFile, "f4").exists());
         Assert.assertTrue(new File(outputFile, "f5").exists());
     }
