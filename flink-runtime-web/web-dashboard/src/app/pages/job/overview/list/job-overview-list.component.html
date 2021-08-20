@@ -21,12 +21,13 @@
   class="no-border small"
   [nzSize]="'small'"
   [nzData]="nodes"
-  [nzScroll]="{x:((1360+left)+'px')}"
+  [nzScroll]="{ x: 1360 + left + 'px' }"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
+  [nzShowPagination]="false"
+>
   <thead>
     <tr>
-      <th nzLeft="0px" [nzWidth]="left+'px'">Name</th>
+      <th nzLeft="0px" [nzWidth]="left + 'px'">Name</th>
       <th [nzSortFn]="sortStatusFn" nzWidth="120px">Status</th>
       <th [nzSortFn]="sortReadBytesFn" nzWidth="150px">Bytes Received</th>
       <th [nzSortFn]="sortReadRecordsFn" nzWidth="150px">Records Received</th>
@@ -40,37 +41,64 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let node of table.data; trackBy:trackJobBy;" class="clickable" (click)="clickNode(node)" [class.selected]="selectedNode?.id === node.id">
+    <tr
+      *ngFor="let node of table.data; trackBy: trackJobBy"
+      class="clickable"
+      (click)="clickNode(node)"
+      [class.selected]="selectedNode?.id === node.id"
+    >
       <td nzLeft="0px" class="name" [class.selected]="selectedNode?.id === node.id">
-        <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">{{ node.detail?.name }}</a>
+        <a nzTooltipPlacement="topLeft" nz-tooltip [nzTooltipTitle]="node.detail?.name">
+          {{ node.detail?.name }}
+        </a>
       </td>
       <td>
         <flink-job-badge [state]="node.detail?.status"></flink-job-badge>
       </td>
       <td>
-        <span *ngIf="node.detail?.metrics['read-bytes-complete'];else loadingTemplate">
-          {{ node.detail?.metrics['read-bytes'] | humanizeBytes }}
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['read-bytes-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['read-bytes'] | humanizeBytes }}
         </span>
       </td>
       <td>
-        <span *ngIf="node.detail?.metrics['read-records-complete'];else loadingTemplate">
-          {{ node.detail?.metrics['read-records'] | number:'1.0-0' }}
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['read-records-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['read-records'] | number: '1.0-0' }}
         </span>
       </td>
       <td>
-        <span *ngIf="node.detail?.metrics['write-bytes-complete'];else loadingTemplate">
-          {{ node.detail?.metrics['write-bytes'] | humanizeBytes }}
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['write-bytes-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['write-bytes'] | humanizeBytes }}
         </span>
       </td>
       <td>
-        <span *ngIf="node.detail?.metrics['write-records-complete'];else loadingTemplate">
-          {{ node.detail?.metrics['write-records'] | number:'1.0-0' }}
+        <span
+          *ngIf="
+            node.detail?.metrics && node.detail.metrics['write-records-complete'];
+            else loadingTemplate
+          "
+        >
+          {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
         </span>
       </td>
       <td>{{ node.parallelism }}</td>
-      <td>{{ node.detail["start-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td>{{ node.detail?.duration | humanizeDuration }}</td>
-      <td>{{ node.detail["end-time"] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+      <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
       <td nzRight="0px" [class.selected]="selectedNode?.id === node.id">
         <flink-task-badge [tasks]="node.detail?.tasks"></flink-task-badge>
       </td>

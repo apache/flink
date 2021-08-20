@@ -31,6 +31,8 @@ import {
 } from '@angular/core';
 import { fromEvent, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { SafeAny } from 'interfaces';
 import { isNil } from 'utils';
 
 export enum ResizeModeEnums {
@@ -59,16 +61,17 @@ export class ResizeComponent implements OnInit, OnDestroy {
   @Output() resizeEnd = new EventEmitter<{ left: number; top: number }>();
   @ViewChild('trigger', { static: true }) trigger: ElementRef<HTMLDivElement>;
 
-  startMove() {
+  startMove(): void {
     this.isMoving = true;
   }
 
   /**
    * Get recursive top
+   *
    * @param e
    */
   getResizeTop(e: MouseEvent): number {
-    const getOffsetTop = (elem: HTMLElement | null) => {
+    const getOffsetTop = (elem: HTMLElement | null): number => {
       let innerOffsetTop = 0;
       do {
         if (!isNil(elem!.offsetTop)) {
@@ -91,10 +94,11 @@ export class ResizeComponent implements OnInit, OnDestroy {
 
   /**
    * Get recursive left
+   *
    * @param e
    */
   getResizeLeft(e: MouseEvent): number {
-    const getOffsetLeft = (elem: HTMLElement | null) => {
+    const getOffsetLeft = (elem: HTMLElement | null): number => {
       let innerOffsetLeft = 0;
       do {
         if (!isNil(elem!.offsetLeft)) {
@@ -115,7 +119,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
     return newLeft;
   }
 
-  constructor(@Inject(DOCUMENT) private document: any) {}
+  constructor(@Inject(DOCUMENT) private document: SafeAny) {}
 
   ngOnInit(): void {
     fromEvent<MouseEvent>(this.document, 'mouseup')

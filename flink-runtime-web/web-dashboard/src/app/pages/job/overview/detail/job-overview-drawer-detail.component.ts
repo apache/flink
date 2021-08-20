@@ -17,9 +17,10 @@
  */
 
 import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { NodesItemCorrectInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { NodesItemCorrectInterface } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -34,7 +35,7 @@ export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe(node => {
       this.node = node;
       this.cdr.markForCheck();

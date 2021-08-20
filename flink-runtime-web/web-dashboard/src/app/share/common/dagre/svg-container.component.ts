@@ -27,9 +27,12 @@ import {
   Output,
   ViewChild
 } from '@angular/core';
+
+import * as d3 from 'd3';
 import { select, Selection } from 'd3-selection';
 import { zoom, ZoomBehavior } from 'd3-zoom';
-import * as d3 from 'd3';
+
+import { SafeAny } from 'interfaces';
 
 @Component({
   selector: 'flink-svg-container',
@@ -43,8 +46,8 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
   height: number;
   transform = 'translate(0, 0) scale(1)';
   containerTransform = { x: 0, y: 0, k: 1 };
-  svgSelect: Selection<any, any, any, any>;
-  zoomController: ZoomBehavior<any, any>;
+  svgSelect: Selection<SafeAny, SafeAny, SafeAny, SafeAny>;
+  zoomController: ZoomBehavior<SafeAny, SafeAny>;
   @ViewChild('svgContainer', { static: true }) svgContainer: ElementRef<SVGAElement>;
   @ViewChild('svgInner', { static: true }) svgInner: ElementRef<SVGAElement>;
   @Input() nzMaxZoom = 5;
@@ -55,9 +58,10 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
 
   /**
    * Zoom to spec level
+   *
    * @param zoomLevel
    */
-  zoomTo(zoomLevel: number) {
+  zoomTo(zoomLevel: number): void {
     this.svgSelect
       .transition()
       .duration(0)
@@ -66,10 +70,11 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
 
   /**
    * Set transform position
+   *
    * @param transform
    * @param animate
    */
-  setPositionByTransform(transform: { x: number; y: number; k: number }, animate = false) {
+  setPositionByTransform(transform: { x: number; y: number; k: number }, animate = false): void {
     this.svgSelect
       .transition()
       .duration(animate ? 500 : 0)
@@ -78,7 +83,7 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
 
   constructor(private el: ElementRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.svgSelect = select(this.svgContainer.nativeElement);
     this.zoomController = zoom()
       .scaleExtent([this.nzMinZoom, this.nzMaxZoom])
@@ -86,17 +91,15 @@ export class SvgContainerComponent implements OnInit, AfterContentInit {
         this.containerTransform = d3.event.transform;
         this.zoom = this.containerTransform.k;
         if (!isNaN(this.containerTransform.x)) {
-          this.transform = `translate(${this.containerTransform.x} ,${this.containerTransform.y})scale(${
-            this.containerTransform.k
-          })`;
+          this.transform = `translate(${this.containerTransform.x} ,${this.containerTransform.y})scale(${this.containerTransform.k})`;
         }
         this.zoomEvent.emit(this.zoom);
-        this.transformEvent.emit(this.containerTransform as any);
+        this.transformEvent.emit(this.containerTransform as SafeAny);
       });
     this.svgSelect.call(this.zoomController).on('wheel.zoom', null);
   }
 
-  ngAfterContentInit() {
+  ngAfterContentInit(): void {
     const hostElem = this.el.nativeElement;
     if (hostElem.parentNode !== null) {
       const dims = hostElem.parentNode.getBoundingClientRect();

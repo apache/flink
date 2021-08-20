@@ -17,10 +17,12 @@
  */
 
 import { ChangeDetectorRef, Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
-import { TaskManagerService } from 'services';
 import { first } from 'rxjs/operators';
+
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+
 import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerService } from 'services';
 
 @Component({
   selector: 'flink-task-manager-thread-dump',
@@ -33,21 +35,24 @@ export class TaskManagerThreadDumpComponent implements OnInit {
   dump = '';
   taskManagerDetail: TaskManagerDetailInterface;
 
-  reload() {
+  reload(): void {
     if (this.taskManagerDetail) {
-      this.taskManagerService.loadThreadDump(this.taskManagerDetail.id).subscribe(data => {
+      this.taskManagerService.loadThreadDump(this.taskManagerDetail.id).subscribe(
+        data => {
           this.monacoEditorComponent.layout();
           this.dump = data;
           this.cdr.markForCheck();
-        }, () => {
-        this.cdr.markForCheck();
-      });
+        },
+        () => {
+          this.cdr.markForCheck();
+        }
+      );
     }
   }
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
       this.reload();

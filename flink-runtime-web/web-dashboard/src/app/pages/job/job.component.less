@@ -18,19 +18,19 @@
 @import "theme";
 
 .content {
+  position: relative;
+  box-sizing: border-box;
   margin-top: 16px;
+  padding: 0;
+  border: 1px solid @border-color-split;
+  border-radius: 2px;
+  background: @component-background;
+  list-style: none;
   font-size: 14px;
   line-height: 1.5;
-  box-sizing: border-box;
-  padding: 0;
-  list-style: none;
-  background: @component-background;
-  border-radius: 2px;
-  position: relative;
-  border: 1px solid @border-color-split;
 }
 
 .router {
-  height: 100%;
   width: 100%;
+  height: 100%;
 }

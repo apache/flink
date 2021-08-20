@@ -22,14 +22,20 @@
     *ngIf="metrics"
     nzTemplateMode
     nzSize="small"
-    [nzWidthConfig]="['220px','160px','200px',null]"
+    [nzWidthConfig]="['220px', '160px', '200px', null]"
   >
     <thead>
       <tr>
         <th colspan="2" class="table-header">Flink Memory Model</th>
         <th class="table-header">
           Effective Configuration
-          <i class="header-icon" nz-icon nz-tooltip nzTooltipTitle="This column shows the values that are actually used by Flink. These may differ from the configured values; Flink may adjust them to fit the actual setup, and automatically derives values that were not explicitly configured." nzType="info-circle"></i>
+          <i
+            class="header-icon"
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="This column shows the values that are actually used by Flink. These may differ from the configured values; Flink may adjust them to fit the actual setup, and automatically derives values that were not explicitly configured."
+            nzType="info-circle"
+          ></i>
         </th>
         <th class="table-header">Metric</th>
       </tr>
@@ -37,33 +43,60 @@
     <tbody>
       <tr>
         <td rowspan="8" class="table-header">
-          <img src="assets/images/process_mem_model.svg">
+          <img src="assets/images/process_mem_model.svg" />
         </td>
         <td class="table-header">JVM Heap</td>
         <td>{{ config['jobmanager.memory.heap.size'] | parseInt | humanizeBytes }}</td>
         <td>
-          <nz-progress nzSize="small" nzStrokeLinecap="square"
-                       [nzPercent]="+(metrics['Status.JVM.Memory.Heap.Used'] / metrics['Status.JVM.Memory.Heap.Max']  * 100 | number:'1.0-2')"
-                       nzStatus="normal"></nz-progress>
+          <nz-progress
+            nzSize="small"
+            nzStrokeLinecap="square"
+            [nzPercent]="
+              +(
+                (metrics['Status.JVM.Memory.Heap.Used'] / metrics['Status.JVM.Memory.Heap.Max']) *
+                  100 | number: '1.0-2'
+              )
+            "
+            nzStatus="normal"
+          ></nz-progress>
           {{ metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes }}
           / {{ metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}
-          <i nz-icon nz-tooltip nzTooltipTitle="The maximum heap displayed might differ from the configured values depending on the used GC algorithm for this process."
-             nzType="info-circle"></i>
+          <i
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="The maximum heap displayed might differ from the configured values depending on the used GC algorithm for this process."
+            nzType="info-circle"
+          ></i>
         </td>
       </tr>
       <tr>
         <td class="table-header">Off-Heap Memory</td>
         <td>{{ config['jobmanager.memory.off-heap.size'] | parseInt | humanizeBytes }}</td>
-        <td><i nz-icon nz-tooltip nzTooltipTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools"
-               nzType="info-circle"></i></td>
+        <td>
+          <i
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools"
+            nzType="info-circle"
+          ></i>
+        </td>
       </tr>
       <tr>
         <td class="table-header">JVM Metaspace</td>
         <td>{{ config['jobmanager.memory.jvm-metaspace.size'] | parseInt | humanizeBytes }}</td>
         <td>
-          <nz-progress nzSize="small" nzStrokeLinecap="square"
-                       [nzPercent]="+(metrics['Status.JVM.Memory.Metaspace.Used'] / metrics['Status.JVM.Memory.Metaspace.Max']  * 100 | number:'1.0-2')"
-                       nzStatus="normal"></nz-progress>
+          <nz-progress
+            nzSize="small"
+            nzStrokeLinecap="square"
+            [nzPercent]="
+              +(
+                (metrics['Status.JVM.Memory.Metaspace.Used'] /
+                  metrics['Status.JVM.Memory.Metaspace.Max']) *
+                  100 | number: '1.0-2'
+              )
+            "
+            nzStatus="normal"
+          ></nz-progress>
           {{ metrics['Status.JVM.Memory.Metaspace.Used'] | humanizeBytes }}
           / {{ metrics['Status.JVM.Memory.Metaspace.Max'] | humanizeBytes }}
         </td>
@@ -71,17 +104,29 @@
       <tr>
         <td class="table-header">JVM Overhead</td>
         <td>
-          <ng-container *ngIf="config['jobmanager.memory.jvm-overhead.min'] === config['jobmanager.memory.jvm-overhead.max']; else minMaxTemplate">
+          <ng-container
+            *ngIf="
+              config['jobmanager.memory.jvm-overhead.min'] ===
+                config['jobmanager.memory.jvm-overhead.max'];
+              else minMaxTemplate
+            "
+          >
             {{ config['jobmanager.memory.jvm-overhead.min'] | parseInt | humanizeBytes }}
           </ng-container>
           <ng-template #minMaxTemplate>
-            Min: {{ config['jobmanager.memory.jvm-overhead.min'] || '-'}}
-            <br>
-            Max: {{ config['jobmanager.memory.jvm-overhead.max'] || '-'}}
+            Min: {{ config['jobmanager.memory.jvm-overhead.min'] || '-' }}
+            <br />
+            Max: {{ config['jobmanager.memory.jvm-overhead.max'] || '-' }}
           </ng-template>
         </td>
-        <td><i nz-icon nz-tooltip nzTooltipTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools"
-               nzType="info-circle"></i></td>
+        <td>
+          <i
+            nz-icon
+            nz-tooltip
+            nzTooltipTitle="Metrics related to this configuration parameter cannot be monitored. Flink does not have full control over these memory pools"
+            nzType="info-circle"
+          ></i>
+        </td>
       </tr>
     </tbody>
   </nz-table>
@@ -98,26 +143,26 @@
           [nzSize]="'small'"
         >
           <thead>
-          <tr>
-            <th>Type</th>
-            <th>Committed</th>
-            <th>Used</th>
-            <th>Maximum</th>
-          </tr>
+            <tr>
+              <th>Type</th>
+              <th>Committed</th>
+              <th>Used</th>
+              <th>Maximum</th>
+            </tr>
           </thead>
           <tbody>
-          <tr>
-            <td><strong>Heap</strong></td>
-            <td>{{ metrics['Status.JVM.Memory.Heap.Committed'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}</td>
-          </tr>
-          <tr>
-            <td><strong>Non-Heap</strong></td>
-            <td>{{ metrics['Status.JVM.Memory.NonHeap.Committed'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.NonHeap.Used'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.NonHeap.Max'] | humanizeBytes }}</td>
-          </tr>
+            <tr>
+              <td><strong>Heap</strong></td>
+              <td>{{ metrics['Status.JVM.Memory.Heap.Committed'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Heap.Used'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Heap.Max'] | humanizeBytes }}</td>
+            </tr>
+            <tr>
+              <td><strong>Non-Heap</strong></td>
+              <td>{{ metrics['Status.JVM.Memory.NonHeap.Committed'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.NonHeap.Used'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.NonHeap.Max'] | humanizeBytes }}</td>
+            </tr>
           </tbody>
         </nz-table>
       </div>
@@ -131,26 +176,26 @@
           [nzSize]="'small'"
         >
           <thead>
-          <tr>
-            <th>Type</th>
-            <th>Count</th>
-            <th>Used</th>
-            <th>Capacity</th>
-          </tr>
+            <tr>
+              <th>Type</th>
+              <th>Count</th>
+              <th>Used</th>
+              <th>Capacity</th>
+            </tr>
           </thead>
           <tbody>
-          <tr>
-            <td><strong>Direct</strong></td>
-            <td>{{ metrics['Status.JVM.Memory.Direct.Count'] | number }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Direct.MemoryUsed'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Direct.TotalCapacity'] | humanizeBytes }}</td>
-          </tr>
-          <tr>
-            <td><strong>Mapped</strong></td>
-            <td>{{ metrics['Status.JVM.Memory.Mapped.Count'] | number }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Mapped.MemoryUsed'] | humanizeBytes }}</td>
-            <td>{{ metrics['Status.JVM.Memory.Mapped.TotalCapacity'] | humanizeBytes }}</td>
-          </tr>
+            <tr>
+              <td><strong>Direct</strong></td>
+              <td>{{ metrics['Status.JVM.Memory.Direct.Count'] | number }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Direct.MemoryUsed'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Direct.TotalCapacity'] | humanizeBytes }}</td>
+            </tr>
+            <tr>
+              <td><strong>Mapped</strong></td>
+              <td>{{ metrics['Status.JVM.Memory.Mapped.Count'] | number }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Mapped.MemoryUsed'] | humanizeBytes }}</td>
+              <td>{{ metrics['Status.JVM.Memory.Mapped.TotalCapacity'] | humanizeBytes }}</td>
+            </tr>
           </tbody>
         </nz-table>
       </div>
@@ -164,23 +209,23 @@
           [nzSize]="'small'"
         >
           <thead>
-          <tr>
-            <th>Collector</th>
-            <th>Count</th>
-            <th>Time</th>
-          </tr>
+            <tr>
+              <th>Collector</th>
+              <th>Count</th>
+              <th>Time</th>
+            </tr>
           </thead>
           <tbody>
-          <tr *ngFor="let gc of listOfGCMetric">
-            <td><strong>{{ gc.name }}</strong></td>
-            <td>{{ gc.count || '-' }}</td>
-            <td>{{ gc.time || '-' }}</td>
-          </tr>
+            <tr *ngFor="let gc of listOfGCMetric">
+              <td>
+                <strong>{{ gc.name }}</strong>
+              </td>
+              <td>{{ gc.count || '-' }}</td>
+              <td>{{ gc.time || '-' }}</td>
+            </tr>
           </tbody>
         </nz-table>
       </div>
-
     </div>
   </nz-card>
-
 </div>

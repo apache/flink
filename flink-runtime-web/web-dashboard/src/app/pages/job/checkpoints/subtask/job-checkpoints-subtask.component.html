@@ -24,7 +24,8 @@
     [nzSize]="'small'"
     [nzLoading]="isLoading"
     [nzFrontPagination]="false"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+  >
     <thead>
       <tr>
         <th></th>
@@ -41,33 +42,81 @@
       <ng-container *ngIf="subTaskCheckPoint && subTaskCheckPoint['summary']">
         <tr>
           <td><strong>Minimum</strong></td>
-          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['min'] | humanizeDuration}}</td>
+          <td>
+            {{ subTaskCheckPoint['summary']['end_to_end_duration']['min'] | humanizeDuration }}
+          </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['min'] | humanizeBytes }}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['min'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['min'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['processed']['min'] | humanizeBytes }} ({{ subTaskCheckPoint['summary']['alignment']['persisted']['min'] | humanizeBytes }})</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['min'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['start_delay']['min'] | humanizeDuration}}</td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['sync']['min'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['async']['min'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['processed']['min'] | humanizeBytes }} ({{
+              subTaskCheckPoint['summary']['alignment']['persisted']['min'] | humanizeBytes
+            }})
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['duration']['min'] | humanizeDuration }}
+          </td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['min'] | humanizeDuration }}</td>
         </tr>
         <tr>
           <td><strong>Average</strong></td>
-          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['avg'] | humanizeDuration}}</td>
+          <td>
+            {{ subTaskCheckPoint['summary']['end_to_end_duration']['avg'] | humanizeDuration }}
+          </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['avg'] | humanizeBytes }}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['avg'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['avg'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['processed']['avg'] | humanizeBytes }} ({{ subTaskCheckPoint['summary']['alignment']['persisted']['avg'] | humanizeBytes }})</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['avg'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['start_delay']['avg'] | humanizeDuration}}</td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['sync']['avg'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['async']['avg'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['processed']['avg'] | humanizeBytes }} ({{
+              subTaskCheckPoint['summary']['alignment']['persisted']['avg'] | humanizeBytes
+            }})
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['duration']['avg'] | humanizeDuration }}
+          </td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['avg'] | humanizeDuration }}</td>
         </tr>
         <tr>
           <td><strong>Maximum</strong></td>
-          <td>{{ subTaskCheckPoint['summary']['end_to_end_duration']['max'] | humanizeDuration}}</td>
+          <td>
+            {{ subTaskCheckPoint['summary']['end_to_end_duration']['max'] | humanizeDuration }}
+          </td>
           <td>{{ subTaskCheckPoint['summary']['state_size']['max'] | humanizeBytes }}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['sync']['max'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['checkpoint_duration']['async']['max'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['processed']['max'] | humanizeBytes }} ({{ subTaskCheckPoint['summary']['alignment']['persisted']['max'] | humanizeBytes }})</td>
-          <td>{{ subTaskCheckPoint['summary']['alignment']['duration']['max'] | humanizeDuration}}</td>
-          <td>{{ subTaskCheckPoint['summary']['start_delay']['max'] | humanizeDuration}}</td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['sync']['max'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{
+              subTaskCheckPoint['summary']['checkpoint_duration']['async']['max'] | humanizeDuration
+            }}
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['processed']['max'] | humanizeBytes }} ({{
+              subTaskCheckPoint['summary']['alignment']['persisted']['max'] | humanizeBytes
+            }})
+          </td>
+          <td>
+            {{ subTaskCheckPoint['summary']['alignment']['duration']['max'] | humanizeDuration }}
+          </td>
+          <td>{{ subTaskCheckPoint['summary']['start_delay']['max'] | humanizeDuration }}</td>
         </tr>
       </ng-container>
     </tbody>
@@ -80,7 +129,8 @@
     [nzSize]="'small'"
     [nzLoading]="isLoading"
     [nzFrontPagination]="false"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+  >
     <thead>
       <tr>
         <th><strong>ID</strong></th>
@@ -98,18 +148,25 @@
     <tbody>
       <tr *ngFor="let subTask of table.data">
         <td>{{ subTask['index'] }}</td>
-        <ng-container *ngIf="subTask['status'] == 'completed'">
-          <td >{{ subTask['ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ subTask['end_to_end_duration'] | humanizeDuration}} <span *ngIf="subTask['aborted']">(aborted)</span></td>
+        <ng-container *ngIf="subTask['status'] === 'completed'">
+          <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>
+            {{ subTask['end_to_end_duration'] | humanizeDuration }}
+            <span *ngIf="subTask['aborted']">(aborted)</span>
+          </td>
           <td>{{ subTask['state_size'] | humanizeBytes }}</td>
-          <td>{{ subTask['checkpoint']['sync'] | humanizeDuration}}</td>
-          <td>{{ subTask['checkpoint']['async'] | humanizeDuration}}</td>
-          <td>{{ subTask['alignment']['processed'] | humanizeBytes }} ({{ subTask['alignment']['persisted'] | humanizeBytes }})</td>
-          <td>{{ subTask['alignment']['duration'] | humanizeDuration}}</td>
-          <td>{{ subTask['start_delay'] | humanizeDuration}}</td>
-          <td>{{ subTask['unaligned_checkpoint']}}</td>
+          <td>{{ subTask['checkpoint']['sync'] | humanizeDuration }}</td>
+          <td>{{ subTask['checkpoint']['async'] | humanizeDuration }}</td>
+          <td>
+            {{ subTask['alignment']['processed'] | humanizeBytes }} ({{
+              subTask['alignment']['persisted'] | humanizeBytes
+            }})
+          </td>
+          <td>{{ subTask['alignment']['duration'] | humanizeDuration }}</td>
+          <td>{{ subTask['start_delay'] | humanizeDuration }}</td>
+          <td>{{ subTask['unaligned_checkpoint'] }}</td>
         </ng-container>
-        <ng-container *ngIf="subTask['status'] == 'pending_or_failed'">
+        <ng-container *ngIf="subTask['status'] === 'pending_or_failed'">
           <td colspan="7">n/a</td>
         </ng-container>
       </tr>

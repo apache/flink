@@ -20,11 +20,13 @@ import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
-import { JarFilesItemInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JarService, StatusService } from 'services';
+
 import { DagreComponent } from 'share/common/dagre/dagre.component';
+
+import { JarFilesItemInterface } from 'interfaces';
+import { JarService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-submit',
@@ -48,9 +50,10 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Upload jar
+   *
    * @param file
    */
-  uploadJar(file: File) {
+  uploadJar(file: File): void {
     this.jarService.uploadJar(file).subscribe(
       event => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
@@ -70,9 +73,10 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Delete jar
+   *
    * @param jar
    */
-  deleteJar(jar: JarFilesItemInterface) {
+  deleteJar(jar: JarFilesItemInterface): void {
     this.jarService.deleteJar(jar.id).subscribe(() => {
       this.statusService.forceRefresh();
       this.expandedMap.set(jar.id, false);
@@ -81,9 +85,10 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Click to expand jar details
+   *
    * @param jar
    */
-  expandJar(jar: JarFilesItemInterface) {
+  expandJar(jar: JarFilesItemInterface): void {
     if (this.expandedMap.get(jar.id)) {
       this.expandedMap.set(jar.id, false);
     } else {
@@ -102,9 +107,10 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * Show Plan Visualization
+   *
    * @param jar
    */
-  showPlan(jar: JarFilesItemInterface) {
+  showPlan(jar: JarFilesItemInterface): void {
     this.jarService
       .getPlan(
         jar.id,
@@ -121,15 +127,16 @@ export class SubmitComponent implements OnInit, OnDestroy {
   /**
    * Close Plan Visualization
    */
-  hidePlan() {
+  hidePlan(): void {
     this.planVisible = false;
   }
 
   /**
    * Submit job
+   *
    * @param jar
    */
-  submitJob(jar: JarFilesItemInterface) {
+  submitJob(jar: JarFilesItemInterface): void {
     this.jarService
       .runJob(
         jar.id,
@@ -146,10 +153,11 @@ export class SubmitComponent implements OnInit, OnDestroy {
 
   /**
    * trackBy Func
+   *
    * @param _
    * @param node
    */
-  trackJarBy(_: number, node: JarFilesItemInterface) {
+  trackJarBy(_: number, node: JarFilesItemInterface): string {
     return node.id;
   }
 
@@ -161,7 +169,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.isYarn = window.location.href.indexOf('/proxy/application_') !== -1;
     this.validateForm = this.fb.group({
       entryClass: [null],
@@ -191,7 +199,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

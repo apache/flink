@@ -16,10 +16,25 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { ShareModule } from 'share/share.module';
+
 import { JobCheckpointsDetailComponent } from './checkpoints/detail/job-checkpoints-detail.component';
 import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component';
 import { JobCheckpointsSubtaskComponent } from './checkpoints/subtask/job-checkpoints-subtask.component';
@@ -29,16 +44,6 @@ import { JobRoutingModule } from './job-routing.module';
 import { JobComponent } from './job.component';
 import { JobStatusComponent } from './status/job-status.component';
 import { JobTimelineComponent } from './timeline/job-timeline.component';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzCollapseModule } from 'ng-zorro-antd/collapse';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
-import { NzEmptyModule } from 'ng-zorro-antd/empty';
-import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTabsModule } from 'ng-zorro-antd/tabs';
-import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 
 @NgModule({
   imports: [
@@ -55,7 +60,10 @@ import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
     NzEmptyModule,
     NzSkeletonModule,
     NzAlertModule,
-    NzPopconfirmModule
+    NzPopconfirmModule,
+    NzIconModule,
+    NzSelectModule,
+    NzToolTipModule
   ],
   declarations: [
     JobComponent,

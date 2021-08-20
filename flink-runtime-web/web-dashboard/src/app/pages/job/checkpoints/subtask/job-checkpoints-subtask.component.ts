@@ -25,11 +25,13 @@ import {
   OnInit,
   SimpleChanges
 } from '@angular/core';
-import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInterface } from 'interfaces';
 import { first } from 'rxjs/operators';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
+import { CheckPointSubTaskInterface, JobDetailCorrectInterface, VerticesItemInterface } from 'interfaces';
 import { JobService } from 'services';
 import { deepFind } from 'utils';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
   selector: 'flink-job-checkpoints-subtask',
@@ -62,7 +64,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
-  refresh() {
+  refresh(): void {
     if (this.jobDetail && this.jobDetail.jid) {
       this.jobService.loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id).subscribe(
         data => {
@@ -81,7 +83,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges {
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobDetail$.pipe(first()).subscribe(job => {
       this.jobDetail = job;
       this.refresh();

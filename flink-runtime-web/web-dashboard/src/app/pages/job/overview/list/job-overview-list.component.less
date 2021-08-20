@@ -18,8 +18,8 @@
 @import "theme";
 
 :host {
-  display: block;
   position: relative;
+  display: block;
 }
 
 .name {
@@ -27,14 +27,14 @@
 
   a {
     position: absolute;
-    display: inline-block;
-    width: calc(~"100% - 12px");
-    line-height: 34px;
     top: 0;
     left: 8px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    display: inline-block;
     overflow: hidden;
+    width: calc(~"100% - 12px");
+    line-height: 34px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -48,4 +48,3 @@
     }
   }
 }
-

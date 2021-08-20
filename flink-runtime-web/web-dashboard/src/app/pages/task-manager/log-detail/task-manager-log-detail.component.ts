@@ -16,10 +16,12 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { first } from 'rxjs/operators';
+
+import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+
 import { TaskManagerDetailInterface } from 'interfaces';
 import { TaskManagerService } from 'services';
-import { first } from 'rxjs/operators';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
   selector: 'flink-task-manager-log-detail',
@@ -45,7 +47,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
     private activatedRoute: ActivatedRoute
   ) {}
 
-  reloadLog() {
+  reloadLog(): void {
     this.isLoading = true;
     this.cdr.markForCheck();
     this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName).subscribe(
@@ -64,7 +66,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
     );
   }
 
-  toggleFullScreen(fullScreen: boolean) {
+  toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
     this.layoutEditor();
   }
@@ -73,7 +75,7 @@ export class TaskManagerLogDetailComponent implements OnInit {
     setTimeout(() => this.monacoEditorComponent.layout());
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
       this.logName = this.activatedRoute.snapshot.params.logName;

@@ -18,16 +18,19 @@
 
 import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { Injectable, Injector } from '@angular/core';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { throwError, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+
+import { SafeAny } from 'interfaces';
 import { StatusService } from 'services';
 
 @Injectable()
 export class AppInterceptor implements HttpInterceptor {
   constructor(private injector: Injector) {}
 
-  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  intercept(req: HttpRequest<SafeAny>, next: HttpHandler): Observable<HttpEvent<SafeAny>> {
     /**
      * Error response from below url should be ignored
      */

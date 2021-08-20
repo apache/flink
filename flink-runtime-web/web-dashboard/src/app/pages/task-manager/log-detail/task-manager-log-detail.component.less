@@ -16,45 +16,48 @@
 
 @import "theme";
 
-:host {
-  display: block;
-  height: 100%;
-  &.full-screen {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    background: @component-background;
-    z-index: 99;
-    .breadcrumb {
-      margin-bottom: 0px;
-      border-top: 0px;
-    }
-    flink-monaco-editor {
-      border-top: 0px;
-      border-bottom: 0px;
-      height: calc(~"100vh - 46px");
-    }
-  }
-}
-
 flink-monaco-editor {
   height: calc(~"100vh - 386px");
   border: 1px solid @border-color-split;
 }
 
 .breadcrumb {
-  background: @component-background;
-  border: 1px solid @border-color-split;
+  position: relative;
   margin-bottom: 16px;
   padding: 12px 24px;
-  position: relative;
+  border: 1px solid @border-color-split;
+  background: @component-background;
+}
+
+:host {
+  display: block;
+  height: 100%;
+
+  &.full-screen {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 99;
+    background: @component-background;
+
+    .breadcrumb {
+      margin-bottom: 0;
+      border-top: 0;
+    }
+
+    flink-monaco-editor {
+      height: calc(~"100vh - 46px");
+      border-top: 0;
+      border-bottom: 0;
+    }
+  }
 }
 
 flink-refresh-download {
   position: absolute;
-  right: 12px;
   top: 0;
+  right: 12px;
   line-height: 47px;
 }

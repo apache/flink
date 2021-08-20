@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import { SafeAny } from './safe-any';
+
 export interface JobStatusCountsInterface {
   CREATED: number;
   SCHEDULED: number;
@@ -61,7 +63,7 @@ export interface JobDetailInterface {
 interface Plan {
   jid: string;
   name: string;
-  type:  string;
+  type: string;
   nodes: NodesItemInterface[];
 }
 
@@ -126,7 +128,7 @@ export interface NodesItemInterface {
   operator_strategy: string;
   description: string;
   inputs?: InputsItem[];
-  optimizer_properties: {};
+  optimizer_properties: SafeAny;
   width?: number;
   height?: number;
 }

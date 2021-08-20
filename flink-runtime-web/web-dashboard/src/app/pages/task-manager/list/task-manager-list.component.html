@@ -21,7 +21,7 @@
     #table
     class="small"
     [nzSize]="'small'"
-    [nzScroll]="{x:'1250px',y:'calc(100vh - 260px)'}"
+    [nzScroll]="{ x: '1250px', y: 'calc(100vh - 260px)' }"
     [nzData]="listOfTaskManager"
     [nzFrontPagination]="false"
     [nzShowPagination]="false"
@@ -36,25 +36,35 @@
         <th [nzSortFn]="sortCpuCoresFn" [nzWidth]="'110px'">CPU Cores</th>
         <th [nzSortFn]="sortPhysicalMemoryFn" [nzWidth]="'120px'">Physical MEM</th>
         <th [nzSortFn]="sortFreeMemoryFn" [nzWidth]="'130px'">JVM Heap Size</th>
-        <th nzRight="0px" [nzSortFn]="sortManagedMemoryFn" [nzWidth]="'160px'">Flink Managed MEM</th>
+        <th nzRight="0px" [nzSortFn]="sortManagedMemoryFn" [nzWidth]="'160px'">
+          Flink Managed MEM
+        </th>
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let manager of table.data; trackBy:trackManagerBy;">
+      <ng-container *ngFor="let manager of table.data; trackBy: trackManagerBy">
         <tr class="clickable" (click)="navigateTo(manager)">
           <td nzLeft="0px">
-            <em class="break-word"><a>{{ manager.id }}</a></em>
-            <br>
+            <em class="break-word">
+              <a>{{ manager.id }}</a>
+            </em>
+            <br />
             <em class="break-word">{{ manager.path }}</em>
           </td>
           <td>{{ manager.dataPort }}</td>
-          <td>{{ manager.timeSinceLastHeartbeat | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ manager.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
           <td>{{ manager.slotsNumber }}</td>
           <td>{{ manager.freeSlots }}</td>
           <td>{{ manager.hardware.cpuCores }}</td>
-          <td [attr.title]="manager.hardware.physicalMemory+' bytes'">{{ manager.hardware.physicalMemory | humanizeBytes }}</td>
-          <td [attr.title]="manager.hardware.freeMemory+' bytes'">{{ manager.hardware.freeMemory | humanizeBytes }}</td>
-          <td [attr.title]="manager.hardware.managedMemory+' bytes'" nzRight="0px">{{ manager.hardware.managedMemory | humanizeBytes }}</td>
+          <td [attr.title]="manager.hardware.physicalMemory + ' bytes'">
+            {{ manager.hardware.physicalMemory | humanizeBytes }}
+          </td>
+          <td [attr.title]="manager.hardware.freeMemory + ' bytes'">
+            {{ manager.hardware.freeMemory | humanizeBytes }}
+          </td>
+          <td [attr.title]="manager.hardware.managedMemory + ' bytes'" nzRight="0px">
+            {{ manager.hardware.managedMemory | humanizeBytes }}
+          </td>
         </tr>
       </ng-container>
     </tbody>
