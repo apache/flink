@@ -32,52 +32,42 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.searchPartSpecAndPaths;
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Manage temporary files for writing files. Use special rules to organize directories for temporary
  * files.
  *
  * <p>Temporary file directory contains the following directory parts: 1.temporary base path
- * directory. 2.checkpoint id directory. 3.task id directory. 4.directories to specify partitioning.
- * 5.data files. eg: /tmp/cp-1/task-0/p0=1/p1=2/fileName.
+ * directory. 2.task id directory. 3.directories to specify partitioning. 4.data files. eg:
+ * /tmp/task-0/p0=1/p1=2/fileName.
  */
 @Internal
 public class PartitionTempFileManager {
 
-    private static final String CHECKPOINT_DIR_PREFIX = "cp-";
     private static final String TASK_DIR_PREFIX = "task-";
 
     private final int taskNumber;
-    private final long checkpointId;
     private final Path taskTmpDir;
     private final OutputFileConfig outputFileConfig;
 
     private transient int nameCounter = 0;
 
-    PartitionTempFileManager(
-            FileSystemFactory factory, Path tmpPath, int taskNumber, long checkpointId)
+    PartitionTempFileManager(FileSystemFactory factory, Path tmpPath, int taskNumber)
             throws IOException {
-        this(factory, tmpPath, taskNumber, checkpointId, new OutputFileConfig("", ""));
+        this(factory, tmpPath, taskNumber, new OutputFileConfig("", ""));
     }
 
     PartitionTempFileManager(
             FileSystemFactory factory,
             Path tmpPath,
             int taskNumber,
-            long checkpointId,
             OutputFileConfig outputFileConfig)
             throws IOException {
-        checkArgument(checkpointId != -1, "checkpoint id start with 0.");
         this.taskNumber = taskNumber;
-        this.checkpointId = checkpointId;
         this.outputFileConfig = outputFileConfig;
 
         // generate and clean task temp dir.
-        this.taskTmpDir =
-                new Path(
-                        new Path(tmpPath, checkpointName(checkpointId)),
-                        TASK_DIR_PREFIX + taskNumber);
+        this.taskTmpDir = new Path(tmpPath, TASK_DIR_PREFIX + taskNumber);
         factory.create(taskTmpDir.toUri()).delete(taskTmpDir, true);
     }
 
@@ -92,9 +82,8 @@ public class PartitionTempFileManager {
 
     private String newFileName() {
         return String.format(
-                "%s-%s-%s-file-%d%s",
+                "%s-%s-file-%d%s",
                 outputFileConfig.getPartPrefix(),
-                checkpointName(checkpointId),
                 taskName(taskNumber),
                 nameCounter++,
                 outputFileConfig.getPartSuffix());
@@ -104,56 +93,15 @@ public class PartitionTempFileManager {
         return fileName.startsWith(TASK_DIR_PREFIX);
     }
 
-    private static boolean isCheckpointDir(String fileName) {
-        return fileName.startsWith(CHECKPOINT_DIR_PREFIX);
-    }
-
-    private static long getCheckpointId(String fileName) {
-        return Long.parseLong(fileName.substring(3));
-    }
-
-    private static String checkpointName(long checkpointId) {
-        return CHECKPOINT_DIR_PREFIX + checkpointId;
-    }
-
     private static String taskName(int task) {
         return TASK_DIR_PREFIX + task;
     }
 
-    /** Delete checkpoint path. */
-    public static void deleteCheckpoint(FileSystem fs, Path basePath, long checkpointId)
-            throws IOException {
-        fs.delete(new Path(basePath, checkpointName(checkpointId)), true);
-    }
-
-    /**
-     * Returns checkpoints whose keys are less than or equal to {@code toCpId} in temporary base
-     * path.
-     */
-    public static long[] headCheckpoints(FileSystem fs, Path basePath, long toCpId)
-            throws IOException {
-        List<Long> cps = new ArrayList<>();
-
-        for (FileStatus taskStatus : fs.listStatus(basePath)) {
-            String name = taskStatus.getPath().getName();
-            if (isCheckpointDir(name)) {
-                long currentCp = getCheckpointId(name);
-                // commit paths that less than current checkpoint id.
-                if (currentCp <= toCpId) {
-                    cps.add(currentCp);
-                }
-            }
-        }
-        return cps.stream().mapToLong(v -> v).toArray();
-    }
-
     /** Returns task temporary paths in this checkpoint. */
-    public static List<Path> listTaskTemporaryPaths(FileSystem fs, Path basePath, long checkpointId)
-            throws Exception {
+    public static List<Path> listTaskTemporaryPaths(FileSystem fs, Path basePath) throws Exception {
         List<Path> taskTmpPaths = new ArrayList<>();
 
-        for (FileStatus taskStatus :
-                fs.listStatus(new Path(basePath, checkpointName(checkpointId)))) {
+        for (FileStatus taskStatus : fs.listStatus(basePath)) {
             if (isTaskDir(taskStatus.getPath().getName())) {
                 taskTmpPaths.add(taskStatus.getPath());
             }
