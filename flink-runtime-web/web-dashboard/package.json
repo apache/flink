@@ -64,7 +64,7 @@
     "karma-coverage": "~2.0.3",
     "karma-jasmine": "~4.0.0",
     "karma-jasmine-html-reporter": "^1.5.0",
-    "lint-staged": "^8.1.5",
+    "lint-staged": "^11.1.2",
     "prettier": "^1.16.4",
     "protractor": "~7.0.0",
     "stylelint": "^13.13.1",
