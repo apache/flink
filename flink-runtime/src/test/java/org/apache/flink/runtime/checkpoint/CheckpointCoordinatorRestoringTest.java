@@ -1208,6 +1208,55 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     }
 
     @Test
+    public void testRestoreFinishedStateWithoutInFlightData() throws Exception {
+        // given: Operator with not empty states.
+        OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1, singletonList(op1), true)
+                        .build();
+
+        CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
+        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        operatorStates.put(
+                op1.getGeneratedOperatorID(),
+                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
+        CompletedCheckpoint completedCheckpoint =
+                new CompletedCheckpoint(
+                        graph.getJobID(),
+                        2,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3000,
+                        operatorStates,
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation());
+        completedCheckpointStore.addCheckpoint(
+                completedCheckpoint, new CheckpointsCleaner(), () -> {});
+
+        CheckpointCoordinator coord =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCheckpointCoordinatorConfiguration(
+                                new CheckpointCoordinatorConfigurationBuilder()
+                                        .setCheckpointIdOfIgnoredInFlightData(2)
+                                        .build())
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .build();
+
+        ExecutionJobVertex vertex = graph.getJobVertex(jobVertexID);
+        coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex));
+        TaskStateSnapshot restoredState =
+                vertex.getTaskVertices()[0]
+                        .getCurrentExecutionAttempt()
+                        .getTaskRestore()
+                        .getTaskStateSnapshot();
+        assertTrue(restoredState.isFinishedOnRestore());
+    }
+
+    @Test
     public void testRestoringPartiallyFinishedChainsFails() throws Exception {
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();

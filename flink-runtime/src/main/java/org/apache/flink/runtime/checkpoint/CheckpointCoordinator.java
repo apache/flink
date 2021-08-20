@@ -1600,26 +1600,9 @@ public class CheckpointCoordinator {
         HashMap<OperatorID, OperatorState> newStates = new HashMap<>();
         // Create the new operator states without in-flight data.
         for (OperatorState originalOperatorState : originalOperatorStates.values()) {
-            OperatorState newState =
-                    new OperatorState(
-                            originalOperatorState.getOperatorID(),
-                            originalOperatorState.getParallelism(),
-                            originalOperatorState.getMaxParallelism());
-
-            newStates.put(newState.getOperatorID(), newState);
-
-            for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
-                    originalOperatorState.getSubtaskStates().entrySet()) {
-
-                newState.putState(
-                        originalSubtaskStateEntry.getKey(),
-                        originalSubtaskStateEntry
-                                .getValue()
-                                .toBuilder()
-                                .setResultSubpartitionState(StateObjectCollection.empty())
-                                .setInputChannelState(StateObjectCollection.empty())
-                                .build());
-            }
+            newStates.put(
+                    originalOperatorState.getOperatorID(),
+                    originalOperatorState.copyAndDiscardInFlightData());
         }
 
         return newStates;
