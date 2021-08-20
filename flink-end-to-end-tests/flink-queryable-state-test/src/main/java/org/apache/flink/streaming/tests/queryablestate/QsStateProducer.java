@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.tests.queryablestate;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -138,7 +139,7 @@ public class QsStateProducer {
     }
 
     private static class TestFlatMap extends RichFlatMapFunction<Email, Object>
-            implements CheckpointedFunction {
+            implements CheckpointedFunction, CheckpointListener {
 
         private static final long serialVersionUID = 7821128115999005941L;
 
@@ -165,11 +166,14 @@ public class QsStateProducer {
         }
 
         @Override
-        public void snapshotState(FunctionSnapshotContext context) {
-            System.out.println("Count on snapshot: " + count); // we look for it in the test
-        }
+        public void snapshotState(FunctionSnapshotContext context) {}
 
         @Override
         public void initializeState(FunctionInitializationContext context) {}
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            System.out.println("Count on snapshot: " + count); // we look for it in the test
+        }
     }
 }
