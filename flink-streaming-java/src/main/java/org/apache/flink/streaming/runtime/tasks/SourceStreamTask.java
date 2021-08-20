@@ -38,6 +38,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -62,6 +63,8 @@ public class SourceStreamTask<
     private final Object lock;
 
     private volatile boolean externallyInducedCheckpoints;
+
+    private final AtomicBoolean stopped = new AtomicBoolean(false);
 
     private enum FinishingReason {
         END_OF_DATA(true),
@@ -203,7 +206,9 @@ public class SourceStreamTask<
 
     @Override
     protected void cancelTask() {
-        cancelOperator(true);
+        if (stopped.compareAndSet(false, true)) {
+            cancelOperator(true);
+        }
     }
 
     @Override
