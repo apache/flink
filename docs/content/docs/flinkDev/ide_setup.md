@@ -39,7 +39,7 @@ command line first (`mvn clean package -DskipTests`) as it might be your IDE
 that has a bug or is not properly set up.
 {{< /hint >}}
 
-# Preparation
+## Preparation
 
 To get started, please first checkout the Flink sources from one of our
 [repositories](https://flink.apache.org/community.html#source-code),
@@ -49,7 +49,7 @@ e.g.
 git clone https://github.com/apache/flink.git
 ```
 
-## Ignoring Refactoring Commits
+### Ignoring Refactoring Commits
 
 We keep a list of big refactoring commits in `.git-blame-ignore-revs`. When looking at change
 annotations using `git blame` it's helpful to ignore these. You can configure git and your IDE to
@@ -59,13 +59,13 @@ do so using:
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 ```
 
-# IntelliJ IDEA
+## IntelliJ IDEA
 
 The following guide has been written for [IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
 2020.3. Some details might differ in other versions. Please make sure to follow all steps
 accurately.
 
-## Importing Flink
+### Importing Flink
 
 1. Choose "New" → "Project from Existing Sources".
 2. Select the root folder of the cloned Flink repository.
@@ -81,7 +81,7 @@ accurately.
    `mvn clean package -DskipTests`.
 8. Build the Project ("Build" → "Build Project").
 
-## Copyright Profile
+### Copyright Profile
 
 Every file needs to include the Apache license as a header. This can be automated in IntelliJ by
 adding a Copyright profile:
@@ -111,7 +111,7 @@ adding a Copyright profile:
    project.
 5. Click "Apply".
 
-## Required Plugins
+### Required Plugins
 
 Go to "Settings" → "Plugins" and select the "Marketplace" tab. Search for the following plugins,
 install them, and restart the IDE if prompted:
@@ -131,7 +131,7 @@ and install it as follows. Make sure to never update this plugin.
 2. Click the gear icon and select "Install Plugin from Disk".
 3. Navigate to the downloaded ZIP file and select it.
 
-### Code Formatting
+#### Code Formatting
 
 Flink uses [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-maven) together with
 [google-java-format](https://github.com/google/google-java-format) to format the Java code.
@@ -147,7 +147,7 @@ It is recommended to automatically format your code by applying the following se
 6. Under "Formatting Actions", select "Optimize imports" and "Reformat file".
 7. Under "File Path Inclusions", add an entry for `.*\.java` to avoid formatting other file types.
 
-### Checkstyle For Java
+#### Checkstyle For Java
 
 [Checkstyle](https://checkstyle.sourceforge.io/) is used to enforce static coding guidelines.
 
@@ -179,7 +179,7 @@ You can now import the Checkstyle configuration for the Java code formatter.
 To verify the setup, click "View" → "Tool Windows" → "Checkstyle" and find the "Check Module"
 button in the opened tool window. It should report no violations.
 
-### Checkstyle For Scala
+#### Checkstyle For Scala
 
 Enable [Scalastyle](http://www.scalastyle.org/) as follows:
 
@@ -189,7 +189,7 @@ Enable [Scalastyle](http://www.scalastyle.org/) as follows:
 Now copy the file `tools/maven/scalastyle-config.xml` into the `.idea/` or `project/` folder of your
 cloned repository.
 
-### Python for PyFlink
+#### Python for PyFlink
 
 Working on the flink-python module requires both a Java SDK and a Python SDK. However, IntelliJ IDEA
 only supports one configured SDK per module. If you intend to work actively on PyFlink, it is
@@ -210,17 +210,17 @@ IntelliJ IDEA, e.g. to run Python tests, you can use the following guide.
 
 You can verify your setup by running some of the Python tests located in flink-python.
 
-## Common Problems
+### Common Problems
 
 This section lists issues that developers have run into in the past when working with IntelliJ.
 
-### Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
+#### Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
 
 This happens if the "java11" Maven profile is active, but an older JDK version is used. Go to
 "View" → "Tool Windows" → "Maven" and uncheck the "java11" profile. Afterwards, reimport the
 project.
 
-### Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
+#### Compilation fails with `cannot find symbol: symbol: method defineClass(...) location: class sun.misc.Unsafe`
 
 This happens if you are using JDK 11, but are working on a Flink version which doesn't yet support
 Java 11 (<= 1.9). Go to "Project Structure" → "Project Settings" → "Project" and select JDK 8 as
@@ -228,30 +228,30 @@ the Project SDK.
 
 When switching back to newer Flink versions you may have to revert this change again.
 
-### Examples fail with a `NoClassDefFoundError` for Flink classes.
+#### Examples fail with a `NoClassDefFoundError` for Flink classes.
 
 This happens if Flink dependencies are set to "provided", resulting in them not being available
 on the classpath. You can either check "Include dependencies with 'Provided' scope" in your
 run configuration, or create a test that calls the `main()` method of the example.
 
-# Eclipse
+## Eclipse
 
 Using Eclipse with Flink is currently not supported and discouraged. Please use
 [IntelliJ IDEA](#intellij-idea) instead.
 
-# PyCharm
+## PyCharm
 
 If you intend to work on PyFlink, it is recommended to use
 [PyCharm](https://www.jetbrains.com/pycharm/download/) as a separate IDE for the flink-python
 module. The following guide has been written for 2019.1.3. Some details might differ in other
 versions.
 
-## Importing flink-python
+### Importing flink-python
 
 1. Open the PyCharm IDE and choose ("File" →) "Open".
 2. Select the "flink-python" folder within your located repository.
 
-## Checkstyle For Python
+### Checkstyle For Python
 
 [Flake8](https://pypi.org/project/flake8/) is used to enforce some coding guidelines.
 
