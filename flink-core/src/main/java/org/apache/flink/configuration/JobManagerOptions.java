@@ -331,6 +331,22 @@ public class JobManagerOptions {
                                     + "JobManager could be faster, since no reverse DNS lookup is performed. "
                                     + "However, local input split assignment (such as for HDFS files) may be impacted.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_JOB_MANAGER)
+    public static final ConfigOption<Integer> JOB_MANAGER_FUTURE_THREADS =
+            key("jobmanager.future-executor.numThreads")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The number of jobmanager future-executor threads for shared services.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_JOB_MANAGER)
+    public static final ConfigOption<Integer> JOB_MANAGER_IO_THREADS =
+            key("jobmanager.io-executor.numThreads")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The number of jobmanager io-executor threads for shared services.");
+
     /** The timeout in milliseconds for requesting a slot from Slot Pool. */
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
