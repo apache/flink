@@ -205,7 +205,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                     firstAddress.get(),
                     is(leaderAddress));
 
-            restartTestServer();
+            closeTestServer();
 
             // make sure that no new leader information is published
             assertThat(queueLeaderElectionListener.next(Duration.ofMillis(100L)), is(nullValue()));
