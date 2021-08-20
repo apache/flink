@@ -94,7 +94,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(
-                        jobManagerServices.getScheduledExecutorService(),
+                        jobManagerServices.getIoExecutor(),
                         rpcService,
                         jobMasterConfiguration,
                         jobGraph,
