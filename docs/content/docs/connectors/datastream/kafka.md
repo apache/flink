@@ -289,156 +289,151 @@ when the record is emitted downstream.
 
 For older references you can look at the Flink 1.13 <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction">documentation</a>.
  
-## Kafka Producer
+## Kafka Sink
 
-Flink’s Kafka Producer - `FlinkKafkaProducer` allows writing a stream of records to one or more Kafka topics.
+`KafkaSink` allows writing a stream of records to one or more Kafka topics.
 
-The constructor accepts the following arguments:
+### Usage
 
-1. A default output topic where events should be written
-2. A SerializationSchema / KafkaSerializationSchema for serializing data into Kafka
-3. Properties for the Kafka client. The following properties are required:
-    * "bootstrap.servers" (comma separated list of Kafka brokers)
-4. A fault-tolerance semantic
+Kafka sink provides a builder class to construct an instance of a KafkaSink. The code snippet below
+shows how to write String records to a Kafka topic with a delivery guarantee of at least once.
 
-{{< tabs "8dbb32b3-47e8-468e-91a7-43cec0c658ac" >}}
-{{< tab "Java" >}}
 ```java
 DataStream<String> stream = ...
-
-Properties properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
-
-FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<>(
-        "my-topic",                  // target topic
-        new SimpleStringSchema(),    // serialization schema
-        properties,                  // producer config
-        FlinkKafkaProducer.Semantic.EXACTLY_ONCE); // fault-tolerance
-
-stream.addSink(myProducer);
+        
+KafkaSink<String> sink = KafkaSink.<String>builder()
+        .setBootstrapServers(brokers)
+        .setRecordSerializer(KafkaRecordSerializationSchema.builder()
+            .setTopic("topic-name")
+            .setValueSerializationSchema(new SimpleStringSchema())
+            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+            .build()
+        )
+        .build();
+        
+stream.sinkTo(sink);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val stream: DataStream[String] = ...
 
-val properties = new Properties
-properties.setProperty("bootstrap.servers", "localhost:9092")
+The following properties are **required** to build a KafkaSink:
 
-val myProducer = new FlinkKafkaProducer[String](
-        "my-topic",                  // target topic
-        new SimpleStringSchema(),    // serialization schema
-        properties,                  // producer config
-        FlinkKafkaProducer.Semantic.EXACTLY_ONCE) // fault-tolerance
+- Bootstrap servers, ```setBootstrapServers(String)```
+- Record serializer, ``setRecordSerializer(KafkaRecordSerializationSchema)``
+- If you configure the delivery guarantee with ```DeliveryGuarantee.EXACTLY_ONCE``` you also have
+  use ```setTransactionalIdPrefix(String)```
 
-stream.addSink(myProducer)
+### Serializer
+
+You always need to supply a ```KafkaRecordSerializationSchema``` to transform incoming elements from
+the data stream to Kafka producer records.
+Flink offers a schema builder to provide some common building blocks i.e. key/value serialization, topic
+selection, partitioning. You can also implement the interface on your own to exert more control.
+
+```java
+KafkaRecordSerializationSchema.builder()
+    .setTopicSelector((element) -> {<your-topic-selection-logic>})
+    .setValueSerializationSchema(new SimpleStringSchema())
+    .setKeySerializationSchema(new SimpleStringSchema())
+    .setPartitioner(new FlinkFixedPartitioner())
+    .build();
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
-Additionally, you can use the following configuration methods:
+It is **required** to always set a value serialization method and a topic (selection method).
+Moreover, it is also possible to use Kafka serializers instead of Flink serializer by using 
+```setKafkaKeySerializer(Serializer)``` or ```setKafkaValueSerializer(Serializer)```.
 
-- {{< javadoc name="setWriteTimestampToKafka(boolean writeTimestampToKafka)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setWriteTimestampToKafka-boolean-" >}} to attach the event timestamp to each record
-- {{< javadoc name="setLogFailuresOnly(boolean logFailuresOnly)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setLogFailuresOnly-boolean-" >}} to define whether the producer should fail on errors, or only log them
-- {{< javadoc name="setTransactionalIdPrefix(String transactionalIdPrefix)" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#setTransactionalIdPrefix-java.lang.String-" >}} to specify custom `transactional.id` prefix
-- {{< javadoc name="ignoreFailuresAfterTransactionTimeout()" file="org/apache/flink/streaming/connectors/kafka/FlinkKafkaProducer.html#ignoreFailuresAfterTransactionTimeout--" >}} to disable the propagation of transaction timeout exceptions during recovery
+### Fault Tolerance
 
-### The `SerializationSchema`
+Overall the ```KafkaSink``` supports three different ```DeliveryGuarantee```s. For 
+```DeliveryGuarantee.AT_LEAST_ONCE``` and ```DeliveryGuarantee.EXACTLY_ONCE``` Flink's checkpointing
+must be enabled. By default the ```KafkaSink``` uses ```DeliveryGuarantee.NONE```. Below you can find
+an explanation of the different guarantees.
 
-The Flink Kafka Producer needs to know how to turn Java/Scala objects into binary data.
-The `KafkaSerializationSchema` allows users to specify such a schema.
-The `ProducerRecord<byte[], byte[]> serialize(T element, @Nullable Long timestamp)` method gets called for each record, generating a `ProducerRecord` that is written to Kafka.
+- ```DeliveryGuarantee.NONE``` does not provide any guarantees: messages may be lost in case of 
+  issues on the Kafka broker and messages may be duplicated in case of a Flink failure.
+- ```DeliveryGuarantee.AT_LEAST_ONCE```: The sink will wait for all outstanding records in the 
+  Kafka buffers to be acknowledged by the Kafka producer on a checkpoint. No messages will be 
+  lost in case of any issue with the Kafka brokers but messages may be duplicated when Flink 
+  restarts because Flink reprocesses old input records.
+- ```DeliveryGuarantee.EXACTLY_ONCE```: In this mode, the KafkaSink will write all messages in a 
+  Kafka transaction that will be committed to Kafka on a checkpoint. Thus, if the consumer 
+  reads only committed data (see Kafka consumer config isolation.level), no duplicates will be 
+  seen in case of a Flink restart. However, this delays record visibility effectively until a 
+  checkpoint is written, so adjust the checkpoint duration accordingly. Please ensure that you 
+  use unique transactionalIdPrefix across your applications running on the same Kafka 
+  cluster such that multiple running jobs do not interfere in their transactions! Additionally, it
+  is highly recommended to tweak Kafka transaction timeout (see Kafka producer 
+  transaction.timeout.ms)>> maximum checkpoint duration + maximum restart duration or data loss may
+  happen when Kafka expires an uncommitted transaction. 
 
-This gives users fine-grained control over how data is written out to Kafka. 
-Through the producer record you can:
-* Set header values
-* Define keys for each record
-* Specify custom partitioning of data
+## Monitoring
 
-### Kafka Producers and Fault Tolerance
+Kafka sink exposes the following metrics in the respective [scope]({{< ref "docs/ops/metrics" >}}/#scope).
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer` can provide
-exactly-once delivery guarantees.
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <th rowspan="2">Task</th>
+        <td>numBytesOut</td>
+        <td>n/a</td>
+        <td>The total number of output bytes since the sink started.</td>
+        <td>Counter</td>
+    </tr>
+    <tr>
+        <td>numBytesOutPerSecond</td>
+        <td>n/a</td>
+        <td>The output bytes per second.</td>
+        <td>Meter</td>
+    </tr>
+    <tr>
+        <th rowspan="3">Operator</th>
+        <td>numRecordsOut</td>
+        <td>n/a</td>
+        <td>The total number of output records since the sink started.</td>
+        <td>Counter</td>
+    </tr>
+    <tr>
+        <td>numRecordsOutPerSecond</td>
+        <td>n/a</td>
+        <td>The output records per seconds.</td>
+        <td>Meter</td>
+    </tr>
+    <tr>
+        <td>currentSendTime</td>
+        <td>n/a</td>
+        <td>The time it takes to send the last record. This metric is an instantaneous value recorded for the last processed record.</td>
+        <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
 
-Besides enabling Flink's checkpointing, you can also choose three different modes of operating
-chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer`:
+## Kafka Producer
 
- * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
- be duplicated.
- * `Semantic.AT_LEAST_ONCE` (default setting): This guarantees that no records will be lost (although they can be duplicated).
- * `Semantic.EXACTLY_ONCE`: Kafka transactions will be used to provide exactly-once semantic. Whenever you write
- to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
- or `read_uncommitted` - the latter one is the default value) for any application consuming records
- from Kafka.
+{{< hint warning >}}
+`FlinkKafkaProducer` is deprecated and will be removed with Flink 1.15, please use `KafkaSink` instead.
+{{< /hint >}}
 
-##### Caveats
-
-`Semantic.EXACTLY_ONCE` mode relies on the ability to commit transactions
-that were started before taking a checkpoint, after recovering from the said checkpoint. If the time
-between Flink application crash and completed restart is larger than Kafka's transaction timeout
-there will be data loss (Kafka will automatically abort transactions that exceeded timeout time).
-Having this in mind, please configure your transaction timeout appropriately to your expected down
-times.
-
-Kafka brokers by default have `transaction.max.timeout.ms` set to 15 minutes. This property will
-not allow to set transaction timeouts for the producers larger than it's value.
-`FlinkKafkaProducer` by default sets the `transaction.timeout.ms` property in producer config to
-1 hour, thus `transaction.max.timeout.ms` should be increased before using the
-`Semantic.EXACTLY_ONCE` mode.
-
-In `read_committed` mode of `KafkaConsumer`, any transactions that were not finished
-(neither aborted nor completed) will block all reads from the given Kafka topic past any
-un-finished transaction. In other words after following sequence of events:
-
-1. User started `transaction1` and written some records using it
-2. User started `transaction2` and written some further records using it
-3. User committed `transaction2`
-
-Even if records from `transaction2` are already committed, they will not be visible to
-the consumers until `transaction1` is committed or aborted. This has two implications:
-
- * First of all, during normal working of Flink applications, user can expect a delay in visibility
- of the records produced into Kafka topics, equal to average time between completed checkpoints.
- * Secondly in case of Flink application failure, topics into which this application was writing,
- will be blocked for the readers until the application restarts or the configured transaction 
- timeout time will pass. This remark only applies for the cases when there are multiple
- agents/applications writing to the same Kafka topic.
-
-**Note**:  `Semantic.EXACTLY_ONCE` mode uses a fixed size pool of KafkaProducers
-per each `FlinkKafkaProducer` instance. One of each of those producers is used per one
-checkpoint. If the number of concurrent checkpoints exceeds the pool size, `FlinkKafkaProducer`
-will throw an exception and will fail the whole application. Please configure max pool size and max
-number of concurrent checkpoints accordingly.
-
-**Note**: `Semantic.EXACTLY_ONCE` takes all possible measures to not leave any lingering transactions
-that would block the consumers from reading from Kafka topic more then it is necessary. However in the
-event of failure of Flink application before first checkpoint, after restarting such application there
-is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
-application before first checkpoint completes, by factor larger than `FlinkKafkaProducer.SAFE_SCALE_DOWN_FACTOR`.
-It is also unsafe to change the `transactional.id` prefix by using `setTransactionalIdPrefix()` in such cases,
-since there is no information about the previously-used `transactional.id` prefix either.
+For older references you can look at the Flink 1.13 <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-producer">documentation</a>.
 
 ## Kafka Connector Metrics
 
 Flink's Kafka connectors provide some metrics through Flink's [metrics system]({{< ref "docs/ops/metrics" >}}) to analyze
 the behavior of the connector.
-The producers export Kafka's internal metrics through Flink's metric system for all supported versions.
+The producers and consumers export Kafka's internal metrics through Flink's metric system for all supported versions.
 The Kafka documentation lists all exported metrics in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
 
-In addition to these metrics, all consumers expose the `current-offsets` and `committed-offsets` for each topic partition.
-The `current-offsets` refers to the current offset in the partition. This refers to the offset of the last element that
-we retrieved and emitted successfully. The `committed-offsets` is the last committed offset.
-
-The Kafka Consumers in Flink commit the offsets back to the Kafka brokers.
-If checkpointing is disabled, offsets are committed periodically.
-With checkpointing, the commit happens once all operators in the streaming topology have confirmed that they've created a checkpoint of their state. 
-This provides users with at-least-once semantics for the offsets committed to Zookeeper or the broker. For offsets checkpointed to Flink, the system 
-provides exactly once guarantees.
-
-The offsets committed to ZK or the broker can also be used to track the read progress of the Kafka consumer. The difference between
-the committed offset and the most recent offset in each partition is called the *consumer lag*. If the Flink topology is consuming
-the data slower from the topic than new data is added, the lag will increase and the consumer will fall behind.
-For large production deployments we recommend monitoring that metric to avoid increasing latency.
+It is also possible to disable the forwarding of the Kafka metrics by either configuring `register.consumer.metrics`
+outlined by this [section]({{< relref "#kafka-connector-metrics" >}}) for the KafkaSource or when 
+using the KafkaSink you can set the configuration `register.producer.metrics` to false via the producer
+properties.
 
 ## Enabling Kerberos Authentication
 
@@ -516,12 +511,5 @@ This is a retriable exception, so Flink job should be able to restart and resume
 It also can be circumvented by changing `retries` property in the producer settings.
 However this might cause reordering of messages,
 which in turn if undesired can be circumvented by setting `max.in.flight.requests.per.connection` to 1.
-
-### ProducerFencedException
-
-The cause of this error is that the `transactional.id`s, generated by the `FlinkKafkaProducer`,
-clash with the ones that have already been used by other applications.
-In most cases, those applications are also Flink jobs running the same job graph, since the IDs are generated using the same logic, prefixed with `taskName + "-" + operatorUid`, by default.
-To solve the problem, you can use `setTransactionalIdPrefix()` to override this logic and specify different `transactional.id` prefixes for different jobs.
 
 {{< top >}}
