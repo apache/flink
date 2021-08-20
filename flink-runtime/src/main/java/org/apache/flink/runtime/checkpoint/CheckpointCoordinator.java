@@ -1601,10 +1601,15 @@ public class CheckpointCoordinator {
         // Create the new operator states without in-flight data.
         for (OperatorState originalOperatorState : originalOperatorStates.values()) {
             OperatorState newState =
-                    new OperatorState(
-                            originalOperatorState.getOperatorID(),
-                            originalOperatorState.getParallelism(),
-                            originalOperatorState.getMaxParallelism());
+                    originalOperatorState.isFullyFinished()
+                            ? new FullyFinishedOperatorState(
+                                    originalOperatorState.getOperatorID(),
+                                    originalOperatorState.getParallelism(),
+                                    originalOperatorState.getMaxParallelism())
+                            : new OperatorState(
+                                    originalOperatorState.getOperatorID(),
+                                    originalOperatorState.getParallelism(),
+                                    originalOperatorState.getMaxParallelism());
 
             newStates.put(newState.getOperatorID(), newState);
 
