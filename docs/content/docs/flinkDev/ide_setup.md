@@ -73,7 +73,7 @@ accurately.
 4. Leave the default options and successively click "Next" until you reach the SDK section.
 5. If there is no SDK listed, create one using the "+" sign on the top left.
    Select "JDK", choose the JDK home directory and click "OK".
-   Select the most suiting JDK version. NOTE: A good rule of thumb is to select
+   Select the most suitable JDK version. NOTE: A good rule of thumb is to select
    the JDK version matching the active Maven profile.
 6. Continue by clicking "Next" until the import is finished.
 7. Open the "Maven" tab (or right-click on the imported project and find "Maven") and run
@@ -261,7 +261,7 @@ versions.
 4. Set "Name" to "flake8".
 5. Set "Description" to "Code Style Check".
 6. Set "Program" to the path of your Python interpreter, e.g. `/usr/bin/python`.
-7. Set "Arguments" to `-m flake8 \-\-config=tox.ini`.
+7. Set "Arguments" to `-m flake8 --config=tox.ini`.
 8. Set "Working Directory" to `$ProjectFileDir$`.
 
 You can verify the setup by right-clicking on any file or folder in the flink-python project
