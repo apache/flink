@@ -82,13 +82,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link Client}. */
@@ -136,20 +134,7 @@ public class ClientTest extends TestLogger {
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.add((ByteBuf) msg);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -326,30 +311,7 @@ public class ClientTest extends TestLogger {
             client = new Client<>("Test Client", 1, serializer, stats);
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    ByteBuf buf = (ByteBuf) msg;
-                                    assertEquals(
-                                            MessageType.REQUEST,
-                                            MessageSerializer.deserializeHeader(buf));
-                                    long requestId = MessageSerializer.getRequestId(buf);
-                                    KvStateInternalRequest request =
-                                            serializer.deserializeRequest(buf);
-
-                                    buf.release();
-
-                                    KvStateResponse response =
-                                            new KvStateResponse(serializedResult);
-                                    ByteBuf serResponse =
-                                            MessageSerializer.serializeResponse(
-                                                    ctx.alloc(), requestId, response);
-
-                                    ctx.channel().writeAndFlush(serResponse);
-                                }
-                            });
+                    createServerChannel(new RespondingChannelHandler(serializer, serializedResult));
 
             final InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -437,20 +399,7 @@ public class ClientTest extends TestLogger {
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.add((ByteBuf) msg);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -550,24 +499,11 @@ public class ClientTest extends TestLogger {
         try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            final AtomicBoolean received = new AtomicBoolean();
+            final LinkedBlockingQueue<ByteBuf> received = new LinkedBlockingQueue<>();
             final AtomicReference<Channel> channel = new AtomicReference<>();
 
             serverChannel =
-                    createServerChannel(
-                            new ChannelInboundHandlerAdapter() {
-                                @Override
-                                public void channelActive(ChannelHandlerContext ctx)
-                                        throws Exception {
-                                    channel.set(ctx.channel());
-                                }
-
-                                @Override
-                                public void channelRead(ChannelHandlerContext ctx, Object msg)
-                                        throws Exception {
-                                    received.set(true);
-                                }
-                            });
+                    createServerChannel(new ChannelDataCollectingHandler(channel, received));
 
             InetSocketAddress serverAddress = getKvStateServerAddress(serverChannel);
 
@@ -576,10 +512,7 @@ public class ClientTest extends TestLogger {
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);
             Future<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
-            while (!received.get()) {
-                Thread.sleep(50L);
-            }
-            assertTrue("Receive timed out", received.get());
+            received.take();
 
             assertEquals(1, stats.getNumConnections());
 
@@ -880,5 +813,55 @@ public class ClientTest extends TestLogger {
 
     private InetSocketAddress getKvStateServerAddress(Channel serverChannel) {
         return (InetSocketAddress) serverChannel.localAddress();
+    }
+
+    private static class ChannelDataCollectingHandler extends ChannelInboundHandlerAdapter {
+        private final AtomicReference<Channel> channel;
+        private final LinkedBlockingQueue<ByteBuf> received;
+
+        private ChannelDataCollectingHandler(
+                AtomicReference<Channel> channel, LinkedBlockingQueue<ByteBuf> received) {
+            this.channel = channel;
+            this.received = received;
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) {
+            channel.set(ctx.channel());
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            received.add((ByteBuf) msg);
+        }
+    }
+
+    @ChannelHandler.Sharable
+    private static final class RespondingChannelHandler extends ChannelInboundHandlerAdapter {
+        private final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer;
+        private final byte[] serializedResult;
+
+        private RespondingChannelHandler(
+                MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer,
+                byte[] serializedResult) {
+            this.serializer = serializer;
+            this.serializedResult = serializedResult;
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            ByteBuf buf = (ByteBuf) msg;
+            assertEquals(MessageType.REQUEST, MessageSerializer.deserializeHeader(buf));
+            long requestId = MessageSerializer.getRequestId(buf);
+            KvStateInternalRequest request = serializer.deserializeRequest(buf);
+
+            buf.release();
+
+            KvStateResponse response = new KvStateResponse(serializedResult);
+            ByteBuf serResponse =
+                    MessageSerializer.serializeResponse(ctx.alloc(), requestId, response);
+
+            ctx.channel().writeAndFlush(serResponse);
+        }
     }
 }
