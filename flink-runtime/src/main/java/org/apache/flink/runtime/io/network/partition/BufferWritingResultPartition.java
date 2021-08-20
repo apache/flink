@@ -235,6 +235,23 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         }
     }
 
+    @Override
+    public void close() {
+        // We can not close these buffers in the release method because of the potential race
+        // condition. This close method will be only called from the Task thread itself.
+        if (broadcastBufferBuilder != null) {
+            broadcastBufferBuilder.close();
+            broadcastBufferBuilder = null;
+        }
+        for (int i = 0; i < unicastBufferBuilders.length; ++i) {
+            if (unicastBufferBuilders[i] != null) {
+                unicastBufferBuilders[i].close();
+                unicastBufferBuilders[i] = null;
+            }
+        }
+        super.close();
+    }
+
     private BufferBuilder appendUnicastDataForNewRecord(
             final ByteBuffer record, final int targetSubpartition) throws IOException {
         if (targetSubpartition < 0 || targetSubpartition > unicastBufferBuilders.length) {
