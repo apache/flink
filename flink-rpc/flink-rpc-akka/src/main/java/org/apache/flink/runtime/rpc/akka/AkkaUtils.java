@@ -246,6 +246,8 @@ class AkkaUtils {
                 .add("  }")
                 .add("  remote.artery.enabled = false")
                 .add("  remote.startup-timeout = " + startupTimeout)
+                .add("  remote.warn-about-direct-use = off")
+                .add("  remote.use-unsafe-remote-features-outside-cluster = on")
                 .add("  remote.classic {")
                 .add("    # disable the transport failure detector by setting very high values")
                 .add("    transport-failure-detector{")
