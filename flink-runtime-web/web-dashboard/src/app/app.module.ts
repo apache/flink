@@ -16,25 +16,14 @@
  * limitations under the License.
  */
 
-import { BrowserModule } from '@angular/platform-browser';
-import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
-import { Router } from '@angular/router';
-import { AppRoutingModule } from './app-routing.module';
-import { AppComponent } from './app.component';
-import { NZ_I18N, en_US } from 'ng-zorro-antd/i18n';
-import { NZ_ICONS, NzIconModule } from 'ng-zorro-antd/icon';
-import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
-import { NzLayoutModule } from 'ng-zorro-antd/layout';
-import { NzMenuModule } from 'ng-zorro-antd/menu';
-import { NzDividerModule } from 'ng-zorro-antd/divider';
-import { NzBadgeModule } from 'ng-zorro-antd/badge';
-import { NzDrawerModule } from 'ng-zorro-antd/drawer';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
-import { FormsModule } from '@angular/forms';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { registerLocaleData } from '@angular/common';
+import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import en from '@angular/common/locales/en';
+import { APP_INITIALIZER, Injector, NgModule } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { Router } from '@angular/router';
 
 import {
   BarsOutline,
@@ -73,11 +62,23 @@ import {
   ShrinkOutline,
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
-
-import { StatusService } from 'services';
-import { ConfigurationInterface } from 'interfaces';
-import { AppInterceptor } from './app.interceptor';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzBadgeModule } from 'ng-zorro-antd/badge';
+import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDrawerModule } from 'ng-zorro-antd/drawer';
+import { NZ_I18N, en_US } from 'ng-zorro-antd/i18n';
+import { NZ_ICONS, NzIconModule } from 'ng-zorro-antd/icon';
+import { NzLayoutModule } from 'ng-zorro-antd/layout';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
+
+import { ConfigurationInterface } from 'interfaces';
+import { StatusService } from 'services';
+
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
+import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);
 

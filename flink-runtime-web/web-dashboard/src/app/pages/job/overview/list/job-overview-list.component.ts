@@ -17,9 +17,11 @@
  */
 
 import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ElementRef } from '@angular/core';
-import { deepFind } from 'utils';
-import { NodesItemCorrectInterface } from 'interfaces';
+
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
+import { NodesItemCorrectInterface } from 'interfaces';
+import { deepFind } from 'utils';
 
 @Component({
   selector: 'flink-job-overview-list',
@@ -40,7 +42,7 @@ export class JobOverviewListComponent {
     this.innerNodes = value;
   }
 
-  get nodes() {
+  get nodes(): NodesItemCorrectInterface[] {
     return this.innerNodes;
   }
 
@@ -59,11 +61,11 @@ export class JobOverviewListComponent {
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
-  trackJobBy(_: number, node: NodesItemCorrectInterface) {
+  trackJobBy(_: number, node: NodesItemCorrectInterface): string {
     return node.id;
   }
 
-  clickNode(node: NodesItemCorrectInterface) {
+  clickNode(node: NodesItemCorrectInterface): void {
     this.nodeClick.emit(node);
   }
 

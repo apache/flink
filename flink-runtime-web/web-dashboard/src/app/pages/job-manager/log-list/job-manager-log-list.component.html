@@ -34,11 +34,11 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let log of listOfLog;">
+      <tr *ngFor="let log of listOfLog">
         <td>
           <a [routerLink]="[log.name]">{{ log.name }}</a>
         </td>
-        <td>{{ (log.size / 1024) | number : '1.0-2' }}</td>
+        <td>{{ log.size / 1024 | number: '1.0-2' }}</td>
       </tr>
     </tbody>
   </nz-table>

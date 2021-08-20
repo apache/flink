@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ShareModule } from 'share/share.module';
+import { NgModule } from '@angular/core';
 
-import { JobManagerRoutingModule } from './job-manager-routing.module';
-import { JobManagerComponent } from './job-manager.component';
-import { JobManagerConfigurationComponent } from './configuration/job-manager-configuration.component';
-import { JobManagerLogDetailComponent } from './log-detail/job-manager-log-detail.component';
-import { JobManagerLogListComponent } from './log-list/job-manager-log-list.component';
-import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
-import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
-import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzGridModule } from 'ng-zorro-antd/grid';
@@ -35,6 +26,16 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { ShareModule } from 'share/share.module';
+
+import { JobManagerConfigurationComponent } from './configuration/job-manager-configuration.component';
+import { JobManagerRoutingModule } from './job-manager-routing.module';
+import { JobManagerComponent } from './job-manager.component';
+import { JobManagerLogDetailComponent } from './log-detail/job-manager-log-detail.component';
+import { JobManagerLogListComponent } from './log-list/job-manager-log-list.component';
+import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
+import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
+import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
 
 @NgModule({
   imports: [

@@ -17,8 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { JobConfigInterface } from 'interfaces';
 import { flatMap } from 'rxjs/operators';
+
+import { JobConfigInterface } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -33,7 +34,7 @@ export class JobConfigurationComponent implements OnInit {
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobDetail$.pipe(flatMap(job => this.jobService.loadJobConfig(job.jid))).subscribe(data => {
       this.config = data;
       const userConfig = this.config['execution-config']['user-config'];

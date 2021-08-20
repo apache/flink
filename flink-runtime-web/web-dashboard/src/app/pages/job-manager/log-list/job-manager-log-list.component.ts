@@ -18,6 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
+
 import { JobManagerService } from 'services';
 
 @Component({
@@ -27,14 +28,14 @@ import { JobManagerService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerLogListComponent implements OnInit {
-  listOfLog: { name: string; size: number }[] = [];
+  listOfLog: Array<{ name: string; size: number }> = [];
   isLoading = true;
 
-  trackByName = (_: number, log: { name: string; size: number }) => log.name;
+  trackByName = (_: number, log: { name: string; size: number }): string => log.name;
 
   constructor(private jobManagerService: JobManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobManagerService
       .loadLogList()
       .pipe(

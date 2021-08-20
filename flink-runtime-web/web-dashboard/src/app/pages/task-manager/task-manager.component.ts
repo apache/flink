@@ -20,6 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
+
 import { StatusService, TaskManagerService } from 'services';
 
 @Component({
@@ -39,7 +40,7 @@ export class TaskManagerComponent implements OnInit, OnDestroy {
     private statusService: StatusService
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
@@ -58,7 +59,7 @@ export class TaskManagerComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

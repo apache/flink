@@ -19,10 +19,12 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
 import { VertexTaskManagerDetailInterface } from 'interfaces';
 import { JobService } from 'services';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { deepFind } from 'utils';
 
 @Component({
   selector: 'flink-job-overview-drawer-taskmanagers',
@@ -52,13 +54,13 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
-  trackTaskManagerBy(_: number, node: VertexTaskManagerDetailInterface) {
+  trackTaskManagerBy(_: number, node: VertexTaskManagerDetailInterface): string {
     return node.host;
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -77,7 +79,7 @@ export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -18,12 +18,14 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TaskmanagersItemInterface } from 'interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
+import { TaskmanagersItemInterface } from 'interfaces';
 import { StatusService, TaskManagerService } from 'services';
 import { deepFind } from 'utils';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
 
 @Component({
   selector: 'flink-task-manager-list',
@@ -52,11 +54,11 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
       deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
   }
 
-  trackManagerBy(_: number, node: TaskmanagersItemInterface) {
+  trackManagerBy(_: number, node: TaskmanagersItemInterface): string {
     return node.id;
   }
 
-  navigateTo(taskManager: TaskmanagersItemInterface) {
+  navigateTo(taskManager: TaskmanagersItemInterface): void {
     this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
   }
 
@@ -68,7 +70,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
     private activatedRoute: ActivatedRoute
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.statusService.refresh$
       .pipe(
         takeUntil(this.destroy$),
@@ -87,7 +89,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

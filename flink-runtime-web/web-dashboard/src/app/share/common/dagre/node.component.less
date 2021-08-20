@@ -23,45 +23,46 @@
   .node-label-wrapper {
     display: inline-block;
     vertical-align: top;
-    cursor: pointer;
-    pointer-events: all;
-    font-size: 12px;
     width: 100%;
     height: 100%;
-    line-height: 1.2;
-    border-radius: 0;
     padding: 15px;
-    color: @text-color;
-    text-align: left;
-    word-break: break-all;
     border-width: 1px;
     border-style: solid;
+    border-radius: 0;
+    color: @text-color;
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: left;
+    word-break: break-all;
+    cursor: pointer;
+    pointer-events: all;
 
     .content-wrap {
       font-size: 12px;
     }
 
     .node-label {
-      text-align: center;
       width: 100%;
       margin-bottom: 12px;
       font-weight: bold;
+      text-align: center;
 
       &:first-child {
         margin-top: 24px;
       }
 
       &.metric {
-        font-weight: normal;;
-        font-weight: 12px;
         margin-bottom: 2px;
         color: @text-color-secondary;
+        font-weight: normal;
+        font-size: 12px;
       }
     }
 
     .detail {
       margin-bottom: 2px;
       color: @text-color;
+
       &.description {
         color: @heading-color;
       }

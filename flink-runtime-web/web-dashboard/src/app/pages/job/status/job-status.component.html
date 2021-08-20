@@ -32,19 +32,19 @@
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
       <div>Start Time:</div>
-      <div>{{ jobDetail['start-time'] | date:'yyyy-MM-dd HH:mm:ss' }}</div>
+      <div>{{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
-    <ng-container *ngIf="jobDetail['end-time']>-1">
+    <ng-container *ngIf="jobDetail['end-time'] > -1">
       <div class="field">
         <div>End Time:</div>
-        <div>{{ jobDetail['end-time'] | date:'yyyy-MM-dd HH:mm:ss' }}</div>
+        <div>{{ jobDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss' }}</div>
       </div>
       <nz-divider [nzType]="'vertical'"></nz-divider>
     </ng-container>
     <div class="field">
       <div>Duration:</div>
-      <div>{{ jobDetail.duration | humanizeDuration}}</div>
+      <div>{{ jobDetail.duration | humanizeDuration }}</div>
     </div>
   </div>
   <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>
@@ -57,7 +57,12 @@
         nzOkText="Yes"
         nzCancelText="No"
         (nzOnConfirm)="cancelJob()"
-        *ngIf="webCancelEnabled && (jobDetail.state=='RUNNING' || jobDetail.state=='CREATED' || jobDetail.state=='RESTARTING')"
+        *ngIf="
+          webCancelEnabled &&
+          (jobDetail.state === 'RUNNING' ||
+            jobDetail.state === 'CREATED' ||
+            jobDetail.state === 'RESTARTING')
+        "
       >
         Cancel Job
       </a>
