@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -127,10 +125,6 @@ public class MiniClusterConfiguration {
         return commonBindAddress != null
                 ? commonBindAddress
                 : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
-    }
-
-    public Time getRpcTimeout() {
-        return Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
     }
 
     public UnmodifiableConfiguration getConfiguration() {
