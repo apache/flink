@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -58,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A factory to create {@link StreamMultipleInputProcessor} for two input case. */
 public class StreamTwoInputProcessorFactory {
     public static <IN1, IN2> StreamMultipleInputProcessor create(
-            AbstractInvokable ownerTask,
+            TaskInvokable ownerTask,
             CheckpointedInputGate[] checkpointedInputGates,
             IOManager ioManager,
             MemoryManager memoryManager,
@@ -155,7 +155,8 @@ public class StreamTwoInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig);
+                            jobConfig,
+                            executionConfig);
             inputSelectable = selectableSortingInputs.getInputSelectable();
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] passThroughInputs = selectableSortingInputs.getPassThroughInputs();

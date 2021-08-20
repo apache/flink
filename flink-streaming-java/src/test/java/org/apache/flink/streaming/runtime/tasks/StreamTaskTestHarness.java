@@ -300,6 +300,9 @@ public class StreamTaskTestHarness<OUT> {
         taskThread.start();
         // Wait until the task is set
         while (taskThread.task == null) {
+            if (taskThread.error != null) {
+                ExceptionUtils.rethrow(taskThread.error);
+            }
             Thread.sleep(10L);
         }
 

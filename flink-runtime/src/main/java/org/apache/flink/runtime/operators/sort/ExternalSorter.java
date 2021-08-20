@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -264,13 +266,29 @@ public class ExternalSorter<E> implements Sorter<E> {
     /** Creates a builder for the {@link ExternalSorter}. */
     public static <E> ExternalSorterBuilder<E> newBuilder(
             MemoryManager memoryManager,
-            AbstractInvokable parentTask,
+            TaskInvokable parentTask,
             TypeSerializer<E> serializer,
-            TypeComparator<E> comparator) {
+            TypeComparator<E> comparator,
+            ExecutionConfig executionConfig) {
         return new ExternalSorterBuilder<>(
                 checkNotNull(memoryManager),
                 checkNotNull(parentTask),
                 checkNotNull(serializer),
-                checkNotNull(comparator));
+                checkNotNull(comparator),
+                checkNotNull(executionConfig));
+    }
+
+    /** Creates a builder for the {@link ExternalSorter}. */
+    public static <E> ExternalSorterBuilder<E> newBuilder(
+            MemoryManager memoryManager,
+            AbstractInvokable parentTask,
+            TypeSerializer<E> serializer,
+            TypeComparator<E> comparator) {
+        return newBuilder(
+                checkNotNull(memoryManager),
+                checkNotNull(parentTask),
+                checkNotNull(serializer),
+                checkNotNull(comparator),
+                parentTask.getExecutionConfig());
     }
 }

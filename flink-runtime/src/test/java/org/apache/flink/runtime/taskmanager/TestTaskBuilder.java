@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -67,7 +68,7 @@ import static org.mockito.Mockito.mock;
 /** Util that helps building {@link Task} objects for testing. */
 public final class TestTaskBuilder {
 
-    private Class<? extends AbstractInvokable> invokable = AbstractInvokable.class;
+    private Class<? extends TaskInvokable> invokable = AbstractInvokable.class;
     private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
     private LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
             TestingClassLoaderLease.newBuilder().build();
@@ -95,7 +96,7 @@ public final class TestTaskBuilder {
         this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
     }
 
-    public TestTaskBuilder setInvokable(Class<? extends AbstractInvokable> invokable) {
+    public TestTaskBuilder setInvokable(Class<? extends TaskInvokable> invokable) {
         this.invokable = invokable;
         return this;
     }

@@ -29,7 +29,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -65,7 +65,7 @@ public class StreamMultipleInputProcessorFactory {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static StreamMultipleInputProcessor create(
-            AbstractInvokable ownerTask,
+            TaskInvokable ownerTask,
             CheckpointedInputGate[] checkpointedInputGates,
             StreamConfig.InputConfig[] configuredInputs,
             IOManager ioManager,
@@ -175,7 +175,8 @@ public class StreamMultipleInputProcessorFactory {
                                     ManagedMemoryUseCase.OPERATOR,
                                     taskManagerConfig,
                                     userClassloader),
-                            jobConfig);
+                            jobConfig,
+                            executionConfig);
 
             StreamTaskInput<?>[] sortedInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] passedThroughInputs =

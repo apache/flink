@@ -167,7 +167,7 @@ public class MultipleInputStreamTask<OUT>
                         mainOperator,
                         inputWatermarkGauges,
                         getConfiguration(),
-                        getTaskConfiguration(),
+                        getEnvironment().getTaskConfiguration(),
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
