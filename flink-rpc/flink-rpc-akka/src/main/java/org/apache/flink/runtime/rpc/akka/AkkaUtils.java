@@ -121,7 +121,7 @@ class AkkaUtils {
             return "INFO";
         }
         if (LOG.isWarnEnabled()) {
-            return "WARN";
+            return "WARNING";
         }
         if (LOG.isErrorEnabled()) {
             return "ERROR";
