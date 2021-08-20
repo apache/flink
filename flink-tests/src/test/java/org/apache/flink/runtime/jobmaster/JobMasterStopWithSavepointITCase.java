@@ -36,9 +36,9 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
@@ -251,7 +251,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private void setUpJobGraph(
-            final Class<? extends AbstractInvokable> invokable,
+            final Class<? extends TaskInvokable> invokable,
             final RestartStrategies.RestartStrategyConfiguration restartStrategy)
             throws Exception {
 

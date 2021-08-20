@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -93,7 +94,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] preferredDataInputs =
@@ -174,7 +176,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];
@@ -254,7 +257,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];

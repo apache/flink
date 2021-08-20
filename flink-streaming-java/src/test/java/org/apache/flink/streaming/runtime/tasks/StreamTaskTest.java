@@ -54,7 +54,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -2044,7 +2044,7 @@ public class StreamTaskTest extends TestLogger {
     }
 
     public static Task createTask(
-            Class<? extends AbstractInvokable> invokable,
+            Class<? extends TaskInvokable> invokable,
             ShuffleEnvironment shuffleEnvironment,
             StreamConfig taskConfig,
             Configuration taskManagerConfig)
@@ -2741,7 +2741,7 @@ public class StreamTaskTest extends TestLogger {
     /**
      * A {@link StreamTask} that register a single timer that waits for a cancellation and then
      * emits some data. The assumption is that output remains available until the future returned
-     * from {@link AbstractInvokable#cancel()} is completed. Public * access to allow reflection in
+     * from {@link TaskInvokable#cancel()} is completed. Public * access to allow reflection in
      * {@link Task}.
      */
     public static class StreamTaskWithBlockingTimer extends StreamTask {

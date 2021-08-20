@@ -50,7 +50,9 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
+import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -173,8 +175,12 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  * @param <OP>
  */
 @Internal
-public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends AbstractInvokable
-        implements AsyncExceptionHandler {
+public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
+        implements TaskInvokable,
+                CheckpointableTask,
+                CoordinatedTask,
+                AsyncExceptionHandler,
+                ContainingTaskDetails {
 
     /** The thread group that holds all trigger timer threads. */
     public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -287,6 +293,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private final long bufferDebloatPeriod;
 
+    private final Environment environment;
+
+    private volatile boolean shouldInterruptOnCancel = true;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -355,10 +365,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             StreamTaskActionExecutor actionExecutor,
             TaskMailbox mailbox)
             throws Exception {
-
-        super(environment);
-
-        this.configuration = new StreamConfig(getTaskConfiguration());
+        this.environment = environment;
+        this.configuration = new StreamConfig(environment.getTaskConfiguration());
         this.recordWriter = createRecordWriterDelegate(configuration, environment);
         this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
         this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
@@ -376,12 +384,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorage.createCheckpointStorage(getEnvironment().getJobID()),
+                        checkpointStorage.createCheckpointStorage(environment.getJobID()),
                         getName(),
                         actionExecutor,
                         getCancelables(),
                         getAsyncOperationsThreadPool(),
-                        getEnvironment(),
+                        environment,
                         this,
                         configuration.isUnalignedCheckpointsEnabled(),
                         configuration
@@ -413,7 +421,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             this.bufferDebloater =
-                    new BufferDebloater(taskManagerConf, getEnvironment().getAllInputGates());
+                    new BufferDebloater(taskManagerConf, environment.getAllInputGates());
             environment
                     .getMetricGroup()
                     .gauge(
@@ -879,7 +887,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // that block and stall shutdown.
         // Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
         // process) as a backup in case some shutdown procedure blocks outside our control.
-        setShouldInterruptOnCancel(false);
+        shouldInterruptOnCancel = false;
 
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
@@ -1712,5 +1720,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     @Override
     public boolean isUsingNonBlockingInput() {
         return true;
+    }
+
+    @Override
+    public boolean shouldInterruptOnCancel() {
+        return shouldInterruptOnCancel;
+    }
+
+    @Override
+    public final Environment getEnvironment() {
+        return environment;
     }
 }
