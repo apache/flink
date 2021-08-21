@@ -31,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
+
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
 /** Configuration object for the {@link MiniCluster}. */
@@ -73,6 +75,11 @@ public class MiniClusterConfiguration {
         // set default io pool size.
         if (!modifiedConfig.contains(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE)) {
             modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
+        }
+
+        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
+        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
+            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }
 
         return new UnmodifiableConfiguration(modifiedConfig);
