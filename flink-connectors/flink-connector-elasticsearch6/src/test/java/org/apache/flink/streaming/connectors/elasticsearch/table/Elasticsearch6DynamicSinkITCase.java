@@ -140,6 +140,8 @@ public class Elasticsearch6DynamicSinkITCase extends TestLogger {
         SinkFunction<RowData> sinkFunction = sinkRuntimeProvider.createSinkFunction();
         StreamExecutionEnvironment environment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
+        environment.setParallelism(4);
+
         rowData.setRowKind(RowKind.UPDATE_AFTER);
         environment.<RowData>fromElements(rowData).addSink(sinkFunction);
         environment.execute();
