@@ -108,6 +108,8 @@ public class YARNFileReplicationITCase extends YarnTestBase {
 
                 ApplicationId applicationId = clusterClient.getClusterId();
 
+                extraVerification(configuration, applicationId);
+
                 final CompletableFuture<JobResult> jobResultCompletableFuture =
                         clusterClient.requestJobResult(jobGraph.getJobID());
 
@@ -124,8 +126,6 @@ public class YARNFileReplicationITCase extends YarnTestBase {
                                                     YARNFileReplicationITCase.class
                                                             .getClassLoader()));
                                 });
-
-                extraVerification(configuration, applicationId);
 
                 waitApplicationFinishedElseKillIt(
                         applicationId,
