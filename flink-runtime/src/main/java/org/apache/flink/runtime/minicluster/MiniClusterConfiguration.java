@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -66,6 +67,11 @@ public class MiniClusterConfiguration {
         final Configuration modifiedConfig = new Configuration(configuration);
 
         TaskExecutorResourceUtils.adjustForLocalExecution(modifiedConfig);
+
+        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
+        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT)) {
+            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT, "5 min");
+        }
 
         return new UnmodifiableConfiguration(modifiedConfig);
     }
