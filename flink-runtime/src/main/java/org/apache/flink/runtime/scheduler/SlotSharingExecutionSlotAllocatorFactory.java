@@ -23,11 +23,15 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.scheduler.SharedSlotProfileRetriever.SharedSlotProfileRetrieverFactory;
 
+import java.util.ArrayList;
+
 /** Factory for {@link SlotSharingExecutionSlotAllocator}. */
 class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
     private final PhysicalSlotProvider slotProvider;
 
     private final boolean slotWillBeOccupiedIndefinitely;
+
+    private final boolean enableSlotAllocateOrderOptimization;
 
     private final PhysicalSlotRequestBulkChecker bulkChecker;
 
@@ -39,13 +43,15 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
             PhysicalSlotProvider slotProvider,
             boolean slotWillBeOccupiedIndefinitely,
             PhysicalSlotRequestBulkChecker bulkChecker,
-            Time allocationTimeout) {
+            Time allocationTimeout,
+            boolean enableSlotAllocateOrderOptimization) {
         this(
                 slotProvider,
                 slotWillBeOccupiedIndefinitely,
                 bulkChecker,
                 allocationTimeout,
-                new LocalInputPreferredSlotSharingStrategy.Factory());
+                new LocalInputPreferredSlotSharingStrategy.Factory(),
+                enableSlotAllocateOrderOptimization);
     }
 
     SlotSharingExecutionSlotAllocatorFactory(
@@ -53,12 +59,14 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
             boolean slotWillBeOccupiedIndefinitely,
             PhysicalSlotRequestBulkChecker bulkChecker,
             Time allocationTimeout,
-            SlotSharingStrategy.Factory slotSharingStrategyFactory) {
+            SlotSharingStrategy.Factory slotSharingStrategyFactory,
+            boolean enableSlotAllocateOrderOptimization) {
         this.slotProvider = slotProvider;
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
         this.bulkChecker = bulkChecker;
         this.slotSharingStrategyFactory = slotSharingStrategyFactory;
         this.allocationTimeout = allocationTimeout;
+        this.enableSlotAllocateOrderOptimization = enableSlotAllocateOrderOptimization;
     }
 
     @Override
@@ -80,6 +88,9 @@ class SlotSharingExecutionSlotAllocatorFactory implements ExecutionSlotAllocator
                 sharedSlotProfileRetrieverFactory,
                 bulkChecker,
                 allocationTimeout,
-                context::getResourceProfile);
+                context::getResourceProfile,
+                enableSlotAllocateOrderOptimization
+                        ? new EvenlySlotSharingGroupOrderStrategy()
+                        : ArrayList::new);
     }
 }

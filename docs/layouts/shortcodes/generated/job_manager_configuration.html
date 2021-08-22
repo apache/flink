@@ -164,5 +164,11 @@
             <td>Long</td>
             <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
         </tr>
+        <tr>
+            <td><h5>jobmanager.scheduler.enable-slot-allocate-order-optimization</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether to enable the slot allocate optimization for DefaultScheduler and AdaptiveScheduler. It could distribute subtasks (belong to the same operator) across as many TaskManagers as possible.</td>
+        </tr>
     </tbody>
 </table>

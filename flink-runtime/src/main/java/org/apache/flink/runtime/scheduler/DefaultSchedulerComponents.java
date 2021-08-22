@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
@@ -100,12 +101,16 @@ public class DefaultSchedulerComponents {
                         slotPool, SystemClock.getInstance());
         final PhysicalSlotProvider physicalSlotProvider =
                 new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+        final boolean enableSlotAllocateOrderOptimization =
+                jobMasterConfiguration.getBoolean(
+                        JobManagerOptions.SLOT_ALLOCATE_ORDER_OPTIMIZATION);
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 new SlotSharingExecutionSlotAllocatorFactory(
                         physicalSlotProvider,
                         jobType == JobType.STREAMING,
                         bulkChecker,
-                        slotRequestTimeout);
+                        slotRequestTimeout,
+                        enableSlotAllocateOrderOptimization);
         return new DefaultSchedulerComponents(
                 new PipelinedRegionSchedulingStrategy.Factory(),
                 bulkChecker::start,

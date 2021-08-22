@@ -454,6 +454,18 @@ public class JobManagerOptions {
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SLOT_ALLOCATE_ORDER_OPTIMIZATION =
+            key("jobmanager.scheduler.enable-slot-allocate-order-optimization")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Flag indicating whether to enable the slot allocate optimization for DefaultScheduler and AdaptiveScheduler. "
+                                    + "It could distribute subtasks (belong to the same operator) across as many TaskManagers as possible.");
+
     // ---------------------------------------------------------------------------------------------
 
     private JobManagerOptions() {
