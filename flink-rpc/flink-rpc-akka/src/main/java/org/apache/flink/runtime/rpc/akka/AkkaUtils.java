@@ -112,7 +112,8 @@ class AkkaUtils {
 
     private static String getLogLevel() {
         if (LOG.isTraceEnabled()) {
-            return "TRACE";
+            // TRACE is not supported by akka
+            return "DEBUG";
         }
         if (LOG.isDebugEnabled()) {
             return "DEBUG";
@@ -121,7 +122,7 @@ class AkkaUtils {
             return "INFO";
         }
         if (LOG.isWarnEnabled()) {
-            return "WARN";
+            return "WARNING";
         }
         if (LOG.isErrorEnabled()) {
             return "ERROR";
