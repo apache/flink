@@ -685,7 +685,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
     }
 
     private void shutdownCluster(
-            ClusterClient clusterClient,
+            ClusterClient<ApplicationId> clusterClient,
             ScheduledExecutorService scheduledExecutorService,
             YarnApplicationStatusMonitor yarnApplicationStatusMonitor) {
         try {
@@ -827,7 +827,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
                 if (firstEquals >= 0) {
                     String key = propLine.substring(0, firstEquals).trim();
-                    String value = propLine.substring(firstEquals + 1, propLine.length()).trim();
+                    String value = propLine.substring(firstEquals + 1).trim();
 
                     if (!key.isEmpty()) {
                         properties.put(key, value);
