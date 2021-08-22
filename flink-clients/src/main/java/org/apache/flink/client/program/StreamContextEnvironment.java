@@ -121,7 +121,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();
-            System.out.println(jobExecutionResult);
+            if (!suppressSysout) {
+                System.out.println(jobExecutionResult);
+            }
         } else {
             jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
         }
