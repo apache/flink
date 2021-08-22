@@ -234,7 +234,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 insertedIds.toString(),
                 insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
         LOG.info(
-                "Test insert for {} finished in {}ms", dbEnv, System.currentTimeMillis() - started);
+                "Test insert for {} finished in {} ms.",
+                dbEnv,
+                System.currentTimeMillis() - started);
     }
 
     @Override

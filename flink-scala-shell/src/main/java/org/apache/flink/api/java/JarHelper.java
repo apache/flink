@@ -86,14 +86,12 @@ public class JarHelper {
 
     /** Unjars a given jar file into a given directory. */
     public void unjarDir(File jarFile, File destDir) throws IOException {
-        BufferedOutputStream dest = null;
         FileInputStream fis = new FileInputStream(jarFile);
         unjar(fis, destDir);
     }
 
     /** Given an InputStream on a jar file, unjars the contents into the given directory. */
     public void unjar(InputStream in, File destDir) throws IOException {
-        BufferedOutputStream dest = null;
         JarInputStream jis = new JarInputStream(in);
         JarEntry entry;
         while ((entry = jis.getNextJarEntry()) != null) {
@@ -112,7 +110,7 @@ public class JarHelper {
                 System.out.println("unjarring " + destFile + " from " + entry.getName());
             }
             FileOutputStream fos = new FileOutputStream(destFile);
-            dest = new BufferedOutputStream(fos, BUFFER_SIZE);
+            BufferedOutputStream dest = new BufferedOutputStream(fos, BUFFER_SIZE);
             try {
                 while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
                     dest.write(data, 0, count);
