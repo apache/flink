@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.source.KafkaSourceTestUtils;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
@@ -52,9 +53,11 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER;
@@ -68,7 +71,6 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Unit tests for {@link KafkaSourceReader}. */
 public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSplit> {
@@ -338,17 +340,24 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
             Boundedness boundedness, String groupId) throws Exception {
-        return createReader(boundedness, groupId, new TestingReaderContext());
+        return createReader(boundedness, groupId, new TestingReaderContext(), (ignore) -> {});
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
             Boundedness boundedness, String groupId, MetricGroup metricGroup) throws Exception {
         return createReader(
-                boundedness, groupId, new TestingReaderContext(new Configuration(), metricGroup));
+                boundedness,
+                groupId,
+                new TestingReaderContext(new Configuration(), metricGroup),
+                (ignore) -> {});
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(
-            Boundedness boundedness, String groupId, SourceReaderContext context) throws Exception {
+            Boundedness boundedness,
+            String groupId,
+            SourceReaderContext context,
+            Consumer<Collection<String>> splitFinishedHook)
+            throws Exception {
         KafkaSourceBuilder<Integer> builder =
                 KafkaSource.<Integer>builder()
                         .setClientIdPrefix("KafkaSourceReaderTest")
@@ -366,7 +375,8 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             builder.setBounded(OffsetsInitializer.latest());
         }
 
-        return builder.build().createReader(context);
+        return KafkaSourceTestUtils.createReaderWithFinishedSplitHook(
+                builder.build(), context, splitFinishedHook);
     }
 
     private void pollUntil(
@@ -380,10 +390,9 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                     try {
                         reader.pollNext(output);
                     } catch (Exception exception) {
-                        fail(
-                                String.format(
-                                        "Caught unexpected exception %s when polling from the reader.",
-                                        exception));
+                        throw new RuntimeException(
+                                "Caught unexpected exception when polling from the reader",
+                                exception);
                     }
                     return condition.get();
                 },
