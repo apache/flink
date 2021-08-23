@@ -236,7 +236,7 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         @Override
         public DoubleCounter getDoubleCounter(String name) {
             throw new UnsupportedOperationException(
-                    "Long counters are not supported in rich async functions.");
+                    "Double counters are not supported in rich async functions.");
         }
 
         @Override
