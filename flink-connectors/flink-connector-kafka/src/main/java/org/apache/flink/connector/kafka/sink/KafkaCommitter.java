@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -37,38 +37,40 @@ import java.util.Properties;
  */
 class KafkaCommitter implements Committer<KafkaCommittable> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaCommitter.class);
+
     private final Properties kafkaProducerConfig;
 
     KafkaCommitter(Properties kafkaProducerConfig) {
         this.kafkaProducerConfig = kafkaProducerConfig;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaCommitter.class);
-
     @Override
     public List<KafkaCommittable> commit(List<KafkaCommittable> committables) throws IOException {
-        committables.forEach(this::commitTransaction);
-        return Collections.emptyList();
+        List<KafkaCommittable> retryableCommittables = new ArrayList<>();
+        for (KafkaCommittable committable : committables) {
+            final String transactionalId = committable.getTransactionalId();
+            LOG.debug("Committing Kafka transaction {}", transactionalId);
+            try (FlinkKafkaInternalProducer<?, ?> producer =
+                    committable.getProducer().orElseGet(() -> createProducer(committable))) {
+                producer.commitTransaction();
+            } catch (ProducerFencedException | InvalidTxnStateException e) {
+                // That means we have committed this transaction before.
+                LOG.warn(
+                        "Encountered error {} while recovering transaction {}. "
+                                + "Presumably this transaction has been already committed before",
+                        e,
+                        committable);
+            } catch (Throwable e) {
+                LOG.warn("Cannot commit Kafka transaction, retrying.", e);
+                retryableCommittables.add(committable);
+            }
+        }
+        return retryableCommittables;
     }
 
     @Override
     public void close() throws Exception {}
-
-    private void commitTransaction(KafkaCommittable committable) {
-        final String transactionalId = committable.getTransactionalId();
-        LOG.debug("Committing Kafka transaction {}", transactionalId);
-        try (FlinkKafkaInternalProducer<?, ?> producer =
-                committable.getProducer().orElseGet(() -> createProducer(committable))) {
-            producer.commitTransaction();
-        } catch (InvalidTxnStateException | ProducerFencedException e) {
-            // That means we have committed this transaction before.
-            LOG.warn(
-                    "Encountered error {} while recovering transaction {}. "
-                            + "Presumably this transaction has been already committed before",
-                    e,
-                    committable);
-        }
-    }
 
     /**
      * Creates a producer that can commit into the same transaction as the upstream producer that
