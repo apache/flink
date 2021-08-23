@@ -55,6 +55,10 @@ public class ReadingMetadataSpec extends SourceAbilitySpecBase {
         this.metadataKeys = new ArrayList<>(checkNotNull(metadataKeys));
     }
 
+    public List<String> getMetadataKeys() {
+        return metadataKeys;
+    }
+
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
         if (tableSource instanceof SupportsReadingMetadata) {
