@@ -543,4 +543,11 @@ It also can be circumvented by changing `retries` property in the producer setti
 However this might cause reordering of messages,
 which in turn if undesired can be circumvented by setting `max.in.flight.requests.per.connection` to 1.
 
+### ProducerFencedException
+
+The reason for this exception is most likely a transaction timeout on the broker side. With the implementation of
+[KAFKA-6119](https://issues.apache.org/jira/browse/KAFKA-6119), the `(producerId, epoch)` will be fenced off
+after a transaction timeout and all of its pending transactions are aborted (each `transactional.id` is
+mapped to a single `producerId`; this is described in more detail in the following [blog post](https://www.confluent.io/blog/simplified-robust-exactly-one-semantics-in-kafka-2-5/)).
+
 {{< top >}}
