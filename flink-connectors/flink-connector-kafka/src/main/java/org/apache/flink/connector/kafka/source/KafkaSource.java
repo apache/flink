@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -41,6 +42,7 @@ import org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader;
 import org.apache.flink.connector.kafka.source.reader.KafkaRecordEmitter;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.source.reader.fetcher.KafkaSourceFetcherManager;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -50,7 +52,9 @@ import org.apache.flink.util.UserCodeClassLoader;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -120,6 +124,13 @@ public class KafkaSource<OUT>
     @Override
     public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
+        return createReader(readerContext, (ignore) -> {});
+    }
+
+    @VisibleForTesting
+    SourceReader<OUT, KafkaPartitionSplit> createReader(
+            SourceReaderContext readerContext, Consumer<Collection<String>> splitFinishedHook)
+            throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         deserializationSchema.open(
@@ -148,7 +159,8 @@ public class KafkaSource<OUT>
 
         return new KafkaSourceReader<>(
                 elementsQueue,
-                splitReaderSupplier,
+                new KafkaSourceFetcherManager<>(
+                        elementsQueue, splitReaderSupplier::get, splitFinishedHook),
                 recordEmitter,
                 toConfiguration(props),
                 readerContext,
