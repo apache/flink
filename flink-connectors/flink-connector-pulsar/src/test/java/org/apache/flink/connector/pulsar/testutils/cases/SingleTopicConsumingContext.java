@@ -24,9 +24,9 @@ import org.apache.flink.connector.pulsar.source.PulsarSource;
 import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerContext;
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerEnvironment;
 import org.apache.flink.connector.pulsar.testutils.PulsarPartitionDataWriter;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
 import java.util.Collection;
@@ -43,7 +43,7 @@ import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
  * A Pulsar external context that will create only one topic and use partitions in that topic as
  * source splits.
  */
-public class SingleTopicConsumingContext extends PulsarContainerContext<String> {
+public class SingleTopicConsumingContext extends PulsarTestContext<String> {
 
     private static final String TOPIC_NAME_PREFIX = "pulsar-single-topic";
     private final String topicName;
@@ -52,7 +52,7 @@ public class SingleTopicConsumingContext extends PulsarContainerContext<String> 
 
     private int numSplits = 0;
 
-    public SingleTopicConsumingContext(PulsarContainerEnvironment environment) {
+    public SingleTopicConsumingContext(PulsarTestEnvironment environment) {
         super("consuming message on single topic", environment);
         this.topicName =
                 TOPIC_NAME_PREFIX + "-" + ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
@@ -63,8 +63,8 @@ public class SingleTopicConsumingContext extends PulsarContainerContext<String> 
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
                         .setDeserializationSchema(pulsarSchema(STRING))
-                        .setServiceUrl(serviceUrl())
-                        .setAdminUrl(adminUrl())
+                        .setServiceUrl(operator.serviceUrl())
+                        .setAdminUrl(operator.adminUrl())
                         .setTopics(topicName)
                         .setSubscriptionType(Exclusive)
                         .setSubscriptionName("pulsar-single-topic");
@@ -81,15 +81,16 @@ public class SingleTopicConsumingContext extends PulsarContainerContext<String> 
     public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
         if (numSplits == 0) {
             // Create the topic first.
-            createTopic(topicName, 1);
+            operator.createTopic(topicName, 1);
             numSplits++;
         } else {
             numSplits++;
-            increaseTopicPartitions(topicName, numSplits);
+            operator.increaseTopicPartitions(topicName, numSplits);
         }
 
         TopicPartition partition = new TopicPartition(topicName, numSplits - 1, createFullRange());
-        PulsarPartitionDataWriter writer = new PulsarPartitionDataWriter(client(), partition);
+        PulsarPartitionDataWriter writer =
+                new PulsarPartitionDataWriter(operator.client(), partition);
         partitionToSplitWriter.put(numSplits - 1, writer);
 
         return writer;

@@ -19,21 +19,21 @@
 package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.connectors.test.common.external.ExternalContext;
-import org.apache.flink.runtime.util.SerializableFunction;
+
+import java.util.function.Function;
 
 /**
- * Factory for creating all the test context that extends {@link PulsarContainerContext}. Test
- * context class should have a constructor with {@link PulsarContainerEnvironment} arg.
+ * Factory for creating all the test context that extends {@link PulsarTestContext}. Test context
+ * class should have a constructor with {@link PulsarTestEnvironment} arg.
  */
-public class PulsarContainerContextFactory<F, T extends PulsarContainerContext<F>>
+public class PulsarTestContextFactory<F, T extends PulsarTestContext<F>>
         implements ExternalContext.Factory<F> {
 
-    private final PulsarContainerEnvironment environment;
-    private final SerializableFunction<PulsarContainerEnvironment, T> contextFactory;
+    private final PulsarTestEnvironment environment;
+    private final Function<PulsarTestEnvironment, T> contextFactory;
 
-    public PulsarContainerContextFactory(
-            PulsarContainerEnvironment environment,
-            SerializableFunction<PulsarContainerEnvironment, T> contextFactory) {
+    public PulsarTestContextFactory(
+            PulsarTestEnvironment environment, Function<PulsarTestEnvironment, T> contextFactory) {
         this.environment = environment;
         this.contextFactory = contextFactory;
     }

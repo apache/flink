@@ -48,13 +48,13 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
     @Test
     void topicListSubscriber() {
-        createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
-        createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
+        operator().createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
+        operator().createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
 
         PulsarSubscriber subscriber = getTopicListSubscriber(Arrays.asList(TOPIC1, TOPIC2));
         Set<TopicPartition> topicPartitions =
                 subscriber.getSubscribedTopicPartitions(
-                        admin(), new FullRangeGenerator(), NUM_PARALLELISM);
+                        operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
         for (int i = 0; i < NUM_PARTITIONS_PER_TOPIC; i++) {
@@ -64,15 +64,15 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         assertEquals(expectedPartitions, topicPartitions);
 
-        deleteTopic(TOPIC1, true);
-        deleteTopic(TOPIC2, true);
+        operator().deleteTopic(TOPIC1, true);
+        operator().deleteTopic(TOPIC2, true);
     }
 
     @Test
     void topicPatternSubscriber() {
-        createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
-        createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
-        createTopic(TOPIC3, NUM_PARTITIONS_PER_TOPIC);
+        operator().createTopic(TOPIC1, NUM_PARTITIONS_PER_TOPIC);
+        operator().createTopic(TOPIC2, NUM_PARTITIONS_PER_TOPIC);
+        operator().createTopic(TOPIC3, NUM_PARTITIONS_PER_TOPIC);
 
         PulsarSubscriber subscriber =
                 getTopicPatternSubscriber(
@@ -80,7 +80,7 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         Set<TopicPartition> topicPartitions =
                 subscriber.getSubscribedTopicPartitions(
-                        admin(), new FullRangeGenerator(), NUM_PARALLELISM);
+                        operator().admin(), new FullRangeGenerator(), NUM_PARALLELISM);
 
         Set<TopicPartition> expectedPartitions = new HashSet<>();
 
@@ -91,8 +91,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         assertEquals(expectedPartitions, topicPartitions);
 
-        deleteTopic(TOPIC1, true);
-        deleteTopic(TOPIC2, true);
-        deleteTopic(TOPIC3, true);
+        operator().deleteTopic(TOPIC1, true);
+        operator().deleteTopic(TOPIC2, true);
+        operator().deleteTopic(TOPIC3, true);
     }
 }

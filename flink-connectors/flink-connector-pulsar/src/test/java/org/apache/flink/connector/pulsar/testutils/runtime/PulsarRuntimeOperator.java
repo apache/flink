@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils;
+package org.apache.flink.connector.pulsar.testutils.runtime;
 
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -55,10 +55,10 @@ import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtil
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * A pulsar container operator for operating pulsar instance. It's serializable for using in {@link
- * ExternalContext}.
+ * A pulsar cluster operator is used for operating pulsar instance. It's serializable for using in
+ * {@link ExternalContext}.
  */
-public class PulsarContainerOperator implements Serializable, Closeable {
+public class PulsarRuntimeOperator implements Serializable, Closeable {
     private static final long serialVersionUID = -630646912412751301L;
 
     public static final int DEFAULT_PARTITIONS = 10;
@@ -70,7 +70,7 @@ public class PulsarContainerOperator implements Serializable, Closeable {
     private transient PulsarClient client;
     private transient PulsarAdmin admin;
 
-    public PulsarContainerOperator(String serviceUrl, String adminUrl) {
+    public PulsarRuntimeOperator(String serviceUrl, String adminUrl) {
         this.serviceUrl = serviceUrl;
         this.adminUrl = adminUrl;
         initializeClients();

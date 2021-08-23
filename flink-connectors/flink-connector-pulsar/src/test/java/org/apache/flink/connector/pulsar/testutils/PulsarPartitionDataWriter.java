@@ -23,6 +23,7 @@ import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 
 import java.util.Collection;
@@ -35,12 +36,12 @@ public class PulsarPartitionDataWriter implements SourceSplitDataWriter<String> 
     private final Producer<String> producer;
 
     public PulsarPartitionDataWriter(PulsarClient client, TopicPartition partition) {
-        this.producer =
-                sneakyClient(
-                        () ->
-                                client.newProducer(Schema.STRING)
-                                        .topic(partition.getFullTopicName())
-                                        .create());
+        try {
+            this.producer =
+                    client.newProducer(Schema.STRING).topic(partition.getFullTopicName()).create();
+        } catch (PulsarClientException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Override
