@@ -1283,12 +1283,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         if (releasablePartitionGroups.size() > 0) {
 
             // Remove the cache of ShuffleDescriptors when ConsumedPartitionGroups are released
-            releasablePartitionGroups.stream()
-                    .map(ConsumedPartitionGroup::getFirst)
-                    .map(IntermediateResultPartitionID::getIntermediateDataSetID)
-                    .distinct()
-                    .map(intermediateResults::get)
-                    .forEach(IntermediateResult::notifyPartitionChanged);
+            for (ConsumedPartitionGroup releasablePartitionGroup : releasablePartitionGroups) {
+                IntermediateResult totalResult =
+                        checkNotNull(
+                                intermediateResults.get(
+                                        releasablePartitionGroup.getIntermediateDataSetID()));
+                totalResult.notifyPartitionChanged(releasablePartitionGroup);
+            }
 
             final List<ResultPartitionID> releasablePartitionIds =
                     releasablePartitionGroups.stream()
