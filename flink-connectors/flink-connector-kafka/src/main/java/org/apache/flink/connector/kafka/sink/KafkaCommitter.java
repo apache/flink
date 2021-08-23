@@ -26,9 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * Committer implementation for {@link KafkaSink}
@@ -47,14 +48,16 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
 
     @Override
     public List<KafkaCommittable> commit(List<KafkaCommittable> committables) throws IOException {
-        committables.forEach(this::commitTransaction);
-        return Collections.emptyList();
+        return committables.stream()
+                .map(this::commitTransaction)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     @Override
     public void close() throws Exception {}
 
-    private void commitTransaction(KafkaCommittable committable) {
+    private KafkaCommittable commitTransaction(KafkaCommittable committable) {
         final String transactionalId = committable.getTransactionalId();
         LOG.debug("Committing Kafka transaction {}", transactionalId);
         try (FlinkKafkaInternalProducer<?, ?> producer =
@@ -68,7 +71,11 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
                             + "Presumably this transaction has been already committed before",
                     e,
                     committable);
+        } catch (Throwable e) {
+            LOG.warn("Cannot commit Kafka transaction, retrying.", e);
+            return committable;
         }
+        return null;
     }
 
     private Properties createKafkaProducerConfig(String transactionalId) {
