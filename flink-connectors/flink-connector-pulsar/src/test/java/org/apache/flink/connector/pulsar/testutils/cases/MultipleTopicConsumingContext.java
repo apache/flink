@@ -25,9 +25,9 @@ import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerContext;
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerEnvironment;
 import org.apache.flink.connector.pulsar.testutils.PulsarPartitionDataWriter;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -46,7 +46,7 @@ import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
  * Pulsar external context that will create multiple topics with only one partitions as source
  * splits.
  */
-public class MultipleTopicConsumingContext extends PulsarContainerContext<String> {
+public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
 
     private int numTopics = 0;
 
@@ -55,7 +55,7 @@ public class MultipleTopicConsumingContext extends PulsarContainerContext<String
     private final Map<String, SourceSplitDataWriter<String>> topicNameToSplitWriters =
             new HashMap<>();
 
-    public MultipleTopicConsumingContext(PulsarContainerEnvironment environment) {
+    public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
         super("consuming message on multiple topic", environment);
         this.topicPattern =
                 "pulsar-multiple-topic-[0-9]+-"
@@ -67,8 +67,8 @@ public class MultipleTopicConsumingContext extends PulsarContainerContext<String
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
                         .setDeserializationSchema(pulsarSchema(STRING))
-                        .setServiceUrl(serviceUrl())
-                        .setAdminUrl(adminUrl())
+                        .setServiceUrl(operator.serviceUrl())
+                        .setAdminUrl(operator.adminUrl())
                         .setTopicPattern(topicPattern, RegexSubscriptionMode.AllTopics)
                         .setSubscriptionType(Exclusive)
                         .setSubscriptionName("flink-pulsar-multiple-topic-test");
@@ -84,11 +84,12 @@ public class MultipleTopicConsumingContext extends PulsarContainerContext<String
     @Override
     public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
         String topicName = topicPattern.replace("[0-9]+", String.valueOf(numTopics));
-        createTopic(topicName, 1);
+        operator.createTopic(topicName, 1);
 
         String partitionName = TopicNameUtils.topicNameWithPartition(topicName, 0);
         TopicPartition partition = new TopicPartition(partitionName, 0, createFullRange());
-        PulsarPartitionDataWriter writer = new PulsarPartitionDataWriter(client(), partition);
+        PulsarPartitionDataWriter writer =
+                new PulsarPartitionDataWriter(operator.client(), partition);
 
         topicNameToSplitWriters.put(partitionName, writer);
         numTopics++;

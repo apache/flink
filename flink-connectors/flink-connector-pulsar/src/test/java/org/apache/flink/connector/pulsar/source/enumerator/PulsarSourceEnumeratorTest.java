@@ -72,14 +72,14 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     // method could be non-static.
     @BeforeAll
     void beforeAll() {
-        setupTopic(TOPIC1);
-        setupTopic(TOPIC2);
+        operator().setupTopic(TOPIC1);
+        operator().setupTopic(TOPIC2);
     }
 
     @AfterAll
     void afterAll() {
-        deleteTopic(TOPIC1, true);
-        deleteTopic(TOPIC2, true);
+        operator().deleteTopic(TOPIC1, true);
+        operator().deleteTopic(TOPIC2, true);
     }
 
     @Test
@@ -133,8 +133,8 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
             topics.add(DYNAMIC_TOPIC_NAME);
         }
         Configuration configuration = new Configuration();
-        configuration.set(PULSAR_ADMIN_URL, adminUrl());
-        configuration.set(PULSAR_SERVICE_URL, serviceUrl());
+        configuration.set(PULSAR_ADMIN_URL, operator().adminUrl());
+        configuration.set(PULSAR_SERVICE_URL, operator().serviceUrl());
         configuration.set(PULSAR_SUBSCRIPTION_TYPE, SubscriptionType.Failover);
         configuration.set(PULSAR_TOPIC_NAMES, PulsarJsonUtils.toString(topics));
 

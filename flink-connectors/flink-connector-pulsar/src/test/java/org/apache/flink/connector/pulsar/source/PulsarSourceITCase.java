@@ -18,10 +18,11 @@
 
 package org.apache.flink.connector.pulsar.source;
 
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerContextFactory;
-import org.apache.flink.connector.pulsar.testutils.PulsarContainerEnvironment;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
+import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicConsumingContext;
 import org.apache.flink.connector.pulsar.testutils.cases.SingleTopicConsumingContext;
+import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connectors.test.common.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
@@ -36,15 +37,15 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
     // Defines pulsar running environment
-    @ExternalSystem PulsarContainerEnvironment pulsar = new PulsarContainerEnvironment();
+    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.MOCK);
 
     // Defines a external context Factories,
     // so test cases will be invoked using this external contexts.
     @ExternalContextFactory
-    PulsarContainerContextFactory<String, SingleTopicConsumingContext> singleTopic =
-            new PulsarContainerContextFactory<>(pulsar, SingleTopicConsumingContext::new);
+    PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
+            new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);
 
     @ExternalContextFactory
-    PulsarContainerContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
-            new PulsarContainerContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+    PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
+            new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
 }
