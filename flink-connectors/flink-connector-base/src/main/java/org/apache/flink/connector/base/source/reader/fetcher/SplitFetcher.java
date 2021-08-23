@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,8 +72,8 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SplitReader<E, SplitT> splitReader,
             Consumer<Throwable> errorHandler,
-            Runnable shutdownHook) {
-
+            Runnable shutdownHook,
+            Consumer<Collection<String>> splitFinishedHook) {
         this.id = id;
         this.taskQueue = new LinkedBlockingDeque<>();
         this.elementsQueue = elementsQueue;
@@ -90,6 +91,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
                         elementsQueue,
                         ids -> {
                             ids.forEach(assignedSplits::remove);
+                            splitFinishedHook.accept(ids);
                             LOG.info("Finished reading from splits {}", ids);
                         },
                         id);

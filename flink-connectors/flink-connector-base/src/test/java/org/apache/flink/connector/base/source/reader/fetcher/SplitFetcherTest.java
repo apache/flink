@@ -182,7 +182,8 @@ public class SplitFetcherTest {
                                 .setBlockingFetch(true)
                                 .build(),
                         ExceptionUtils::rethrow,
-                        () -> {});
+                        () -> {},
+                        (ignore) -> {});
 
         // Prepare the splits.
         List<MockSourceSplit> splits = new ArrayList<>();
@@ -271,7 +272,8 @@ public class SplitFetcherTest {
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcher(
             final SplitReader<E, TestingSourceSplit> reader,
             final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> queue) {
-        return new SplitFetcher<>(0, queue, reader, ExceptionUtils::rethrow, () -> {});
+        return new SplitFetcher<>(
+                0, queue, reader, ExceptionUtils::rethrow, () -> {}, (ignore) -> {});
     }
 
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcherWithSplit(
