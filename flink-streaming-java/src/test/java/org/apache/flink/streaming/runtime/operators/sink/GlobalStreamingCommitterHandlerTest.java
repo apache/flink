@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -58,18 +59,46 @@ public class GlobalStreamingCommitterHandlerTest extends TestLogger {
         testHarness.open();
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void doNotSupportRetry() throws Exception {
+    @Test
+    public void supportRetryInNextCommit() throws Exception {
         final List<String> input = Arrays.asList("lazy", "leaf");
-
+        final TestSink.RetryOnceGlobalCommitter globalCommitter =
+                new TestSink.RetryOnceGlobalCommitter();
         final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
-                createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+                createTestHarness(globalCommitter);
 
         testHarness.initializeEmptyState();
         testHarness.open();
         testHarness.processElements(committableRecords(input));
         testHarness.snapshot(1L, 1L);
         testHarness.notifyOfCompletedCheckpoint(1L);
+        assertThat(globalCommitter.getCommittedData(), Matchers.hasSize(0));
+        // commits delayed by one checkpoint
+        testHarness.snapshot(2L, 2L);
+        testHarness.notifyOfCompletedCheckpoint(2L);
+        assertThat(globalCommitter.getCommittedData(), Matchers.contains("lazy|leaf"));
+
+        testHarness.close();
+    }
+
+    @Test
+    public void supportRetryByTime() throws Exception {
+        final List<String> input = Arrays.asList("lazy", "leaf");
+        final TestSink.RetryOnceGlobalCommitter globalCommitter =
+                new TestSink.RetryOnceGlobalCommitter();
+        final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
+                createTestHarness(globalCommitter);
+
+        testHarness.initializeEmptyState();
+        testHarness.open();
+        testHarness.processElements(committableRecords(input));
+        testHarness.snapshot(1L, 1L);
+        testHarness.notifyOfCompletedCheckpoint(1L);
+        assertThat(globalCommitter.getCommittedData(), Matchers.hasSize(0));
+
+        testHarness.getProcessingTimeService().setCurrentTime(Long.MAX_VALUE);
+
+        assertThat(globalCommitter.getCommittedData(), Matchers.contains("lazy|leaf"));
 
         testHarness.close();
     }
