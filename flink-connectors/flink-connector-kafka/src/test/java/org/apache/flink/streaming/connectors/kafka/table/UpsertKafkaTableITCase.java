@@ -44,7 +44,15 @@ import static org.apache.flink.table.planner.factories.TestValuesTableFactory.ch
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertThat;
 
-/** Upsert-kafka IT cases. */
+/**
+ * Upsert-kafka IT cases.
+ *
+ * <p>NOTE: please be careful when writing test cases using "timestamp" METADATA column in Kafka
+ * sink table. If the timestamp is hard-coded as a quite early one (e.g. earlier than 7 days ago
+ * compared to current time), there's possibility that these records are deleted by Kafka
+ * periodically log cleaning mechanism during test run. We suggest to use a timestamp in the far
+ * future to prevent this.
+ */
 @RunWith(Parameterized.class)
 public class UpsertKafkaTableITCase extends KafkaTableTestBase {
 
@@ -136,10 +144,10 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO upsert_kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-11 13:12:11.123', 101, 42, 'payload')";
+                        + " (1, 'name 1', TIMESTAMP '2100-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2100-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2100-03-10 13:12:11.123', 102, 43, 'payload 3'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2100-03-11 13:12:11.123', 101, 42, 'payload')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -152,7 +160,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "+I",
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 100L,
                                 41,
                                 "payload 1"),
@@ -160,7 +168,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "+I",
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 101L,
                                 42,
                                 "payload 2"),
@@ -168,7 +176,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "+I",
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-10T13:12:11.123"),
                                 102L,
                                 43,
                                 "payload 3"),
@@ -176,7 +184,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "-U",
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 101L,
                                 42,
                                 "payload 2"),
@@ -184,7 +192,7 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "+U",
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-11T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-11T13:12:11.123"),
                                 101L,
                                 42,
                                 "payload"));
@@ -236,10 +244,10 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO upsert_kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 'payload 3'),\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-11 13:12:11.123', 100, 'payload')";
+                        + " (1, 'name 1', TIMESTAMP '2100-03-08 13:12:11.123', 100, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2100-03-09 13:12:11.123', 101, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2100-03-10 13:12:11.123', 102, 'payload 3'),\n"
+                        + " (1, 'name 1', TIMESTAMP '2100-03-11 13:12:11.123', 100, 'payload')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -252,35 +260,35 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "+I",
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 100L,
                                 "payload 1"),
                         changelogRow(
                                 "+I",
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 101L,
                                 "payload 2"),
                         changelogRow(
                                 "+I",
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-10T13:12:11.123"),
                                 102L,
                                 "payload 3"),
                         changelogRow(
                                 "-U",
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 100L,
                                 "payload 1"),
                         changelogRow(
                                 "+U",
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-11T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-11T13:12:11.123"),
                                 100L,
                                 "payload"));
 
@@ -457,43 +465,43 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 100L,
                                 "Bob",
                                 "Beijing",
-                                LocalDateTime.parse("2020-08-15T00:00:01")),
+                                LocalDateTime.parse("2100-08-15T00:00:01")),
                         changelogRow(
                                 "+U",
                                 101L,
                                 "Alice",
                                 "Shanghai",
-                                LocalDateTime.parse("2020-08-15T00:00:02")),
+                                LocalDateTime.parse("2100-08-15T00:00:02")),
                         changelogRow(
                                 "+U",
                                 102L,
                                 "Greg",
                                 "Berlin",
-                                LocalDateTime.parse("2020-08-15T00:00:03")),
+                                LocalDateTime.parse("2100-08-15T00:00:03")),
                         changelogRow(
                                 "+U",
                                 103L,
                                 "Richard",
                                 "Berlin",
-                                LocalDateTime.parse("2020-08-16T00:01:05")),
+                                LocalDateTime.parse("2100-08-16T00:01:05")),
                         changelogRow(
                                 "+U",
                                 101L,
                                 "Alice",
                                 "Wuhan",
-                                LocalDateTime.parse("2020-08-16T00:02:00")),
+                                LocalDateTime.parse("2100-08-16T00:02:00")),
                         changelogRow(
                                 "+U",
                                 104L,
                                 "Tomato",
                                 "Hongkong",
-                                LocalDateTime.parse("2020-08-16T00:05:05")),
+                                LocalDateTime.parse("2100-08-16T00:05:05")),
                         changelogRow(
                                 "+U",
                                 105L,
                                 "Tim",
                                 "Shenzhen",
-                                LocalDateTime.parse("2020-08-16T00:06:00")),
+                                LocalDateTime.parse("2100-08-16T00:06:00")),
                         // Keep the timestamp in the records are in the ascending order.
                         // It will keep the records in the kafka partition are in the order.
                         // It has the same effects by adjusting the watermark strategy.
@@ -502,25 +510,25 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 103L,
                                 "Richard",
                                 "London",
-                                LocalDateTime.parse("2020-08-16T01:01:05")),
+                                LocalDateTime.parse("2100-08-16T01:01:05")),
                         changelogRow(
                                 "+U",
                                 101L,
                                 "Alice",
                                 "Hangzhou",
-                                LocalDateTime.parse("2020-08-16T01:04:05")),
+                                LocalDateTime.parse("2100-08-16T01:04:05")),
                         changelogRow(
                                 "+U",
                                 104L,
                                 "Tomato",
                                 "Shenzhen",
-                                LocalDateTime.parse("2020-08-16T01:05:05")),
+                                LocalDateTime.parse("2100-08-16T01:05:05")),
                         changelogRow(
                                 "+U",
                                 105L,
                                 "Tim",
                                 "Hongkong",
-                                LocalDateTime.parse("2020-08-16T01:06:00")));
+                                LocalDateTime.parse("2100-08-16T01:06:00")));
 
         // ------------- create table ---------------
 
@@ -577,112 +585,112 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
                                 "Bob",
                                 "Beijing",
                                 "BEIJING",
-                                LocalDateTime.parse("2020-08-15T00:00:01")),
+                                LocalDateTime.parse("2100-08-15T00:00:01")),
                         changelogRow(
                                 "+I",
                                 101L,
                                 "Alice",
                                 "Shanghai",
                                 "SHANGHAI",
-                                LocalDateTime.parse("2020-08-15T00:00:02")),
+                                LocalDateTime.parse("2100-08-15T00:00:02")),
                         changelogRow(
                                 "-U",
                                 101L,
                                 "Alice",
                                 "Shanghai",
                                 "SHANGHAI",
-                                LocalDateTime.parse("2020-08-15T00:00:02")),
+                                LocalDateTime.parse("2100-08-15T00:00:02")),
                         changelogRow(
                                 "+U",
                                 101L,
                                 "Alice",
                                 "Wuhan",
                                 "WUHAN",
-                                LocalDateTime.parse("2020-08-16T00:02:00")),
+                                LocalDateTime.parse("2100-08-16T00:02:00")),
                         changelogRow(
                                 "-U",
                                 101L,
                                 "Alice",
                                 "Wuhan",
                                 "WUHAN",
-                                LocalDateTime.parse("2020-08-16T00:02:00")),
+                                LocalDateTime.parse("2100-08-16T00:02:00")),
                         changelogRow(
                                 "+U",
                                 101L,
                                 "Alice",
                                 "Hangzhou",
                                 "HANGZHOU",
-                                LocalDateTime.parse("2020-08-16T01:04:05")),
+                                LocalDateTime.parse("2100-08-16T01:04:05")),
                         changelogRow(
                                 "+I",
                                 102L,
                                 "Greg",
                                 "Berlin",
                                 "BERLIN",
-                                LocalDateTime.parse("2020-08-15T00:00:03")),
+                                LocalDateTime.parse("2100-08-15T00:00:03")),
                         changelogRow(
                                 "+I",
                                 103L,
                                 "Richard",
                                 "Berlin",
                                 "BERLIN",
-                                LocalDateTime.parse("2020-08-16T00:01:05")),
+                                LocalDateTime.parse("2100-08-16T00:01:05")),
                         changelogRow(
                                 "-U",
                                 103L,
                                 "Richard",
                                 "Berlin",
                                 "BERLIN",
-                                LocalDateTime.parse("2020-08-16T00:01:05")),
+                                LocalDateTime.parse("2100-08-16T00:01:05")),
                         changelogRow(
                                 "+U",
                                 103L,
                                 "Richard",
                                 "London",
                                 "LONDON",
-                                LocalDateTime.parse("2020-08-16T01:01:05")),
+                                LocalDateTime.parse("2100-08-16T01:01:05")),
                         changelogRow(
                                 "+I",
                                 104L,
                                 "Tomato",
                                 "Hongkong",
                                 "HONGKONG",
-                                LocalDateTime.parse("2020-08-16T00:05:05")),
+                                LocalDateTime.parse("2100-08-16T00:05:05")),
                         changelogRow(
                                 "-U",
                                 104L,
                                 "Tomato",
                                 "Hongkong",
                                 "HONGKONG",
-                                LocalDateTime.parse("2020-08-16T00:05:05")),
+                                LocalDateTime.parse("2100-08-16T00:05:05")),
                         changelogRow(
                                 "+U",
                                 104L,
                                 "Tomato",
                                 "Shenzhen",
                                 "SHENZHEN",
-                                LocalDateTime.parse("2020-08-16T01:05:05")),
+                                LocalDateTime.parse("2100-08-16T01:05:05")),
                         changelogRow(
                                 "+I",
                                 105L,
                                 "Tim",
                                 "Shenzhen",
                                 "SHENZHEN",
-                                LocalDateTime.parse("2020-08-16T00:06")),
+                                LocalDateTime.parse("2100-08-16T00:06")),
                         changelogRow(
                                 "-U",
                                 105L,
                                 "Tim",
                                 "Shenzhen",
                                 "SHENZHEN",
-                                LocalDateTime.parse("2020-08-16T00:06")),
+                                LocalDateTime.parse("2100-08-16T00:06")),
                         changelogRow(
                                 "+U",
                                 105L,
                                 "Tim",
                                 "Hongkong",
                                 "HONGKONG",
-                                LocalDateTime.parse("2020-08-16T01:06")));
+                                LocalDateTime.parse("2100-08-16T01:06")));
 
         // we ignore the orders for easier comparing, as we already verified ordering in
         // testAggregate()
@@ -693,65 +701,65 @@ public class UpsertKafkaTableITCase extends KafkaTableTestBase {
         // ------------- test data ---------------
         List<Row> input =
                 Arrays.asList(
-                        Row.of(10001L, 100L, LocalDateTime.parse("2020-08-15T00:00:02")),
-                        Row.of(10002L, 101L, LocalDateTime.parse("2020-08-15T00:00:03")),
-                        Row.of(10002L, 102L, LocalDateTime.parse("2020-08-15T00:00:04")),
-                        Row.of(10002L, 101L, LocalDateTime.parse("2020-08-16T00:02:01")),
-                        Row.of(10004L, 104L, LocalDateTime.parse("2020-08-16T00:04:00")),
-                        Row.of(10003L, 101L, LocalDateTime.parse("2020-08-16T00:04:06")),
-                        Row.of(10004L, 104L, LocalDateTime.parse("2020-08-16T00:05:06")));
+                        Row.of(10001L, 100L, LocalDateTime.parse("2100-08-15T00:00:02")),
+                        Row.of(10002L, 101L, LocalDateTime.parse("2100-08-15T00:00:03")),
+                        Row.of(10002L, 102L, LocalDateTime.parse("2100-08-15T00:00:04")),
+                        Row.of(10002L, 101L, LocalDateTime.parse("2100-08-16T00:02:01")),
+                        Row.of(10004L, 104L, LocalDateTime.parse("2100-08-16T00:04:00")),
+                        Row.of(10003L, 101L, LocalDateTime.parse("2100-08-16T00:04:06")),
+                        Row.of(10004L, 104L, LocalDateTime.parse("2100-08-16T00:05:06")));
 
         List<Row> expected =
                 Arrays.asList(
                         Row.of(
                                 10001L,
                                 100L,
-                                LocalDateTime.parse("2020-08-15T00:00:02"),
+                                LocalDateTime.parse("2100-08-15T00:00:02"),
                                 "Bob",
                                 "BEIJING",
-                                LocalDateTime.parse("2020-08-15T00:00:01")),
+                                LocalDateTime.parse("2100-08-15T00:00:01")),
                         Row.of(
                                 10002L,
                                 101L,
-                                LocalDateTime.parse("2020-08-15T00:00:03"),
+                                LocalDateTime.parse("2100-08-15T00:00:03"),
                                 "Alice",
                                 "SHANGHAI",
-                                LocalDateTime.parse("2020-08-15T00:00:02")),
+                                LocalDateTime.parse("2100-08-15T00:00:02")),
                         Row.of(
                                 10002L,
                                 102L,
-                                LocalDateTime.parse("2020-08-15T00:00:04"),
+                                LocalDateTime.parse("2100-08-15T00:00:04"),
                                 "Greg",
                                 "BERLIN",
-                                LocalDateTime.parse("2020-08-15T00:00:03")),
+                                LocalDateTime.parse("2100-08-15T00:00:03")),
                         Row.of(
                                 10002L,
                                 101L,
-                                LocalDateTime.parse("2020-08-16T00:02:01"),
+                                LocalDateTime.parse("2100-08-16T00:02:01"),
                                 "Alice",
                                 "WUHAN",
-                                LocalDateTime.parse("2020-08-16T00:02:00")),
+                                LocalDateTime.parse("2100-08-16T00:02:00")),
                         Row.of(
                                 10004L,
                                 104L,
-                                LocalDateTime.parse("2020-08-16T00:04:00"),
+                                LocalDateTime.parse("2100-08-16T00:04:00"),
                                 null,
                                 null,
                                 null),
                         Row.of(
                                 10003L,
                                 101L,
-                                LocalDateTime.parse("2020-08-16T00:04:06"),
+                                LocalDateTime.parse("2100-08-16T00:04:06"),
                                 "Alice",
                                 "WUHAN",
-                                LocalDateTime.parse("2020-08-16T00:02:00")),
+                                LocalDateTime.parse("2100-08-16T00:02:00")),
                         Row.of(
                                 10004L,
                                 104L,
-                                LocalDateTime.parse("2020-08-16T00:05:06"),
+                                LocalDateTime.parse("2100-08-16T00:05:06"),
                                 "Tomato",
                                 "HONGKONG",
-                                LocalDateTime.parse("2020-08-16T00:05:05")));
+                                LocalDateTime.parse("2100-08-16T00:05:05")));
 
         // ------------- create table ---------------
 

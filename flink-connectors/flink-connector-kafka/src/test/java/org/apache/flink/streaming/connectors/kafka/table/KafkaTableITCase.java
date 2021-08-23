@@ -53,7 +53,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/** Basic IT cases for the Kafka table source and sink. */
+/**
+ * Basic IT cases for the Kafka table source and sink.
+ *
+ * <p>NOTE: please be careful when writing test cases using "timestamp" METADATA column in Kafka
+ * sink table. If the timestamp is hard-coded as a quite early one (e.g. earlier than 7 days ago
+ * compared to current time), there's possibility that these records are deleted by Kafka
+ * periodically log cleaning mechanism during test run. We suggest to use a timestamp in the far
+ * future to prevent this.
+ */
 @RunWith(Parameterized.class)
 public class KafkaTableITCase extends KafkaTableTestBase {
 
@@ -296,9 +304,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
-                        + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
-                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
+                        + " ('data 1', 1, TIMESTAMP '2100-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
+                        + " ('data 2', 2, TIMESTAMP '2100-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
+                        + " ('data 3', 3, TIMESTAMP '2100-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -319,7 +327,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 1",
                                 1,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 0,
                                 headers1,
                                 0,
@@ -329,7 +337,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 2",
                                 2,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 0,
                                 Collections.emptyMap(),
                                 0,
@@ -339,7 +347,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 3",
                                 3,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-10T13:12:11.123"),
                                 0,
                                 headers3,
                                 0,
@@ -394,9 +402,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3')";
+                        + " (1, 'name 1', TIMESTAMP '2100-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2100-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2100-03-10 13:12:11.123', 102, 43, 'payload 3')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -408,21 +416,21 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         Row.of(
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 100L,
                                 41,
                                 "payload 1"),
                         Row.of(
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 101L,
                                 42,
                                 "payload 2"),
                         Row.of(
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-10T13:12:11.123"),
                                 102L,
                                 43,
                                 "payload 3"));
@@ -475,9 +483,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 'payload 3')";
+                        + " (1, 'name 1', TIMESTAMP '2100-03-08 13:12:11.123', 100, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2100-03-09 13:12:11.123', 101, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2100-03-10 13:12:11.123', 102, 'payload 3')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -489,19 +497,19 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         Row.of(
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-08T13:12:11.123"),
                                 100L,
                                 "payload 1"),
                         Row.of(
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-09T13:12:11.123"),
                                 101L,
                                 "payload 2"),
                         Row.of(
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2100-03-10T13:12:11.123"),
                                 102L,
                                 "payload 3"));
 
