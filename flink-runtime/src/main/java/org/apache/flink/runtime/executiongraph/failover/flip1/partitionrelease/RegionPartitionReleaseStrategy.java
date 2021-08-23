@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -88,8 +87,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     }
 
     @Override
-    public List<IntermediateResultPartitionID> vertexFinished(
-            final ExecutionVertexID finishedVertex) {
+    public List<ConsumedPartitionGroup> vertexFinished(final ExecutionVertexID finishedVertex) {
         final PipelinedRegionExecutionView regionExecutionView =
                 getPipelinedRegionExecutionViewForVertex(finishedVertex);
         regionExecutionView.vertexFinished(finishedVertex);
@@ -99,7 +97,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
                     schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
             consumerRegionGroupExecutionViewMaintainer.regionFinished(pipelinedRegion);
 
-            return filterReleasablePartitions(
+            return filterReleasablePartitionGroups(
                     pipelinedRegion.getAllBlockingConsumedPartitionGroups());
         }
         return Collections.emptyList();
@@ -127,25 +125,23 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
         return pipelinedRegionExecutionView;
     }
 
-    private List<IntermediateResultPartitionID> filterReleasablePartitions(
+    private List<ConsumedPartitionGroup> filterReleasablePartitionGroups(
             final Iterable<ConsumedPartitionGroup> consumedPartitionGroups) {
 
-        final List<IntermediateResultPartitionID> releasablePartitions = new ArrayList<>();
+        final List<ConsumedPartitionGroup> releasablePartitionGroups = new ArrayList<>();
 
         for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             final ConsumerRegionGroupExecutionView consumerRegionGroup =
                     partitionGroupConsumerRegions.get(consumedPartitionGroup);
             if (consumerRegionGroup.isFinished()) {
-                for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
-                    // At present, there's only one ConsumerVertexGroup for each
-                    // ConsumedPartitionGroup, so if a ConsumedPartitionGroup is fully consumed, all
-                    // it's partitions are releasable.
-                    releasablePartitions.add(partitionId);
-                }
+                // At present, there's only one ConsumerVertexGroup for each
+                // ConsumedPartitionGroup, so if a ConsumedPartitionGroup is fully consumed, all
+                // its partitions are releasable.
+                releasablePartitionGroups.add(consumedPartitionGroup);
             }
         }
 
-        return releasablePartitions;
+        return releasablePartitionGroups;
     }
 
     /** Factory for {@link PartitionReleaseStrategy}. */

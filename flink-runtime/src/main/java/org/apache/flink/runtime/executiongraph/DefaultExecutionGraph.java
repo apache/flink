@@ -64,6 +64,7 @@ import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
@@ -76,6 +77,7 @@ import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
@@ -1202,7 +1204,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         if (attempt != null) {
             try {
                 final boolean stateUpdated = updateStateInternal(state, attempt);
-                maybeReleasePartitions(attempt);
+                maybeReleasePartitionGroupsFor(attempt);
                 return stateUpdated;
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
@@ -1262,34 +1264,38 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void maybeReleasePartitions(final Execution attempt) {
+    private void maybeReleasePartitionGroupsFor(final Execution attempt) {
         final ExecutionVertexID finishedExecutionVertex = attempt.getVertex().getID();
 
         if (attempt.getState() == ExecutionState.FINISHED) {
-            final List<IntermediateResultPartitionID> releasablePartitions =
+            final List<ConsumedPartitionGroup> releasablePartitionGroups =
                     partitionReleaseStrategy.vertexFinished(finishedExecutionVertex);
-            releasePartitions(releasablePartitions);
+            releasePartitionGroups(releasablePartitionGroups);
         } else {
             partitionReleaseStrategy.vertexUnfinished(finishedExecutionVertex);
         }
     }
 
-    private void releasePartitions(final List<IntermediateResultPartitionID> releasablePartitions) {
-        if (releasablePartitions.size() > 0) {
+    private void releasePartitionGroups(
+            final List<ConsumedPartitionGroup> releasablePartitionGroups) {
 
-            // Remove cached ShuffleDescriptor when partition is released
-            releasablePartitions.stream()
+        if (releasablePartitionGroups.size() > 0) {
+
+            // Remove the cache of ShuffleDescriptors when ConsumedPartitionGroups are released
+            releasablePartitionGroups.stream()
+                    .map(ConsumedPartitionGroup::getFirst)
                     .map(IntermediateResultPartitionID::getIntermediateDataSetID)
                     .distinct()
                     .map(intermediateResults::get)
                     .forEach(IntermediateResult::notifyPartitionChanged);
 
-            final List<ResultPartitionID> partitionIds =
-                    releasablePartitions.stream()
+            final List<ResultPartitionID> releasablePartitionIds =
+                    releasablePartitionGroups.stream()
+                            .flatMap(IterableUtils::toStream)
                             .map(this::createResultPartitionId)
                             .collect(Collectors.toList());
 
-            partitionTracker.stopTrackingAndReleasePartitions(partitionIds);
+            partitionTracker.stopTrackingAndReleasePartitions(releasablePartitionIds);
         }
     }
 
