@@ -49,6 +49,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,9 +60,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -304,6 +308,41 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                             KAFKA_SOURCE_READER_METRIC_GROUP, COMMITS_SUCCEEDED_METRIC_COUNTER);
             assertTrue(commitsSucceeded.isPresent());
             assertEquals(1L, commitsSucceeded.get().getCount());
+        }
+    }
+
+    @Test
+    public void testAssigningEmptySplits() throws Exception {
+        // Normal split with NUM_RECORDS_PER_SPLIT records
+        final KafkaPartitionSplit normalSplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 0), 0, KafkaPartitionSplit.LATEST_OFFSET);
+        // Empty split with no record
+        final KafkaPartitionSplit emptySplit =
+                new KafkaPartitionSplit(
+                        new TopicPartition(TOPIC, 1), NUM_RECORDS_PER_SPLIT, NUM_RECORDS_PER_SPLIT);
+        // Split finished hook for listening finished splits
+        final Set<String> finishedSplits = new HashSet<>();
+        final Consumer<Collection<String>> splitFinishedHook = finishedSplits::addAll;
+
+        try (final KafkaSourceReader<Integer> reader =
+                (KafkaSourceReader<Integer>)
+                        createReader(
+                                Boundedness.BOUNDED,
+                                "KafkaSourceReaderTestGroup",
+                                new TestingReaderContext(),
+                                splitFinishedHook)) {
+            reader.addSplits(Arrays.asList(normalSplit, emptySplit));
+            pollUntil(
+                    reader,
+                    new TestingReaderOutput<>(),
+                    () -> reader.getNumAliveFetchers() == 0,
+                    "The split fetcher did not exit before timeout.");
+            MatcherAssert.assertThat(
+                    finishedSplits,
+                    Matchers.containsInAnyOrder(
+                            KafkaPartitionSplit.toSplitId(normalSplit.getTopicPartition()),
+                            KafkaPartitionSplit.toSplitId(emptySplit.getTopicPartition())));
         }
     }
 
