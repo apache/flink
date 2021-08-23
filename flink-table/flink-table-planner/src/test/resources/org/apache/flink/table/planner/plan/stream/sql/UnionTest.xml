@@ -44,11 +44,11 @@ LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3]), rowType=[Record
 Union(all=[true], union=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) *ROWTIME* timestamp_col)]
 :- Calc(select=[id, ts, CAST(name) AS name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) *ROWTIME* timestamp_col)]
 :  +- WatermarkAssigner(rowtime=[timestamp_col], watermark=[timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(32) name, TIMESTAMP(3) *ROWTIME* timestamp_col)]
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, project=[id, ts, name, timestamp_col]]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(32) name, TIMESTAMP(3) timestamp_col)]
+:     +- TableSourceScan(table=[[default_catalog, default_database, t1, project=[id, ts, name, timestamp_col], metadata=[]]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(32) name, TIMESTAMP(3) timestamp_col)]
 +- Calc(select=[id, ts, name, CAST(timestamp_ltz_col) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) *ROWTIME* timestamp_ltz_col)]
    +- WatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
       +- Calc(select=[id, ts, name, TO_TIMESTAMP_LTZ(ts, 3) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
-         +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[id, ts, name]]], fields=[id, ts, name]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name)]
+         +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[id, ts, name], metadata=[]]], fields=[id, ts, name]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name)]
 ]]>
     </Resource>
   </TestCase>

@@ -38,6 +38,18 @@
             "c" : "VARCHAR(2147483647)"
           } ]
         }
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "b" : "BIGINT"
+          }, {
+            "c" : "VARCHAR(2147483647)"
+          } ]
+        }
       } ]
     },
     "id" : 1,
@@ -50,7 +62,7 @@
         "c" : "VARCHAR(2147483647)"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, c]]], fields=[b, c])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, c], metadata=[]]], fields=[b, c])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",

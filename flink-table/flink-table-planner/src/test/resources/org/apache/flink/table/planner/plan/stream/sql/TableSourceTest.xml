@@ -36,7 +36,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value], metadata=[]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
 ]]>
     </Resource>
   </TestCase>
@@ -58,7 +58,7 @@ LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, _UTF-16LE'item').value AS EXPR$1])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id]]], fields=[result_data_arr, result_data_map, id])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
 ]]>
     </Resource>
   </TestCase>
@@ -80,7 +80,7 @@ LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested_nested1 AS nested1, ((deepNested_nested1.value + deepNested_nested2_num) + metadata_1) AS results])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[id, deepNested_nested1, deepNested_nested2_num, metadata_1], metadata=[metadata_1]]], fields=[id, deepNested_nested1, deepNested_nested2_num, metadata_1])
 ]]>
     </Resource>
   </TestCase>
@@ -99,7 +99,7 @@ LogicalProject(rtime=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 WatermarkAssigner(rowtime=[rtime], watermark=[rtime])
-+- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime]]], fields=[rtime])
++- TableSourceScan(table=[[default_catalog, default_database, T, project=[rtime], metadata=[]]], fields=[rtime])
 ]]>
     </Resource>
   </TestCase>
@@ -118,7 +118,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 GroupAggregate(select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[]]], fields=[])
+   +- TableSourceScan(table=[[default_catalog, default_database, T, project=[], metadata=[]]], fields=[])
 ]]>
     </Resource>
   </TestCase>
@@ -149,7 +149,7 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
    +- Exchange(distribution=[hash[name]])
       +- Calc(select=[rowtime, val, name], where=[(val > 100)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT, project=[rowtime, val, name]]], fields=[rowtime, val, name])
+            +- TableSourceScan(table=[[default_catalog, default_database, rowTimeT, project=[rowtime, val, name], metadata=[]]], fields=[rowtime, val, name])
 ]]>
     </Resource>
   </TestCase>

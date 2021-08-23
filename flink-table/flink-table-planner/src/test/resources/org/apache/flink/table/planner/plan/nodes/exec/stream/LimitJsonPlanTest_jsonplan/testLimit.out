@@ -31,6 +31,16 @@
           } ]
         }
       }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          } ]
+        }
+      }, {
         "type" : "LimitPushDown",
         "limit" : 10
       } ]
@@ -43,7 +53,7 @@
         "a" : "BIGINT"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], limit=[10]]], fields=[a])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[], limit=[10]]], fields=[a])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",

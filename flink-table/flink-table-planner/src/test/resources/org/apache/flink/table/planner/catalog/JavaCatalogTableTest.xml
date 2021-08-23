@@ -37,7 +37,7 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, proctime, 600000)], select
    +- Calc(select=[proctime])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
          +- Calc(select=[PROCTIME() AS proctime, rowtime])
-            +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime]]], fields=[rowtime])
+            +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime], metadata=[]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -102,7 +102,7 @@ LogicalProject(EXPR$0=[$1])
 HashWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[Partial_COUNT(*) AS count1$0])
-      +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime]]], fields=[rowtime])
+      +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime], metadata=[]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -125,7 +125,7 @@ LogicalProject(EXPR$0=[$1])
 GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=[COUNT(*) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 5000:INTERVAL SECOND)])
-      +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime]]], fields=[rowtime])
+      +- TableSourceScan(table=[[testCatalog, default, testTable, project=[rowtime], metadata=[]]], fields=[rowtime])
 ]]>
     </Resource>
   </TestCase>

@@ -35,6 +35,18 @@
             "b" : "INT NOT NULL"
           } ]
         }
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT NOT NULL"
+          }, {
+            "b" : "INT NOT NULL"
+          } ]
+        }
       } ]
     },
     "id" : 1,
@@ -47,7 +59,7 @@
         "b" : "INT NOT NULL"
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
