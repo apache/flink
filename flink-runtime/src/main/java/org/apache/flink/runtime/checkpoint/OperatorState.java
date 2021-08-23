@@ -141,6 +141,24 @@ public class OperatorState implements CompositeStateHandle {
         return maxParallelism;
     }
 
+    public OperatorState copyAndDiscardInFlightData() {
+        OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
+
+        for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                operatorSubtaskStates.entrySet()) {
+            newState.putState(
+                    originalSubtaskStateEntry.getKey(),
+                    originalSubtaskStateEntry
+                            .getValue()
+                            .toBuilder()
+                            .setResultSubpartitionState(StateObjectCollection.empty())
+                            .setInputChannelState(StateObjectCollection.empty())
+                            .build());
+        }
+
+        return newState;
+    }
+
     @Override
     public void discardState() throws Exception {
         for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
