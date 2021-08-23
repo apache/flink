@@ -221,18 +221,6 @@ public final class Schema {
             return this;
         }
 
-        /** Apply comment to the previous column. */
-        public Builder withComment(@Nullable String comment) {
-            if (columns.size() > 0) {
-                columns.set(
-                        columns.size() - 1, columns.get(columns.size() - 1).withComment(comment));
-            } else {
-                throw new IllegalArgumentException(
-                        "Method \"withComment\" must be followed by a column definition, but there is no preceding column defined.");
-            }
-            return this;
-        }
-
         /**
          * Declares a physical column that is appended to this schema.
          *
@@ -462,6 +450,19 @@ public final class Schema {
                 boolean isVirtual) {
             return columnByMetadata(
                     columnName, DataTypes.of(serializableTypeString), metadataKey, isVirtual);
+        }
+
+        /** Apply comment to the previous column. */
+        public Builder withComment(@Nullable String comment) {
+            if (columns.size() > 0) {
+                columns.set(
+                        columns.size() - 1, columns.get(columns.size() - 1).withComment(comment));
+            } else {
+                throw new IllegalArgumentException(
+                        "Method 'withComment(...)' must be called after a column definition, "
+                                + "but there is no preceding column defined.");
+            }
+            return this;
         }
 
         /**
