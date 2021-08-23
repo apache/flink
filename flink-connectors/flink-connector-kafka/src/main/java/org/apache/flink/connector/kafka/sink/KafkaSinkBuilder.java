@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.connector.base.DeliveryGuarantee;
@@ -56,6 +57,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @see KafkaSink for a more detailed explanation of the different guarantees.
  * @param <IN> type of the records written to Kafka
  */
+@PublicEvolving
 public class KafkaSinkBuilder<IN> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkBuilder.class);
