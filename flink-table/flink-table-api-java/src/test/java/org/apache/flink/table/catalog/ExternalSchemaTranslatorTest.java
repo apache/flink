@@ -312,10 +312,10 @@ public class ExternalSchemaTranslatorTest {
     }
 
     @Test
-    public void testOutputToMetadataSchema() {
+    public void testOutputToPartialSchema() {
         final ResolvedSchema tableSchema =
                 ResolvedSchema.of(
-                        Column.physical("id", DataTypes.BIGINT()),
+                        Column.physical("id", DataTypes.BIGINT().notNull()),
                         Column.physical("name", DataTypes.STRING()),
                         Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false));
 
@@ -325,14 +325,16 @@ public class ExternalSchemaTranslatorTest {
                         Schema.newBuilder()
                                 .columnByExpression("computed", "f1 + 42")
                                 .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                                .primaryKey("id")
                                 .build());
 
         assertEquals(
                 Schema.newBuilder()
-                        .column("id", DataTypes.BIGINT())
+                        .column("id", DataTypes.BIGINT().notNull())
                         .column("name", DataTypes.STRING())
                         .columnByExpression("computed", "f1 + 42")
                         .columnByMetadata("rowtime", DataTypes.TIMESTAMP_LTZ(3)) // becomes metadata
+                        .primaryKey("id")
                         .build(),
                 result.getSchema());
     }
