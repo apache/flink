@@ -33,7 +33,6 @@ import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
@@ -90,7 +89,7 @@ public class SharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Collection<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
     }
 

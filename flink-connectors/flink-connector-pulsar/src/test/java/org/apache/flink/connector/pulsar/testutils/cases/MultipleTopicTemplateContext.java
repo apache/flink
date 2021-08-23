@@ -32,8 +32,8 @@ import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
@@ -92,7 +92,7 @@ public abstract class MultipleTopicTemplateContext extends PulsarTestContext<Str
     }
 
     @Override
-    public Collection<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
     }
 
