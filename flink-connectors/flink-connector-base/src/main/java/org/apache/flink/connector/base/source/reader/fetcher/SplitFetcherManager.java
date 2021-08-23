@@ -28,6 +28,7 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +80,12 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private volatile boolean closed;
 
     /**
+     * Hook for handling finished splits in {@link SplitFetcher}, usually used for testing split
+     * finishing behavior of {@link SplitFetcher} and {@link SplitReader}.
+     */
+    private final Consumer<Collection<String>> splitFinishedHook;
+
+    /**
      * Create a split fetcher manager.
      *
      * @param elementsQueue the queue that split readers will put elements into.
@@ -87,6 +94,21 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     public SplitFetcherManager(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitReaderFactory) {
+        this(elementsQueue, splitReaderFactory, (ignore) -> {});
+    }
+
+    /**
+     * Create a split fetcher manager.
+     *
+     * @param elementsQueue the queue that split readers will put elements into.
+     * @param splitReaderFactory a supplier that could be used to create split readers.
+     * @param splitFinishedHook Hook for handling finished splits in split fetchers.
+     */
+    @VisibleForTesting
+    public SplitFetcherManager(
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderFactory,
+            Consumer<Collection<String>> splitFinishedHook) {
         this.elementsQueue = elementsQueue;
         this.errorHandler =
                 new Consumer<Throwable>() {
@@ -102,6 +124,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                     }
                 };
         this.splitReaderFactory = splitReaderFactory;
+        this.splitFinishedHook = splitFinishedHook;
         this.uncaughtFetcherException = new AtomicReference<>(null);
         this.fetcherIdGenerator = new AtomicInteger(0);
         this.fetchers = new ConcurrentHashMap<>();
@@ -150,7 +173,8 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                             // and
                             // containsValue are not designed for program control.
                             elementsQueue.notifyAvailable();
-                        });
+                        },
+                        this.splitFinishedHook);
         fetchers.put(fetcherId, splitFetcher);
         return splitFetcher;
     }
