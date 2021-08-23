@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -102,7 +101,7 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         // Write test data to external system
-        final Collection<T> testRecords = generateAndWriteTestData(0, externalContext);
+        final List<T> testRecords = generateAndWriteTestData(0, externalContext);
 
         // Build and execute Flink job
         StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment();
@@ -137,9 +136,9 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         final int splitNumber = 4;
-        final List<Collection<T>> testRecordCollections = new ArrayList<>();
+        final List<List<T>> testRecordsLists = new ArrayList<>();
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
+            testRecordsLists.add(generateAndWriteTestData(i, externalContext));
         }
 
         LOG.debug("Build and execute Flink job");
@@ -153,7 +152,7 @@ public abstract class SourceTestSuiteBase<T> {
                         .setParallelism(splitNumber)
                         .executeAndCollect("Source Multiple Split Test")) {
             // Check test result
-            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordCollections));
+            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordsLists));
         }
     }
 
@@ -177,9 +176,9 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         final int splitNumber = 4;
-        final List<Collection<T>> testRecordCollections = new ArrayList<>();
+        final List<List<T>> testRecordsLists = new ArrayList<>();
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
+            testRecordsLists.add(generateAndWriteTestData(i, externalContext));
         }
 
         try (CloseableIterator<T> resultIterator =
@@ -189,8 +188,8 @@ public abstract class SourceTestSuiteBase<T> {
                                 WatermarkStrategy.noWatermarks(),
                                 "Tested Source")
                         .setParallelism(splitNumber + 1)
-                        .executeAndCollect("Redundant Parallelism Test")) {
-            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordCollections));
+                        .executeAndCollect("Idle Reader Test")) {
+            assertThat(resultIterator, matchesMultipleSplitTestData(testRecordsLists));
         }
     }
 
@@ -216,7 +215,7 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
         int splitIndex = 0;
 
-        final Collection<T> testRecordsBeforeFailure =
+        final List<T> testRecordsBeforeFailure =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         final SourceSplitDataWriter<T> sourceSplitDataWriter =
@@ -266,7 +265,7 @@ public abstract class SourceTestSuiteBase<T> {
                 Collections.singletonList(JobStatus.RUNNING),
                 Deadline.fromNow(Duration.ofSeconds(30)));
 
-        final Collection<T> testRecordsAfterFailure =
+        final List<T> testRecordsAfterFailure =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
         sourceSplitDataWriter.writeRecords(testRecordsAfterFailure);
@@ -290,15 +289,15 @@ public abstract class SourceTestSuiteBase<T> {
      * Generate a set of test records and write it to the given split writer.
      *
      * @param externalContext External context
-     * @return Collection of generated test records
+     * @return List of generated test records
      */
-    protected Collection<T> generateAndWriteTestData(
+    protected List<T> generateAndWriteTestData(
             int splitIndex, ExternalContext<T> externalContext) {
-        final Collection<T> testRecordCollection =
+        final List<T> testRecords =
                 externalContext.generateTestData(
                         splitIndex, ThreadLocalRandom.current().nextLong());
-        LOG.debug("Writing {} records to external system", testRecordCollection.size());
-        externalContext.createSourceSplitDataWriter().writeRecords(testRecordCollection);
-        return testRecordCollection;
+        LOG.debug("Writing {} records to external system", testRecords.size());
+        externalContext.createSourceSplitDataWriter().writeRecords(testRecords);
+        return testRecords;
     }
 }

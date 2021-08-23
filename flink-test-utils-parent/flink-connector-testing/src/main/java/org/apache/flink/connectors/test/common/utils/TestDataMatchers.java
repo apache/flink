@@ -24,7 +24,6 @@ import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -35,15 +34,15 @@ public class TestDataMatchers {
 
     // ----------------------------  Matcher Builders ----------------------------------
     public static <T> MultipleSplitDataMatcher<T> matchesMultipleSplitTestData(
-            Collection<Collection<T>> testDataCollections) {
-        return new MultipleSplitDataMatcher<>(testDataCollections);
+            List<List<T>> testRecordsLists) {
+        return new MultipleSplitDataMatcher<>(testRecordsLists);
     }
 
-    public static <T> SplitDataMatcher<T> matchesSplitTestData(Collection<T> testData) {
+    public static <T> SplitDataMatcher<T> matchesSplitTestData(List<T> testData) {
         return new SplitDataMatcher<>(testData);
     }
 
-    public static <T> SplitDataMatcher<T> matchesSplitTestData(Collection<T> testData, int limit) {
+    public static <T> SplitDataMatcher<T> matchesSplitTestData(List<T> testData, int limit) {
         return new SplitDataMatcher<>(testData, limit);
     }
 
@@ -57,17 +56,17 @@ public class TestDataMatchers {
     public static class SplitDataMatcher<T> extends TypeSafeDiagnosingMatcher<Iterator<T>> {
         private static final int UNSET = -1;
 
-        private final Collection<T> testData;
+        private final List<T> testData;
         private final int limit;
 
         private String mismatchDescription = null;
 
-        public SplitDataMatcher(Collection<T> testData) {
+        public SplitDataMatcher(List<T> testData) {
             this.testData = testData;
             this.limit = UNSET;
         }
 
-        public SplitDataMatcher(Collection<T> testData, int limit) {
+        public SplitDataMatcher(List<T> testData, int limit) {
             if (limit > testData.size()) {
                 throw new IllegalArgumentException(
                         "Limit validation size should be less than number of test records");
@@ -121,12 +120,12 @@ public class TestDataMatchers {
     /**
      * Matcher for validating test data from multiple splits.
      *
-     * <p>Each collection has a pointer (iterator) pointing to current checking record. When a
-     * record is received in the stream, it will be compared to all current pointing records in
-     * collections, and the pointer to the identical record will move forward.
+     * <p>Each list has a pointer (iterator) pointing to current checking record. When a record is
+     * received in the stream, it will be compared to all current pointing records in lists, and the
+     * pointer to the identical record will move forward.
      *
      * <p>If the stream preserves the correctness and order of records in all splits, all pointers
-     * should reach the end of the collection finally.
+     * should reach the end of the list finally.
      *
      * @param <T> Type of validating record
      */
@@ -136,9 +135,9 @@ public class TestDataMatchers {
 
         private String mismatchDescription = null;
 
-        public MultipleSplitDataMatcher(Collection<Collection<T>> testDataCollections) {
-            for (Collection<T> testDataCollection : testDataCollections) {
-                testDataIterators.add(new IteratorWithCurrent<>(testDataCollection.iterator()));
+        public MultipleSplitDataMatcher(List<List<T>> testRecordsLists) {
+            for (List<T> testRecords : testRecordsLists) {
+                testDataIterators.add(new IteratorWithCurrent<>(testRecords.iterator()));
             }
         }
 
@@ -187,7 +186,7 @@ public class TestDataMatchers {
         }
 
         /**
-         * Whether all pointers have reached the end of collections.
+         * Whether all pointers have reached the end of lists.
          *
          * @return True if all pointers have reached the end.
          */

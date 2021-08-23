@@ -36,7 +36,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -116,7 +115,7 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Collection<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
     }
 
