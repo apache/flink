@@ -102,8 +102,7 @@ public class TestDataMatchersTest {
         private final List<String> splitA = Arrays.asList("alpha", "beta", "gamma");
         private final List<String> splitB = Arrays.asList("one", "two", "three");
         private final List<String> splitC = Arrays.asList("1", "2", "3");
-        private final List<Collection<String>> testDataCollection =
-                Arrays.asList(splitA, splitB, splitC);
+        private final List<List<String>> testDataCollection = Arrays.asList(splitA, splitB, splitC);
 
         @Test
         public void testPositiveCase() {
