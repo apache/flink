@@ -168,11 +168,11 @@ Calc(select=[a0 AS a])
    :- Exchange(distribution=[hash[a]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :     +- Calc(select=[a, TO_TIMESTAMP_LTZ(b, 3) AS rowtime])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, project=[a, b]]], fields=[a, b])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable3, project=[a, b], metadata=[]]], fields=[a, b])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
          +- Calc(select=[a, TO_TIMESTAMP_LTZ(b, 3) AS rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable4, project=[a, b]]], fields=[a, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable4, project=[a, b], metadata=[]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

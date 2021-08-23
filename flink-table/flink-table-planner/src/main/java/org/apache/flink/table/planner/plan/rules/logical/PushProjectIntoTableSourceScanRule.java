@@ -267,9 +267,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
                                 .getLogicalType();
 
         sourceAbilitySpecs.add(new ProjectPushDownSpec(projectedPhysicalFields, newProducedType));
-        if (!usedMetadataNames.isEmpty()) {
-            sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
-        }
+        sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
         return newProducedType;
     }
 }
