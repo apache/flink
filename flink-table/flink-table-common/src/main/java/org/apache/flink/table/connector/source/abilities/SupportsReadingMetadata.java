@@ -117,6 +117,9 @@ public interface SupportsReadingMetadata {
      * Provides a list of metadata keys that the produced {@link RowData} must contain as appended
      * metadata columns.
      *
+     * <p>Implementations of this method must be idempotent. The planner might call this method
+     * multiple times.
+     *
      * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
      * describing the final output data type when creating {@link TypeInformation}. If the source
      * implements {@link SupportsProjectionPushDown}, the projection is already considered in the
