@@ -485,7 +485,6 @@ public class FineGrainedSlotManager implements SlotManager {
      */
     private void checkResourceRequirementsWithDelay() {
         if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
-            LOG.info("Scheduling the resource requirement check.");
             requirementsCheckFuture = new CompletableFuture<>();
             scheduledExecutor.schedule(
                     () ->
@@ -507,13 +506,13 @@ public class FineGrainedSlotManager implements SlotManager {
         if (!started) {
             return;
         }
-        LOG.info("Matching resource requirements against available resources.");
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
             return;
         }
 
+        LOG.info("Matching resource requirements against available resources.");
         missingResources =
                 missingResources.entrySet().stream()
                         .collect(
@@ -525,11 +524,9 @@ public class FineGrainedSlotManager implements SlotManager {
                         missingResources, taskManagerTracker);
 
         // Allocate slots according to the result
-        LOG.info("Allocating slots for the resource requirements.");
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
 
         // Allocate task managers according to the result
-        LOG.info("Allocating task managers for the resource requirements.");
         final Set<PendingTaskManagerId> failAllocations =
                 allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
 
@@ -708,9 +705,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
         final FlinkException cause = new FlinkException("TaskManager exceeded the idle timeout.");
-        LOG.info(
-                "Release TaskManager {} because it exceeded the idle timeout.",
-                timedOutTaskManagerId);
         resourceActions.releaseResource(timedOutTaskManagerId, cause);
     }
 
