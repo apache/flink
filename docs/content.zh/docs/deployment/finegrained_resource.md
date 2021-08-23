@@ -260,6 +260,8 @@ scheduler are also available with it. The Flink community is working on addressi
 
   - **Hybrid resource requirements are not recommended**. It is not recommended to specify the resource requirements only for some parts of the job and leave the requirements for the rest unspecified. Currently, the unspecified requirement can be fulfilled with slots of any resource. The actual resource acquired by it can be inconsistent across different job executions or failover.
 
+  - **Slot allocation result might not be optimal**. As the slot requirements contain multiple dimensions of resources, the slot allocation is indeed a multi-dimensional packing problem, which is NP-hard. The default [resource allocation strategy](#resource-allocation-strategy) might not achieve optimal slot allocation and can lead to resource fragments or resource allocation failure in some scenarios.
+
 ## Notice
 
   - **Setting the slot sharing group may change the performance**. Setting chain-able operators to different slot sharing groups may break [operator chains]({{< ref "docs/dev/datastream/operators/overview" >}}#task-chaining-and-resource-groups), and thus change the performance.
