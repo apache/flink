@@ -21,6 +21,9 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -34,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 final class BatchCommitterHandler<InputT, OutputT>
         extends AbstractCommitterHandler<InputT, OutputT> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(BatchCommitterHandler.class);
 
     /** Responsible for committing the committable to the external system. */
     private final Committer<InputT> committer;
@@ -62,10 +67,12 @@ final class BatchCommitterHandler<InputT, OutputT>
     public List<OutputT> endOfInput() throws IOException, InterruptedException {
         List<InputT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
-            final List<InputT> neededRetryCommittables = committer.commit(allCommittables);
-            if (!neededRetryCommittables.isEmpty()) {
-                throw new UnsupportedOperationException(
-                        "Currently does not support the re-commit!");
+            List<InputT> neededRetryCommittables = committer.commit(allCommittables);
+            while (!neededRetryCommittables.isEmpty()) {
+                LOG.warn(
+                        "{} committables were not committed successfully, retrying.",
+                        neededRetryCommittables.size());
+                neededRetryCommittables = committer.commit(neededRetryCommittables);
             }
         }
         return chainedHandler.endOfInput();

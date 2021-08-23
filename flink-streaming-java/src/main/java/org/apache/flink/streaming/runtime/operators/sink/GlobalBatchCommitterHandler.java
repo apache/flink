@@ -20,6 +20,9 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
         extends AbstractCommitterHandler<CommT, GlobalCommT> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalBatchCommitterHandler.class);
 
     /**
      * Aggregate committables to global committables and commit the global committables to the
@@ -50,11 +55,13 @@ final class GlobalBatchCommitterHandler<CommT, GlobalCommT>
         List<CommT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
             final GlobalCommT globalCommittable = globalCommitter.combine(allCommittables);
-            final List<GlobalCommT> neededRetryCommittables =
+            List<GlobalCommT> neededRetryCommittables =
                     globalCommitter.commit(Collections.singletonList(globalCommittable));
-            if (!neededRetryCommittables.isEmpty()) {
-                throw new UnsupportedOperationException(
-                        "Currently does not support the re-commit!");
+            while (!neededRetryCommittables.isEmpty()) {
+                LOG.warn(
+                        "{} committables were not committed successfully, retrying.",
+                        neededRetryCommittables.size());
+                neededRetryCommittables = globalCommitter.commit(neededRetryCommittables);
             }
         }
         globalCommitter.endOfInput();

@@ -138,7 +138,10 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
         LOG.info("Committing the state for checkpoint {}", checkpointId);
         final List<CommT> neededToRetryCommittables = commit(readyCommittables);
         if (!neededToRetryCommittables.isEmpty()) {
-            throw new UnsupportedOperationException("Currently does not support the re-commit!");
+            LOG.warn(
+                    "{} committables were not committed successfully, retrying.",
+                    neededToRetryCommittables.size());
+            recoveredCommittables(neededToRetryCommittables);
         }
         return readyCommittables;
     }
