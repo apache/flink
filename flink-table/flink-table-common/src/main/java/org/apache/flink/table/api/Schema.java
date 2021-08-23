@@ -71,6 +71,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
 @PublicEvolving
 public final class Schema {
 
+    private static final Schema EMPTY = Schema.newBuilder().build();
+
     private final List<UnresolvedColumn> columns;
 
     private final List<UnresolvedWatermarkSpec> watermarkSpecs;
@@ -89,6 +91,19 @@ public final class Schema {
     /** Builder for configuring and creating instances of {@link Schema}. */
     public static Schema.Builder newBuilder() {
         return new Builder();
+    }
+
+    /**
+     * Convenience method for stating explicitly that a schema is empty and should be fully derived
+     * by the framework.
+     *
+     * <p>The semantics are equivalent to calling {@code Schema.newBuilder().build()}.
+     *
+     * <p>Note that derivation depends on the context. Usually, the method that accepts a {@link
+     * Schema} instance will mention whether schema derivation is supported or not.
+     */
+    public static Schema derived() {
+        return EMPTY;
     }
 
     public List<UnresolvedColumn> getColumns() {
