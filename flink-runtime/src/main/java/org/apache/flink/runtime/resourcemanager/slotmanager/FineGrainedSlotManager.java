@@ -109,8 +109,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> taskManagerTimeoutsCheck;
 
-    @Nullable private ScheduledFuture<?> lastResourceRequirementsCheck;
-
     @Nullable private CompletableFuture<Void> requirementsCheckFuture;
 
     /** True iff the component has been started. */
@@ -148,7 +146,6 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceActions = null;
         mainThreadExecutor = null;
         taskManagerTimeoutsCheck = null;
-        lastResourceRequirementsCheck = null;
         requirementsCheckFuture = null;
 
         started = false;
@@ -227,11 +224,6 @@ public class FineGrainedSlotManager implements SlotManager {
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
             taskManagerTimeoutsCheck = null;
-        }
-
-        if (lastResourceRequirementsCheck != null) {
-            lastResourceRequirementsCheck.cancel(false);
-            lastResourceRequirementsCheck = null;
         }
 
         slotStatusSyncer.close();
@@ -495,11 +487,16 @@ public class FineGrainedSlotManager implements SlotManager {
         if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
             LOG.info("Scheduling the resource requirement check.");
             requirementsCheckFuture = new CompletableFuture<>();
-            lastResourceRequirementsCheck =
-                    scheduledExecutor.schedule(
-                            () -> mainThreadExecutor.execute(this::checkResourceRequirements),
-                            requirementsCheckDelay.toMilliseconds(),
-                            TimeUnit.MILLISECONDS);
+            scheduledExecutor.schedule(
+                    () ->
+                            mainThreadExecutor.execute(
+                                    () -> {
+                                        checkResourceRequirements();
+                                        Preconditions.checkNotNull(requirementsCheckFuture)
+                                                .complete(null);
+                                    }),
+                    requirementsCheckDelay.toMilliseconds(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -507,11 +504,13 @@ public class FineGrainedSlotManager implements SlotManager {
      * DO NOT call this method directly. Use {@link #checkResourceRequirementsWithDelay()} instead.
      */
     private void checkResourceRequirements() {
+        if (!started) {
+            return;
+        }
         LOG.info("Matching resource requirements against available resources.");
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
-            requirementsCheckFuture.complete(null);
             return;
         }
 
@@ -555,7 +554,6 @@ public class FineGrainedSlotManager implements SlotManager {
                         jobId, resourceTracker.getAcquiredResources(jobId));
             }
         }
-        requirementsCheckFuture.complete(null);
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
