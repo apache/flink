@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -44,16 +45,20 @@ public class GlobalBatchCommitterHandlerTest extends TestLogger {
         testHarness.initializeEmptyState();
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void doNotSupportRetry() throws Exception {
+    @Test
+    public void supportRetry() throws Exception {
+        final TestSink.RetryOnceGlobalCommitter globalCommitter =
+                new TestSink.RetryOnceGlobalCommitter();
         final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
-                createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+                createTestHarness(globalCommitter);
 
         testHarness.initializeEmptyState();
         testHarness.open();
         testHarness.processElement(committableRecord("hotel"));
+        testHarness.processElement(committableRecord("motel"));
         testHarness.endInput();
         testHarness.close();
+        assertThat(globalCommitter.getCommittedData(), Matchers.contains("hotel|motel"));
     }
 
     @Test

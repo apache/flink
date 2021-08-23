@@ -50,7 +50,7 @@ import java.util.TreeMap;
  * @param <CommT> The committable type of the {@link Committer}.
  */
 abstract class AbstractStreamingCommitterHandler<InputT, CommT>
-        extends AbstractCommitterHandler<InputT, CommT> {
+        extends AbstractCommitterHandler<InputT, CommT, CommT> {
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractStreamingCommitterHandler.class);
 
@@ -67,14 +67,6 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
 
     /** The operator's state. */
     private ListState<StreamingCommitterState<CommT>> streamingCommitterState;
-
-    /**
-     * Notifies a list of committables that might need to be committed again after recovering from a
-     * failover.
-     *
-     * @param committables A list of committables
-     */
-    abstract void recoveredCommittables(List<CommT> committables) throws IOException;
 
     /**
      * Prepares a commit.
@@ -96,6 +88,12 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
         this.streamingCommitterStateSerializer =
                 new StreamingCommitterStateSerializer<>(committableSerializer);
         this.committablesPerCheckpoint = new TreeMap<>();
+    }
+
+    @Override
+    protected void retry(List<CommT> recoveredCommittables)
+            throws IOException, InterruptedException {
+        recoveredCommittables(commit(recoveredCommittables));
     }
 
     @Override
@@ -122,24 +120,27 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
     }
 
     protected List<CommT> commitUpTo(long checkpointId) throws IOException, InterruptedException {
-        final Iterator<Map.Entry<Long, List<CommT>>> it =
-                committablesPerCheckpoint.headMap(checkpointId, true).entrySet().iterator();
+        NavigableMap<Long, List<CommT>> headMap =
+                committablesPerCheckpoint.headMap(checkpointId, true);
+        final List<CommT> readyCommittables;
+        if (headMap.size() == 1) {
+            readyCommittables = headMap.pollFirstEntry().getValue();
+        } else {
 
-        final List<CommT> readyCommittables = new ArrayList<>();
+            readyCommittables = new ArrayList<>();
 
-        while (it.hasNext()) {
-            final Map.Entry<Long, List<CommT>> entry = it.next();
-            final List<CommT> committables = entry.getValue();
+            final Iterator<Map.Entry<Long, List<CommT>>> it = headMap.entrySet().iterator();
+            while (it.hasNext()) {
+                final Map.Entry<Long, List<CommT>> entry = it.next();
+                final List<CommT> committables = entry.getValue();
 
-            readyCommittables.addAll(committables);
-            it.remove();
+                readyCommittables.addAll(committables);
+                it.remove();
+            }
         }
 
         LOG.info("Committing the state for checkpoint {}", checkpointId);
-        final List<CommT> neededToRetryCommittables = commit(readyCommittables);
-        if (!neededToRetryCommittables.isEmpty()) {
-            throw new UnsupportedOperationException("Currently does not support the re-commit!");
-        }
+        recoveredCommittables(commit(readyCommittables));
         return readyCommittables;
     }
 

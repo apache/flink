@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <InputT> The committable type of the {@link Committer}.
  */
 final class BatchCommitterHandler<InputT, OutputT>
-        extends AbstractCommitterHandler<InputT, OutputT> {
+        extends AbstractCommitterHandler<InputT, OutputT, InputT> {
 
     /** Responsible for committing the committable to the external system. */
     private final Committer<InputT> committer;
@@ -59,14 +59,24 @@ final class BatchCommitterHandler<InputT, OutputT>
     }
 
     @Override
+    public boolean needsRetry() {
+        return super.needsRetry() || chainedHandler.needsRetry();
+    }
+
+    @Override
+    protected void retry(List<InputT> recoveredCommittables)
+            throws IOException, InterruptedException {
+        if (!recoveredCommittables.isEmpty()) {
+            recoveredCommittables(committer.commit(recoveredCommittables));
+        }
+        chainedHandler.retry();
+    }
+
+    @Override
     public List<OutputT> endOfInput() throws IOException, InterruptedException {
         List<InputT> allCommittables = pollCommittables();
         if (!allCommittables.isEmpty()) {
-            final List<InputT> neededRetryCommittables = committer.commit(allCommittables);
-            if (!neededRetryCommittables.isEmpty()) {
-                throw new UnsupportedOperationException(
-                        "Currently does not support the re-commit!");
-            }
+            recoveredCommittables(committer.commit(allCommittables));
         }
         return chainedHandler.endOfInput();
     }

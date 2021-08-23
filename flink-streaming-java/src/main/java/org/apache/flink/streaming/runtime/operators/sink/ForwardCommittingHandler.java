@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.util.function.SupplierWithException;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -26,10 +27,19 @@ import java.util.List;
  * SinkOperator} without committers but with downstream operators (in streaming, only global
  * committer on sink; in batch, committer or global committer present).
  */
-class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, CommT> {
+class ForwardCommittingHandler<CommT> extends AbstractCommitterHandler<CommT, CommT, CommT> {
+    ForwardCommittingHandler() {}
+
     @Override
     public List<CommT> processCommittables(
             SupplierWithException<List<CommT>, Exception> committableSupplier) throws Exception {
         return committableSupplier.get();
+    }
+
+    @Override
+    protected void retry(List<CommT> recoveredCommittables)
+            throws IOException, InterruptedException {
+        throw new UnsupportedOperationException(
+                "This handler should never receive recovered commits");
     }
 }
