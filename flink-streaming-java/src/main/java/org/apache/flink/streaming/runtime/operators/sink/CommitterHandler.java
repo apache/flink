@@ -66,4 +66,15 @@ interface CommitterHandler<InputT, OutputT> extends AutoCloseable, Serializable 
             throws IOException, InterruptedException {
         return Collections.emptyList();
     }
+
+    boolean needsRetry();
+
+    /**
+     * Retries all recovered committables. These committables may either be restored in {@link
+     * #initializeState(StateInitializationContext)} and have been re-added in any of the committing
+     * functions.
+     *
+     * @return true if more committables can be retried.
+     */
+    void retry() throws IOException, InterruptedException;
 }
