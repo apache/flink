@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 
@@ -33,8 +33,7 @@ import java.util.List;
 public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStrategy {
 
     @Override
-    public List<IntermediateResultPartitionID> vertexFinished(
-            final ExecutionVertexID finishedVertex) {
+    public List<ConsumedPartitionGroup> vertexFinished(final ExecutionVertexID finishedVertex) {
         return Collections.emptyList();
     }
 
