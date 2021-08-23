@@ -74,7 +74,8 @@ public final class CommitterOperatorFactory<CommT, GlobalCommT>
                     !(committerHandler instanceof NoopCommitterHandler),
                     "committer operator without commmitter");
             final CommitterOperator<CommT, GlobalCommT> committerOperator =
-                    new CommitterOperator<>(committableSerializer, committerHandler);
+                    new CommitterOperator<>(
+                            processingTimeService, committableSerializer, committerHandler);
             committerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),

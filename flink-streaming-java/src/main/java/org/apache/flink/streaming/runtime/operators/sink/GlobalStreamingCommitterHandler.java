@@ -23,7 +23,6 @@ import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,12 +45,6 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
      */
     private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
-    /**
-     * The global committables that might need to be committed again after recovering from a
-     * failover.
-     */
-    private final List<GlobalCommT> recoveredGlobalCommittables;
-
     private boolean endOfInput;
 
     public GlobalStreamingCommitterHandler(
@@ -60,27 +53,21 @@ public final class GlobalStreamingCommitterHandler<CommT, GlobalCommT>
         super(committableSerializer);
         this.globalCommitter = checkNotNull(globalCommitter);
 
-        this.recoveredGlobalCommittables = new ArrayList<>();
         this.endOfInput = false;
     }
 
     @Override
-    void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
-        final List<GlobalCommT> recovered =
-                globalCommitter.filterRecoveredCommittables(checkNotNull(committables));
-        recoveredGlobalCommittables.addAll(recovered);
+    protected void recoveredCommittables(List<GlobalCommT> committables) throws IOException {
+        super.recoveredCommittables(
+                globalCommitter.filterRecoveredCommittables(checkNotNull(committables)));
     }
 
     @Override
     List<GlobalCommT> prepareCommit(List<CommT> input) throws IOException {
-        checkNotNull(input);
-        final List<GlobalCommT> result = new ArrayList<>(recoveredGlobalCommittables);
-        recoveredGlobalCommittables.clear();
-
-        if (!input.isEmpty()) {
-            result.add(globalCommitter.combine(input));
-        }
-        return result;
+        return prependRecoveredCommittables(
+                input.isEmpty()
+                        ? Collections.emptyList()
+                        : Collections.singletonList(globalCommitter.combine(input)));
     }
 
     @Override
