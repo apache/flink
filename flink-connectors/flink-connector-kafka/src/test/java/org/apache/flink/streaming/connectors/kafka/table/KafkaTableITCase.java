@@ -296,9 +296,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " ('data 1', 1, TIMESTAMP '2020-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
-                        + " ('data 2', 2, TIMESTAMP '2020-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
-                        + " ('data 3', 3, TIMESTAMP '2020-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
+                        + " ('data 1', 1, TIMESTAMP '2101-03-08 13:12:11.123', MAP['k1', X'C0FFEE', 'k2', X'BABE'], TRUE),\n"
+                        + " ('data 2', 2, TIMESTAMP '2101-03-09 13:12:11.123', CAST(NULL AS MAP<STRING, BYTES>), FALSE),\n"
+                        + " ('data 3', 3, TIMESTAMP '2101-03-10 13:12:11.123', MAP['k1', X'10', 'k2', X'20'], TRUE)";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -319,7 +319,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 1",
                                 1,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-08T13:12:11.123"),
                                 0,
                                 headers1,
                                 0,
@@ -329,7 +329,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 2",
                                 2,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-09T13:12:11.123"),
                                 0,
                                 Collections.emptyMap(),
                                 0,
@@ -339,7 +339,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                                 "data 3",
                                 3,
                                 "CreateTime",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-10T13:12:11.123"),
                                 0,
                                 headers3,
                                 0,
@@ -394,9 +394,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 43, 'payload 3')";
+                        + " (1, 'name 1', TIMESTAMP '2101-03-08 13:12:11.123', 100, 41, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2101-03-09 13:12:11.123', 101, 42, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2101-03-10 13:12:11.123', 102, 43, 'payload 3')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -408,21 +408,21 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         Row.of(
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-08T13:12:11.123"),
                                 100L,
                                 41,
                                 "payload 1"),
                         Row.of(
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-09T13:12:11.123"),
                                 101L,
                                 42,
                                 "payload 2"),
                         Row.of(
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-10T13:12:11.123"),
                                 102L,
                                 43,
                                 "payload 3"));
@@ -475,9 +475,9 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (1, 'name 1', TIMESTAMP '2020-03-08 13:12:11.123', 100, 'payload 1'),\n"
-                        + " (2, 'name 2', TIMESTAMP '2020-03-09 13:12:11.123', 101, 'payload 2'),\n"
-                        + " (3, 'name 3', TIMESTAMP '2020-03-10 13:12:11.123', 102, 'payload 3')";
+                        + " (1, 'name 1', TIMESTAMP '2101-03-08 13:12:11.123', 100, 'payload 1'),\n"
+                        + " (2, 'name 2', TIMESTAMP '2101-03-09 13:12:11.123', 101, 'payload 2'),\n"
+                        + " (3, 'name 3', TIMESTAMP '2101-03-10 13:12:11.123', 102, 'payload 3')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -489,19 +489,19 @@ public class KafkaTableITCase extends KafkaTableTestBase {
                         Row.of(
                                 1L,
                                 "name 1",
-                                LocalDateTime.parse("2020-03-08T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-08T13:12:11.123"),
                                 100L,
                                 "payload 1"),
                         Row.of(
                                 2L,
                                 "name 2",
-                                LocalDateTime.parse("2020-03-09T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-09T13:12:11.123"),
                                 101L,
                                 "payload 2"),
                         Row.of(
                                 3L,
                                 "name 3",
-                                LocalDateTime.parse("2020-03-10T13:12:11.123"),
+                                LocalDateTime.parse("2101-03-10T13:12:11.123"),
                                 102L,
                                 "payload 3"));
 
@@ -555,13 +555,13 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String orderInitialValues =
                 "INSERT INTO ordersTable\n"
                         + "VALUES\n"
-                        + "('o_001', 'p_001', TIMESTAMP '2020-10-01 00:01:00', 1, 'Alice'),"
-                        + "('o_002', 'p_002', TIMESTAMP '2020-10-01 00:02:00', 1, 'Bob'),"
-                        + "('o_003', 'p_001', TIMESTAMP '2020-10-01 12:00:00', 2, 'Tom'),"
-                        + "('o_004', 'p_002', TIMESTAMP '2020-10-01 12:00:00', 2, 'King'),"
-                        + "('o_005', 'p_001', TIMESTAMP '2020-10-01 18:00:00', 10, 'Leonard'),"
-                        + "('o_006', 'p_002', TIMESTAMP '2020-10-01 18:00:00', 10, 'Leonard'),"
-                        + "('o_007', 'p_002', TIMESTAMP '2020-10-01 18:00:01', 10, 'Robinson')"; // used to advance watermark
+                        + "('o_001', 'p_001', TIMESTAMP '2101-10-01 00:01:00', 1, 'Alice'),"
+                        + "('o_002', 'p_002', TIMESTAMP '2101-10-01 00:02:00', 1, 'Bob'),"
+                        + "('o_003', 'p_001', TIMESTAMP '2101-10-01 12:00:00', 2, 'Tom'),"
+                        + "('o_004', 'p_002', TIMESTAMP '2101-10-01 12:00:00', 2, 'King'),"
+                        + "('o_005', 'p_001', TIMESTAMP '2101-10-01 18:00:00', 10, 'Leonard'),"
+                        + "('o_006', 'p_002', TIMESTAMP '2101-10-01 18:00:00', 10, 'Leonard'),"
+                        + "('o_007', 'p_002', TIMESTAMP '2101-10-01 18:00:01', 10, 'Robinson')"; // used to advance watermark
         tEnv.executeSql(orderInitialValues).await();
 
         // create product table and set initial values
@@ -613,12 +613,12 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
         final List<String> expected =
                 Arrays.asList(
-                        "+I[o_001, 2020-10-01T00:01, p_001, 1970-01-01T00:00, 11.1100, Alice, scooter, 1, 11.1100]",
-                        "+I[o_002, 2020-10-01T00:02, p_002, 1970-01-01T00:00, 23.1100, Bob, basketball, 1, 23.1100]",
-                        "+I[o_003, 2020-10-01T12:00, p_001, 2020-10-01T12:00, 12.9900, Tom, scooter, 2, 25.9800]",
-                        "+I[o_004, 2020-10-01T12:00, p_002, 2020-10-01T12:00, 19.9900, King, basketball, 2, 39.9800]",
-                        "+I[o_005, 2020-10-01T18:00, p_001, 2020-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
-                        "+I[o_006, 2020-10-01T18:00, null, null, null, Leonard, null, 10, null]");
+                        "+I[o_001, 2101-10-01T00:01, p_001, 1970-01-01T00:00, 11.1100, Alice, scooter, 1, 11.1100]",
+                        "+I[o_002, 2101-10-01T00:02, p_002, 1970-01-01T00:00, 23.1100, Bob, basketball, 1, 23.1100]",
+                        "+I[o_003, 2101-10-01T12:00, p_001, 2101-10-01T12:00, 12.9900, Tom, scooter, 2, 25.9800]",
+                        "+I[o_004, 2101-10-01T12:00, p_002, 2101-10-01T12:00, 19.9900, King, basketball, 2, 39.9800]",
+                        "+I[o_005, 2101-10-01T18:00, p_001, 2101-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
+                        "+I[o_006, 2101-10-01T18:00, null, null, null, Leonard, null, 10, null]");
 
         assertEquals(expected, result);
 
@@ -689,20 +689,20 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (0, 'partition-0-name-0', TIMESTAMP '2020-03-08 13:12:11.123'),\n"
-                        + " (0, 'partition-0-name-1', TIMESTAMP '2020-03-08 14:12:12.223'),\n"
-                        + " (0, 'partition-0-name-2', TIMESTAMP '2020-03-08 15:12:13.323'),\n"
-                        + " (1, 'partition-1-name-0', TIMESTAMP '2020-03-09 13:13:11.123'),\n"
-                        + " (1, 'partition-1-name-1', TIMESTAMP '2020-03-09 15:13:11.133'),\n"
-                        + " (1, 'partition-1-name-2', TIMESTAMP '2020-03-09 16:13:11.143'),\n"
-                        + " (2, 'partition-2-name-0', TIMESTAMP '2020-03-10 13:12:14.123'),\n"
-                        + " (2, 'partition-2-name-1', TIMESTAMP '2020-03-10 14:12:14.123'),\n"
-                        + " (2, 'partition-2-name-2', TIMESTAMP '2020-03-10 14:13:14.123'),\n"
-                        + " (2, 'partition-2-name-3', TIMESTAMP '2020-03-10 14:14:14.123'),\n"
-                        + " (2, 'partition-2-name-4', TIMESTAMP '2020-03-10 14:15:14.123'),\n"
-                        + " (2, 'partition-2-name-5', TIMESTAMP '2020-03-10 14:16:14.123'),\n"
-                        + " (3, 'partition-3-name-0', TIMESTAMP '2020-03-11 17:12:11.123'),\n"
-                        + " (3, 'partition-3-name-1', TIMESTAMP '2020-03-11 18:12:11.123')";
+                        + " (0, 'partition-0-name-0', TIMESTAMP '2101-03-08 13:12:11.123'),\n"
+                        + " (0, 'partition-0-name-1', TIMESTAMP '2101-03-08 14:12:12.223'),\n"
+                        + " (0, 'partition-0-name-2', TIMESTAMP '2101-03-08 15:12:13.323'),\n"
+                        + " (1, 'partition-1-name-0', TIMESTAMP '2101-03-09 13:13:11.123'),\n"
+                        + " (1, 'partition-1-name-1', TIMESTAMP '2101-03-09 15:13:11.133'),\n"
+                        + " (1, 'partition-1-name-2', TIMESTAMP '2101-03-09 16:13:11.143'),\n"
+                        + " (2, 'partition-2-name-0', TIMESTAMP '2101-03-10 13:12:14.123'),\n"
+                        + " (2, 'partition-2-name-1', TIMESTAMP '2101-03-10 14:12:14.123'),\n"
+                        + " (2, 'partition-2-name-2', TIMESTAMP '2101-03-10 14:13:14.123'),\n"
+                        + " (2, 'partition-2-name-3', TIMESTAMP '2101-03-10 14:14:14.123'),\n"
+                        + " (2, 'partition-2-name-4', TIMESTAMP '2101-03-10 14:15:14.123'),\n"
+                        + " (2, 'partition-2-name-5', TIMESTAMP '2101-03-10 14:16:14.123'),\n"
+                        + " (3, 'partition-3-name-0', TIMESTAMP '2101-03-11 17:12:11.123'),\n"
+                        + " (3, 'partition-3-name-1', TIMESTAMP '2101-03-11 18:12:11.123')";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
@@ -722,20 +722,20 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         TableResult tableResult = tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
         final List<String> expected =
                 Arrays.asList(
-                        "+I[0, partition-0-name-0, 2020-03-08T13:12:11.123]",
-                        "+I[0, partition-0-name-1, 2020-03-08T14:12:12.223]",
-                        "+I[0, partition-0-name-2, 2020-03-08T15:12:13.323]",
-                        "+I[1, partition-1-name-0, 2020-03-09T13:13:11.123]",
-                        "+I[1, partition-1-name-1, 2020-03-09T15:13:11.133]",
-                        "+I[1, partition-1-name-2, 2020-03-09T16:13:11.143]",
-                        "+I[2, partition-2-name-0, 2020-03-10T13:12:14.123]",
-                        "+I[2, partition-2-name-1, 2020-03-10T14:12:14.123]",
-                        "+I[2, partition-2-name-2, 2020-03-10T14:13:14.123]",
-                        "+I[2, partition-2-name-3, 2020-03-10T14:14:14.123]",
-                        "+I[2, partition-2-name-4, 2020-03-10T14:15:14.123]",
-                        "+I[2, partition-2-name-5, 2020-03-10T14:16:14.123]",
-                        "+I[3, partition-3-name-0, 2020-03-11T17:12:11.123]",
-                        "+I[3, partition-3-name-1, 2020-03-11T18:12:11.123]");
+                        "+I[0, partition-0-name-0, 2101-03-08T13:12:11.123]",
+                        "+I[0, partition-0-name-1, 2101-03-08T14:12:12.223]",
+                        "+I[0, partition-0-name-2, 2101-03-08T15:12:13.323]",
+                        "+I[1, partition-1-name-0, 2101-03-09T13:13:11.123]",
+                        "+I[1, partition-1-name-1, 2101-03-09T15:13:11.133]",
+                        "+I[1, partition-1-name-2, 2101-03-09T16:13:11.143]",
+                        "+I[2, partition-2-name-0, 2101-03-10T13:12:14.123]",
+                        "+I[2, partition-2-name-1, 2101-03-10T14:12:14.123]",
+                        "+I[2, partition-2-name-2, 2101-03-10T14:13:14.123]",
+                        "+I[2, partition-2-name-3, 2101-03-10T14:14:14.123]",
+                        "+I[2, partition-2-name-4, 2101-03-10T14:15:14.123]",
+                        "+I[2, partition-2-name-5, 2101-03-10T14:16:14.123]",
+                        "+I[3, partition-3-name-0, 2101-03-11T17:12:11.123]",
+                        "+I[3, partition-3-name-1, 2101-03-11T18:12:11.123]");
         KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
 
         // ------------- cleanup -------------------
@@ -786,12 +786,12 @@ public class KafkaTableITCase extends KafkaTableTestBase {
         String initialValues =
                 "INSERT INTO kafka\n"
                         + "VALUES\n"
-                        + " (0, 0, TIMESTAMP '2020-03-08 13:12:11.123'),\n"
-                        + " (0, 1, TIMESTAMP '2020-03-08 13:15:12.223'),\n"
-                        + " (0, 2, TIMESTAMP '2020-03-08 16:12:13.323'),\n"
-                        + " (1, 3, TIMESTAMP '2020-03-08 13:13:11.123'),\n"
-                        + " (1, 4, TIMESTAMP '2020-03-08 13:19:11.133'),\n"
-                        + " (1, 5, TIMESTAMP '2020-03-08 16:13:11.143')\n";
+                        + " (0, 0, TIMESTAMP '2101-03-08 13:12:11.123'),\n"
+                        + " (0, 1, TIMESTAMP '2101-03-08 13:15:12.223'),\n"
+                        + " (0, 2, TIMESTAMP '2101-03-08 16:12:13.323'),\n"
+                        + " (1, 3, TIMESTAMP '2101-03-08 13:13:11.123'),\n"
+                        + " (1, 4, TIMESTAMP '2101-03-08 13:19:11.133'),\n"
+                        + " (1, 5, TIMESTAMP '2101-03-08 16:13:11.143')\n";
         tEnv.executeSql(initialValues).await();
 
         // ---------- Consume stream from Kafka -------------------
