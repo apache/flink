@@ -285,12 +285,12 @@ under the License.
 						</configuration>
 					</execution>
 					<execution>
-						<id>npm run build</id>
+						<id>npm run ci-check</id>
 						<goals>
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>run build</arguments>
+							<arguments>run ci-check</arguments>
 						</configuration>
 					</execution>
 				</executions>
