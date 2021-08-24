@@ -123,11 +123,23 @@ public interface SourceFunction<T> extends Function, Serializable {
      * <p>A typical pattern is to have an {@code "volatile boolean isRunning"} flag that is set to
      * {@code false} in this method. That flag is checked in the loop condition.
      *
-     * <p>When a source is canceled, the executing thread will also be interrupted (via {@link
-     * Thread#interrupt()}). The interruption happens strictly after this method has been called, so
-     * any interruption handler can rely on the fact that this method has completed. It is good
-     * practice to make any flags altered by this method "volatile", in order to guarantee the
-     * visibility of the effects of this method to any interruption handler.
+     * <p>In case of an ungraceful shutdown (cancellation of the source operator, possibly for
+     * failover), the executing thread will also be {@link Thread#interrupt() interrupted}) by the
+     * Flink runtime, in order to speed up the cancellation. The interruption happens strictly after
+     * this method has been called, so any interruption handler can rely on the fact that this
+     * method has completed (for example to ignore exceptions that happen after cancellation). Make
+     * any flags altered by this method "volatile" ensures the visibility of the effects of this
+     * method to any interruption handler.
+     *
+     * <p>During graceful shutdown (for example stopping a job with a savepoint), the program must
+     * cleanly exit the {@link #run(SourceContext)} method soon after this method was called. In
+     * particular, no thread interruption must happen (the Flink runtime will not interrupt the
+     * source thread), because this could interfere with the pending record processing and thus not
+     * result in a clean exit of the {@link #run(SourceContext)} method.
+     *
+     * <p>Because of that, we recommend that this cancel method never does any thread interruptions
+     * itself, but that it solely relies on the Flink runtime to interrupt threads in case of
+     * ungraceful cancellation.
      */
     void cancel();
 
