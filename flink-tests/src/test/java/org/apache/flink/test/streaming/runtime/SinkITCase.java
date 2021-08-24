@@ -69,7 +69,10 @@ import static org.hamcrest.Matchers.hasSize;
 public class SinkITCase extends AbstractTestBase {
     private static final Logger LOG = LoggerFactory.getLogger(SinkITCase.class);
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    @Rule public final InMemoryReporterRule inMemoryReporter = InMemoryReporterRule.create();
+
+    @Rule
+    public final InMemoryReporterRule inMemoryReporter =
+            InMemoryReporterRule.fromMiniCluster(miniClusterResource);
 
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
