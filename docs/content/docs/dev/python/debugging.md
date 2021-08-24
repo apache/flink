@@ -38,7 +38,7 @@ of the client during job submission.
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a TableEnvironment
-env_settings = EnvironmentSettings.in_streaming_mode()
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])

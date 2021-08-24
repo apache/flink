@@ -37,7 +37,7 @@ under the License.
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # 创建 TableEnvironment
-env_settings = EnvironmentSettings.in_streaming_mode()
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])

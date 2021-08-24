@@ -118,8 +118,8 @@ my_sink_ddl = """
     )
 """
 
-t_env.sql_update(my_source_ddl)
-t_env.sql_update(my_sink_ddl)
+t_env.execute_sql(my_source_ddl)
+t_env.execute_sql(my_sink_ddl)
 ```
 This registers a table named `mySource` and a table named `mySink` in the execution environment.
 The table `mySource` has only one column, word, and it consumes strings read from file `/tmp/input`.
