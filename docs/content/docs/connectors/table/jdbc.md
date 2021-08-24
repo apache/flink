@@ -321,16 +321,16 @@ As there is no standard syntax for upsert, the following table describes the dat
 
 The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
 
-Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
+Currently, `PostgresCatalog` is one of the two implementations of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
 
 ```java
 // The supported methods by Postgres Catalog.
-PostgresCatalog.databaseExists(String databaseName)
-PostgresCatalog.listDatabases()
-PostgresCatalog.getDatabase(String databaseName)
-PostgresCatalog.listTables(String databaseName)
-PostgresCatalog.getTable(ObjectPath tablePath)
-PostgresCatalog.tableExists(ObjectPath tablePath)
+PostgresCatalog.databaseExists(String databaseName);
+PostgresCatalog.listDatabases();
+PostgresCatalog.getDatabase(String databaseName);
+PostgresCatalog.listTables(String databaseName);
+PostgresCatalog.getTable(ObjectPath tablePath);
+PostgresCatalog.tableExists(ObjectPath tablePath);
 ```
 
 Other `Catalog` methods are currently not supported.
@@ -442,7 +442,7 @@ catalogs:
 PostgreSQL has an additional namespace as `schema` besides database. A Postgres instance can have multiple databases, each database can have multiple schemas with a default one named "public", each schema can have multiple tables.
 In Flink, when querying tables registered by Postgres catalog, users can use either `schema_name.table_name` or just `table_name`. The `schema_name` is optional and defaults to "public".
 
-Therefor the metaspace mapping between Flink Catalog and Postgres is as following:
+Therefore, the metaspace mapping between Flink Catalog and Postgres is as following:
 
 | Flink Catalog Metaspace Structure    |   Postgres Metaspace Structure      |
 | :------------------------------------| :-----------------------------------|
@@ -465,6 +465,154 @@ SELECT * FROM test_table;
 SELECT * FROM mypg.mydb.`custom_schema.test_table2`
 SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
+```
+
+### MySQL Database as a Catalog
+
+The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
+
+Currently, `MySQLCatalog` is one of the two implementations of JDBC Catalog at the moment, `MySQLCatalog` only supports limited `Catalog` methods include:
+
+```java
+// The supported methods by MySQL Catalog.
+MySQLCatalog.databaseExists(String databaseName);
+MySQLCatalog.listDatabases();
+MySQLCatalog.getDatabase(String databaseName);
+MySQLCatalog.listTables(String databaseName);
+MySQLCatalog.getTable(ObjectPath tablePath);
+MySQLCatalog.tableExists(ObjectPath tablePath);
+```
+
+Other `Catalog` methods is unsupported now.
+
+#### Usage of MySQLCatalog
+
+Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and MySQL driver.
+
+MySQL catalog supports the following options:
+- `name`: required, name of the catalog.
+- `default-database`: required, default database to connect to.
+- `username`: required, username of MySQL account.
+- `password`: required, password of the account.
+- `base-url`: required, should be of format `"jdbc:mysql://<ip>:<port>"`, and should not contain database name here.
+
+{{< tabs "10bd8bfb-674c-46aa-8a66-385537df5187" >}}
+{{< tab "SQL" >}}
+```sql
+CREATE CATALOG mysql_catalog WITH(
+    'type' = 'jdbc',
+    'default-database' = '...',
+    'username' = '...',
+    'password' = '...',
+    'base-url' = '...'
+);
+
+USE CATALOG mysql_catalog;
+```
+{{< /tab >}}
+{{< tab "Java" >}}
+```java
+
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+String name            = "mysql_catalog";
+String defaultDatabase = "mydb";
+String username        = "...";
+String password        = "...";
+String baseUrl         = "..."
+
+JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
+tableEnv.registerCatalog("mysql_catalog", catalog);
+
+// set the JdbcCatalog as the current catalog of the session
+tableEnv.useCatalog("mysql_catalog");
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+val settings = EnvironmentSettings.inStreamingMode()
+val tableEnv = TableEnvironment.create(settings)
+
+val name            = "mysql_catalog"
+val defaultDatabase = "mydb"
+val username        = "..."
+val password        = "..."
+val baseUrl         = "..."
+
+val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
+tableEnv.registerCatalog("mysql_catalog", catalog)
+
+// set the JdbcCatalog as the current catalog of the session
+tableEnv.useCatalog("mysql_catalog")
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.table.catalog import JdbcCatalog
+
+environment_settings = EnvironmentSettings.in_streaming_mode()
+t_env = TableEnvironment.create(environment_settings)
+
+name = "mysql_catalog"
+default_database = "mydb"
+username = "..."
+password = "..."
+base_url = "..."
+
+catalog = JdbcCatalog(name, default_database, username, password, base_url)
+t_env.register_catalog("mysql_catalog", catalog)
+
+# set the JdbcCatalog as the current catalog of the session
+t_env.use_catalog("mysql_catalog")
+```
+{{< /tab >}}
+{{< tab "YAML" >}}
+```yaml
+
+execution:
+    ...
+    current-catalog: mysql_catalog  # set the JdbcCatalog as the current catalog of the session
+    current-database: mydb
+
+catalogs:
+   - name: mysql_catalog
+     type: jdbc
+     default-database: mydb
+     username: ...
+     password: ...
+     base-url: ...
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+#### MySQL Metaspace Mapping
+
+The databases in a `MySQL` instance are at the same mapping level as the databases under the catalog registered with `MySQLCatalog`. A MySQL instance can have multiple databases, each database can have multiple tables.
+In Flink, when querying tables registered by MySQL catalog, users can use either `database.table_name` or just `table_name`. The default value is the default database specified when `MySQLCatalog` was created.
+
+Therefore, the metaspace mapping between Flink Catalog and MySQLCatalog is as following:
+
+| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure      |
+| :------------------------------------| :-----------------------------------|
+| catalog name (defined in Flink only) | N/A                                 |
+| database name                        | database name                       |
+| table name                           | table_name            |
+
+The full path of MySQL table in Flink should be ``"`<catalog>`.`<db>`.`<table>`"``.
+
+Here are some examples to access MySQL tables:
+
+```sql
+-- scan table 'test_table', the default database is 'mydb'.
+SELECT * FROM mysql_catalog.mydb.test_table;
+SELECT * FROM mydb.test_table;
+SELECT * FROM test_table;
+
+-- scan table 'test_table' with the given database.
+SELECT * FROM mysql_catalog.given_database.test_table2
+SELECT * FROM given_database.test_table2;
 ```
 
 Data Type Mapping
@@ -599,6 +747,16 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td><code>ARRAY</code></td>
     </tr>
     </tbody>
+    <tr>
+      <td><code>GEOMETRY</code></td>
+      <td><code></code></td>
+      <td><code>BYTES</code></td>
+    </tr>
+    <tr>
+      <td><code>YEAR</code>, This type conversion is only supported when reading data from a table.</td>
+      <td><code></code></td>
+      <td><code>DATE</code></td>
+    </tr>
 </table>
 
 {{< top >}}
