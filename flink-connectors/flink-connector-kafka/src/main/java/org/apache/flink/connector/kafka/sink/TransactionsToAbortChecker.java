@@ -18,24 +18,14 @@
 package org.apache.flink.connector.kafka.sink;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 class TransactionsToAbortChecker {
 
-    private static final int MINIMUM_CHECKPOINT_OFFSET = 1;
-
-    private final int numberOfParallelSubtasks;
     private final Map<Integer, Long> subtaskIdCheckpointOffsetMapping;
-    private final int subtaskId;
 
-    TransactionsToAbortChecker(
-            int numberOfParallelSubtasks,
-            Map<Integer, Long> subtaskIdCheckpointOffsetMapping,
-            int subtaskId) {
-        this.subtaskId = subtaskId;
-        this.numberOfParallelSubtasks = numberOfParallelSubtasks;
+    TransactionsToAbortChecker(Map<Integer, Long> subtaskIdCheckpointOffsetMapping) {
         this.subtaskIdCheckpointOffsetMapping = subtaskIdCheckpointOffsetMapping;
     }
 
@@ -43,9 +33,6 @@ class TransactionsToAbortChecker {
      * Iterates through all open transactions and filters for the following attributes.
      *
      * <ol>
-     *   <li>If the minimum checkpointOffset for the subtask is {@link #MINIMUM_CHECKPOINT_OFFSET}
-     *       and [openSubtaskId % {@link #numberOfParallelSubtasks} == {@link #subtaskId}] return
-     *       all transactions from this subtask
      *   <li>If the subtaskId is part of the recovered states {@link
      *       #subtaskIdCheckpointOffsetMapping} and the checkpointOffset >= the recovered offSet
      *       also return this transactionalId
@@ -64,24 +51,16 @@ class TransactionsToAbortChecker {
             if (checkpointOffsetTransactionalIdMapping.isEmpty()) {
                 continue;
             }
-            // Abort all open transactions if checkpointOffset 0 is open implying that no checkpoint
-            // finished.
-            // Cut the transactions in ranges to speed up abort process
-            if (Collections.min(checkpointOffsetTransactionalIdMapping.keySet())
-                            == MINIMUM_CHECKPOINT_OFFSET
-                    && subtaskOffsetMapping.getKey() % numberOfParallelSubtasks == subtaskId) {
-                transactionalIdsToAbort.addAll(checkpointOffsetTransactionalIdMapping.values());
-            } else {
-                // Check all open transactions against recovered ones and close if the open
-                // transaction is equal or higher to the offset
-                for (final Map.Entry<Long, String> offsetTransactionId :
-                        checkpointOffsetTransactionalIdMapping.entrySet()) {
-                    if (!hasSameSubtaskWithHigherCheckpoint(
-                            subtaskOffsetMapping.getKey(), offsetTransactionId.getKey())) {
-                        continue;
-                    }
-                    transactionalIdsToAbort.add(offsetTransactionId.getValue());
+
+            // Check all open transactions against recovered ones and close if the open transaction
+            // is equal or higher to the offset
+            for (final Map.Entry<Long, String> offsetTransactionId :
+                    checkpointOffsetTransactionalIdMapping.entrySet()) {
+                if (!hasSameSubtaskWithHigherCheckpoint(
+                        subtaskOffsetMapping.getKey(), offsetTransactionId.getKey())) {
+                    continue;
                 }
+                transactionalIdsToAbort.add(offsetTransactionId.getValue());
             }
         }
         return transactionalIdsToAbort;

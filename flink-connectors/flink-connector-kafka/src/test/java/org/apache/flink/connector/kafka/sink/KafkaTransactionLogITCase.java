@@ -38,6 +38,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
@@ -78,6 +79,27 @@ public class KafkaTransactionLogITCase {
     @After
     public void tearDown() {
         openProducers.forEach(Producer::close);
+    }
+
+    @Test
+    public void testRetrySecondPhaseOfTwoPhaseCommit() {
+        // First checkpoint has completed, but only the first phase of 2PC has succeeded. This will
+        // result in two lingering transactions: first one is waiting to be committed by
+        // notifyCheckpointCompleted and second one is for current writes that haven't been
+        // checkpointed yet.
+        lingeringTransaction(0, 1);
+        lingeringTransaction(0, 2);
+
+        final int numberOfCompletedCheckpoints = 2;
+        try (final KafkaTransactionLog transactionLog =
+                new KafkaTransactionLog(
+                        getKafkaClientConfiguration(),
+                        createWriterState(0, numberOfCompletedCheckpoints),
+                        Collections.emptyList(),
+                        1)) {
+            final List<String> transactionsToAbort = transactionLog.getTransactionsToAbort();
+            assertThat(transactionsToAbort, containsInAnyOrder(buildTransactionalId(0, 2)));
+        }
     }
 
     @Test
@@ -195,6 +217,7 @@ public class KafkaTransactionLogITCase {
         producerProperties.put(
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class.getName());
         producerProperties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
+        System.out.println("========= " + transactionalId);
         return new KafkaProducer<>(producerProperties);
     }
 

@@ -35,7 +35,7 @@ public class TransactionToAbortCheckerTest {
     @Test
     public void testMustAbortTransactionsWithSameSubtaskIdAndHigherCheckpointOffset() {
         final TransactionsToAbortChecker checker =
-                new TransactionsToAbortChecker(2, ImmutableMap.of(0, 1L, 2, 3L), 0);
+                new TransactionsToAbortChecker(ImmutableMap.of(0, 1L, 2, 3L));
 
         // abort recovered subtasksId with equal or higher checkpoint offset
         final Map<Integer, Map<Long, String>> openTransactions =
@@ -43,25 +43,6 @@ public class TransactionToAbortCheckerTest {
                         0, ImmutableMap.of(2L, ABORT, 1L, ABORT),
                         2, ImmutableMap.of(3L, ABORT, 4L, ABORT),
                         3, ImmutableMap.of(3L, "keep", 4L, "keep"));
-
-        final List<String> transactionsToAbort = checker.getTransactionsToAbort(openTransactions);
-        assertEquals(4, transactionsToAbort.size());
-        assertThatAbortCorrectTransaction(transactionsToAbort);
-    }
-
-    @Test
-    public void testMustAbortTransactionsIfLowestCheckpointOffsetIsMinimumOffset() {
-        final TransactionsToAbortChecker checker =
-                new TransactionsToAbortChecker(2, ImmutableMap.of(0, 1L), 0);
-
-        // abort recovered subtasksId with equal or higher checkpoint offset
-        final Map<Integer, Map<Long, String>> openTransactions =
-                ImmutableMap.of(
-                        0, ImmutableMap.of(2L, ABORT, 1L, ABORT),
-                        2, ImmutableMap.of(1L, ABORT),
-                        3, ImmutableMap.of(1L, "keep"),
-                        4, ImmutableMap.of(1L, ABORT),
-                        5, ImmutableMap.of(1L, "keep"));
 
         final List<String> transactionsToAbort = checker.getTransactionsToAbort(openTransactions);
         assertEquals(4, transactionsToAbort.size());

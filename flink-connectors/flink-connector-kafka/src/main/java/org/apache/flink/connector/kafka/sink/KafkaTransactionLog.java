@@ -101,10 +101,7 @@ class KafkaTransactionLog implements AutoCloseable {
         consumerConfig.put("value.deserializer", ByteArrayDeserializer.class.getName());
         consumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         this.transactionToAbortChecker =
-                new TransactionsToAbortChecker(
-                        numberOfParallelSubtasks,
-                        subtaskIdCheckpointOffsetMapping,
-                        main.getSubtaskId());
+                new TransactionsToAbortChecker(subtaskIdCheckpointOffsetMapping);
         this.consumer = new KafkaConsumer<>(consumerConfig);
         this.consumer.assign(getAllPartitions());
     }
