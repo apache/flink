@@ -27,7 +27,7 @@ import org.jline.utils.InfoCmp.Capability;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliInputView.InputOperation.BACKSPACE;
@@ -44,12 +44,12 @@ import static org.jline.keymap.KeyMap.key;
 public class CliInputView extends CliView<CliInputView.InputOperation, String> {
 
     private final String inputTitle;
-    private final Function<String, Boolean> validation;
+    private final Predicate<String> validation;
     private final StringBuilder currentInput;
     private int cursorPos;
     private boolean isError;
 
-    public CliInputView(CliClient client, String inputTitle, Function<String, Boolean> validation) {
+    public CliInputView(CliClient client, String inputTitle, Predicate<String> validation) {
         super(client);
 
         this.inputTitle = inputTitle;
@@ -222,7 +222,7 @@ public class CliInputView extends CliView<CliInputView.InputOperation, String> {
             close();
         }
         // validate and return
-        else if (validation.apply(s)) {
+        else if (validation.test(s)) {
             close(s);
         }
         // show error
