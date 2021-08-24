@@ -40,9 +40,9 @@ Unlike other aggregations on continuous tables, window aggregation do not emit i
 
 ### Windowing TVFs
 
-Flink supports `TUMBLE`, `HOP` and `CUMULATE` types of window aggregations, which can be defined on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
+Flink supports `TUMBLE`, `HOP`, `CUMULATE` and `SESSION` types of window aggregations, which can be defined on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
 
-Here are some examples for `TUMBLE`, `HOP` and `CUMULATE` window aggregations.
+Here are some examples for `TUMBLE`, `HOP`, `CUMULATE` and `SESSION` window aggregations.
 
 ```sql
 -- tables must have time attribute, e.g. `bidtime` in this table
@@ -110,6 +110,18 @@ Flink SQL> SELECT window_start, window_end, SUM(price)
 | 2020-04-15 08:10 | 2020-04-15 08:16 | 4.00  |
 | 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
++------------------+------------------+-------+
+
+-- session window aggregation
+Flink SQL> SELECT window_start, window_end, SUM(price)
+  FROM TABLE(
+    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '3' MINUTES))
+  GROUP BY window_start, window_end;
++------------------+------------------+-------+
+|     window_start |       window_end | price |
++------------------+------------------+-------+
+| 2020-04-15 08:05 | 2020-04-15 08:16 | 15.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:20 | 6.00  |
 +------------------+------------------+-------+
 ```
 

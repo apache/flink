@@ -33,7 +33,7 @@ Apache Flink provides several window table-valued functions (TVF) to divide the 
 - [Tumble Windows](#tumble)
 - [Hop Windows](#hop)
 - [Cumulate Windows](#cumulate)
-- Session Windows (will be supported soon)
+- [Session Windows](#session)
 
 Note that each element can logically belong to more than one window, depending on the windowing table-valued function you use. For example, HOP windowing creates overlapping windows wherein a single element can be assigned to multiple windows.
 
@@ -282,6 +282,65 @@ Here is an example invocation on the Bid table:
 | 2020-04-15 08:10 | 2020-04-15 08:16 |  4.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:18 | 10.00 |
 | 2020-04-15 08:10 | 2020-04-15 08:20 | 10.00 |
++------------------+------------------+-------+
+```
+
+### SESSION
+
+The session windows groups elements by sessions of activity. Session windows do not overlap and do not have a fixed start and end time, in contrast to `TUMBLE` windows and `HOP` windows. Instead a session window closes when it does not receive elements for a certain period of time, i.e., when a gap of inactivity occurred.
+
+The `SESSION` function specifies session gap which defines how long the period of inactivity is. When this period expires, the current session closes and subsequent elements are assigned to a new session window.
+
+{{< img src="/fig/session-windows.svg" alt="Session Windows" width="70%">}}
+
+The `SESSION` functions assigns windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `SESSION` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+
+`SESSION` takes three required parameters.
+
+```sql
+SESSION(TABLE data, DESCRIPTOR(timecol), gap)
+```
+
+- `data`: is a table parameter that can be any relation with an time attribute column.
+- `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to session windows.
+- `gap`: is a duration specifying how long the period of inactivity is. When this period expires, the current session closes and subsequent elements are assigned to a new session window.
+
+Here is an example invocation on the Bid table:
+
+```sql
+-- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
+--  window table-valued function should be used with aggregate operation,
+--  this example is just used for explaining the syntax and the data produced by table-valued function.
+> SELECT * FROM TABLE(
+    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '3' MINUTES));
+-- or with the named params
+-- note: the DATA param must be the first
+> SELECT * FROM TABLE(
+    SESSION(
+      DATA => TABLE Bid,
+      TIMECOL => DESCRIPTOR(bidtime),
+      GAP => INTERVAL '3' MINUTES));
++------------------+-------+------+------------------+------------------+-------------------------+
+|          bidtime | price | item |     window_start |       window_end |            window_time  |
++------------------+-------+------+------------------+------------------+-------------------------+
+| 2020-04-15 08:05 |  4.00 | C    | 2020-04-15 08:05 | 2020-04-15 08:16 | 2020-04-15 08:15:59.999 |
+| 2020-04-15 08:07 |  2.00 | A    | 2020-04-15 08:05 | 2020-04-15 08:16 | 2020-04-15 08:15:59.999 |
+| 2020-04-15 08:09 |  5.00 | D    | 2020-04-15 08:05 | 2020-04-15 08:16 | 2020-04-15 08:15:59.999 |
+| 2020-04-15 08:11 |  3.00 | B    | 2020-04-15 08:05 | 2020-04-15 08:16 | 2020-04-15 08:15:59.999 |
+| 2020-04-15 08:13 |  1.00 | E    | 2020-04-15 08:05 | 2020-04-15 08:16 | 2020-04-15 08:15:59.999 |
+| 2020-04-15 08:17 |  6.00 | F    | 2020-04-15 08:17 | 2020-04-15 08:20 | 2020-04-15 08:19:59.999 |
++------------------+-------+------+------------------+------------------+-------------------------+
+
+-- apply aggregation on the session windowed table
+> SELECT window_start, window_end, SUM(price)
+  FROM TABLE(
+    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '3' MINUTES))
+  GROUP BY window_start, window_end;
++------------------+------------------+-------+
+|     window_start |       window_end | price |
++------------------+------------------+-------+
+| 2020-04-15 08:05 | 2020-04-15 08:16 | 15.00 |
+| 2020-04-15 08:17 | 2020-04-15 08:20 | 6.00  |
 +------------------+------------------+-------+
 ```
 
