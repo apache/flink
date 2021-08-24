@@ -176,7 +176,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
                 jobManagerStateSnapshot.getSubtaskStateByOperatorID(operatorID);
 
         if (jobManagerSubtaskState == null) {
-            return PrioritizedOperatorSubtaskState.emptyNotRestored();
+            return PrioritizedOperatorSubtaskState.empty(
+                    jobManagerTaskRestore.getRestoreCheckpointId());
         }
 
         long restoreCheckpointId = jobManagerTaskRestore.getRestoreCheckpointId();
@@ -208,7 +209,9 @@ public class TaskStateManagerImpl implements TaskStateManager {
 
         PrioritizedOperatorSubtaskState.Builder builder =
                 new PrioritizedOperatorSubtaskState.Builder(
-                        jobManagerSubtaskState, alternativesByPriority, true);
+                        jobManagerSubtaskState,
+                        alternativesByPriority,
+                        jobManagerTaskRestore.getRestoreCheckpointId());
 
         return builder.build();
     }

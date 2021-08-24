@@ -239,7 +239,6 @@ public class StateAssignmentOperation {
             int subTaskIndex,
             Execution currentExecutionAttempt) {
         TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size(), false);
-        boolean statelessTask = true;
 
         for (OperatorIDPair operatorID : operatorIDs) {
             OperatorInstanceID instanceID =
@@ -247,18 +246,13 @@ public class StateAssignmentOperation {
 
             OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
 
-            if (operatorSubtaskState.hasState()) {
-                statelessTask = false;
-            }
             taskState.putSubtaskStateByOperatorID(
                     operatorID.getGeneratedOperatorID(), operatorSubtaskState);
         }
 
-        if (!statelessTask) {
-            JobManagerTaskRestore taskRestore =
-                    new JobManagerTaskRestore(restoreCheckpointId, taskState);
-            currentExecutionAttempt.setInitialState(taskRestore);
-        }
+        JobManagerTaskRestore taskRestore =
+                new JobManagerTaskRestore(restoreCheckpointId, taskState);
+        currentExecutionAttempt.setInitialState(taskRestore);
     }
 
     public void checkParallelismPreconditions(TaskStateAssignment taskStateAssignment) {

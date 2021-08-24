@@ -184,7 +184,8 @@ public class TestTaskStateManager implements TaskStateManager {
                     }
                 }
                 PrioritizedOperatorSubtaskState.Builder builder =
-                        new PrioritizedOperatorSubtaskState.Builder(jmOpState, tmStateCollection);
+                        new PrioritizedOperatorSubtaskState.Builder(
+                                jmOpState, tmStateCollection, reportedCheckpointId);
                 return builder.build();
             }
         }

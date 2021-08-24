@@ -342,7 +342,9 @@ public class ExecutionVertex
      * that the execution attempt will resume.
      */
     public Optional<TaskManagerLocation> getPreferredLocationBasedOnState() {
-        if (currentExecution.getTaskRestore() != null) {
+        // only restore to same execution if it has state
+        if (currentExecution.getTaskRestore() != null
+                && currentExecution.getTaskRestore().getTaskStateSnapshot().hasState()) {
             return Optional.ofNullable(getLatestPriorLocation());
         }
 
