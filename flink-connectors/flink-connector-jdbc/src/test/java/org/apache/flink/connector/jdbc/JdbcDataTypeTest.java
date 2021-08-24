@@ -142,7 +142,7 @@ public class JdbcDataTypeTest {
                 createTestItem(
                         "mysql",
                         "TIMESTAMP(9) WITHOUT TIME ZONE",
-                        "The precision of field 'f0' is out of the TIMESTAMP precision range [1, 6] supported by MySQL dialect."),
+                        "The precision of field 'f0' is out of the TIMESTAMP precision range [0, 6] supported by MySQL dialect."),
                 createTestItem(
                         "mysql",
                         "TIMESTAMP_LTZ(3)",

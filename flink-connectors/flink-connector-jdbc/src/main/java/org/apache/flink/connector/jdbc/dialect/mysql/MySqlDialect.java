@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.dialect.mysql;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.MySQLRowConverter;
@@ -31,14 +32,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** JDBC dialect for MySQL. */
-class MySQLDialect extends AbstractDialect {
+@Internal
+public class MySqlDialect extends AbstractDialect {
 
     private static final long serialVersionUID = 1L;
 
     // Define MAX/MIN precision of TIMESTAMP type according to Mysql docs:
     // https://dev.mysql.com/doc/refman/8.0/en/fractional-seconds.html
     private static final int MAX_TIMESTAMP_PRECISION = 6;
-    private static final int MIN_TIMESTAMP_PRECISION = 1;
+    private static final int MIN_TIMESTAMP_PRECISION = 0;
 
     // Define MAX/MIN precision of DECIMAL type according to Mysql docs:
     // https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html

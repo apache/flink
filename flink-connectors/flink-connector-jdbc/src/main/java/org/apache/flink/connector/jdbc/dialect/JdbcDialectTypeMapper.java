@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect.mysql;
+package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.types.DataType;
 
-/** Factory for {@link MySQLDialect}. */
-@Internal
-public class MySQLDialectFactory implements JdbcDialectFactory {
-    @Override
-    public boolean acceptsURL(String url) {
-        return url.startsWith("jdbc:mysql:");
-    }
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 
-    @Override
-    public JdbcDialect create() {
-        return new MySQLDialect();
-    }
+/** Separate the jdbc meta-information type to flink table type into the interface. */
+public interface JdbcDialectTypeMapper {
+
+    DataType mapping(ObjectPath tablePath, ResultSetMetaData metadata, int colIndex)
+            throws SQLException;
 }
