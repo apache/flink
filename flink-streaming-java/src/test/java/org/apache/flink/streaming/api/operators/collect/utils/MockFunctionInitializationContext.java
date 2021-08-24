@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators.collect.utils;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 
+import java.util.OptionalLong;
+
 /** A {@link FunctionInitializationContext} for testing purpose. */
 public class MockFunctionInitializationContext implements FunctionInitializationContext {
 
@@ -31,6 +33,11 @@ public class MockFunctionInitializationContext implements FunctionInitialization
 
     @Override
     public boolean isRestored() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public OptionalLong getRestoredCheckpointId() {
         throw new UnsupportedOperationException();
     }
 
