@@ -28,7 +28,34 @@ under the License.
 
 ## 打印日志信息
 
-Python UDF 可以通过 `print` 或者标准的 Python logging 模块记录上下文和调试信息。
+### 客户端日志
+
+你可以通过 `print` 或者标准的 Python logging 模块，在 PyFlink 作业中，Python UDF 之外的地方打印上下文和调试信息。
+在提交作业时，日志信息会打印在客户端的日志文件中。
+
+```python
+from pyflink.table import EnvironmentSettings, TableEnvironment
+
+# 创建 TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
+
+# 使用 logging 模块
+import logging
+logging.warning(table.get_schema())
+
+# 使用 print 函数
+print(table.get_schema())
+```
+
+**注意:** 客户端缺省的日志级别是 `WARNING`，因此，只有日志级别在 `WARNING` 及以上的日志信息才会打印在客户端的日志文件中。
+
+### 服务器端日志
+
+你可以通过 `print` 或者标准的 Python logging 模块，在 Python UDF 中打印上下文和调试信息。
+在作业运行的过程中，日志信息会打印在 `TaskManager` 的日志文件中。
 
 ```python
 @udf(result_type=DataTypes.BIGINT())
@@ -40,6 +67,8 @@ def add(i, j):
     print('debug')
     return i + j
 ```
+
+**注意:** 服务器端缺省的日志级别是 `INFO`，因此，只有日志级别在 `INFO` 及以上的日志信息才会打印在 `TaskManager` 的日志文件中。
 
 ## 查看日志
 
