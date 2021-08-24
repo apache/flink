@@ -222,7 +222,7 @@ public class SourceOperatorTest {
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
         StateInitializationContext stateContext =
-                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
 
         // Update the context.
         stateContext
