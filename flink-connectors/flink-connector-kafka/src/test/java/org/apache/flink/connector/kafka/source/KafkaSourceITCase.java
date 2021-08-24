@@ -64,8 +64,10 @@ public class KafkaSourceITCase {
     @BeforeClass
     public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
-        KafkaSourceTestEnv.setupTopic(TOPIC1, true, true);
-        KafkaSourceTestEnv.setupTopic(TOPIC2, true, true);
+        KafkaSourceTestEnv.setupTopic(
+                TOPIC1, true, true, KafkaSourceTestEnv::getRecordsForTopicWithoutTimestamp);
+        KafkaSourceTestEnv.setupTopic(
+                TOPIC2, true, true, KafkaSourceTestEnv::getRecordsForTopicWithoutTimestamp);
     }
 
     @AfterClass
@@ -76,12 +78,13 @@ public class KafkaSourceITCase {
     @Test
     public void testTimestamp() throws Throwable {
         final String topic = "testTimestamp";
+        final long currentTimestamp = System.currentTimeMillis();
         KafkaSourceTestEnv.createTestTopic(topic, 1, 1);
         KafkaSourceTestEnv.produceToKafka(
                 Arrays.asList(
-                        new ProducerRecord<>(topic, 0, 1L, "key0", 0),
-                        new ProducerRecord<>(topic, 0, 2L, "key1", 1),
-                        new ProducerRecord<>(topic, 0, 3L, "key2", 2)));
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 1L, "key0", 0),
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 2L, "key1", 1),
+                        new ProducerRecord<>(topic, 0, currentTimestamp + 3L, "key2", 2)));
 
         KafkaSource<PartitionAndValue> source =
                 KafkaSource.<PartitionAndValue>builder()
@@ -106,7 +109,9 @@ public class KafkaSourceITCase {
         stream.addSink(new DiscardingSink<>());
         JobExecutionResult result = env.execute();
 
-        assertEquals(Arrays.asList(1L, 2L, 3L), result.getAccumulatorResult("timestamp"));
+        assertEquals(
+                Arrays.asList(currentTimestamp + 1L, currentTimestamp + 2L, currentTimestamp + 3L),
+                result.getAccumulatorResult("timestamp"));
     }
 
     @Test

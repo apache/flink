@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -140,10 +141,39 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
         return records;
     }
 
+    /**
+     * For a given partition {@code TOPIC-PARTITION} the {@code i}-th records looks like following.
+     *
+     * <pre>{@code
+     * topic: TOPIC
+     * partition: PARTITION
+     * timestamp: null
+     * key: TOPIC-PARTITION
+     * value: i
+     * }</pre>
+     */
+    public static List<ProducerRecord<String, Integer>> getRecordsForPartitionWithoutTimestamp(
+            TopicPartition tp) {
+        List<ProducerRecord<String, Integer>> records = new ArrayList<>();
+        for (int i = 0; i < NUM_RECORDS_PER_PARTITION; i++) {
+            records.add(new ProducerRecord<>(tp.topic(), tp.partition(), null, tp.toString(), i));
+        }
+        return records;
+    }
+
     public static List<ProducerRecord<String, Integer>> getRecordsForTopic(String topic) {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
         for (TopicPartition tp : getPartitionsForTopic(topic)) {
             records.addAll(getRecordsForPartition(tp));
+        }
+        return records;
+    }
+
+    public static List<ProducerRecord<String, Integer>> getRecordsForTopicWithoutTimestamp(
+            String topic) {
+        List<ProducerRecord<String, Integer>> records = new ArrayList<>();
+        for (TopicPartition tp : getPartitionsForTopic(topic)) {
+            records.addAll(getRecordsForPartitionWithoutTimestamp(tp));
         }
         return records;
     }
@@ -219,10 +249,13 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
     }
 
     public static void setupTopic(
-            String topic, boolean setupEarliestOffsets, boolean setupCommittedOffsets)
+            String topic,
+            boolean setupEarliestOffsets,
+            boolean setupCommittedOffsets,
+            Function<String, List<ProducerRecord<String, Integer>>> testDataGenerator)
             throws Throwable {
         createTestTopic(topic);
-        produceToKafka(getRecordsForTopic(topic));
+        produceToKafka(testDataGenerator.apply(topic));
         if (setupEarliestOffsets) {
             setupEarliestOffsets(topic);
         }
