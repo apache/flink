@@ -34,7 +34,7 @@ under the License.
 
 ### `ParameterTool` 读取配置值
 
-`ParameterTool` 已经定义好了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易地与你的配置集成在一起。
+`ParameterTool` 定义了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易地与你的配置集成在一起。
 
 
 #### 配置值来自 `.properties` 文件
@@ -105,11 +105,11 @@ DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(paramete
 
 然后在函数内使用它以获取命令行的传递的参数。
 
-#### 全局注册参数
+#### 注册全局参数
 
 从 JobManager web 界面和用户定义的所有函数中可以以配置值的方式访问在 `ExecutionConfig` 中注册的全局作业参数。
 
-在全局注册参数：
+注册全局参数：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
