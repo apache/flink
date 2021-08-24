@@ -238,8 +238,8 @@ final class PythonEnvUtils {
                 };
         try {
             Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
-        } catch (IOException e) {
-            LOG.error("Gets pyflink dependent libs failed.", e);
+        } catch (Throwable t) {
+            // ignore, this may occur when executing `flink run` using the PyFlink Python package.
         }
         return libFiles;
     }
