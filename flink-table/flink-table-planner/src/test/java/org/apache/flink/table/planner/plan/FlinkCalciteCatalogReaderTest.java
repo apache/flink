@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.utils.TestTableSource;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.config.CalciteConnectionProperty;
@@ -85,9 +86,9 @@ public class FlinkCalciteCatalogReaderTest {
         CatalogSchemaTable mockTable =
                 new CatalogSchemaTable(
                         ObjectIdentifier.of("a", "b", "c"),
-                        CatalogManager.TableLookupResult.permanent(resolvedCatalogTable),
+                        CatalogManager.TableLookupResult.permanent(
+                                CatalogManagerMocks.createEmptyCatalog(), resolvedCatalogTable),
                         FlinkStatistic.UNKNOWN(),
-                        null,
                         true);
 
         rootSchemaPlus.add(tableMockName, mockTable);

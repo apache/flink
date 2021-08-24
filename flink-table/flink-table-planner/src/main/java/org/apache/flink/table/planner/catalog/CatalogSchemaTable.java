@@ -70,7 +70,6 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
     private final TableLookupResult lookupResult;
     private final FlinkStatistic statistic;
     private final boolean isStreamingMode;
-    private final Catalog catalog;
 
     // ~ Constructors -----------------------------------------------------------
 
@@ -80,26 +79,23 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
      * @param tableIdentifier Table identifier
      * @param lookupResult A result of catalog lookup
      * @param statistic Table statistics
-     * @param catalog The catalog which the schema table belongs to
      * @param isStreaming If the table is for streaming mode
      */
     public CatalogSchemaTable(
             ObjectIdentifier tableIdentifier,
             TableLookupResult lookupResult,
             FlinkStatistic statistic,
-            Catalog catalog,
             boolean isStreaming) {
         this.tableIdentifier = tableIdentifier;
         this.lookupResult = lookupResult;
         this.statistic = statistic;
-        this.catalog = catalog;
         this.isStreamingMode = isStreaming;
     }
 
     // ~ Methods ----------------------------------------------------------------
 
-    public Catalog getCatalog() {
-        return catalog;
+    public Optional<Catalog> getCatalog() {
+        return lookupResult.getCatalog();
     }
 
     public ObjectIdentifier getTableIdentifier() {

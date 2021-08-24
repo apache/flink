@@ -60,7 +60,7 @@ public class CatalogCalciteSchema extends FlinkSchema {
     public Schema getSubSchema(String schemaName) {
         if (catalogManager.schemaExists(catalogName, schemaName)) {
             return new DatabaseCalciteSchema(
-                    schemaName, catalogName, catalogManager, isStreamingMode);
+                    catalogName, schemaName, catalogManager, isStreamingMode);
         } else {
             return null;
         }
