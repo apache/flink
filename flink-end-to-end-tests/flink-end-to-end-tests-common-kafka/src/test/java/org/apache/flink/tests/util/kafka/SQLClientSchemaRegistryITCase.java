@@ -78,13 +78,10 @@ public class SQLClientSchemaRegistryITCase {
 
     @ClassRule
     private static final KafkaContainer kafka =
-            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA)) {
-                @Override
-                protected void doStart() {
-                    super.doStart();
-                    this.followOutput(LOG_CONSUMER);
-                }
-            }.withNetwork(network).withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
+            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
+                    .withNetwork(network)
+                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
+                    .withLogConsumer(LOG_CONSUMER);
 
     @ClassRule
     private static final SchemaRegistryContainer registry =
