@@ -8,11 +8,20 @@ https://flink.apache.org/ is also generated from the files found here.
 
 ### Build the site locally
 
-Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
-system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
+Building the site requires Hugo. You can install Hugo locally or use a Docker image to build the site.
+To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
 
 From the directory of this module (`docs`):
 
+Using Hugo Docker image:
+```
+git submodule update --init --recursive
+docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
+```
+Local Hugo installation:
+
+Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
+system.
 ```sh
 ./build_docs.sh
 ```
