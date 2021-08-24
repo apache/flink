@@ -94,25 +94,25 @@ public class JobManagerSharedServices {
      * @throws Exception The first Exception encountered during shutdown.
      */
     public void shutdown() throws Exception {
-        Throwable firstException = null;
+        Throwable exception = null;
 
         try {
             scheduledExecutorService.shutdownNow();
         } catch (Throwable t) {
-            firstException = t;
+            exception = t;
         }
 
         try {
             shuffleMaster.close();
         } catch (Throwable t) {
-            firstException = firstException == null ? t : firstException;
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
 
         libraryCacheManager.shutdown();
 
-        if (firstException != null) {
+        if (exception != null) {
             ExceptionUtils.rethrowException(
-                    firstException, "Error while shutting down JobManager services");
+                    exception, "Error while shutting down JobManager services");
         }
     }
 
