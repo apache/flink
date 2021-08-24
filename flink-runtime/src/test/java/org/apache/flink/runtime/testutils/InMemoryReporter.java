@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
@@ -42,6 +44,8 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -61,17 +65,18 @@ import java.util.stream.Stream;
 @Experimental
 @ThreadSafe
 public class InMemoryReporter implements MetricReporter {
-    private static final ThreadLocal<InMemoryReporter> REPORTERS =
-            ThreadLocal.withInitial(InMemoryReporter::new);
-
-    static InMemoryReporter getInstance() {
-        return REPORTERS.get();
-    }
-
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryReporter.class);
+    private static final String ID = "ID";
+    private static final Map<UUID, InMemoryReporter> REPORTERS = new ConcurrentHashMap<>();
 
     private final Map<MetricGroup, Map<String, Metric>> metrics = new HashMap<>();
     private final Set<MetricGroup> removedGroups = new HashSet<>();
+    private final UUID id;
+
+    InMemoryReporter() {
+        this.id = UUID.randomUUID();
+        REPORTERS.put(id, this);
+    }
 
     @Override
     public void open(MetricConfig config) {}
@@ -80,7 +85,7 @@ public class InMemoryReporter implements MetricReporter {
     public void close() {
         synchronized (this) {
             metrics.clear();
-            REPORTERS.remove();
+            REPORTERS.remove(id);
         }
     }
 
@@ -209,11 +214,27 @@ public class InMemoryReporter implements MetricReporter {
                 : group;
     }
 
+    public void addToConfiguration(Configuration configuration) {
+        configuration.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX
+                        + "mini_cluster_resource_reporter."
+                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                InMemoryReporter.Factory.class.getName());
+        configuration.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX + "mini_cluster_resource_reporter." + ID,
+                id.toString());
+    }
+
     /** The factory for the {@link InMemoryReporter}. */
     public static class Factory implements MetricReporterFactory {
+
         @Override
         public MetricReporter createMetricReporter(Properties properties) {
-            return REPORTERS.get();
+            String id = properties.getProperty(ID);
+            checkState(
+                    id != null,
+                    "Reporter id not found. Did you use InMemoryReporter#addConfiguration?");
+            return REPORTERS.get(UUID.fromString(id));
         }
     }
 }

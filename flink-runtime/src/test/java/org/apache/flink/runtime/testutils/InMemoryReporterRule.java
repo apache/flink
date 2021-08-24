@@ -41,13 +41,15 @@ import org.apache.flink.util.ExternalResource;
  */
 @Experimental
 public class InMemoryReporterRule implements ExternalResource {
-    private final InMemoryReporter inMemoryReporter = InMemoryReporter.getInstance();
+    private final InMemoryReporter inMemoryReporter;
 
-    public static InMemoryReporterRule create() {
-        return new InMemoryReporterRule();
+    public static InMemoryReporterRule fromMiniCluster(MiniClusterResource miniClusterResource) {
+        return new InMemoryReporterRule(miniClusterResource.getReporter());
     }
 
-    private InMemoryReporterRule() {}
+    private InMemoryReporterRule(InMemoryReporter inMemoryReporter) {
+        this.inMemoryReporter = inMemoryReporter;
+    }
 
     public InMemoryReporter getReporter() {
         return inMemoryReporter;

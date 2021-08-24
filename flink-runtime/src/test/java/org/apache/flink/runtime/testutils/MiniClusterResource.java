@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -63,6 +62,8 @@ public class MiniClusterResource extends ExternalResource {
 
     private UnmodifiableConfiguration restClusterClientConfig;
 
+    private final InMemoryReporter reporter = new InMemoryReporter();
+
     public MiniClusterResource(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
         this.miniClusterResourceConfiguration =
@@ -83,6 +84,10 @@ public class MiniClusterResource extends ExternalResource {
 
     public URI getRestAddres() {
         return miniCluster.getRestAddress().join();
+    }
+
+    InMemoryReporter getReporter() {
+        return reporter;
     }
 
     @Override
@@ -172,11 +177,7 @@ public class MiniClusterResource extends ExternalResource {
                 new Configuration(miniClusterResourceConfiguration.getConfiguration());
         configuration.setString(
                 CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
-        configuration.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "mini_cluster_resource_reporter."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
-                InMemoryReporter.Factory.class.getName());
+        reporter.addToConfiguration(configuration);
 
         // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
         // enabled this by default

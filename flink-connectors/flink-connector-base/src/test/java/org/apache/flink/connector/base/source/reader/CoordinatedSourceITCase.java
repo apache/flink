@@ -72,7 +72,10 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
     // this basically is the time a build is allowed to be frozen before the test fails
     private static final long WATERMARK_EPSILON = Duration.ofHours(6).toMillis();
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    @Rule public final InMemoryReporterRule inMemoryReporter = InMemoryReporterRule.create();
+
+    @Rule
+    public final InMemoryReporterRule inMemoryReporter =
+            InMemoryReporterRule.fromMiniCluster(miniClusterResource);
 
     @Test
     public void testMetricsWithTimestamp() throws Exception {
