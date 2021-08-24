@@ -588,6 +588,48 @@ public class PythonOperatorChainingOptimizerTest {
                 "f1");
     }
 
+    @Test
+    public void testTransformationWithMultipleOutputs() {
+        PythonProcessOperator<?, ?> processOperator1 =
+                createProcessOperator("f1", Types.STRING(), Types.LONG());
+        PythonProcessOperator<?, ?> processOperator2 =
+                createProcessOperator("f2", Types.STRING(), Types.LONG());
+        PythonProcessOperator<?, ?> processOperator3 =
+                createProcessOperator("f3", Types.LONG(), Types.INT());
+
+        Transformation<?> sourceTransformation = mock(SourceTransformation.class);
+        Transformation<?> processTransformation1 =
+                new OneInputTransformation(
+                        sourceTransformation,
+                        "process",
+                        processOperator1,
+                        processOperator1.getProducedType(),
+                        2);
+        Transformation<?> processTransformation2 =
+                new OneInputTransformation(
+                        processTransformation1,
+                        "process",
+                        processOperator2,
+                        processOperator2.getProducedType(),
+                        2);
+        Transformation<?> processTransformation3 =
+                new OneInputTransformation(
+                        processTransformation1,
+                        "process",
+                        processOperator3,
+                        processOperator3.getProducedType(),
+                        2);
+
+        List<Transformation<?>> transformations = new ArrayList<>();
+        transformations.add(processTransformation2);
+        transformations.add(processTransformation3);
+
+        List<Transformation<?>> optimized =
+                PythonOperatorChainingOptimizer.optimize(transformations);
+        // no chaining optimization occurred
+        assertEquals(4, optimized.size());
+    }
+
     // ----------------------- Utility Methods -----------------------
 
     private void validateChainedPythonFunctions(
