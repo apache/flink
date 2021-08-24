@@ -35,9 +35,9 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,12 +50,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A {@link MetricReporter} implementation that makes all reported metrics available for tests.
- * Metrics remain registered even after the job finishes for easier assertions.
  *
- * <p>This class can only be accessed through {@link InMemoryReporterRule#getReporter()} to ensure
- * that test cases are properly isolated.
+ * <p>By default, metrics in the {@link InMemoryReporter} follow the general life-cycle of metrics
+ * in a {@link org.apache.flink.runtime.metrics.util.TestReporter}; that is, task metrics will be
+ * removed as soon as the task finishes etc. By using {@link #createWithRetainedMetrics()}, these
+ * metrics will only be retained until the cluster is closed.
  *
  * <p>Note that at this time, there is not a strong guarantee that metrics from one job in test case
  * A cannot spill over to a job from test case B if both test cases use the same minicluster - even
@@ -70,12 +73,22 @@ public class InMemoryReporter implements MetricReporter {
     private static final Map<UUID, InMemoryReporter> REPORTERS = new ConcurrentHashMap<>();
 
     private final Map<MetricGroup, Map<String, Metric>> metrics = new HashMap<>();
-    private final Set<MetricGroup> removedGroups = new HashSet<>();
     private final UUID id;
 
-    InMemoryReporter() {
+    private final boolean retainMetrics;
+
+    InMemoryReporter(boolean retainMetrics) {
+        this.retainMetrics = retainMetrics;
         this.id = UUID.randomUUID();
         REPORTERS.put(id, this);
+    }
+
+    public static InMemoryReporter create() {
+        return new InMemoryReporter(false);
+    }
+
+    public static InMemoryReporter createWithRetainedMetrics() {
+        return new InMemoryReporter(true);
     }
 
     @Override
@@ -86,13 +99,6 @@ public class InMemoryReporter implements MetricReporter {
         synchronized (this) {
             metrics.clear();
             REPORTERS.remove(id);
-        }
-    }
-
-    void applyRemovals() {
-        synchronized (this) {
-            metrics.keySet().removeAll(removedGroups);
-            removedGroups.clear();
         }
     }
 
@@ -113,7 +119,7 @@ public class InMemoryReporter implements MetricReporter {
     public Map<String, Metric> getMetricsByGroup(MetricGroup metricGroup) {
         synchronized (this) {
             // create a copy of the inner Map to avoid concurrent modifications
-            return new HashMap<>(metrics.get(metricGroup));
+            return new HashMap<>(metrics.getOrDefault(metricGroup, Collections.emptyMap()));
         }
     }
 
@@ -149,17 +155,19 @@ public class InMemoryReporter implements MetricReporter {
                     .filter(
                             g ->
                                     g instanceof OperatorMetricGroup
-                                            && pattern.matcher(
-                                                            g.getScopeComponents()[
-                                                                    g.getScopeComponents().length
-                                                                            - 2])
-                                                    .find())
+                                            && pattern.matcher(getOperatorName(g)).find())
                     .map(OperatorMetricGroup.class::cast)
-                    .sorted(
-                            Comparator.comparing(
-                                    g -> g.getScopeComponents()[g.getScopeComponents().length - 1]))
+                    .sorted(Comparator.comparing(this::getSubtaskId))
                     .collect(Collectors.toList());
         }
+    }
+
+    private String getSubtaskId(OperatorMetricGroup g) {
+        return g.getScopeComponents()[g.getScopeComponents().length - 1];
+    }
+
+    private String getOperatorName(MetricGroup g) {
+        return g.getScopeComponents()[g.getScopeComponents().length - 2];
     }
 
     @Override
@@ -173,8 +181,17 @@ public class InMemoryReporter implements MetricReporter {
 
     @Override
     public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-        synchronized (this) {
-            removedGroups.add(unwrap(group));
+        if (!retainMetrics) {
+            synchronized (this) {
+                MetricGroup metricGroup = unwrap(group);
+                Map<String, Metric> registeredMetrics = metrics.get(metricGroup);
+                if (registeredMetrics != null) {
+                    registeredMetrics.remove(metricName);
+                    if (registeredMetrics.isEmpty()) {
+                        metrics.remove(metricGroup);
+                    }
+                }
+            }
         }
     }
 
