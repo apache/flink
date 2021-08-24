@@ -75,7 +75,7 @@ import java.io.Serializable;
  *
  *          if (context.isRestored()) {
  *              for (Long count : this.checkpointedCount.get()) {
- *                  this.count = count;
+ *                  this.count += count;
  *              }
  *          }
  *      }
