@@ -162,7 +162,7 @@ completion of that savepoint, they will finish by calling their `cancel()` metho
 
 ```bash
 $ ./bin/flink stop \
-      --savepointPath /tmp-flink-savepoints \
+      --savepointPath /tmp/flink-savepoints \
       $JOB_ID
 ```
 ```
