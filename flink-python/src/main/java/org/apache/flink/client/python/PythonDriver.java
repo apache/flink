@@ -108,15 +108,18 @@ public final class PythonDriver {
             LOG.info(
                     "--------------------------- Python Process Started --------------------------");
             // print the python process output to stdout and log file
+            final StringBuilder sb = new StringBuilder();
             while (true) {
                 String line = in.readLine();
                 if (line == null) {
                     break;
                 } else {
                     System.out.println(line);
-                    LOG.info(line);
+                    sb.append(line);
+                    sb.append("\n");
                 }
             }
+            LOG.info(sb.toString());
             int exitCode = pythonProcess.waitFor();
             LOG.info(
                     "--------------------------- Python Process Exited ---------------------------");
