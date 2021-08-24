@@ -62,8 +62,6 @@ public class MiniClusterResource extends ExternalResource {
 
     private UnmodifiableConfiguration restClusterClientConfig;
 
-    private final InMemoryReporter reporter = new InMemoryReporter();
-
     public MiniClusterResource(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
         this.miniClusterResourceConfiguration =
@@ -84,10 +82,6 @@ public class MiniClusterResource extends ExternalResource {
 
     public URI getRestAddres() {
         return miniCluster.getRestAddress().join();
-    }
-
-    InMemoryReporter getReporter() {
-        return reporter;
     }
 
     @Override
@@ -177,7 +171,6 @@ public class MiniClusterResource extends ExternalResource {
                 new Configuration(miniClusterResourceConfiguration.getConfiguration());
         configuration.setString(
                 CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
-        reporter.addToConfiguration(configuration);
 
         // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
         // enabled this by default
