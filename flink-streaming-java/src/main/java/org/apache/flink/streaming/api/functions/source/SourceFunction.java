@@ -20,9 +20,10 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.TimestampAssigner;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.io.Serializable;
@@ -87,13 +88,11 @@ import java.io.Serializable;
  *
  * <h3>Timestamps and watermarks:</h3>
  *
- * <p>Sources may assign timestamps to elements and may manually emit watermarks. However, these are
- * only interpreted if the streaming program runs on {@link TimeCharacteristic#EventTime}. On other
- * time characteristics ({@link TimeCharacteristic#IngestionTime} and {@link
- * TimeCharacteristic#ProcessingTime}), the watermarks from the source function are ignored.
+ * <p>Sources may assign timestamps to elements and may manually emit watermarks via the methods
+ * {@link SourceContext#collectWithTimestamp(Object, long)} and {@link
+ * SourceContext#emitWatermark(Watermark)}.
  *
  * @param <T> The type of the elements produced by this source.
- * @see org.apache.flink.streaming.api.TimeCharacteristic
  */
 @Public
 public interface SourceFunction<T> extends Function, Serializable {
@@ -183,39 +182,18 @@ public interface SourceFunction<T> extends Function, Serializable {
          * Emits one element from the source, without attaching a timestamp. In most cases, this is
          * the default way of emitting elements.
          *
-         * <p>The timestamp that the element will get assigned depends on the time characteristic of
-         * the streaming program:
-         *
-         * <ul>
-         *   <li>On {@link TimeCharacteristic#ProcessingTime}, the element has no timestamp.
-         *   <li>On {@link TimeCharacteristic#IngestionTime}, the element gets the system's current
-         *       time as the timestamp.
-         *   <li>On {@link TimeCharacteristic#EventTime}, the element will have no timestamp
-         *       initially. It needs to get a timestamp (via a {@link TimestampAssigner}) before any
-         *       time-dependent operation (like time windows).
-         * </ul>
+         * <p>The element will have no timestamp initially. If timestamps and watermarks are
+         * required, for example for event-time windows, timers, or joins, then you need to assign a
+         * timestamp via {@link DataStream#assignTimestampsAndWatermarks(WatermarkStrategy)} and set
+         * a strategy that assigns timestamps (for example using {@link
+         * WatermarkStrategy#withTimestampAssigner(TimestampAssignerSupplier)}).
          *
          * @param element The element to emit
          */
         void collect(T element);
 
         /**
-         * Emits one element from the source, and attaches the given timestamp. This method is
-         * relevant for programs using {@link TimeCharacteristic#EventTime}, where the sources
-         * assign timestamps themselves, rather than relying on a {@link TimestampAssigner} on the
-         * stream.
-         *
-         * <p>On certain time characteristics, this timestamp may be ignored or overwritten. This
-         * allows programs to switch between the different time characteristics and behaviors
-         * without changing the code of the source functions.
-         *
-         * <ul>
-         *   <li>On {@link TimeCharacteristic#ProcessingTime}, the timestamp will be ignored,
-         *       because processing time never works with element timestamps.
-         *   <li>On {@link TimeCharacteristic#IngestionTime}, the timestamp is overwritten with the
-         *       system's current time, to realize proper ingestion time semantics.
-         *   <li>On {@link TimeCharacteristic#EventTime}, the timestamp will be used.
-         * </ul>
+         * Emits one element from the source, and attaches the given timestamp.
          *
          * @param element The element to emit
          * @param timestamp The timestamp in milliseconds since the Epoch
@@ -228,11 +206,6 @@ public interface SourceFunction<T> extends Function, Serializable {
          * elements with a timestamp {@code t' <= t} will occur any more. If further such elements
          * will be emitted, those elements are considered <i>late</i>.
          *
-         * <p>This method is only relevant when running on {@link TimeCharacteristic#EventTime}. On
-         * {@link TimeCharacteristic#ProcessingTime},Watermarks will be ignored. On {@link
-         * TimeCharacteristic#IngestionTime}, the Watermarks will be replaced by the automatic
-         * ingestion time watermarks.
-         *
          * @param mark The Watermark to emit
          */
         @PublicEvolving
@@ -240,10 +213,7 @@ public interface SourceFunction<T> extends Function, Serializable {
 
         /**
          * Marks the source to be temporarily idle. This tells the system that this source will
-         * temporarily stop emitting records and watermarks for an indefinite amount of time. This
-         * is only relevant when running on {@link TimeCharacteristic#IngestionTime} and {@link
-         * TimeCharacteristic#EventTime}, allowing downstream tasks to advance their watermarks
-         * without the need to wait for watermarks from this source while it is idle.
+         * temporarily stop emitting records and watermarks for an indefinite amount of time.
          *
          * <p>Source functions should make a best effort to call this method as soon as they
          * acknowledge themselves to be idle. The system will consider the source to resume activity
