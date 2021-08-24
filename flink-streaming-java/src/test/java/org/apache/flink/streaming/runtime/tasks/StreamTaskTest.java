@@ -160,6 +160,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -2275,6 +2276,11 @@ public class StreamTaskTest extends TestLogger {
                     @Override
                     public boolean isRestored() {
                         return controller.isRestored();
+                    }
+
+                    @Override
+                    public OptionalLong getRestoredCheckpointId() {
+                        return controller.getRestoredCheckpointId();
                     }
 
                     @Override

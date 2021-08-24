@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -1517,6 +1518,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         @Override
         public boolean isRestored() {
             return isRestored;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return isRestored ? OptionalLong.of(1L) : OptionalLong.empty();
         }
 
         @Override

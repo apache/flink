@@ -62,6 +62,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -106,10 +107,10 @@ public class StreamOperatorStateHandler {
                 context.rawOperatorStateInputs();
 
         try {
+            OptionalLong checkpointId = context.getRestoredCheckpointId();
             StateInitializationContext initializationContext =
                     new StateInitializationContextImpl(
-                            context.isRestored(), // information whether we restore or start for
-                            // the first time
+                            checkpointId.isPresent() ? checkpointId.getAsLong() : null,
                             operatorStateBackend, // access to operator state backend
                             keyedStateStore, // access to keyed state backend
                             keyedStateInputs, // access to keyed state stream

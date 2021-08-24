@@ -356,7 +356,7 @@ public class Execution
      *
      * @param taskRestore information to restore the state
      */
-    public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
+    public void setInitialState(JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
     }
 
