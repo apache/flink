@@ -26,10 +26,11 @@ import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -57,21 +58,35 @@ import java.util.function.Supplier;
  */
 public class KafkaSink<IN> implements Sink<IN, KafkaCommittable, KafkaWriterState, Void> {
 
-    private final DeliveryGuarantee deliveryGuarantee;
+    @FunctionalInterface
+    interface CommitterFactory
+            extends Function<Properties, Committer<KafkaCommittable>>, Serializable {}
 
-    private final KafkaRecordSerializationSchema<IN> recordSerializer;
+    static class DefaultCommitterFactory implements CommitterFactory {
+
+        @Override
+        public Committer<KafkaCommittable> apply(Properties properties) {
+            return new KafkaCommitter(properties);
+        }
+    }
+
+    private final DeliveryGuarantee deliveryGuarantee;
     private final Properties kafkaProducerConfig;
     private final String transactionalIdPrefix;
+    private final KafkaRecordSerializationSchema<IN> recordSerializer;
+    private final CommitterFactory committerFactory;
 
     KafkaSink(
             DeliveryGuarantee deliveryGuarantee,
             Properties kafkaProducerConfig,
             String transactionalIdPrefix,
-            KafkaRecordSerializationSchema<IN> recordSerializer) {
+            KafkaRecordSerializationSchema<IN> recordSerializer,
+            CommitterFactory committerFactory) {
         this.deliveryGuarantee = deliveryGuarantee;
         this.kafkaProducerConfig = kafkaProducerConfig;
         this.transactionalIdPrefix = transactionalIdPrefix;
         this.recordSerializer = recordSerializer;
+        this.committerFactory = committerFactory;
     }
 
     /**
@@ -86,7 +101,7 @@ public class KafkaSink<IN> implements Sink<IN, KafkaCommittable, KafkaWriterStat
 
     @Override
     public SinkWriter<IN, KafkaCommittable, KafkaWriterState> createWriter(
-            InitContext context, List<KafkaWriterState> states) throws IOException {
+            InitContext context, List<KafkaWriterState> states) {
         final Supplier<MetricGroup> metricGroupSupplier =
                 () -> context.metricGroup().addGroup("user");
         return new KafkaWriter<>(
@@ -101,13 +116,12 @@ public class KafkaSink<IN> implements Sink<IN, KafkaCommittable, KafkaWriterStat
     }
 
     @Override
-    public Optional<Committer<KafkaCommittable>> createCommitter() throws IOException {
-        return Optional.of(new KafkaCommitter(kafkaProducerConfig));
+    public Optional<Committer<KafkaCommittable>> createCommitter() {
+        return Optional.of(committerFactory.apply(kafkaProducerConfig));
     }
 
     @Override
-    public Optional<GlobalCommitter<KafkaCommittable, Void>> createGlobalCommitter()
-            throws IOException {
+    public Optional<GlobalCommitter<KafkaCommittable, Void>> createGlobalCommitter() {
         return Optional.empty();
     }
 

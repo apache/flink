@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.connector.base.DeliveryGuarantee;
@@ -64,6 +65,7 @@ public class KafkaSinkBuilder<IN> {
 
     private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.NONE;
     private String transactionalIdPrefix = "kafka-sink";
+    private KafkaSink.CommitterFactory committerFactory = new KafkaSink.DefaultCommitterFactory();
 
     private Properties kafkaProducerConfig;
     private KafkaRecordSerializationSchema<IN> recordSerializer;
@@ -177,6 +179,12 @@ public class KafkaSinkBuilder<IN> {
         return this;
     }
 
+    @VisibleForTesting
+    KafkaSinkBuilder<IN> setCommitterFactory(KafkaSink.CommitterFactory committerFactory) {
+        this.committerFactory = checkNotNull(committerFactory, "committerFactory");
+        return this;
+    }
+
     /**
      * Constructs the {@link KafkaSink} with the configured properties.
      *
@@ -195,6 +203,7 @@ public class KafkaSinkBuilder<IN> {
                 deliveryGuarantee,
                 kafkaProducerConfig,
                 transactionalIdPrefix,
-                checkNotNull(recordSerializer, "recordSerializer"));
+                checkNotNull(recordSerializer, "recordSerializer"),
+                committerFactory);
     }
 }

@@ -22,9 +22,11 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
+import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -50,6 +52,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
+import com.google.common.collect.Iterables;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -259,6 +262,36 @@ public class KafkaSinkITCase extends TestLogger {
                 LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
                         .boxed()
                         .collect(Collectors.toList()));
+    }
+
+    @Test
+    public void testRecoveryAfterExceptionDuringTransactionCommit() throws Exception {
+        FailingCommitterFactory.reset();
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
+        env.enableCheckpointing(300L);
+
+        final Properties producerConfig = getKafkaClientConfiguration();
+        env.addSource(new InfiniteIntegerSource(emittedRecordsCount, emittedRecordsWithCheckpoint))
+                .sinkTo(
+                        new KafkaSinkBuilder<Long>()
+                                .setKafkaProducerConfig(producerConfig)
+                                .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
+                                .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
+                                .setRecordSerializer(new RecordSerializer(topic))
+                                .setTransactionalIdPrefix("kafka-sink-" + UUID.randomUUID())
+                                .setCommitterFactory(new FailingCommitterFactory())
+                                .build());
+        env.execute();
+
+        final List<ConsumerRecord<byte[], byte[]>> collectedRecords =
+                drainAllRecordsFromTopic(topic);
+
+        final long recordCount = emittedRecordsWithCheckpoint.get().get();
+        assertEquals(collectedRecords.size(), emittedRecordsWithCheckpoint.get().get());
+        assertEquals(
+                deserializeValues(collectedRecords),
+                LongStream.range(1, recordCount + 1).boxed().collect(Collectors.toList()));
+        checkProducerLeak();
     }
 
     private void executeWithMapper(
@@ -598,9 +631,10 @@ public class KafkaSinkITCase extends TestLogger {
         private final SharedReference<AtomicLong> emittedRecordsCount;
         private final SharedReference<AtomicLong> emittedRecordsWithCheckpoint;
 
+        private volatile boolean emitting = true;
         private volatile boolean running = true;
-        private volatile long temp;
-        private Object lock;
+
+        private transient ListState<Long> state;
 
         InfiniteIntegerSource(
                 SharedReference<AtomicLong> emittedRecordsCount,
@@ -611,10 +645,17 @@ public class KafkaSinkITCase extends TestLogger {
 
         @Override
         public void run(SourceContext<Long> ctx) throws Exception {
-            lock = ctx.getCheckpointLock();
             while (running) {
-                synchronized (lock) {
-                    ctx.collect(emittedRecordsCount.get().addAndGet(1));
+                synchronized (ctx.getCheckpointLock()) {
+                    if (emitting) {
+                        ctx.collect(emittedRecordsCount.get().addAndGet(1));
+                    } else {
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
                 }
             }
         }
@@ -626,14 +667,15 @@ public class KafkaSinkITCase extends TestLogger {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            emittedRecordsWithCheckpoint.get().set(temp);
+            emittedRecordsWithCheckpoint.get().set(Iterables.getLast(state.get()));
             running = false;
             LOG.info("notifyCheckpointCompleted {}", checkpointId);
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            temp = emittedRecordsCount.get().get();
+            emitting = false;
+            state.add(emittedRecordsCount.get().get());
             LOG.info(
                     "snapshotState, {}, {}",
                     context.getCheckpointId(),
@@ -641,6 +683,39 @@ public class KafkaSinkITCase extends TestLogger {
         }
 
         @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {}
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            state =
+                    context.getOperatorStateStore()
+                            .getListState(new ListStateDescriptor<>("test", Types.LONG));
+            @Nullable final Long last = Iterables.getLast(state.get(), null);
+            if (last != null) {
+                emittedRecordsCount.get().set(last);
+                emittedRecordsWithCheckpoint.get().set(last);
+            }
+        }
+    }
+
+    private static class FailingCommitterFactory implements KafkaSink.CommitterFactory {
+
+        private static final AtomicBoolean FAILED = new AtomicBoolean(false);
+
+        private static void reset() {
+            FAILED.set(false);
+        }
+
+        @Override
+        public Committer<KafkaCommittable> apply(Properties properties) {
+            return new KafkaCommitter(properties) {
+
+                @Override
+                public List<KafkaCommittable> commit(List<KafkaCommittable> committables)
+                        throws IOException {
+                    if (!FAILED.getAndSet(true)) {
+                        throw new IllegalStateException("Commit has failed.");
+                    }
+                    return super.commit(committables);
+                }
+            };
+        }
     }
 }
