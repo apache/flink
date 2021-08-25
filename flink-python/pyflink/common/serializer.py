@@ -22,6 +22,8 @@ from typing import TypeVar, Generic
 
 T = TypeVar('T')
 
+__all__ = ['TypeSerializer']
+
 
 class TypeSerializer(ABC, Generic[T]):
     """

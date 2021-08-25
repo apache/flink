@@ -40,9 +40,11 @@ class TypeInformation(object):
     type. For that reason, elements in lists and arrays are not assigned to individual fields, but
     the lists and arrays are considered to be one field in total, to account for different lengths
     in the arrays.
+
         a) Basic types are indivisible and are considered as a single field.
         b) Arrays and collections are one field.
         c) Tuples represents as many fields as the class has fields.
+
     To represent this properly, each type has an arity (the number of fields it contains directly),
     and a total number of fields (number of fields in the entire schema of this type, including
     nested types).

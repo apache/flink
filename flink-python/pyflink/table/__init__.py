@@ -17,54 +17,86 @@
 ################################################################################
 
 """
-Important classes of Flink Table API:
+Entry point classes of Flink Table API:
 
-    - :class:`pyflink.table.TableEnvironment`
-      Main entry point for :class:`Table` and SQL functionality
-    - :class:`pyflink.table.Table`
-      The core component of the Table API.
-      Use the methods of :class:`Table` to transform data.
-    - :class:`pyflink.table.TableConfig`
+    - :class:`TableEnvironment` and :class:`StreamTableEnvironment`
+      Main entry point for Flink Table API & SQL functionality. :class:`TableEnvironment` is used
+      in pure Table API & SQL jobs. Meanwhile, :class:`StreamTableEnvironment` needs to be used when
+      mixing use of Table API and DataStream API.
+    - :class:`Table`
+      The core component of the Table API. Use the methods of :class:`Table` to transform data.
+    - :class:`StatementSet`
+      The core component of the Table API. It's used to create jobs with multiple sinks.
+    - :class:`EnvironmentSettings`
+      Defines all the parameters used to initialize a :class:`TableEnvironment`.
+    - :class:`TableConfig`
       A config to define the runtime behavior of the Table API.
-      It is necessary when creating :class:`TableEnvironment`.
-    - :class:`pyflink.table.EnvironmentSettings`
-      Defines all parameters that initialize a table environment.
-    - :class:`pyflink.table.TableSource`
-      Defines an external data source as a table.
-    - :class:`pyflink.table.TableSink`
-      Specifies how to emit a table to an external system or location.
-    - :class:`pyflink.table.DataTypes`
-      Defines a list of data types available.
-    - :class:`pyflink.table.Row`
-      A row in a :class:`Table`.
-    - :class:`pyflink.table.Expression`
-      A column expression in a :class:`Table`.
-    - :class:`pyflink.table.window`
-      Helper classes for working with :class:`pyflink.table.window.GroupWindow`
-      (:class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`,
-      :class:`pyflink.table.window.Slide`) and :class:`pyflink.table.window.OverWindow` window
-      (:class:`pyflink.table.window.Over`).
-    - :class:`pyflink.table.descriptors`
-      Helper classes that describes DDL information, such as how to connect to another system,
-      the format of data, the schema of table, the event time attribute in the schema, etc.
-    - :class:`pyflink.table.catalog`
-      Responsible for reading and writing metadata such as database/table/views/UDFs
-      from a registered :class:`pyflink.table.catalog.Catalog`.
-    - :class:`pyflink.table.TableSchema`
-      Represents a table's structure with field names and data types.
-    - :class:`pyflink.table.FunctionContext`
+      It is used together with :class:`pyflink.datastream.StreamExecutionEnvironment` to create
+      :class:`StreamTableEnvironment`.
+
+Classes to define user-defined functions:
+
+    - :class:`ScalarFunction`
+      Base interface for user-defined scalar function.
+    - :class:`TableFunction`
+      Base interface for user-defined table function.
+    - :class:`AggregateFunction`
+      Base interface for user-defined aggregate function.
+    - :class:`TableAggregateFunction`
+      Base interface for user-defined table aggregate function.
+    - :class:`FunctionContext`
       Used to obtain global runtime information about the context in which the
       user-defined function is executed, such as the metric group, and global job parameters, etc.
-    - :class:`pyflink.table.ScalarFunction`
-      Base interface for user-defined scalar function.
-    - :class:`pyflink.table.TableFunction`
-      Base interface for user-defined table function.
-    - :class:`pyflink.table.AggregateFunction`
-      Base interface for user-defined aggregate function.
-    - :class:`pyflink.table.TableAggregateFunction`
-      Base interface for user-defined table aggregate function.
-    - :class:`pyflink.table.StatementSet`
-      Base interface accepts DML statements or Tables.
+
+Classes to define window:
+
+    - :class:`window.GroupWindow`
+      Group windows group rows based on time or row-count intervals. See :class:`window.Tumble`,
+      :class:`window.Session` and :class:`window.Slide` for more details on how to create a tumble
+      window, session window, hop window separately.
+    - :class:`window.OverWindow`
+      Over window aggregates compute an aggregate for each input row over a range
+      of its neighboring rows. See :class:`window.Over` for more details on how to create an over
+      window.
+
+Classes for catalog:
+
+    - :class:`catalog.Catalog`
+      Responsible for reading and writing metadata such as database/table/views/UDFs
+      from and to a catalog.
+    - :class:`catalog.HiveCatalog`
+      Responsible for reading and writing metadata stored in Hive.
+
+Classes to define source & sink:
+
+    It's recommended to use SQL DDL statements together with :func:`TableEnvironment.execute_sql`
+    to define source & sink.
+
+Classes for module:
+
+    - :class:`Module`
+      Defines a set of metadata, including functions, user defined types, operators, rules,
+      etc. Metadata from modules are regarded as built-in or system metadata that users can take
+      advantages of.
+    - :class:`module.HiveModule`
+      Implementation of :class:`Module` to provide Hive built-in metadata.
+
+Other important classes:
+
+    - :class:`DataTypes`
+      Defines a list of data types available in Table API.
+    - :class:`Expression`
+      Represents a logical tree for producing a computation result for a column in a :class:`Table`.
+      Might be literal values, function calls, or field references.
+    - :class:`TableSchema`
+      Represents a table's structure with field names and data types.
+    - :class:`SqlDialect`
+      Enumeration of valid SQL compatibility modes.
+    - :class:`ChangelogMode`
+      The set of changes contained in a changelog.
+    - :class:`ExplainDetail`
+      Defines the types of details for explain result.
+
 """
 from __future__ import absolute_import
 
@@ -90,40 +122,40 @@ from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, Ag
     TableAggregateFunction
 
 __all__ = [
-    'AggregateFunction',
+    'TableEnvironment',
     'BatchTableEnvironment',
-    'CsvTableSink',
-    'CsvTableSource',
-    'DataTypes',
-    'DataView',
+    'StreamTableEnvironment',
+    'Table',
+    'StatementSet',
     'EnvironmentSettings',
-    'ExplainDetail',
-    'Expression',
-    'FunctionContext',
-    'GroupWindowedTable',
+    'TableConfig',
     'GroupedTable',
+    'GroupWindowedTable',
+    'OverWindowedTable',
+    'WindowGroupedTable',
+    'ScalarFunction',
+    'TableFunction',
+    'AggregateFunction',
+    'TableAggregateFunction',
+    'FunctionContext',
+    'DataView',
     'ListView',
     'MapView',
     'Module',
     'ModuleEntry',
-    'OverWindowedTable',
-    'ResultKind',
+    'SqlDialect',
+    'DataTypes',
+    'UserDefinedType',
+    'Expression',
+    'TableSchema',
+    'TableResult',
     'Row',
     'RowKind',
-    'ScalarFunction',
-    'SqlDialect',
-    'StatementSet',
-    'StreamTableEnvironment',
-    'Table',
-    'TableConfig',
-    'TableEnvironment',
-    'TableFunction',
-    'TableResult',
-    'TableSchema',
-    'TableSink',
+    'ExplainDetail',
     'TableSource',
-    'TableAggregateFunction',
-    'UserDefinedType',
-    'WindowGroupedTable',
-    'WriteMode'
+    'TableSink',
+    'CsvTableSource',
+    'CsvTableSink',
+    'WriteMode',
+    'ResultKind'
 ]
