@@ -86,7 +86,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 DataStream<String> text = env.readTextFile("file:///path/to/file");
 ```
 
-这将为你生成一个 DataStream，然后你可以在上面应用转换来创建新的派生 DataStream。
+这将生成一个 DataStream，然后你可以在上面应用转换（transformation）来创建新的派生 DataStream。
 
 你可以调用 DataStream 上具有转换功能的方法来应用转换。例如，一个 map 的转换如下所示：
 
