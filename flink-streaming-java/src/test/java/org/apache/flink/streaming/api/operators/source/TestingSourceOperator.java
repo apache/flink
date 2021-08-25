@@ -95,6 +95,7 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;
         this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+        initSourceMetricGroup();
 
         // unchecked wrapping is okay to keep tests simpler
         try {

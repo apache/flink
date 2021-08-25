@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
@@ -211,14 +212,19 @@ public class StreamMultipleInputProcessorFactory {
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
-                WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput =
-                        operatorChain.getChainedSourceOutput(sourceInput);
+                OperatorChain.ChainedSource chainedSource =
+                        operatorChain.getChainedSource(sourceInput);
 
                 inputProcessors[i] =
                         new StreamOneInputProcessor(
                                 inputs[i],
                                 new StreamTaskSourceOutput(
-                                        chainedSourceOutput, inputWatermarkGauges[i]),
+                                        chainedSource.getSourceOutput(),
+                                        inputWatermarkGauges[i],
+                                        chainedSource
+                                                .getSourceTaskInput()
+                                                .getOperator()
+                                                .getSourceMetricGroup()),
                                 operatorChain);
             } else {
                 throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
@@ -285,8 +291,9 @@ public class StreamMultipleInputProcessorFactory {
 
         public StreamTaskSourceOutput(
                 WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput,
-                WatermarkGauge inputWatermarkGauge) {
-            super(chainedSourceOutput, new SimpleCounter(), inputWatermarkGauge);
+                WatermarkGauge inputWatermarkGauge,
+                InternalSourceReaderMetricGroup metricGroup) {
+            super(chainedSourceOutput, metricGroup, inputWatermarkGauge);
             this.chainedOutput = chainedSourceOutput;
         }
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -87,14 +88,13 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
             input = new StreamTaskSourceInput<>(sourceOperator, 0, 0);
         }
 
-        Counter numRecordsOut =
-                sourceOperator.getMetricGroup().getIOMetricGroup().getNumRecordsOutCounter();
-
         // The SourceOperatorStreamTask doesn't have any inputs, so there is no need for
         // a WatermarkGauge on the input.
         output =
-                new AsyncDataOutputToOutput<>(
-                        operatorChain.getMainOperatorOutput(), numRecordsOut, null);
+                new AsyncDataOutputToOutput<T>(
+                        operatorChain.getMainOperatorOutput(),
+                        sourceOperator.getSourceMetricGroup(),
+                        null);
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
 
@@ -174,22 +174,25 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     public static class AsyncDataOutputToOutput<T> implements DataOutput<T> {
 
         private final Output<StreamRecord<T>> output;
-        private final Counter numRecordsOut;
+        private final InternalSourceReaderMetricGroup metricGroup;
         @Nullable private final WatermarkGauge inputWatermarkGauge;
+        private final Counter numRecordsOut;
 
         public AsyncDataOutputToOutput(
                 Output<StreamRecord<T>> output,
-                Counter numRecordsOut,
+                InternalSourceReaderMetricGroup metricGroup,
                 @Nullable WatermarkGauge inputWatermarkGauge) {
 
             this.output = checkNotNull(output);
-            this.numRecordsOut = numRecordsOut;
+            this.numRecordsOut = metricGroup.getIOMetricGroup().getNumRecordsOutCounter();
             this.inputWatermarkGauge = inputWatermarkGauge;
+            this.metricGroup = metricGroup;
         }
 
         @Override
         public void emitRecord(StreamRecord<T> streamRecord) {
             numRecordsOut.inc();
+            metricGroup.recordEmitted(streamRecord.getTimestamp());
             output.collect(streamRecord);
         }
 
@@ -200,9 +203,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
         @Override
         public void emitWatermark(Watermark watermark) {
+            long watermarkTimestamp = watermark.getTimestamp();
             if (inputWatermarkGauge != null) {
-                inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+                inputWatermarkGauge.setCurrentWatermark(watermarkTimestamp);
             }
+            metricGroup.watermarkEmitted(watermarkTimestamp);
             output.emitWatermark(watermark);
         }
 
