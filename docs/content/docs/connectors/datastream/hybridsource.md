@@ -25,6 +25,10 @@ under the License.
 
 # Hybrid Source
 
+{{< hint info >}}
+This feature is available starting from release 1.13.3
+{{< /hint >}}
+
 `HybridSource` is a source that contains a list of concrete [sources]({{< ref "docs/dev/datastream/sources" >}}).
 It solves the problem of sequentially reading input from heterogeneous sources to produce a single input stream.
 
