@@ -46,7 +46,7 @@ DataStream API 得名于特殊的 `DataStream` 类，该类用于表示 Flink �
 
 `DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作（也叫作转换）处理它们。
 
-通过在 Flink 程序中添加 source，你可以创建一个初始化的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用 map、filter 等API方法把 `DataStream` 和派生的流连接在一起。
+你可以通过在 Flink 程序中添加 source 创建一个初始的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用 map、filter 等 API 方法把 `DataStream` 和派生的流连接在一起。
 
 <a name="anatomy-of-a-flink-program"></a>
 
