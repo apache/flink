@@ -26,11 +26,10 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalIntermediateTableScan, StreamPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalIntermediateTableScan, StreamPhysicalLegacyTableSourceScan, StreamPhysicalRel, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
@@ -40,7 +39,6 @@ import org.apache.calcite.rex.RexBuilder
 
 import java.util
 import java.util.Collections
-
 import scala.collection.JavaConversions._
 
 /**
@@ -85,12 +83,14 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       return sinkBlocks
     }
 
-    // infer updateAsRetraction property and miniBatchInterval property for all input blocks
+    // TODO FLINK-24048: Move changeLog inference out of optimizing phase
+    // infer modifyKind property for each blocks independently
+    sinkBlocks.foreach(b => optimizeBlock(b, isSinkBlock = true))
+    // infer and propagate updateKind and miniBatchInterval property for each blocks
     sinkBlocks.foreach { b =>
-      inferTraits(b, b.isUpdateBeforeRequired, b.getMiniBatchInterval, isSinkBlock = true)
+      propagateUpdateKindAndMiniBatchInterval(
+        b, b.isUpdateBeforeRequired, b.getMiniBatchInterval, isSinkBlock = true)
     }
-    // propagate updateAsRetraction property and miniBatchInterval property to all input blocks
-    sinkBlocks.foreach(propagateTraits(_, isSinkBlock = true))
     // clear the intermediate result
     sinkBlocks.foreach(resetIntermediateResult)
     // optimize recursively RelNodeBlock
@@ -184,102 +184,56 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   /**
-    * Infer UpdateAsRetraction property and MiniBatchInterval property for each block.
-    * NOTES: this method should not change the original RelNode tree.
-    *
-    * @param block              The [[RelNodeBlock]] instance.
-    * @param updateBeforeRequired True if UPDATE_BEFORE message is required for updates
-    * @param miniBatchInterval  mini-batch interval of the block.
-    * @param isSinkBlock        True if the given block is sink block.
-    */
-  private def inferTraits(
+   * Infer updateKind and MiniBatchInterval property for each block.
+   * Optimize order: from parent block to child blocks.
+   * NOTES: this method should not change the original RelNode tree.
+   *
+   * @param block              The [[RelNodeBlock]] instance.
+   * @param updateBeforeRequired True if UPDATE_BEFORE message is required for updates
+   * @param miniBatchInterval  mini-batch interval of the block.
+   * @param isSinkBlock        True if the given block is sink block.
+   */
+  private def propagateUpdateKindAndMiniBatchInterval(
       block: RelNodeBlock,
       updateBeforeRequired: Boolean,
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): Unit = {
+    val blockLogicalPlan = block.getPlan
+    // infer updateKind and miniBatchInterval with required trait
+    val optimizedPlan = optimizeTree(
+      blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock)
+    // propagate the inferred updateKind and miniBatchInterval to the child blocks
+    propagateTraits(optimizedPlan)
 
     block.children.foreach {
       child =>
-        if (child.getNewOutputNode.isEmpty) {
-          inferTraits(
-            child,
-            updateBeforeRequired = false,
-            miniBatchInterval = MiniBatchInterval.NONE,
-            isSinkBlock = false)
+        propagateUpdateKindAndMiniBatchInterval(
+          child,
+          updateBeforeRequired = child.isUpdateBeforeRequired,
+          miniBatchInterval = child.getMiniBatchInterval,
+          isSinkBlock = false)
+    }
+
+    def propagateTraits(rel: RelNode): Unit = rel match {
+      case _: StreamPhysicalDataStreamScan | _: StreamPhysicalIntermediateTableScan |
+           _: StreamPhysicalLegacyTableSourceScan | _: StreamPhysicalTableSourceScan =>
+        val scan = rel.asInstanceOf[TableScan]
+        val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
+        val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
+        val tableName = scan.getTable.getQualifiedName.mkString(".")
+        val inputBlocks = block.children.filter(b => tableName.equals(b.getOutputTableName))
+        Preconditions.checkArgument(inputBlocks.size <= 1)
+        if (inputBlocks.size == 1) {
+          val childBlock = inputBlocks.head
+          // propagate miniBatchInterval trait to child block
+          childBlock.setMiniBatchInterval(miniBatchIntervalTrait.getMiniBatchInterval)
+          // propagate updateKind trait to child block
+          val requireUB = updateKindTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
+          childBlock.setUpdateBeforeRequired(requireUB || childBlock.isUpdateBeforeRequired)
         }
+      case ser: StreamPhysicalRel => ser.getInputs.foreach(e => propagateTraits(e))
+      case _ => // do nothing
     }
-
-    val blockLogicalPlan = block.getPlan
-    blockLogicalPlan match {
-      case _: LegacySink | _: Sink =>
-        require(isSinkBlock)
-        val optimizedPlan = optimizeTree(
-          blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock = true)
-        block.setOptimizedPlan(optimizedPlan)
-
-      case o =>
-        val optimizedPlan = optimizeTree(
-          o, updateBeforeRequired, miniBatchInterval, isSinkBlock = isSinkBlock)
-        val name = createUniqueIntermediateRelTableName
-        val modifyKindSetTrait = optimizedPlan.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-        val intermediateRelTable = createIntermediateRelTable(
-          name,
-          optimizedPlan,
-          modifyKindSetTrait.modifyKindSet,
-          // use false for block trait inference and propagation
-          isUpdateBeforeRequired = false)
-        val newTableScan = wrapIntermediateRelTableToTableScan(intermediateRelTable, name)
-        block.setNewOutputNode(newTableScan)
-        block.setOutputTableName(name)
-        block.setOptimizedPlan(optimizedPlan)
-    }
-  }
-
-  /**
-    * Propagate updateBeforeRequired property and miniBatchInterval property to all input blocks.
-    *
-    * @param block The [[RelNodeBlock]] instance.
-    * @param isSinkBlock True if the given block is sink block.
-    */
-  private def propagateTraits(block: RelNodeBlock, isSinkBlock: Boolean): Unit = {
-
-    // process current block
-    def shipTraits(
-        rel: RelNode,
-        miniBatchInterval: MiniBatchInterval): Unit = {
-      rel match {
-        case _: StreamPhysicalDataStreamScan | _: StreamPhysicalIntermediateTableScan =>
-          val scan = rel.asInstanceOf[TableScan]
-          val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
-          val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
-          val tableName = scan.getTable.getQualifiedName.mkString(".")
-          val inputBlocks = block.children.filter(b => tableName.equals(b.getOutputTableName))
-          Preconditions.checkArgument(inputBlocks.size <= 1)
-          if (inputBlocks.size == 1) {
-            val mergedInterval = if (isSinkBlock) {
-              // traits of sinkBlock have already been
-              // initialized before first round of optimization.
-              miniBatchIntervalTrait.getMiniBatchInterval
-            } else {
-              FlinkRelOptUtil.mergeMiniBatchInterval(
-                miniBatchIntervalTrait.getMiniBatchInterval, miniBatchInterval)
-            }
-            val newInterval = FlinkRelOptUtil.mergeMiniBatchInterval(
-              inputBlocks.head.getMiniBatchInterval,mergedInterval)
-            inputBlocks.head.setMiniBatchInterval(newInterval)
-
-            if (updateKindTrait.updateKind == UpdateKind.BEFORE_AND_AFTER) {
-              inputBlocks.head.setUpdateBeforeRequired(true)
-            }
-          }
-        case ser: StreamPhysicalRel => ser.getInputs.foreach { e =>
-          shipTraits(e, miniBatchInterval)
-        }
-      }
-    }
-
-    shipTraits(block.getOptimizedPlan, block.getMiniBatchInterval)
-    block.children.foreach(propagateTraits(_, isSinkBlock = false))
   }
 
   /**
@@ -290,6 +244,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   private def resetIntermediateResult(block: RelNodeBlock): Unit = {
     block.setNewOutputNode(null)
     block.setOutputTableName(null)
+    block.setOptimizedPlan(null)
 
     block.children.foreach {
       child =>
