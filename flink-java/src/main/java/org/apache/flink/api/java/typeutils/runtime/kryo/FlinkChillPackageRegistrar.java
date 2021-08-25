@@ -51,11 +51,17 @@ import java.util.regex.Pattern;
  * <p>All registrations use a hard-coded ID which were determined at commit
  * 18f176ce86900fd4e932c73f3d138912355c6880.
  */
-public class FlinkChillPackageRegistrar {
+public class FlinkChillPackageRegistrar implements ChillSerializerRegistrar {
 
     private static final int FIRST_REGISTRATION_ID = 73;
 
-    public static void registerJavaTypes(Kryo kryo) {
+    @Override
+    public int getNextRegistrationId() {
+        return 85;
+    }
+
+    @Override
+    public void registerSerializers(Kryo kryo) {
         //noinspection ArraysAsListWithZeroOrOneArgument
         new RegistrationHelper(FIRST_REGISTRATION_ID, kryo)
                 .register(Arrays.asList("").getClass(), new ArraysAsListSerializer())
