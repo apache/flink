@@ -24,6 +24,7 @@ import org.apache.flink.formats.compress.extractor.DefaultExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -78,6 +79,7 @@ public class CompressionFactoryITCase extends AbstractTestBase {
                                         testPath,
                                         CompressWriters.forExtractor(new DefaultExtractor<String>())
                                                 .withHadoopCompression(TEST_CODEC_NAME))
+                                .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                                 .build());
 
         env.execute();
