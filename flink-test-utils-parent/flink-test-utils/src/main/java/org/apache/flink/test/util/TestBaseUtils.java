@@ -21,7 +21,6 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -48,21 +47,14 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertEquals;
@@ -76,14 +68,7 @@ public class TestBaseUtils extends TestLogger {
 
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
-    protected static final String TASK_MANAGER_MEMORY_SIZE = "80m";
-
     protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
-
-    protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
-
-    public static final FiniteDuration DEFAULT_TIMEOUT =
-            new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
     public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
@@ -468,30 +453,8 @@ public class TestBaseUtils extends TestLogger {
     //  Miscellaneous helper methods
     // --------------------------------------------------------------------------------------------
 
-    protected static Collection<Object[]> toParameterList(Configuration... testConfigs) {
-        ArrayList<Object[]> configs = new ArrayList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
-    protected static Collection<Object[]> toParameterList(List<Configuration> testConfigs) {
-        LinkedList<Object[]> configs = new LinkedList<>();
-        for (Configuration testConfig : testConfigs) {
-            Object[] c = {testConfig};
-            configs.add(c);
-        }
-        return configs;
-    }
-
     public static void setEnv(Map<String, String> newenv) {
         CommonTestUtils.setEnv(newenv);
-    }
-
-    private static ExecutionContext defaultExecutionContext() {
-        return ExecutionContext$.MODULE$.global();
     }
     // --------------------------------------------------------------------------------------------
     //  File helper methods
