@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -1321,9 +1320,6 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateViewWithDynamicTableOptions() {
-        tableConfig
-                .getConfiguration()
-                .setBoolean(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true);
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
