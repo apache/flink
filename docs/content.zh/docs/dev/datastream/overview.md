@@ -78,7 +78,7 @@ createRemoteEnvironment(String host, int port, String... jarFiles)
 
 通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果你在 IDE 中执行你的程序或将其作为一般的 Java 程序执行，那么它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})运行它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
 
-为了指定 data sources，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像读 CSV 文件一样，或使用任何第三方提供的 source。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
+为了指定 data sources，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像读 CSV 文件一样，或使用任何第三方提供的 source。如果你只是将一个文本文件作为一个行的序列来读取，那么可以使用：
 
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
