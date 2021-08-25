@@ -21,12 +21,10 @@ package org.apache.flink.connector.pulsar.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
 import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
@@ -40,8 +38,6 @@ import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeseri
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,11 +45,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static java.lang.Boolean.FALSE;
-import static org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel.RECURSIVE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.getOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
@@ -123,18 +117,16 @@ public final class PulsarSourceBuilder<OUT> {
     private final Configuration configuration;
     private PulsarSubscriber subscriber;
     private RangeGenerator rangeGenerator;
-    private StartCursor startCursor = StartCursor.defaultStartCursor();
-    private StopCursor stopCursor = StopCursor.defaultStopCursor();
+    private StartCursor startCursor;
+    private StopCursor stopCursor;
     private Boundedness boundedness;
     private PulsarDeserializationSchema<OUT> deserializationSchema;
-    private ConfigurationDataCustomizer<ClientConfigurationData> clientConfigurationCustomizer;
-    private ConfigurationDataCustomizer<ConsumerConfigurationData<byte[]>>
-            consumerConfigurationCustomizer;
 
     // private builder constructor.
     PulsarSourceBuilder() {
-        // The default configuration holder.
         this.configuration = new Configuration();
+        this.startCursor = StartCursor.defaultStartCursor();
+        this.stopCursor = StopCursor.defaultStopCursor();
     }
 
     /**
@@ -369,41 +361,6 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * {@link ClientConfigurationData} is created from {@link Properties}, but you can just using
-     * its setter method for programmatic update a config instance.
-     *
-     * @param consumer Modify the ClientConfigurationData instance in this consumer.
-     * @return this PulsarSourceBuilder.
-     */
-    public PulsarSourceBuilder<OUT> modifyClientConfig(Consumer<ClientConfigurationData> consumer) {
-        if (clientConfigurationCustomizer == null) {
-            this.clientConfigurationCustomizer = consumer::accept;
-        } else {
-            this.clientConfigurationCustomizer =
-                    clientConfigurationCustomizer.compose(consumer::accept);
-        }
-        return this;
-    }
-
-    /**
-     * {@link ConsumerConfigurationData} is created from {@link Properties}, but you can just using
-     * its setter method for programmatic update a config instance.
-     *
-     * @param consumer Modify the ConsumerConfigurationData instance in this consumer.
-     * @return this PulsarSourceBuilder.
-     */
-    public PulsarSourceBuilder<OUT> modifyConsumerConfig(
-            Consumer<ConsumerConfigurationData<byte[]>> consumer) {
-        if (consumerConfigurationCustomizer == null) {
-            this.consumerConfigurationCustomizer = consumer::accept;
-        } else {
-            this.consumerConfigurationCustomizer =
-                    consumerConfigurationCustomizer.compose(consumer::accept);
-        }
-        return this;
-    }
-
-    /**
      * Set an arbitrary property for the PulsarSource and PulsarConsumer. The valid keys can be
      * found in {@link PulsarSourceOptions}.
      *
@@ -531,14 +488,6 @@ public final class PulsarSourceBuilder<OUT> {
 
         checkNotNull(deserializationSchema, "deserializationSchema should be set.");
 
-        if (clientConfigurationCustomizer == null) {
-            this.clientConfigurationCustomizer = ConfigurationDataCustomizer.blankCustomizer();
-        }
-
-        if (consumerConfigurationCustomizer == null) {
-            this.consumerConfigurationCustomizer = ConfigurationDataCustomizer.blankCustomizer();
-        }
-
         // Enable transaction if the cursor auto commit is disabled for Key_Shared & Shared.
         if (FALSE.equals(configuration.get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE))
                 && (subscriptionType == SubscriptionType.Key_Shared
@@ -564,8 +513,6 @@ public final class PulsarSourceBuilder<OUT> {
         // Since these implementation could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
-        ClosureCleaner.clean(clientConfigurationCustomizer, RECURSIVE, true);
-        ClosureCleaner.clean(consumerConfigurationCustomizer, RECURSIVE, true);
 
         // Make the configuration unmodifiable.
         UnmodifiableConfiguration config = new UnmodifiableConfiguration(configuration);
@@ -577,9 +524,7 @@ public final class PulsarSourceBuilder<OUT> {
                 startCursor,
                 stopCursor,
                 boundedness,
-                deserializationSchema,
-                clientConfigurationCustomizer,
-                consumerConfigurationCustomizer);
+                deserializationSchema);
     }
 
     // ------------- private helpers  --------------

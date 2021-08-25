@@ -20,14 +20,12 @@ package org.apache.flink.connector.pulsar.common.utils;
 
 import org.apache.flink.annotation.Internal;
 
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.shade.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.pulsar.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.shade.com.fasterxml.jackson.databind.type.CollectionType;
 import org.apache.pulsar.shade.com.fasterxml.jackson.databind.type.MapType;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,19 +93,6 @@ public final class PulsarJsonUtils {
             return mapper.writeValueAsString(o);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
-        }
-    }
-
-    /**
-     * Pulsar's consumer builder use {@link ConsumerBuilder#loadConf(Map)} for user to customize
-     * their conf. We have to convert the configure instance into a common config map.
-     */
-    public static Map<String, Object> configMap(Object config) {
-        try {
-            String json = mapper.writeValueAsString(config);
-            return toMap(String.class, Object.class, json);
-        } catch (JsonProcessingException e) {
-            return Collections.emptyMap();
         }
     }
 }
