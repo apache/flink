@@ -37,7 +37,7 @@ under the License.
 Flink Kerberos 安全框架的主要目标如下：
 
 1. 在集群内使用 connector（例如 Kafka）时确保作业安全地访问数据；
-2. 对 zookeeper 进行身份认证（如果配置了 SASL）;
+2. 对 zookeeper 进行身份认证（如果配置了 SASL）；
 3. 对 Hadoop 组件进行身份认证（例如 HDFS，HBASE）。
 
 生产部署场景中，流式作业通常会运行很长一段时间（天、周、月级别的时间段），并且需要在作业的整个生命周期中对其进行身份认证以保护数据源。与 Hadoop delegation token 和 ticket 缓存项不同，Kerberos keytab 不会在该时间段内过期。
