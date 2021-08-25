@@ -211,7 +211,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     @Override
-    public void processBarrier(CheckpointBarrier barrier, InputChannelInfo channelInfo)
+    public void processBarrier(
+            CheckpointBarrier barrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
             throws IOException {
         long barrierId = barrier.getId();
         LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
@@ -237,7 +238,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         }
 
         checkCheckpointAlignedAndTransformState(
-                state -> state.barrierReceived(context, channelInfo, barrier));
+                state -> state.barrierReceived(context, channelInfo, barrier, !isRpcTriggered));
     }
 
     protected void checkCheckpointAlignedAndTransformState(

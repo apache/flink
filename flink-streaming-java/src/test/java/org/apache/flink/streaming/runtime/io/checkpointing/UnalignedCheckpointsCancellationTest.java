@@ -107,7 +107,8 @@ public class UnalignedCheckpointsCancellationTest {
                 unaligner.processCancellationBarrier(
                         (CancelCheckpointMarker) e, new InputChannelInfo(0, channel));
             } else if (e instanceof CheckpointBarrier) {
-                unaligner.processBarrier((CheckpointBarrier) e, new InputChannelInfo(0, channel));
+                unaligner.processBarrier(
+                        (CheckpointBarrier) e, new InputChannelInfo(0, channel), false);
             } else {
                 throw new IllegalArgumentException("unexpected event type: " + e);
             }

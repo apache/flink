@@ -1199,7 +1199,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         for (IndexedInputGate inputGate : getEnvironment().getAllInputGates()) {
             if (!inputGate.isFinished()) {
                 for (InputChannelInfo channelInfo : inputGate.getUnfinishedChannels()) {
-                    checkpointBarrierHandler.get().processBarrier(barrier, channelInfo);
+                    checkpointBarrierHandler.get().processBarrier(barrier, channelInfo, true);
                 }
             }
         }

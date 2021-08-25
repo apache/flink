@@ -91,7 +91,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     public void close() throws IOException {}
 
     public abstract void processBarrier(
-            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo) throws IOException;
+            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
+            throws IOException;
 
     public abstract void processBarrierAnnouncement(
             CheckpointBarrier announcedBarrier, int sequenceNumber, InputChannelInfo channelInfo)

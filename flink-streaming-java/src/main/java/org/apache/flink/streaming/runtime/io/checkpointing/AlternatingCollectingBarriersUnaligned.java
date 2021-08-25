@@ -61,11 +61,13 @@ final class AlternatingCollectingBarriersUnaligned implements BarrierHandlerStat
     public BarrierHandlerState barrierReceived(
             Controller controller,
             InputChannelInfo channelInfo,
-            CheckpointBarrier checkpointBarrier)
+            CheckpointBarrier checkpointBarrier,
+            boolean markChannelBlocked)
             throws CheckpointException, IOException {
         // we received an out of order aligned barrier, we should book keep this channel as blocked,
         // as it is being blocked by the credit-based network
-        if (!checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint()) {
+        if (markChannelBlocked
+                && !checkpointBarrier.getCheckpointOptions().isUnalignedCheckpoint()) {
             channelState.blockChannel(channelInfo);
         }
 

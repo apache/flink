@@ -90,7 +90,9 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         this.pendingCheckpoints = new ArrayDeque<>();
     }
 
-    public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo)
+    @Override
+    public void processBarrier(
+            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
             throws IOException {
         final long barrierId = receivedBarrier.getId();
 
