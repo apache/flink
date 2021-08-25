@@ -1051,7 +1051,7 @@ class PredefinedOptions(Enum):
 
 class CustomStateBackend(StateBackend):
     """
-    A wrapper of customized java state backend created from the provided `StateBackendFactory`.
+    A wrapper of customized java state backend.
     """
 
     def __init__(self, j_custom_state_backend):
