@@ -287,13 +287,13 @@ Here is an example invocation on the Bid table:
 
 ### SESSION
 
-The session windows groups elements by sessions of activity. Session windows do not overlap and do not have a fixed start and end time, in contrast to `TUMBLE` windows and `HOP` windows. Instead a session window closes when it does not receive elements for a certain period of time, i.e., when a gap of inactivity occurred.
+The session windows group elements by sessions of activity. Session windows do not overlap and do not have a fixed start and end time, in contrast to `TUMBLE` windows and `HOP` windows. Instead a session window closes when it does not receive elements for a certain period of time, i.e., when a gap of inactivity occurred.
 
 The `SESSION` function specifies session gap which defines how long the period of inactivity is. When this period expires, the current session closes and subsequent elements are assigned to a new session window.
 
 {{< img src="/fig/session-windows.svg" alt="Session Windows" width="70%">}}
 
-The `SESSION` functions assigns windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `SESSION` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
+The `SESSION` functions assign windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `SESSION` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
 `SESSION` takes three required parameters.
 
