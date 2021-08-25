@@ -74,7 +74,8 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     if ((window as any).monaco) {
-      this.setupMonaco();
+      // TODO: temporary solution, the editor should render depending on its own dimension
+      setTimeout(() => this.setupMonaco());
     } else {
       const script = document.createElement('script');
       script.type = 'text/javascript';
