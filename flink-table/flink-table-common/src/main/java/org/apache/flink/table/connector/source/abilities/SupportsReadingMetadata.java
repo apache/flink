@@ -131,4 +131,19 @@ public interface SupportsReadingMetadata {
      * @see DecodingFormat#applyReadableMetadata(List)
      */
     void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType);
+
+    /**
+     * Defines whether projections can be applied to metadata columns.
+     *
+     * <p>This method is only called if the source does <em>not</em> implement {@link
+     * SupportsProjectionPushDown}. In this case, by default the planner will apply all metadata
+     * declared in a table's schema. By returning {@code true} instead the source can inform the
+     * planner that it should only apply metadata columns which have actually been selected.
+     *
+     * <p>If the source implements {@link SupportsProjectionPushDown}, projections of metadata
+     * columns are always considered before calling {@link #applyReadableMetadata(List, DataType)}.
+     */
+    default boolean supportsMetadataProjection() {
+        return false;
+    }
 }

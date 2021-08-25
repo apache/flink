@@ -86,6 +86,73 @@ LogicalProject(id=[$0], nestedName=[$1], nestedSum=[+($2, $3)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMetadataProjectionWithoutProjectionPushDownWhenNotSupported">
+    <Resource name="sql">
+      <![CDATA[SELECT m1, metadata FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(m1=[$0], metadata=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(m1=[$0], metadata=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected">
+    <Resource name="sql">
+      <![CDATA[SELECT 1 FROM T4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[1])
++- LogicalTableScan(table=[[default_catalog, default_database, T4]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[1])
++- LogicalTableScan(table=[[default_catalog, default_database, T4]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataProjectionWithoutProjectionPushDownWhenSupported">
+    <Resource name="sql">
+      <![CDATA[SELECT m1, metadata FROM T1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(m1=[$0], metadata=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, T1, metadata=[m1, m2]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected">
+    <Resource name="sql">
+      <![CDATA[SELECT 1 FROM T3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[1])
++- LogicalTableScan(table=[[default_catalog, default_database, T3]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(EXPR$0=[1])
++- LogicalTableScan(table=[[default_catalog, default_database, T3, metadata=[]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNestedProject">
     <Resource name="sql">
       <![CDATA[SELECT id,
