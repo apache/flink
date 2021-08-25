@@ -234,7 +234,7 @@ public final class TestValuesTableFactory
 
     public static final AtomicInteger RESOURCE_COUNTER = new AtomicInteger();
 
-    private static final String IDENTIFIER = "values";
+    public static final String IDENTIFIER = "values";
 
     private static final ConfigOption<String> DATA_ID =
             ConfigOptions.key("data-id").stringType().noDefaultValue();

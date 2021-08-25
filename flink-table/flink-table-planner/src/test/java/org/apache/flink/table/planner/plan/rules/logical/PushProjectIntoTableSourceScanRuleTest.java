@@ -18,16 +18,43 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.planner.plan.rules.logical.PushProjectIntoTableSourceScanRuleTest.MetadataNoProjectionPushDownTableFactory.SUPPORTS_METADATA_PROJECTION;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
 public class PushProjectIntoTableSourceScanRuleTest
@@ -242,5 +269,154 @@ public class PushProjectIntoTableSourceScanRuleTest
                                 + "`outer_array`[ID], "
                                 + "`outer_map`['item'] "
                                 + "FROM ItemTable");
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
+        createMetadataTableWithoutProjectionPushDown("T1", true);
+
+        util().verifyRelPlan("SELECT m1, metadata FROM T1");
+        assertThat(
+                MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.get(),
+                contains("m1", "m2"));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
+        createMetadataTableWithoutProjectionPushDown("T2", false);
+
+        util().verifyRelPlan("SELECT m1, metadata FROM T2");
+        assertThat(
+                MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.get(),
+                contains("m1", "m2", "m3"));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
+        createMetadataTableWithoutProjectionPushDown("T3", true);
+
+        util().verifyRelPlan("SELECT 1 FROM T3");
+        assertThat(MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.get(), hasSize(0));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
+        createMetadataTableWithoutProjectionPushDown("T4", false);
+
+        util().verifyRelPlan("SELECT 1 FROM T4");
+        assertThat(
+                MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.get(),
+                contains("m1", "m2", "m3"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private void createMetadataTableWithoutProjectionPushDown(
+            String name, boolean supportsMetadataProjection) {
+        util().tableEnv()
+                .createTable(
+                        name,
+                        TableDescriptor.forConnector(
+                                        MetadataNoProjectionPushDownTableFactory.IDENTIFIER)
+                                .schema(
+                                        Schema.newBuilder()
+                                                .columnByMetadata("m1", STRING())
+                                                .columnByMetadata("metadata", STRING(), "m2")
+                                                .columnByMetadata("m3", STRING())
+                                                .build())
+                                .option(SUPPORTS_METADATA_PROJECTION, supportsMetadataProjection)
+                                .build());
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    /** Factory for {@link Source}. */
+    public static class MetadataNoProjectionPushDownTableFactory
+            implements DynamicTableSourceFactory {
+        public static final String IDENTIFIER = "metadataNoProjectionPushDown";
+
+        public static final ConfigOption<Boolean> SUPPORTS_METADATA_PROJECTION =
+                ConfigOptions.key("supports-metadata-projection").booleanType().defaultValue(true);
+
+        public static ThreadLocal<List<String>> appliedMetadataKeys = new ThreadLocal<>();
+
+        @Override
+        public String factoryIdentifier() {
+            return IDENTIFIER;
+        }
+
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.singleton(SUPPORTS_METADATA_PROJECTION);
+        }
+
+        @Override
+        public DynamicTableSource createDynamicTableSource(Context context) {
+            FactoryUtil.TableFactoryHelper helper =
+                    FactoryUtil.createTableFactoryHelper(this, context);
+            return new Source(helper.getOptions());
+        }
+    }
+
+    private static class Source implements ScanTableSource, SupportsReadingMetadata {
+
+        private final ReadableConfig options;
+
+        public Source(ReadableConfig options) {
+            this.options = options;
+            MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.remove();
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            return SourceFunctionProvider.of(
+                    new SourceFunction<RowData>() {
+                        @Override
+                        public void run(SourceContext<RowData> ctx) {}
+
+                        @Override
+                        public void cancel() {}
+                    },
+                    true);
+        }
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            final Map<String, DataType> metadata = new HashMap<>();
+            metadata.put("m1", STRING());
+            metadata.put("m2", STRING());
+            metadata.put("m3", STRING());
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+            MetadataNoProjectionPushDownTableFactory.appliedMetadataKeys.set(metadataKeys);
+        }
+
+        @Override
+        public boolean supportsMetadataProjection() {
+            return options.get(SUPPORTS_METADATA_PROJECTION);
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new Source(options);
+        }
+
+        @Override
+        public String asSummaryString() {
+            return getClass().getName();
+        }
     }
 }
