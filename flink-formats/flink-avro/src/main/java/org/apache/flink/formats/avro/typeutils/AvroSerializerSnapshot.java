@@ -191,7 +191,7 @@ public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                     // The new serializer would be able to read data persisted with *this*
                     // serializer, therefore no migration
                     // is required.
-                    return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+                    return TypeSerializerSchemaCompatibility.compatibleAsIs();
                 }
             case INCOMPATIBLE:
                 {
