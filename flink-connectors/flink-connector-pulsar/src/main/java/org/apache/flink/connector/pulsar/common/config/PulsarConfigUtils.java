@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.common.config;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -33,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -100,7 +100,6 @@ public final class PulsarConfigUtils {
         setOptionValue(
                 configuration,
                 PULSAR_OPERATION_TIMEOUT_MS,
-                Math::toIntExact,
                 timeout -> builder.operationTimeout(timeout, MILLISECONDS));
         setOptionValue(configuration, PULSAR_NUM_IO_THREADS, builder::ioThreads);
         setOptionValue(configuration, PULSAR_NUM_LISTENER_THREADS, builder::listenerThreads);
@@ -122,16 +121,8 @@ public final class PulsarConfigUtils {
         setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_PATH, builder::tlsTrustStorePath);
         setOptionValue(
                 configuration, PULSAR_TLS_TRUST_STORE_PASSWORD, builder::tlsTrustStorePassword);
-        setOptionValue(
-                configuration,
-                PULSAR_TLS_CIPHERS,
-                v -> PulsarJsonUtils.toSet(String.class, v),
-                builder::tlsCiphers);
-        setOptionValue(
-                configuration,
-                PULSAR_TLS_PROTOCOLS,
-                v -> PulsarJsonUtils.toSet(String.class, v),
-                builder::tlsProtocols);
+        setOptionValue(configuration, PULSAR_TLS_CIPHERS, TreeSet::new, builder::tlsCiphers);
+        setOptionValue(configuration, PULSAR_TLS_PROTOCOLS, TreeSet::new, builder::tlsProtocols);
         setOptionValue(
                 configuration,
                 PULSAR_MEMORY_LIMIT_BYTES,
@@ -202,35 +193,21 @@ public final class PulsarConfigUtils {
         setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_PATH, builder::tlsTrustStorePath);
         setOptionValue(
                 configuration, PULSAR_TLS_TRUST_STORE_PASSWORD, builder::tlsTrustStorePassword);
-        setOptionValue(
-                configuration,
-                PULSAR_TLS_CIPHERS,
-                v -> PulsarJsonUtils.toSet(String.class, v),
-                builder::tlsCiphers);
-        setOptionValue(
-                configuration,
-                PULSAR_TLS_PROTOCOLS,
-                v -> PulsarJsonUtils.toSet(String.class, v),
-                builder::tlsProtocols);
+        setOptionValue(configuration, PULSAR_TLS_CIPHERS, TreeSet::new, builder::tlsCiphers);
+        setOptionValue(configuration, PULSAR_TLS_PROTOCOLS, TreeSet::new, builder::tlsProtocols);
         setOptionValue(
                 configuration,
                 PULSAR_CONNECT_TIMEOUT,
-                Math::toIntExact,
                 v -> builder.connectionTimeout(v, MILLISECONDS));
         setOptionValue(
-                configuration,
-                PULSAR_READ_TIMEOUT,
-                Math::toIntExact,
-                v -> builder.readTimeout(v, MILLISECONDS));
+                configuration, PULSAR_READ_TIMEOUT, v -> builder.readTimeout(v, MILLISECONDS));
         setOptionValue(
                 configuration,
                 PULSAR_REQUEST_TIMEOUT,
-                Math::toIntExact,
                 v -> builder.requestTimeout(v, MILLISECONDS));
         setOptionValue(
                 configuration,
                 PULSAR_AUTO_CERT_REFRESH_TIME,
-                Math::toIntExact,
                 v -> builder.autoCertRefreshTime(v, MILLISECONDS));
 
         return sneakyClient(builder::build);
@@ -243,7 +220,7 @@ public final class PulsarConfigUtils {
      *
      * <p>This method behavior is the same as the pulsar command line tools.
      */
-    public static Authentication createAuthentication(Configuration configuration) {
+    private static Authentication createAuthentication(Configuration configuration) {
         if (configuration.contains(PULSAR_AUTH_PLUGIN_CLASS_NAME)) {
             String authPluginClassName = configuration.get(PULSAR_AUTH_PLUGIN_CLASS_NAME);
 
@@ -252,13 +229,14 @@ public final class PulsarConfigUtils {
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, authParamsString));
             } else if (configuration.contains(PULSAR_AUTH_PARAM_MAP)) {
-                Map<String, String> paramsMap =
-                        getOptionValue(
-                                configuration,
-                                PULSAR_AUTH_PARAM_MAP,
-                                v -> PulsarJsonUtils.toMap(String.class, String.class, v));
+                Map<String, String> paramsMap = configuration.get(PULSAR_AUTH_PARAM_MAP);
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, paramsMap));
+            } else {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "No %s or %s provided",
+                                PULSAR_AUTH_PARAMS.key(), PULSAR_AUTH_PARAM_MAP.key()));
             }
         }
 

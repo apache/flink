@@ -32,8 +32,11 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.Collections.emptyMap;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -158,10 +161,11 @@ public final class PulsarSourceOptions {
     //
     ///////////////////////////////////////////////////////////////////////////////
 
-    public static final ConfigOption<String> PULSAR_TOPIC_NAMES =
+    public static final ConfigOption<List<String>> PULSAR_TOPIC_NAMES =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "topicNames")
                     .stringType()
-                    .defaultValue("[]")
+                    .asList()
+                    .defaultValues()
                     .withDescription("Topic name.");
 
     public static final ConfigOption<String> PULSAR_TOPICS_PATTERN =
@@ -364,10 +368,10 @@ public final class PulsarSourceOptions {
                                             code("EncryptionContext"))
                                     .build());
 
-    public static final ConfigOption<String> PULSAR_CONSUMER_PROPERTIES =
+    public static final ConfigOption<Map<String, String>> PULSAR_CONSUMER_PROPERTIES =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "properties")
-                    .stringType()
-                    .defaultValue("{}")
+                    .mapType()
+                    .defaultValue(emptyMap())
                     .withDescription(
                             Description.builder()
                                     .text("A name or value property of this consumer.")
@@ -498,10 +502,10 @@ public final class PulsarSourceOptions {
                                     .text("Note: this is only for partitioned consumers.\t")
                                     .build());
 
-    public static final ConfigOption<Long> PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS =
+    public static final ConfigOption<Integer> PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoUpdatePartitionsIntervalSeconds")
-                    .longType()
-                    .defaultValue(60L);
+                    .intType()
+                    .defaultValue(60);
 
     public static final ConfigOption<Boolean> PULSAR_REPLICATE_SUBSCRIPTION_STATE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "replicateSubscriptionState")
