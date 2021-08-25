@@ -1553,7 +1553,11 @@ under the License.
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
 						<buffer-debloat.randomization>true</buffer-debloat.randomization>
-						<!-- on, unset, or random -->
+						<!-- force the use of the Changelog State Backend in tests on mini-cluster
+							on: enable CheckpointingOptions.ENABLE_STATE_CHANGE_LOG on cluster level
+							random: enable it randomly, unless explicitly set
+							unset: don't alter the configuration
+						-->
                         <!-- disable temporarily for 1.14 release -->
 						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
