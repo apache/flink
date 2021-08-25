@@ -50,7 +50,9 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
                     .withEmbeddedZookeeper()
                     .withNetwork(NETWORK)
-                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
+                    .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
+                    // Disable log deletion to prevent records from being deleted during test run
+                    .withEnv("KAFKA_LOG_RETENTION_MS", "-1");
 
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
