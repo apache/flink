@@ -40,6 +40,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -127,13 +128,20 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
     private CompletableFuture<Boolean> triggerStopWithSavepointWithDrainAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+
+        CompletableFuture<Void> operatorFinished = new CompletableFuture<>();
+        mainMailboxExecutor.execute(
+                () -> {
+                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId(), true);
+                    FutureUtils.forward(mainOperator.stop(), operatorFinished);
+                },
+                "stop Flip-27 source for stop-with-savepoint --drain");
+
         return assertTriggeringCheckpointExceptions(
-                mainOperator
-                        .stop()
-                        .thenCompose(
-                                (ignore) ->
-                                        super.triggerCheckpointAsync(
-                                                checkpointMetaData, checkpointOptions)),
+                operatorFinished.thenCompose(
+                        (ignore) ->
+                                super.triggerCheckpointAsync(
+                                        checkpointMetaData, checkpointOptions)),
                 checkpointMetaData.getCheckpointId());
     }
 

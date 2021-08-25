@@ -196,16 +196,7 @@ public class MultipleInputStreamTask<OUT>
         // unfinished network inputs, and the checkpoint would be triggered
         // after received all the EndOfPartitionEvent.
         if (options.getCheckpointType().shouldDrain()) {
-            CompletableFuture<Void> sourcesStopped =
-                    FutureUtils.waitForAll(
-                            operatorChain.getSourceTaskInputs().stream()
-                                    .map(s -> s.getOperator().stop())
-                                    .collect(Collectors.toList()));
-
-            return assertTriggeringCheckpointExceptions(
-                    sourcesStopped.thenCompose(
-                            ignore -> triggerSourcesCheckpointAsync(metadata, options)),
-                    metadata.getCheckpointId());
+            return triggerStopWithSavepointWithDrainAsync(metadata, options);
         } else {
             return triggerSourcesCheckpointAsync(metadata, options);
         }
@@ -242,6 +233,30 @@ public class MultipleInputStreamTask<OUT>
                 metadata,
                 options);
         return resultFuture;
+    }
+
+    private CompletableFuture<Boolean> triggerStopWithSavepointWithDrainAsync(
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
+
+        CompletableFuture<Void> sourcesStopped = new CompletableFuture<>();
+        mainMailboxExecutor.execute(
+                () -> {
+                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId(), true);
+                    FutureUtils.forward(
+                            FutureUtils.waitForAll(
+                                    operatorChain.getSourceTaskInputs().stream()
+                                            .map(s -> s.getOperator().stop())
+                                            .collect(Collectors.toList())),
+                            sourcesStopped);
+                },
+                "stop chained Flip-27 source for stop-with-savepoint --drain");
+
+        return assertTriggeringCheckpointExceptions(
+                sourcesStopped.thenCompose(
+                        ignore ->
+                                triggerSourcesCheckpointAsync(
+                                        checkpointMetaData, checkpointOptions)),
+                checkpointMetaData.getCheckpointId());
     }
 
     private void checkPendingCheckpointCompletedFuturesSize() {

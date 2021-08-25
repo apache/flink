@@ -1199,18 +1199,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         CompletableFuture<Boolean> checkpointTriggered =
                 triggerFuture.exceptionally(
                         error -> {
-                            if (error instanceof RejectedExecutionException) {
+                            if (ExceptionUtils.findThrowable(
+                                            error, RejectedExecutionException.class)
+                                    .isPresent()) {
                                 // This may happen if the mailbox is closed. It means that
-                                // the task is shutting
-                                // down, so we just ignore it.
+                                // the task is shutting down, so we just ignore it.
                                 LOG.debug(
                                         "Triggering checkpoint {} for {} was rejected by the mailbox",
                                         checkpointId,
                                         getTaskNameWithSubtaskAndId());
+                                return false;
                             } else {
                                 throw new WrappingRuntimeException(error);
                             }
-                            return null;
                         });
         FutureUtils.assertNoException(checkpointTriggered);
         return checkpointTriggered;
