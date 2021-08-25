@@ -53,6 +53,12 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-java</artifactId>
+			<version>${chill.version}</version>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
