@@ -189,6 +189,6 @@ class AllScalaRegistrar extends IKryoRegistrar {
     // use the singleton serializer for boxed Unit
     val boxedUnit = scala.Unit.box(())
     k.register(boxedUnit.getClass, new SingletonSerializer(boxedUnit))
-    FlinkChillPackageRegistrar.all()(k)
+    FlinkChillPackageRegistrar.registerJavaTypes(k)
   }
 }
