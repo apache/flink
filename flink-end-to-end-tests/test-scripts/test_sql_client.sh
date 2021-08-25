@@ -143,7 +143,7 @@ start_taskmanagers 2
 
 echo "Testing SQL statements..."
 
-KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka_" )
+KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
 ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH_VERSION" )
 
 # create session environment file

@@ -94,6 +94,7 @@ under the License.
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
 			<version>${glue.schema.registry.version}</version>
+			<!-- This has a transitive dependency on mbknor-jackson-jsonschema which needs scala -->
 		</dependency>
 
 		<dependency>
