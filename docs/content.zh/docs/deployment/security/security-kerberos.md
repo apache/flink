@@ -29,7 +29,7 @@ under the License.
 
 # Kerberos 身份认证设置和配置
 
-本文简要描述了 Flink 如何在各种部署机制(Standalone, native Kubernetes, YARN)、文件系统、connector 以及state backend 的上下文中安全工作。
+本文简要描述了 Flink 如何在各种部署机制（Standalone, native Kubernetes, YARN）、文件系统、connector 以及 state backend 的上下文中安全工作。
 
 <a name="objective"></a>
 
