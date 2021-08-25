@@ -129,12 +129,12 @@ public class PythonOptions {
                                                     + "The priority is as following: ")
                                     .linebreak()
                                     .text(
-                                            "1. the configuration 'python.client.executable' defined in the source code;")
-                                    .linebreak()
-                                    .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
+                                            "1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);")
                                     .linebreak()
                                     .text(
-                                            "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                            "2. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                    .linebreak()
+                                    .text("3. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());
 
     /** Whether the memory used by the Python framework is managed memory. */
