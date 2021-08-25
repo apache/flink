@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.types;
 
-import com.twitter.chill.IKryoRegistrar;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
 import com.twitter.chill.java.ArraysAsListSerializer;
 import com.twitter.chill.java.BitSetSerializer;
 import com.twitter.chill.java.InetSocketAddressSerializer;
-import com.twitter.chill.java.IterableRegistrar;
 import com.twitter.chill.java.LocaleSerializer;
 import com.twitter.chill.java.RegexSerializer;
 import com.twitter.chill.java.SimpleDateFormatSerializer;
@@ -32,30 +32,58 @@ import com.twitter.chill.java.TimestampSerializer;
 import com.twitter.chill.java.URISerializer;
 import com.twitter.chill.java.UUIDSerializer;
 
-/*
-This code is copied as is from Twitter Chill 0.7.4 because we need to user a newer chill version
-but want to ensure that the serializers that are registered by default stay the same.
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Locale;
+import java.util.PriorityQueue;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
-The only changes to the code are those that are required to make it compile and pass checkstyle
-checks in our code base.
+/**
+ * Registers all chill serializers used for Java types.
+ *
+ * <p>All registrations use a hard-coded ID which were determined at commit
+ * 18f176ce86900fd4e932c73f3d138912355c6880.
  */
-
-/** Creates a registrar for all the serializers in the chill.java package. */
 public class FlinkChillPackageRegistrar {
 
-    public static IKryoRegistrar all() {
-        return new IterableRegistrar(
-                ArraysAsListSerializer.registrar(),
-                BitSetSerializer.registrar(),
-                PriorityQueueSerializer.registrar(),
-                RegexSerializer.registrar(),
-                SqlDateSerializer.registrar(),
-                SqlTimeSerializer.registrar(),
-                TimestampSerializer.registrar(),
-                URISerializer.registrar(),
-                InetSocketAddressSerializer.registrar(),
-                UUIDSerializer.registrar(),
-                LocaleSerializer.registrar(),
-                SimpleDateFormatSerializer.registrar());
+    private static final int FIRST_REGISTRATION_ID = 73;
+
+    public static void registerJavaTypes(Kryo kryo) {
+        //noinspection ArraysAsListWithZeroOrOneArgument
+        new RegistrationHelper(FIRST_REGISTRATION_ID, kryo)
+                .register(Arrays.asList("").getClass(), new ArraysAsListSerializer())
+                .register(BitSet.class, new BitSetSerializer())
+                .register(PriorityQueue.class, new PriorityQueueSerializer())
+                .register(Pattern.class, new RegexSerializer())
+                .register(Date.class, new SqlDateSerializer())
+                .register(Time.class, new SqlTimeSerializer())
+                .register(Timestamp.class, new TimestampSerializer())
+                .register(URI.class, new URISerializer())
+                .register(InetSocketAddress.class, new InetSocketAddressSerializer())
+                .register(UUID.class, new UUIDSerializer())
+                .register(Locale.class, new LocaleSerializer())
+                .register(SimpleDateFormat.class, new SimpleDateFormatSerializer());
+    }
+
+    private static final class RegistrationHelper {
+        private int nextRegistrationId;
+        private final Kryo kryo;
+
+        public RegistrationHelper(int firstRegistrationId, Kryo kryo) {
+            this.nextRegistrationId = firstRegistrationId;
+            this.kryo = kryo;
+        }
+
+        public RegistrationHelper register(Class<?> type, Serializer<?> serializer) {
+            kryo.register(type, serializer, nextRegistrationId++);
+            return this;
+        }
     }
 }
