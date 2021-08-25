@@ -25,8 +25,11 @@ import org.apache.flink.configuration.description.Description;
 
 import org.apache.pulsar.client.api.ProxyProtocol;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.Collections.emptyMap;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -108,16 +111,15 @@ public final class PulsarOptions {
                                     .add(code("key1:val1,key2:val2"))
                                     .build());
 
-    // The real config type is Map<String, String>, you should provided a json str here.
-    public static final ConfigOption<String> PULSAR_AUTH_PARAM_MAP =
+    public static final ConfigOption<Map<String, String>> PULSAR_AUTH_PARAM_MAP =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "authParamMap")
-                    .stringType()
-                    .defaultValue("{}");
+                    .mapType()
+                    .defaultValue(emptyMap());
 
-    public static final ConfigOption<Long> PULSAR_OPERATION_TIMEOUT_MS =
+    public static final ConfigOption<Integer> PULSAR_OPERATION_TIMEOUT_MS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "operationTimeoutMs")
-                    .longType()
-                    .defaultValue(30000L)
+                    .intType()
+                    .defaultValue(30000)
                     .withDescription("Operation timeout.");
 
     public static final ConfigOption<Long> PULSAR_STATS_INTERVAL_SECONDS =
@@ -235,6 +237,7 @@ public final class PulsarOptions {
                                             "If the duration passes without a response from a broker, the connection attempt is dropped.")
                                     .build());
 
+    // TODO This option would be exposed by Pulsar's ClientBuilder in next release.
     public static final ConfigOption<Integer> PULSAR_REQUEST_TIMEOUT_MS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "requestTimeoutMs")
                     .intType()
@@ -284,15 +287,17 @@ public final class PulsarOptions {
                     .stringType()
                     .noDefaultValue();
 
-    // The real config type is Set<String>, you should provided a json str here.
-    public static final ConfigOption<String> PULSAR_TLS_CIPHERS =
-            ConfigOptions.key(CLIENT_CONFIG_PREFIX + "tlsCiphers").stringType().defaultValue("[]");
+    public static final ConfigOption<List<String>> PULSAR_TLS_CIPHERS =
+            ConfigOptions.key(CLIENT_CONFIG_PREFIX + "tlsCiphers")
+                    .stringType()
+                    .asList()
+                    .defaultValues();
 
-    // The real config type is Set<String>, you should provided a json str here.
-    public static final ConfigOption<String> PULSAR_TLS_PROTOCOLS =
+    public static final ConfigOption<List<String>> PULSAR_TLS_PROTOCOLS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "tlsProtocols")
                     .stringType()
-                    .defaultValue("[]");
+                    .asList()
+                    .defaultValues();
 
     public static final ConfigOption<Long> PULSAR_MEMORY_LIMIT_BYTES =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "memoryLimitBytes")
@@ -328,26 +333,22 @@ public final class PulsarOptions {
                     .withDescription("Admin URL for Pulsar service.");
 
     // The network connect timeout in millis.
-    public static final ConfigOption<Long> PULSAR_CONNECT_TIMEOUT =
-            ConfigOptions.key(ADMIN_CONFIG_PREFIX + "connectTimeout")
-                    .longType()
-                    .defaultValue(TimeUnit.SECONDS.toMillis(60));
+    public static final ConfigOption<Integer> PULSAR_CONNECT_TIMEOUT =
+            ConfigOptions.key(ADMIN_CONFIG_PREFIX + "connectTimeout").intType().defaultValue(60000);
 
     // The read timeout in millis.
-    public static final ConfigOption<Long> PULSAR_READ_TIMEOUT =
-            ConfigOptions.key(ADMIN_CONFIG_PREFIX + "readTimeout")
-                    .longType()
-                    .defaultValue(TimeUnit.SECONDS.toMillis(60));
+    public static final ConfigOption<Integer> PULSAR_READ_TIMEOUT =
+            ConfigOptions.key(ADMIN_CONFIG_PREFIX + "readTimeout").intType().defaultValue(60000);
 
     // The request timeout in millis.
-    public static final ConfigOption<Long> PULSAR_REQUEST_TIMEOUT =
+    public static final ConfigOption<Integer> PULSAR_REQUEST_TIMEOUT =
             ConfigOptions.key(ADMIN_CONFIG_PREFIX + "requestTimeout")
-                    .longType()
-                    .defaultValue(TimeUnit.SECONDS.toMillis(300));
+                    .intType()
+                    .defaultValue(300000);
 
     // The auto refresh time for certification in millis.
-    public static final ConfigOption<Long> PULSAR_AUTO_CERT_REFRESH_TIME =
+    public static final ConfigOption<Integer> PULSAR_AUTO_CERT_REFRESH_TIME =
             ConfigOptions.key(ADMIN_CONFIG_PREFIX + "autoCertRefreshTime")
-                    .longType()
-                    .defaultValue(TimeUnit.SECONDS.toMillis(300));
+                    .intType()
+                    .defaultValue(300000);
 }

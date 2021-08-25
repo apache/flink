@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
@@ -48,7 +47,6 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import static java.lang.Boolean.FALSE;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.getOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
@@ -210,7 +208,7 @@ public final class PulsarSourceBuilder<OUT> {
      */
     public PulsarSourceBuilder<OUT> setTopics(List<String> topics) {
         ensureSubscriberIsNull("topics");
-        configuration.set(PULSAR_TOPIC_NAMES, PulsarJsonUtils.toString(topics));
+        configuration.set(PULSAR_TOPIC_NAMES, topics);
         this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
         return this;
     }
@@ -438,11 +436,7 @@ public final class PulsarSourceBuilder<OUT> {
         // Ensure the topic subscriber for pulsar.
         if (subscriber == null) {
             if (configuration.contains(PULSAR_TOPIC_NAMES)) {
-                List<String> topics =
-                        getOptionValue(
-                                configuration,
-                                PULSAR_TOPIC_NAMES,
-                                names -> PulsarJsonUtils.toList(String.class, names));
+                List<String> topics = configuration.get(PULSAR_TOPIC_NAMES);
                 this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
             } else if (configuration.contains(PULSAR_TOPICS_PATTERN)) {
                 String topicPatternStr = configuration.get(PULSAR_TOPICS_PATTERN);

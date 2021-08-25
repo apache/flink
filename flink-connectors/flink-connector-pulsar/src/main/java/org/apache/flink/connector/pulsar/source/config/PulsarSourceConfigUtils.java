@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.source.config;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -156,11 +155,7 @@ public final class PulsarSourceConfigUtils {
         setOptionValue(configuration, PULSAR_CONSUMER_NAME, builder::consumerName);
         setOptionValue(configuration, PULSAR_READ_COMPACTED, builder::readCompacted);
         setOptionValue(configuration, PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
-        setOptionValue(
-                configuration,
-                PULSAR_CONSUMER_PROPERTIES,
-                v -> PulsarJsonUtils.toMap(String.class, String.class, v),
-                builder::properties);
+        setOptionValue(configuration, PULSAR_CONSUMER_PROPERTIES, builder::properties);
         setOptionValue(
                 configuration,
                 PULSAR_SUBSCRIPTION_INITIAL_POSITION,
@@ -170,7 +165,6 @@ public final class PulsarSourceConfigUtils {
         setOptionValue(
                 configuration,
                 PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS,
-                Math::toIntExact,
                 v -> builder.autoUpdatePartitionsInterval(v, SECONDS));
         if (configuration.getOptional(PULSAR_RESET_INCLUDE_HEAD).orElse(false)) {
             builder.startMessageIdInclusive();
