@@ -32,6 +32,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -184,7 +185,9 @@ public class SourceMetricsITCase extends TestLogger {
             // there are only 2 splits assigned; so two groups will not update metrics
             if (group.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {
                 // assert that optional metrics are not initialized when no split assigned
-                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG), nullValue());
+                assertThat(
+                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
+                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
                 assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
                 continue;
             }
@@ -224,7 +227,9 @@ public class SourceMetricsITCase extends TestLogger {
                 assertThat(watermarkLag, isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON));
             } else {
                 // assert that optional metrics are not initialized when no timestamp assigned
-                assertThat(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG), nullValue());
+                assertThat(
+                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
+                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
                 assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
             }
 

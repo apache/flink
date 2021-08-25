@@ -369,13 +369,12 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return mainOperatorOutput;
     }
 
-    public WatermarkGaugeExposingOutput<StreamRecord<?>> getChainedSourceOutput(
-            StreamConfig.SourceInputConfig sourceInput) {
+    public ChainedSource getChainedSource(StreamConfig.SourceInputConfig sourceInput) {
         checkArgument(
                 chainedSources.containsKey(sourceInput),
                 "Chained source with sourcedId = [%s] was not found",
                 sourceInput);
-        return chainedSources.get(sourceInput).getSourceOutput();
+        return chainedSources.get(sourceInput);
     }
 
     public List<Output<StreamRecord<?>>> getChainedSourceOutputs() {
