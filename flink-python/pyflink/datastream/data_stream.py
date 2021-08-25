@@ -40,7 +40,8 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['CloseableIterator', 'DataStream']
+__all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
+           'DataStreamSink', 'CloseableIterator']
 
 
 class DataStream(object):
@@ -1036,6 +1037,7 @@ class KeyedStream(DataStream):
 
         Example:
         ::
+
             >>> ds = env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b'])
             >>> ds.key_by(lambda x: x[1]).reduce(lambda a, b: a[0] + b[0], b[1])
 

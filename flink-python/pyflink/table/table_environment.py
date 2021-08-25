@@ -631,6 +631,8 @@ class TableEnvironment(object):
         trigger an execution.
 
         :return: The Table object describing the pipeline for further transformations.
+
+        .. versionadded:: 1.14.0
         """
         return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
