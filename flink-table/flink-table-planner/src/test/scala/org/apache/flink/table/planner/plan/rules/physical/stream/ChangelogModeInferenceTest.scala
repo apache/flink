@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.{ExplainDetail, _}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
@@ -180,5 +181,68 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |) GROUP BY cnt
       """.stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testPropagateUpdateKindAmongRelNodeBlocks(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      true)
+    util.addTable(
+      """
+        |create table sink1 (
+        |  a INT,
+        |  b VARCHAR
+        |) with (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+    util.addTable(
+      """
+        |create table sink2 (
+        |  a INT,
+        |  b VARCHAR,
+        |  primary key (b) not enforced
+        |) with (
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW v1 AS
+        |SELECT
+        |  SUM(number) AS number, word
+        |FROM MyTable
+        |GROUP BY word
+        |""".stripMargin)
+
+    util.tableEnv.executeSql(
+      """
+        |CREATE VIEW v2 AS
+        |SELECT number + 1 AS number, word FROM v1
+        |UNION ALL
+        |SELECT number - 1 AS number, word FROM v1
+        |""".stripMargin)
+
+    val statementSet = util.tableEnv.createStatementSet()
+    // sink1 requires UB
+    statementSet.addInsertSql(
+      """
+        |INSERT INTO sink1 SELECT number, word FROM v2 WHERE word > 'a'
+        |""".stripMargin)
+    // sink2 requires UB
+    statementSet.addInsertSql(
+      """
+        |INSERT INTO sink1 SELECT number, word FROM v2 WHERE word < 'a'
+        |""".stripMargin)
+    // sink3 does not require UB
+    statementSet.addInsertSql(
+      """
+        |INSERT INTO sink2 SELECT * FROM v1
+        |""".stripMargin)
+    util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
   }
 }
