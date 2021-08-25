@@ -200,9 +200,7 @@ public class AvroSerializerSnapshotTest {
         TypeSerializerSnapshot<GenericRecord> originalSnapshot =
                 originalSerializer.snapshotConfiguration();
 
-        assertThat(
-                originalSnapshot.resolveSchemaCompatibility(newSerializer),
-                isCompatibleAsIs());
+        assertThat(originalSnapshot.resolveSchemaCompatibility(newSerializer), isCompatibleAsIs());
     }
 
     @Test
