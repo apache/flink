@@ -15,7 +15,7 @@ To build the documentation, you can install Hugo locally or use a Docker image.
 Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
 
 Using Hugo Docker image:
-```
+```sh
 git submodule update --init --recursive
 docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
 ```
@@ -24,7 +24,8 @@ Local Hugo installation:
 Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
 system.
 ```sh
-./build_docs.sh
+git submodule update --init --recursive
+hugo -b "" serve
 ```
 
 The site can be viewed at http://localhost:1313/
