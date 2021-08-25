@@ -75,13 +75,6 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-changelog</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- CSV RowData (de)serialization schema testing -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
