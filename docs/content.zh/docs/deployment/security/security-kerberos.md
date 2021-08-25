@@ -50,7 +50,7 @@ Flink Kerberos 安全框架的主要目标如下：
 
 ## Flink Security 如何工作
 
-理论上，Flink 程序可以使用自己的或第三方的 connector（Kafka、HDFS、Cassandra、Flume、Kinesis等），同时需要支持任意的认证方式（Kerberos、SSL/TLS、用户名/密码等）。满足所有 connector 的安全需求还在进行中，不过 Flink 提供了针对 Kerberos 身份认证的一流支持。Kerberos 身份认证支持以下服务和 connector：
+理论上，Flink 程序可以使用自己的或第三方的 connector（Kafka、HDFS、Cassandra、Flume、Kinesis 等），同时需要支持任意的认证方式（Kerberos、SSL/TLS、用户名/密码等）。满足所有 connector 的安全需求还在进行中，不过 Flink 提供了针对 Kerberos 身份认证的一流支持。Kerberos 身份认证支持以下服务和 connector：
 
 - Kafka (0.9+)
 - HDFS
