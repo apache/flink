@@ -105,13 +105,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-changelog</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 	</dependencies>
 
 	<build>

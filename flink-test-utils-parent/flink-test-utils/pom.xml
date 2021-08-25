@@ -115,6 +115,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-statebackend-changelog</artifactId>
+            <version>${project.version}</version>
+            <!-- the dependency should be transitive -->
+            <scope>runtime</scope>
+        </dependency>
+
 	</dependencies>
 
 	<build>
