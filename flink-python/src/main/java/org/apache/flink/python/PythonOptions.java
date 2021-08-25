@@ -148,12 +148,15 @@ public class PythonOptions {
                                                     + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
-                                    .text("1. the command line option \"-pyclientexec\";")
+                                    .text(
+                                            "1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);")
                                     .linebreak()
-                                    .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
+                                    .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
                                             "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                    .linebreak()
+                                    .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());
 
     /** Whether the memory used by the Python framework is managed memory. */
