@@ -474,16 +474,6 @@ public final class PulsarSourceOptions {
                                             code("replicateSubscriptionState"))
                                     .build());
 
-    public static final ConfigOption<Boolean> PULSAR_RESET_INCLUDE_HEAD =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "resetIncludeHead")
-                    .booleanType()
-                    .defaultValue(false);
-
-    public static final ConfigOption<Boolean> PULSAR_BATCH_INDEX_ACK_ENABLED =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "batchIndexAckEnabled")
-                    .booleanType()
-                    .defaultValue(false);
-
     public static final ConfigOption<Boolean> PULSAR_ACK_RECEIPT_ENABLED =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "ackReceiptEnabled")
                     .booleanType()

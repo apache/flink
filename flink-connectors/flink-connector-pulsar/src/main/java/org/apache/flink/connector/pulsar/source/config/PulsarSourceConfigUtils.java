@@ -64,7 +64,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_COMPACTED;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RECEIVER_QUEUE_SIZE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REPLICATE_SUBSCRIPTION_STATE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RESET_INCLUDE_HEAD;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_ENABLE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_LETTER_TOPIC;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
@@ -166,9 +165,6 @@ public final class PulsarSourceConfigUtils {
                 configuration,
                 PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS,
                 v -> builder.autoUpdatePartitionsInterval(v, SECONDS));
-        if (configuration.getOptional(PULSAR_RESET_INCLUDE_HEAD).orElse(false)) {
-            builder.startMessageIdInclusive();
-        }
         setOptionValue(configuration, PULSAR_RETRY_ENABLE, builder::enableRetry);
         setOptionValue(
                 configuration,
