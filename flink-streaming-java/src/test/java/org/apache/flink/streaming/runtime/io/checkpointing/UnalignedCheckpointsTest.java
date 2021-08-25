@@ -733,7 +733,7 @@ public class UnalignedCheckpointsTest {
 
         // should trigger respective checkpoint
         handler.processBarrier(
-                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
+                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0), false);
 
         assertTrue(handler.isCheckpointPending());
         assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
@@ -765,7 +765,7 @@ public class UnalignedCheckpointsTest {
         // it would not trigger checkpoint since the respective cancellation barrier already
         // happened before
         handler.processBarrier(
-                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
+                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0), false);
 
         verifyTriggeredCheckpoint(handler, invokable, DEFAULT_CHECKPOINT_ID);
     }
@@ -819,7 +819,7 @@ public class UnalignedCheckpointsTest {
 
         // should trigger respective checkpoint
         handler.processBarrier(
-                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
+                buildCheckpointBarrier(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0), false);
 
         assertTrue(handler.isCheckpointPending());
         assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());

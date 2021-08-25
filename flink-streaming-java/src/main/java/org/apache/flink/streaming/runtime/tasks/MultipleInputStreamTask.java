@@ -263,7 +263,7 @@ public class MultipleInputStreamTask<OUT>
     private void emitBarrierForSources(CheckpointBarrier checkpointBarrier) throws IOException {
         for (StreamTaskSourceInput<?> sourceInput : operatorChain.getSourceTaskInputs()) {
             for (InputChannelInfo channelInfo : sourceInput.getChannelInfos()) {
-                checkpointBarrierHandler.processBarrier(checkpointBarrier, channelInfo);
+                checkpointBarrierHandler.processBarrier(checkpointBarrier, channelInfo, false);
             }
         }
     }
