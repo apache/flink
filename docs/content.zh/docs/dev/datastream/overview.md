@@ -34,7 +34,7 @@ under the License.
 
 Flink 中的 DataStream 程序是对数据流（例如过滤、更新状态、定义窗口、聚合）进行转换的常规程序。数据流的起始是从各种源（例如消息队列、套接字流、文件）创建的。结果通过 sink 返回，例如可以将数据写入文件或标准输出（例如命令行终端）。Flink 程序可以在各种上下文中运行，可以独立运行，也可以嵌入到其它程序中。任务执行可以运行在本地 JVM 中，也可以运行在多台机器的集群上。
 
-为了创建你自己的 Flink DataStream 程序，我们建议你从 [Flink 程序剖析](#anatomy-of-a-flink-program)开始，然后逐渐添加自己的[流转换](({{< ref "docs/dev/datastream/operators/overview" >}}))。其余部分用作额外算子和高级特性的参考。
+为了创建你自己的 Flink DataStream 程序，我们建议你从 [Flink 程序剖析](#anatomy-of-a-flink-program)开始，然后逐渐添加自己的 [stream transformation](({{< ref "docs/dev/datastream/operators/overview" >}}))。其余部分作为附加的算子和高级特性的参考。
 
 <a name="what-is-a-datastream"></a>
 
@@ -44,7 +44,7 @@ DataStream 是什么?
 DataStream API 得名于特殊的 `DataStream` 类，该类用于表示 Flink 程序中的数据集合。你可以认为
 它们是可以包含重复项的不可变数据集合。这些数据可以是有界（有限）的，也可以是无界（无限）的，但用于处理它们的API是相同的。
 
-`DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作（也叫作转换）处理它们。
+`DataStream` 在用法上类似于常规的 Java `集合`，但在某些关键方面却大不相同。它们是不可变的，这意味着一旦它们被创建，你就不能添加或删除元素。你也不能简单地察看内部元素，而只能使用 `DataStream` API 操作来处理它们，`DataStream` API 操作也叫作转换（transformation）。
 
 你可以通过在 Flink 程序中添加 source 创建一个初始的 `DataStream`。然后，你可以基于 `DataStream` 派生新的流，并使用 map、filter 等 API 方法把 `DataStream` 和派生的流连接在一起。
 
