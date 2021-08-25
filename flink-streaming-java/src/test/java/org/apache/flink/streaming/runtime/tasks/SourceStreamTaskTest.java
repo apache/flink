@@ -45,6 +45,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -93,6 +95,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -733,6 +736,55 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
     }
 
+    @Test
+    public void testTriggeringStopWithSavepointWithDrain() throws Exception {
+        SourceFunction<String> testSource = new EmptySource();
+
+        CompletableFuture<Boolean> checkpointCompleted = new CompletableFuture<>();
+        CheckpointResponder checkpointResponder =
+                new TestCheckpointResponder() {
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+                        super.acknowledgeCheckpoint(
+                                jobID,
+                                executionAttemptID,
+                                checkpointId,
+                                checkpointMetrics,
+                                subtaskState);
+                        checkpointCompleted.complete(null);
+                    }
+                };
+
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setCheckpointResponder(checkpointResponder)
+                        .setupOutputForSingletonOperatorChain(new StreamSource<>(testSource))
+                        .build()) {
+            CompletableFuture<Boolean> triggerResult =
+                    harness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(1, 1),
+                            CheckpointOptions.alignedNoTimeout(
+                                    SAVEPOINT_TERMINATE,
+                                    CheckpointStorageLocationReference.getDefault()));
+            checkpointCompleted.whenComplete(
+                    (ignored, exception) -> harness.streamTask.notifyCheckpointCompleteAsync(1));
+
+            // Run mailbox till the source thread finished and suspend the mailbox
+            harness.streamTask.runMailboxLoop();
+            harness.finishProcessing();
+
+            assertTrue(triggerResult.isDone());
+            assertTrue(triggerResult.get());
+            assertTrue(checkpointCompleted.isDone());
+        }
+    }
+
     private static class LifeCycleMonitorSource extends RichParallelSourceFunction<String> {
 
         private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
@@ -1083,6 +1135,23 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
 
         public static void allowExit() {
             ALLOW_EXIT.trigger();
+        }
+    }
+
+    private static class EmptySource implements SourceFunction<String> {
+
+        private volatile boolean isCanceled;
+
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            while (!isCanceled) {
+                Thread.sleep(100);
+            }
+        }
+
+        @Override
+        public void cancel() {
+            isCanceled = true;
         }
     }
 }
