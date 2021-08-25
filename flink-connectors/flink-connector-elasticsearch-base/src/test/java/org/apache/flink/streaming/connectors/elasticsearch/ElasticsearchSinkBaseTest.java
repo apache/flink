@@ -485,7 +485,7 @@ public class ElasticsearchSinkBaseTest {
         Assert.assertTrue(sinkFunction.closeCalled);
     }
 
-    private static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {
+    static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {
 
         private static final long serialVersionUID = 5051907841570096991L;
 
