@@ -6,7 +6,7 @@ https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-### Build the site locally
+### Build the documentation and serve it locally
 
 The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
