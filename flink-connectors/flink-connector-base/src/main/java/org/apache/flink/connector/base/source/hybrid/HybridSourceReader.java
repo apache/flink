@@ -121,6 +121,20 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     }
 
     @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (currentReader != null) {
+            currentReader.notifyCheckpointComplete(checkpointId);
+        }
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (currentReader != null) {
+            currentReader.notifyCheckpointAborted(checkpointId);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> isAvailable() {
         return availabilityFuture;
     }

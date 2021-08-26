@@ -33,6 +33,7 @@ import org.apache.flink.mock.Whitebox;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -161,6 +162,39 @@ public class HybridSourceReaderTest {
         Assert.assertNotNull(currentReader(reader));
         Assert.assertEquals(source, switchedSources.get(0));
         Assert.assertThat(reader.snapshotState(1), Matchers.contains(hybridSplit));
+
+        reader.close();
+    }
+
+    @Test
+    public void testDefaultMethodDelegation() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
+        MockBaseSource source =
+                new MockBaseSource(1, 1, Boundedness.BOUNDED) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext readerContext) {
+                        return Mockito.spy(super.createReader(readerContext));
+                    }
+                };
+
+        Map<Integer, Source> switchedSources = new HashMap<>();
+
+        HybridSourceReader<Integer> reader =
+                new HybridSourceReader<>(readerContext, switchedSources);
+
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
+        Assert.assertEquals(source, switchedSources.get(0));
+        SourceReader<Integer, MockSourceSplit> underlyingReader = currentReader(reader);
+
+        reader.notifyCheckpointComplete(1);
+        Mockito.verify(underlyingReader).notifyCheckpointComplete(1);
+
+        reader.notifyCheckpointAborted(1);
+        Mockito.verify(underlyingReader).notifyCheckpointAborted(1);
 
         reader.close();
     }
