@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -130,16 +131,19 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
+        OptionalLong checkpointId = context.getRestoredCheckpointId();
         sinkWriter =
                 writerFactory.apply(
-                        createInitContext(), sinkWriterStateHandler.initializeState(context));
+                        createInitContext(
+                                checkpointId.isPresent() ? checkpointId.getAsLong() : null),
+                        sinkWriterStateHandler.initializeState(context));
         committerHandler.initializeState(context);
     }
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        sinkWriterStateHandler.snapshotState(sinkWriter::snapshotState);
+        sinkWriterStateHandler.snapshotState(sinkWriter::snapshotState, context.getCheckpointId());
         committerHandler.snapshotState(context);
     }
 
@@ -196,12 +200,13 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         super.close();
     }
 
-    private Sink.InitContext createInitContext() {
+    private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
                 mailboxExecutor,
-                InternalSinkWriterMetricGroup.wrap(getMetricGroup()));
+                InternalSinkWriterMetricGroup.wrap(getMetricGroup()),
+                restoredCheckpointId);
     }
 
     private class Context<IN> implements SinkWriter.Context {
@@ -230,17 +235,21 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
         private final SinkWriterMetricGroup metricGroup;
 
+        @Nullable private final Long restoredCheckpointId;
+
         private final StreamingRuntimeContext runtimeContext;
 
         public InitContextImpl(
                 StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
-                SinkWriterMetricGroup metricGroup) {
+                SinkWriterMetricGroup metricGroup,
+                @Nullable Long restoredCheckpointId) {
             this.runtimeContext = checkNotNull(runtimeContext);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
+            this.restoredCheckpointId = restoredCheckpointId;
         }
 
         @Override
@@ -283,6 +292,13 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
         @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return restoredCheckpointId == null
+                    ? OptionalLong.empty()
+                    : OptionalLong.of(restoredCheckpointId);
         }
     }
 

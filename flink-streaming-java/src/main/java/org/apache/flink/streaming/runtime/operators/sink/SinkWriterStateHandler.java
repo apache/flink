@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.Serializable;
 import java.util.List;
@@ -37,7 +37,14 @@ interface SinkWriterStateHandler<WriterStateT> extends Serializable {
      */
     List<WriterStateT> initializeState(StateInitializationContext context) throws Exception;
 
-    /** Stores the state of the supplier. The supplier should only be queried once. */
-    void snapshotState(SupplierWithException<List<WriterStateT>, Exception> stateSupplier)
+    /**
+     * Stores the state of the supplier. The supplier should only be queried once.
+     *
+     * @param stateExtractor
+     * @param checkpointId
+     */
+    void snapshotState(
+            FunctionWithException<Long, List<WriterStateT>, Exception> stateExtractor,
+            long checkpointId)
             throws Exception;
 }
