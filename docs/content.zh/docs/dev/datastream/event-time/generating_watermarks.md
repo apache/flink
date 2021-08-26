@@ -277,7 +277,7 @@ class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEv
 
     override def onPeriodicEmit(): Unit = {
         // 发出的 watermark = 当前最大时间戳 - 最大乱序时间
-        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1));
+        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1))
     }
 }
 
@@ -293,7 +293,7 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
     }
 
     override def onPeriodicEmit(): Unit = {
-        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag));
+        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag))
     }
 }
 ```

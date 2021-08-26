@@ -789,7 +789,7 @@ val table =
                     .column("uid", DataTypes.TINYINT())
                     .column("payload", DataTypes.STRING())
                     .build())
-            .build());
+            .build())
 
 // convert the Table to a DataStream and further transform the pipeline
 tableEnv.toDataStream(table)
@@ -1153,7 +1153,7 @@ table.printSchema();
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.scala._
-import java.time.Instant;
+import java.time.Instant
 
 // some example case class
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
@@ -2864,7 +2864,7 @@ val table: Table = tableEnv.fromValues(
         DataTypes.FIELD("name", DataTypes.STRING()),
         DataTypes.FIELD("age", DataTypes.INT()),
     row("john", 35),
-    row("sarah", 32));
+    row("sarah", 32))
 
 // Convert the Table into an append DataStream of Row by specifying the class
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)

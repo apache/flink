@@ -40,7 +40,7 @@ The most basic way is to implement one of the provided interfaces:
 ```java
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 data.map(new MyMapFunction());
 ```
 
@@ -73,7 +73,7 @@ instead take as argument a *rich* function. For example, instead of
 ```java
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 ```
 
 you can write
@@ -81,7 +81,7 @@ you can write
 ```java
 class MyMapFunction extends RichMapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 ```
 
 and pass the function as usual to a `map` transformation:
@@ -129,8 +129,8 @@ you can write
 
 ```scala
 class MyMapFunction extends RichMapFunction[String, Int] {
-  def map(in: String):Int = { in.toInt }
-};
+  def map(in: String): Int = in.toInt
+}
 ```
 
 and pass the function to a `map` transformation:
@@ -142,7 +142,7 @@ data.map(new MyMapFunction())
 Rich functions can also be defined as an anonymous class:
 ```scala
 data.map (new RichMapFunction[String, Int] {
-  def map(in: String):Int = { in.toInt }
+  def map(in: String): Int = in.toInt
 })
 ```
 {{< /tab >}}
