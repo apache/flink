@@ -164,12 +164,6 @@ public final class PulsarOptions {
                     .withDescription(
                             "Whether to use TCP no-delay flag on the connection to disable Nagle algorithm.");
 
-    public static final ConfigOption<Boolean> PULSAR_USE_TLS =
-            ConfigOptions.key(CLIENT_CONFIG_PREFIX + "useTls")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("Whether to use TLS encryption on the connection.");
-
     public static final ConfigOption<String> PULSAR_TLS_TRUST_CERTS_FILE_PATH =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "tlsTrustCertsFilePath")
                     .stringType()

@@ -26,13 +26,11 @@ import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.source.config.CursorVerification;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -42,8 +40,8 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configurations for PulsarSource. All the options list here could be configured in {@link
- * PulsarSourceBuilder#setProperty(ConfigOption, Object)}. The {@link PulsarOptions} is also
- * required for pulsar source.
+ * PulsarSourceBuilder#setConfig(ConfigOption, Object)}. The {@link PulsarOptions} is also required
+ * for pulsar source.
  *
  * @see PulsarOptions
  */
@@ -160,19 +158,6 @@ public final class PulsarSourceOptions {
     // All the configuration listed below should have the pulsar.consumer prefix.
     //
     ///////////////////////////////////////////////////////////////////////////////
-
-    public static final ConfigOption<List<String>> PULSAR_TOPIC_NAMES =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "topicNames")
-                    .stringType()
-                    .asList()
-                    .defaultValues()
-                    .withDescription("Topic name.");
-
-    public static final ConfigOption<String> PULSAR_TOPICS_PATTERN =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "topicsPattern")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Topic pattern.");
 
     public static final ConfigOption<String> PULSAR_SUBSCRIPTION_NAME =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "subscriptionName")
@@ -413,35 +398,6 @@ public final class PulsarSourceOptions {
                             .defaultValue(SubscriptionInitialPosition.Latest)
                             .withDescription(
                                     "Initial position at which to set cursor when subscribing to a topic at first time.");
-
-    public static final ConfigOption<Integer> PULSAR_PATTERN_AUTO_DISCOVERY_PERIOD =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "patternAutoDiscoveryPeriod")
-                    .intType()
-                    .defaultValue(60)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Topic auto discovery period when using a pattern for topic's consumer.")
-                                    .linebreak()
-                                    .text("The default and minimum value is 1 minute.")
-                                    .build());
-
-    public static final ConfigOption<RegexSubscriptionMode> PULSAR_REGEX_SUBSCRIPTION_MODE =
-            ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "regexSubscriptionMode")
-                    .enumType(RegexSubscriptionMode.class)
-                    .defaultValue(RegexSubscriptionMode.PersistentOnly)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "When subscribing to a topic using a regular expression, you can pick a certain type of topics.")
-                                    .list(
-                                            text(
-                                                    "PersistentOnly: only subscribe to persistent topics."),
-                                            text(
-                                                    "NonPersistentOnly: only subscribe to non-persistent topics."),
-                                            text(
-                                                    "AllTopics: subscribe to both persistent and non-persistent topics."))
-                                    .build());
 
     // The config set for DeadLetterPolicy
 
