@@ -69,6 +69,14 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- Scala APIs -->
+		<file>
+			<source>../flink-dist-scala/target/flink-dist-scala_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-scala_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Table/SQL Uber JAR -->
 		<file>
 			<source>../flink-table/flink-table-uber/target/flink-table-uber_${scala.binary.version}-${project.version}.jar</source>
