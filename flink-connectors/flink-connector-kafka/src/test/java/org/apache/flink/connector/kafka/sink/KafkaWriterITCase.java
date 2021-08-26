@@ -59,6 +59,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.OptionalLong;
 import java.util.Properties;
 import java.util.stream.IntStream;
 
@@ -257,6 +258,11 @@ public class KafkaWriterITCase {
         @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return OptionalLong.of(0L);
         }
     }
 

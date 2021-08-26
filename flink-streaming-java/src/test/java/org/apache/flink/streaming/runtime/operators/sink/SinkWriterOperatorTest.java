@@ -208,8 +208,9 @@ public class SinkWriterOperatorTest extends TestLogger {
     public void stateIsRestored() throws Exception {
         final long initialTime = 0;
 
+        SnapshottingBufferingSinkWriter snapshottingWriter = new SnapshottingBufferingSinkWriter();
         final OneInputStreamOperatorTestHarness<Integer, byte[]> testHarness =
-                createTestHarness(new SnapshottingBufferingSinkWriter());
+                createTestHarness(snapshottingWriter);
 
         testHarness.open();
 
@@ -222,6 +223,9 @@ public class SinkWriterOperatorTest extends TestLogger {
 
         // we only see the watermark, so the committables must be stored in state
         assertThat(testHarness.getOutput(), contains(new Watermark(initialTime)));
+        assertThat(
+                snapshottingWriter.lastCheckpointId,
+                equalTo(stateful ? 1L : SnapshottingBufferingSinkWriter.NOT_SNAPSHOTTED));
 
         testHarness.close();
 
@@ -316,9 +320,12 @@ public class SinkWriterOperatorTest extends TestLogger {
 
     /** A {@link SinkWriter} buffers elements and snapshots them when asked. */
     static class SnapshottingBufferingSinkWriter extends BufferingSinkWriter {
+        public static final int NOT_SNAPSHOTTED = -1;
+        long lastCheckpointId = NOT_SNAPSHOTTED;
 
         @Override
-        public List<String> snapshotState() {
+        public List<String> snapshotState(long checkpointId) throws IOException {
+            lastCheckpointId = checkpointId;
             return elements;
         }
 

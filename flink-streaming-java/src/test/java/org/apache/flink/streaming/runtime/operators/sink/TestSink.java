@@ -254,7 +254,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         }
 
         @Override
-        public List<String> snapshotState() {
+        public List<String> snapshotState(long checkpointId) throws IOException {
             return Collections.emptyList();
         }
 

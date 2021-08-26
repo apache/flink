@@ -178,7 +178,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     }
 
     @Override
-    public List<KafkaWriterState> snapshotState() throws IOException {
+    public List<KafkaWriterState> snapshotState(long checkpointId) throws IOException {
         return ImmutableList.of(kafkaWriterState);
     }
 
