@@ -91,8 +91,8 @@ class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, Wri
     }
 
     @Override
-    public List<WriterState> snapshotState() throws IOException {
-        return wrappedWriter.snapshotState();
+    public List<WriterState> snapshotState(long checkpointId) throws IOException {
+        return wrappedWriter.snapshotState(checkpointId);
     }
 
     @Override
