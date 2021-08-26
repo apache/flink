@@ -198,8 +198,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         LOG.debug("Messages have a max timeout of " + rpcTimeout);
 
-        final Time slotTimeout =
-                Time.milliseconds(configuration.get(TaskManagerOptions.SLOT_TIMEOUT).toMillis());
+        // Fall back to AkkaOptions.ASK_TIMEOUT if TaskManagerOptions.SLOT_TIMEOUT is not
+        // configured. This has to happen manually because the two options have different types.
+        final Duration slotTimeoutDuration =
+                configuration
+                        .getOptional(TaskManagerOptions.SLOT_TIMEOUT)
+                        .orElseGet(() -> AkkaUtils.getTimeout(configuration));
+        final Time slotTimeout = Time.milliseconds(slotTimeoutDuration.toMillis());
 
         Time finiteRegistrationDuration;
         try {
