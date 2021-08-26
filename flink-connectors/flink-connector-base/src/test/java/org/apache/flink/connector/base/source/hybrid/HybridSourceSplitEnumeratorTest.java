@@ -32,6 +32,7 @@ import org.apache.flink.mock.Whitebox;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -174,6 +175,26 @@ public class HybridSourceSplitEnumeratorTest {
         enumerator.start();
         enumeratorState = enumerator.snapshotState(0);
         Assert.assertEquals(1, ((List) enumeratorState.getWrappedState()).size());
+    }
+
+    @Test
+    public void testDefaultMethodDelegation() throws Exception {
+        setupEnumeratorAndTriggerSourceSwitch();
+        SplitEnumerator<MockSourceSplit, Object> underlyingEnumeratorSpy =
+                Mockito.spy(
+                        (SplitEnumerator<MockSourceSplit, Object>)
+                                Whitebox.getInternalState(enumerator, "currentEnumerator"));
+        Whitebox.setInternalState(enumerator, "currentEnumerator", underlyingEnumeratorSpy);
+
+        enumerator.notifyCheckpointComplete(1);
+        Mockito.verify(underlyingEnumeratorSpy).notifyCheckpointComplete(1);
+
+        enumerator.notifyCheckpointAborted(2);
+        Mockito.verify(underlyingEnumeratorSpy).notifyCheckpointAborted(2);
+
+        SwitchSourceEvent se = new SwitchSourceEvent(0, null, false);
+        enumerator.handleSourceEvent(0, se);
+        Mockito.verify(underlyingEnumeratorSpy).handleSourceEvent(0, se);
     }
 
     private static class UnderlyingEnumeratorWrapper
