@@ -438,7 +438,7 @@ public class StreamTaskTestHarness<OUT> {
                 final CountDownLatch latch = new CountDownLatch(1);
                 mailboxExecutor.execute(
                         () -> {
-                            allInputProcessed.set(mailboxProcessor.isDefaultActionUnavailable());
+                            allInputProcessed.set(!mailboxProcessor.isDefaultActionAvailable());
                             latch.countDown();
                         },
                         "query-whether-processInput-has-suspend-itself");
