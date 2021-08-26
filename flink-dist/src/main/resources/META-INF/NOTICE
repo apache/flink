@@ -32,7 +32,6 @@ The following dependencies all share the same BSD license which you find under l
 - org.scala-lang:scala-compiler:2.11.12
 - org.scala-lang:scala-library:2.11.12
 - org.scala-lang:scala-reflect:2.11.12
-- org.scala-lang.modules:scala-java8-compat_2.11:0.7.0
 - org.scala-lang.modules:scala-parser-combinators_2.11:1.1.1
 - org.scala-lang.modules:scala-xml_2.11:1.0.5
 
@@ -40,6 +39,7 @@ This project bundles the following dependencies under the MIT/X11 license.
 See bundled license files for details.
 
 - org.slf4j:slf4j-api:1.7.15
+- com.github.scopt:scopt_2.11:3.5.0
 
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
