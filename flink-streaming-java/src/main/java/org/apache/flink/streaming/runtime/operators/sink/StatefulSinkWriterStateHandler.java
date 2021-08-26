@@ -26,7 +26,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.function.SupplierWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
@@ -99,9 +99,11 @@ final class StatefulSinkWriterStateHandler<WriterStateT>
     }
 
     @Override
-    public void snapshotState(SupplierWithException<List<WriterStateT>, Exception> stateSupplier)
+    public void snapshotState(
+            FunctionWithException<Long, List<WriterStateT>, Exception> stateExtractor,
+            long checkpointId)
             throws Exception {
-        writerState.update(stateSupplier.get());
+        writerState.update(stateExtractor.apply(checkpointId));
         previousSinkStates.forEach(ListState::clear);
     }
 }

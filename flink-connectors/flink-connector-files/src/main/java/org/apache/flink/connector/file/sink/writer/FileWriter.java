@@ -205,7 +205,7 @@ public class FileWriter<IN>
     }
 
     @Override
-    public List<FileWriterBucketState> snapshotState() throws IOException {
+    public List<FileWriterBucketState> snapshotState(long checkpointId) throws IOException {
         checkState(bucketWriter != null, "sink has not been initialized");
 
         List<FileWriterBucketState> state = new ArrayList<>();
