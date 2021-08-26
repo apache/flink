@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -33,9 +34,11 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -70,6 +73,31 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
 
             assertThat(
                     registeredResources, Matchers.containsInAnyOrder(libJars.keySet().toArray()));
+        }
+    }
+
+    @Test
+    public void testRegisterMultipleLocalResources() throws IOException {
+        final File flinkLibDir = temporaryFolder.newFolder();
+        final Map<String, String> libFiles = getLibJars();
+        libFiles.put("log4j.properties", "Log4j Content");
+
+        generateFilesInDirectory(flinkLibDir, libFiles);
+
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        FileSystem.get(new YarnConfiguration()),
+                        new Path(temporaryFolder.getRoot().toURI()),
+                        Collections.singletonList(new Path(flinkLibDir.toURI())),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            final List<Path> libPaths = getLibPaths(flinkLibDir);
+            final List<String> classPaths =
+                    yarnApplicationFileUploader.registerMultipleLocalResources(
+                            libPaths, Path.CUR_DIR, LocalResourceType.FILE);
+
+            assertThat(classPaths, Matchers.hasSize(2));
         }
     }
 
@@ -109,5 +137,16 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         libJars.put("flink-table.jar", jarContent);
 
         return libJars;
+    }
+
+    private static List<Path> getLibPaths(File file) {
+        final File[] libFiles = file.listFiles();
+        final List<Path> paths = new ArrayList<>(4);
+
+        for (File libFile : libFiles) {
+            paths.add(new Path(libFile.toURI()));
+        }
+
+        return paths;
     }
 }
