@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to TaskManager and Task settings. */
@@ -239,12 +240,18 @@ public class TaskManagerOptions {
     /** Timeout for identifying inactive slots. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Duration> SLOT_TIMEOUT =
-            ConfigOptions.key("taskmanager.slot.timeout")
+            key("taskmanager.slot.timeout")
                     .durationType()
-                    .defaultValue(TimeUtils.parseDuration("10 s"))
+                    .defaultValue(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
+                    .withFallbackKeys(AkkaOptions.ASK_TIMEOUT_DURATION.key())
                     .withDescription(
-                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
-                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request.");
+                            Description.builder()
+                                    .text(
+                                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
+                                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no "
+                                                    + "value is configured, then it will fall back to %s.",
+                                            code(AkkaOptions.ASK_TIMEOUT_DURATION.key()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
