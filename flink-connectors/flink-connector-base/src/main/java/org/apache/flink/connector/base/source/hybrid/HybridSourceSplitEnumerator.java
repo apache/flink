@@ -176,6 +176,16 @@ public class HybridSourceSplitEnumerator
     }
 
     @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        currentEnumerator.notifyCheckpointComplete(checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        currentEnumerator.notifyCheckpointAborted(checkpointId);
+    }
+
+    @Override
     public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
         LOG.debug(
                 "handleSourceEvent {} subtask={} pendingSplits={}",
