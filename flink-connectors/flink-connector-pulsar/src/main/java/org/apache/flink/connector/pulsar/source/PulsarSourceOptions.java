@@ -19,6 +19,8 @@
 package org.apache.flink.connector.pulsar.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
@@ -37,6 +39,8 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Collections.emptyMap;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.CONSUMER_CONFIG_PREFIX;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.SOURCE_CONFIG_PREFIX;
 
 /**
  * Configurations for PulsarSource. All the options list here could be configured in {@link
@@ -46,12 +50,17 @@ import static org.apache.flink.configuration.description.TextElement.text;
  * @see PulsarOptions
  */
 @PublicEvolving
+@ConfigGroups(
+        groups = {
+            @ConfigGroup(name = "PulsarSource", keyPrefix = SOURCE_CONFIG_PREFIX),
+            @ConfigGroup(name = "PulsarConsumer", keyPrefix = CONSUMER_CONFIG_PREFIX)
+        })
 public final class PulsarSourceOptions {
 
     // Pulsar source connector config prefix.
-    private static final String SOURCE_CONFIG_PREFIX = "pulsar.source.";
+    public static final String SOURCE_CONFIG_PREFIX = "pulsar.source.";
     // Pulsar consumer API config prefix.
-    private static final String CONSUMER_CONFIG_PREFIX = "pulsar.consumer.";
+    public static final String CONSUMER_CONFIG_PREFIX = "pulsar.consumer.";
 
     private PulsarSourceOptions() {
         // This is a constant class
@@ -99,8 +108,12 @@ public final class PulsarSourceOptions {
                     .longType()
                     .defaultValue(Duration.ofSeconds(5).toMillis())
                     .withDescription(
-                            "This option is used only when user disabled checkpoint"
-                                    + " and using Exclusive or Failover subscription");
+                            Description.builder()
+                                    .text(
+                                            "This option is used only when user disabled checkpoint and using Exclusive or Failover subscription.")
+                                    .text(
+                                            "We would automatically commit the cursor using the given period (in millis).")
+                                    .build());
 
     public static final ConfigOption<Long> PULSAR_TRANSACTION_TIMEOUT_MILLIS =
             ConfigOptions.key(SOURCE_CONFIG_PREFIX + "transactionTimeoutMillis")
@@ -115,6 +128,7 @@ public final class PulsarSourceOptions {
                                     .linebreak()
                                     .text(
                                             "This value should be greater than the checkpoint interval.")
+                                    .text("It uses milliseconds as the unit of time.")
                                     .build());
 
     public static final ConfigOption<Long> PULSAR_MAX_FETCH_TIME =
@@ -124,7 +138,7 @@ public final class PulsarSourceOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The max time to wait when fetching records. "
+                                            "The max time (in millis) to wait when fetching records. "
                                                     + "A longer time increases throughput but also latency. "
                                                     + "A fetch batch might be finished earlier because of %s.",
                                             code("pulsar.source.maxFetchRecords"))
@@ -163,7 +177,9 @@ public final class PulsarSourceOptions {
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "subscriptionName")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Subscription name.");
+                    .withDescription(
+                            "Specify the subscription name for this consumer."
+                                    + " This argument is required when constructing the consumer.");
 
     public static final ConfigOption<SubscriptionType> PULSAR_SUBSCRIPTION_TYPE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "subscriptionType")
@@ -185,7 +201,19 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<SubscriptionMode> PULSAR_SUBSCRIPTION_MODE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "subscriptionMode")
                     .enumType(SubscriptionMode.class)
-                    .defaultValue(SubscriptionMode.Durable);
+                    .defaultValue(SubscriptionMode.Durable)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Select the subscription mode to be used when subscribing to the topic.")
+                                    .list(
+                                            text(
+                                                    "%s: Make the subscription to be backed by a durable cursor that will retain messages and persist the current position.",
+                                                    code("Durable")),
+                                            text(
+                                                    "%s: Lightweight subscription mode that doesn't have a durable cursor associated",
+                                                    code("NonDurable")))
+                                    .build());
 
     public static final ConfigOption<Integer> PULSAR_RECEIVER_QUEUE_SIZE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "receiverQueueSize")
@@ -209,7 +237,8 @@ public final class PulsarSourceOptions {
                     .defaultValue(TimeUnit.MILLISECONDS.toMicros(100))
                     .withDescription(
                             Description.builder()
-                                    .text("Group a consumer acknowledgment for a specified time.")
+                                    .text(
+                                            "Group a consumer acknowledgment for a specified time (in microseconds).")
                                     .linebreak()
                                     .text(
                                             "By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.")
@@ -228,7 +257,7 @@ public final class PulsarSourceOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Delay to wait before redelivering messages that failed to be processed.")
+                                            "Delay (in microseconds) to wait before redelivering messages that failed to be processed.")
                                     .linebreak()
                                     .text(
                                             "When an application uses %s, failed messages are redelivered after a fixed timeout.",
@@ -255,13 +284,28 @@ public final class PulsarSourceOptions {
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "consumerName")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Consumer name.");
+                    .withDescription(
+                            "Consumer name is informative and it can be used to identify a particular consumer instance from the topic stats.");
 
     public static final ConfigOption<Long> PULSAR_ACK_TIMEOUT_MILLIS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "ackTimeoutMillis")
                     .longType()
                     .defaultValue(0L)
-                    .withDescription("Timeout of unacknowledged messages.");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Set the timeout (in millis) for unacknowledged messages, truncated to the nearest millisecond."
+                                                    + " The timeout needs to be greater than 1 second.")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the acknowledge timeout is disabled and that means that messages delivered to a"
+                                                    + " consumer will not be re-delivered unless the consumer crashes.")
+                                    .linebreak()
+                                    .text(
+                                            "When enabling ack timeout, if a message is not acknowledged within the specified timeout"
+                                                    + " it will be re-delivered to the consumer"
+                                                    + " (possibly to a different consumer in case of a shared subscription).")
+                                    .build());
 
     public static final ConfigOption<Long> PULSAR_TICK_DURATION_MILLIS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "tickDurationMillis")
@@ -269,7 +313,7 @@ public final class PulsarSourceOptions {
                     .defaultValue(1000L)
                     .withDescription(
                             Description.builder()
-                                    .text("Granularity of the ack-timeout redelivery.")
+                                    .text("Granularity (in millis) of the ack-timeout redelivery.")
                                     .linebreak()
                                     .text(
                                             "Using an higher %s reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).",
@@ -315,17 +359,66 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Integer> PULSAR_MAX_PENDING_CHUNKED_MESSAGE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "maxPendingChunkedMessage")
                     .intType()
-                    .defaultValue(10);
+                    .defaultValue(10)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Consumer buffers chunk messages into memory until it receives all the chunks of the original message.")
+                                    .text(
+                                            "While consuming chunk-messages, chunks from same message might not be contiguous"
+                                                    + " in the stream and they might be mixed with other messages' chunks.")
+                                    .text(
+                                            "So, consumer has to maintain multiple buffers to manage chunks coming from different messages.")
+                                    .text(
+                                            "This mainly happens when multiple publishers are publishing messages on the topic"
+                                                    + " concurrently or publisher failed to publish all chunks of the messages.")
+                                    .linebreak()
+                                    .text("eg: M1-C1, M2-C1, M1-C2, M2-C2")
+                                    .text(
+                                            "Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 messages belong to M2 message.")
+                                    .linebreak()
+                                    .text(
+                                            "Buffering large number of outstanding uncompleted chunked messages can create memory"
+                                                    + " pressure and it can be guarded by providing this %s threshold."
+                                                    + " Once, consumer reaches this threshold, it drops the outstanding unchunked-messages"
+                                                    + " by silently acking or asking broker to redeliver later by marking it unacked."
+                                                    + " This behavior can be controlled by configuration %s",
+                                            code(
+                                                    CONSUMER_CONFIG_PREFIX
+                                                            + "maxPendingChunkedMessage"),
+                                            code(
+                                                    CONSUMER_CONFIG_PREFIX
+                                                            + "autoAckOldestChunkedMessageOnQueueFull"))
+                                    .build());
 
     public static final ConfigOption<Boolean> PULSAR_AUTO_ACK_OLDEST_CHUNKED_MESSAGE_ON_QUEUE_FULL =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoAckOldestChunkedMessageOnQueueFull")
                     .booleanType()
-                    .defaultValue(false);
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Buffering large number of outstanding uncompleted chunked messages can create memory pressure"
+                                                    + " and it can be guarded by providing this %s threshold."
+                                                    + " Once, consumer reaches this threshold, it drops the outstanding unchunked-messages"
+                                                    + " by silently acking if %s is true else it marks them for redelivery.",
+                                            code(
+                                                    CONSUMER_CONFIG_PREFIX
+                                                            + "maxPendingChunkedMessage"),
+                                            code(
+                                                    CONSUMER_CONFIG_PREFIX
+                                                            + "autoAckOldestChunkedMessageOnQueueFull"))
+                                    .build());
 
     public static final ConfigOption<Long> PULSAR_EXPIRE_TIME_OF_INCOMPLETE_CHUNKED_MESSAGE_MILLIS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "expireTimeOfIncompleteChunkedMessageMillis")
                     .longType()
-                    .defaultValue(60 * 1000L);
+                    .defaultValue(60 * 1000L)
+                    .withDescription(
+                            "If producer fails to publish all the chunks of a message then consumer"
+                                    + " can expire incomplete chunks if consumer won't be able to"
+                                    + " receive all chunks in expire times (default 1 hour)."
+                                    + " It uses milliseconds as the unit of time.");
 
     public static final ConfigOption<ConsumerCryptoFailureAction> PULSAR_CRYPTO_FAILURE_ACTION =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "cryptoFailureAction")
@@ -429,21 +522,28 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Integer> PULSAR_MAX_REDELIVER_COUNT =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "deadLetterPolicy.maxRedeliverCount")
                     .intType()
-                    .defaultValue(0);
+                    .defaultValue(0)
+                    .withDescription(
+                            "Maximum number of times that a message will be redelivered before being sent to the dead letter queue.");
 
     public static final ConfigOption<String> PULSAR_RETRY_LETTER_TOPIC =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "deadLetterPolicy.retryLetterTopic")
                     .stringType()
-                    .noDefaultValue();
+                    .noDefaultValue()
+                    .withDescription(
+                            "Name of the retry topic where the failing messages will be sent.");
     public static final ConfigOption<String> PULSAR_DEAD_LETTER_TOPIC =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "deadLetterPolicy.deadLetterTopic")
                     .stringType()
-                    .noDefaultValue();
+                    .noDefaultValue()
+                    .withDescription(
+                            "Name of the dead topic where the failing messages will be sent.");
 
     public static final ConfigOption<Boolean> PULSAR_RETRY_ENABLE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "retryEnable")
                     .booleanType()
-                    .defaultValue(false);
+                    .defaultValue(false)
+                    .withDescription("If enabled, the consumer will auto retry messages.");
 
     public static final ConfigOption<Boolean> PULSAR_AUTO_UPDATE_PARTITIONS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoUpdatePartitions")
@@ -461,7 +561,10 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Integer> PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "autoUpdatePartitionsIntervalSeconds")
                     .intType()
-                    .defaultValue(60);
+                    .defaultValue(60)
+                    .withDescription(
+                            "Set the interval (in seconds) of updating partitions."
+                                    + " This only works if autoUpdatePartitions is enabled.");
 
     public static final ConfigOption<Boolean> PULSAR_REPLICATE_SUBSCRIPTION_STATE =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "replicateSubscriptionState")
@@ -477,10 +580,25 @@ public final class PulsarSourceOptions {
     public static final ConfigOption<Boolean> PULSAR_ACK_RECEIPT_ENABLED =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "ackReceiptEnabled")
                     .booleanType()
-                    .defaultValue(false);
+                    .defaultValue(false)
+                    .withDescription(
+                            "Ack will return receipt but does not mean that the message will not be resent after get receipt.");
 
     public static final ConfigOption<Boolean> PULSAR_POOL_MESSAGES =
             ConfigOptions.key(CONSUMER_CONFIG_PREFIX + "poolMessages")
                     .booleanType()
-                    .defaultValue(false);
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enable pooling of messages and the underlying data buffers.")
+                                    .linebreak()
+                                    .text(
+                                            "When pooling is enabled, the application is responsible for calling"
+                                                    + " %s after the handling of every received message. If %s"
+                                                    + " is not called on a received message, there will be a memory leak."
+                                                    + " If an application attempts to use and already \"released\" message,"
+                                                    + " it might experience undefined behavior (eg: memory corruption, deserialization error, etc.).",
+                                            code("Message.release()"), code("release()"))
+                                    .build());
 }
