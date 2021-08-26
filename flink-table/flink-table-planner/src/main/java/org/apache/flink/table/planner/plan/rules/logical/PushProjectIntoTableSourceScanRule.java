@@ -74,9 +74,10 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
  *
  * <p>If the source implements {@link SupportsReadingMetadata} this rule also pushes projected
  * metadata into the source. For sources implementing {@link SupportsReadingMetadata} but not {@link
- * SupportsProjectionPushDown} this is only done if the source indicates that metadata should be
- * projected. This is important for some sources which would not be re-usable if different instances
- * (due to different projected metadata) of the source were used together.
+ * SupportsProjectionPushDown} this is only done if {@link
+ * SupportsReadingMetadata#supportsMetadataProjection()} returns {@code true}. This is important for
+ * some sources which would not be re-usable if different instances (due to different projected
+ * metadata) of the source were used together.
  */
 @Internal
 public class PushProjectIntoTableSourceScanRule
@@ -97,22 +98,23 @@ public class PushProjectIntoTableSourceScanRule
             return false;
         }
 
+        final DynamicTableSource source = sourceTable.tableSource();
+
         // The source supports projection push-down.
-        if (supportsProjectionPushDown(sourceTable.tableSource())) {
+        if (supportsProjectionPushDown(source)) {
             return Arrays.stream(sourceTable.abilitySpecs())
                     .noneMatch(spec -> spec instanceof ProjectPushDownSpec);
         }
 
         // The source supports metadata and wants them to be projected even if projection push-down
         // (for physical columns) is not supported.
-        if (supportsMetadata(sourceTable.tableSource())) {
+        if (supportsMetadata(source)) {
             if (Arrays.stream(sourceTable.abilitySpecs())
                     .anyMatch(spec -> spec instanceof ReadingMetadataSpec)) {
                 return false;
             }
 
-            return ((SupportsReadingMetadata) sourceTable.tableSource())
-                    .supportsMetadataProjection();
+            return ((SupportsReadingMetadata) source).supportsMetadataProjection();
         }
 
         return false;
@@ -122,9 +124,10 @@ public class PushProjectIntoTableSourceScanRule
     public void onMatch(RelOptRuleCall call) {
         final LogicalProject project = call.rel(0);
         final LogicalTableScan scan = call.rel(1);
-        final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
+        final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
 
-        final boolean supportsNestedProjection = supportsNestedProjection(source.tableSource());
+        final boolean supportsNestedProjection =
+                supportsNestedProjection(sourceTable.tableSource());
 
         final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
         if (!supportsNestedProjection && refFields.length == scan.getRowType().getFieldCount()) {
@@ -133,8 +136,8 @@ public class PushProjectIntoTableSourceScanRule
         }
 
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
-        final ResolvedSchema schema = source.catalogTable().getResolvedSchema();
-        final RowType producedType = createProducedType(schema, source.tableSource());
+        final ResolvedSchema schema = sourceTable.catalogTable().getResolvedSchema();
+        final RowType producedType = createProducedType(schema, sourceTable.tableSource());
         final NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
                         getProjections(project, scan),
@@ -147,15 +150,15 @@ public class PushProjectIntoTableSourceScanRule
 
         final List<SourceAbilitySpec> abilitySpecs = new ArrayList<>();
         final RowType newProducedType =
-                performPushDown(source, projectedSchema, producedType, abilitySpecs);
+                performPushDown(sourceTable, projectedSchema, producedType, abilitySpecs);
 
-        final DynamicTableSource newTableSource = source.tableSource().copy();
+        final DynamicTableSource newTableSource = sourceTable.tableSource().copy();
         final SourceAbilityContext context = SourceAbilityContext.from(scan);
         abilitySpecs.forEach(spec -> spec.apply(newTableSource, context));
 
         final RelDataType newRowType = typeFactory.buildRelNodeRowType(newProducedType);
         final TableSourceTable newSource =
-                source.copy(
+                sourceTable.copy(
                         newTableSource,
                         newRowType,
                         getExtraDigests(abilitySpecs),
