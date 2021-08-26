@@ -282,6 +282,11 @@ public class KafkaDynamicSource
     }
 
     @Override
+    public boolean supportsMetadataProjection() {
+        return false;
+    }
+
+    @Override
     public void applyWatermark(WatermarkStrategy<RowData> watermarkStrategy) {
         this.watermarkStrategy = watermarkStrategy;
     }
