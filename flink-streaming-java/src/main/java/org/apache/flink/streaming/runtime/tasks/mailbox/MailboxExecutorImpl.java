@@ -60,7 +60,7 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
     }
 
     public boolean isIdle() {
-        return mailboxProcessor.isDefaultActionUnavailable()
+        return !mailboxProcessor.isDefaultActionAvailable()
                 && !mailbox.hasMail()
                 && mailbox.getState().isAcceptingMails();
     }

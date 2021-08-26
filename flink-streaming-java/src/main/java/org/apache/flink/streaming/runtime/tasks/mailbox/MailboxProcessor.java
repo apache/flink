@@ -223,7 +223,7 @@ public class MailboxProcessor implements Closeable {
         if (processMail(mailbox, true)) {
             return true;
         }
-        if (!isDefaultActionUnavailable() && isNextLoopPossible()) {
+        if (isDefaultActionAvailable() && isNextLoopPossible()) {
             mailboxDefaultAction.runDefaultAction(new MailboxController(this));
             return true;
         }
@@ -329,7 +329,7 @@ public class MailboxProcessor implements Closeable {
     private boolean processMailsWhenDefaultActionUnavailable() throws Exception {
         boolean processedSomething = false;
         Optional<Mail> maybeMail;
-        while (isDefaultActionUnavailable() && isNextLoopPossible()) {
+        while (!isDefaultActionAvailable() && isNextLoopPossible()) {
             maybeMail = mailbox.tryTake(MIN_PRIORITY);
             if (!maybeMail.isPresent()) {
                 maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
@@ -395,8 +395,8 @@ public class MailboxProcessor implements Closeable {
     }
 
     @VisibleForTesting
-    public boolean isDefaultActionUnavailable() {
-        return suspendedDefaultAction != null;
+    public boolean isDefaultActionAvailable() {
+        return suspendedDefaultAction == null;
     }
 
     private boolean isNextLoopPossible() {

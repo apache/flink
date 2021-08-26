@@ -1468,7 +1468,7 @@ public class StreamTaskTest extends TestLogger {
             final RunnableWithException completeFutureTask =
                     () -> {
                         assertEquals(1, inputProcessor.currentNumProcessCalls);
-                        assertTrue(task.mailboxProcessor.isDefaultActionUnavailable());
+                        assertFalse(task.mailboxProcessor.isDefaultActionAvailable());
                         environment.getWriter(1).getAvailableFuture().complete(null);
                     };
 
