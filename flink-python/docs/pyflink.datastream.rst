@@ -27,6 +27,12 @@ Module contents
     :undoc-members:
     :show-inheritance:
 
+pyflink.datastream.state module
+------------------------------------
+.. automodule:: pyflink.datastream.state
+    :members:
+    :undoc-members:
+
 pyflink.datastream.connectors module
 ------------------------------------
 .. automodule:: pyflink.datastream.connectors

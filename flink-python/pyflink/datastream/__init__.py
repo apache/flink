@@ -63,9 +63,6 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
     - :class:`KeyedCoProcessFunction`:
       Similar to :class:`CoProcessFunction`, except that it was applied to a keyed
       :class:`ConnectedStreams` and could register event-time and processing-time timers.
-    - :class:`KeyedCoProcessFunction`:
-      Similar to :class:`CoProcessFunction`, except that it was applied to a keyed
-      :class:`ConnectedStreams` and could register event-time and processing-time timers.
     - :class:`WindowFunction`:
       Base interface for functions that are evaluated over keyed (grouped) windows.
     - :class:`ProcessWindowFunction`:
