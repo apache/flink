@@ -369,7 +369,7 @@ public class ExecutionVertex
                 // do not release pipelined partitions here to save RPC calls
                 oldExecution.handlePartitionCleanup(false, true);
                 getExecutionGraphAccessor()
-                        .getPartitionReleaseStrategy()
+                        .getPartitionGroupReleaseStrategy()
                         .vertexUnfinished(executionVertexId);
             }
 

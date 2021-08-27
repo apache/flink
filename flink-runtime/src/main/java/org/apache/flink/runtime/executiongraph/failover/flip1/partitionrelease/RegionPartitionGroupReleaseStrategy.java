@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Releases blocking intermediate result partitions that are incident to a {@link
  * SchedulingPipelinedRegion}, as soon as the region's execution vertices are finished.
  */
-public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy {
+public class RegionPartitionGroupReleaseStrategy implements PartitionGroupReleaseStrategy {
 
     private final SchedulingTopology schedulingTopology;
 
@@ -51,7 +51,7 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
     private final ConsumerRegionGroupExecutionViewMaintainer
             consumerRegionGroupExecutionViewMaintainer;
 
-    public RegionPartitionReleaseStrategy(final SchedulingTopology schedulingTopology) {
+    public RegionPartitionGroupReleaseStrategy(final SchedulingTopology schedulingTopology) {
         this.schedulingTopology = checkNotNull(schedulingTopology);
 
         initRegionExecutionViewByVertex();
@@ -144,13 +144,13 @@ public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy 
         return releasablePartitionGroups;
     }
 
-    /** Factory for {@link PartitionReleaseStrategy}. */
-    public static class Factory implements PartitionReleaseStrategy.Factory {
+    /** Factory for {@link PartitionGroupReleaseStrategy}. */
+    public static class Factory implements PartitionGroupReleaseStrategy.Factory {
 
         @Override
-        public PartitionReleaseStrategy createInstance(
+        public PartitionGroupReleaseStrategy createInstance(
                 final SchedulingTopology schedulingStrategy) {
-            return new RegionPartitionReleaseStrategy(schedulingStrategy);
+            return new RegionPartitionGroupReleaseStrategy(schedulingStrategy);
         }
     }
 }
