@@ -37,8 +37,6 @@ class KafkaWriterStateSerializer implements SimpleVersionedSerializer<KafkaWrite
     public byte[] serialize(KafkaWriterState state) throws IOException {
         try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 final DataOutputStream out = new DataOutputStream(baos)) {
-            out.writeInt(state.getSubtaskId());
-            out.writeLong(state.getTransactionalIdOffset());
             out.writeUTF(state.getTransactionalIdPrefix());
             out.flush();
             return baos.toByteArray();
@@ -49,10 +47,8 @@ class KafkaWriterStateSerializer implements SimpleVersionedSerializer<KafkaWrite
     public KafkaWriterState deserialize(int version, byte[] serialized) throws IOException {
         try (final ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 final DataInputStream in = new DataInputStream(bais)) {
-            final int lastParallelism = in.readInt();
-            final long transactionalOffset = in.readLong();
             final String transactionalIdPrefx = in.readUTF();
-            return new KafkaWriterState(transactionalIdPrefx, lastParallelism, transactionalOffset);
+            return new KafkaWriterState(transactionalIdPrefx);
         }
     }
 }
