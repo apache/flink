@@ -407,23 +407,39 @@ class LocalBufferPool implements BufferPool {
 
     private void onGlobalPoolAvailable() {
         CompletableFuture<?> toNotify = null;
-        synchronized (availableMemorySegments) {
-            requestingWhenAvailable = false;
-            if (isDestroyed || availabilityHelper.isApproximatelyAvailable()) {
-                // there is currently no benefit to obtain buffer from global; give other pools
-                // precedent
-                return;
+        BufferListener listener;
+        MemorySegment segment = null;
+        do {
+            synchronized (availableMemorySegments) {
+                requestingWhenAvailable = false;
+                if (isDestroyed || availabilityHelper.isApproximatelyAvailable()) {
+                    // there is currently no benefit to obtain buffer from global; give other pools
+                    // precedent
+                    return;
+                }
+
+                // Check availability and potentially request the memory segment. The call may also
+                // result in invoking #requestMemorySegmentFromGlobalWhenAvailable again if no
+                // segment could be fetched because of concurrent requests from different
+                // LocalBufferPools.
+                if (!checkAvailability()) {
+                    return;
+                }
+
+                // try to fulfill the buffer listeners first
+                if ((listener = registeredListeners.poll()) == null) {
+                    toNotify = availabilityHelper.getUnavailableToResetAvailable();
+                } else {
+                    segment = availableMemorySegments.poll();
+                }
             }
 
-            // Check availability and potentially request the memory segment. The call may also
-            // result in invoking
-            // #requestMemorySegmentFromGlobalWhenAvailable again if no segment could be fetched
-            // because of
-            // concurrent requests from different LocalBufferPools.
-            if (checkAvailability()) {
-                toNotify = availabilityHelper.getUnavailableToResetAvailable();
+            // the segment must be not null if the listener is not null
+            if (listener != null && !fireBufferAvailableNotification(listener, segment)) {
+                recycle(segment);
             }
-        }
+        } while (toNotify == null);
+
         mayNotifyAvailable(toNotify);
     }
 
