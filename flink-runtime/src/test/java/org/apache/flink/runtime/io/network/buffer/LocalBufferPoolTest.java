@@ -537,10 +537,10 @@ public class LocalBufferPoolTest extends TestLogger {
         private final AtomicInteger times = new AtomicInteger(0);
 
         @Override
-        public NotificationResult notifyBufferAvailable(Buffer buffer) {
+        public boolean notifyBufferAvailable(Buffer buffer) {
             times.incrementAndGet();
             buffer.recycleBuffer();
-            return NotificationResult.BUFFER_USED;
+            return true;
         }
 
         @Override

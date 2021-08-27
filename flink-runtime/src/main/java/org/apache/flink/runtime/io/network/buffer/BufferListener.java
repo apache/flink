@@ -24,27 +24,6 @@ package org.apache.flink.runtime.io.network.buffer;
  */
 public interface BufferListener {
 
-    /** Status of the notification result from the buffer listener. */
-    enum NotificationResult {
-        BUFFER_NOT_USED(false),
-        BUFFER_USED(true);
-
-        private final boolean isBufferUsed;
-
-        NotificationResult(boolean isBufferUsed) {
-            this.isBufferUsed = isBufferUsed;
-        }
-
-        /**
-         * Whether the notified buffer is accepted to use by the listener.
-         *
-         * @return <tt>true</tt> if the notified buffer is accepted.
-         */
-        boolean isBufferUsed() {
-            return isBufferUsed;
-        }
-    }
-
     /**
      * Notification callback if a buffer is recycled and becomes available in buffer pool.
      *
@@ -59,9 +38,9 @@ public interface BufferListener {
      * stack!
      *
      * @param buffer buffer that becomes available in buffer pool.
-     * @return NotificationResult if the listener wants to be notified next time.
+     * @return true if the buffer is accepted by the listener.
      */
-    NotificationResult notifyBufferAvailable(Buffer buffer);
+    boolean notifyBufferAvailable(Buffer buffer);
 
     /** Notification callback if the buffer provider is destroyed. */
     void notifyBufferDestroyed();
