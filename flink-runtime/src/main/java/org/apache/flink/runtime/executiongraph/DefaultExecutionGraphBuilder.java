@@ -38,8 +38,10 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.metrics.CancellingTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
+import org.apache.flink.runtime.executiongraph.metrics.StartingTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -328,6 +330,8 @@ public class DefaultExecutionGraphBuilder {
         metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
+        metrics.gauge(StartingTimeGauge.METRIC_NAME, new StartingTimeGauge(executionGraph));
+        metrics.gauge(CancellingTimeGauge.METRIC_NAME, new CancellingTimeGauge(executionGraph));
 
         return executionGraph;
     }
