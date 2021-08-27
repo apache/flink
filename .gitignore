@@ -1,7 +1,9 @@
 .cache
 scalastyle-output.xml
 .classpath
-.idea
+.idea/
+# FLINK-24013: Add IssueNavigationLink to make IDEA support hyperlink on JIRA Ticket and GitHub PR on Git plugin.
+!.idea/vcs.xml
 .metadata
 .settings
 .project
