@@ -207,7 +207,12 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                                                         sslHandlerFactory));
                             }
 
-                            ch.pipeline().addLast(new HttpServerCodec());
+                            ch.pipeline()
+                                    .addLast(new HttpServerCodec())
+                                    .addLast(new FileUploadHandler(uploadDir))
+                                    .addLast(
+                                            new FlinkHttpObjectAggregator(
+                                                    maxContentLength, responseHeaders));
 
                             for (InboundChannelHandlerFactory factory :
                                     inboundChannelHandlerFactories) {
@@ -219,10 +224,6 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                             }
 
                             ch.pipeline()
-                                    .addLast(new FileUploadHandler(uploadDir))
-                                    .addLast(
-                                            new FlinkHttpObjectAggregator(
-                                                    maxContentLength, responseHeaders))
                                     .addLast(new ChunkedWriteHandler())
                                     .addLast(handler.getName(), handler)
                                     .addLast(new PipelineErrorHandler(log, responseHeaders));
