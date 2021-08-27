@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.rest.FlinkHttpObjectAggregator;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.webmonitor.HttpRequestHandler;
@@ -58,6 +59,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 
+import static org.apache.flink.configuration.RestOptions.SERVER_MAX_CONTENT_LENGTH;
+
 /** This classes encapsulates the boot-strapping of netty for the web-frontend. */
 public class WebFrontendBootstrap {
     private final Router router;
@@ -66,6 +69,7 @@ public class WebFrontendBootstrap {
     private final ServerBootstrap bootstrap;
     private final Channel serverChannel;
     private final String restAddress;
+    private final int maxContentLength;
     private final Map<String, String> responseHeaders;
     @VisibleForTesting List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
 
@@ -82,6 +86,7 @@ public class WebFrontendBootstrap {
         this.router = Preconditions.checkNotNull(router);
         this.log = Preconditions.checkNotNull(log);
         this.uploadDir = directory;
+        this.maxContentLength = config.get(SERVER_MAX_CONTENT_LENGTH);
         this.responseHeaders = new HashMap<>();
         inboundChannelHandlerFactories = new ArrayList<>();
         ServiceLoader<InboundChannelHandlerFactory> loader =
@@ -119,7 +124,12 @@ public class WebFrontendBootstrap {
                                             serverSSLFactory.createNettySSLHandler(ch.alloc()));
                         }
 
-                        ch.pipeline().addLast(new HttpServerCodec());
+                        ch.pipeline()
+                                .addLast(new HttpServerCodec())
+                                .addLast(new HttpRequestHandler(uploadDir))
+                                .addLast(
+                                        new FlinkHttpObjectAggregator(
+                                                maxContentLength, responseHeaders));
 
                         for (InboundChannelHandlerFactory factory :
                                 inboundChannelHandlerFactories) {
@@ -132,7 +142,6 @@ public class WebFrontendBootstrap {
 
                         ch.pipeline()
                                 .addLast(new ChunkedWriteHandler())
-                                .addLast(new HttpRequestHandler(uploadDir))
                                 .addLast(handler.getName(), handler)
                                 .addLast(new PipelineErrorHandler(WebFrontendBootstrap.this.log));
                     }

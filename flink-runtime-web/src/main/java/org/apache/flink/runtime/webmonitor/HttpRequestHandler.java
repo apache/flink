@@ -51,6 +51,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Http
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
+import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,6 +170,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
                     // fire next channel handler
                     ctx.fireChannelRead(request);
                 }
+            } else {
+                ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
             }
         } catch (Throwable t) {
             currentRequest = null;
