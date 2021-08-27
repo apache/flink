@@ -74,6 +74,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -732,12 +733,18 @@ public class ClientTest extends TestLogger {
                     future.get();
                     fail("Did not throw expected Exception after shut down");
                 } catch (ExecutionException t) {
-                    if (t.getCause().getCause() instanceof ClosedChannelException
-                            || t.getCause().getCause() instanceof IllegalStateException) {
-                        // Expected
-                    } else {
-                        t.printStackTrace();
-                        fail("Failed with unexpected Exception type: " + t.getClass().getName());
+                    final Optional<ClosedChannelException> closedChannelException =
+                            ExceptionUtils.findThrowable(t, ClosedChannelException.class);
+                    final Optional<IllegalStateException> illegalStateException =
+                            ExceptionUtils.findThrowable(t, IllegalStateException.class);
+
+                    if (!closedChannelException.isPresent() && !illegalStateException.isPresent()) {
+                        throw new AssertionError(
+                                String.format(
+                                        "Could not find expected exception type %s or %s as a cause.",
+                                        ClosedChannelException.class.getSimpleName(),
+                                        IllegalStateException.class.getSimpleName()),
+                                t);
                     }
                 }
             }
