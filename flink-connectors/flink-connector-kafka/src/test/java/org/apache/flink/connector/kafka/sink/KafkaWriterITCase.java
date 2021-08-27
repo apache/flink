@@ -36,6 +36,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
@@ -66,8 +67,11 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.connector.kafka.sink.KafkaSinkITCase.drainAllRecordsFromTopic;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
@@ -175,6 +179,101 @@ public class KafkaWriterITCase extends TestLogger {
                                 }
                             });
             assertThat(currentSendTime.get().getValue(), greaterThan(0L));
+        }
+    }
+
+    /** Test that producer is not accidentally recreated or pool is used. */
+    @Test
+    void testLingeringTransaction() throws Exception {
+        final KafkaWriter<Integer> failedWriter =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE);
+
+        // create two lingering transactions
+        failedWriter.prepareCommit(false);
+        failedWriter.snapshotState(0);
+        failedWriter.prepareCommit(false);
+        failedWriter.snapshotState(1);
+
+        try (final KafkaWriter<Integer> recoveredWriter =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
+            recoveredWriter.write(1, SINK_WRITER_CONTEXT);
+
+            List<KafkaCommittable> committables = recoveredWriter.prepareCommit(false);
+            recoveredWriter.snapshotState(0);
+            assertThat(committables, hasSize(1));
+            assertThat(committables.get(0).getProducer().isPresent(), equalTo(true));
+
+            committables.get(0).getProducer().get().getObject().commitTransaction();
+
+            List<ConsumerRecord<byte[], byte[]>> records =
+                    KafkaSinkITCase.drainAllRecordsFromTopic(topic, getKafkaClientConfiguration());
+            assertThat(records, hasSize(1));
+        }
+
+        failedWriter.close();
+    }
+
+    /** Test that producer is not accidentally recreated or pool is used. */
+    @ParameterizedTest
+    @EnumSource(
+            value = DeliveryGuarantee.class,
+            names = "EXACTLY_ONCE",
+            mode = EnumSource.Mode.EXCLUDE)
+    void useSameProducerForNonTransactional(DeliveryGuarantee guarantee) throws Exception {
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(getKafkaClientConfiguration(), guarantee)) {
+            assertThat(writer.getProducerPool(), hasSize(0));
+
+            FlinkKafkaInternalProducer<byte[], byte[]> firstProducer = writer.getCurrentProducer();
+            List<KafkaCommittable> committables = writer.prepareCommit(false);
+            writer.snapshotState(0);
+            assertThat(committables, hasSize(0));
+
+            assertThat(
+                    "Expected same producer",
+                    writer.getCurrentProducer(),
+                    sameInstance(firstProducer));
+            assertThat(writer.getProducerPool(), hasSize(0));
+        }
+    }
+
+    /** Test that producers are reused when committed. */
+    @Test
+    void usePoolForTransactional() throws Exception {
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
+            assertThat(writer.getProducerPool(), hasSize(0));
+
+            List<KafkaCommittable> committables0 = writer.prepareCommit(false);
+            writer.snapshotState(0);
+            assertThat(committables0, hasSize(1));
+            assertThat(committables0.get(0).getProducer().isPresent(), equalTo(true));
+
+            FlinkKafkaInternalProducer<?, ?> firstProducer =
+                    committables0.get(0).getProducer().get().getObject();
+            assertThat(
+                    "Expected different producer",
+                    firstProducer,
+                    not(sameInstance(writer.getCurrentProducer())));
+
+            // recycle first producer, KafkaCommitter would commit it and then return it
+            assertThat(writer.getProducerPool(), hasSize(0));
+            firstProducer.commitTransaction();
+            committables0.get(0).getProducer().get().close();
+            assertThat(writer.getProducerPool(), hasSize(1));
+
+            List<KafkaCommittable> committables1 = writer.prepareCommit(false);
+            writer.snapshotState(1);
+            assertThat(committables1, hasSize(1));
+            assertThat(committables1.get(0).getProducer().isPresent(), equalTo(true));
+
+            assertThat(
+                    "Expected recycled producer",
+                    firstProducer,
+                    sameInstance(writer.getCurrentProducer()));
         }
     }
 

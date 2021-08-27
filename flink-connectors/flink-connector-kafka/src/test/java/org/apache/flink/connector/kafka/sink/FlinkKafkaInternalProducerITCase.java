@@ -58,6 +58,7 @@ class FlinkKafkaInternalProducerITCase extends TestLogger {
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
                     .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
                     .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
+                    .withEnv("KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE", "false")
                     .withLogConsumer(new Slf4jLogConsumer(LOG))
                     .withEmbeddedZookeeper();
 

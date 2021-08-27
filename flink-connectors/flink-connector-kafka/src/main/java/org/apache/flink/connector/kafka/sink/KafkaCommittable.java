@@ -21,6 +21,7 @@ import javax.annotation.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * This class holds the necessary information to construct a new {@link FlinkKafkaInternalProducer}
@@ -31,25 +32,27 @@ class KafkaCommittable {
     private final long producerId;
     private final short epoch;
     private final String transactionalId;
-    @Nullable private FlinkKafkaInternalProducer<?, ?> producer;
+    @Nullable private Recyclable<? extends FlinkKafkaInternalProducer<?, ?>> producer;
 
     public KafkaCommittable(
             long producerId,
             short epoch,
             String transactionalId,
-            @Nullable FlinkKafkaInternalProducer<?, ?> producer) {
+            @Nullable Recyclable<? extends FlinkKafkaInternalProducer<?, ?>> producer) {
         this.producerId = producerId;
         this.epoch = epoch;
         this.transactionalId = transactionalId;
         this.producer = producer;
     }
 
-    public static KafkaCommittable of(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
+    public static <K, V> KafkaCommittable of(
+            FlinkKafkaInternalProducer<K, V> producer,
+            Consumer<FlinkKafkaInternalProducer<K, V>> recycler) {
         return new KafkaCommittable(
                 producer.getProducerId(),
                 producer.getEpoch(),
                 producer.getTransactionalId(),
-                producer);
+                new Recyclable<>(producer, recycler));
     }
 
     public long getProducerId() {
@@ -64,7 +67,7 @@ class KafkaCommittable {
         return transactionalId;
     }
 
-    public Optional<FlinkKafkaInternalProducer<?, ?>> getProducer() {
+    public Optional<Recyclable<? extends FlinkKafkaInternalProducer<?, ?>>> getProducer() {
         return Optional.ofNullable(producer);
     }
 
