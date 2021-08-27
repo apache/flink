@@ -87,7 +87,7 @@ public class StopWithSavepointTerminationManager {
         return stopWithSavepointTerminationHandler.getSavepointPath();
     }
 
-    public static void checkStopWithSavepointPreconditions(
+    public static void checkSavepointPreconditions(
             CheckpointCoordinator checkpointCoordinator,
             @Nullable String targetDirectory,
             JobID jobId,
