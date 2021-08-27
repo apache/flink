@@ -39,7 +39,6 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -244,7 +243,7 @@ public class RemoteInputChannelTest {
                 8192,
                 (inputChannel, buffer, j) -> {
                     inputChannel.onBuffer(buffer, j, -1);
-                    return null;
+                    return true;
                 });
     }
 
@@ -270,7 +269,7 @@ public class RemoteInputChannelTest {
      */
     private void testConcurrentReleaseAndSomething(
             final int numberOfRepetitions,
-            TriFunction<RemoteInputChannel, Buffer, Integer, Object> function)
+            TriFunction<RemoteInputChannel, Buffer, Integer, Boolean> function)
             throws Exception {
 
         // Setup
@@ -290,10 +289,7 @@ public class RemoteInputChannelTest {
                                 for (int j = 0; j < 128; j++) {
                                     // this is the same buffer over and over again which will be
                                     // recycled by the RemoteInputChannel
-                                    Object obj =
-                                            function.apply(inputChannel, buffer.retainBuffer(), j);
-                                    if (obj instanceof NotificationResult
-                                            && obj == NotificationResult.BUFFER_NOT_USED) {
+                                    if (!function.apply(inputChannel, buffer.retainBuffer(), j)) {
                                         buffer.recycleBuffer();
                                     }
                                 }

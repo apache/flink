@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -495,12 +494,12 @@ class LocalBufferPool implements BufferPool {
 
                 checkConsistentAvailability();
             }
-        } while (!fireBufferAvailableNotification(listener, segment).isBufferUsed());
+        } while (!fireBufferAvailableNotification(listener, segment));
 
         mayNotifyAvailable(toNotify);
     }
 
-    private NotificationResult fireBufferAvailableNotification(
+    private boolean fireBufferAvailableNotification(
             BufferListener listener, MemorySegment segment) {
         // We do not know which locks have been acquired before the recycle() or are needed in the
         // notification and which other threads also access them.
