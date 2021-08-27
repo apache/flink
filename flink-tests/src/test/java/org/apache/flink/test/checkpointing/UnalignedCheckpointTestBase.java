@@ -75,6 +75,7 @@ import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ErrorCollector;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +121,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
 
     @Rule public ErrorCollector collector = new ErrorCollector();
 
+    @Rule public TestName name = new TestName();
+
     @Nullable
     protected File execute(UnalignedSettings settings) throws Exception {
         final File checkpointDir = temp.newFolder();
@@ -150,6 +153,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 StreamExecutionEnvironment.getExecutionEnvironment(conf);
         settings.configure(env);
         try {
+            // print the test parameters to help debugging when the case is stuck
+            System.out.println(
+                    "Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
             waitForCleanShutdown();
             final CompletableFuture<JobSubmissionResult> result =
                     miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
@@ -160,6 +166,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             .requestJobResult(result.get().getJobID())
                             .get()
                             .toJobExecutionResult(getClass().getClassLoader()));
+            System.out.println(
+                    "Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
         } catch (Exception e) {
             if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
                 throw e;
