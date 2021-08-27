@@ -22,22 +22,23 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.source.ScanTableSource;
 
 /**
- * Enables to push down a limit (the expected maximum number of produced records) into a {@link ScanTableSource}.
+ * Enables to push down a limit (the expected maximum number of produced records) into a {@link
+ * ScanTableSource}.
  *
- * <p>It might be beneficial to perform the limiting as early as possible in order to be close to the
- * actual data generation.
+ * <p>It might be beneficial to perform the limiting as early as possible in order to be close to
+ * the actual data generation.
  *
- * <p>A source can perform the limiting on a best-effort basis. During runtime, it must not guarantee
- * that the number of emitted records is less than or equal to the limit.
+ * <p>A source can perform the limiting on a best-effort basis. During runtime, it must not
+ * guarantee that the number of emitted records is less than or equal to the limit.
  *
- * <p>Regardless if this interface is implemented or not, a limit is also applied in a subsequent operation
- * after the source.
+ * <p>Regardless if this interface is implemented or not, a limit is also applied in a subsequent
+ * operation after the source.
  */
 @PublicEvolving
 public interface SupportsLimitPushDown {
 
-	/**
-	 * Provides the expected maximum number of produced records for limiting on a best-effort basis.
-	 */
-	void applyLimit(long limit);
+    /**
+     * Provides the expected maximum number of produced records for limiting on a best-effort basis.
+     */
+    void applyLimit(long limit);
 }

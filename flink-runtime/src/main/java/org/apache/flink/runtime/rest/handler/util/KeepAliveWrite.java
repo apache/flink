@@ -26,25 +26,24 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 
-/**
- * Utilities to write.
- */
+/** Utilities to write. */
 public class KeepAliveWrite {
-	public static ChannelFuture flush(ChannelHandlerContext ctx, HttpRequest request, HttpResponse response) {
-		if (!HttpHeaders.isKeepAlive(request)) {
-			return ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-		} else {
-			response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-			return ctx.writeAndFlush(response);
-		}
-	}
+    public static ChannelFuture flush(
+            ChannelHandlerContext ctx, HttpRequest request, HttpResponse response) {
+        if (!HttpHeaders.isKeepAlive(request)) {
+            return ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+        } else {
+            response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            return ctx.writeAndFlush(response);
+        }
+    }
 
-	public static ChannelFuture flush(Channel ch, HttpRequest req, HttpResponse res) {
-		if (!HttpHeaders.isKeepAlive(req)) {
-			return ch.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
-		} else {
-			res.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-			return ch.writeAndFlush(res);
-		}
-	}
+    public static ChannelFuture flush(Channel ch, HttpRequest req, HttpResponse res) {
+        if (!HttpHeaders.isKeepAlive(req)) {
+            return ch.writeAndFlush(res).addListener(ChannelFutureListener.CLOSE);
+        } else {
+            res.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+            return ch.writeAndFlush(res);
+        }
+    }
 }

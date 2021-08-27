@@ -31,38 +31,46 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import java.util.LinkedHashMap;
 
 /**
- * A RowPartitionComputer that converts Flink objects to Hive objects before computing the partition value strings.
+ * A RowPartitionComputer that converts Flink objects to Hive objects before computing the partition
+ * value strings.
  */
 public class HiveRowPartitionComputer extends RowPartitionComputer {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final HiveObjectConversion[] partColConversions;
+    private final HiveObjectConversion[] partColConversions;
 
-	HiveRowPartitionComputer(HiveShim hiveShim, String defaultPartValue, String[] columnNames,
-			DataType[] columnTypes, String[] partitionColumns) {
-		super(defaultPartValue, columnNames, partitionColumns);
-		partColConversions = new HiveObjectConversion[partitionIndexes.length];
-		for (int i = 0; i < partColConversions.length; i++) {
-			DataType partColType = columnTypes[partitionIndexes[i]];
-			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
-			partColConversions[i] = HiveInspectors.getConversion(objectInspector, partColType.getLogicalType(), hiveShim);
-		}
-	}
+    HiveRowPartitionComputer(
+            HiveShim hiveShim,
+            String defaultPartValue,
+            String[] columnNames,
+            DataType[] columnTypes,
+            String[] partitionColumns) {
+        super(defaultPartValue, columnNames, partitionColumns);
+        partColConversions = new HiveObjectConversion[partitionIndexes.length];
+        for (int i = 0; i < partColConversions.length; i++) {
+            DataType partColType = columnTypes[partitionIndexes[i]];
+            ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
+            partColConversions[i] =
+                    HiveInspectors.getConversion(
+                            objectInspector, partColType.getLogicalType(), hiveShim);
+        }
+    }
 
-	@Override
-	public LinkedHashMap<String, String> generatePartValues(Row in) throws Exception {
-		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
+    @Override
+    public LinkedHashMap<String, String> generatePartValues(Row in) throws Exception {
+        LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 
-		for (int i = 0; i < partitionIndexes.length; i++) {
-			int index = partitionIndexes[i];
-			Object field = in.getField(index);
-			String partitionValue = field != null ? partColConversions[i].toHiveObject(field).toString() : null;
-			if (StringUtils.isEmpty(partitionValue)) {
-				partitionValue = defaultPartValue;
-			}
-			partSpec.put(partitionColumns[i], partitionValue);
-		}
-		return partSpec;
-	}
+        for (int i = 0; i < partitionIndexes.length; i++) {
+            int index = partitionIndexes[i];
+            Object field = in.getField(index);
+            String partitionValue =
+                    field != null ? partColConversions[i].toHiveObject(field).toString() : null;
+            if (StringUtils.isEmpty(partitionValue)) {
+                partitionValue = defaultPartValue;
+            }
+            partSpec.put(partitionColumns[i], partitionValue);
+        }
+        return partSpec;
+    }
 }

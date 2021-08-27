@@ -27,28 +27,27 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Suite of utility methods for Elasticsearch.
- */
+/** Suite of utility methods for Elasticsearch. */
 @Internal
 public class ElasticsearchUtils {
 
-	/**
-	 * Utility method to convert a {@link List} of {@link InetSocketAddress} to Elasticsearch {@link TransportAddress}.
-	 *
-	 * @param inetSocketAddresses The list of {@link InetSocketAddress} to convert.
-	 */
-	public static List<TransportAddress> convertInetSocketAddresses(List<InetSocketAddress> inetSocketAddresses) {
-		if (inetSocketAddresses == null) {
-			return null;
-		} else {
-			List<TransportAddress> converted;
-			converted = new ArrayList<>(inetSocketAddresses.size());
-			for (InetSocketAddress address : inetSocketAddresses) {
-				converted.add(new InetSocketTransportAddress(address));
-			}
-			return converted;
-		}
-	}
-
+    /**
+     * Utility method to convert a {@link List} of {@link InetSocketAddress} to Elasticsearch {@link
+     * TransportAddress}.
+     *
+     * @param inetSocketAddresses The list of {@link InetSocketAddress} to convert.
+     */
+    public static List<TransportAddress> convertInetSocketAddresses(
+            List<InetSocketAddress> inetSocketAddresses) {
+        if (inetSocketAddresses == null) {
+            return null;
+        } else {
+            List<TransportAddress> converted;
+            converted = new ArrayList<>(inetSocketAddresses.size());
+            for (InetSocketAddress address : inetSocketAddresses) {
+                converted.add(new InetSocketTransportAddress(address));
+            }
+            return converted;
+        }
+    }
 }

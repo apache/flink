@@ -25,27 +25,23 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 
-/**
- * The default hadoop file committer factory which always use {@link HadoopRenameFileCommitter}.
- */
+/** The default hadoop file committer factory which always use {@link HadoopRenameFileCommitter}. */
 public class DefaultHadoopFileCommitterFactory implements HadoopFileCommitterFactory {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public HadoopFileCommitter create(
-		Configuration configuration,
-		Path targetFilePath) throws IOException {
+    @Override
+    public HadoopFileCommitter create(Configuration configuration, Path targetFilePath)
+            throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath);
+    }
 
-	@Override
-	public HadoopFileCommitter recoverForCommit(
-		Configuration configuration,
-		Path targetFilePath,
-		Path tempFilePath) throws IOException {
+    @Override
+    public HadoopFileCommitter recoverForCommit(
+            Configuration configuration, Path targetFilePath, Path tempFilePath)
+            throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
+    }
 }

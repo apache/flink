@@ -21,16 +21,29 @@ import javax.sql.XADataSource;
 
 import java.io.Serializable;
 
-/**
- * Describes a database: driver, schema and urls.
- */
+/** Describes a database: driver, schema and urls. */
 public interface DbMetadata extends Serializable {
 
-	String getInitUrl();
+    String getInitUrl();
 
-	String getUrl();
+    String getUrl();
 
-	XADataSource buildXaDataSource();
+    default String getUser() {
+        return "";
+    }
 
-	String getDriverClass();
+    default String getPassword() {
+        return "";
+    }
+
+    XADataSource buildXaDataSource();
+
+    String getDriverClass();
+
+    default JdbcConnectionOptions toConnectionOptions() {
+        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                .withDriverName(getDriverClass())
+                .withUrl(getUrl())
+                .build();
+    }
 }

@@ -21,8 +21,8 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -32,85 +32,105 @@ import org.slf4j.Logger;
  */
 public class HeartbeatServices {
 
-	/** Heartbeat interval for the created services. */
-	protected final long heartbeatInterval;
+    /** Heartbeat interval for the created services. */
+    protected final long heartbeatInterval;
 
-	/** Heartbeat timeout for the created services. */
-	protected final long heartbeatTimeout;
+    /** Heartbeat timeout for the created services. */
+    protected final long heartbeatTimeout;
 
-	public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
-		Preconditions.checkArgument(0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
-		Preconditions.checkArgument(heartbeatInterval <= heartbeatTimeout, "The heartbeat timeout should be larger or equal than the heartbeat interval.");
+    protected final int failedRpcRequestsUntilUnreachable;
 
-		this.heartbeatInterval = heartbeatInterval;
-		this.heartbeatTimeout = heartbeatTimeout;
-	}
+    public HeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
+        this(heartbeatInterval, heartbeatTimeout, -1);
+    }
 
-	/**
-	 * Creates a heartbeat manager which does not actively send heartbeats.
-	 *
-	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
-	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
-	 *                          targets
-	 * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts
-	 * @param log Logger to be used for the logging
-	 * @param <I> Type of the incoming payload
-	 * @param <O> Type of the outgoing payload
-	 * @return A new HeartbeatManager instance
-	 */
-	public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
-		ResourceID resourceId,
-		HeartbeatListener<I, O> heartbeatListener,
-		ScheduledExecutor mainThreadExecutor,
-		Logger log) {
+    public HeartbeatServices(
+            long heartbeatInterval, long heartbeatTimeout, int failedRpcRequestsUntilUnreachable) {
+        Preconditions.checkArgument(
+                0L < heartbeatInterval, "The heartbeat interval must be larger than 0.");
+        Preconditions.checkArgument(
+                heartbeatInterval <= heartbeatTimeout,
+                "The heartbeat timeout should be larger or equal than the heartbeat interval.");
+        Preconditions.checkArgument(
+                failedRpcRequestsUntilUnreachable > 0 || failedRpcRequestsUntilUnreachable == -1,
+                "The number of failed heartbeat RPC requests has to be larger than 0 or -1 (deactivated).");
 
-		return new HeartbeatManagerImpl<>(
-			heartbeatTimeout,
-			resourceId,
-			heartbeatListener,
-			mainThreadExecutor,
-			log);
-	}
+        this.heartbeatInterval = heartbeatInterval;
+        this.heartbeatTimeout = heartbeatTimeout;
+        this.failedRpcRequestsUntilUnreachable = failedRpcRequestsUntilUnreachable;
+    }
 
-	/**
-	 * Creates a heartbeat manager which actively sends heartbeats to monitoring targets.
-	 *
-	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
-	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
-	 *                          targets
-	 * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts and
-	 *                           periodically send heartbeat requests
-	 * @param log Logger to be used for the logging
-	 * @param <I> Type of the incoming payload
-	 * @param <O> Type of the outgoing payload
-	 * @return A new HeartbeatManager instance which actively sends heartbeats
-	 */
-	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
-		ResourceID resourceId,
-		HeartbeatListener<I, O> heartbeatListener,
-		ScheduledExecutor mainThreadExecutor,
-		Logger log) {
+    /**
+     * Creates a heartbeat manager which does not actively send heartbeats.
+     *
+     * @param resourceId Resource Id which identifies the owner of the heartbeat manager
+     * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for
+     *     registered targets
+     * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts
+     * @param log Logger to be used for the logging
+     * @param <I> Type of the incoming payload
+     * @param <O> Type of the outgoing payload
+     * @return A new HeartbeatManager instance
+     */
+    public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
+            ResourceID resourceId,
+            HeartbeatListener<I, O> heartbeatListener,
+            ScheduledExecutor mainThreadExecutor,
+            Logger log) {
 
-		return new HeartbeatManagerSenderImpl<>(
-			heartbeatInterval,
-			heartbeatTimeout,
-			resourceId,
-			heartbeatListener,
-			mainThreadExecutor,
-			log);
-	}
+        return new HeartbeatManagerImpl<>(
+                heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
+                resourceId,
+                heartbeatListener,
+                mainThreadExecutor,
+                log);
+    }
 
-	/**
-	 * Creates an HeartbeatServices instance from a {@link Configuration}.
-	 *
-	 * @param configuration Configuration to be used for the HeartbeatServices creation
-	 * @return An HeartbeatServices instance created from the given configuration
-	 */
-	public static HeartbeatServices fromConfiguration(Configuration configuration) {
-		long heartbeatInterval = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+    /**
+     * Creates a heartbeat manager which actively sends heartbeats to monitoring targets.
+     *
+     * @param resourceId Resource Id which identifies the owner of the heartbeat manager
+     * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for
+     *     registered targets
+     * @param mainThreadExecutor Scheduled executor to be used for scheduling heartbeat timeouts and
+     *     periodically send heartbeat requests
+     * @param log Logger to be used for the logging
+     * @param <I> Type of the incoming payload
+     * @param <O> Type of the outgoing payload
+     * @return A new HeartbeatManager instance which actively sends heartbeats
+     */
+    public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
+            ResourceID resourceId,
+            HeartbeatListener<I, O> heartbeatListener,
+            ScheduledExecutor mainThreadExecutor,
+            Logger log) {
 
-		long heartbeatTimeout = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
+        return new HeartbeatManagerSenderImpl<>(
+                heartbeatInterval,
+                heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
+                resourceId,
+                heartbeatListener,
+                mainThreadExecutor,
+                log);
+    }
 
-		return new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
-	}
+    /**
+     * Creates an HeartbeatServices instance from a {@link Configuration}.
+     *
+     * @param configuration Configuration to be used for the HeartbeatServices creation
+     * @return An HeartbeatServices instance created from the given configuration
+     */
+    public static HeartbeatServices fromConfiguration(Configuration configuration) {
+        long heartbeatInterval = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+
+        long heartbeatTimeout = configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT);
+
+        int failedRpcRequestsUntilUnreachable =
+                configuration.get(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD);
+
+        return new HeartbeatServices(
+                heartbeatInterval, heartbeatTimeout, failedRpcRequestsUntilUnreachable);
+    }
 }

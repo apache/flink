@@ -42,51 +42,57 @@ import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Handles requests for deletion of jars.
- */
+/** Handles requests for deletion of jars. */
 public class JarDeleteHandler
-		extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
+        extends AbstractRestHandler<
+                RestfulGateway, EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 
-	private final Path jarDir;
+    private final Path jarDir;
 
-	private final Executor executor;
+    private final Executor executor;
 
-	public JarDeleteHandler(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout,
-			final Map<String, String> responseHeaders,
-			final MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> messageHeaders,
-			final Path jarDir,
-			final Executor executor) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-		this.jarDir = requireNonNull(jarDir);
-		this.executor = requireNonNull(executor);
-	}
+    public JarDeleteHandler(
+            final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            final Time timeout,
+            final Map<String, String> responseHeaders,
+            final MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters>
+                    messageHeaders,
+            final Path jarDir,
+            final Executor executor) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+        this.jarDir = requireNonNull(jarDir);
+        this.executor = requireNonNull(executor);
+    }
 
-	@Override
-	protected CompletableFuture<EmptyResponseBody> handleRequest(
-			@Nonnull final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request,
-			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
+    @Override
+    protected CompletableFuture<EmptyResponseBody> handleRequest(
+            @Nonnull final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request,
+            @Nonnull final RestfulGateway gateway)
+            throws RestHandlerException {
 
-		final String jarId = request.getPathParameter(JarIdPathParameter.class);
-		return CompletableFuture.supplyAsync(() -> {
-			final Path jarToDelete = jarDir.resolve(jarId);
-			if (!Files.exists(jarToDelete)) {
-				throw new CompletionException(new RestHandlerException(
-					String.format("File %s does not exist in %s.", jarId, jarDir),
-					HttpResponseStatus.BAD_REQUEST));
-			} else {
-				try {
-					Files.delete(jarToDelete);
-					return EmptyResponseBody.getInstance();
-				} catch (final IOException e) {
-					throw new CompletionException(new RestHandlerException(
-						String.format("Failed to delete jar %s.", jarToDelete),
-						HttpResponseStatus.INTERNAL_SERVER_ERROR,
-						e));
-				}
-			}
-		}, executor);
-	}
+        final String jarId = request.getPathParameter(JarIdPathParameter.class);
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    final Path jarToDelete = jarDir.resolve(jarId);
+                    if (!Files.exists(jarToDelete)) {
+                        throw new CompletionException(
+                                new RestHandlerException(
+                                        String.format(
+                                                "File %s does not exist in %s.", jarId, jarDir),
+                                        HttpResponseStatus.BAD_REQUEST));
+                    } else {
+                        try {
+                            Files.delete(jarToDelete);
+                            return EmptyResponseBody.getInstance();
+                        } catch (final IOException e) {
+                            throw new CompletionException(
+                                    new RestHandlerException(
+                                            String.format("Failed to delete jar %s.", jarToDelete),
+                                            HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                                            e));
+                        }
+                    }
+                },
+                executor);
+    }
 }

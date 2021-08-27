@@ -20,9 +20,9 @@ package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
 import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 
 import javax.annotation.Nonnull;
 
@@ -30,50 +30,46 @@ import java.io.IOException;
 
 /**
  * Base class for iterators over RocksDB column families.
+ *
  * @param <K> the type of the iterated objects, which are keys in RocksDB.
  */
 @Internal
 public abstract class AbstractRocksStateKeysIterator<K> implements AutoCloseable {
 
-	@Nonnull
-	protected final RocksIteratorWrapper iterator;
+    @Nonnull protected final RocksIteratorWrapper iterator;
 
-	@Nonnull
-	protected final String state;
+    @Nonnull protected final String state;
 
-	@Nonnull
-	protected final TypeSerializer<K> keySerializer;
+    @Nonnull protected final TypeSerializer<K> keySerializer;
 
-	protected final boolean ambiguousKeyPossible;
+    protected final boolean ambiguousKeyPossible;
 
-	protected final int keyGroupPrefixBytes;
+    protected final int keyGroupPrefixBytes;
 
-	protected final DataInputDeserializer byteArrayDataInputView;
+    protected final DataInputDeserializer byteArrayDataInputView;
 
-	public AbstractRocksStateKeysIterator(
-		@Nonnull RocksIteratorWrapper iterator,
-		@Nonnull String state,
-		@Nonnull TypeSerializer<K> keySerializer,
-		int keyGroupPrefixBytes,
-		boolean ambiguousKeyPossible) {
-		this.iterator = iterator;
-		this.state = state;
-		this.keySerializer = keySerializer;
-		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
-		this.ambiguousKeyPossible = ambiguousKeyPossible;
-		this.byteArrayDataInputView = new DataInputDeserializer();
-	}
+    public AbstractRocksStateKeysIterator(
+            @Nonnull RocksIteratorWrapper iterator,
+            @Nonnull String state,
+            @Nonnull TypeSerializer<K> keySerializer,
+            int keyGroupPrefixBytes,
+            boolean ambiguousKeyPossible) {
+        this.iterator = iterator;
+        this.state = state;
+        this.keySerializer = keySerializer;
+        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
+        this.ambiguousKeyPossible = ambiguousKeyPossible;
+        this.byteArrayDataInputView = new DataInputDeserializer();
+    }
 
-	protected K deserializeKey(byte[] keyBytes, DataInputDeserializer readView) throws IOException {
-		readView.setBuffer(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
-		return RocksDBKeySerializationUtils.readKey(
-			keySerializer,
-			byteArrayDataInputView,
-			ambiguousKeyPossible);
-	}
+    protected K deserializeKey(byte[] keyBytes, DataInputDeserializer readView) throws IOException {
+        readView.setBuffer(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
+        return CompositeKeySerializationUtils.readKey(
+                keySerializer, byteArrayDataInputView, ambiguousKeyPossible);
+    }
 
-	@Override
-	public void close() {
-		iterator.close();
-	}
+    @Override
+    public void close() {
+        iterator.close();
+    }
 }

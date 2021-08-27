@@ -37,101 +37,102 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link JdbcBatchStatementExecutor} that provides upsert semantics by updating row if it exists and inserting otherwise.
- * Used in Table API.
+ * {@link JdbcBatchStatementExecutor} that provides upsert semantics by updating row if it exists
+ * and inserting otherwise. Used in Table API.
  *
  * @deprecated This has been replaced with {@link TableInsertOrUpdateStatementExecutor}, will remove
- * this once {@link org.apache.flink.connector.jdbc.table.JdbcUpsertTableSink} is removed.
+ *     this once {@link org.apache.flink.connector.jdbc.table.JdbcUpsertTableSink} is removed.
  */
 @Internal
 public final class InsertOrUpdateJdbcExecutor<R, K, V> implements JdbcBatchStatementExecutor<R> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InsertOrUpdateJdbcExecutor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(InsertOrUpdateJdbcExecutor.class);
 
-	private final String existSQL;
-	private final String insertSQL;
-	private final String updateSQL;
+    private final String existSQL;
+    private final String insertSQL;
+    private final String updateSQL;
 
-	private final JdbcStatementBuilder<K> existSetter;
-	private final JdbcStatementBuilder<V> insertSetter;
-	private final JdbcStatementBuilder<V> updateSetter;
+    private final JdbcStatementBuilder<K> existSetter;
+    private final JdbcStatementBuilder<V> insertSetter;
+    private final JdbcStatementBuilder<V> updateSetter;
 
-	private final Function<R, K> keyExtractor;
-	private final Function<R, V> valueMapper;
+    private final Function<R, K> keyExtractor;
+    private final Function<R, V> valueMapper;
 
-	private final Map<K, V> batch;
+    private final Map<K, V> batch;
 
-	private transient PreparedStatement existStatement;
-	private transient PreparedStatement insertStatement;
-	private transient PreparedStatement updateStatement;
+    private transient PreparedStatement existStatement;
+    private transient PreparedStatement insertStatement;
+    private transient PreparedStatement updateStatement;
 
-	public InsertOrUpdateJdbcExecutor(
-			@Nonnull String existSQL,
-			@Nonnull String insertSQL,
-			@Nonnull String updateSQL,
-			@Nonnull JdbcStatementBuilder<K> existSetter,
-			@Nonnull JdbcStatementBuilder<V> insertSetter,
-			@Nonnull JdbcStatementBuilder<V> updateSetter,
-			@Nonnull Function<R, K> keyExtractor,
-			@Nonnull Function<R, V> valueExtractor) {
-		this.existSQL = checkNotNull(existSQL);
-		this.insertSQL = checkNotNull(insertSQL);
-		this.updateSQL = checkNotNull(updateSQL);
-		this.existSetter = checkNotNull(existSetter);
-		this.insertSetter = checkNotNull(insertSetter);
-		this.updateSetter = checkNotNull(updateSetter);
-		this.keyExtractor = checkNotNull(keyExtractor);
-		this.valueMapper = checkNotNull(valueExtractor);
-		this.batch = new HashMap<>();
-	}
+    public InsertOrUpdateJdbcExecutor(
+            @Nonnull String existSQL,
+            @Nonnull String insertSQL,
+            @Nonnull String updateSQL,
+            @Nonnull JdbcStatementBuilder<K> existSetter,
+            @Nonnull JdbcStatementBuilder<V> insertSetter,
+            @Nonnull JdbcStatementBuilder<V> updateSetter,
+            @Nonnull Function<R, K> keyExtractor,
+            @Nonnull Function<R, V> valueExtractor) {
+        this.existSQL = checkNotNull(existSQL);
+        this.insertSQL = checkNotNull(insertSQL);
+        this.updateSQL = checkNotNull(updateSQL);
+        this.existSetter = checkNotNull(existSetter);
+        this.insertSetter = checkNotNull(insertSetter);
+        this.updateSetter = checkNotNull(updateSetter);
+        this.keyExtractor = checkNotNull(keyExtractor);
+        this.valueMapper = checkNotNull(valueExtractor);
+        this.batch = new HashMap<>();
+    }
 
-	@Override
-	public void prepareStatements(Connection connection) throws SQLException {
-		existStatement = connection.prepareStatement(existSQL);
-		insertStatement = connection.prepareStatement(insertSQL);
-		updateStatement = connection.prepareStatement(updateSQL);
-	}
+    @Override
+    public void prepareStatements(Connection connection) throws SQLException {
+        existStatement = connection.prepareStatement(existSQL);
+        insertStatement = connection.prepareStatement(insertSQL);
+        updateStatement = connection.prepareStatement(updateSQL);
+    }
 
-	@Override
-	public void addToBatch(R record) {
-		batch.put(keyExtractor.apply(record), valueMapper.apply(record));
-	}
+    @Override
+    public void addToBatch(R record) {
+        batch.put(keyExtractor.apply(record), valueMapper.apply(record));
+    }
 
-	@Override
-	public void executeBatch() throws SQLException {
-		if (!batch.isEmpty()) {
-			for (Map.Entry<K, V> entry : batch.entrySet()) {
-				processOneRowInBatch(entry.getKey(), entry.getValue());
-			}
-			updateStatement.executeBatch();
-			insertStatement.executeBatch();
-			batch.clear();
-		}
-	}
+    @Override
+    public void executeBatch() throws SQLException {
+        if (!batch.isEmpty()) {
+            for (Map.Entry<K, V> entry : batch.entrySet()) {
+                processOneRowInBatch(entry.getKey(), entry.getValue());
+            }
+            updateStatement.executeBatch();
+            insertStatement.executeBatch();
+            batch.clear();
+        }
+    }
 
-	private void processOneRowInBatch(K pk, V row) throws SQLException {
-		if (exist(pk)) {
-			updateSetter.accept(updateStatement, row);
-			updateStatement.addBatch();
-		} else {
-			insertSetter.accept(insertStatement, row);
-			insertStatement.addBatch();
-		}
-	}
+    private void processOneRowInBatch(K pk, V row) throws SQLException {
+        if (exist(pk)) {
+            updateSetter.accept(updateStatement, row);
+            updateStatement.addBatch();
+        } else {
+            insertSetter.accept(insertStatement, row);
+            insertStatement.addBatch();
+        }
+    }
 
-	private boolean exist(K pk) throws SQLException {
-		existSetter.accept(existStatement, pk);
-		try (ResultSet resultSet = existStatement.executeQuery()) {
-			return resultSet.next();
-		}
-	}
+    private boolean exist(K pk) throws SQLException {
+        existSetter.accept(existStatement, pk);
+        try (ResultSet resultSet = existStatement.executeQuery()) {
+            return resultSet.next();
+        }
+    }
 
-	@Override
-	public void closeStatements() throws SQLException {
-		for (PreparedStatement s : Arrays.asList(existStatement, insertStatement, updateStatement)) {
-			if (s != null) {
-				s.close();
-			}
-		}
-	}
+    @Override
+    public void closeStatements() throws SQLException {
+        for (PreparedStatement s :
+                Arrays.asList(existStatement, insertStatement, updateStatement)) {
+            if (s != null) {
+                s.close();
+            }
+        }
+    }
 }

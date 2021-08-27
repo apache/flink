@@ -25,35 +25,30 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a DROP CATALOG statement.
- */
+/** Operation to describe a DROP CATALOG statement. */
 public class DropCatalogOperation implements DropOperation {
-	private final String catalogName;
-	private final boolean ifExists;
+    private final String catalogName;
+    private final boolean ifExists;
 
-	public DropCatalogOperation(String catalogName, boolean ifExists) {
-		this.catalogName = catalogName;
-		this.ifExists = ifExists;
-	}
+    public DropCatalogOperation(String catalogName, boolean ifExists) {
+        this.catalogName = catalogName;
+        this.ifExists = ifExists;
+    }
 
-	public String getCatalogName() {
-		return catalogName;
-	}
+    public String getCatalogName() {
+        return catalogName;
+    }
 
-	public boolean isIfExists() {
-		return this.ifExists;
-	}
+    public boolean isIfExists() {
+        return this.ifExists;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("catalogName", catalogName);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("catalogName", catalogName);
 
-		return OperationUtils.formatWithChildren(
-			"DROP CATALOG",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "DROP CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

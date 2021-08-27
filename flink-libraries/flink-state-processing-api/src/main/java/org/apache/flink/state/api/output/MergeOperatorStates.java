@@ -31,30 +31,31 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link CheckpointMetadata}.
+ * A reducer that aggregates multiple {@link OperatorState}'s into a single {@link
+ * CheckpointMetadata}.
  */
 @Internal
 public class MergeOperatorStates implements GroupReduceFunction<OperatorState, CheckpointMetadata> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Collection<MasterState> masterStates;
+    private final Collection<MasterState> masterStates;
 
-	public MergeOperatorStates(Collection<MasterState> masterStates) {
-		Preconditions.checkNotNull(masterStates, "Master state metadata must not be null");
+    public MergeOperatorStates(Collection<MasterState> masterStates) {
+        Preconditions.checkNotNull(masterStates, "Master state metadata must not be null");
 
-		this.masterStates = masterStates;
-	}
+        this.masterStates = masterStates;
+    }
 
-	@Override
-	public void reduce(Iterable<OperatorState> values, Collector<CheckpointMetadata> out) {
-		CheckpointMetadata metadata =
-			new CheckpointMetadata(
-				SnapshotUtils.CHECKPOINT_ID,
-				StreamSupport.stream(values.spliterator(), false).collect(Collectors.toList()),
-				masterStates);
+    @Override
+    public void reduce(Iterable<OperatorState> values, Collector<CheckpointMetadata> out) {
+        CheckpointMetadata metadata =
+                new CheckpointMetadata(
+                        SnapshotUtils.CHECKPOINT_ID,
+                        StreamSupport.stream(values.spliterator(), false)
+                                .collect(Collectors.toList()),
+                        masterStates);
 
-		out.collect(metadata);
-	}
+        out.collect(metadata);
+    }
 }
-

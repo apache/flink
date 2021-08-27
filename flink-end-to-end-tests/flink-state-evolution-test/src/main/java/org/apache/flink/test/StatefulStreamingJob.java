@@ -39,122 +39,126 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * A simple stateful job that will be used to test avro state evolution and
- * general state migration.
+ * A simple stateful job that will be used to test avro state evolution and general state migration.
  */
 public class StatefulStreamingJob {
 
-	private static final String EXPECTED_DEFAULT_VALUE = "123";
+    private static final String EXPECTED_DEFAULT_VALUE = "123";
 
-	/**
-	 * Stub source that emits one record per second.
-	 */
-	public static class MySource extends RichParallelSourceFunction<Integer> {
+    /** Stub source that emits one record per second. */
+    public static class MySource extends RichParallelSourceFunction<Integer> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private volatile boolean cancel;
+        private volatile boolean cancel;
 
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			while (!cancel) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(1);
-				}
-				Thread.sleep(100L);
-			}
-		}
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            while (!cancel) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(1);
+                }
+                Thread.sleep(100L);
+            }
+        }
 
-		@Override
-		public void cancel() {
-			cancel = true;
-		}
-	}
+        @Override
+        public void cancel() {
+            cancel = true;
+        }
+    }
 
-	/**
-	 * A stateful {@link RichMapFunction} that keeps the required types of state.
-	 * That is:
-	 * <ol>
-	 *     <li>an Avro,</li>
-	 *     <li>a Tuple2, and</li>
-	 *     <li>an Either type.</li>
-	 * </ol>
-	 */
-	public static class MyStatefulFunction extends RichMapFunction<Integer, String> {
+    /**
+     * A stateful {@link RichMapFunction} that keeps the required types of state. That is:
+     *
+     * <ol>
+     *   <li>an Avro,
+     *   <li>a Tuple2, and
+     *   <li>an Either type.
+     * </ol>
+     */
+    public static class MyStatefulFunction extends RichMapFunction<Integer, String> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private static final ValueStateDescriptor<Address> AVRO_DESCRIPTOR =
-				new ValueStateDescriptor<>("test-state", Address.class);
+        private static final ValueStateDescriptor<Address> AVRO_DESCRIPTOR =
+                new ValueStateDescriptor<>("test-state", Address.class);
 
-		private static final ValueStateDescriptor<Tuple2<String, Integer>> TUPLE_DESCRIPTOR =
-				new ValueStateDescriptor<>("tuple-state",
-						TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
+        private static final ValueStateDescriptor<Tuple2<String, Integer>> TUPLE_DESCRIPTOR =
+                new ValueStateDescriptor<>(
+                        "tuple-state",
+                        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
-		private static final ValueStateDescriptor<Either<String, Boolean>> EITHER_DESCRIPTOR =
-				new ValueStateDescriptor<>("either-state",
-						TypeInformation.of(new TypeHint<Either<String, Boolean>>() {}));
+        private static final ValueStateDescriptor<Either<String, Boolean>> EITHER_DESCRIPTOR =
+                new ValueStateDescriptor<>(
+                        "either-state",
+                        TypeInformation.of(new TypeHint<Either<String, Boolean>>() {}));
 
-		private transient ValueState<Address> avroState;
-		private transient ValueState<Tuple2<String, Integer>> tupleState;
-		private transient ValueState<Either<String, Boolean>> eitherState;
+        private transient ValueState<Address> avroState;
+        private transient ValueState<Tuple2<String, Integer>> tupleState;
+        private transient ValueState<Either<String, Boolean>> eitherState;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			this.avroState = getRuntimeContext().getState(AVRO_DESCRIPTOR);
-			this.tupleState = getRuntimeContext().getState(TUPLE_DESCRIPTOR);
-			this.eitherState = getRuntimeContext().getState(EITHER_DESCRIPTOR);
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            this.avroState = getRuntimeContext().getState(AVRO_DESCRIPTOR);
+            this.tupleState = getRuntimeContext().getState(TUPLE_DESCRIPTOR);
+            this.eitherState = getRuntimeContext().getState(EITHER_DESCRIPTOR);
+        }
 
-		@Override
-		public String map(Integer value) throws Exception {
-			touchState(tupleState, () -> Tuple2.of("19", 19));
-			touchState(eitherState, () -> Either.Left("255"));
+        @Override
+        public String map(Integer value) throws Exception {
+            touchState(tupleState, () -> Tuple2.of("19", 19));
+            touchState(eitherState, () -> Either.Left("255"));
 
-			final Address newAddress = Address.newBuilder()
-					.setCity("New York")
-					.setZip("10036")
-					.setStreet("555 W 42nd St")
-					.setState("NY")
-					.setNum(555)
-					.build();
+            final Address newAddress =
+                    Address.newBuilder()
+                            .setCity("New York")
+                            .setZip("10036")
+                            .setStreet("555 W 42nd St")
+                            .setState("NY")
+                            .setNum(555)
+                            .build();
 
-			Address existingAddress = avroState.value();
-			if (existingAddress != null) {
-				if (!Objects.equals(existingAddress.getAppno(), EXPECTED_DEFAULT_VALUE)) {
-					// this is expected to fail the job, if found in the output files.
-					System.out.println("Wrong Default Value.");
-				}
-			}
-			avroState.update(newAddress);
+            Address existingAddress = avroState.value();
+            if (existingAddress != null) {
+                if (!Objects.equals(existingAddress.getAppno(), EXPECTED_DEFAULT_VALUE)) {
+                    // this is expected to fail the job, if found in the output files.
+                    System.out.println("Wrong Default Value.");
+                }
+            }
+            avroState.update(newAddress);
 
-			return "";
-		}
+            return "";
+        }
 
-		private static <T> void touchState(ValueState<T> state, Supplier<T> elements) throws IOException {
-			T elem = state.value();
-			if (elem == null) {
-				elem = elements.get();
-			}
-			state.update(elem);
-		}
-	}
+        private static <T> void touchState(ValueState<T> state, Supplier<T> elements)
+                throws IOException {
+            T elem = state.value();
+            if (elem == null) {
+                elem = elements.get();
+            }
+            state.update(elem);
+        }
+    }
 
-	public static void main(String[] args) throws Exception {
-		final ParameterTool pt = ParameterTool.fromArgs(args);
-		final String checkpointDir = pt.getRequired("checkpoint.dir");
+    public static void main(String[] args) throws Exception {
+        final ParameterTool pt = ParameterTool.fromArgs(args);
+        final String checkpointDir = pt.getRequired("checkpoint.dir");
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStateBackend(new FsStateBackend(checkpointDir));
-		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.enableCheckpointing(1000L);
-		env.getConfig().disableGenericTypes();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(new FsStateBackend(checkpointDir));
+        env.setRestartStrategy(RestartStrategies.noRestart());
+        env.enableCheckpointing(1000L);
+        env.getConfig().disableGenericTypes();
 
-		env.addSource(new MySource()).uid("my-source")
-				.keyBy(anInt -> 0)
-				.map(new MyStatefulFunction()).uid("my-map")
-				.addSink(new DiscardingSink<>()).uid("my-sink");
-		env.execute();
-	}
+        env.addSource(new MySource())
+                .uid("my-source")
+                .keyBy(anInt -> 0)
+                .map(new MyStatefulFunction())
+                .uid("my-map")
+                .addSink(new DiscardingSink<>())
+                .uid("my-sink");
+        env.execute();
+    }
 }

@@ -31,20 +31,17 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Test for {@link HiveTableFileInputFormat}.
- */
+/** Test for {@link HiveTableFileInputFormat}. */
 public class HiveTableFileInputFormatTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	@Test
-	public void testSplit() throws IOException {
-		File file = TEMPORARY_FOLDER.newFile();
-		FileUtils.writeFileUtf8(file, "hahahahahahaha");
-		FileInputSplit split = new FileInputSplit(0, new Path(file.getPath()), 0, -1, null);
-		FileSplit fileSplit = HiveTableFileInputFormat.toHadoopFileSplit(split);
-		Assert.assertEquals(14, fileSplit.getLength());
-	}
+    @Test
+    public void testSplit() throws IOException {
+        File file = TEMPORARY_FOLDER.newFile();
+        FileUtils.writeFileUtf8(file, "hahahahahahaha");
+        FileInputSplit split = new FileInputSplit(0, new Path(file.getPath()), 0, -1, null);
+        FileSplit fileSplit = HiveTableFileInputFormat.toHadoopFileSplit(split);
+        Assert.assertEquals(14, fileSplit.getLength());
+    }
 }

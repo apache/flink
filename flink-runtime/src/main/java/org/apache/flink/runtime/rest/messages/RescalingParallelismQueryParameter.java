@@ -18,29 +18,27 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Parallelism for the rescaling of jobs specified as a {@link MessageQueryParameter}.
- */
+/** Parallelism for the rescaling of jobs specified as a {@link MessageQueryParameter}. */
 public class RescalingParallelismQueryParameter extends MessageQueryParameter<Integer> {
 
-	public static final String KEY = "parallelism";
+    public static final String KEY = "parallelism";
 
-	public RescalingParallelismQueryParameter() {
-		super(KEY, MessageParameterRequisiteness.MANDATORY);
-	}
+    public RescalingParallelismQueryParameter() {
+        super(KEY, MessageParameterRequisiteness.MANDATORY);
+    }
 
-	@Override
-	public Integer convertStringToValue(String value) {
-		return Integer.valueOf(value);
-	}
+    @Override
+    public Integer convertStringToValue(String value) {
+        return Integer.valueOf(value);
+    }
 
-	@Override
-	public String convertValueToString(Integer value) {
-		return value.toString();
-	}
+    @Override
+    public String convertValueToString(Integer value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Positive integer value that specifies the desired parallelism.";
-	}
+    @Override
+    public String getDescription() {
+        return "Positive integer value that specifies the desired parallelism.";
+    }
 }

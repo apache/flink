@@ -29,54 +29,55 @@ import org.apache.commons.lang3.RandomStringUtils;
 
 import java.util.Properties;
 
-/**
- * This is an example on how to produce data into Kinesis.
- */
+/** This is an example on how to produce data into Kinesis. */
 public class ProduceIntoKinesis {
 
-	public static void main(String[] args) throws Exception {
-		ParameterTool pt = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        ParameterTool pt = ParameterTool.fromArgs(args);
 
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.setParallelism(1);
+        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        see.setParallelism(1);
 
-		DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
+        DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
 
-		Properties kinesisProducerConfig = new Properties();
-		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_REGION, pt.getRequired("region"));
-		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accessKey"));
-		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretKey"));
+        Properties kinesisProducerConfig = new Properties();
+        kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_REGION, pt.getRequired("region"));
+        kinesisProducerConfig.setProperty(
+                AWSConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accessKey"));
+        kinesisProducerConfig.setProperty(
+                AWSConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretKey"));
 
-		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
-				new SimpleStringSchema(), kinesisProducerConfig);
+        FlinkKinesisProducer<String> kinesis =
+                new FlinkKinesisProducer<>(new SimpleStringSchema(), kinesisProducerConfig);
 
-		kinesis.setFailOnError(true);
-		kinesis.setDefaultStream("flink-test");
-		kinesis.setDefaultPartition("0");
+        kinesis.setFailOnError(true);
+        kinesis.setDefaultStream("flink-test");
+        kinesis.setDefaultPartition("0");
 
-		simpleStringStream.addSink(kinesis);
+        simpleStringStream.addSink(kinesis);
 
-		see.execute();
-	}
+        see.execute();
+    }
 
-	/**
-	 * Data generator that creates strings starting with a sequence number followed by a dash and 12 random characters.
-	 */
-	public static class EventsGenerator implements SourceFunction<String> {
-		private boolean running = true;
+    /**
+     * Data generator that creates strings starting with a sequence number followed by a dash and 12
+     * random characters.
+     */
+    public static class EventsGenerator implements SourceFunction<String> {
+        private boolean running = true;
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			long seq = 0;
-			while (running) {
-				Thread.sleep(10);
-				ctx.collect((seq++) + "-" + RandomStringUtils.randomAlphabetic(12));
-			}
-		}
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            long seq = 0;
+            while (running) {
+                Thread.sleep(10);
+                ctx.collect((seq++) + "-" + RandomStringUtils.randomAlphabetic(12));
+            }
+        }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
 }

@@ -28,28 +28,29 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link PartitionReleaseStrategyFactoryLoader}.
- */
+/** Tests for {@link PartitionReleaseStrategyFactoryLoader}. */
 public class PartitionReleaseStrategyFactoryLoaderTest {
 
-	@Test
-	public void featureEnabledByDefault() {
-		final Configuration emptyConfiguration = new Configuration();
-		final PartitionReleaseStrategy.Factory factory =
-			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(emptyConfiguration);
+    @Test
+    public void featureEnabledByDefault() {
+        final Configuration emptyConfiguration = new Configuration();
+        final PartitionReleaseStrategy.Factory factory =
+                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                        emptyConfiguration);
 
-		assertThat(factory, is(instanceOf(RegionPartitionReleaseStrategy.Factory.class)));
-	}
+        assertThat(factory, is(instanceOf(RegionPartitionReleaseStrategy.Factory.class)));
+    }
 
-	@Test
-	public void featureCanBeDisabled() {
-		final Configuration emptyConfiguration = new Configuration();
-		emptyConfiguration.setBoolean(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
+    @Test
+    public void featureCanBeDisabled() {
+        final Configuration emptyConfiguration = new Configuration();
+        emptyConfiguration.setBoolean(
+                JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
 
-		final PartitionReleaseStrategy.Factory factory =
-			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(emptyConfiguration);
+        final PartitionReleaseStrategy.Factory factory =
+                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+                        emptyConfiguration);
 
-		assertThat(factory, is(instanceOf(NotReleasingPartitionReleaseStrategy.Factory.class)));
-	}
+        assertThat(factory, is(instanceOf(NotReleasingPartitionReleaseStrategy.Factory.class)));
+    }
 }

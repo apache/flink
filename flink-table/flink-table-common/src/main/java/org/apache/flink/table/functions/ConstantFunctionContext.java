@@ -38,48 +38,50 @@ import java.util.Set;
  * A {@link FunctionContext} for constant expression reduction. It is used when a function is called
  * with constant expressions or constant expressions can be derived from the given statement.
  *
- * <p>Since constant expression reduction happens during planning, methods that reference Flink's runtime
- * context are not available.
+ * <p>Since constant expression reduction happens during planning, methods that reference Flink's
+ * runtime context are not available.
  *
  * @see FunctionDefinition#isDeterministic()
  */
 @Internal
 public final class ConstantFunctionContext extends FunctionContext {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ConstantFunctionContext.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ConstantFunctionContext.class);
 
-	private static final UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
+    private static final UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
 
-	private final Map<String, String> jobParameters;
+    private final Map<String, String> jobParameters;
 
-	public ConstantFunctionContext(Configuration configuration) {
-		super(null);
-		this.jobParameters = configuration.getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
-			.map(HashMap::new)
-			.orElseGet(HashMap::new);
-	}
+    public ConstantFunctionContext(Configuration configuration) {
+        super(null);
+        this.jobParameters =
+                configuration
+                        .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+                        .map(HashMap::new)
+                        .orElseGet(HashMap::new);
+    }
 
-	@Override
-	public MetricGroup getMetricGroup() {
-		LOG.warn(
-			"Calls to FunctionContext.getMetricGroup will have no effect during constant expression reduction.");
-		return metricsGroup;
-	}
+    @Override
+    public MetricGroup getMetricGroup() {
+        LOG.warn(
+                "Calls to FunctionContext.getMetricGroup will have no effect during constant expression reduction.");
+        return metricsGroup;
+    }
 
-	@Override
-	public File getCachedFile(String name) {
-		throw new TableException(
-			"Calls to FunctionContext.getCachedFile are not available during constant expression reduction.");
-	}
+    @Override
+    public File getCachedFile(String name) {
+        throw new TableException(
+                "Calls to FunctionContext.getCachedFile are not available during constant expression reduction.");
+    }
 
-	@Override
-	public String getJobParameter(String key, String defaultValue) {
-		return jobParameters.getOrDefault(key, defaultValue);
-	}
+    @Override
+    public String getJobParameter(String key, String defaultValue) {
+        return jobParameters.getOrDefault(key, defaultValue);
+    }
 
-	@Override
-	public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
-		throw new TableException(
-			"Calls to FunctionContext.getExternalResourceInfos are not available during constant expression reduction.");
-	}
+    @Override
+    public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
+        throw new TableException(
+                "Calls to FunctionContext.getExternalResourceInfos are not available during constant expression reduction.");
+    }
 }

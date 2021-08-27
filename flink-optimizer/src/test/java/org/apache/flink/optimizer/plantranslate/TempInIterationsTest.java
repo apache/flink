@@ -28,54 +28,58 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
 
 public class TempInIterationsTest {
 
-	/*
-	 * Tests whether temps barriers are correctly set in within iterations
-	 */
-	@Test
-	public void testTempInIterationTest() throws Exception {
+    /*
+     * Tests whether temps barriers are correctly set in within iterations
+     */
+    @Test
+    public void testTempInIterationTest() throws Exception {
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Long, Long>> input = env.readCsvFile("file:///does/not/exist").types(Long.class, Long.class);
+        DataSet<Tuple2<Long, Long>> input =
+                env.readCsvFile("file:///does/not/exist").types(Long.class, Long.class);
 
-		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
-				input.iterateDelta(input, 1, 0);
+        DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration =
+                input.iterateDelta(input, 1, 0);
 
-		DataSet<Tuple2<Long, Long>> update = iteration.getWorkset()
-				.join(iteration.getSolutionSet()).where(0).equalTo(0)
-					.with(new DummyFlatJoinFunction<Tuple2<Long, Long>>());
+        DataSet<Tuple2<Long, Long>> update =
+                iteration
+                        .getWorkset()
+                        .join(iteration.getSolutionSet())
+                        .where(0)
+                        .equalTo(0)
+                        .with(new DummyFlatJoinFunction<Tuple2<Long, Long>>());
 
-		iteration.closeWith(update, update)
-				.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
+        iteration
+                .closeWith(update, update)
+                .output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 
+        Plan plan = env.createProgramPlan();
+        OptimizedPlan oPlan = (new Optimizer(new Configuration())).compile(plan);
 
-		Plan plan = env.createProgramPlan();
-		OptimizedPlan oPlan = (new Optimizer(new Configuration())).compile(plan);
+        JobGraphGenerator jgg = new JobGraphGenerator();
+        JobGraph jg = jgg.compileJobGraph(oPlan);
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jg = jgg.compileJobGraph(oPlan);
+        boolean solutionSetUpdateChecked = false;
+        for (JobVertex v : jg.getVertices()) {
+            if (v.getName().equals("SolutionSet Delta")) {
 
-		boolean solutionSetUpdateChecked = false;
-		for(JobVertex v : jg.getVertices()) {
-			if(v.getName().equals("SolutionSet Delta")) {
-
-				// check if input of solution set delta is temped
-				TaskConfig tc = new TaskConfig(v.getConfiguration());
-				assertTrue(tc.isInputAsynchronouslyMaterialized(0));
-				solutionSetUpdateChecked = true;
-			}
-		}
-		assertTrue(solutionSetUpdateChecked);
-
-	}
-
+                // check if input of solution set delta is temped
+                TaskConfig tc = new TaskConfig(v.getConfiguration());
+                assertTrue(tc.isInputAsynchronouslyMaterialized(0));
+                solutionSetUpdateChecked = true;
+            }
+        }
+        assertTrue(solutionSetUpdateChecked);
+    }
 }

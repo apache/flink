@@ -26,28 +26,23 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
-/**
- * Integration tests for {@link org.apache.flink.api.java.io.TextOutputFormat}.
- */
+/** Integration tests for {@link org.apache.flink.api.java.io.TextOutputFormat}. */
 public class TextOutputFormatITCase extends AbstractTestBase {
 
-	@Test
-	public void testProgram() throws Exception {
-		String resultPath = getTempDirPath("result");
+    @Test
+    public void testProgram() throws Exception {
+        String resultPath = getTempDirPath("result");
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<String> text = env.fromElements(WordCountData.TEXT);
+        DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
-		DataStream<Tuple2<String, Integer>> counts = text
-				.flatMap(new Tokenizer())
-				.keyBy(0).sum(1);
+        DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).keyBy(0).sum(1);
 
-		counts.writeAsText(resultPath);
+        counts.writeAsText(resultPath);
 
-		env.execute("WriteAsTextTest");
+        env.execute("WriteAsTextTest");
 
-		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
-	}
-
+        compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+    }
 }

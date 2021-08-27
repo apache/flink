@@ -31,17 +31,18 @@ import static java.util.Objects.requireNonNull;
 @Experimental
 public class MultipleConnectedStreams {
 
-	protected final StreamExecutionEnvironment environment;
+    protected final StreamExecutionEnvironment environment;
 
-	public MultipleConnectedStreams(StreamExecutionEnvironment env) {
-		this.environment = requireNonNull(env);
-	}
+    public MultipleConnectedStreams(StreamExecutionEnvironment env) {
+        this.environment = requireNonNull(env);
+    }
 
-	public StreamExecutionEnvironment getExecutionEnvironment() {
-		return environment;
-	}
+    public StreamExecutionEnvironment getExecutionEnvironment() {
+        return environment;
+    }
 
-	public <OUT> SingleOutputStreamOperator<OUT> transform(AbstractMultipleInputTransformation<OUT> transform) {
-		return new SingleOutputStreamOperator<>(environment, transform);
-	}
+    public <OUT> SingleOutputStreamOperator<OUT> transform(
+            AbstractMultipleInputTransformation<OUT> transform) {
+        return new SingleOutputStreamOperator<>(environment, transform);
+    }
 }

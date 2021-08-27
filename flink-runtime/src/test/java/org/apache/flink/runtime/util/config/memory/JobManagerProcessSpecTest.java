@@ -28,41 +28,40 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JobManagerProcessSpec}.
- */
+/** Tests for {@link JobManagerProcessSpec}. */
 public class JobManagerProcessSpecTest extends TestLogger {
-	@Test
-	public void testEquals() {
-		JobManagerProcessSpec spec1 = new JobManagerProcessSpec(
-				MemorySize.parse("1m"),
-				MemorySize.parse("2m"),
-				MemorySize.parse("3m"),
-				MemorySize.parse("4m"));
+    @Test
+    public void testEquals() {
+        JobManagerProcessSpec spec1 =
+                new JobManagerProcessSpec(
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"));
 
-		JobManagerProcessSpec spec2 = new JobManagerProcessSpec(
-				MemorySize.parse("1m"),
-				MemorySize.parse("2m"),
-				MemorySize.parse("3m"),
-				MemorySize.parse("4m"));
+        JobManagerProcessSpec spec2 =
+                new JobManagerProcessSpec(
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"));
 
-		assertThat(spec1, is(spec2));
-	}
+        assertThat(spec1, is(spec2));
+    }
 
-	@Test
-	public void testNotEquals() {
-		JobManagerProcessSpec spec1 = new JobManagerProcessSpec(
-				MemorySize.parse("1m"),
-				MemorySize.parse("2m"),
-				MemorySize.parse("3m"),
-				MemorySize.parse("4m"));
+    @Test
+    public void testNotEquals() {
+        JobManagerProcessSpec spec1 =
+                new JobManagerProcessSpec(
+                        MemorySize.parse("1m"),
+                        MemorySize.parse("2m"),
+                        MemorySize.parse("3m"),
+                        MemorySize.parse("4m"));
 
-		JobManagerProcessSpec spec2 = new JobManagerProcessSpec(
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO,
-				MemorySize.ZERO);
+        JobManagerProcessSpec spec2 =
+                new JobManagerProcessSpec(
+                        MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO, MemorySize.ZERO);
 
-		assertThat(spec1, not(spec2));
-	}
+        assertThat(spec1, not(spec2));
+    }
 }

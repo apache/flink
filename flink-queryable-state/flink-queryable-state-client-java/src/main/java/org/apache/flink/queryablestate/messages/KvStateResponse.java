@@ -28,47 +28,44 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
 
 /**
- * The response containing the (serialized) state sent by the {@code State Server} to the {@code Client Proxy},
- * and then forwarded by the proxy to the original
- * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client}.
+ * The response containing the (serialized) state sent by the {@code State Server} to the {@code
+ * Client Proxy}, and then forwarded by the proxy to the original {@link
+ * org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client}.
  */
 @Internal
 public class KvStateResponse extends MessageBody {
 
-	private final byte[] content;
+    private final byte[] content;
 
-	public KvStateResponse(final byte[] content) {
-		this.content = Preconditions.checkNotNull(content);
-	}
+    public KvStateResponse(final byte[] content) {
+        this.content = Preconditions.checkNotNull(content);
+    }
 
-	public byte[] getContent() {
-		return content;
-	}
+    public byte[] getContent() {
+        return content;
+    }
 
-	@Override
-	public byte[] serialize() {
-		final int size = Integer.BYTES + content.length;
-		return ByteBuffer.allocate(size)
-				.putInt(content.length)
-				.put(content)
-				.array();
-	}
+    @Override
+    public byte[] serialize() {
+        final int size = Integer.BYTES + content.length;
+        return ByteBuffer.allocate(size).putInt(content.length).put(content).array();
+    }
 
-	/**
-	 * A {@link MessageDeserializer deserializer} for {@link KvStateResponseDeserializer}.
-	 */
-	public static class KvStateResponseDeserializer implements MessageDeserializer<KvStateResponse> {
+    /** A {@link MessageDeserializer deserializer} for {@link KvStateResponseDeserializer}. */
+    public static class KvStateResponseDeserializer
+            implements MessageDeserializer<KvStateResponse> {
 
-		@Override
-		public KvStateResponse deserializeMessage(ByteBuf buf) {
-			int length = buf.readInt();
-			Preconditions.checkArgument(length >= 0,
-					"Negative length for state content. " +
-							"This indicates a serialization error.");
-			byte[] content = new byte[length];
-			buf.readBytes(content);
+        @Override
+        public KvStateResponse deserializeMessage(ByteBuf buf) {
+            int length = buf.readInt();
+            Preconditions.checkArgument(
+                    length >= 0,
+                    "Negative length for state content. "
+                            + "This indicates a serialization error.");
+            byte[] content = new byte[length];
+            buf.readBytes(content);
 
-			return new KvStateResponse(content);
-		}
-	}
+            return new KvStateResponse(content);
+        }
+    }
 }

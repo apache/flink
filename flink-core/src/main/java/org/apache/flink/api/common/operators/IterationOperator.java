@@ -23,6 +23,6 @@ import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 
 @Internal
 public interface IterationOperator {
-	
-	AggregatorRegistry getAggregators();
+
+    AggregatorRegistry getAggregators();
 }

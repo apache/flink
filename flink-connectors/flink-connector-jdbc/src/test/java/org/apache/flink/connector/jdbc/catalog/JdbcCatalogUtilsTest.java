@@ -22,23 +22,20 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Test for {@link JdbcCatalogUtils}.
- */
+/** Test for {@link JdbcCatalogUtils}. */
 public class JdbcCatalogUtilsTest {
-	@Rule
-	public ExpectedException exception = ExpectedException.none();
+    @Rule public ExpectedException exception = ExpectedException.none();
 
-	@Test
-	public void testJdbcUrl() {
-		JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432/");
+    @Test
+    public void testJdbcUrl() {
+        JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432/");
 
-		JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432");
-	}
+        JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432");
+    }
 
-	@Test
-	public void testInvalidJdbcUrl() {
-		exception.expect(IllegalArgumentException.class);
-		JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432/db");
-	}
+    @Test
+    public void testInvalidJdbcUrl() {
+        exception.expect(IllegalArgumentException.class);
+        JdbcCatalogUtils.validateJdbcUrl("jdbc:postgresql://localhost:5432/db");
+    }
 }

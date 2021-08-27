@@ -34,79 +34,88 @@ import java.io.Serializable;
 import static org.junit.Assert.fail;
 
 /**
- * Tests that verify subsequent calls to {@link ExecutionEnvironment#getExecutionPlan()} and
- * {@link ExecutionEnvironment#execute()}/{@link ExecutionEnvironment#createProgramPlan()} do not cause any exceptions.
+ * Tests that verify subsequent calls to {@link ExecutionEnvironment#getExecutionPlan()} and {@link
+ * ExecutionEnvironment#execute()}/{@link ExecutionEnvironment#createProgramPlan()} do not cause any
+ * exceptions.
  */
 @SuppressWarnings("serial")
 public class ExecutionPlanAfterExecutionTest extends TestLogger implements Serializable {
 
-	@Test
-	public void testExecuteAfterGetExecutionPlan() {
-		ExecutionEnvironment env = new LocalEnvironment();
+    @Test
+    public void testExecuteAfterGetExecutionPlan() {
+        ExecutionEnvironment env = new LocalEnvironment();
 
-		DataSet<Integer> baseSet = env.fromElements(1, 2);
+        DataSet<Integer> baseSet = env.fromElements(1, 2);
 
-		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
-			@Override public Integer map(Integer value) throws Exception {
-				return value * 2;
-			}});
-		result.output(new DiscardingOutputFormat<Integer>());
+        DataSet<Integer> result =
+                baseSet.map(
+                        new MapFunction<Integer, Integer>() {
+                            @Override
+                            public Integer map(Integer value) throws Exception {
+                                return value * 2;
+                            }
+                        });
+        result.output(new DiscardingOutputFormat<Integer>());
 
-		try {
-			env.getExecutionPlan();
-			env.execute();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Cannot run both #getExecutionPlan and #execute.");
-		}
-	}
+        try {
+            env.getExecutionPlan();
+            env.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Cannot run both #getExecutionPlan and #execute.");
+        }
+    }
 
-	@Test
-	public void testCreatePlanAfterGetExecutionPlan() {
-		ExecutionEnvironment env = new LocalEnvironment();
+    @Test
+    public void testCreatePlanAfterGetExecutionPlan() {
+        ExecutionEnvironment env = new LocalEnvironment();
 
-		DataSet<Integer> baseSet = env.fromElements(1, 2);
+        DataSet<Integer> baseSet = env.fromElements(1, 2);
 
-		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
-			@Override public Integer map(Integer value) throws Exception {
-				return value * 2;
-			}});
-		result.output(new DiscardingOutputFormat<Integer>());
+        DataSet<Integer> result =
+                baseSet.map(
+                        new MapFunction<Integer, Integer>() {
+                            @Override
+                            public Integer map(Integer value) throws Exception {
+                                return value * 2;
+                            }
+                        });
+        result.output(new DiscardingOutputFormat<Integer>());
 
-		try {
-			env.getExecutionPlan();
-			env.createProgramPlan();
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Cannot run both #getExecutionPlan and #execute. Message: " + e.getMessage());
-		}
-	}
+        try {
+            env.getExecutionPlan();
+            env.createProgramPlan();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Cannot run both #getExecutionPlan and #execute. Message: " + e.getMessage());
+        }
+    }
 
-	@Test
-	public void testGetExecutionPlanOfRangePartition() {
-		ExecutionEnvironment env = new LocalEnvironment();
+    @Test
+    public void testGetExecutionPlanOfRangePartition() {
+        ExecutionEnvironment env = new LocalEnvironment();
 
-		DataSet<Integer> baseSet = env.fromElements(1, 2);
+        DataSet<Integer> baseSet = env.fromElements(1, 2);
 
-		DataSet<Tuple2<Integer, Integer>> result = baseSet
-			.map(new MapFunction<Integer, Tuple2<Integer, Integer>>() {
-				@Override
-				public Tuple2<Integer, Integer> map(Integer value) throws Exception {
-					return new Tuple2(value, value * 2);
-				}
-			})
-			.partitionByRange(0)
-			.aggregate(Aggregations.MAX, 1);
-		result.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+        DataSet<Tuple2<Integer, Integer>> result =
+                baseSet.map(
+                                new MapFunction<Integer, Tuple2<Integer, Integer>>() {
+                                    @Override
+                                    public Tuple2<Integer, Integer> map(Integer value)
+                                            throws Exception {
+                                        return new Tuple2(value, value * 2);
+                                    }
+                                })
+                        .partitionByRange(0)
+                        .aggregate(Aggregations.MAX, 1);
+        result.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 
-		try {
-			env.getExecutionPlan();
-			env.execute();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Cannot run both #getExecutionPlan and #execute.");
-		}
-	}
+        try {
+            env.getExecutionPlan();
+            env.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Cannot run both #getExecutionPlan and #execute.");
+        }
+    }
 }

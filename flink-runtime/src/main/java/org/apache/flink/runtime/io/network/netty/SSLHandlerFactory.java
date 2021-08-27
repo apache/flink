@@ -26,61 +26,57 @@ import javax.net.ssl.SSLEngine;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Creates and configures {@link SslHandler} instances.
- */
+/** Creates and configures {@link SslHandler} instances. */
 public class SSLHandlerFactory {
 
-	private final SslContext sslContext;
+    private final SslContext sslContext;
 
-	private final int handshakeTimeoutMs;
+    private final int handshakeTimeoutMs;
 
-	private final int closeNotifyFlushTimeoutMs;
+    private final int closeNotifyFlushTimeoutMs;
 
-	/**
-	 * Create a new {@link SslHandler} factory.
-	 *
-	 * @param handshakeTimeoutMs
-	 * 		SSL session timeout during handshakes (-1 = use system default)
-	 * @param closeNotifyFlushTimeoutMs
-	 * 		SSL session timeout after flushing the <tt>close_notify</tt> message (-1 = use system
-	 * 		default)
-	 */
-	public SSLHandlerFactory(
-			final SslContext sslContext,
-			final int handshakeTimeoutMs,
-			final int closeNotifyFlushTimeoutMs) {
+    /**
+     * Create a new {@link SslHandler} factory.
+     *
+     * @param handshakeTimeoutMs SSL session timeout during handshakes (-1 = use system default)
+     * @param closeNotifyFlushTimeoutMs SSL session timeout after flushing the <tt>close_notify</tt>
+     *     message (-1 = use system default)
+     */
+    public SSLHandlerFactory(
+            final SslContext sslContext,
+            final int handshakeTimeoutMs,
+            final int closeNotifyFlushTimeoutMs) {
 
-		this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
-		this.handshakeTimeoutMs = handshakeTimeoutMs;
-		this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
-	}
+        this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
+        this.handshakeTimeoutMs = handshakeTimeoutMs;
+        this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
+    }
 
-	public SslHandler createNettySSLHandler(ByteBufAllocator allocator) {
-		return createNettySSLHandler(createSSLEngine(allocator));
-	}
+    public SslHandler createNettySSLHandler(ByteBufAllocator allocator) {
+        return createNettySSLHandler(createSSLEngine(allocator));
+    }
 
-	public SslHandler createNettySSLHandler(ByteBufAllocator allocator, String hostname, int port) {
-		return createNettySSLHandler(createSSLEngine(allocator, hostname, port));
-	}
+    public SslHandler createNettySSLHandler(ByteBufAllocator allocator, String hostname, int port) {
+        return createNettySSLHandler(createSSLEngine(allocator, hostname, port));
+    }
 
-	private SslHandler createNettySSLHandler(SSLEngine sslEngine) {
-		SslHandler sslHandler = new SslHandler(sslEngine);
-		if (handshakeTimeoutMs >= 0) {
-			sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMs);
-		}
-		if (closeNotifyFlushTimeoutMs >= 0) {
-			sslHandler.setCloseNotifyFlushTimeoutMillis(closeNotifyFlushTimeoutMs);
-		}
+    private SslHandler createNettySSLHandler(SSLEngine sslEngine) {
+        SslHandler sslHandler = new SslHandler(sslEngine);
+        if (handshakeTimeoutMs >= 0) {
+            sslHandler.setHandshakeTimeoutMillis(handshakeTimeoutMs);
+        }
+        if (closeNotifyFlushTimeoutMs >= 0) {
+            sslHandler.setCloseNotifyFlushTimeoutMillis(closeNotifyFlushTimeoutMs);
+        }
 
-		return sslHandler;
-	}
+        return sslHandler;
+    }
 
-	private SSLEngine createSSLEngine(ByteBufAllocator allocator) {
-		return sslContext.newEngine(allocator);
-	}
+    private SSLEngine createSSLEngine(ByteBufAllocator allocator) {
+        return sslContext.newEngine(allocator);
+    }
 
-	private SSLEngine createSSLEngine(ByteBufAllocator allocator, String hostname, int port) {
-		return sslContext.newEngine(allocator, hostname, port);
-	}
+    private SSLEngine createSSLEngine(ByteBufAllocator allocator, String hostname, int port) {
+        return sslContext.newEngine(allocator, hostname, port);
+    }
 }

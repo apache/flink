@@ -37,41 +37,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class OrcBulkWriter<T> implements BulkWriter<T> {
 
-	private final Writer writer;
-	private final Vectorizer<T> vectorizer;
-	private final VectorizedRowBatch rowBatch;
+    private final Writer writer;
+    private final Vectorizer<T> vectorizer;
+    private final VectorizedRowBatch rowBatch;
 
-	OrcBulkWriter(Vectorizer<T> vectorizer, Writer writer) {
-		this.vectorizer = checkNotNull(vectorizer);
-		this.writer = checkNotNull(writer);
-		this.rowBatch = vectorizer.getSchema().createRowBatch();
+    OrcBulkWriter(Vectorizer<T> vectorizer, Writer writer) {
+        this.vectorizer = checkNotNull(vectorizer);
+        this.writer = checkNotNull(writer);
+        this.rowBatch = vectorizer.getSchema().createRowBatch();
 
-		// Configure the vectorizer with the writer so that users can add
-		// metadata on the fly through the Vectorizer#vectorize(...) method.
-		this.vectorizer.setWriter(this.writer);
-	}
+        // Configure the vectorizer with the writer so that users can add
+        // metadata on the fly through the Vectorizer#vectorize(...) method.
+        this.vectorizer.setWriter(this.writer);
+    }
 
-	@Override
-	public void addElement(T element) throws IOException {
-		vectorizer.vectorize(element, rowBatch);
-		if (rowBatch.size == rowBatch.getMaxSize()) {
-			writer.addRowBatch(rowBatch);
-			rowBatch.reset();
-		}
-	}
+    @Override
+    public void addElement(T element) throws IOException {
+        vectorizer.vectorize(element, rowBatch);
+        if (rowBatch.size == rowBatch.getMaxSize()) {
+            writer.addRowBatch(rowBatch);
+            rowBatch.reset();
+        }
+    }
 
-	@Override
-	public void flush() throws IOException {
-		if (rowBatch.size != 0) {
-			writer.addRowBatch(rowBatch);
-			rowBatch.reset();
-		}
-	}
+    @Override
+    public void flush() throws IOException {
+        if (rowBatch.size != 0) {
+            writer.addRowBatch(rowBatch);
+            rowBatch.reset();
+        }
+    }
 
-	@Override
-	public void finish() throws IOException {
-		flush();
-		writer.close();
-	}
-
+    @Override
+    public void finish() throws IOException {
+        flush();
+        writer.close();
+    }
 }

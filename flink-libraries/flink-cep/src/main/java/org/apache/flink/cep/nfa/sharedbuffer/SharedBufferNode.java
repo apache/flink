@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -26,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge.SharedBufferEdgeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,153 +36,168 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An entry in {@link SharedBuffer} that allows to store relations between different entries.
- */
+/** An entry in {@link SharedBuffer} that allows to store relations between different entries. */
 public class SharedBufferNode {
 
-	private final List<SharedBufferEdge> edges;
+    private final List<Lockable<SharedBufferEdge>> edges;
 
-	public SharedBufferNode() {
-		edges = new ArrayList<>();
-	}
+    public SharedBufferNode() {
+        edges = new ArrayList<>();
+    }
 
-	private SharedBufferNode(List<SharedBufferEdge> edges) {
-		this.edges = edges;
-	}
+    SharedBufferNode(List<Lockable<SharedBufferEdge>> edges) {
+        this.edges = edges;
+    }
 
-	public List<SharedBufferEdge> getEdges() {
-		return edges;
-	}
+    public List<Lockable<SharedBufferEdge>> getEdges() {
+        return edges;
+    }
 
-	public void addEdge(SharedBufferEdge edge) {
-		edges.add(edge);
-	}
+    public void addEdge(SharedBufferEdge edge) {
+        edges.add(new Lockable<>(edge, 0));
+    }
 
-	@Override
-	public String toString() {
-		return "SharedBufferNode{" +
-			"edges=" + edges +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "SharedBufferNode{" + "edges=" + edges + '}';
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		SharedBufferNode that = (SharedBufferNode) o;
-		return Objects.equals(edges, that.edges);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SharedBufferNode that = (SharedBufferNode) o;
+        return Objects.equals(edges, that.edges);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(edges);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(edges);
+    }
 
-	/** Serializer for {@link SharedBufferNode}. */
-	public static class SharedBufferNodeSerializer extends TypeSerializerSingleton<SharedBufferNode> {
+    /**
+     * Serializer for {@link SharedBufferNode}.
+     *
+     * <p>This serializer had to be deprecated and you cannot directly migrate to the newer version.
+     * The new structure requires additional information from other nodes. The migration happens in
+     * {@link SharedBuffer#migrateOldState(KeyedStateBackend, ValueState)}.
+     *
+     * @deprecated was used in <= 1.12, use {@link
+     *     org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer} instead.
+     */
+    @Deprecated
+    public static class SharedBufferNodeSerializer
+            extends TypeSerializerSingleton<SharedBufferNode> {
 
-		private static final long serialVersionUID = -6687780732295439832L;
+        private static final long serialVersionUID = -6687780732295439832L;
 
-		private final ListSerializer<SharedBufferEdge> edgesSerializer;
+        private final ListSerializer<SharedBufferEdge> edgesSerializer;
 
-		public SharedBufferNodeSerializer() {
-			this.edgesSerializer = new ListSerializer<>(new SharedBufferEdgeSerializer());
-		}
+        public SharedBufferNodeSerializer() {
+            this.edgesSerializer = new ListSerializer<>(new SharedBufferEdgeSerializer());
+        }
 
-		private SharedBufferNodeSerializer(ListSerializer<SharedBufferEdge> edgesSerializer) {
-			this.edgesSerializer = checkNotNull(edgesSerializer);
-		}
+        private SharedBufferNodeSerializer(ListSerializer<SharedBufferEdge> edgesSerializer) {
+            this.edgesSerializer = checkNotNull(edgesSerializer);
+        }
 
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
+        @Override
+        public boolean isImmutableType() {
+            return false;
+        }
 
-		@Override
-		public SharedBufferNode createInstance() {
-			return new SharedBufferNode(new ArrayList<>());
-		}
+        @Override
+        public SharedBufferNode createInstance() {
+            return new SharedBufferNode(new ArrayList<>());
+        }
 
-		@Override
-		public SharedBufferNode copy(SharedBufferNode from) {
-			return new SharedBufferNode(edgesSerializer.copy(from.edges));
-		}
+        @Override
+        public SharedBufferNode copy(SharedBufferNode from) {
+            throw new UnsupportedOperationException("Should not be used");
+        }
 
-		@Override
-		public SharedBufferNode copy(SharedBufferNode from, SharedBufferNode reuse) {
-			return copy(from);
-		}
+        @Override
+        public SharedBufferNode copy(SharedBufferNode from, SharedBufferNode reuse) {
+            return copy(from);
+        }
 
-		@Override
-		public int getLength() {
-			return -1;
-		}
+        @Override
+        public int getLength() {
+            return -1;
+        }
 
-		@Override
-		public void serialize(SharedBufferNode record, DataOutputView target) throws IOException {
-			edgesSerializer.serialize(record.edges, target);
-		}
+        @Override
+        public void serialize(SharedBufferNode record, DataOutputView target) throws IOException {
+            throw new UnsupportedOperationException("We should no longer use it for serialization");
+        }
 
-		@Override
-		public SharedBufferNode deserialize(DataInputView source) throws IOException {
-			List<SharedBufferEdge> edges = edgesSerializer.deserialize(source);
-			return new SharedBufferNode(edges);
-		}
+        @Override
+        public SharedBufferNode deserialize(DataInputView source) throws IOException {
+            List<SharedBufferEdge> edges = edgesSerializer.deserialize(source);
+            SharedBufferNode node = new SharedBufferNode();
+            for (SharedBufferEdge edge : edges) {
+                node.addEdge(edge);
+            }
+            return node;
+        }
 
-		@Override
-		public SharedBufferNode deserialize(SharedBufferNode reuse, DataInputView source) throws IOException {
-			return deserialize(source);
-		}
+        @Override
+        public SharedBufferNode deserialize(SharedBufferNode reuse, DataInputView source)
+                throws IOException {
+            return deserialize(source);
+        }
 
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			edgesSerializer.copy(source, target);
-		}
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            edgesSerializer.copy(source, target);
+        }
 
-		// -----------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------
 
-		@Override
-		public TypeSerializerSnapshot<SharedBufferNode> snapshotConfiguration() {
-			return new SharedBufferNodeSerializerSnapshot(this);
-		}
+        @Override
+        public TypeSerializerSnapshot<SharedBufferNode> snapshotConfiguration() {
+            return new SharedBufferNodeSerializerSnapshot(this);
+        }
 
-		/**
-		 * Serializer configuration snapshot for compatibility and format evolution.
-		 */
-		@SuppressWarnings("WeakerAccess")
-		public static final class SharedBufferNodeSerializerSnapshot
-				extends CompositeTypeSerializerSnapshot<SharedBufferNode, SharedBufferNodeSerializer> {
+        /** Serializer configuration snapshot for compatibility and format evolution. */
+        @SuppressWarnings("WeakerAccess")
+        public static final class SharedBufferNodeSerializerSnapshot
+                extends CompositeTypeSerializerSnapshot<
+                        SharedBufferNode, SharedBufferNodeSerializer> {
 
-			private static final int VERSION = 1;
+            private static final int VERSION = 1;
 
-			public SharedBufferNodeSerializerSnapshot() {
-				super(SharedBufferNodeSerializer.class);
-			}
+            public SharedBufferNodeSerializerSnapshot() {
+                super(SharedBufferNodeSerializer.class);
+            }
 
-			public SharedBufferNodeSerializerSnapshot(SharedBufferNodeSerializer sharedBufferNodeSerializer) {
-				super(sharedBufferNodeSerializer);
-			}
+            public SharedBufferNodeSerializerSnapshot(
+                    SharedBufferNodeSerializer sharedBufferNodeSerializer) {
+                super(sharedBufferNodeSerializer);
+            }
 
-			@Override
-			protected int getCurrentOuterSnapshotVersion() {
-				return VERSION;
-			}
+            @Override
+            protected int getCurrentOuterSnapshotVersion() {
+                return VERSION;
+            }
 
-			@Override
-			@SuppressWarnings("unchecked")
-			protected SharedBufferNodeSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
-				return new SharedBufferNodeSerializer((ListSerializer<SharedBufferEdge>) nestedSerializers[0]);
-			}
+            @Override
+            @SuppressWarnings("unchecked")
+            protected SharedBufferNodeSerializer createOuterSerializerWithNestedSerializers(
+                    TypeSerializer<?>[] nestedSerializers) {
+                return new SharedBufferNodeSerializer(
+                        (ListSerializer<SharedBufferEdge>) nestedSerializers[0]);
+            }
 
-			@Override
-			protected TypeSerializer<?>[] getNestedSerializers(SharedBufferNodeSerializer outerSerializer) {
-				return new TypeSerializer<?>[]{ outerSerializer.edgesSerializer };
-			}
-		}
-	}
+            @Override
+            protected TypeSerializer<?>[] getNestedSerializers(
+                    SharedBufferNodeSerializer outerSerializer) {
+                return new TypeSerializer<?>[] {outerSerializer.edgesSerializer};
+            }
+        }
+    }
 }

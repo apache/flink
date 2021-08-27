@@ -20,16 +20,14 @@ package org.apache.flink.yarn;
 
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 
-/**
- * Factory interface for {@link NMClientAsync}.
- */
+/** Factory interface for {@link NMClientAsync}. */
 public interface YarnNodeManagerClientFactory {
 
-	/**
-	 * Create YARN NodeManager client with the given callback handler.
-	 *
-	 * @param callbackHandler which handles the events from YARN NodeManager.
-	 * @return a {@link NMClientAsync} instance.
-	 */
-	NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler);
+    /**
+     * Create YARN NodeManager client with the given callback handler.
+     *
+     * @param callbackHandler which handles the events from YARN NodeManager.
+     * @return a {@link NMClientAsync} instance.
+     */
+    NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler);
 }

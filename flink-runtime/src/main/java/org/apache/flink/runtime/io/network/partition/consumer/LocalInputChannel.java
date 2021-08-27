@@ -20,14 +20,16 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -48,286 +50,327 @@ import java.util.TimerTask;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * An input channel, which requests a local subpartition.
- */
-public class LocalInputChannel extends InputChannel implements BufferAvailabilityListener, ChannelStateHolder {
+/** An input channel, which requests a local subpartition. */
+public class LocalInputChannel extends InputChannel implements BufferAvailabilityListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LocalInputChannel.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalInputChannel.class);
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private final Object requestLock = new Object();
+    private final Object requestLock = new Object();
 
-	/** The local partition manager. */
-	private final ResultPartitionManager partitionManager;
+    /** The local partition manager. */
+    private final ResultPartitionManager partitionManager;
 
-	/** Task event dispatcher for backwards events. */
-	private final TaskEventPublisher taskEventPublisher;
+    /** Task event dispatcher for backwards events. */
+    private final TaskEventPublisher taskEventPublisher;
 
-	/** The consumed subpartition. */
-	@Nullable private volatile ResultSubpartitionView subpartitionView;
+    /** The consumed subpartition. */
+    @Nullable private volatile ResultSubpartitionView subpartitionView;
 
-	private volatile boolean isReleased;
+    private volatile boolean isReleased;
 
-	private ChannelStatePersister channelStatePersister = new ChannelStatePersister(null);
+    private final ChannelStatePersister channelStatePersister;
 
-	public LocalInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ResultPartitionManager partitionManager,
-		TaskEventPublisher taskEventPublisher,
-		Counter numBytesIn,
-		Counter numBuffersIn) {
+    public LocalInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            ResultPartitionManager partitionManager,
+            TaskEventPublisher taskEventPublisher,
+            int initialBackoff,
+            int maxBackoff,
+            Counter numBytesIn,
+            Counter numBuffersIn,
+            ChannelStateWriter stateWriter) {
 
-		this(inputGate, channelIndex, partitionId, partitionManager, taskEventPublisher, 0, 0, numBytesIn, numBuffersIn);
-	}
+        super(
+                inputGate,
+                channelIndex,
+                partitionId,
+                initialBackoff,
+                maxBackoff,
+                numBytesIn,
+                numBuffersIn);
 
-	public LocalInputChannel(
-		SingleInputGate inputGate,
-		int channelIndex,
-		ResultPartitionID partitionId,
-		ResultPartitionManager partitionManager,
-		TaskEventPublisher taskEventPublisher,
-		int initialBackoff,
-		int maxBackoff,
-		Counter numBytesIn,
-		Counter numBuffersIn) {
+        this.partitionManager = checkNotNull(partitionManager);
+        this.taskEventPublisher = checkNotNull(taskEventPublisher);
+        this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
+    }
 
-		super(inputGate, channelIndex, partitionId, initialBackoff, maxBackoff, numBytesIn, numBuffersIn);
+    // ------------------------------------------------------------------------
+    // Consume
+    // ------------------------------------------------------------------------
 
-		this.partitionManager = checkNotNull(partitionManager);
-		this.taskEventPublisher = checkNotNull(taskEventPublisher);
-	}
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+        channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
+    }
 
-	// ------------------------------------------------------------------------
-	// Consume
-	// ------------------------------------------------------------------------
+    public void checkpointStopped(long checkpointId) {
+        channelStatePersister.stopPersisting(checkpointId);
+    }
 
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-		checkState(!channelStatePersister.isInitialized(), "Already initialized");
-		channelStatePersister = new ChannelStatePersister(checkNotNull(channelStateWriter));
-	}
+    @Override
+    protected void requestSubpartition(int subpartitionIndex) throws IOException {
 
-	public void checkpointStarted(CheckpointBarrier barrier) {
-		channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
-	}
+        boolean retriggerRequest = false;
+        boolean notifyDataAvailable = false;
 
-	public void checkpointStopped(long checkpointId) {
-		channelStatePersister.stopPersisting();
-	}
+        // The lock is required to request only once in the presence of retriggered requests.
+        synchronized (requestLock) {
+            checkState(!isReleased, "LocalInputChannel has been released already");
 
-	@Override
-	protected void requestSubpartition(int subpartitionIndex) throws IOException {
+            if (subpartitionView == null) {
+                LOG.debug(
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
+                        this,
+                        subpartitionIndex,
+                        partitionId,
+                        channelStatePersister);
 
-		boolean retriggerRequest = false;
-		boolean notifyDataAvailable = false;
+                try {
+                    ResultSubpartitionView subpartitionView =
+                            partitionManager.createSubpartitionView(
+                                    partitionId, subpartitionIndex, this);
 
-		// The lock is required to request only once in the presence of retriggered requests.
-		synchronized (requestLock) {
-			checkState(!isReleased, "LocalInputChannel has been released already");
+                    if (subpartitionView == null) {
+                        throw new IOException("Error requesting subpartition.");
+                    }
 
-			if (subpartitionView == null) {
-				LOG.debug("{}: Requesting LOCAL subpartition {} of partition {}.",
-					this, subpartitionIndex, partitionId);
+                    // make the subpartition view visible
+                    this.subpartitionView = subpartitionView;
 
-				try {
-					ResultSubpartitionView subpartitionView = partitionManager.createSubpartitionView(
-						partitionId, subpartitionIndex, this);
+                    // check if the channel was released in the meantime
+                    if (isReleased) {
+                        subpartitionView.releaseAllResources();
+                        this.subpartitionView = null;
+                    } else {
+                        notifyDataAvailable = true;
+                    }
+                } catch (PartitionNotFoundException notFound) {
+                    if (increaseBackoff()) {
+                        retriggerRequest = true;
+                    } else {
+                        throw notFound;
+                    }
+                }
+            }
+        }
 
-					if (subpartitionView == null) {
-						throw new IOException("Error requesting subpartition.");
-					}
+        if (notifyDataAvailable) {
+            notifyDataAvailable();
+        }
 
-					// make the subpartition view visible
-					this.subpartitionView = subpartitionView;
+        // Do this outside of the lock scope as this might lead to a
+        // deadlock with a concurrent release of the channel via the
+        // input gate.
+        if (retriggerRequest) {
+            inputGate.retriggerPartitionRequest(partitionId.getPartitionId());
+        }
+    }
 
-					// check if the channel was released in the meantime
-					if (isReleased) {
-						subpartitionView.releaseAllResources();
-						this.subpartitionView = null;
-					} else {
-						notifyDataAvailable = true;
-					}
-				} catch (PartitionNotFoundException notFound) {
-					if (increaseBackoff()) {
-						retriggerRequest = true;
-					} else {
-						throw notFound;
-					}
-				}
-			}
-		}
+    /** Retriggers a subpartition request. */
+    void retriggerSubpartitionRequest(Timer timer, final int subpartitionIndex) {
+        synchronized (requestLock) {
+            checkState(subpartitionView == null, "already requested partition");
 
-		if (notifyDataAvailable) {
-			notifyDataAvailable();
-		}
+            timer.schedule(
+                    new TimerTask() {
+                        @Override
+                        public void run() {
+                            try {
+                                requestSubpartition(subpartitionIndex);
+                            } catch (Throwable t) {
+                                setError(t);
+                            }
+                        }
+                    },
+                    getCurrentBackoff());
+        }
+    }
 
-		// Do this outside of the lock scope as this might lead to a
-		// deadlock with a concurrent release of the channel via the
-		// input gate.
-		if (retriggerRequest) {
-			inputGate.retriggerPartitionRequest(partitionId.getPartitionId());
-		}
-	}
+    @Override
+    Optional<BufferAndAvailability> getNextBuffer() throws IOException {
+        checkError();
 
-	/**
-	 * Retriggers a subpartition request.
-	 */
-	void retriggerSubpartitionRequest(Timer timer, final int subpartitionIndex) {
-		synchronized (requestLock) {
-			checkState(subpartitionView == null, "already requested partition");
+        ResultSubpartitionView subpartitionView = this.subpartitionView;
+        if (subpartitionView == null) {
+            // There is a possible race condition between writing a EndOfPartitionEvent (1) and
+            // flushing (3) the Local
+            // channel on the sender side, and reading EndOfPartitionEvent (2) and processing flush
+            // notification (4). When
+            // they happen in that order (1 - 2 - 3 - 4), flush notification can re-enqueue
+            // LocalInputChannel after (or
+            // during) it was released during reading the EndOfPartitionEvent (2).
+            if (isReleased) {
+                return Optional.empty();
+            }
 
-			timer.schedule(new TimerTask() {
-				@Override
-				public void run() {
-					try {
-						requestSubpartition(subpartitionIndex);
-					} catch (Throwable t) {
-						setError(t);
-					}
-				}
-			}, getCurrentBackoff());
-		}
-	}
+            // this can happen if the request for the partition was triggered asynchronously
+            // by the time trigger
+            // would be good to avoid that, by guaranteeing that the requestPartition() and
+            // getNextBuffer() always come from the same thread
+            // we could do that by letting the timer insert a special "requesting channel" into the
+            // input gate's queue
+            subpartitionView = checkAndWaitForSubpartitionView();
+        }
 
-	@Override
-	Optional<BufferAndAvailability> getNextBuffer() throws IOException {
-		checkError();
+        BufferAndBacklog next = subpartitionView.getNextBuffer();
+        // ignore the empty buffer directly
+        while (next != null && next.buffer().readableBytes() == 0) {
+            next.buffer().recycleBuffer();
+            next = subpartitionView.getNextBuffer();
+            numBuffersIn.inc();
+        }
 
-		ResultSubpartitionView subpartitionView = this.subpartitionView;
-		if (subpartitionView == null) {
-			// There is a possible race condition between writing a EndOfPartitionEvent (1) and flushing (3) the Local
-			// channel on the sender side, and reading EndOfPartitionEvent (2) and processing flush notification (4). When
-			// they happen in that order (1 - 2 - 3 - 4), flush notification can re-enqueue LocalInputChannel after (or
-			// during) it was released during reading the EndOfPartitionEvent (2).
-			if (isReleased) {
-				return Optional.empty();
-			}
+        if (next == null) {
+            if (subpartitionView.isReleased()) {
+                throw new CancelTaskException(
+                        "Consumed partition " + subpartitionView + " has been released.");
+            } else {
+                return Optional.empty();
+            }
+        }
 
-			// this can happen if the request for the partition was triggered asynchronously
-			// by the time trigger
-			// would be good to avoid that, by guaranteeing that the requestPartition() and
-			// getNextBuffer() always come from the same thread
-			// we could do that by letting the timer insert a special "requesting channel" into the input gate's queue
-			subpartitionView = checkAndWaitForSubpartitionView();
-		}
+        Buffer buffer = next.buffer();
 
-		BufferAndBacklog next = subpartitionView.getNextBuffer();
+        if (buffer instanceof FileRegionBuffer) {
+            buffer = ((FileRegionBuffer) buffer).readInto(inputGate.getUnpooledSegment());
+        }
 
-		if (next == null) {
-			if (subpartitionView.isReleased()) {
-				throw new CancelTaskException("Consumed partition " + subpartitionView + " has been released.");
-			} else {
-				return Optional.empty();
-			}
-		}
+        numBytesIn.inc(buffer.getSize());
+        numBuffersIn.inc();
+        channelStatePersister.checkForBarrier(buffer);
+        channelStatePersister.maybePersist(buffer);
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.getSequenceNumber());
+        return Optional.of(
+                new BufferAndAvailability(
+                        buffer,
+                        next.getNextDataType(),
+                        next.buffersInBacklog(),
+                        next.getSequenceNumber()));
+    }
 
-		Buffer buffer = next.buffer();
+    @Override
+    public void notifyDataAvailable() {
+        notifyChannelNonEmpty();
+    }
 
-		numBytesIn.inc(buffer.getSize());
-		numBuffersIn.inc();
-		if (buffer.getDataType().hasPriority()) {
-			channelStatePersister.checkForBarrier(buffer);
-		} else {
-			channelStatePersister.maybePersist(buffer);
-		}
-		return Optional.of(new BufferAndAvailability(
-			buffer,
-			next.getNextDataType(),
-			next.buffersInBacklog(),
-			next.getSequenceNumber()));
-	}
+    private ResultSubpartitionView checkAndWaitForSubpartitionView() {
+        // synchronizing on the request lock means this blocks until the asynchronous request
+        // for the partition view has been completed
+        // by then the subpartition view is visible or the channel is released
+        synchronized (requestLock) {
+            checkState(!isReleased, "released");
+            checkState(
+                    subpartitionView != null,
+                    "Queried for a buffer before requesting the subpartition.");
+            return subpartitionView;
+        }
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-		notifyChannelNonEmpty();
-	}
+    @Override
+    public void resumeConsumption() {
+        checkState(!isReleased, "Channel released.");
 
-	private ResultSubpartitionView checkAndWaitForSubpartitionView() {
-		// synchronizing on the request lock means this blocks until the asynchronous request
-		// for the partition view has been completed
-		// by then the subpartition view is visible or the channel is released
-		synchronized (requestLock) {
-			checkState(!isReleased, "released");
-			checkState(subpartitionView != null, "Queried for a buffer before requesting the subpartition.");
-			return subpartitionView;
-		}
-	}
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
+        subpartitionView.resumeConsumption();
 
-	@Override
-	public void resumeConsumption() {
-		checkState(!isReleased, "Channel released.");
+        if (subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
+            notifyChannelNonEmpty();
+        }
+    }
 
-		subpartitionView.resumeConsumption();
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased, "Channel released.");
 
-		if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
-			notifyChannelNonEmpty();
-		}
-	}
+        subpartitionView.acknowledgeAllDataProcessed();
+    }
 
-	// ------------------------------------------------------------------------
-	// Task events
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Task events
+    // ------------------------------------------------------------------------
 
-	@Override
-	void sendTaskEvent(TaskEvent event) throws IOException {
-		checkError();
-		checkState(subpartitionView != null, "Tried to send task event to producer before requesting the subpartition.");
+    @Override
+    void sendTaskEvent(TaskEvent event) throws IOException {
+        checkError();
+        checkState(
+                subpartitionView != null,
+                "Tried to send task event to producer before requesting the subpartition.");
 
-		if (!taskEventPublisher.publish(partitionId, event)) {
-			throw new IOException("Error while publishing event " + event + " to producer. The producer could not be found.");
-		}
-	}
+        if (!taskEventPublisher.publish(partitionId, event)) {
+            throw new IOException(
+                    "Error while publishing event "
+                            + event
+                            + " to producer. The producer could not be found.");
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	// Life cycle
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // Life cycle
+    // ------------------------------------------------------------------------
 
-	@Override
-	boolean isReleased() {
-		return isReleased;
-	}
+    @Override
+    boolean isReleased() {
+        return isReleased;
+    }
 
-	/**
-	 * Releases the partition reader.
-	 */
-	@Override
-	void releaseAllResources() throws IOException {
-		if (!isReleased) {
-			isReleased = true;
+    /** Releases the partition reader. */
+    @Override
+    void releaseAllResources() throws IOException {
+        if (!isReleased) {
+            isReleased = true;
 
-			ResultSubpartitionView view = subpartitionView;
-			if (view != null) {
-				view.releaseAllResources();
-				subpartitionView = null;
-			}
-		}
-	}
+            ResultSubpartitionView view = subpartitionView;
+            if (view != null) {
+                view.releaseAllResources();
+                subpartitionView = null;
+            }
+        }
+    }
 
-	@Override
-	public int unsynchronizedGetNumberOfQueuedBuffers() {
-		ResultSubpartitionView view = subpartitionView;
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        checkState(!isReleased, "Channel released.");
 
-		if (view != null) {
-			return view.unsynchronizedGetNumberOfQueuedBuffers();
-		}
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
+        subpartitionView.notifyNewBufferSize(newBufferSize);
+    }
 
-		return 0;
-	}
+    @Override
+    int getBuffersInUseCount() {
+        return subpartitionView.getNumberOfQueuedBuffers();
+    }
 
-	@Override
-	public String toString() {
-		return "LocalInputChannel [" + partitionId + "]";
-	}
+    @Override
+    public int unsynchronizedGetNumberOfQueuedBuffers() {
+        ResultSubpartitionView view = subpartitionView;
 
-	// ------------------------------------------------------------------------
-	// Getter
-	// ------------------------------------------------------------------------
+        if (view != null) {
+            return view.unsynchronizedGetNumberOfQueuedBuffers();
+        }
 
-	@VisibleForTesting
-	ResultSubpartitionView getSubpartitionView() {
-		return subpartitionView;
-	}
+        return 0;
+    }
+
+    @Override
+    public String toString() {
+        return "LocalInputChannel [" + partitionId + "]";
+    }
+
+    // ------------------------------------------------------------------------
+    // Getter
+    // ------------------------------------------------------------------------
+
+    @VisibleForTesting
+    ResultSubpartitionView getSubpartitionView() {
+        return subpartitionView;
+    }
 }

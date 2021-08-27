@@ -1,0 +1,130 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testMatchRecognizeOnRowtimeLTZ">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  symbol,
+  SUM(price) as price,
+  TUMBLE_ROWTIME(matchRowtime, interval '3' second) as rowTime,
+  TUMBLE_START(matchRowtime, interval '3' second) as startTime
+FROM Ticker
+MATCH_RECOGNIZE (
+  PARTITION BY symbol
+  ORDER BY ts_ltz
+  MEASURES
+    A.price as price,
+    A.tax as tax,
+    MATCH_ROWTIME() as matchRowtime
+  ONE ROW PER MATCH
+  PATTERN (A)
+  DEFINE
+    A AS A.price > 0
+) AS T
+GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(symbol=[$0], price=[$2], rowTime=[TUMBLE_ROWTIME($1)], startTime=[TUMBLE_START($1)])
++- LogicalAggregate(group=[{0, 1}], price=[SUM($2)])
+   +- LogicalProject(symbol=[$0], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)], price=[$1])
+      +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]])
+         +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[symbol, price, CAST(w$rowtime) AS rowTime, w$start AS startTime])
++- GroupWindowAggregate(groupBy=[symbol], window=[TumblingGroupWindow('w$, matchRowtime, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, SUM(price) AS price, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+   +- Exchange(distribution=[hash[symbol]])
+      +- Calc(select=[symbol, matchRowtime, price])
+         +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax, FINAL(MATCH_ROWTIME()) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$2, 0), 0)}])
+            +- Exchange(distribution=[hash[symbol]])
+               +- WatermarkAssigner(rowtime=[ts_ltz], watermark=[-(ts_ltz, 1000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, ts_ltz, price, tax])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCascadeMatch">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+  SELECT
+    symbol,
+    matchRowtime,
+    price,
+    TUMBLE_START(matchRowtime, interval '3' second) as startTime
+  FROM Ticker
+  MATCH_RECOGNIZE (
+  PARTITION BY symbol
+  ORDER BY ts_ltz
+  MEASURES
+    A.price as price,
+    A.tax as tax,
+    MATCH_ROWTIME() as matchRowtime
+  ONE ROW PER MATCH
+  PATTERN (A)
+  DEFINE
+    A AS A.price > 0
+) AS T
+GROUP BY symbol, matchRowtime, price, TUMBLE(matchRowtime, interval '3' second)
+)
+MATCH_RECOGNIZE (
+  PARTITION BY symbol
+  ORDER BY matchRowtime
+  MEASURES
+    A.price as dPrice,
+    A.matchRowtime as matchRowtime
+  PATTERN (A)
+  DEFINE
+    A AS A.matchRowtime >= (CURRENT_TIMESTAMP - INTERVAL '1' day)
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(symbol=[$0], dPrice=[$1], matchRowtime=[$2])
++- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, dPrice, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP, 86400000:INTERVAL DAY))]], inputFields=[[symbol, matchRowtime, price, startTime]])
+   +- LogicalProject(symbol=[$0], matchRowtime=[$1], price=[$2], startTime=[TUMBLE_START($3)])
+      +- LogicalAggregate(group=[{0, 1, 2, 3}])
+         +- LogicalProject(symbol=[$0], matchRowtime=[$3], price=[$1], $f3=[$TUMBLE($3, 3000:INTERVAL SECOND)])
+            +- LogicalMatch(partition=[[0]], order=[[1 ASC-nulls-first]], outputFields=[[symbol, price, tax, matchRowtime]], allRows=[false], after=[FLAG(SKIP TO NEXT ROW)], pattern=[_UTF-16LE'A'], isStrictStarts=[false], isStrictEnds=[false], subsets=[[]], patternDefinitions=[[>(PREV(A.$2, 0), 0)]], inputFields=[[symbol, ts_ltz, price, tax]])
+               +- LogicalWatermarkAssigner(rowtime=[ts_ltz], watermark=[-($1, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, Ticker]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Match(partitionBy=[symbol], orderBy=[matchRowtime ASC], measures=[FINAL(A.price) AS dPrice, FINAL(A.matchRowtime) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>=(PREV(A.$1, 0), -(CURRENT_TIMESTAMP, 86400000:INTERVAL DAY))}])
++- Exchange(distribution=[hash[symbol]])
+   +- Calc(select=[symbol, matchRowtime, price, w$start AS startTime])
+      +- GroupWindowAggregate(groupBy=[symbol, price, matchRowtime], window=[TumblingGroupWindow('w$, matchRowtime0, 3000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[symbol, price, matchRowtime, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
+         +- Exchange(distribution=[hash[symbol, price, matchRowtime]])
+            +- Calc(select=[symbol, price, tax, CAST(matchRowtime) AS matchRowtime])
+               +- Match(partitionBy=[symbol], orderBy=[ts_ltz ASC], measures=[FINAL(A.price) AS price, FINAL(A.tax) AS tax, FINAL(MATCH_ROWTIME()) AS matchRowtime], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[_UTF-16LE'A'], define=[{A=>(PREV(A.$2, 0), 0)}])
+                  +- Exchange(distribution=[hash[symbol]])
+                     +- WatermarkAssigner(rowtime=[ts_ltz], watermark=[-(ts_ltz, 1000:INTERVAL SECOND)])
+                        +- TableSourceScan(table=[[default_catalog, default_database, Ticker]], fields=[symbol, ts_ltz, price, tax])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

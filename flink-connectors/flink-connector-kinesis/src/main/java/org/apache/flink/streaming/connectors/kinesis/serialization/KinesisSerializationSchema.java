@@ -24,38 +24,38 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 /**
- * Kinesis-specific serialization schema, allowing users to specify a target stream based
- * on a record's contents.
+ * Kinesis-specific serialization schema, allowing users to specify a target stream based on a
+ * record's contents.
+ *
  * @param <T>
  */
 @PublicEvolving
 public interface KinesisSerializationSchema<T> extends Serializable {
-	/**
-	 * Initialization method for the schema. It is called before the actual working methods
-	 * {@link #serialize(Object)} and thus suitable for one time setup work.
-	 *
-	 * <p>The provided {@link InitializationContext} can be used to access additional features such
-	 * as e.g. registering user metrics.
-	 *
-	 * @param context Contextual information that can be used during initialization.
-	 */
-	default void open(InitializationContext context) throws Exception {
-	}
+    /**
+     * Initialization method for the schema. It is called before the actual working methods {@link
+     * #serialize(Object)} and thus suitable for one time setup work.
+     *
+     * <p>The provided {@link InitializationContext} can be used to access additional features such
+     * as e.g. registering user metrics.
+     *
+     * @param context Contextual information that can be used during initialization.
+     */
+    default void open(InitializationContext context) throws Exception {}
 
-	/**
-	 * Serialize the given element into a ByteBuffer.
-	 *
-	 * @param element The element to serialize
-	 * @return Serialized representation of the element
-	 */
-	ByteBuffer serialize(T element);
+    /**
+     * Serialize the given element into a ByteBuffer.
+     *
+     * @param element The element to serialize
+     * @return Serialized representation of the element
+     */
+    ByteBuffer serialize(T element);
 
-	/**
-	 * Optional method to determine the target stream based on the element.
-	 * Return <code>null</code> to use the default stream
-	 *
-	 * @param element The element to determine the target stream from
-	 * @return target stream name
-	 */
-	String getTargetStream(T element);
+    /**
+     * Optional method to determine the target stream based on the element. Return <code>null</code>
+     * to use the default stream
+     *
+     * @param element The element to determine the target stream from
+     * @return target stream name
+     */
+    String getTargetStream(T element);
 }

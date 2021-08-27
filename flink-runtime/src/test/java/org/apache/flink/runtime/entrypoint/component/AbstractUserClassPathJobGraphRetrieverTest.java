@@ -38,40 +38,44 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link AbstractUserClassPathJobGraphRetriever}.
- */
+/** Tests for the {@link AbstractUserClassPathJobGraphRetriever}. */
 public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
-		TestJobGraphRetriever(File jobDir) throws IOException {
-			super(jobDir);
-		}
+    private static class TestJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
+        TestJobGraphRetriever(File jobDir) throws IOException {
+            super(jobDir);
+        }
 
-		@Override
-		public JobGraph retrieveJobGraph(Configuration configuration) {
-			throw new UnsupportedOperationException("This method should not be called.");
-		}
-	}
+        @Override
+        public JobGraph retrieveJobGraph(Configuration configuration) {
+            throw new UnsupportedOperationException("This method should not be called.");
+        }
+    }
 
-	@Test
-	public void testGetUserClassPath() throws IOException {
-		final File testJobDir = temporaryFolder.newFolder("_test_job");
-		final Collection<Path> testFiles = FileUtilsTest.prepareTestFiles(testJobDir.toPath());
-		final Path currentWorkingDirectory = FileUtils.getCurrentWorkingDirectory();
-		final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(testJobDir);
+    @Test
+    public void testGetUserClassPath() throws IOException {
+        final File testJobDir = temporaryFolder.newFolder("_test_job");
+        final Collection<Path> testFiles = FileUtilsTest.prepareTestFiles(testJobDir.toPath());
+        final Path currentWorkingDirectory = FileUtils.getCurrentWorkingDirectory();
+        final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(testJobDir);
 
-		assertThat(testJobGraphRetriever.getUserClassPaths(), containsInAnyOrder(testFiles.stream()
-			.map(file -> FileUtils.relativizePath(currentWorkingDirectory, file))
-			.map(FunctionUtils.uncheckedFunction(FileUtils::toURL)).toArray()));
-	}
+        assertThat(
+                testJobGraphRetriever.getUserClassPaths(),
+                containsInAnyOrder(
+                        testFiles.stream()
+                                .map(
+                                        file ->
+                                                FileUtils.relativizePath(
+                                                        currentWorkingDirectory, file))
+                                .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
+                                .toArray()));
+    }
 
-	@Test
-	public void testGetUserClassPathReturnEmptyListIfJobDirIsNull() throws IOException {
-		final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(null);
-		assertTrue(testJobGraphRetriever.getUserClassPaths().isEmpty());
-	}
+    @Test
+    public void testGetUserClassPathReturnEmptyListIfJobDirIsNull() throws IOException {
+        final TestJobGraphRetriever testJobGraphRetriever = new TestJobGraphRetriever(null);
+        assertTrue(testJobGraphRetriever.getUserClassPaths().isEmpty());
+    }
 }

@@ -33,66 +33,65 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * DROP FUNCTION DDL sql call.
- */
+/** DROP FUNCTION DDL sql call. */
 public class SqlDropFunction extends SqlDrop {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("DROP FUNCTION", SqlKind.DROP_FUNCTION);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("DROP FUNCTION", SqlKind.DROP_FUNCTION);
 
-	private final SqlIdentifier functionIdentifier;
+    private final SqlIdentifier functionIdentifier;
 
-	private final boolean isTemporary;
+    private final boolean isTemporary;
 
-	private final boolean isSystemFunction;
+    private final boolean isSystemFunction;
 
-	public SqlDropFunction(
-			SqlParserPos pos,
-			SqlIdentifier functionIdentifier,
-			boolean ifExists,
-			boolean isTemporary,
-			boolean isSystemFunction) {
-		super(OPERATOR, pos, ifExists);
-		this.functionIdentifier = requireNonNull(functionIdentifier);
-		this.isSystemFunction = isSystemFunction;
-		this.isTemporary = isTemporary;
-	}
+    public SqlDropFunction(
+            SqlParserPos pos,
+            SqlIdentifier functionIdentifier,
+            boolean ifExists,
+            boolean isTemporary,
+            boolean isSystemFunction) {
+        super(OPERATOR, pos, ifExists);
+        this.functionIdentifier = requireNonNull(functionIdentifier);
+        this.isSystemFunction = isSystemFunction;
+        this.isTemporary = isTemporary;
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(functionIdentifier);
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(functionIdentifier);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("DROP");
-		if (isTemporary) {
-			writer.keyword("TEMPORARY");
-		}
-		if (isSystemFunction) {
-			writer.keyword("SYSTEM");
-		}
-		writer.keyword("FUNCTION");
-		if (ifExists) {
-			writer.keyword("IF EXISTS");
-		}
-		functionIdentifier.unparse(writer, leftPrec, rightPrec);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("DROP");
+        if (isTemporary) {
+            writer.keyword("TEMPORARY");
+        }
+        if (isSystemFunction) {
+            writer.keyword("SYSTEM");
+        }
+        writer.keyword("FUNCTION");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
+        functionIdentifier.unparse(writer, leftPrec, rightPrec);
+    }
 
-	public String[] getFunctionIdentifier() {
-		return functionIdentifier.names.toArray(new String[0]);
-	}
+    public String[] getFunctionIdentifier() {
+        return functionIdentifier.names.toArray(new String[0]);
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	public boolean isSystemFunction() {
-		return isSystemFunction;
-	}
+    public boolean isSystemFunction() {
+        return isSystemFunction;
+    }
 
-	public boolean getIfExists() {
-		return this.ifExists;
-	}
+    public boolean getIfExists() {
+        return this.ifExists;
+    }
 }

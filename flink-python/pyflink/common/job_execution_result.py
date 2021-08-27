@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Dict, Any
+
 from pyflink.common.job_id import JobID
 
 __all__ = ['JobExecutionResult']
@@ -31,7 +33,7 @@ class JobExecutionResult(object):
     def __init__(self, j_job_execution_result):
         self._j_job_execution_result = j_job_execution_result
 
-    def get_job_id(self):
+    def get_job_id(self) -> JobID:
         """
         Returns the JobID assigned to the job by the Flink runtime.
 
@@ -42,7 +44,7 @@ class JobExecutionResult(object):
         """
         return JobID(self._j_job_execution_result.getJobID())
 
-    def get_net_runtime(self):
+    def get_net_runtime(self) -> int:
         """
         Gets the net execution time of the job, i.e., the execution time in the parallel system,
         without the pre-flight steps like the optimizer.
@@ -53,7 +55,7 @@ class JobExecutionResult(object):
         """
         return self._j_job_execution_result.getNetRuntime()
 
-    def get_accumulator_result(self, accumulator_name):
+    def get_accumulator_result(self, accumulator_name: str):
         """
         Gets the accumulator with the given name. Returns None, if no accumulator with
         that name was produced.
@@ -65,7 +67,7 @@ class JobExecutionResult(object):
         """
         return self.get_all_accumulator_results().get(accumulator_name)
 
-    def get_all_accumulator_results(self):
+    def get_all_accumulator_results(self) -> Dict[str, Any]:
         """
         Gets all accumulators produced by the job. The map contains the accumulators as
         mappings from the accumulator name to the accumulator value.

@@ -26,77 +26,74 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
-/**
- * ShellScript for creating shell script on linux and windows.
- */
+/** ShellScript for creating shell script on linux and windows. */
 public class ShellScript {
 
-	public static ShellScriptBuilder createShellScriptBuilder() {
-		if (OperatingSystem.isWindows()) {
-			return new WindowsShellScriptBuilder();
-		}
-		return new UnixShellScriptBuilder();
-	}
+    public static ShellScriptBuilder createShellScriptBuilder() {
+        if (OperatingSystem.isWindows()) {
+            return new WindowsShellScriptBuilder();
+        }
+        return new UnixShellScriptBuilder();
+    }
 
-	public static String getScriptExtension() {
-		return OperatingSystem.isWindows() ? ".cmd" : ".sh";
-	}
+    public static String getScriptExtension() {
+        return OperatingSystem.isWindows() ? ".cmd" : ".sh";
+    }
 
-	/**
-	 * Builder to create shell script.
-	 */
-	public abstract static class ShellScriptBuilder {
-		private static final String LINE_SEPARATOR = System.getProperty("line.separator");
-		private final StringBuilder sb = new StringBuilder();
+    /** Builder to create shell script. */
+    public abstract static class ShellScriptBuilder {
+        private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+        private final StringBuilder sb = new StringBuilder();
 
-		void line(String... command) {
-			for (String s : command) {
-				sb.append(s);
-			}
-			sb.append(LINE_SEPARATOR);
-		}
+        void line(String... command) {
+            for (String s : command) {
+                sb.append(s);
+            }
+            sb.append(LINE_SEPARATOR);
+        }
 
-		public void write(File file) throws IOException {
-			try (FileWriter fwrt = new FileWriter(file); PrintWriter out = new PrintWriter(fwrt)) {
-				out.append(sb);
-			}
-			file.setExecutable(true, false);
-		}
+        public void write(File file) throws IOException {
+            try (FileWriter fwrt = new FileWriter(file);
+                    PrintWriter out = new PrintWriter(fwrt)) {
+                out.append(sb);
+            }
+            file.setExecutable(true, false);
+        }
 
-		public abstract void command(List<String> command);
+        public abstract void command(List<String> command);
 
-		public abstract void env(String key, String value);
-	}
+        public abstract void env(String key, String value);
+    }
 
-	private static final class UnixShellScriptBuilder extends ShellScriptBuilder {
+    private static final class UnixShellScriptBuilder extends ShellScriptBuilder {
 
-		UnixShellScriptBuilder(){
-			line("#!/usr/bin/env bash");
-			line();
-		}
+        UnixShellScriptBuilder() {
+            line("#!/usr/bin/env bash");
+            line();
+        }
 
-		public void command(List<String> command) {
-			line("exec ", String.join(" ", command));
-		}
+        public void command(List<String> command) {
+            line("exec ", String.join(" ", command));
+        }
 
-		public void env(String key, String value) {
-			line("export ", key, "=\"", value, "\"");
-		}
-	}
+        public void env(String key, String value) {
+            line("export ", key, "=\"", value, "\"");
+        }
+    }
 
-	private static final class WindowsShellScriptBuilder extends ShellScriptBuilder {
+    private static final class WindowsShellScriptBuilder extends ShellScriptBuilder {
 
-		WindowsShellScriptBuilder() {
-			line("@setlocal");
-			line();
-		}
+        WindowsShellScriptBuilder() {
+            line("@setlocal");
+            line();
+        }
 
-		public void command(List<String> command) {
-			line("@call ", String.join(" ", command));
-		}
+        public void command(List<String> command) {
+            line("@call ", String.join(" ", command));
+        }
 
-		public void env(String key, String value) {
-			line("@set ", key, "=", value);
-		}
-	}
+        public void env(String key, String value) {
+            line("@set ", key, "=", value);
+        }
+    }
 }

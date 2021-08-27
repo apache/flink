@@ -24,28 +24,27 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * This class provides access to an input stream that contains state data for one key group and the key group id.
+ * This class provides access to an input stream that contains state data for one key group and the
+ * key group id.
  */
 @PublicEvolving
 public class KeyGroupStatePartitionStreamProvider extends StatePartitionStreamProvider {
 
-	/** Key group that corresponds to the data in the provided stream */
-	private final int keyGroupId;
+    /** Key group that corresponds to the data in the provided stream */
+    private final int keyGroupId;
 
-	public KeyGroupStatePartitionStreamProvider(IOException creationException, int keyGroupId) {
-		super(creationException);
-		this.keyGroupId = keyGroupId;
-	}
+    public KeyGroupStatePartitionStreamProvider(IOException creationException, int keyGroupId) {
+        super(creationException);
+        this.keyGroupId = keyGroupId;
+    }
 
-	public KeyGroupStatePartitionStreamProvider(InputStream stream, int keyGroupId) {
-		super(stream);
-		this.keyGroupId = keyGroupId;
-	}
+    public KeyGroupStatePartitionStreamProvider(InputStream stream, int keyGroupId) {
+        super(stream);
+        this.keyGroupId = keyGroupId;
+    }
 
-	/**
-	 * Returns the key group that corresponds to the data in the provided stream.
-	 */
-	public int getKeyGroupId() {
-		return keyGroupId;
-	}
+    /** Returns the key group that corresponds to the data in the provided stream. */
+    public int getKeyGroupId() {
+        return keyGroupId;
+    }
 }

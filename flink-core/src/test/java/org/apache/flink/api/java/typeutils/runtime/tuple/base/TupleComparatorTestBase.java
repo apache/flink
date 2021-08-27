@@ -27,17 +27,16 @@ import static org.junit.Assert.assertEquals;
 
 public abstract class TupleComparatorTestBase<T extends Tuple> extends ComparatorTestBase<T> {
 
-	@Override
-	protected void deepEquals(String message, T should, T is) {
-		for (int x = 0; x < should.getArity(); x++) {
-			assertEquals((Object)should.getField(x), is.getField(x));
-		}
-	}
+    @Override
+    protected void deepEquals(String message, T should, T is) {
+        for (int x = 0; x < should.getArity(); x++) {
+            assertEquals((Object) should.getField(x), is.getField(x));
+        }
+    }
 
-	@Override
-	protected abstract TupleComparator<T> createComparator(boolean ascending);
+    @Override
+    protected abstract TupleComparator<T> createComparator(boolean ascending);
 
-	@Override
-	protected abstract TupleSerializer<T> createSerializer();
-
+    @Override
+    protected abstract TupleSerializer<T> createSerializer();
 }

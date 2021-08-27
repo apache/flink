@@ -25,48 +25,44 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * JVM metaspace and overhead memory sizes.
- */
+/** JVM metaspace and overhead memory sizes. */
 public class JvmMetaspaceAndOverhead implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final MemorySize metaspace;
-	private final MemorySize overhead;
+    private final MemorySize metaspace;
+    private final MemorySize overhead;
 
-	public JvmMetaspaceAndOverhead(MemorySize jvmMetaspace, MemorySize jvmOverhead) {
-		this.metaspace = checkNotNull(jvmMetaspace);
-		this.overhead = checkNotNull(jvmOverhead);
-	}
+    public JvmMetaspaceAndOverhead(MemorySize jvmMetaspace, MemorySize jvmOverhead) {
+        this.metaspace = checkNotNull(jvmMetaspace);
+        this.overhead = checkNotNull(jvmOverhead);
+    }
 
-	MemorySize getTotalJvmMetaspaceAndOverheadSize() {
-		return getMetaspace().add(getOverhead());
-	}
+    MemorySize getTotalJvmMetaspaceAndOverheadSize() {
+        return getMetaspace().add(getOverhead());
+    }
 
-	public MemorySize getMetaspace() {
-		return metaspace;
-	}
+    public MemorySize getMetaspace() {
+        return metaspace;
+    }
 
-	public MemorySize getOverhead() {
-		return overhead;
-	}
+    public MemorySize getOverhead() {
+        return overhead;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj instanceof JvmMetaspaceAndOverhead ) {
-			JvmMetaspaceAndOverhead that = (JvmMetaspaceAndOverhead) obj;
-			return Objects.equals(this.metaspace, that.metaspace) &&
-					Objects.equals(this.overhead, that.overhead);
-		}
-		return false;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof JvmMetaspaceAndOverhead) {
+            JvmMetaspaceAndOverhead that = (JvmMetaspaceAndOverhead) obj;
+            return Objects.equals(this.metaspace, that.metaspace)
+                    && Objects.equals(this.overhead, that.overhead);
+        }
+        return false;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(
-				metaspace,
-				overhead);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(metaspace, overhead);
+    }
 }

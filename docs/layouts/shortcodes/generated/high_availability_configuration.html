@@ -1,0 +1,96 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>high-availability</h5></td>
+            <td style="word-wrap: break-word;">"NONE"</td>
+            <td>String</td>
+            <td>Defines high-availability mode used for the cluster execution. To enable high-availability, set this mode to "ZOOKEEPER" or specify FQN of factory class.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.cluster-id</h5></td>
+            <td style="word-wrap: break-word;">"/default"</td>
+            <td>String</td>
+            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.jobmanager.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>String</td>
+            <td>The port (range) used by the Flink Master for its RPC connections in highly-available setups. In highly-available setups, this value is used instead of 'jobmanager.rpc.port'.A value of '0' means that a random free port is chosen. TaskManagers discover this port through the high-availability services (leader election), so a random port or a port range works without requiring any additional means of service discovery.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.storageDir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.acl</h5></td>
+            <td style="word-wrap: break-word;">"open"</td>
+            <td>String</td>
+            <td>Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.connection-timeout</h5></td>
+            <td style="word-wrap: break-word;">15000</td>
+            <td>Integer</td>
+            <td>Defines the connection timeout for ZooKeeper in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.max-retry-attempts</h5></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>Defines the number of connection retries before the client gives up.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.retry-wait</h5></td>
+            <td style="word-wrap: break-word;">5000</td>
+            <td>Integer</td>
+            <td>Defines the pause between consecutive retries in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.session-timeout</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Integer</td>
+            <td>Defines the session timeout for the ZooKeeper session in ms.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.tolerate-suspended-connections</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader information to be invalidated or not. In case you set this option to <code class="highlighter-rouge">true</code>, Flink will wait until a ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the effect that Flink is more resilient against temporary connection instabilities at the cost of running more likely into timing issues with ZooKeeper.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
+            <td style="word-wrap: break-word;">"/jobgraphs"</td>
+            <td>String</td>
+            <td>ZooKeeper root path (ZNode) for job graphs</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.root</h5></td>
+            <td style="word-wrap: break-word;">"/flink"</td>
+            <td>String</td>
+            <td>The root path under which Flink stores its entries in ZooKeeper.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.path.running-registry</h5></td>
+            <td style="word-wrap: break-word;">"/running_job_registry/"</td>
+            <td>String</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.quorum</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The ZooKeeper quorum to use, when running Flink in a high-availability mode with ZooKeeper.</td>
+        </tr>
+    </tbody>
+</table>

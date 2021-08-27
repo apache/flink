@@ -22,19 +22,20 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 
 import java.util.function.Function;
 
-/**
- * A {@link YarnNodeManagerClientFactory} implementation for testing.
- */
+/** A {@link YarnNodeManagerClientFactory} implementation for testing. */
 public class TestingYarnNodeManagerClientFactory implements YarnNodeManagerClientFactory {
 
-	private final Function<NMClientAsync.CallbackHandler, NMClientAsync> createNodeManagerClientFunction;
+    private final Function<NMClientAsync.CallbackHandler, NMClientAsync>
+            createNodeManagerClientFunction;
 
-	TestingYarnNodeManagerClientFactory(Function<NMClientAsync.CallbackHandler, NMClientAsync> createNodeManagerClientFunction) {
-		this.createNodeManagerClientFunction = createNodeManagerClientFunction;
-	}
+    TestingYarnNodeManagerClientFactory(
+            Function<NMClientAsync.CallbackHandler, NMClientAsync>
+                    createNodeManagerClientFunction) {
+        this.createNodeManagerClientFunction = createNodeManagerClientFunction;
+    }
 
-	@Override
-	public NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler) {
-		return createNodeManagerClientFunction.apply(callbackHandler);
-	}
+    @Override
+    public NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler) {
+        return createNodeManagerClientFunction.apply(callbackHandler);
+    }
 }

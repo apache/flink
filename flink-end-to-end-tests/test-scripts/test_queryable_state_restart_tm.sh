@@ -88,7 +88,7 @@ function run_test() {
     kill_random_taskmanager
     wait_for_number_of_running_tms 0
 
-    latest_snapshot_count=$(cat $FLINK_DIR/log/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
+    latest_snapshot_count=$(cat $FLINK_LOG_DIR/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
     echo "Latest snapshot count was ${latest_snapshot_count}"
 
     start_and_wait_for_tm
@@ -101,16 +101,18 @@ function run_test() {
 
     wait_for_number_of_checkpoints ${JOB_ID} ${expected_num_checkpoints} 60
 
-    local num_entries_in_map_state_after=$(java -jar ${QUERYABLE_STATE_CLIENT_JAR} \
+    local output=$(java -jar ${QUERYABLE_STATE_CLIENT_JAR} \
         --host ${SERVER} \
         --port ${PORT} \
         --iterations 1 \
-        --job-id ${JOB_ID} | grep "MapState has" | awk '{print $3}')
+        --job-id ${JOB_ID})
 
-    echo "after: $num_entries_in_map_state_after"
+    local num_entries_in_map_state_after=$(echo "$output" | grep "MapState has" | awk '{print $3}')
+
+    echo "Most recent count: $num_entries_in_map_state_after"
 
     if ((latest_snapshot_count > num_entries_in_map_state_after)); then
-        echo "An error occurred"
+        echo "The latest snapshot count (${latest_snapshot_count}) is larger than the most recently retrieved count (${num_entries_in_map_state_after}). Since this number is supposed to increase monotonically, this indicates that we have lost some state."
         EXIT_CODE=1
     fi
 

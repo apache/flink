@@ -30,104 +30,101 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-/**
- * WordCount with custom data types example.
- */
+/** WordCount with custom data types example. */
 @SuppressWarnings("serial")
 public class WordCountSubclassPOJOITCase extends JavaProgramTestBase implements Serializable {
-	private static final long serialVersionUID = 1L;
-	protected String textPath;
-	protected String resultPath;
+    private static final long serialVersionUID = 1L;
+    protected String textPath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        textPath = createTempFile("text.txt", WordCountData.TEXT);
+        resultPath = getTempDirPath("result");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<String> text = env.readTextFile(textPath);
+    @Override
+    protected void testProgram() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<String> text = env.readTextFile(textPath);
 
-		DataSet<WCBase> counts = text
-				.flatMap(new Tokenizer())
-				.groupBy("word")
-				.reduce(new ReduceFunction<WCBase>() {
-					private static final long serialVersionUID = 1L;
-					public WCBase reduce(WCBase value1, WCBase value2) {
-						WC wc1 = (WC) value1;
-						WC wc2 = (WC) value2;
-						return new WC(value1.word, wc1.secretCount + wc2.secretCount);
-					}
-				})
-				.map(new MapFunction<WCBase, WCBase>() {
-					@Override
-					public WCBase map(WCBase value) throws Exception {
-						WC wc = (WC) value;
-						wc.count = wc.secretCount;
-						return wc;
-					}
-				});
+        DataSet<WCBase> counts =
+                text.flatMap(new Tokenizer())
+                        .groupBy("word")
+                        .reduce(
+                                new ReduceFunction<WCBase>() {
+                                    private static final long serialVersionUID = 1L;
 
-		counts.writeAsText(resultPath);
+                                    public WCBase reduce(WCBase value1, WCBase value2) {
+                                        WC wc1 = (WC) value1;
+                                        WC wc2 = (WC) value2;
+                                        return new WC(
+                                                value1.word, wc1.secretCount + wc2.secretCount);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<WCBase, WCBase>() {
+                                    @Override
+                                    public WCBase map(WCBase value) throws Exception {
+                                        WC wc = (WC) value;
+                                        wc.count = wc.secretCount;
+                                        return wc;
+                                    }
+                                });
 
-		env.execute("WordCount with custom data types example");
-	}
+        counts.writeAsText(resultPath);
 
-	private static final class Tokenizer implements FlatMapFunction<String, WCBase> {
+        env.execute("WordCount with custom data types example");
+    }
 
-		@Override
-		public void flatMap(String value, Collector<WCBase> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new WC(token, 1));
-				}
-			}
-		}
-	}
+    private static final class Tokenizer implements FlatMapFunction<String, WCBase> {
 
-	/**
-	 * Abstract POJO.
-	 */
-	public abstract static class WCBase {
-		public String word;
-		public int count;
+        @Override
+        public void flatMap(String value, Collector<WCBase> out) {
+            // normalize and split the line
+            String[] tokens = value.toLowerCase().split("\\W+");
+            // emit the pairs
+            for (String token : tokens) {
+                if (token.length() > 0) {
+                    out.collect(new WC(token, 1));
+                }
+            }
+        }
+    }
 
-		public WCBase(String w, int c) {
-			this.word = w;
-			this.count = c;
-		}
+    /** Abstract POJO. */
+    public abstract static class WCBase {
+        public String word;
+        public int count;
 
-		@Override
-		public String toString() {
-			return word + " " + count;
-		}
-	}
+        public WCBase(String w, int c) {
+            this.word = w;
+            this.count = c;
+        }
 
-	/**
-	 * Subclass of abstract POJO.
-	 */
-	public static class WC extends WCBase {
+        @Override
+        public String toString() {
+            return word + " " + count;
+        }
+    }
 
-		public int secretCount;
+    /** Subclass of abstract POJO. */
+    public static class WC extends WCBase {
 
-		public WC() {
-			super(null, 0);
-		}
+        public int secretCount;
 
-		public WC(String w, int c) {
-			super(w, 0);
-			this.secretCount = c;
-		}
-	}
+        public WC() {
+            super(null, 0);
+        }
 
+        public WC(String w, int c) {
+            super(w, 0);
+            this.secretCount = c;
+        }
+    }
 }

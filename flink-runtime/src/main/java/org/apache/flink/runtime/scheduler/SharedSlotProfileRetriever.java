@@ -23,26 +23,23 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
-/**
- * Computes a {@link SlotProfile} to allocate a slot for executions, sharing the slot.
- */
+/** Computes a {@link SlotProfile} to allocate a slot for executions, sharing the slot. */
 @FunctionalInterface
 interface SharedSlotProfileRetriever {
-	/**
-	 * Computes a {@link SlotProfile} of an execution slot sharing group.
-	 *
-	 * @param executionSlotSharingGroup executions sharing the slot.
-	 * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
-	 * @return a future of the {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
-	 */
-	CompletableFuture<SlotProfile> getSlotProfileFuture(
-		ExecutionSlotSharingGroup executionSlotSharingGroup,
-		ResourceProfile physicalSlotResourceProfile);
+    /**
+     * Computes a {@link SlotProfile} of an execution slot sharing group.
+     *
+     * @param executionSlotSharingGroup executions sharing the slot.
+     * @param physicalSlotResourceProfile {@link ResourceProfile} of the slot.
+     * @return {@link SlotProfile} to allocate for the {@code executionSlotSharingGroup}.
+     */
+    SlotProfile getSlotProfile(
+            ExecutionSlotSharingGroup executionSlotSharingGroup,
+            ResourceProfile physicalSlotResourceProfile);
 
-	@FunctionalInterface
-	interface SharedSlotProfileRetrieverFactory {
-		SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk);
-	}
+    @FunctionalInterface
+    interface SharedSlotProfileRetrieverFactory {
+        SharedSlotProfileRetriever createFromBulk(Set<ExecutionVertexID> bulk);
+    }
 }

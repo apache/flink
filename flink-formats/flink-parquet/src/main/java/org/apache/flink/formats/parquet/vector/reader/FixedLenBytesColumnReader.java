@@ -31,114 +31,108 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Fixed length bytes {@link ColumnReader}, just for decimal.
- */
-public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector> extends AbstractColumnReader<VECTOR> {
+/** Fixed length bytes {@link ColumnReader}, just for decimal. */
+public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
+        extends AbstractColumnReader<VECTOR> {
 
-	private final int precision;
+    private final int precision;
 
-	public FixedLenBytesColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader,
-			int precision) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY);
-		this.precision = precision;
-	}
+    public FixedLenBytesColumnReader(
+            ColumnDescriptor descriptor, PageReader pageReader, int precision) throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY);
+        this.precision = precision;
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, VECTOR column) {
-		int bytesLen = descriptor.getPrimitiveType().getTypeLength();
-		if (DecimalDataUtils.is32BitDecimal(precision)) {
-			WritableIntVector intVector = (WritableIntVector) column;
-			for (int i = 0; i < num; i++) {
-				if (runLenDecoder.readInteger() == maxDefLevel) {
-					intVector.setInt(rowId + i, (int) heapBinaryToLong(readDataBinary(bytesLen)));
-				} else {
-					intVector.setNullAt(rowId + i);
-				}
-			}
-		} else if (DecimalDataUtils.is64BitDecimal(precision)) {
-			WritableLongVector longVector = (WritableLongVector) column;
-			for (int i = 0; i < num; i++) {
-				if (runLenDecoder.readInteger() == maxDefLevel) {
-					longVector.setLong(rowId + i, heapBinaryToLong(readDataBinary(bytesLen)));
-				} else {
-					longVector.setNullAt(rowId + i);
-				}
-			}
-		} else {
-			WritableBytesVector bytesVector = (WritableBytesVector) column;
-			for (int i = 0; i < num; i++) {
-				if (runLenDecoder.readInteger() == maxDefLevel) {
-					byte[] bytes = readDataBinary(bytesLen).getBytes();
-					bytesVector.appendBytes(rowId + i, bytes, 0, bytes.length);
-				} else {
-					bytesVector.setNullAt(rowId + i);
-				}
-			}
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, VECTOR column) {
+        int bytesLen = descriptor.getPrimitiveType().getTypeLength();
+        if (DecimalDataUtils.is32BitDecimal(precision)) {
+            WritableIntVector intVector = (WritableIntVector) column;
+            for (int i = 0; i < num; i++) {
+                if (runLenDecoder.readInteger() == maxDefLevel) {
+                    intVector.setInt(rowId + i, (int) heapBinaryToLong(readDataBinary(bytesLen)));
+                } else {
+                    intVector.setNullAt(rowId + i);
+                }
+            }
+        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+            WritableLongVector longVector = (WritableLongVector) column;
+            for (int i = 0; i < num; i++) {
+                if (runLenDecoder.readInteger() == maxDefLevel) {
+                    longVector.setLong(rowId + i, heapBinaryToLong(readDataBinary(bytesLen)));
+                } else {
+                    longVector.setNullAt(rowId + i);
+                }
+            }
+        } else {
+            WritableBytesVector bytesVector = (WritableBytesVector) column;
+            for (int i = 0; i < num; i++) {
+                if (runLenDecoder.readInteger() == maxDefLevel) {
+                    byte[] bytes = readDataBinary(bytesLen).getBytes();
+                    bytesVector.appendBytes(rowId + i, bytes, 0, bytes.length);
+                } else {
+                    bytesVector.setNullAt(rowId + i);
+                }
+            }
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(
-			int rowId,
-			int num,
-			VECTOR column,
-			WritableIntVector dictionaryIds) {
-		if (DecimalDataUtils.is32BitDecimal(precision)) {
-			WritableIntVector intVector = (WritableIntVector) column;
-			for (int i = rowId; i < rowId + num; ++i) {
-				if (!intVector.isNullAt(i)) {
-					Binary v = dictionary.decodeToBinary(dictionaryIds.getInt(i));
-					intVector.setInt(i, (int) heapBinaryToLong(v));
-				}
-			}
-		} else if (DecimalDataUtils.is64BitDecimal(precision)) {
-			WritableLongVector longVector = (WritableLongVector) column;
-			for (int i = rowId; i < rowId + num; ++i) {
-				if (!longVector.isNullAt(i)) {
-					Binary v = dictionary.decodeToBinary(dictionaryIds.getInt(i));
-					longVector.setLong(i, heapBinaryToLong(v));
-				}
-			}
-		} else {
-			WritableBytesVector bytesVector = (WritableBytesVector) column;
-			for (int i = rowId; i < rowId + num; ++i) {
-				if (!bytesVector.isNullAt(i)) {
-					byte[] v = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytes();
-					bytesVector.appendBytes(i, v, 0, v.length);
-				}
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, VECTOR column, WritableIntVector dictionaryIds) {
+        if (DecimalDataUtils.is32BitDecimal(precision)) {
+            WritableIntVector intVector = (WritableIntVector) column;
+            for (int i = rowId; i < rowId + num; ++i) {
+                if (!intVector.isNullAt(i)) {
+                    Binary v = dictionary.decodeToBinary(dictionaryIds.getInt(i));
+                    intVector.setInt(i, (int) heapBinaryToLong(v));
+                }
+            }
+        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+            WritableLongVector longVector = (WritableLongVector) column;
+            for (int i = rowId; i < rowId + num; ++i) {
+                if (!longVector.isNullAt(i)) {
+                    Binary v = dictionary.decodeToBinary(dictionaryIds.getInt(i));
+                    longVector.setLong(i, heapBinaryToLong(v));
+                }
+            }
+        } else {
+            WritableBytesVector bytesVector = (WritableBytesVector) column;
+            for (int i = rowId; i < rowId + num; ++i) {
+                if (!bytesVector.isNullAt(i)) {
+                    byte[] v = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytes();
+                    bytesVector.appendBytes(i, v, 0, v.length);
+                }
+            }
+        }
+    }
 
-	private long heapBinaryToLong(Binary binary) {
-		ByteBuffer buffer = binary.toByteBuffer();
-		byte[] bytes = buffer.array();
-		int start = buffer.arrayOffset() + buffer.position();
-		int end = buffer.arrayOffset() + buffer.limit();
+    private long heapBinaryToLong(Binary binary) {
+        ByteBuffer buffer = binary.toByteBuffer();
+        byte[] bytes = buffer.array();
+        int start = buffer.arrayOffset() + buffer.position();
+        int end = buffer.arrayOffset() + buffer.limit();
 
-		long unscaled = 0L;
+        long unscaled = 0L;
 
-		for (int i = start; i < end; i++) {
-			unscaled = (unscaled << 8) | (bytes[i] & 0xff);
-		}
+        for (int i = start; i < end; i++) {
+            unscaled = (unscaled << 8) | (bytes[i] & 0xff);
+        }
 
-		int bits = 8 * (end - start);
-		return (unscaled << (64 - bits)) >> (64 - bits);
-	}
+        int bits = 8 * (end - start);
+        return (unscaled << (64 - bits)) >> (64 - bits);
+    }
 
-	private Binary readDataBinary(int len) {
-		ByteBuffer buffer = readDataBuffer(len);
-		if (buffer.hasArray()) {
-			return Binary.fromConstantByteArray(
-					buffer.array(), buffer.arrayOffset() + buffer.position(), len);
-		} else {
-			byte[] bytes = new byte[len];
-			buffer.get(bytes);
-			return Binary.fromConstantByteArray(bytes);
-		}
-	}
+    private Binary readDataBinary(int len) {
+        ByteBuffer buffer = readDataBuffer(len);
+        if (buffer.hasArray()) {
+            return Binary.fromConstantByteArray(
+                    buffer.array(), buffer.arrayOffset() + buffer.position(), len);
+        } else {
+            byte[] bytes = new byte[len];
+            buffer.get(bytes);
+            return Binary.fromConstantByteArray(bytes);
+        }
+    }
 }

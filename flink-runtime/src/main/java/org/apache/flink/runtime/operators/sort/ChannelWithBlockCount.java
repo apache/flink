@@ -22,19 +22,19 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 
 final class ChannelWithBlockCount {
 
-	private final FileIOChannel.ID channel;
-	private final int blockCount;
+    private final FileIOChannel.ID channel;
+    private final int blockCount;
 
-	public ChannelWithBlockCount(FileIOChannel.ID channel, int blockCount) {
-		this.channel = channel;
-		this.blockCount = blockCount;
-	}
+    public ChannelWithBlockCount(FileIOChannel.ID channel, int blockCount) {
+        this.channel = channel;
+        this.blockCount = blockCount;
+    }
 
-	public FileIOChannel.ID getChannel() {
-		return channel;
-	}
+    public FileIOChannel.ID getChannel() {
+        return channel;
+    }
 
-	public int getBlockCount() {
-		return blockCount;
-	}
+    public int getBlockCount() {
+        return blockCount;
+    }
 }

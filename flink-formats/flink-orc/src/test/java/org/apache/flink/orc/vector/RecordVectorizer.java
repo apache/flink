@@ -32,26 +32,25 @@ import java.nio.charset.StandardCharsets;
 /**
  * A Vectorizer implementation used for tests.
  *
- * <p>It transforms an input element which is of type {@link Record}
- * to a VectorizedRowBatch.
+ * <p>It transforms an input element which is of type {@link Record} to a VectorizedRowBatch.
  */
 public class RecordVectorizer extends Vectorizer<Record> implements Serializable {
 
-	public RecordVectorizer(String schema) {
-		super(schema);
-	}
+    public RecordVectorizer(String schema) {
+        super(schema);
+    }
 
-	@Override
-	public void vectorize(Record element, VectorizedRowBatch batch) throws IOException {
-		BytesColumnVector stringVector = (BytesColumnVector) batch.cols[0];
-		LongColumnVector intColVector = (LongColumnVector) batch.cols[1];
+    @Override
+    public void vectorize(Record element, VectorizedRowBatch batch) throws IOException {
+        BytesColumnVector stringVector = (BytesColumnVector) batch.cols[0];
+        LongColumnVector intColVector = (LongColumnVector) batch.cols[1];
 
-		int row = batch.size++;
+        int row = batch.size++;
 
-		stringVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
-		intColVector.vector[row] = element.getAge();
+        stringVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
+        intColVector.vector[row] = element.getAge();
 
-		this.addUserMetadata(OrcBulkWriterTestUtil.USER_METADATA_KEY, OrcBulkWriterTestUtil.USER_METADATA_VALUE);
-	}
-
+        this.addUserMetadata(
+                OrcBulkWriterTestUtil.USER_METADATA_KEY, OrcBulkWriterTestUtil.USER_METADATA_VALUE);
+    }
 }

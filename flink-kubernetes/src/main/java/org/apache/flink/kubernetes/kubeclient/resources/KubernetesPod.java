@@ -21,51 +21,64 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.Pod;
 
+import java.util.Objects;
 import java.util.stream.Collectors;
 
-/**
- * Represent KubernetesPod resource in kubernetes.
- */
+/** Represent KubernetesPod resource in kubernetes. */
 public class KubernetesPod extends KubernetesResource<Pod> {
 
-	public KubernetesPod(Pod pod) {
-		super(pod);
-	}
+    public KubernetesPod(Pod pod) {
+        super(pod);
+    }
 
-	public String getName() {
-		return this.getInternalResource().getMetadata().getName();
-	}
+    public String getName() {
+        return this.getInternalResource().getMetadata().getName();
+    }
 
-	public boolean isTerminated() {
-		if (getInternalResource().getStatus() != null) {
-			return getInternalResource()
-				.getStatus()
-				.getContainerStatuses()
-				.stream()
-				.anyMatch(e -> e.getState() != null && e.getState().getTerminated() != null);
-		}
-		return false;
-	}
+    public boolean isTerminated() {
+        if (getInternalResource().getStatus() != null) {
+            return getInternalResource().getStatus().getContainerStatuses().stream()
+                    .anyMatch(e -> e.getState() != null && e.getState().getTerminated() != null);
+        }
+        return false;
+    }
 
-	public String getTerminatedDiagnostics() {
-		final StringBuilder sb = new StringBuilder();
-		sb.append("Pod terminated, container termination statuses: [");
-		if (getInternalResource().getStatus() != null) {
-			sb.append(
-				getInternalResource().getStatus().getContainerStatuses()
-					.stream()
-					.filter(containerStatus -> containerStatus.getState() != null && containerStatus.getState().getTerminated() != null)
-					.map((containerStatus) -> {
-						final ContainerStateTerminated containerStateTerminated = containerStatus.getState().getTerminated();
-						return String.format("%s(exitCode=%d, reason=%s, message=%s)",
-							containerStatus.getName(),
-							containerStateTerminated.getExitCode(),
-							containerStateTerminated.getReason(),
-							containerStateTerminated.getMessage());
-					})
-					.collect(Collectors.joining(",")));
-		}
-		sb.append("]");
-		return sb.toString();
-	}
+    public boolean isScheduled() {
+        if (getInternalResource().getStatus() != null) {
+            return getInternalResource().getStatus().getConditions().stream()
+                    .anyMatch(
+                            e ->
+                                    Objects.equals(e.getType(), "PodScheduled")
+                                            && Objects.equals(e.getStatus(), "True"));
+        }
+        return false;
+    }
+
+    public String getTerminatedDiagnostics() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Pod terminated, container termination statuses: [");
+        if (getInternalResource().getStatus() != null) {
+            sb.append(
+                    getInternalResource().getStatus().getContainerStatuses().stream()
+                            .filter(
+                                    containerStatus ->
+                                            containerStatus.getState() != null
+                                                    && containerStatus.getState().getTerminated()
+                                                            != null)
+                            .map(
+                                    (containerStatus) -> {
+                                        final ContainerStateTerminated containerStateTerminated =
+                                                containerStatus.getState().getTerminated();
+                                        return String.format(
+                                                "%s(exitCode=%d, reason=%s, message=%s)",
+                                                containerStatus.getName(),
+                                                containerStateTerminated.getExitCode(),
+                                                containerStateTerminated.getReason(),
+                                                containerStateTerminated.getMessage());
+                                    })
+                            .collect(Collectors.joining(",")));
+        }
+        sb.append("]");
+        return sb.toString();
+    }
 }

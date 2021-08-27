@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,81 +32,88 @@ import java.util.Map;
 
 public class OperatorStateOutputCheckpointStreamTest {
 
-	private static final int STREAM_CAPACITY = 128;
+    private static final int STREAM_CAPACITY = 128;
 
-	private static OperatorStateCheckpointOutputStream createStream() throws IOException {
-		CheckpointStreamFactory.CheckpointStateOutputStream checkStream =
-				new TestMemoryCheckpointOutputStream(STREAM_CAPACITY);
-		return new OperatorStateCheckpointOutputStream(checkStream);
-	}
+    private static OperatorStateCheckpointOutputStream createStream() throws IOException {
+        CheckpointStreamFactory.CheckpointStateOutputStream checkStream =
+                new TestMemoryCheckpointOutputStream(STREAM_CAPACITY);
+        return new OperatorStateCheckpointOutputStream(checkStream);
+    }
 
-	private OperatorStateHandle writeAllTestKeyGroups(
-			OperatorStateCheckpointOutputStream stream, int numPartitions) throws Exception {
+    private OperatorStateHandle writeAllTestKeyGroups(
+            OperatorStateCheckpointOutputStream stream, int numPartitions) throws Exception {
 
-		DataOutputView dov = new DataOutputViewStreamWrapper(stream);
-		for (int i = 0; i < numPartitions; ++i) {
-			Assert.assertEquals(i, stream.getNumberOfPartitions());
-			stream.startNewPartition();
-			dov.writeInt(i);
-		}
+        DataOutputView dov = new DataOutputViewStreamWrapper(stream);
+        for (int i = 0; i < numPartitions; ++i) {
+            Assert.assertEquals(i, stream.getNumberOfPartitions());
+            stream.startNewPartition();
+            dov.writeInt(i);
+        }
 
-		return stream.closeAndGetHandle();
-	}
+        return stream.closeAndGetHandle();
+    }
 
-	@Test
-	public void testCloseNotPropagated() throws Exception {
-		OperatorStateCheckpointOutputStream stream = createStream();
-		TestMemoryCheckpointOutputStream innerStream = (TestMemoryCheckpointOutputStream) stream.getDelegate();
-		stream.close();
-		Assert.assertFalse(innerStream.isClosed());
-		innerStream.close();
-	}
+    @Test
+    public void testCloseNotPropagated() throws Exception {
+        OperatorStateCheckpointOutputStream stream = createStream();
+        TestMemoryCheckpointOutputStream innerStream =
+                (TestMemoryCheckpointOutputStream) stream.getDelegate();
+        stream.close();
+        Assert.assertFalse(innerStream.isClosed());
+        innerStream.close();
+    }
 
-	@Test
-	public void testEmptyOperatorStream() throws Exception {
-		OperatorStateCheckpointOutputStream stream = createStream();
-		TestMemoryCheckpointOutputStream innerStream = (TestMemoryCheckpointOutputStream) stream.getDelegate();
-		OperatorStateHandle emptyHandle = stream.closeAndGetHandle();
-		Assert.assertTrue(innerStream.isClosed());
-		Assert.assertEquals(0, stream.getNumberOfPartitions());
-		Assert.assertEquals(null, emptyHandle);
-	}
+    @Test
+    public void testEmptyOperatorStream() throws Exception {
+        OperatorStateCheckpointOutputStream stream = createStream();
+        TestMemoryCheckpointOutputStream innerStream =
+                (TestMemoryCheckpointOutputStream) stream.getDelegate();
+        OperatorStateHandle emptyHandle = stream.closeAndGetHandle();
+        Assert.assertTrue(innerStream.isClosed());
+        Assert.assertEquals(0, stream.getNumberOfPartitions());
+        Assert.assertEquals(null, emptyHandle);
+    }
 
-	@Test
-	public void testWriteReadRoundtrip() throws Exception {
-		int numPartitions = 3;
-		OperatorStateCheckpointOutputStream stream = createStream();
-		OperatorStateHandle fullHandle = writeAllTestKeyGroups(stream, numPartitions);
-		Assert.assertNotNull(fullHandle);
+    @Test
+    public void testWriteReadRoundtrip() throws Exception {
+        int numPartitions = 3;
+        OperatorStateCheckpointOutputStream stream = createStream();
+        OperatorStateHandle fullHandle = writeAllTestKeyGroups(stream, numPartitions);
+        Assert.assertNotNull(fullHandle);
 
-		Map<String, OperatorStateHandle.StateMetaInfo> stateNameToPartitionOffsets =
-				fullHandle.getStateNameToPartitionOffsets();
-		for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
+        Map<String, OperatorStateHandle.StateMetaInfo> stateNameToPartitionOffsets =
+                fullHandle.getStateNameToPartitionOffsets();
+        for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry :
+                stateNameToPartitionOffsets.entrySet()) {
 
-			Assert.assertEquals(OperatorStateHandle.Mode.SPLIT_DISTRIBUTE, entry.getValue().getDistributionMode());
-		}
-		verifyRead(fullHandle, numPartitions);
-	}
+            Assert.assertEquals(
+                    OperatorStateHandle.Mode.SPLIT_DISTRIBUTE,
+                    entry.getValue().getDistributionMode());
+        }
+        verifyRead(fullHandle, numPartitions);
+    }
 
-	private static void verifyRead(OperatorStateHandle fullHandle, int numPartitions) throws IOException {
-		int count = 0;
-		try (FSDataInputStream in = fullHandle.openInputStream()) {
-			OperatorStateHandle.StateMetaInfo metaInfo = fullHandle.getStateNameToPartitionOffsets().
-					get(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+    private static void verifyRead(OperatorStateHandle fullHandle, int numPartitions)
+            throws IOException {
+        int count = 0;
+        try (FSDataInputStream in = fullHandle.openInputStream()) {
+            OperatorStateHandle.StateMetaInfo metaInfo =
+                    fullHandle
+                            .getStateNameToPartitionOffsets()
+                            .get(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
-			long[] offsets = metaInfo.getOffsets();
+            long[] offsets = metaInfo.getOffsets();
 
-			Assert.assertNotNull(offsets);
+            Assert.assertNotNull(offsets);
 
-			DataInputView div = new DataInputViewStreamWrapper(in);
-			for (int i = 0; i < numPartitions; ++i) {
-				in.seek(offsets[i]);
-				Assert.assertEquals(i, div.readInt());
-				++count;
-			}
-		}
+            DataInputView div = new DataInputViewStreamWrapper(in);
+            for (int i = 0; i < numPartitions; ++i) {
+                in.seek(offsets[i]);
+                Assert.assertEquals(i, div.readInt());
+                ++count;
+            }
+        }
 
-		Assert.assertEquals(numPartitions, count);
-	}
-
+        Assert.assertEquals(numPartitions, count);
+    }
 }

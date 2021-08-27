@@ -17,10 +17,9 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-/**
- * Factory for {@link ResourceManagerPartitionTracker}.
- */
+/** Factory for {@link ResourceManagerPartitionTracker}. */
 @FunctionalInterface
 public interface ResourceManagerPartitionTrackerFactory {
-	ResourceManagerPartitionTracker get(TaskExecutorClusterPartitionReleaser taskExecutorClusterPartitionReleaser);
+    ResourceManagerPartitionTracker get(
+            TaskExecutorClusterPartitionReleaser taskExecutorClusterPartitionReleaser);
 }

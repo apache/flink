@@ -22,78 +22,76 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-/**
- * This class offers utility functions for Java's lambda features.
- */
+/** This class offers utility functions for Java's lambda features. */
 public final class LambdaUtil {
 
-	private LambdaUtil() {
-		throw new AssertionError();
-	}
+    private LambdaUtil() {
+        throw new AssertionError();
+    }
 
-	/**
-	 * This method supplies all elements from the input to the consumer. Exceptions that happen on elements are
-	 * suppressed until all elements are processed. If exceptions happened for one or more of the inputs, they are
-	 * reported in a combining suppressed exception.
-	 *
-	 * @param inputs iterator for all inputs to the throwingConsumer.
-	 * @param throwingConsumer this consumer will be called for all elements delivered by the input iterator.
-	 * @param <T> the type of input.
-	 * @throws Exception collected exceptions that happened during the invocation of the consumer on the input elements.
-	 */
-	public static <T> void applyToAllWhileSuppressingExceptions(
-		Iterable<T> inputs,
-		ThrowingConsumer<T, ? extends Exception> throwingConsumer) throws Exception {
+    /**
+     * This method supplies all elements from the input to the consumer. Exceptions that happen on
+     * elements are suppressed until all elements are processed. If exceptions happened for one or
+     * more of the inputs, they are reported in a combining suppressed exception.
+     *
+     * @param inputs iterator for all inputs to the throwingConsumer.
+     * @param throwingConsumer this consumer will be called for all elements delivered by the input
+     *     iterator.
+     * @param <T> the type of input.
+     * @throws Exception collected exceptions that happened during the invocation of the consumer on
+     *     the input elements.
+     */
+    public static <T> void applyToAllWhileSuppressingExceptions(
+            Iterable<T> inputs, ThrowingConsumer<T, ? extends Exception> throwingConsumer)
+            throws Exception {
 
-		if (inputs != null && throwingConsumer != null) {
-			Exception exception = null;
+        if (inputs != null && throwingConsumer != null) {
+            Exception exception = null;
 
-			for (T input : inputs) {
+            for (T input : inputs) {
 
-				if (input != null) {
-					try {
-						throwingConsumer.accept(input);
-					} catch (Exception ex) {
-						exception = ExceptionUtils.firstOrSuppressed(ex, exception);
-					}
-				}
-			}
+                if (input != null) {
+                    try {
+                        throwingConsumer.accept(input);
+                    } catch (Exception ex) {
+                        exception = ExceptionUtils.firstOrSuppressed(ex, exception);
+                    }
+                }
+            }
 
-			if (exception != null) {
-				throw exception;
-			}
-		}
-	}
+            if (exception != null) {
+                throw exception;
+            }
+        }
+    }
 
-	/**
-	 * Runs the given runnable with the given ClassLoader as the thread's
-	 * {@link Thread#setContextClassLoader(ClassLoader) context class loader}.
-	 *
-	 * <p>The method will make sure to set the context class loader of the calling thread
-	 * back to what it was before after the runnable completed.
-	 */
-	public static <E extends Throwable> void withContextClassLoader(
-			final ClassLoader cl,
-			final ThrowingRunnable<E> r) throws E {
+    /**
+     * Runs the given runnable with the given ClassLoader as the thread's {@link
+     * Thread#setContextClassLoader(ClassLoader) context class loader}.
+     *
+     * <p>The method will make sure to set the context class loader of the calling thread back to
+     * what it was before after the runnable completed.
+     */
+    public static <E extends Throwable> void withContextClassLoader(
+            final ClassLoader cl, final ThrowingRunnable<E> r) throws E {
 
-		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(cl)) {
-			r.run();
-		}
-	}
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(cl)) {
+            r.run();
+        }
+    }
 
-	/**
-	 * Runs the given runnable with the given ClassLoader as the thread's
-	 * {@link Thread#setContextClassLoader(ClassLoader) context class loader}.
-	 *
-	 * <p>The method will make sure to set the context class loader of the calling thread
-	 * back to what it was before after the runnable completed.
-	 */
-	public static <R, E extends Throwable> R withContextClassLoader(
-			final ClassLoader cl,
-			final SupplierWithException<R, E> s) throws E {
+    /**
+     * Runs the given runnable with the given ClassLoader as the thread's {@link
+     * Thread#setContextClassLoader(ClassLoader) context class loader}.
+     *
+     * <p>The method will make sure to set the context class loader of the calling thread back to
+     * what it was before after the runnable completed.
+     */
+    public static <R, E extends Throwable> R withContextClassLoader(
+            final ClassLoader cl, final SupplierWithException<R, E> s) throws E {
 
-		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(cl)) {
-			return s.get();
-		}
-	}
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(cl)) {
+            return s.get();
+        }
+    }
 }

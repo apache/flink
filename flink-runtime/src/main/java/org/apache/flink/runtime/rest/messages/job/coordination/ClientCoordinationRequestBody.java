@@ -30,27 +30,26 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-/**
- * Request that carries a serialized {@link CoordinationRequest} to a specified coordinator.
- */
+/** Request that carries a serialized {@link CoordinationRequest} to a specified coordinator. */
 public class ClientCoordinationRequestBody implements RequestBody {
 
-	public static final String FIELD_NAME_SERIALIZED_COORDINATION_REQUEST = "serializedCoordinationRequest";
+    public static final String FIELD_NAME_SERIALIZED_COORDINATION_REQUEST =
+            "serializedCoordinationRequest";
 
-	@JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_REQUEST)
-	@JsonSerialize(using = SerializedValueSerializer.class)
-	@JsonDeserialize(using = SerializedValueDeserializer.class)
-	private final SerializedValue<CoordinationRequest> serializedCoordinationRequest;
+    @JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_REQUEST)
+    @JsonSerialize(using = SerializedValueSerializer.class)
+    @JsonDeserialize(using = SerializedValueDeserializer.class)
+    private final SerializedValue<CoordinationRequest> serializedCoordinationRequest;
 
-	@JsonCreator
-	public ClientCoordinationRequestBody(
-		@JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_REQUEST)
-			SerializedValue<CoordinationRequest> serializedCoordinationRequest) {
-		this.serializedCoordinationRequest = serializedCoordinationRequest;
-	}
+    @JsonCreator
+    public ClientCoordinationRequestBody(
+            @JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_REQUEST)
+                    SerializedValue<CoordinationRequest> serializedCoordinationRequest) {
+        this.serializedCoordinationRequest = serializedCoordinationRequest;
+    }
 
-	@JsonIgnore
-	public SerializedValue<CoordinationRequest> getSerializedCoordinationRequest() {
-		return serializedCoordinationRequest;
-	}
+    @JsonIgnore
+    public SerializedValue<CoordinationRequest> getSerializedCoordinationRequest() {
+        return serializedCoordinationRequest;
+    }
 }

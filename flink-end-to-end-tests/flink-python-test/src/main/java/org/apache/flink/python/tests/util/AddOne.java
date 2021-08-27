@@ -19,11 +19,9 @@ package org.apache.flink.python.tests.util;
 
 import org.apache.flink.table.functions.ScalarFunction;
 
-/**
- * Scala UDF for testing.
- */
+/** Scala UDF for testing. */
 public class AddOne extends ScalarFunction {
-	public long eval(long input) {
-		return input + 1;
-	}
+    public long eval(long input) {
+        return input + 1;
+    }
 }

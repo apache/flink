@@ -33,62 +33,61 @@ import static org.junit.Assert.fail;
  * This tests that the {@link AvroSerializer} properly fails when accessed by two threads
  * concurrently.
  *
- * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM
- * when running tests.
+ * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM when
+ * running tests.
  */
 public class AvroSerializerConcurrencyTest {
 
-	@Test
-	public void testConcurrentUseOfSerializer() throws Exception {
-		final AvroSerializer<String> serializer = new AvroSerializer<>(String.class);
+    @Test
+    public void testConcurrentUseOfSerializer() throws Exception {
+        final AvroSerializer<String> serializer = new AvroSerializer<>(String.class);
 
-		final BlockerSync sync = new BlockerSync();
+        final BlockerSync sync = new BlockerSync();
 
-		final DataOutputView regularOut = new DataOutputSerializer(32);
-		final DataOutputView lockingOut = new LockingView(sync);
+        final DataOutputView regularOut = new DataOutputSerializer(32);
+        final DataOutputView lockingOut = new LockingView(sync);
 
-		// this thread serializes and gets stuck there
-		final CheckedThread thread = new CheckedThread("serializer") {
-			@Override
-			public void go() throws Exception {
-				serializer.serialize("a value", lockingOut);
-			}
-		};
+        // this thread serializes and gets stuck there
+        final CheckedThread thread =
+                new CheckedThread("serializer") {
+                    @Override
+                    public void go() throws Exception {
+                        serializer.serialize("a value", lockingOut);
+                    }
+                };
 
-		thread.start();
-		sync.awaitBlocker();
+        thread.start();
+        sync.awaitBlocker();
 
-		// this should fail with an exception
-		try {
-			serializer.serialize("value", regularOut);
-			fail("should have failed with an exception");
-		}
-		catch (IllegalStateException e) {
-			// expected
-		}
-		finally {
-			// release the thread that serializes
-			sync.releaseBlocker();
-		}
+        // this should fail with an exception
+        try {
+            serializer.serialize("value", regularOut);
+            fail("should have failed with an exception");
+        } catch (IllegalStateException e) {
+            // expected
+        } finally {
+            // release the thread that serializes
+            sync.releaseBlocker();
+        }
 
-		// this propagates exceptions from the spawned thread
-		thread.sync();
-	}
+        // this propagates exceptions from the spawned thread
+        thread.sync();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class LockingView extends DataOutputSerializer {
+    private static class LockingView extends DataOutputSerializer {
 
-		private final BlockerSync blocker;
+        private final BlockerSync blocker;
 
-		LockingView(BlockerSync blocker) {
-			super(32);
-			this.blocker = blocker;
-		}
+        LockingView(BlockerSync blocker) {
+            super(32);
+            this.blocker = blocker;
+        }
 
-		@Override
-		public void writeInt(int v) throws IOException {
-			blocker.blockNonInterruptible();
-		}
-	}
+        @Override
+        public void writeInt(int v) throws IOException {
+            blocker.blockNonInterruptible();
+        }
+    }
 }

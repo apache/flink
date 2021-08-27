@@ -30,43 +30,45 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link TypeHint}.
- */
+/** Tests for the {@link TypeHint}. */
 public class TypeHintTest {
 
-	@Test
-	public void testTypeInfoDirect() {
+    @Test
+    public void testTypeInfoDirect() {
 
-		// simple (non-generic case)
-		TypeHint<String> stringInfo1 = new TypeHint<String>(){};
-		TypeHint<String> stringInfo2 = new TypeHint<String>(){};
+        // simple (non-generic case)
+        TypeHint<String> stringInfo1 = new TypeHint<String>() {};
+        TypeHint<String> stringInfo2 = new TypeHint<String>() {};
 
-		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, stringInfo1.getTypeInfo());
+        assertEquals(BasicTypeInfo.STRING_TYPE_INFO, stringInfo1.getTypeInfo());
 
-		assertTrue(stringInfo1.hashCode() == stringInfo2.hashCode());
-		assertTrue(stringInfo1.equals(stringInfo2));
-		assertTrue(stringInfo1.toString().equals(stringInfo2.toString()));
+        assertTrue(stringInfo1.hashCode() == stringInfo2.hashCode());
+        assertTrue(stringInfo1.equals(stringInfo2));
+        assertTrue(stringInfo1.toString().equals(stringInfo2.toString()));
 
-		// generic case
-		TypeHint<Tuple3<String, Double, Boolean>> generic = new TypeHint<Tuple3<String, Double, Boolean>>(){};
+        // generic case
+        TypeHint<Tuple3<String, Double, Boolean>> generic =
+                new TypeHint<Tuple3<String, Double, Boolean>>() {};
 
-		TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
-				new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+        TypeInformation<Tuple3<String, Double, Boolean>> tupleInfo =
+                new TupleTypeInfo<>(
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        BasicTypeInfo.DOUBLE_TYPE_INFO,
+                        BasicTypeInfo.BOOLEAN_TYPE_INFO);
 
-		assertEquals(tupleInfo, generic.getTypeInfo());
-	}
+        assertEquals(tupleInfo, generic.getTypeInfo());
+    }
 
-	@Test
-	public <T> void testWithGenericParameter() {
-		try {
-			new TypeHint<T>(){};
-			fail();
-		}
-		catch (FlinkRuntimeException ignored) {}
+    @Test
+    public <T> void testWithGenericParameter() {
+        try {
+            new TypeHint<T>() {};
+            fail();
+        } catch (FlinkRuntimeException ignored) {
+        }
 
-		// this works, because "List" goes to the GenericType (blackbox) which does
-		// not care about generic parametrization
-		new TypeHint<List<T>>(){};
-	}
+        // this works, because "List" goes to the GenericType (blackbox) which does
+        // not care about generic parametrization
+        new TypeHint<List<T>>() {};
+    }
 }

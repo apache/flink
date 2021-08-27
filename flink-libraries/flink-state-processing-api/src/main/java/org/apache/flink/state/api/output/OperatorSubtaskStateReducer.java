@@ -37,39 +37,39 @@ import java.util.stream.StreamSupport;
  */
 @Internal
 public class OperatorSubtaskStateReducer
-	extends RichGroupReduceFunction<TaggedOperatorSubtaskState, OperatorState> {
+        extends RichGroupReduceFunction<TaggedOperatorSubtaskState, OperatorState> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final OperatorID operatorID;
+    private final OperatorID operatorID;
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	public OperatorSubtaskStateReducer(OperatorID operatorID, int maxParallelism) {
-		Preconditions.checkNotNull(operatorID, "Operator id must not be null.");
-		Preconditions.checkState(maxParallelism > 1);
+    public OperatorSubtaskStateReducer(OperatorID operatorID, int maxParallelism) {
+        Preconditions.checkNotNull(operatorID, "Operator id must not be null.");
+        Preconditions.checkState(maxParallelism > 1);
 
-		this.operatorID = operatorID;
-		this.maxParallelism = maxParallelism;
-	}
+        this.operatorID = operatorID;
+        this.maxParallelism = maxParallelism;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+    }
 
-	@Override
-	public void reduce(Iterable<TaggedOperatorSubtaskState> values, Collector<OperatorState> out) {
-		List<TaggedOperatorSubtaskState> subtasks = StreamSupport
-			.stream(values.spliterator(), false)
-			.collect(Collectors.toList());
+    @Override
+    public void reduce(Iterable<TaggedOperatorSubtaskState> values, Collector<OperatorState> out) {
+        List<TaggedOperatorSubtaskState> subtasks =
+                StreamSupport.stream(values.spliterator(), false).collect(Collectors.toList());
 
-		OperatorState operatorState = new OperatorState(operatorID, subtasks.size(), maxParallelism);
+        OperatorState operatorState =
+                new OperatorState(operatorID, subtasks.size(), maxParallelism);
 
-		for (TaggedOperatorSubtaskState value : subtasks) {
-			operatorState.putState(value.index, value.state);
-		}
+        for (TaggedOperatorSubtaskState value : subtasks) {
+            operatorState.putState(value.index, value.state);
+        }
 
-		out.collect(operatorState);
-	}
+        out.collect(operatorState);
+    }
 }

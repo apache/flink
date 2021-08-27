@@ -36,22 +36,24 @@ import java.io.IOException;
  */
 public class SerializedValueSerializer extends StdSerializer<SerializedValue<?>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SerializedValueSerializer() {
-		super(TypeFactory.defaultInstance().constructType(new TypeReference<SerializedValue<Object>>() {}));
-	}
+    public SerializedValueSerializer() {
+        super(
+                TypeFactory.defaultInstance()
+                        .constructType(new TypeReference<SerializedValue<Object>>() {}));
+    }
 
-	public SerializedValueSerializer(final JavaType javaType) {
-		super(javaType);
-	}
+    public SerializedValueSerializer(final JavaType javaType) {
+        super(javaType);
+    }
 
-	@Override
-	public void serialize(
-			final SerializedValue<?> value,
-			final JsonGenerator gen,
-			final SerializerProvider provider) throws IOException {
-		gen.writeBinary(value.getByteArray());
-	}
-
+    @Override
+    public void serialize(
+            final SerializedValue<?> value,
+            final JsonGenerator gen,
+            final SerializerProvider provider)
+            throws IOException {
+        gen.writeBinary(value.getByteArray());
+    }
 }

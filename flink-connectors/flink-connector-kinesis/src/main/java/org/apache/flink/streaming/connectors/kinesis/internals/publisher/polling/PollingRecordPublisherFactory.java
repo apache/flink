@@ -30,59 +30,60 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Properties;
 
-/**
- * A {@link RecordPublisher} factory used to create instances of {@link PollingRecordPublisher}.
- */
+/** A {@link RecordPublisher} factory used to create instances of {@link PollingRecordPublisher}. */
 @Internal
 public class PollingRecordPublisherFactory implements RecordPublisherFactory {
 
-	private final FlinkKinesisProxyFactory kinesisProxyFactory;
+    private final FlinkKinesisProxyFactory kinesisProxyFactory;
 
-	public PollingRecordPublisherFactory(final FlinkKinesisProxyFactory kinesisProxyFactory) {
-		this.kinesisProxyFactory = kinesisProxyFactory;
-	}
+    public PollingRecordPublisherFactory(final FlinkKinesisProxyFactory kinesisProxyFactory) {
+        this.kinesisProxyFactory = kinesisProxyFactory;
+    }
 
-	/**
-	 * Create a {@link PollingRecordPublisher}.
-	 * An {@link AdaptivePollingRecordPublisher} will be created should adaptive reads be enabled in the configuration.
-	 *
-	 * @param startingPosition the position in the shard to start consuming records from
-	 * @param consumerConfig the consumer configuration properties
-	 * @param metricGroup the metric group to report metrics to
-	 * @param streamShardHandle the shard this consumer is subscribed to
-	 * @return a {@link PollingRecordPublisher}
-	 */
-	@Override
-	public PollingRecordPublisher create(
-			final StartingPosition startingPosition,
-			final Properties consumerConfig,
-			final MetricGroup metricGroup,
-			final StreamShardHandle streamShardHandle) throws InterruptedException {
-		Preconditions.checkNotNull(startingPosition);
-		Preconditions.checkNotNull(consumerConfig);
-		Preconditions.checkNotNull(metricGroup);
-		Preconditions.checkNotNull(streamShardHandle);
+    /**
+     * Create a {@link PollingRecordPublisher}. An {@link AdaptivePollingRecordPublisher} will be
+     * created should adaptive reads be enabled in the configuration.
+     *
+     * @param startingPosition the position in the shard to start consuming records from
+     * @param consumerConfig the consumer configuration properties
+     * @param metricGroup the metric group to report metrics to
+     * @param streamShardHandle the shard this consumer is subscribed to
+     * @return a {@link PollingRecordPublisher}
+     */
+    @Override
+    public PollingRecordPublisher create(
+            final StartingPosition startingPosition,
+            final Properties consumerConfig,
+            final MetricGroup metricGroup,
+            final StreamShardHandle streamShardHandle)
+            throws InterruptedException {
+        Preconditions.checkNotNull(startingPosition);
+        Preconditions.checkNotNull(consumerConfig);
+        Preconditions.checkNotNull(metricGroup);
+        Preconditions.checkNotNull(streamShardHandle);
 
-		final PollingRecordPublisherConfiguration configuration = new PollingRecordPublisherConfiguration(consumerConfig);
-		final PollingRecordPublisherMetricsReporter metricsReporter = new PollingRecordPublisherMetricsReporter(metricGroup);
-		final KinesisProxyInterface kinesisProxy = kinesisProxyFactory.create(consumerConfig);
+        final PollingRecordPublisherConfiguration configuration =
+                new PollingRecordPublisherConfiguration(consumerConfig);
+        final PollingRecordPublisherMetricsReporter metricsReporter =
+                new PollingRecordPublisherMetricsReporter(metricGroup);
+        final KinesisProxyInterface kinesisProxy = kinesisProxyFactory.create(consumerConfig);
 
-		if (configuration.isAdaptiveReads()) {
-			return new AdaptivePollingRecordPublisher(
-				startingPosition,
-				streamShardHandle,
-				metricsReporter,
-				kinesisProxy,
-				configuration.getMaxNumberOfRecordsPerFetch(),
-				configuration.getFetchIntervalMillis());
-		} else {
-			return new PollingRecordPublisher(
-				startingPosition,
-				streamShardHandle,
-				metricsReporter,
-				kinesisProxy,
-				configuration.getMaxNumberOfRecordsPerFetch(),
-				configuration.getFetchIntervalMillis());
-		}
-	}
+        if (configuration.isAdaptiveReads()) {
+            return new AdaptivePollingRecordPublisher(
+                    startingPosition,
+                    streamShardHandle,
+                    metricsReporter,
+                    kinesisProxy,
+                    configuration.getMaxNumberOfRecordsPerFetch(),
+                    configuration.getFetchIntervalMillis());
+        } else {
+            return new PollingRecordPublisher(
+                    startingPosition,
+                    streamShardHandle,
+                    metricsReporter,
+                    kinesisProxy,
+                    configuration.getMaxNumberOfRecordsPerFetch(),
+                    configuration.getFetchIntervalMillis());
+        }
+    }
 }

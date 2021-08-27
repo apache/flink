@@ -25,28 +25,40 @@ import java.util.Collection;
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
  */
-public interface JobMasterPartitionTracker extends PartitionTracker<ResourceID, ResultPartitionDeploymentDescriptor> {
+public interface JobMasterPartitionTracker
+        extends PartitionTracker<ResourceID, ResultPartitionDeploymentDescriptor> {
 
-	/**
-	 * Starts the tracking of the given partition for the given task executor ID.
-	 *
-	 * @param producingTaskExecutorId ID of task executor on which the partition is produced
-	 * @param resultPartitionDeploymentDescriptor deployment descriptor of the partition
-	 */
-	void startTrackingPartition(ResourceID producingTaskExecutorId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor);
+    /**
+     * Starts the tracking of the given partition for the given task executor ID.
+     *
+     * @param producingTaskExecutorId ID of task executor on which the partition is produced
+     * @param resultPartitionDeploymentDescriptor deployment descriptor of the partition
+     */
+    void startTrackingPartition(
+            ResourceID producingTaskExecutorId,
+            ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor);
 
-	/**
-	 * Releases the given partitions and stop the tracking of partitions that were released.
-	 */
-	void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds);
+    /** Releases the given partitions and stop the tracking of partitions that were released. */
+    default void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndReleasePartitions(resultPartitionIds, true);
+    }
 
-	/**
-	 * Releases all partitions for the given task executor ID, and stop the tracking of partitions that were released.
-	 */
-	void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
+    /**
+     * Releases the given partitions and stop the tracking of partitions that were released. The
+     * boolean flag indicates whether we need to notify the ShuffleMaster to release all external
+     * resources or not.
+     */
+    void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster);
 
-	/**
-	 * Releases all job partitions and promotes all cluster partitions for the given task executor ID, and stops the tracking of partitions that were released/promoted.
-	 */
-	void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId);
+    /**
+     * Releases the job partitions and promotes the cluster partitions, and stops the tracking of
+     * partitions that were released/promoted.
+     */
+    void stopTrackingAndReleaseOrPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds);
+
+    /** Get all the partitions under tracking. */
+    Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions();
 }

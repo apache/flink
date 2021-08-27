@@ -26,75 +26,73 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Specialized serializer for {@code LongValueArray}.
- */
+/** Specialized serializer for {@code LongValueArray}. */
 public final class LongValueArraySerializer extends TypeSerializerSingleton<LongValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public LongValueArray createInstance() {
-		return new LongValueArray();
-	}
+    @Override
+    public LongValueArray createInstance() {
+        return new LongValueArray();
+    }
 
-	@Override
-	public LongValueArray copy(LongValueArray from) {
-		return copy(from, new LongValueArray());
-	}
+    @Override
+    public LongValueArray copy(LongValueArray from) {
+        return copy(from, new LongValueArray());
+    }
 
-	@Override
-	public LongValueArray copy(LongValueArray from, LongValueArray reuse) {
-		reuse.setValue(from);
-		return reuse;
-	}
+    @Override
+    public LongValueArray copy(LongValueArray from, LongValueArray reuse) {
+        reuse.setValue(from);
+        return reuse;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(LongValueArray record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(LongValueArray record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public LongValueArray deserialize(DataInputView source) throws IOException {
-		return deserialize(new LongValueArray(), source);
-	}
+    @Override
+    public LongValueArray deserialize(DataInputView source) throws IOException {
+        return deserialize(new LongValueArray(), source);
+    }
 
-	@Override
-	public LongValueArray deserialize(LongValueArray reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public LongValueArray deserialize(LongValueArray reuse, DataInputView source)
+            throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		LongValueArray.copyInternal(source, target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        LongValueArray.copyInternal(source, target);
+    }
 
-	// -----------------------------------------------------------------------------------
+    // -----------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<LongValueArray> snapshotConfiguration() {
-		return new LongValueArraySerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<LongValueArray> snapshotConfiguration() {
+        return new LongValueArraySerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class LongValueArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<LongValueArray> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class LongValueArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<LongValueArray> {
 
-		public LongValueArraySerializerSnapshot() {
-			super(LongValueArraySerializer::new);
-		}
-	}
+        public LongValueArraySerializerSnapshot() {
+            super(LongValueArraySerializer::new);
+        }
+    }
 }

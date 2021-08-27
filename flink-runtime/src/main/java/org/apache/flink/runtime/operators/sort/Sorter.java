@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 
 /**
- * The SortMerger interface representing the public interface to all specific Sort-Merge implementations.
+ * The SortMerger interface representing the public interface to all specific Sort-Merge
+ * implementations.
  */
-public interface Sorter<E> extends CloseableInputProvider<E> {
-}
+public interface Sorter<E> extends CloseableInputProvider<E> {}

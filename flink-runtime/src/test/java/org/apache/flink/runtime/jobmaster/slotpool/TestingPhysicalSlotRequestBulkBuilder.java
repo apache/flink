@@ -26,29 +26,31 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 class TestingPhysicalSlotRequestBulkBuilder {
-	private static final BiConsumer<SlotRequestId, Throwable> EMPTY_CANCELLER = (r, t) -> {};
-	private Map<SlotRequestId, ResourceProfile> pendingRequests = new HashMap<>();
-	private BiConsumer<SlotRequestId, Throwable> canceller = EMPTY_CANCELLER;
+    private static final BiConsumer<SlotRequestId, Throwable> EMPTY_CANCELLER = (r, t) -> {};
+    private Map<SlotRequestId, ResourceProfile> pendingRequests = new HashMap<>();
+    private BiConsumer<SlotRequestId, Throwable> canceller = EMPTY_CANCELLER;
 
-	TestingPhysicalSlotRequestBulkBuilder addPendingRequest(SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
-		pendingRequests.put(slotRequestId, resourceProfile);
-		return this;
-	}
+    TestingPhysicalSlotRequestBulkBuilder addPendingRequest(
+            SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
+        pendingRequests.put(slotRequestId, resourceProfile);
+        return this;
+    }
 
-	TestingPhysicalSlotRequestBulkBuilder setCanceller(BiConsumer<SlotRequestId, Throwable> canceller) {
-		this.canceller = canceller;
-		return this;
-	}
+    TestingPhysicalSlotRequestBulkBuilder setCanceller(
+            BiConsumer<SlotRequestId, Throwable> canceller) {
+        this.canceller = canceller;
+        return this;
+    }
 
-	PhysicalSlotRequestBulkImpl buildPhysicalSlotRequestBulkImpl() {
-		return new PhysicalSlotRequestBulkImpl(pendingRequests, canceller);
-	}
+    PhysicalSlotRequestBulkImpl buildPhysicalSlotRequestBulkImpl() {
+        return new PhysicalSlotRequestBulkImpl(pendingRequests, canceller);
+    }
 
-	PhysicalSlotRequestBulkWithTimestamp buildPhysicalSlotRequestBulkWithTimestamp() {
-		return new PhysicalSlotRequestBulkWithTimestamp(buildPhysicalSlotRequestBulkImpl());
-	}
+    PhysicalSlotRequestBulkWithTimestamp buildPhysicalSlotRequestBulkWithTimestamp() {
+        return new PhysicalSlotRequestBulkWithTimestamp(buildPhysicalSlotRequestBulkImpl());
+    }
 
-	static TestingPhysicalSlotRequestBulkBuilder newBuilder() {
-		return new TestingPhysicalSlotRequestBulkBuilder();
-	}
+    static TestingPhysicalSlotRequestBulkBuilder newBuilder() {
+        return new TestingPhysicalSlotRequestBulkBuilder();
+    }
 }

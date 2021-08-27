@@ -28,26 +28,24 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Test array in generic UDF.
- */
+/** Test array in generic UDF. */
 public class TestGenericUDFArray extends GenericUDF {
 
-	@Override
-	public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
-		checkArgument(arguments.length == 1);
-		checkArgument(arguments[0].getTypeName().equals("array<int>"));
-		return PrimitiveObjectInspectorFactory.javaIntObjectInspector;
-	}
+    @Override
+    public ObjectInspector initialize(ObjectInspector[] arguments) throws UDFArgumentException {
+        checkArgument(arguments.length == 1);
+        checkArgument(arguments[0].getTypeName().equals("array<int>"));
+        return PrimitiveObjectInspectorFactory.javaIntObjectInspector;
+    }
 
-	@Override
-	public Object evaluate(DeferredObject[] arguments) throws HiveException {
-		List<Integer> list = (List<Integer>) arguments[0].get();
-		return list.stream().reduce((i1, i2) -> i1 + i2).orElse(0);
-	}
+    @Override
+    public Object evaluate(DeferredObject[] arguments) throws HiveException {
+        List<Integer> list = (List<Integer>) arguments[0].get();
+        return list.stream().reduce((i1, i2) -> i1 + i2).orElse(0);
+    }
 
-	@Override
-	public String getDisplayString(String[] children) {
-		return "TestGenericUDFArray";
-	}
+    @Override
+    public String getDisplayString(String[] children) {
+        return "TestGenericUDFArray";
+    }
 }

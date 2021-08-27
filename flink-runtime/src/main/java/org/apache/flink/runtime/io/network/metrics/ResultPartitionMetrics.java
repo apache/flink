@@ -24,137 +24,141 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Collects metrics of a result partition.
- */
+/** Collects metrics of a result partition. */
 public class ResultPartitionMetrics {
 
-	private final ResultPartition partition;
+    private final ResultPartition partition;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private ResultPartitionMetrics(ResultPartition partition) {
-		this.partition = checkNotNull(partition);
-	}
+    private ResultPartitionMetrics(ResultPartition partition) {
+        this.partition = checkNotNull(partition);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	// these methods are package private to make access from the nested classes faster
+    // these methods are package private to make access from the nested classes faster
 
-	/**
-	 * Iterates over all sub-partitions and collects the total number of queued buffers in a
-	 * best-effort way.
-	 *
-	 * @return total number of queued buffers
-	 */
-	long refreshAndGetTotal() {
-		return partition.getNumberOfQueuedBuffers();
-	}
+    /**
+     * Iterates over all sub-partitions and collects the total number of queued buffers in a
+     * best-effort way.
+     *
+     * @return total number of queued buffers
+     */
+    long refreshAndGetTotal() {
+        return partition.getNumberOfQueuedBuffers();
+    }
 
-	/**
-	 * Iterates over all sub-partitions and collects the minimum number of queued buffers in a
-	 * sub-partition in a best-effort way.
-	 *
-	 * @return minimum number of queued buffers per sub-partition (<tt>0</tt> if sub-partitions exist)
-	 */
-	int refreshAndGetMin() {
-		int min = Integer.MAX_VALUE;
-		int numSubpartitions = partition.getNumberOfSubpartitions();
+    /**
+     * Iterates over all sub-partitions and collects the minimum number of queued buffers in a
+     * sub-partition in a best-effort way.
+     *
+     * @return minimum number of queued buffers per sub-partition (<tt>0</tt> if sub-partitions
+     *     exist)
+     */
+    int refreshAndGetMin() {
+        int min = Integer.MAX_VALUE;
+        int numSubpartitions = partition.getNumberOfSubpartitions();
 
-		if (numSubpartitions == 0) {
-			// meaningful value when no channels exist:
-			return 0;
-		}
+        if (numSubpartitions == 0) {
+            // meaningful value when no channels exist:
+            return 0;
+        }
 
-		for (int targetSubpartition = 0; targetSubpartition < numSubpartitions; ++targetSubpartition) {
-			int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
-			min = Math.min(min, size);
-		}
+        for (int targetSubpartition = 0;
+                targetSubpartition < numSubpartitions;
+                ++targetSubpartition) {
+            int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
+            min = Math.min(min, size);
+        }
 
-		return min;
-	}
+        return min;
+    }
 
-	/**
-	 * Iterates over all sub-partitions and collects the maximum number of queued buffers in a
-	 * sub-partition in a best-effort way.
-	 *
-	 * @return maximum number of queued buffers per sub-partition
-	 */
-	int refreshAndGetMax() {
-		int max = 0;
-		int numSubpartitions = partition.getNumberOfSubpartitions();
+    /**
+     * Iterates over all sub-partitions and collects the maximum number of queued buffers in a
+     * sub-partition in a best-effort way.
+     *
+     * @return maximum number of queued buffers per sub-partition
+     */
+    int refreshAndGetMax() {
+        int max = 0;
+        int numSubpartitions = partition.getNumberOfSubpartitions();
 
-		for (int targetSubpartition = 0; targetSubpartition < numSubpartitions; ++targetSubpartition) {
-			int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
-			max = Math.max(max, size);
-		}
+        for (int targetSubpartition = 0;
+                targetSubpartition < numSubpartitions;
+                ++targetSubpartition) {
+            int size = partition.getNumberOfQueuedBuffers(targetSubpartition);
+            max = Math.max(max, size);
+        }
 
-		return max;
-	}
+        return max;
+    }
 
-	/**
-	 * Iterates over all sub-partitions and collects the average number of queued buffers in a
-	 * sub-partition in a best-effort way.
-	 *
-	 * @return average number of queued buffers per sub-partition
-	 */
-	float refreshAndGetAvg() {
-		return partition.getNumberOfQueuedBuffers() / (float) partition.getNumberOfSubpartitions();
-	}
+    /**
+     * Iterates over all sub-partitions and collects the average number of queued buffers in a
+     * sub-partition in a best-effort way.
+     *
+     * @return average number of queued buffers per sub-partition
+     */
+    float refreshAndGetAvg() {
+        return partition.getNumberOfQueuedBuffers() / (float) partition.getNumberOfSubpartitions();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Gauges to access the stats
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Gauges to access the stats
+    // ------------------------------------------------------------------------
 
-	private Gauge<Long> getTotalQueueLenGauge() {
-		return new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return refreshAndGetTotal();
-			}
-		};
-	}
+    private Gauge<Long> getTotalQueueLenGauge() {
+        return new Gauge<Long>() {
+            @Override
+            public Long getValue() {
+                return refreshAndGetTotal();
+            }
+        };
+    }
 
-	private Gauge<Integer> getMinQueueLenGauge() {
-		return new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return refreshAndGetMin();
-			}
-		};
-	}
+    private Gauge<Integer> getMinQueueLenGauge() {
+        return new Gauge<Integer>() {
+            @Override
+            public Integer getValue() {
+                return refreshAndGetMin();
+            }
+        };
+    }
 
-	private Gauge<Integer> getMaxQueueLenGauge() {
-		return new Gauge<Integer>() {
-			@Override
-			public Integer getValue() {
-				return refreshAndGetMax();
-			}
-		};
-	}
+    private Gauge<Integer> getMaxQueueLenGauge() {
+        return new Gauge<Integer>() {
+            @Override
+            public Integer getValue() {
+                return refreshAndGetMax();
+            }
+        };
+    }
 
-	private Gauge<Float> getAvgQueueLenGauge() {
-		return new Gauge<Float>() {
-			@Override
-			public Float getValue() {
-				return refreshAndGetAvg();
-			}
-		};
-	}
+    private Gauge<Float> getAvgQueueLenGauge() {
+        return new Gauge<Float>() {
+            @Override
+            public Float getValue() {
+                return refreshAndGetAvg();
+            }
+        };
+    }
 
-	// ------------------------------------------------------------------------
-	//  Static access
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Static access
+    // ------------------------------------------------------------------------
 
-	public static void registerQueueLengthMetrics(MetricGroup parent, ResultPartition[] partitions) {
-		for (int i = 0; i < partitions.length; i++) {
-			ResultPartitionMetrics metrics = new ResultPartitionMetrics(partitions[i]);
+    public static void registerQueueLengthMetrics(
+            MetricGroup parent, ResultPartition[] partitions) {
+        for (int i = 0; i < partitions.length; i++) {
+            ResultPartitionMetrics metrics = new ResultPartitionMetrics(partitions[i]);
 
-			MetricGroup group = parent.addGroup(i);
-			group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
-			group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
-			group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
-			group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
-		}
-	}
+            MetricGroup group = parent.addGroup(i);
+            group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
+            group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
+            group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
+            group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
+        }
+    }
 }

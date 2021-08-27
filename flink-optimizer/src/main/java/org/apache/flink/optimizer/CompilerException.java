@@ -18,47 +18,39 @@
 
 package org.apache.flink.optimizer;
 
-/**
- * An exception that is thrown by the Optimizer when encountering an illegal condition.
- */
+/** An exception that is thrown by the Optimizer when encountering an illegal condition. */
 public class CompilerException extends RuntimeException {
 
-	private static final long serialVersionUID = 3810067304570563755L;
+    private static final long serialVersionUID = 3810067304570563755L;
 
-	/**
-	 * Creates a compiler exception with no message and no cause.
-	 */
-	public CompilerException() {}
+    /** Creates a compiler exception with no message and no cause. */
+    public CompilerException() {}
 
-	/**
-	 * Creates a compiler exception with the given message and no cause.
-	 * 
-	 * @param message
-	 *        The message for the exception.
-	 */
-	public CompilerException(String message) {
-		super(message);
-	}
+    /**
+     * Creates a compiler exception with the given message and no cause.
+     *
+     * @param message The message for the exception.
+     */
+    public CompilerException(String message) {
+        super(message);
+    }
 
-	/**
-	 * Creates a compiler exception with the given cause and no message.
-	 * 
-	 * @param cause
-	 *        The <tt>Throwable</tt> that caused this exception.
-	 */
-	public CompilerException(Throwable cause) {
-		super(cause);
-	}
+    /**
+     * Creates a compiler exception with the given cause and no message.
+     *
+     * @param cause The <tt>Throwable</tt> that caused this exception.
+     */
+    public CompilerException(Throwable cause) {
+        super(cause);
+    }
 
-	/**
-	 * Creates a compiler exception with the given message and cause.
-	 * 
-	 * @param message
-	 *        The message for the exception.
-	 * @param cause
-	 *        The <tt>Throwable</tt> that caused this exception.
-	 */
-	public CompilerException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * Creates a compiler exception with the given message and cause.
+     *
+     * @param message The message for the exception.
+     * @param cause The <tt>Throwable</tt> that caused this exception.
+     */
+    public CompilerException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

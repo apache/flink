@@ -32,120 +32,115 @@ import java.io.IOException;
  * A lazily binary implementation of {@link RawValueData} which is backed by {@link MemorySegment}s
  * and generic {@link Object}.
  *
- * <p>Either {@link MemorySegment}s or {@link Object} must be provided when
- * constructing {@link BinaryRawValueData}. The other representation will be materialized when needed.
+ * <p>Either {@link MemorySegment}s or {@link Object} must be provided when constructing {@link
+ * BinaryRawValueData}. The other representation will be materialized when needed.
  *
  * @param <T> the java type of the raw value.
  */
 @Internal
 public final class BinaryRawValueData<T> extends LazyBinaryFormat<T> implements RawValueData<T> {
 
-	public BinaryRawValueData(T javaObject) {
-		super(javaObject);
-	}
+    public BinaryRawValueData(T javaObject) {
+        super(javaObject);
+    }
 
-	public BinaryRawValueData(MemorySegment[] segments, int offset, int sizeInBytes) {
-		super(segments, offset, sizeInBytes);
-	}
+    public BinaryRawValueData(MemorySegment[] segments, int offset, int sizeInBytes) {
+        super(segments, offset, sizeInBytes);
+    }
 
-	public BinaryRawValueData(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
-		super(segments, offset, sizeInBytes, javaObject);
-	}
+    public BinaryRawValueData(MemorySegment[] segments, int offset, int sizeInBytes, T javaObject) {
+        super(segments, offset, sizeInBytes, javaObject);
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Public Interfaces
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Public Interfaces
+    // ------------------------------------------------------------------------------------------
 
-	@Override
-	public T toObject(TypeSerializer<T> serializer) {
-		if (javaObject == null) {
-			try {
-				javaObject = InstantiationUtil.deserializeFromByteArray(
-					serializer,
-					toBytes(serializer));
-			} catch (IOException e) {
-				throw new FlinkRuntimeException(e);
-			}
-		}
-		return javaObject;
-	}
+    @Override
+    public T toObject(TypeSerializer<T> serializer) {
+        if (javaObject == null) {
+            try {
+                javaObject =
+                        InstantiationUtil.deserializeFromByteArray(serializer, toBytes(serializer));
+            } catch (IOException e) {
+                throw new FlinkRuntimeException(e);
+            }
+        }
+        return javaObject;
+    }
 
-	@Override
-	public byte[] toBytes(TypeSerializer<T> serializer) {
-		ensureMaterialized(serializer);
-		return BinarySegmentUtils.copyToBytes(getSegments(), getOffset(), getSizeInBytes());
-	}
+    @Override
+    public byte[] toBytes(TypeSerializer<T> serializer) {
+        ensureMaterialized(serializer);
+        return BinarySegmentUtils.copyToBytes(getSegments(), getOffset(), getSizeInBytes());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof BinaryRawValueData) {
-			BinaryRawValueData<?> other = (BinaryRawValueData<?>) o;
-			if (binarySection != null && other.binarySection != null) {
-				return binarySection.equals(other.binarySection);
-			}
-			throw new UnsupportedOperationException(
-				"Unmaterialized BinaryRawValueData cannot be compared.");
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof BinaryRawValueData) {
+            BinaryRawValueData<?> other = (BinaryRawValueData<?>) o;
+            if (binarySection != null && other.binarySection != null) {
+                return binarySection.equals(other.binarySection);
+            }
+            throw new UnsupportedOperationException(
+                    "Unmaterialized BinaryRawValueData cannot be compared.");
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		if (binarySection != null) {
-			return binarySection.hashCode();
-		}
-		throw new UnsupportedOperationException(
-			"Unmaterialized BinaryRawValueData does not have a hashCode.");
-	}
+    @Override
+    public int hashCode() {
+        if (binarySection != null) {
+            return binarySection.hashCode();
+        }
+        throw new UnsupportedOperationException(
+                "Unmaterialized BinaryRawValueData does not have a hashCode.");
+    }
 
-	@Override
-	public String toString() {
-		return String.format("SqlRawValue{%s}", javaObject == null ? "?" : javaObject);
-	}
+    @Override
+    public String toString() {
+        return String.format("SqlRawValue{%s}", javaObject == null ? "?" : javaObject);
+    }
 
-	// ------------------------------------------------------------------------------------
-	// Internal methods
-	// ------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------
+    // Internal methods
+    // ------------------------------------------------------------------------------------
 
-	@Override
-	protected BinarySection materialize(TypeSerializer<T> serializer) {
-		try {
-			byte[] bytes = InstantiationUtil.serializeToByteArray(serializer, javaObject);
-			return new BinarySection(new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    @Override
+    protected BinarySection materialize(TypeSerializer<T> serializer) {
+        try {
+            byte[] bytes = InstantiationUtil.serializeToByteArray(serializer, javaObject);
+            return new BinarySection(
+                    new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, 0, bytes.length);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Construction Utilities
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Construction Utilities
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a {@link BinaryRawValueData} instance from the given Java object.
-	 */
-	public static <T> BinaryRawValueData<T> fromObject(T javaObject) {
-		if (javaObject == null) {
-			return null;
-		}
-		return new BinaryRawValueData<>(javaObject);
-	}
+    /** Creates a {@link BinaryRawValueData} instance from the given Java object. */
+    public static <T> BinaryRawValueData<T> fromObject(T javaObject) {
+        if (javaObject == null) {
+            return null;
+        }
+        return new BinaryRawValueData<>(javaObject);
+    }
 
-	/**
-	 * Creates a {@link BinaryStringData} instance from the given bytes.
-	 */
-	public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes) {
-		return fromBytes(bytes, 0, bytes.length);
-	}
+    /** Creates a {@link BinaryStringData} instance from the given bytes. */
+    public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes) {
+        return fromBytes(bytes, 0, bytes.length);
+    }
 
-	/**
-	 * Creates a {@link BinaryStringData} instance from the given bytes with offset and number of bytes.
-	 */
-	public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes, int offset, int numBytes) {
-		return new BinaryRawValueData<>(
-			new MemorySegment[] {MemorySegmentFactory.wrap(bytes)},
-			offset,
-			numBytes);
-	}
+    /**
+     * Creates a {@link BinaryStringData} instance from the given bytes with offset and number of
+     * bytes.
+     */
+    public static <T> BinaryRawValueData<T> fromBytes(byte[] bytes, int offset, int numBytes) {
+        return new BinaryRawValueData<>(
+                new MemorySegment[] {MemorySegmentFactory.wrap(bytes)}, offset, numBytes);
+    }
 }

@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.formats.json.JsonFileSystemFormatFactory
 org.apache.flink.formats.json.JsonFormatFactory
 org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory
 org.apache.flink.formats.json.canal.CanalJsonFormatFactory

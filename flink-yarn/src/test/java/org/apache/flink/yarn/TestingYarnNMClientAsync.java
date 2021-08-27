@@ -29,110 +29,114 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 
-/**
- * A Yarn {@link NMClientAsync} implementation for testing.
- */
+/** A Yarn {@link NMClientAsync} implementation for testing. */
 class TestingYarnNMClientAsync extends NMClientAsyncImpl {
 
-	private final TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer;
-	private final TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer;
-	private final Runnable clientInitRunnable;
-	private final Runnable clientStartRunnable;
-	private final Runnable clientStopRunnable;
+    private final TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+            startContainerAsyncConsumer;
+    private final TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer;
+    private final Runnable clientInitRunnable;
+    private final Runnable clientStartRunnable;
+    private final Runnable clientStopRunnable;
 
-	private TestingYarnNMClientAsync(
-		final CallbackHandler callbackHandler,
-		TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer,
-		TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer,
-		Runnable clientInitRunnable,
-		Runnable clientStartRunnable,
-		Runnable clientStopRunnable) {
-		super(callbackHandler);
-		this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
-		this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
-		this.clientInitRunnable = Preconditions.checkNotNull(clientInitRunnable);
-		this.clientStartRunnable = Preconditions.checkNotNull(clientStartRunnable);
-		this.clientStopRunnable = Preconditions.checkNotNull(clientStopRunnable);
-	}
+    private TestingYarnNMClientAsync(
+            final CallbackHandler callbackHandler,
+            TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+                    startContainerAsyncConsumer,
+            TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer,
+            Runnable clientInitRunnable,
+            Runnable clientStartRunnable,
+            Runnable clientStopRunnable) {
+        super(callbackHandler);
+        this.startContainerAsyncConsumer = Preconditions.checkNotNull(startContainerAsyncConsumer);
+        this.stopContainerAsyncConsumer = Preconditions.checkNotNull(stopContainerAsyncConsumer);
+        this.clientInitRunnable = Preconditions.checkNotNull(clientInitRunnable);
+        this.clientStartRunnable = Preconditions.checkNotNull(clientStartRunnable);
+        this.clientStopRunnable = Preconditions.checkNotNull(clientStopRunnable);
+    }
 
-	@Override
-	public void startContainerAsync(Container container, ContainerLaunchContext containerLaunchContext) {
-		this.startContainerAsyncConsumer.accept(container, containerLaunchContext, callbackHandler);
-	}
+    @Override
+    public void startContainerAsync(
+            Container container, ContainerLaunchContext containerLaunchContext) {
+        this.startContainerAsyncConsumer.accept(container, containerLaunchContext, callbackHandler);
+    }
 
-	@Override
-	public void stopContainerAsync(ContainerId containerId, NodeId nodeId) {
-		this.stopContainerAsyncConsumer.accept(containerId, nodeId, callbackHandler);
-	}
+    @Override
+    public void stopContainerAsync(ContainerId containerId, NodeId nodeId) {
+        this.stopContainerAsyncConsumer.accept(containerId, nodeId, callbackHandler);
+    }
 
-	static Builder builder() {
-		return new Builder();
-	}
+    static Builder builder() {
+        return new Builder();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Override lifecycle methods to avoid actually starting the service
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Override lifecycle methods to avoid actually starting the service
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void init(Configuration conf) {
-		clientInitRunnable.run();
-	}
+    @Override
+    public void init(Configuration conf) {
+        clientInitRunnable.run();
+    }
 
-	@Override
-	public void start() {
-		clientStartRunnable.run();
-	}
+    @Override
+    public void start() {
+        clientStartRunnable.run();
+    }
 
-	@Override
-	public void stop() {
-		clientStopRunnable.run();
-	}
+    @Override
+    public void stop() {
+        clientStopRunnable.run();
+    }
 
-	/**
-	 * Builder class for {@link TestingYarnAMRMClientAsync}.
-	 */
-	public static class Builder {
-		private TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
-		private TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
-		private Runnable clientInitRunnable = () -> {};
-		private Runnable clientStartRunnable = () -> {};
-		private Runnable clientStopRunnable = () -> {};
+    /** Builder class for {@link TestingYarnAMRMClientAsync}. */
+    public static class Builder {
+        private TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+                startContainerAsyncConsumer = (ignored1, ignored2, ignored3) -> {};
+        private TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer =
+                (ignored1, ignored2, ignored3) -> {};
+        private Runnable clientInitRunnable = () -> {};
+        private Runnable clientStartRunnable = () -> {};
+        private Runnable clientStopRunnable = () -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		Builder setStartContainerAsyncConsumer(TriConsumer<Container, ContainerLaunchContext, CallbackHandler> startContainerAsyncConsumer) {
-			this.startContainerAsyncConsumer = startContainerAsyncConsumer;
-			return this;
-		}
+        Builder setStartContainerAsyncConsumer(
+                TriConsumer<Container, ContainerLaunchContext, CallbackHandler>
+                        startContainerAsyncConsumer) {
+            this.startContainerAsyncConsumer = startContainerAsyncConsumer;
+            return this;
+        }
 
-		Builder setStopContainerAsyncConsumer(TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
-			this.stopContainerAsyncConsumer = stopContainerAsyncConsumer;
-			return this;
-		}
+        Builder setStopContainerAsyncConsumer(
+                TriConsumer<ContainerId, NodeId, CallbackHandler> stopContainerAsyncConsumer) {
+            this.stopContainerAsyncConsumer = stopContainerAsyncConsumer;
+            return this;
+        }
 
-		Builder setClientInitRunnable(Runnable clientInitRunnable) {
-			this.clientInitRunnable = clientInitRunnable;
-			return this;
-		}
+        Builder setClientInitRunnable(Runnable clientInitRunnable) {
+            this.clientInitRunnable = clientInitRunnable;
+            return this;
+        }
 
-		Builder setClientStartRunnable(Runnable clientStartRunnable) {
-			this.clientStartRunnable = clientStartRunnable;
-			return this;
-		}
+        Builder setClientStartRunnable(Runnable clientStartRunnable) {
+            this.clientStartRunnable = clientStartRunnable;
+            return this;
+        }
 
-		Builder setClientStopRunnable(Runnable clientStopRunnable) {
-			this.clientStopRunnable = clientStopRunnable;
-			return this;
-		}
+        Builder setClientStopRunnable(Runnable clientStopRunnable) {
+            this.clientStopRunnable = clientStopRunnable;
+            return this;
+        }
 
-		public TestingYarnNMClientAsync build(CallbackHandler callbackHandler) {
-			return new TestingYarnNMClientAsync(
-				callbackHandler,
-				startContainerAsyncConsumer,
-				stopContainerAsyncConsumer,
-				clientInitRunnable,
-				clientStartRunnable,
-				clientStopRunnable);
-		}
-	}
+        public TestingYarnNMClientAsync build(CallbackHandler callbackHandler) {
+            return new TestingYarnNMClientAsync(
+                    callbackHandler,
+                    startContainerAsyncConsumer,
+                    stopContainerAsyncConsumer,
+                    clientInitRunnable,
+                    clientStartRunnable,
+                    clientStopRunnable);
+        }
+    }
 }

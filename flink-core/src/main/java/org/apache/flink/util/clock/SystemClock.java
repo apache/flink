@@ -23,38 +23,38 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * A clock that returns the time of the system / process.
  *
- * <p>This clock uses {@link System#currentTimeMillis()} for <i>absolute time</i>
- * and {@link System#nanoTime()} for <i>relative time</i>.
+ * <p>This clock uses {@link System#currentTimeMillis()} for <i>absolute time</i> and {@link
+ * System#nanoTime()} for <i>relative time</i>.
  *
  * <p>This SystemClock exists as a singleton instance.
  */
 @PublicEvolving
 public final class SystemClock extends Clock {
 
-	private static final SystemClock INSTANCE = new SystemClock();
+    private static final SystemClock INSTANCE = new SystemClock();
 
-	public static SystemClock getInstance() {
-		return INSTANCE;
-	}
+    public static SystemClock getInstance() {
+        return INSTANCE;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public long absoluteTimeMillis() {
-		return System.currentTimeMillis();
-	}
+    @Override
+    public long absoluteTimeMillis() {
+        return System.currentTimeMillis();
+    }
 
-	@Override
-	public long relativeTimeMillis() {
-		return System.nanoTime() / 1_000_000;
-	}
+    @Override
+    public long relativeTimeMillis() {
+        return System.nanoTime() / 1_000_000;
+    }
 
-	@Override
-	public long relativeTimeNanos() {
-		return System.nanoTime();
-	}
+    @Override
+    public long relativeTimeNanos() {
+        return System.nanoTime();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private SystemClock() {}
+    private SystemClock() {}
 }

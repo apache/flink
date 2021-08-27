@@ -29,32 +29,28 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * SHOW CURRENT CATALOG sql call.
- */
+/** SHOW CURRENT CATALOG sql call. */
 public class SqlShowCurrentCatalog extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("SHOW CURRENT CATALOG", SqlKind.OTHER);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW CURRENT CATALOG", SqlKind.OTHER);
 
-	public SqlShowCurrentCatalog(SqlParserPos pos) {
-		super(pos);
-	}
+    public SqlShowCurrentCatalog(SqlParserPos pos) {
+        super(pos);
+    }
 
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void unparse(
-			SqlWriter writer,
-			int leftPrec,
-			int rightPrec) {
-		writer.keyword("SHOW CURRENT CATALOG");
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("SHOW CURRENT CATALOG");
+    }
 }

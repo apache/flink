@@ -34,44 +34,49 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 
 /**
- * A {@link RowDataPartitionComputer} that converts Flink objects to Hive objects before computing the partition value strings.
+ * A {@link RowDataPartitionComputer} that converts Flink objects to Hive objects before computing
+ * the partition value strings.
  */
 public class HiveRowDataPartitionComputer extends RowDataPartitionComputer {
 
-	private final DataFormatConverters.DataFormatConverter[] partitionConverters;
-	private final HiveObjectConversion[] hiveObjectConversions;
+    private final DataFormatConverters.DataFormatConverter[] partitionConverters;
+    private final HiveObjectConversion[] hiveObjectConversions;
 
-	public HiveRowDataPartitionComputer(
-			HiveShim hiveShim,
-			String defaultPartValue,
-			String[] columnNames,
-			DataType[] columnTypes,
-			String[] partitionColumns) {
-		super(defaultPartValue, columnNames, columnTypes, partitionColumns);
-		this.partitionConverters = Arrays.stream(partitionTypes)
-				.map(TypeConversions::fromLogicalToDataType)
-				.map(DataFormatConverters::getConverterForDataType)
-				.toArray(DataFormatConverters.DataFormatConverter[]::new);
-		this.hiveObjectConversions = new HiveObjectConversion[partitionIndexes.length];
-		for (int i = 0; i < hiveObjectConversions.length; i++) {
-			DataType partColType = columnTypes[partitionIndexes[i]];
-			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
-			hiveObjectConversions[i] = HiveInspectors.getConversion(objectInspector, partColType.getLogicalType(), hiveShim);
-		}
-	}
+    public HiveRowDataPartitionComputer(
+            HiveShim hiveShim,
+            String defaultPartValue,
+            String[] columnNames,
+            DataType[] columnTypes,
+            String[] partitionColumns) {
+        super(defaultPartValue, columnNames, columnTypes, partitionColumns);
+        this.partitionConverters =
+                Arrays.stream(partitionTypes)
+                        .map(TypeConversions::fromLogicalToDataType)
+                        .map(DataFormatConverters::getConverterForDataType)
+                        .toArray(DataFormatConverters.DataFormatConverter[]::new);
+        this.hiveObjectConversions = new HiveObjectConversion[partitionIndexes.length];
+        for (int i = 0; i < hiveObjectConversions.length; i++) {
+            DataType partColType = columnTypes[partitionIndexes[i]];
+            ObjectInspector objectInspector = HiveInspectors.getObjectInspector(partColType);
+            hiveObjectConversions[i] =
+                    HiveInspectors.getConversion(
+                            objectInspector, partColType.getLogicalType(), hiveShim);
+        }
+    }
 
-	@Override
-	public LinkedHashMap<String, String> generatePartValues(RowData in) {
-		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
+    @Override
+    public LinkedHashMap<String, String> generatePartValues(RowData in) {
+        LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 
-		for (int i = 0; i < partitionIndexes.length; i++) {
-			Object field = partitionConverters[i].toExternal(in, partitionIndexes[i]);
-			String partitionValue = field != null ? hiveObjectConversions[i].toHiveObject(field).toString() : null;
-			if (StringUtils.isEmpty(partitionValue)) {
-				partitionValue = defaultPartValue;
-			}
-			partSpec.put(partitionColumns[i], partitionValue);
-		}
-		return partSpec;
-	}
+        for (int i = 0; i < partitionIndexes.length; i++) {
+            Object field = partitionConverters[i].toExternal(in, partitionIndexes[i]);
+            String partitionValue =
+                    field != null ? hiveObjectConversions[i].toHiveObject(field).toString() : null;
+            if (StringUtils.isEmpty(partitionValue)) {
+                partitionValue = defaultPartValue;
+            }
+            partSpec.put(partitionColumns[i], partitionValue);
+        }
+        return partSpec;
+    }
 }

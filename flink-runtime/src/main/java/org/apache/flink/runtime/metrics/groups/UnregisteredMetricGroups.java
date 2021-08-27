@@ -20,190 +20,194 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 
-/**
- * A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s.
- */
+/** A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s. */
 public class UnregisteredMetricGroups {
 
-	private UnregisteredMetricGroups() {
-	}
+    private UnregisteredMetricGroups() {}
 
-	public static ProcessMetricGroup createUnregisteredProcessMetricGroup() {
-		return new UnregisteredProcessMetricGroup();
-	}
+    public static ProcessMetricGroup createUnregisteredProcessMetricGroup() {
+        return new UnregisteredProcessMetricGroup();
+    }
 
-	public static ResourceManagerMetricGroup createUnregisteredResourceManagerMetricGroup() {
-		return new UnregisteredResourceManagerMetricGroup();
-	}
+    public static ResourceManagerMetricGroup createUnregisteredResourceManagerMetricGroup() {
+        return new UnregisteredResourceManagerMetricGroup();
+    }
 
-	public static SlotManagerMetricGroup createUnregisteredSlotManagerMetricGroup() {
-		return new UnregisteredSlotManagerMetricGroup();
-	}
+    public static SlotManagerMetricGroup createUnregisteredSlotManagerMetricGroup() {
+        return new UnregisteredSlotManagerMetricGroup();
+    }
 
-	public static JobManagerMetricGroup createUnregisteredJobManagerMetricGroup() {
-		return new UnregisteredJobManagerMetricGroup();
-	}
+    public static JobManagerMetricGroup createUnregisteredJobManagerMetricGroup() {
+        return new UnregisteredJobManagerMetricGroup();
+    }
 
-	public static JobManagerJobMetricGroup createUnregisteredJobManagerJobMetricGroup() {
-		return new UnregisteredJobManagerJobMetricGroup();
-	}
+    public static JobManagerJobMetricGroup createUnregisteredJobManagerJobMetricGroup() {
+        return new UnregisteredJobManagerJobMetricGroup();
+    }
 
-	public static TaskManagerMetricGroup createUnregisteredTaskManagerMetricGroup() {
-		return new UnregisteredTaskManagerMetricGroup();
-	}
+    public static TaskManagerMetricGroup createUnregisteredTaskManagerMetricGroup() {
+        return new UnregisteredTaskManagerMetricGroup();
+    }
 
-	public static TaskManagerJobMetricGroup createUnregisteredTaskManagerJobMetricGroup() {
-		return new UnregisteredTaskManagerJobMetricGroup();
-	}
+    public static TaskManagerJobMetricGroup createUnregisteredTaskManagerJobMetricGroup() {
+        return new UnregisteredTaskManagerJobMetricGroup();
+    }
 
-	public static TaskMetricGroup createUnregisteredTaskMetricGroup() {
-		return new UnregisteredTaskMetricGroup();
-	}
+    public static TaskMetricGroup createUnregisteredTaskMetricGroup() {
+        return new UnregisteredTaskMetricGroup();
+    }
 
-	public static OperatorMetricGroup createUnregisteredOperatorMetricGroup() {
-		return new UnregisteredOperatorMetricGroup();
-	}
+    public static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup() {
+        return new UnregisteredOperatorMetricGroup();
+    }
 
-	/**
-	 * A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}.
-	 */
-	public static class UnregisteredProcessMetricGroup extends ProcessMetricGroup {
-		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+    private static InternalOperatorMetricGroup createUnregisteredOperatorMetricGroup(
+            TaskMetricGroup parent) {
+        return new UnregisteredOperatorMetricGroup(parent);
+    }
 
-		public UnregisteredProcessMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
-		}
-	}
+    /** A safe drop-in replacement for {@link ProcessMetricGroup ProcessMetricGroups}. */
+    public static class UnregisteredProcessMetricGroup extends ProcessMetricGroup {
+        private static final String UNREGISTERED_HOST = "UnregisteredHost";
 
-	/**
-	 * A safe drop-in replacement for {@link ResourceManagerMetricGroup ResourceManagerMetricGroups}.
-	 */
-	public static class UnregisteredResourceManagerMetricGroup extends ResourceManagerMetricGroup {
-		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+        public UnregisteredProcessMetricGroup() {
+            super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+        }
+    }
 
-		UnregisteredResourceManagerMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
-		}
-	}
+    /**
+     * A safe drop-in replacement for {@link ResourceManagerMetricGroup
+     * ResourceManagerMetricGroups}.
+     */
+    public static class UnregisteredResourceManagerMetricGroup extends ResourceManagerMetricGroup {
+        private static final String UNREGISTERED_HOST = "UnregisteredHost";
 
-	/**
-	 * A safe drop-in replacement for {@link SlotManagerMetricGroup SlotManagerMetricGroups}.
-	 */
-	public static class UnregisteredSlotManagerMetricGroup extends SlotManagerMetricGroup {
-		private static final String UNREGISTERED_HOST = "UnregisteredHost";
+        UnregisteredResourceManagerMetricGroup() {
+            super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+        }
+    }
 
-		UnregisteredSlotManagerMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
-		}
-	}
+    /** A safe drop-in replacement for {@link SlotManagerMetricGroup SlotManagerMetricGroups}. */
+    public static class UnregisteredSlotManagerMetricGroup extends SlotManagerMetricGroup {
+        private static final String UNREGISTERED_HOST = "UnregisteredHost";
 
-	/**
-	 * A safe drop-in replacement for {@link JobManagerMetricGroup}s.
-	 */
-	public static class UnregisteredJobManagerMetricGroup extends JobManagerMetricGroup {
-		private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
+        UnregisteredSlotManagerMetricGroup() {
+            super(NoOpMetricRegistry.INSTANCE, UNREGISTERED_HOST);
+        }
+    }
 
-		private UnregisteredJobManagerMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME);
-		}
+    /** A safe drop-in replacement for {@link JobManagerMetricGroup}s. */
+    public static class UnregisteredJobManagerMetricGroup extends JobManagerMetricGroup {
+        private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
 
-		@Override
-		public JobManagerJobMetricGroup addJob(JobGraph job) {
-			return createUnregisteredJobManagerJobMetricGroup();
-		}
-	}
+        private UnregisteredJobManagerMetricGroup() {
+            super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME);
+        }
 
-	/**
-	 * A safe drop-in replacement for {@link JobManagerJobMetricGroup}s.
-	 */
-	public static class UnregisteredJobManagerJobMetricGroup extends JobManagerJobMetricGroup {
-		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
-		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
+        @Override
+        public JobManagerJobMetricGroup addJob(JobID jobId, String jobName) {
+            return createUnregisteredJobManagerJobMetricGroup();
+        }
+    }
 
-		protected UnregisteredJobManagerJobMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, new UnregisteredJobManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
-		}
-	}
+    /** A safe drop-in replacement for {@link JobManagerJobMetricGroup}s. */
+    public static class UnregisteredJobManagerJobMetricGroup extends JobManagerJobMetricGroup {
+        private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
+        private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-	/**
-	 * A safe drop-in replacement for {@link TaskManagerMetricGroup}s.
-	 */
-	public static class UnregisteredTaskManagerMetricGroup extends TaskManagerMetricGroup {
-		private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
-		private static final String DEFAULT_TASKMANAGER_ID = "0";
+        protected UnregisteredJobManagerJobMetricGroup() {
+            super(
+                    NoOpMetricRegistry.INSTANCE,
+                    new UnregisteredJobManagerMetricGroup(),
+                    DEFAULT_JOB_ID,
+                    DEFAULT_JOB_NAME);
+        }
+    }
 
-		protected UnregisteredTaskManagerMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME, DEFAULT_TASKMANAGER_ID);
-		}
+    /** A safe drop-in replacement for {@link TaskManagerMetricGroup}s. */
+    public static class UnregisteredTaskManagerMetricGroup extends TaskManagerMetricGroup {
+        private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
+        private static final String DEFAULT_TASKMANAGER_ID = "0";
 
-		@Override
-		public TaskMetricGroup addTaskForJob(
-			final JobID jobId,
-			final String jobName,
-			final JobVertexID jobVertexId,
-			final ExecutionAttemptID executionAttemptId,
-			final String taskName,
-			final int subtaskIndex,
-			final int attemptNumber) {
-			return createUnregisteredTaskMetricGroup();
-		}
-	}
+        protected UnregisteredTaskManagerMetricGroup() {
+            super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME, DEFAULT_TASKMANAGER_ID);
+        }
 
-	/**
-	 * A safe drop-in replacement for {@link TaskManagerJobMetricGroup}s.
-	 */
-	public static class UnregisteredTaskManagerJobMetricGroup extends TaskManagerJobMetricGroup {
-		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
-		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
+        @Override
+        public TaskMetricGroup addTaskForJob(
+                final JobID jobId,
+                final String jobName,
+                final JobVertexID jobVertexId,
+                final ExecutionAttemptID executionAttemptId,
+                final String taskName,
+                final int subtaskIndex,
+                final int attemptNumber) {
+            return createUnregisteredTaskMetricGroup();
+        }
+    }
 
-		public UnregisteredTaskManagerJobMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
-		}
+    /** A safe drop-in replacement for {@link TaskManagerJobMetricGroup}s. */
+    public static class UnregisteredTaskManagerJobMetricGroup extends TaskManagerJobMetricGroup {
+        private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
+        private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-		@Override
-		public TaskMetricGroup addTask(
-			final JobVertexID jobVertexId,
-			final ExecutionAttemptID executionAttemptID,
-			final String taskName,
-			final int subtaskIndex,
-			final int attemptNumber) {
-			return createUnregisteredTaskMetricGroup();
-		}
-	}
+        public UnregisteredTaskManagerJobMetricGroup() {
+            super(
+                    NoOpMetricRegistry.INSTANCE,
+                    new UnregisteredTaskManagerMetricGroup(),
+                    DEFAULT_JOB_ID,
+                    DEFAULT_JOB_NAME);
+        }
 
-	/**
-	 * A safe drop-in replacement for {@link TaskMetricGroup}s.
-	 */
-	public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
-		private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
-		private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
-		private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
+        @Override
+        public TaskMetricGroup addTask(
+                final JobVertexID jobVertexId,
+                final ExecutionAttemptID executionAttemptID,
+                final String taskName,
+                final int subtaskIndex,
+                final int attemptNumber) {
+            return createUnregisteredTaskMetricGroup();
+        }
+    }
 
-		protected UnregisteredTaskMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerJobMetricGroup(),
-				DEFAULT_VERTEX_ID, DEFAULT_ATTEMPT_ID, DEFAULT_TASK_NAME, 0, 0);
-		}
+    /** A safe drop-in replacement for {@link TaskMetricGroup}s. */
+    public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
+        private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
+        private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID();
+        private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
-		@Override
-		public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
-			return createUnregisteredOperatorMetricGroup();
-		}
-	}
+        protected UnregisteredTaskMetricGroup() {
+            super(
+                    NoOpMetricRegistry.INSTANCE,
+                    new UnregisteredTaskManagerJobMetricGroup(),
+                    DEFAULT_VERTEX_ID,
+                    DEFAULT_ATTEMPT_ID,
+                    DEFAULT_TASK_NAME,
+                    0,
+                    0);
+        }
 
-	/**
-	 * A safe drop-in replacement for {@link OperatorMetricGroup}s.
-	 */
-	public static class UnregisteredOperatorMetricGroup extends OperatorMetricGroup {
-		private static final OperatorID DEFAULT_OPERATOR_ID = new OperatorID(0, 0);
-		private static final String DEFAULT_OPERATOR_NAME = "UnregisteredOperator";
+        @Override
+        public InternalOperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+            return createUnregisteredOperatorMetricGroup(this);
+        }
+    }
 
-		protected UnregisteredOperatorMetricGroup() {
-			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskMetricGroup(), DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
-		}
-	}
+    /** A safe drop-in replacement for {@link InternalOperatorMetricGroup}s. */
+    public static class UnregisteredOperatorMetricGroup extends InternalOperatorMetricGroup {
+        private static final OperatorID DEFAULT_OPERATOR_ID = new OperatorID(0, 0);
+        private static final String DEFAULT_OPERATOR_NAME = "UnregisteredOperator";
+
+        protected UnregisteredOperatorMetricGroup() {
+            this(new UnregisteredTaskMetricGroup());
+        }
+
+        UnregisteredOperatorMetricGroup(TaskMetricGroup parent) {
+            super(NoOpMetricRegistry.INSTANCE, parent, DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
+        }
+    }
 }

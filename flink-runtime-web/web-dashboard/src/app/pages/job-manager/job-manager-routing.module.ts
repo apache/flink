@@ -24,12 +24,20 @@ import { JobManagerLogDetailComponent } from './log-detail/job-manager-log-detai
 import { JobManagerLogListComponent } from './log-list/job-manager-log-list.component';
 import { JobManagerLogsComponent } from './logs/job-manager-logs.component';
 import { JobManagerStdoutComponent } from './stdout/job-manager-stdout.component';
+import { JobManagerMetricsComponent } from './metrics/job-manager-metrics.component';
 
 const routes: Routes = [
   {
     path: '',
     component: JobManagerComponent,
     children: [
+      {
+        path: 'metrics',
+        component: JobManagerMetricsComponent,
+        data: {
+          path: 'metrics'
+        }
+      },
       {
         path: 'config',
         component: JobManagerConfigurationComponent,
@@ -67,7 +75,7 @@ const routes: Routes = [
       },
       {
         path: '**',
-        redirectTo: 'config',
+        redirectTo: 'metrics',
         pathMatch: 'full'
       }
     ]

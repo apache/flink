@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.util.concurrent.FutureUtils;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link HeartbeatManager} implementation which does nothing.
@@ -27,32 +30,38 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
  * @param <O> ignored
  */
 public class NoOpHeartbeatManager<I, O> implements HeartbeatManager<I, O> {
-	private static final NoOpHeartbeatManager<Object, Object> INSTANCE = new NoOpHeartbeatManager<>();
+    private static final NoOpHeartbeatManager<Object, Object> INSTANCE =
+            new NoOpHeartbeatManager<>();
 
-	private NoOpHeartbeatManager() {}
+    private NoOpHeartbeatManager() {}
 
-	@Override
-	public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {}
+    @Override
+    public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {}
 
-	@Override
-	public void unmonitorTarget(ResourceID resourceID) {}
+    @Override
+    public void unmonitorTarget(ResourceID resourceID) {}
 
-	@Override
-	public void stop() {}
+    @Override
+    public void stop() {}
 
-	@Override
-	public long getLastHeartbeatFrom(ResourceID resourceId) {
-		return 0;
-	}
+    @Override
+    public long getLastHeartbeatFrom(ResourceID resourceId) {
+        return 0;
+    }
 
-	@Override
-	public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {}
+    @Override
+    public CompletableFuture<Void> receiveHeartbeat(
+            ResourceID heartbeatOrigin, I heartbeatPayload) {
+        return FutureUtils.completedVoidFuture();
+    }
 
-	@Override
-	public void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {}
+    @Override
+    public CompletableFuture<Void> requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {
+        return FutureUtils.completedVoidFuture();
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <A, B> NoOpHeartbeatManager<A, B> getInstance() {
-		return (NoOpHeartbeatManager<A, B>) INSTANCE;
-	}
+    @SuppressWarnings("unchecked")
+    public static <A, B> NoOpHeartbeatManager<A, B> getInstance() {
+        return (NoOpHeartbeatManager<A, B>) INSTANCE;
+    }
 }

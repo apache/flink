@@ -23,30 +23,29 @@ import org.apache.flink.examples.java.graph.EnumTriangles;
 import org.apache.flink.test.testdata.EnumTriangleData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-/**
- * Test {@link EnumTriangles}.
- */
+/** Test {@link EnumTriangles}. */
 public class EnumTriangleBasicITCase extends JavaProgramTestBase {
 
-	protected String edgePath;
-	protected String resultPath;
+    protected String edgePath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		edgePath = createTempFile("edges", EnumTriangleData.EDGES);
-		resultPath = getTempDirPath("triangles");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        edgePath = createTempFile("edges", EnumTriangleData.EDGES);
+        resultPath = getTempDirPath("triangles");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(EnumTriangleData.TRIANGLES_BY_ID, resultPath);
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        compareResultsByLinesInMemory(EnumTriangleData.TRIANGLES_BY_ID, resultPath);
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		EnumTriangles.main(new String[] {
-				"--edges", edgePath,
-				"--output", resultPath });
-	}
-
+    @Override
+    protected void testProgram() throws Exception {
+        EnumTriangles.main(
+                new String[] {
+                    "--edges", edgePath,
+                    "--output", resultPath
+                });
+    }
 }

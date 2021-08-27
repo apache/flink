@@ -1,0 +1,191 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testGroupKeyIsComputedColumn">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  currency2,
+  COUNT(1) AS cnt,
+  TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
+FROM src_with_computed_column2
+GROUP BY currency2, TUMBLE(currency_time, INTERVAL '5' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency2=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
++- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+   +- LogicalProject(currency2=[$1], $f1=[$TUMBLE($5, 5000:INTERVAL SECOND)])
+      +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($5, 5000:INTERVAL SECOND)])
+         +- LogicalProject(currency=[$0], currency2=[+($0, 2)], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[currency2, cnt, w$start AS w_start, w$end AS w_end], changelogMode=[I])
++- GroupWindowAggregate(groupBy=[currency2], window=[TumblingGroupWindow('w$, currency_time, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[currency2, COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency2]], changelogMode=[I,UB,UA,D])
+      +- Calc(select=[currency2, currency_time], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[currency2], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+               +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
+                  +- Calc(select=[+(currency, 2) AS currency2, TO_TIMESTAMP(c) AS currency_time, currency], changelogMode=[UA,D])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column2, project=[currency, c], metadata=[]]], fields=[currency, c], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushdownCalcAndWatermarkAssignerWithCalc">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  currency,
+  COUNT(1) AS cnt,
+  TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
+FROM src_with_computed_column
+GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
++- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+   +- LogicalProject(currency=[$0], $f1=[$TUMBLE($4, 5000:INTERVAL SECOND)])
+      +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($4, 5000:INTERVAL SECOND)])
+         +- LogicalProject(currency=[$0], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[currency, cnt, w$start AS w_start, w$end AS w_end], changelogMode=[I])
++- GroupWindowAggregate(groupBy=[currency], window=[TumblingGroupWindow('w$, currency_time, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[currency, COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA,D])
+      +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+            +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
+               +- Calc(select=[currency, TO_TIMESTAMP(c) AS currency_time], changelogMode=[UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[currency, c], metadata=[]]], fields=[currency, c], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushdownNewCalcAndWatermarkAssignerWithCalc">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end,
+  MAX(rate) AS max_rate
+FROM src_with_computed_column
+GROUP BY TUMBLE(currency_time, INTERVAL '5' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(w_start=[TUMBLE_START($0)], w_end=[TUMBLE_END($0)], max_rate=[$1])
++- LogicalAggregate(group=[{0}], max_rate=[MAX($1)])
+   +- LogicalProject($f0=[$TUMBLE($4, 5000:INTERVAL SECOND)], rate=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($4, 5000:INTERVAL SECOND)])
+         +- LogicalProject(currency=[$0], currency_no=[$1], rate=[$2], c=[$3], currency_time=[TO_TIMESTAMP($3)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src_with_computed_column]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[w$start AS w_start, w$end AS w_end, max_rate], changelogMode=[I])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w$, currency_time, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[MAX(rate) AS max_rate, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[single], changelogMode=[I,UB,UA,D])
+      +- Calc(select=[currency_time, rate], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+               +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
+                  +- Calc(select=[TO_TIMESTAMP(c) AS currency_time, rate, currency], changelogMode=[UA,D])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[c, rate, currency], metadata=[]]], fields=[c, rate, currency], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushdownWatermarkAssignerWithCalc">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end,
+  MAX(rate) AS max_rate
+FROM simple_src
+GROUP BY TUMBLE(currency_time, INTERVAL '5' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(w_start=[TUMBLE_START($0)], w_end=[TUMBLE_END($0)], max_rate=[$1])
++- LogicalAggregate(group=[{0}], max_rate=[MAX($1)])
+   +- LogicalProject($f0=[$TUMBLE($3, 5000:INTERVAL SECOND)], rate=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($3, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, simple_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[w$start AS w_start, w$end AS w_end, max_rate], changelogMode=[I])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w$, currency_time, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[MAX(rate) AS max_rate, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[single], changelogMode=[I,UB,UA,D])
+      +- Calc(select=[currency_time, rate], changelogMode=[I,UB,UA,D])
+         +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+               +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency_time, rate, currency], metadata=[]]], fields=[currency_time, rate, currency], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushdownWatermarkWithoutCalc">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  currency,
+  COUNT(1) AS cnt,
+  TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
+FROM simple_src
+GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(currency=[$0], cnt=[$2], w_start=[TUMBLE_START($1)], w_end=[TUMBLE_END($1)])
++- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+   +- LogicalProject(currency=[$0], $f1=[$TUMBLE($3, 5000:INTERVAL SECOND)])
+      +- LogicalWatermarkAssigner(rowtime=[currency_time], watermark=[-($3, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, simple_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[currency, cnt, w$start AS w_start, w$end AS w_end], changelogMode=[I])
++- GroupWindowAggregate(groupBy=[currency], window=[TumblingGroupWindow('w$, currency_time, 5000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[currency, COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], changelogMode=[I])
+   +- Exchange(distribution=[hash[currency]], changelogMode=[I,UB,UA,D])
+      +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
+            +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency, currency_time], metadata=[]]], fields=[currency, currency_time], changelogMode=[UA,D])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

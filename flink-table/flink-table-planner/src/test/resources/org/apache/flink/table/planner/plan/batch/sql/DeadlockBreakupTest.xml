@@ -1,0 +1,544 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDataStreamReuse_AddExchangeAsBatch_HashJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t INTERSECT SELECT * FROM t]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a, b, c], select=[a, b, c])
++- HashJoin(joinType=[LeftSemiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], build=[left])
+   :- Exchange(distribution=[hash[a, b, c]])
+   :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[a, b, c]], shuffle_mode=[BATCH])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDataStreamReuse_AddExchangeAsBatch_NestedLoopJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t t1, t t2 WHERE t1.a = t2.b]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[=(CAST($0):BIGINT, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c, a1, b0, c0])
++- HashJoin(joinType=[InnerJoin], where=[(a0 = b0)], select=[a, b, c, a0, a1, b0, c0], build=[right])
+   :- Exchange(distribution=[hash[a0]], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a, b, c, CAST(a) AS a0])
+   :     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDataStreamReuse_SetExchangeAsBatch">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t t1, t t2 WHERE t1.a = t2.a AND t1.b > 10 AND t2.c LIKE 'Test%']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), >($1, 10), LIKE($5, _UTF-16LE'Test%'))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[right])
+:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+:  +- Calc(select=[a, b, c], where=[(b > 10)])
+:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'Test%')])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReusedNodeIsBarrierNode">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
+    SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
++- LogicalFilter(condition=[AND(=(CAST($1):BIGINT, $5), >($4, 1))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+      :  +- LogicalProject(c=[$2], a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalAggregate(group=[{0}], a=[SUM($1)], b=[SUM($2)])
+         +- LogicalProject(c=[$2], a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a1, b0])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a0 = b0)], select=[c, a, b, a0, c0, a1, b0], build=[right])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :  +- Calc(select=[c, a, b, CAST(a) AS a0])
+   :     +- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS a, Final_SUM(sum$1) AS b])(reuse_id=[1])
+   :        +- Exchange(distribution=[hash[c]])
+   :           +- LocalHashAggregate(groupBy=[c], select=[c, Partial_SUM(a) AS sum$0, Partial_SUM(b) AS sum$1])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[c, a, b], where=[(a > 1)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_AddExchangeAsBatch_BuildLeftSemiHashJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b FROM x LIMIT 10)
+SELECT r1.a, r2.b FROM x r1,
+(SELECT a, b FROM r WHERE a in (select a from x where b > 5)) r2
+WHERE r1.a = r2.a and r1.b = 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$4])
++- LogicalFilter(condition=[AND(=($0, $3), =($1, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalFilter(condition=[IN($0, {
+LogicalProject(a=[$0])
+  LogicalFilter(condition=[>($1, 5)])
+    LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+})])
+            +- LogicalSort(fetch=[10])
+               +- LogicalProject(a=[$0], b=[$1])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b])
++- MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- HashJoin(joinType=[LeftSemiJoin], where=[(a = a0)], select=[a, b], build=[left])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a], where=[(b = 5:BIGINT)])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, b])
+   :     +- Limit(offset=[0], fetch=[10], global=[true])
+   :        +- Exchange(distribution=[single])
+   :           +- Limit(offset=[0], fetch=[10], global=[false])
+   :              +- Reused(reference_id=[1])
+   +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+      +- Calc(select=[a], where=[(b > 5)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_AddExchangeAsBatch_HashJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a FROM x LIMIT 10)
+SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[=($0, $1)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[10])
+      :  +- LogicalProject(a=[$0])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], isBroadcast=[true], build=[right])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a])(reuse_id=[1])
+   :     +- Limit(offset=[0], fetch=[10], global=[true])
+   :        +- Exchange(distribution=[single])
+   :           +- Limit(offset=[0], fetch=[10], global=[false])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[broadcast])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_AddExchangeAsBatch_NestedLoopJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a FROM x LIMIT 10)
+SELECT r1.a FROM r r1, r r2 WHERE r1.a = r2.a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[=($0, $1)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalSort(fetch=[10])
+      :  +- LogicalProject(a=[$0])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalSort(fetch=[10])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a])(reuse_id=[1])
+   :     +- Limit(offset=[0], fetch=[10], global=[true])
+   :        +- Exchange(distribution=[single])
+   :           +- Limit(offset=[0], fetch=[10], global=[false])
+   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- Exchange(distribution=[any], shuffle_mode=[BATCH])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_AddSingletonExchange">
+    <Resource name="sql">
+      <![CDATA[
+WITH
+  T1 AS (SELECT COUNT(*) AS cnt FROM x),
+  T2 AS (SELECT cnt FROM T1 WHERE cnt > 3),
+  T3 AS (SELECT cnt FROM T1 WHERE cnt < 5)
+SELECT * FROM T2 FULL JOIN T3 ON T2.cnt <> T3.cnt
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(cnt=[$0], cnt0=[$1])
++- LogicalJoin(condition=[<>($0, $1)], joinType=[full])
+   :- LogicalProject(cnt=[$0])
+   :  +- LogicalFilter(condition=[>($0, 3)])
+   :     +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+   :        +- LogicalProject($f0=[0])
+   :           +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(cnt=[$0])
+      +- LogicalFilter(condition=[<($0, 5)])
+         +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+            +- LogicalProject($f0=[0])
+               +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[FullOuterJoin], where=[(cnt <> cnt0)], select=[cnt, cnt0], build=[left], singleRowJoin=[true])
+:- Calc(select=[cnt], where=[(cnt > 3)])
+:  +- SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS cnt])(reuse_id=[1])
+:     +- Exchange(distribution=[single])
+:        +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0])
+:           +- Calc(select=[0 AS $f0])
+:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[single], shuffle_mode=[BATCH])
+   +- Calc(select=[cnt], where=[(cnt < 5)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_BuildAndProbeNoCommonSuccessors_HashJoin">
+    <Resource name="sql">
+      <![CDATA[
+WITH
+  T1 AS (SELECT a, COUNT(*) AS cnt1 FROM x GROUP BY a),
+  T2 AS (SELECT d, COUNT(*) AS cnt2 FROM y GROUP BY d)
+SELECT * FROM
+  (SELECT cnt1, cnt2 FROM T1 LEFT JOIN T2 ON a = d)
+  UNION ALL
+  (SELECT cnt1, cnt2 FROM T2 LEFT JOIN T1 ON d = a)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(cnt1=[$1], cnt2=[$3])
+:  +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+:     :- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
+:     :  +- LogicalProject(a=[$0])
+:     :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+:     +- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
+:        +- LogicalProject(d=[$0])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
++- LogicalProject(cnt1=[$3], cnt2=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+      :- LogicalAggregate(group=[{0}], cnt2=[COUNT()])
+      :  +- LogicalProject(d=[$0])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalAggregate(group=[{0}], cnt1=[COUNT()])
+         +- LogicalProject(a=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+MultipleInput(readOrder=[0,2,1], members=[\nUnion(all=[true], union=[cnt1, cnt2])\n:- Calc(select=[CAST(cnt1) AS cnt1, cnt2])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt1, d, cnt2], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt1])(reuse_id=[1])\n:     :  +- [#3] Exchange(distribution=[hash[a]])\n:     +- [#1] HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2])\n+- Calc(select=[cnt1, CAST(cnt2) AS cnt2])\n   +- HashJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, cnt2, a, cnt1], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])\n      +- Reused(reference_id=[1])\n])
+:- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS cnt2])(reuse_id=[1])
+:  +- Exchange(distribution=[hash[d]])
+:     +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
+:        +- Calc(select=[d])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:- Exchange(distribution=[hash[d]], shuffle_mode=[BATCH])
+:  +- Reused(reference_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+      +- Calc(select=[a])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_SetExchangeAsBatch_SortMergeJoin">
+    <Resource name="sql">
+      <![CDATA[
+
+WITH v1 AS (SELECT a, SUM(b) AS b, MAX(c) AS c FROM x GROUP BY a),
+     v2 AS (SELECT * FROM v1 r1, v1 r2 WHERE r1.a = r2.a AND r1.b > 10),
+     v3 AS (SELECT * FROM v1 r1, v1 r2 WHERE r1.a = r2.a AND r1.b < 5)
+
+select * from v2, v3 where v2.c = v3.c
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5], a1=[$6], b1=[$7], c1=[$8], a00=[$9], b00=[$10], c00=[$11])
++- LogicalFilter(condition=[=($2, $8)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
+      :  +- LogicalFilter(condition=[AND(=($0, $3), >($1, 10))])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalAggregate(group=[{0}], b=[SUM($1)], c=[MAX($2)])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalAggregate(group=[{0}], b=[SUM($1)], c=[MAX($2)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), <($1, 5))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalAggregate(group=[{0}], b=[SUM($1)], c=[MAX($2)])
+               :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalAggregate(group=[{0}], b=[SUM($1)], c=[MAX($2)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(c = c1)], select=[a, b, c, a0, b0, c0, a1, b1, c1, a00, b00, c00], build=[right])
+:- Exchange(distribution=[hash[c]])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
+:     :- Calc(select=[a, b, c], where=[(b > 10)])
+:     :  +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b, Final_MAX(max$1) AS c])(reuse_id=[1])
+:     :     +- Sort(orderBy=[a ASC])
+:     :        +- Exchange(distribution=[hash[a]])
+:     :           +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_MAX(c) AS max$1])
+:     :              +- Sort(orderBy=[a ASC])
+:     :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+:        +- Reused(reference_id=[1])
++- Exchange(distribution=[hash[c]])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, a0, b0, c0], build=[left])
+      :- Calc(select=[a, b, c], where=[(b < 5)])
+      :  +- Reused(reference_id=[1])
+      +- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_DeadlockCausedByReusingExchange">
+    <Resource name="sql">
+      <![CDATA[
+WITH T1 AS (SELECT a FROM x)
+SELECT * FROM T1
+  INNER JOIN T1 AS T2 ON T1.a = T2.a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], a0=[$1])
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   :- LogicalProject(a=[$0])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, a0], build=[right])
+:- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+:  +- Calc(select=[a])(reuse_id=[1])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_SetExchangeAsBatch">
+    <Resource name="sql">
+      <![CDATA[
+WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
+SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3], a0=[$4], b0=[$5], d0=[$6], e0=[$7])
++- LogicalFilter(condition=[AND(=($1, $7), <($0, 10), >($4, 5))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+      :  +- LogicalFilter(condition=[=($0, $3)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+      +- LogicalProject(a=[$0], b=[$1], d=[$3], e=[$4])
+         +- LogicalFilter(condition=[=($0, $3)])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0], build=[right])
+:- Exchange(distribution=[hash[b]], shuffle_mode=[BATCH])
+:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
+:     :- Exchange(distribution=[hash[a]])
+:     :  +- Calc(select=[a, b], where=[(a < 10)])
+:     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
+:     +- Exchange(distribution=[hash[d]])(reuse_id=[2])
+:        +- Calc(select=[d, e])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[e]])
+   +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d, e], build=[left])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, b], where=[(a > 5)])
+      :     +- Reused(reference_id=[1])
+      +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_DeadlockCausedByReusingExchangeInAncestor">
+    <Resource name="sql">
+      <![CDATA[
+WITH T1 AS (
+  SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
+  FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
+SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], a0=[$3], b0=[$4], c=[$5], k=[$6], v=[$7])
++- LogicalFilter(condition=[AND(>($0, 0), =($7, 0))])
+   +- LogicalJoin(condition=[=($0, $6)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], k=[$3], v=[+($1, $4)])
+         +- LogicalFilter(condition=[>($3, 0)])
+            +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, a0, b0, c, k, CAST(0:BIGINT) AS v])
++- HashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, k], build=[right])
+   :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+   :  +- Calc(select=[a, b], where=[(a > 0)])(reuse_id=[2])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
+   +- Calc(select=[a, b, c, a0 AS k])
+      +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0:BIGINT))], select=[a, b, c, a0, b0], build=[right])
+         :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
+         :  +- Reused(reference_id=[1])
+         +- Exchange(distribution=[hash[a]])
+            +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse_SetExchangeAsBatch_OverAgg">
+    <Resource name="sql">
+      <![CDATA[
+WITH r1 AS (SELECT SUM(a) OVER (PARTITION BY b ORDER BY b) AS a, b, c FROM x),
+ r2 AS (SELECT MAX(a) OVER (PARTITION BY b ORDER BY b
+ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS a, b, c FROM r1),
+ r3 AS (SELECT MIN(a) OVER (PARTITION BY b ORDER BY b
+ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS a, b, c FROM r1)
+
+SELECT * FROM r2, r3 WHERE r2.c = r3.c
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5])
++- LogicalFilter(condition=[=($2, $5)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[MAX($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)], b=[$1], c=[$2])
+      :  +- LogicalProject(a=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST), null:INTEGER)], b=[$1], c=[$2])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[MIN($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)], b=[$1], c=[$2])
+         +- LogicalProject(a=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $1 NULLS FIRST), null:INTEGER)], b=[$1], c=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(c = c0)], select=[a, b, c, a0, b0, c0], build=[right])
+:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+:  +- Calc(select=[w0$o0 AS a, b, c])
+:     +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MAX(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
+:        +- Calc(select=[CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER) AS a, b, c])(reuse_id=[1])
+:           +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1])
+:              +- Sort(orderBy=[b ASC])
+:                 +- Exchange(distribution=[hash[b]])
+:                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[c]])
+   +- Calc(select=[w0$o0 AS a, b, c])
+      +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MIN(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, w0$o0])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

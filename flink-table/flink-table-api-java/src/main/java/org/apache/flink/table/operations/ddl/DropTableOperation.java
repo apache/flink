@@ -26,46 +26,39 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Operation to describe a DROP TABLE statement.
- */
+/** Operation to describe a DROP TABLE statement. */
 public class DropTableOperation implements DropOperation {
-	private final ObjectIdentifier tableIdentifier;
-	private final boolean ifExists;
-	private final boolean isTemporary;
+    private final ObjectIdentifier tableIdentifier;
+    private final boolean ifExists;
+    private final boolean isTemporary;
 
-	public DropTableOperation(
-			ObjectIdentifier tableIdentifier,
-			boolean ifExists,
-			boolean isTemporary) {
-		this.tableIdentifier = tableIdentifier;
-		this.ifExists = ifExists;
-		this.isTemporary = isTemporary;
-	}
+    public DropTableOperation(
+            ObjectIdentifier tableIdentifier, boolean ifExists, boolean isTemporary) {
+        this.tableIdentifier = tableIdentifier;
+        this.ifExists = ifExists;
+        this.isTemporary = isTemporary;
+    }
 
-	public ObjectIdentifier getTableIdentifier() {
-		return this.tableIdentifier;
-	}
+    public ObjectIdentifier getTableIdentifier() {
+        return this.tableIdentifier;
+    }
 
-	public boolean isIfExists() {
-		return this.ifExists;
-	}
+    public boolean isIfExists() {
+        return this.ifExists;
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> params = new LinkedHashMap<>();
-		params.put("identifier", tableIdentifier);
-		params.put("IfExists", ifExists);
-		params.put("isTemporary", isTemporary);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("identifier", tableIdentifier);
+        params.put("IfExists", ifExists);
+        params.put("isTemporary", isTemporary);
 
-		return OperationUtils.formatWithChildren(
-			"DROP TABLE",
-			params,
-			Collections.emptyList(),
-			Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "DROP TABLE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
 }

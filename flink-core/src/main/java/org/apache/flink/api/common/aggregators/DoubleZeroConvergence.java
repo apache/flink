@@ -22,22 +22,22 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.DoubleValue;
 
 /**
- * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached once the aggregator
- * holds the value zero. The aggregated data type is a {@link DoubleValue}.
+ * A {@link ConvergenceCriterion} over an {@link Aggregator} that defines convergence as reached
+ * once the aggregator holds the value zero. The aggregated data type is a {@link DoubleValue}.
  */
 @SuppressWarnings("serial")
 @PublicEvolving
 public class DoubleZeroConvergence implements ConvergenceCriterion<DoubleValue> {
 
-	/**
-	 * Returns true, if the aggregator value is zero, false otherwise.
-	 * 
-	 * @param iteration The number of the iteration superstep. Ignored in this case.
-	 * @param value The aggregator value, which is compared to zero.
-	 * @return True, if the aggregator value is zero, false otherwise.
-	 */
-	@Override
-	public boolean isConverged(int iteration, DoubleValue value) {
-		return value.getValue() == 0;
-	}
+    /**
+     * Returns true, if the aggregator value is zero, false otherwise.
+     *
+     * @param iteration The number of the iteration superstep. Ignored in this case.
+     * @param value The aggregator value, which is compared to zero.
+     * @return True, if the aggregator value is zero, false otherwise.
+     */
+    @Override
+    public boolean isConverged(int iteration, DoubleValue value) {
+        return value.getValue() == 0;
+    }
 }

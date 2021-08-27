@@ -17,23 +17,21 @@
  */
 package org.apache.flink.runtime.state.heap;
 
-/**
- * Test for {@link HeapPriorityQueueSet}.
- */
+/** Test for {@link HeapPriorityQueueSet}. */
 public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
 
-	@Override
-	protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
-		return new HeapPriorityQueueSet<>(
-			TEST_ELEMENT_PRIORITY_COMPARATOR,
-			KEY_EXTRACTOR_FUNCTION,
-			initialCapacity,
-			KEY_GROUP_RANGE,
-			KEY_GROUP_RANGE.getNumberOfKeyGroups());
-	}
+    @Override
+    protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
+        return new HeapPriorityQueueSet<>(
+                TEST_ELEMENT_PRIORITY_COMPARATOR,
+                KEY_EXTRACTOR_FUNCTION,
+                initialCapacity,
+                KEY_GROUP_RANGE,
+                KEY_GROUP_RANGE.getNumberOfKeyGroups());
+    }
 
-	@Override
-	protected boolean testSetSemanticsAgainstDuplicateElements() {
-		return true;
-	}
+    @Override
+    protected boolean testSetSemanticsAgainstDuplicateElements() {
+        return true;
+    }
 }

@@ -29,96 +29,99 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A record-oriented runtime result writer API for producing results.
  *
- * <p>If {@link ResultPartitionWriter#close()} is called before {@link ResultPartitionWriter#fail(Throwable)} or
- * {@link ResultPartitionWriter#finish()}, it abruptly triggers failure and cancellation of production.
- * In this case {@link ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release
- * all resources associated the the partition and propagate failure cause to the consumer if possible.
+ * <p>If {@link ResultPartitionWriter#close()} is called before {@link
+ * ResultPartitionWriter#fail(Throwable)} or {@link ResultPartitionWriter#finish()}, it abruptly
+ * triggers failure and cancellation of production. In this case {@link
+ * ResultPartitionWriter#fail(Throwable)} still needs to be called afterwards to fully release all
+ * resources associated the the partition and propagate failure cause to the consumer if possible.
  */
 public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvider {
 
-	/**
-	 * Setup partition, potentially heavy-weight, blocking operation comparing to just creation.
-	 */
-	void setup() throws IOException;
+    /** Setup partition, potentially heavy-weight, blocking operation comparing to just creation. */
+    void setup() throws IOException;
 
-	ResultPartitionID getPartitionId();
+    ResultPartitionID getPartitionId();
 
-	int getNumberOfSubpartitions();
+    int getNumberOfSubpartitions();
 
-	int getNumTargetKeyGroups();
+    int getNumTargetKeyGroups();
 
-	/**
-	 * Writes the given serialized record to the target subpartition.
-	 */
-	void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
+    /** Writes the given serialized record to the target subpartition. */
+    void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
-	/**
-	 * Writes the given serialized record to all subpartitions. One can also achieve the same effect by emitting
-	 * the same record to all subpartitions one by one, however, this method can have better performance for the
-	 * underlying implementation can do some optimizations, for example coping the given serialized record only
-	 * once to a shared channel which can be consumed by all subpartitions.
-	 */
-	void broadcastRecord(ByteBuffer record) throws IOException;
+    /**
+     * Writes the given serialized record to all subpartitions. One can also achieve the same effect
+     * by emitting the same record to all subpartitions one by one, however, this method can have
+     * better performance for the underlying implementation can do some optimizations, for example
+     * coping the given serialized record only once to a shared channel which can be consumed by all
+     * subpartitions.
+     */
+    void broadcastRecord(ByteBuffer record) throws IOException;
 
-	/**
-	 * Writes the given {@link AbstractEvent} to all channels.
-	 */
-	void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;
+    /** Writes the given {@link AbstractEvent} to all channels. */
+    void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;
 
-	/**
-	 * Sets the metric group for the {@link ResultPartitionWriter}.
-	 */
-	void setMetricGroup(TaskIOMetricGroup metrics);
+    /**
+     * Notifies the downstream tasks that this {@code ResultPartitionWriter} have emitted all the
+     * user records.
+     */
+    void notifyEndOfData() throws IOException;
 
-	/**
-	 * Returns a reader for the subpartition with the given index.
-	 */
-	ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException;
+    /**
+     * Gets the future indicating whether all the records has been processed by the downstream
+     * tasks.
+     */
+    CompletableFuture<Void> getAllDataProcessedFuture();
 
-	/**
-	 * Manually trigger the consumption of data from all subpartitions.
-	 */
-	void flushAll();
+    /** Sets the metric group for the {@link ResultPartitionWriter}. */
+    void setMetricGroup(TaskIOMetricGroup metrics);
 
-	/**
-	 * Manually trigger the consumption of data from the given subpartitions.
-	 */
-	void flush(int subpartitionIndex);
+    /** Returns a reader for the subpartition with the given index. */
+    ResultSubpartitionView createSubpartitionView(
+            int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
-	/**
-	 * Fail the production of the partition.
-	 *
-	 * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort basis. This call also
-	 * leads to the release of all resources associated with the partition. Closing of the partition is still needed
-	 * afterwards if it has not been done before.
-	 *
-	 * @param throwable failure cause
-	 */
-	void fail(@Nullable Throwable throwable);
+    /** Manually trigger the consumption of data from all subpartitions. */
+    void flushAll();
 
-	/**
-	 * Successfully finish the production of the partition.
-	 *
-	 * <p>Closing of partition is still needed afterwards.
-	 */
-	void finish() throws IOException;
+    /** Manually trigger the consumption of data from the given subpartitions. */
+    void flush(int subpartitionIndex);
 
-	boolean isFinished();
+    /**
+     * Fail the production of the partition.
+     *
+     * <p>This method propagates non-{@code null} failure causes to consumers on a best-effort
+     * basis. This call also leads to the release of all resources associated with the partition.
+     * Closing of the partition is still needed afterwards if it has not been done before.
+     *
+     * @param throwable failure cause
+     */
+    void fail(@Nullable Throwable throwable);
 
-	/**
-	 * Releases the partition writer which releases the produced data and no reader can consume the
-	 * partition any more.
-	 */
-	void release(Throwable cause);
+    /**
+     * Successfully finish the production of the partition.
+     *
+     * <p>Closing of partition is still needed afterwards.
+     */
+    void finish() throws IOException;
 
-	boolean isReleased();
+    boolean isFinished();
 
-	/**
-	 * Closes the partition writer which releases the allocated resource, for example the buffer pool.
-	 */
-	void close() throws Exception;
+    /**
+     * Releases the partition writer which releases the produced data and no reader can consume the
+     * partition any more.
+     */
+    void release(Throwable cause);
+
+    boolean isReleased();
+
+    /**
+     * Closes the partition writer which releases the allocated resource, for example the buffer
+     * pool.
+     */
+    void close() throws Exception;
 }

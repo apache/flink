@@ -30,118 +30,114 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link UnionIterator}.
- */
+/** Tests for the {@link UnionIterator}. */
 public class UnionIteratorTest {
 
-	@Test
-	public void testUnion() {
-		try {
-			UnionIterator<Integer> iter = new UnionIterator<>();
+    @Test
+    public void testUnion() {
+        try {
+            UnionIterator<Integer> iter = new UnionIterator<>();
 
-			// should succeed and be empty
-			assertFalse(iter.iterator().hasNext());
+            // should succeed and be empty
+            assertFalse(iter.iterator().hasNext());
 
-			iter.clear();
+            iter.clear();
 
-			try {
-				iter.iterator().next();
-				fail("should fail with an exception");
-			} catch (NoSuchElementException e) {
-				// expected
-			}
+            try {
+                iter.iterator().next();
+                fail("should fail with an exception");
+            } catch (NoSuchElementException e) {
+                // expected
+            }
 
-			iter.clear();
-			iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-			iter.addList(Collections.<Integer>emptyList());
-			iter.addList(Arrays.asList(8, 9, 10, 11));
+            iter.clear();
+            iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
+            iter.addList(Collections.<Integer>emptyList());
+            iter.addList(Arrays.asList(8, 9, 10, 11));
 
-			int val = 1;
-			for (int i : iter) {
-				assertEquals(val++, i);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            int val = 1;
+            for (int i : iter) {
+                assertEquals(val++, i);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testTraversableOnce() {
-		try {
-			UnionIterator<Integer> iter = new UnionIterator<>();
+    @Test
+    public void testTraversableOnce() {
+        try {
+            UnionIterator<Integer> iter = new UnionIterator<>();
 
-			// should succeed
-			iter.iterator();
+            // should succeed
+            iter.iterator();
 
-			// should fail
-			try {
-				iter.iterator();
-				fail("should fail with an exception");
-			} catch (TraversableOnceException e) {
-				// expected
-			}
+            // should fail
+            try {
+                iter.iterator();
+                fail("should fail with an exception");
+            } catch (TraversableOnceException e) {
+                // expected
+            }
 
-			// should fail again
-			try {
-				iter.iterator();
-				fail("should fail with an exception");
-			} catch (TraversableOnceException e) {
-				// expected
-			}
+            // should fail again
+            try {
+                iter.iterator();
+                fail("should fail with an exception");
+            } catch (TraversableOnceException e) {
+                // expected
+            }
 
-			// reset the thing, keep it empty
-			iter.clear();
+            // reset the thing, keep it empty
+            iter.clear();
 
-			// should succeed
-			iter.iterator();
+            // should succeed
+            iter.iterator();
 
-			// should fail
-			try {
-				iter.iterator();
-				fail("should fail with an exception");
-			} catch (TraversableOnceException e) {
-				// expected
-			}
+            // should fail
+            try {
+                iter.iterator();
+                fail("should fail with an exception");
+            } catch (TraversableOnceException e) {
+                // expected
+            }
 
-			// should fail again
-			try {
-				iter.iterator();
-				fail("should fail with an exception");
-			} catch (TraversableOnceException e) {
-				// expected
-			}
+            // should fail again
+            try {
+                iter.iterator();
+                fail("should fail with an exception");
+            } catch (TraversableOnceException e) {
+                // expected
+            }
 
-			// reset the thing, add some data
-			iter.clear();
-			iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
+            // reset the thing, add some data
+            iter.clear();
+            iter.addList(Arrays.asList(1, 2, 3, 4, 5, 6, 7));
 
-			// should succeed
-			Iterator<Integer> ints = iter.iterator();
-			assertNotNull(ints.next());
-			assertNotNull(ints.next());
-			assertNotNull(ints.next());
+            // should succeed
+            Iterator<Integer> ints = iter.iterator();
+            assertNotNull(ints.next());
+            assertNotNull(ints.next());
+            assertNotNull(ints.next());
 
-			// should fail if called in the middle of operations
-			try {
-				iter.iterator();
-				fail("should fail with an exception");
-			} catch (TraversableOnceException e) {
-				// expected
-			}
+            // should fail if called in the middle of operations
+            try {
+                iter.iterator();
+                fail("should fail with an exception");
+            } catch (TraversableOnceException e) {
+                // expected
+            }
 
-			// reset the thing, keep it empty
-			iter.clear();
+            // reset the thing, keep it empty
+            iter.clear();
 
-			// should succeed again
-			assertFalse(iter.iterator().hasNext());
+            // should succeed again
+            assertFalse(iter.iterator().hasNext());
 
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

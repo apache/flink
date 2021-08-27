@@ -26,35 +26,35 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
 /**
- * Enforces that all union nodes have the same parallelism as their successor (there must be only one!)
- * and that the union node and its successor are connected by a forward ship strategy.
+ * Enforces that all union nodes have the same parallelism as their successor (there must be only
+ * one!) and that the union node and its successor are connected by a forward ship strategy.
  */
 public class UnionParallelismAndForwardEnforcer implements Visitor<OptimizerNode> {
 
-	@Override
-	public boolean preVisit(OptimizerNode node) {
+    @Override
+    public boolean preVisit(OptimizerNode node) {
 
-		// if the current node is a union
-		if (node instanceof BinaryUnionNode) {
-			int parallelism = -1;
-			// set ship strategy of all outgoing connections to FORWARD.
-			for (DagConnection conn : node.getOutgoingConnections()) {
-				parallelism = conn.getTarget().getParallelism();
-				conn.setShipStrategy(ShipStrategyType.FORWARD);
-			}
-			// adjust parallelism to be same as successor
-			node.setParallelism(parallelism);
-		}
+        // if the current node is a union
+        if (node instanceof BinaryUnionNode) {
+            int parallelism = -1;
+            // set ship strategy of all outgoing connections to FORWARD.
+            for (DagConnection conn : node.getOutgoingConnections()) {
+                parallelism = conn.getTarget().getParallelism();
+                conn.setShipStrategy(ShipStrategyType.FORWARD);
+            }
+            // adjust parallelism to be same as successor
+            node.setParallelism(parallelism);
+        }
 
-		// traverse the whole plan
-		return true;
-	}
+        // traverse the whole plan
+        return true;
+    }
 
-	@Override
-	public void postVisit(OptimizerNode node) {
-		// if required, recurse into the step function
-		if (node instanceof IterationNode) {
-			((IterationNode) node).acceptForStepFunction(this);
-		}
-	}
+    @Override
+    public void postVisit(OptimizerNode node) {
+        // if required, recurse into the step function
+        if (node instanceof IterationNode) {
+            ((IterationNode) node).acceptForStepFunction(this);
+        }
+    }
 }

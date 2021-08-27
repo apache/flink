@@ -23,38 +23,33 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 
-/**
- * Metric registry which does nothing.
- */
+/** Metric registry which does nothing. */
 public class NoOpMetricRegistry implements MetricRegistry {
-	private static final char delimiter = '.';
-	private static final ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
+    private static final char delimiter = '.';
+    private static final ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
 
-	public static final MetricRegistry INSTANCE = new NoOpMetricRegistry();
+    public static final MetricRegistry INSTANCE = new NoOpMetricRegistry();
 
-	public NoOpMetricRegistry() {
-	}
+    public NoOpMetricRegistry() {}
 
-	@Override
-	public char getDelimiter() {
-		return delimiter;
-	}
+    @Override
+    public char getDelimiter() {
+        return delimiter;
+    }
 
-	@Override
-	public int getNumberReporters() {
-		return 0;
-	}
+    @Override
+    public int getNumberReporters() {
+        return 0;
+    }
 
-	@Override
-	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-	}
+    @Override
+    public void register(Metric metric, String metricName, AbstractMetricGroup group) {}
 
-	@Override
-	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-	}
+    @Override
+    public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
 
-	@Override
-	public ScopeFormats getScopeFormats() {
-		return scopeFormats;
-	}
+    @Override
+    public ScopeFormats getScopeFormats() {
+        return scopeFormats;
+    }
 }

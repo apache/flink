@@ -25,40 +25,38 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import java.util.List;
 import java.util.Map;
 
-/**
- * The task to add splits.
- */
+/** The task to add splits. */
 class AddSplitsTask<SplitT extends SourceSplit> implements SplitFetcherTask {
 
-	private final SplitReader<?, SplitT> splitReader;
-	private final List<SplitT> splitsToAdd;
-	private final Map<String, SplitT> assignedSplits;
+    private final SplitReader<?, SplitT> splitReader;
+    private final List<SplitT> splitsToAdd;
+    private final Map<String, SplitT> assignedSplits;
 
-	AddSplitsTask(
-			SplitReader<?, SplitT> splitReader,
-			List<SplitT> splitsToAdd,
-			Map<String, SplitT> assignedSplits) {
-		this.splitReader = splitReader;
-		this.splitsToAdd = splitsToAdd;
-		this.assignedSplits = assignedSplits;
-	}
+    AddSplitsTask(
+            SplitReader<?, SplitT> splitReader,
+            List<SplitT> splitsToAdd,
+            Map<String, SplitT> assignedSplits) {
+        this.splitReader = splitReader;
+        this.splitsToAdd = splitsToAdd;
+        this.assignedSplits = assignedSplits;
+    }
 
-	@Override
-	public boolean run() {
-		for (SplitT s : splitsToAdd) {
-			assignedSplits.put(s.splitId(), s);
-		}
-		splitReader.handleSplitsChanges(new SplitsAddition<>(splitsToAdd));
-		return true;
-	}
+    @Override
+    public boolean run() {
+        for (SplitT s : splitsToAdd) {
+            assignedSplits.put(s.splitId(), s);
+        }
+        splitReader.handleSplitsChanges(new SplitsAddition<>(splitsToAdd));
+        return true;
+    }
 
-	@Override
-	public void wakeUp() {
-		// Do nothing.
-	}
+    @Override
+    public void wakeUp() {
+        // Do nothing.
+    }
 
-	@Override
-	public String toString() {
-		return String.format("AddSplitsTask: [%s]", splitsToAdd);
-	}
+    @Override
+    public String toString() {
+        return String.format("AddSplitsTask: [%s]", splitsToAdd);
+    }
 }

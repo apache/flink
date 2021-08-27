@@ -26,49 +26,48 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for {@link org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler}.
- */
-public class ShutdownHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+/** Message headers for {@link org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler}. */
+public class ShutdownHeaders
+        implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-	private static final ShutdownHeaders INSTANCE = new ShutdownHeaders();
+    private static final ShutdownHeaders INSTANCE = new ShutdownHeaders();
 
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.DELETE;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.DELETE;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/cluster";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/cluster";
+    }
 
-	public static ShutdownHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static ShutdownHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Shuts down the cluster";
-	}
+    @Override
+    public String getDescription() {
+        return "Shuts down the cluster";
+    }
 }

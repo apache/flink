@@ -23,6 +23,7 @@ import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.util.OrcBulkWriterTestUtil;
 import org.apache.flink.orc.vector.RecordVectorizer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -36,48 +37,46 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-/**
- * Unit test for the ORC BulkWriter implementation.
- */
+/** Unit test for the ORC BulkWriter implementation. */
 public class OrcBulkWriterTest {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	private final String schema = "struct<_col0:string,_col1:int>";
-	private final List<Record> input = Arrays.asList(
-		new Record("Shiv", 44), new Record("Jesse", 23), new Record("Walt", 50));
+    private final String schema = "struct<_col0:string,_col1:int>";
+    private final List<Record> input =
+            Arrays.asList(new Record("Shiv", 44), new Record("Jesse", 23), new Record("Walt", 50));
 
-	@Test
-	public void testOrcBulkWriter() throws Exception {
-		final File outDir = TEMPORARY_FOLDER.newFolder();
-		final Properties writerProps = new Properties();
-		writerProps.setProperty("orc.compress", "LZ4");
+    @Test
+    public void testOrcBulkWriter() throws Exception {
+        final File outDir = TEMPORARY_FOLDER.newFolder();
+        final Properties writerProps = new Properties();
+        writerProps.setProperty("orc.compress", "LZ4");
 
-		final OrcBulkWriterFactory<Record> writer = new OrcBulkWriterFactory<>(
-			new RecordVectorizer(schema), writerProps, new Configuration());
+        final OrcBulkWriterFactory<Record> writer =
+                new OrcBulkWriterFactory<>(
+                        new RecordVectorizer(schema), writerProps, new Configuration());
 
-		StreamingFileSink<Record> sink = StreamingFileSink
-			.forBulkFormat(new Path(outDir.toURI()), writer)
-			.withBucketCheckInterval(10000)
-			.build();
+        StreamingFileSink<Record> sink =
+                StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
+                        .withBucketCheckInterval(10000)
+                        .build();
 
-		try (OneInputStreamOperatorTestHarness<Record, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
-				new StreamSink<>(sink), 1, 1, 0)) {
+        try (OneInputStreamOperatorTestHarness<Record, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
 
-			testHarness.setup();
-			testHarness.open();
+            testHarness.setup();
+            testHarness.open();
 
-			int time = 0;
-			for (final Record record : input) {
-				testHarness.processElement(record, ++time);
-			}
+            int time = 0;
+            for (final Record record : input) {
+                testHarness.processElement(record, ++time);
+            }
 
-			testHarness.snapshot(1, ++time);
-			testHarness.notifyOfCompletedCheckpoint(1);
+            testHarness.snapshot(1, ++time);
+            testHarness.notifyOfCompletedCheckpoint(1);
 
-			OrcBulkWriterTestUtil.validate(outDir, input);
-		}
-	}
-
+            OrcBulkWriterTestUtil.validate(outDir, input);
+        }
+    }
 }

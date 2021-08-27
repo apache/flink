@@ -19,24 +19,22 @@ package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 
-/**
- * A {@link FunctionSnapshotContext} for testing purpose.
- */
+/** A {@link FunctionSnapshotContext} for testing purpose. */
 public class MockFunctionSnapshotContext implements FunctionSnapshotContext {
 
-	private final long checkpointId;
+    private final long checkpointId;
 
-	public MockFunctionSnapshotContext(long checkpointId) {
-		this.checkpointId = checkpointId;
-	}
+    public MockFunctionSnapshotContext(long checkpointId) {
+        this.checkpointId = checkpointId;
+    }
 
-	@Override
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    @Override
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	@Override
-	public long getCheckpointTimestamp() {
-		return System.currentTimeMillis();
-	}
+    @Override
+    public long getCheckpointTimestamp() {
+        return System.currentTimeMillis();
+    }
 }

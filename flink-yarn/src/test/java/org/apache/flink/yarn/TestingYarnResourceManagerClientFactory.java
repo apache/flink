@@ -23,20 +23,27 @@ import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 
 import java.util.function.BiFunction;
 
-/**
- * A {@link YarnResourceManagerClientFactory} implementation for testing.
- */
+/** A {@link YarnResourceManagerClientFactory} implementation for testing. */
 public class TestingYarnResourceManagerClientFactory implements YarnResourceManagerClientFactory {
-	private final BiFunction<Integer, AMRMClientAsync.CallbackHandler, AMRMClientAsync<AMRMClient.ContainerRequest>> createResourceManagerClientFunction;
+    private final BiFunction<
+                    Integer,
+                    AMRMClientAsync.CallbackHandler,
+                    AMRMClientAsync<AMRMClient.ContainerRequest>>
+            createResourceManagerClientFunction;
 
-	TestingYarnResourceManagerClientFactory(BiFunction<Integer, AMRMClientAsync.CallbackHandler, AMRMClientAsync<AMRMClient.ContainerRequest>> createResourceManagerClientFunction) {
-		this.createResourceManagerClientFunction = createResourceManagerClientFunction;
-	}
+    TestingYarnResourceManagerClientFactory(
+            BiFunction<
+                            Integer,
+                            AMRMClientAsync.CallbackHandler,
+                            AMRMClientAsync<AMRMClient.ContainerRequest>>
+                    createResourceManagerClientFunction) {
+        this.createResourceManagerClientFunction = createResourceManagerClientFunction;
+    }
 
-	@Override
-	public AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
-		int yarnHeartbeatIntervalMillis,
-		AMRMClientAsync.CallbackHandler callbackHandler) {
-		return createResourceManagerClientFunction.apply(yarnHeartbeatIntervalMillis, callbackHandler);
-	}
+    @Override
+    public AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
+            int yarnHeartbeatIntervalMillis, AMRMClientAsync.CallbackHandler callbackHandler) {
+        return createResourceManagerClientFunction.apply(
+                yarnHeartbeatIntervalMillis, callbackHandler);
+    }
 }

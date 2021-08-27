@@ -24,11 +24,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
  * Testing implementation of {@link CheckpointFailureManager.FailJobCallback} which does nothing.
  */
 public enum NoOpFailJobCall implements CheckpointFailureManager.FailJobCallback {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public void failJob(Throwable cause) {}
+    @Override
+    public void failJob(Throwable cause) {}
 
-	@Override
-	public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
+    @Override
+    public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
 }

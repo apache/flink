@@ -27,61 +27,64 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A class containing all the supported deployment target names for Kubernetes.
- */
+/** A class containing all the supported deployment target names for Kubernetes. */
 @Internal
 public enum KubernetesDeploymentTarget {
+    SESSION("kubernetes-session"),
+    APPLICATION("kubernetes-application");
 
-	SESSION("kubernetes-session"),
-	APPLICATION("kubernetes-application");
+    private final String name;
 
-	private final String name;
+    KubernetesDeploymentTarget(final String name) {
+        this.name = checkNotNull(name);
+    }
 
-	KubernetesDeploymentTarget(final String name) {
-		this.name = checkNotNull(name);
-	}
+    public static KubernetesDeploymentTarget fromConfig(final Configuration configuration) {
+        checkNotNull(configuration);
 
-	public static KubernetesDeploymentTarget fromConfig(final Configuration configuration) {
-		checkNotNull(configuration);
+        final String deploymentTargetStr = configuration.get(DeploymentOptions.TARGET);
+        final KubernetesDeploymentTarget deploymentTarget = getFromName(deploymentTargetStr);
 
-		final String deploymentTargetStr = configuration.get(DeploymentOptions.TARGET);
-		final KubernetesDeploymentTarget deploymentTarget = getFromName(deploymentTargetStr);
+        if (deploymentTarget == null) {
+            throw new IllegalArgumentException(
+                    "Unknown Kubernetes deployment target \""
+                            + deploymentTargetStr
+                            + "\"."
+                            + " The available options are: "
+                            + options());
+        }
+        return deploymentTarget;
+    }
 
-		if (deploymentTarget == null) {
-			throw new IllegalArgumentException(
-					"Unknown Kubernetes deployment target \"" + deploymentTargetStr + "\"." +
-							" The available options are: " + options());
-		}
-		return deploymentTarget;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public String getName() {
-		return name;
-	}
+    public static boolean isValidKubernetesTarget(final String configValue) {
+        return configValue != null
+                && Arrays.stream(KubernetesDeploymentTarget.values())
+                        .anyMatch(
+                                kubernetesDeploymentTarget ->
+                                        kubernetesDeploymentTarget.name.equalsIgnoreCase(
+                                                configValue));
+    }
 
-	public static boolean isValidKubernetesTarget(final String configValue) {
-		return configValue != null &&
-				Arrays.stream(KubernetesDeploymentTarget.values())
-						.anyMatch(kubernetesDeploymentTarget -> kubernetesDeploymentTarget.name.equalsIgnoreCase(configValue));
-	}
+    private static KubernetesDeploymentTarget getFromName(final String deploymentTarget) {
+        if (deploymentTarget == null) {
+            return null;
+        }
 
-	private static KubernetesDeploymentTarget getFromName(final String deploymentTarget) {
-		if (deploymentTarget == null) {
-			return null;
-		}
+        if (SESSION.name.equalsIgnoreCase(deploymentTarget)) {
+            return SESSION;
+        } else if (APPLICATION.name.equalsIgnoreCase(deploymentTarget)) {
+            return APPLICATION;
+        }
+        return null;
+    }
 
-		if (SESSION.name.equalsIgnoreCase(deploymentTarget)) {
-			return SESSION;
-		} else if (APPLICATION.name.equalsIgnoreCase(deploymentTarget)) {
-			return APPLICATION;
-		}
-		return null;
-	}
-
-	private static String options() {
-		return Arrays.stream(KubernetesDeploymentTarget.values())
-				.map(KubernetesDeploymentTarget::getName)
-				.collect(Collectors.joining(","));
-	}
+    private static String options() {
+        return Arrays.stream(KubernetesDeploymentTarget.values())
+                .map(KubernetesDeploymentTarget::getName)
+                .collect(Collectors.joining(","));
+    }
 }

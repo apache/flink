@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 
 import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
 import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
@@ -30,28 +30,34 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Interface for a Kinesis proxy using AWS SDK v2.x operating on multiple Kinesis streams within the same AWS service region.
+ * Interface for a Kinesis proxy using AWS SDK v2.x operating on multiple Kinesis streams within the
+ * same AWS service region.
  */
 @Internal
 public interface KinesisProxyV2Interface {
 
-	DescribeStreamResponse describeStream(String stream) throws InterruptedException, ExecutionException;
+    DescribeStreamSummaryResponse describeStreamSummary(String stream)
+            throws InterruptedException, ExecutionException;
 
-	DescribeStreamConsumerResponse describeStreamConsumer(final String streamConsumerArn) throws InterruptedException, ExecutionException;
+    DescribeStreamConsumerResponse describeStreamConsumer(final String streamConsumerArn)
+            throws InterruptedException, ExecutionException;
 
-	DescribeStreamConsumerResponse describeStreamConsumer(final String streamArn, final String consumerName) throws InterruptedException, ExecutionException;
+    DescribeStreamConsumerResponse describeStreamConsumer(
+            final String streamArn, final String consumerName)
+            throws InterruptedException, ExecutionException;
 
-	RegisterStreamConsumerResponse registerStreamConsumer(final String streamArn, final String consumerName) throws InterruptedException, ExecutionException;
+    RegisterStreamConsumerResponse registerStreamConsumer(
+            final String streamArn, final String consumerName)
+            throws InterruptedException, ExecutionException;
 
-	DeregisterStreamConsumerResponse deregisterStreamConsumer(final String consumerArn) throws InterruptedException, ExecutionException;
+    DeregisterStreamConsumerResponse deregisterStreamConsumer(final String consumerArn)
+            throws InterruptedException, ExecutionException;
 
-	CompletableFuture<Void> subscribeToShard(SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
+    CompletableFuture<Void> subscribeToShard(
+            SubscribeToShardRequest request, SubscribeToShardResponseHandler responseHandler);
 
-	/**
-	 * Destroy any open resources used by the factory.
-	 */
-	default void close() {
-		// Do nothing by default
-	}
-
+    /** Destroy any open resources used by the factory. */
+    default void close() {
+        // Do nothing by default
+    }
 }

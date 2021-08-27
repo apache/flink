@@ -18,84 +18,125 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
- */
+import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+
+/** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
+    private static final String STATE_CHANGE_LOG_CONFIG_ON = "on";
+    private static final String STATE_CHANGE_LOG_CONFIG_UNSET = "unset";
+    private static final String STATE_CHANGE_LOG_CONFIG_RAND = "random";
+    private static final boolean RANDOMIZE_CHECKPOINTING_CONFIG =
+            Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
+    private static final String STATE_CHANGE_LOG_CONFIG =
+            System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
+    private static final boolean RANDOMIZE_BUFFER_DEBLOAT_CONFIG =
+            Boolean.parseBoolean(System.getProperty("buffer-debloat.randomization", "false"));
 
-	public TestStreamEnvironment(
-			MiniCluster miniCluster,
-			int parallelism,
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
-		super(
-				new MiniClusterPipelineExecutorServiceLoader(miniCluster),
-				MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
-				null);
+    public TestStreamEnvironment(
+            MiniCluster miniCluster,
+            int parallelism,
+            Collection<Path> jarFiles,
+            Collection<URL> classPaths) {
+        super(
+                new MiniClusterPipelineExecutorServiceLoader(miniCluster),
+                MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+                null);
 
-		setParallelism(parallelism);
-	}
+        setParallelism(parallelism);
+    }
 
-	public TestStreamEnvironment(
-			MiniCluster miniCluster,
-			int parallelism) {
-		this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
-	}
+    public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
+        this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism and the specified jar files and class
-	 * paths.
-	 *
-	 * @param miniCluster The MiniCluster to execute jobs on.
-	 * @param parallelism The default parallelism for the test programs.
-	 * @param jarFiles Additional jar files to execute the job with
-	 * @param classpaths Additional class paths to execute the job with
-	 */
-	public static void setAsContext(
-			final MiniCluster miniCluster,
-			final int parallelism,
-			final Collection<Path> jarFiles,
-			final Collection<URL> classpaths) {
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism and the specified jar files and class
+     * paths.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     * @param jarFiles Additional jar files to execute the job with
+     * @param classpaths Additional class paths to execute the job with
+     */
+    public static void setAsContext(
+            final MiniCluster miniCluster,
+            final int parallelism,
+            final Collection<Path> jarFiles,
+            final Collection<URL> classpaths) {
 
-		StreamExecutionEnvironmentFactory factory = () -> new TestStreamEnvironment(
-				miniCluster,
-				parallelism,
-				jarFiles,
-				classpaths);
+        StreamExecutionEnvironmentFactory factory =
+                conf -> {
+                    TestStreamEnvironment env =
+                            new TestStreamEnvironment(
+                                    miniCluster, parallelism, jarFiles, classpaths);
+                    if (RANDOMIZE_CHECKPOINTING_CONFIG) {
+                        randomize(
+                                conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+                        randomize(
+                                conf,
+                                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                                Duration.ofSeconds(0),
+                                Duration.ofMillis(100),
+                                Duration.ofSeconds(2));
+                    }
+                    if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                            conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+                        }
+                    } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
+                            STATE_CHANGE_LOG_CONFIG_RAND)) {
+                        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
+                            randomize(
+                                    conf,
+                                    CheckpointingOptions.ENABLE_STATE_CHANGE_LOG,
+                                    true,
+                                    false);
+                        }
+                    }
+                    if (RANDOMIZE_BUFFER_DEBLOAT_CONFIG) {
+                        randomize(conf, TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true, false);
+                    }
+                    env.configure(conf, env.getUserClassloader());
+                    return env;
+                };
 
-		initializeContextEnvironment(factory);
-	}
+        initializeContextEnvironment(factory);
+    }
 
-	/**
-	 * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
-	 * the given cluster with the given default parallelism.
-	 *
-	 * @param miniCluster The MiniCluster to execute jobs on.
-	 * @param parallelism The default parallelism for the test programs.
-	 */
-	public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
-		setAsContext(
-				miniCluster,
-				parallelism,
-				Collections.emptyList(),
-				Collections.emptyList());
-	}
+    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
+        return !configuration.get(LOCAL_RECOVERY);
+    }
 
-	/**
-	 * Resets the streaming context environment to null.
-	 */
-	public static void unsetAsContext() {
-		resetContextEnvironment();
-	}
+    /**
+     * Sets the streaming context environment to a TestStreamEnvironment that runs its programs on
+     * the given cluster with the given default parallelism.
+     *
+     * @param miniCluster The MiniCluster to execute jobs on.
+     * @param parallelism The default parallelism for the test programs.
+     */
+    public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
+        setAsContext(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+    }
+
+    /** Resets the streaming context environment to null. */
+    public static void unsetAsContext() {
+        resetContextEnvironment();
+    }
 }

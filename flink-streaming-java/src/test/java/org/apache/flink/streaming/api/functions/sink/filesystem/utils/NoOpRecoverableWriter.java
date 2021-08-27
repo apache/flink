@@ -28,48 +28,51 @@ import java.io.IOException;
 /**
  * A default implementation of the {@link RecoverableWriter} that does nothing.
  *
- * <p>This is to avoid to have to implement all methods for every implementation
- * used in tests.
+ * <p>This is to avoid to have to implement all methods for every implementation used in tests.
  */
 public class NoOpRecoverableWriter implements RecoverableWriter {
 
-	@Override
-	public RecoverableFsDataOutputStream open(Path path) throws IOException {
-		return null;
-	}
+    @Override
+    public RecoverableFsDataOutputStream open(Path path) throws IOException {
+        return null;
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream recover(RecoverableWriter.ResumeRecoverable resumable) throws IOException {
-		return null;
-	}
+    @Override
+    public RecoverableFsDataOutputStream recover(RecoverableWriter.ResumeRecoverable resumable)
+            throws IOException {
+        return null;
+    }
 
-	@Override
-	public boolean requiresCleanupOfRecoverableState() {
-		return false;
-	}
+    @Override
+    public boolean requiresCleanupOfRecoverableState() {
+        return false;
+    }
 
-	@Override
-	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		return false;
-	}
+    @Override
+    public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+        return false;
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream.Committer recoverForCommit(RecoverableWriter.CommitRecoverable resumable) throws IOException {
-		return null;
-	}
+    @Override
+    public RecoverableFsDataOutputStream.Committer recoverForCommit(
+            RecoverableWriter.CommitRecoverable resumable) throws IOException {
+        return null;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<RecoverableWriter.CommitRecoverable> getCommitRecoverableSerializer() {
-		return null;
-	}
+    @Override
+    public SimpleVersionedSerializer<RecoverableWriter.CommitRecoverable>
+            getCommitRecoverableSerializer() {
+        return null;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> getResumeRecoverableSerializer() {
-		return null;
-	}
+    @Override
+    public SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable>
+            getResumeRecoverableSerializer() {
+        return null;
+    }
 
-	@Override
-	public boolean supportsResume() {
-		return false;
-	}
+    @Override
+    public boolean supportsResume() {
+        return false;
+    }
 }

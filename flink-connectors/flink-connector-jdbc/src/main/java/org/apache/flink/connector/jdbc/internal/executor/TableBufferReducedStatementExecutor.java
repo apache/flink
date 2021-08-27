@@ -32,77 +32,80 @@ import java.util.function.Function;
  * Currently, this statement executor is only used for table/sql to buffer insert/update/delete
  * events, and reduce them in buffer before submit to external database.
  */
-public final class TableBufferReducedStatementExecutor implements JdbcBatchStatementExecutor<RowData> {
+public final class TableBufferReducedStatementExecutor
+        implements JdbcBatchStatementExecutor<RowData> {
 
-	private final JdbcBatchStatementExecutor<RowData> upsertExecutor;
-	private final JdbcBatchStatementExecutor<RowData> deleteExecutor;
-	private final Function<RowData, RowData> keyExtractor;
-	private final Function<RowData, RowData> valueTransform;
-	// the mapping is [KEY, <+/-, VALUE>]
-	private final Map<RowData, Tuple2<Boolean, RowData>> reduceBuffer = new HashMap<>();
+    private final JdbcBatchStatementExecutor<RowData> upsertExecutor;
+    private final JdbcBatchStatementExecutor<RowData> deleteExecutor;
+    private final Function<RowData, RowData> keyExtractor;
+    private final Function<RowData, RowData> valueTransform;
+    // the mapping is [KEY, <+/-, VALUE>]
+    private final Map<RowData, Tuple2<Boolean, RowData>> reduceBuffer = new HashMap<>();
 
-	public TableBufferReducedStatementExecutor(
-			JdbcBatchStatementExecutor<RowData> upsertExecutor,
-			JdbcBatchStatementExecutor<RowData> deleteExecutor,
-			Function<RowData, RowData> keyExtractor,
-			Function<RowData, RowData> valueTransform) {
-		this.upsertExecutor = upsertExecutor;
-		this.deleteExecutor = deleteExecutor;
-		this.keyExtractor = keyExtractor;
-		this.valueTransform = valueTransform;
-	}
+    public TableBufferReducedStatementExecutor(
+            JdbcBatchStatementExecutor<RowData> upsertExecutor,
+            JdbcBatchStatementExecutor<RowData> deleteExecutor,
+            Function<RowData, RowData> keyExtractor,
+            Function<RowData, RowData> valueTransform) {
+        this.upsertExecutor = upsertExecutor;
+        this.deleteExecutor = deleteExecutor;
+        this.keyExtractor = keyExtractor;
+        this.valueTransform = valueTransform;
+    }
 
-	@Override
-	public void prepareStatements(Connection connection) throws SQLException {
-		upsertExecutor.prepareStatements(connection);
-		deleteExecutor.prepareStatements(connection);
-	}
+    @Override
+    public void prepareStatements(Connection connection) throws SQLException {
+        upsertExecutor.prepareStatements(connection);
+        deleteExecutor.prepareStatements(connection);
+    }
 
-	@Override
-	public void addToBatch(RowData record) throws SQLException {
-		RowData key = keyExtractor.apply(record);
-		boolean flag = changeFlag(record.getRowKind());
-		RowData value = valueTransform.apply(record); // copy or not
-		reduceBuffer.put(key, Tuple2.of(flag, value));
-	}
+    @Override
+    public void addToBatch(RowData record) throws SQLException {
+        RowData key = keyExtractor.apply(record);
+        boolean flag = changeFlag(record.getRowKind());
+        RowData value = valueTransform.apply(record); // copy or not
+        reduceBuffer.put(key, Tuple2.of(flag, value));
+    }
 
-	/**
-	 * Returns true if the row kind is INSERT or UPDATE_AFTER,
-	 * returns false if the row kind is DELETE or UPDATE_BEFORE.
-	 */
-	private boolean changeFlag(RowKind rowKind) {
-		switch (rowKind) {
-			case INSERT:
-			case UPDATE_AFTER:
-				return true;
-			case DELETE:
-			case UPDATE_BEFORE:
-				return false;
-			default:
-				throw new UnsupportedOperationException(
-					String.format("Unknown row kind, the supported row kinds is: INSERT, UPDATE_BEFORE, UPDATE_AFTER," +
-						" DELETE, but get: %s.", rowKind));
-		}
-	}
+    /**
+     * Returns true if the row kind is INSERT or UPDATE_AFTER, returns false if the row kind is
+     * DELETE or UPDATE_BEFORE.
+     */
+    private boolean changeFlag(RowKind rowKind) {
+        switch (rowKind) {
+            case INSERT:
+            case UPDATE_AFTER:
+                return true;
+            case DELETE:
+            case UPDATE_BEFORE:
+                return false;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unknown row kind, the supported row kinds is: INSERT, UPDATE_BEFORE, UPDATE_AFTER,"
+                                        + " DELETE, but get: %s.",
+                                rowKind));
+        }
+    }
 
-	@Override
-	public void executeBatch() throws SQLException {
-		for (Map.Entry<RowData, Tuple2<Boolean, RowData>> entry : reduceBuffer.entrySet()) {
-			if (entry.getValue().f0) {
-				upsertExecutor.addToBatch(entry.getValue().f1);
-			} else {
-				// delete by key
-				deleteExecutor.addToBatch(entry.getKey());
-			}
-		}
-		upsertExecutor.executeBatch();
-		deleteExecutor.executeBatch();
-		reduceBuffer.clear();
-	}
+    @Override
+    public void executeBatch() throws SQLException {
+        for (Map.Entry<RowData, Tuple2<Boolean, RowData>> entry : reduceBuffer.entrySet()) {
+            if (entry.getValue().f0) {
+                upsertExecutor.addToBatch(entry.getValue().f1);
+            } else {
+                // delete by key
+                deleteExecutor.addToBatch(entry.getKey());
+            }
+        }
+        upsertExecutor.executeBatch();
+        deleteExecutor.executeBatch();
+        reduceBuffer.clear();
+    }
 
-	@Override
-	public void closeStatements() throws SQLException {
-		upsertExecutor.closeStatements();
-		deleteExecutor.closeStatements();
-	}
+    @Override
+    public void closeStatements() throws SQLException {
+        upsertExecutor.closeStatements();
+        deleteExecutor.closeStatements();
+    }
 }

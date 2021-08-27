@@ -21,9 +21,8 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
-/**
- * Interface for notifications about consumable partitions.
- */
+/** Interface for notifications about consumable partitions. */
 public interface ResultPartitionConsumableNotifier {
-	void notifyPartitionConsumable(JobID jobId, ResultPartitionID partitionId, TaskActions taskActions);
+    void notifyPartitionConsumable(
+            JobID jobId, ResultPartitionID partitionId, TaskActions taskActions);
 }

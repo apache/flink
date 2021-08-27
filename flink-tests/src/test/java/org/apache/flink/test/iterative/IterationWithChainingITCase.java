@@ -30,52 +30,64 @@ import org.apache.flink.test.util.PointFormatter;
 import org.apache.flink.test.util.PointInFormat;
 import org.apache.flink.util.Collector;
 
-/**
- * Test iteration with operator chaining.
- */
+/** Test iteration with operator chaining. */
 public class IterationWithChainingITCase extends JavaProgramTestBase {
 
-	private static final String DATA_POINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
+    private static final String DATA_POINTS =
+            "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
-	private String dataPath;
-	private String resultPath;
+    private String dataPath;
+    private String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		dataPath = createTempFile("data_points.txt", DATA_POINTS);
-		resultPath = getTempFilePath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        dataPath = createTempFile("data_points.txt", DATA_POINTS);
+        resultPath = getTempFilePath("result");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(4);
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-		DataSet<Tuple2<Integer, CoordVector>> initialInput =
-				env.readFile(new PointInFormat(), dataPath).setParallelism(1).name("Input");
+        DataSet<Tuple2<Integer, CoordVector>> initialInput =
+                env.readFile(new PointInFormat(), dataPath).setParallelism(1).name("Input");
 
-		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2).name("Loop");
+        IterativeDataSet<Tuple2<Integer, CoordVector>> iteration =
+                initialInput.iterate(2).name("Loop");
 
-		DataSet<Tuple2<Integer, CoordVector>> identity =
-				iteration.groupBy(0).reduceGroup(new GroupReduceFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>() {
-					@Override
-					public void reduce(Iterable<Tuple2<Integer, CoordVector>> values, Collector<Tuple2<Integer, CoordVector>> out) throws Exception {
-						for (Tuple2<Integer, CoordVector> value : values) {
-							out.collect(value);
-						}
-					}
-				}).map(new MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>() {
-					@Override
-					public Tuple2<Integer, CoordVector> map(Tuple2<Integer, CoordVector> value) throws Exception {
-						return value;
-					}
+        DataSet<Tuple2<Integer, CoordVector>> identity =
+                iteration
+                        .groupBy(0)
+                        .reduceGroup(
+                                new GroupReduceFunction<
+                                        Tuple2<Integer, CoordVector>,
+                                        Tuple2<Integer, CoordVector>>() {
+                                    @Override
+                                    public void reduce(
+                                            Iterable<Tuple2<Integer, CoordVector>> values,
+                                            Collector<Tuple2<Integer, CoordVector>> out)
+                                            throws Exception {
+                                        for (Tuple2<Integer, CoordVector> value : values) {
+                                            out.collect(value);
+                                        }
+                                    }
+                                })
+                        .map(
+                                new MapFunction<
+                                        Tuple2<Integer, CoordVector>,
+                                        Tuple2<Integer, CoordVector>>() {
+                                    @Override
+                                    public Tuple2<Integer, CoordVector> map(
+                                            Tuple2<Integer, CoordVector> value) throws Exception {
+                                        return value;
+                                    }
+                                });
 
-				});
+        iteration.closeWith(identity).writeAsFormattedText(resultPath, new PointFormatter());
 
-		iteration.closeWith(identity).writeAsFormattedText(resultPath, new PointFormatter());
+        env.execute("Iteration with chained map test");
 
-		env.execute("Iteration with chained map test");
-
-		compareResultsByLinesInMemory(DATA_POINTS, resultPath);
-	}
+        compareResultsByLinesInMemory(DATA_POINTS, resultPath);
+    }
 }

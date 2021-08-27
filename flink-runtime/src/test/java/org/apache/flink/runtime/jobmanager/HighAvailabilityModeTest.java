@@ -28,74 +28,70 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link HighAvailabilityMode}.
- */
+/** Tests for the {@link HighAvailabilityMode}. */
 public class HighAvailabilityModeTest extends TestLogger {
 
-	// Default HA mode
-	private static final HighAvailabilityMode DEFAULT_HA_MODE = HighAvailabilityMode.valueOf(
-			ConfigConstants.DEFAULT_HA_MODE.toUpperCase());
+    // Default HA mode
+    private static final HighAvailabilityMode DEFAULT_HA_MODE =
+            HighAvailabilityMode.valueOf(ConfigConstants.DEFAULT_HA_MODE.toUpperCase());
 
-	/**
-	 * Tests HA mode configuration.
-	 */
-	@Test
-	public void testFromConfig() throws Exception {
-		Configuration config = new Configuration();
+    /** Tests HA mode configuration. */
+    @Test
+    public void testFromConfig() throws Exception {
+        Configuration config = new Configuration();
 
-		// Check default
-		assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
+        // Check default
+        assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
 
-		// Check not equals default
-		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
-		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
+        // Check not equals default
+        config.setString(
+                HighAvailabilityOptions.HA_MODE,
+                HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+        assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
-		// Check factory class
-		config.setString(HighAvailabilityOptions.HA_MODE, "factory.class.FQN");
-		assertEquals(HighAvailabilityMode.FACTORY_CLASS, HighAvailabilityMode.fromConfig(config));
-	}
+        // Check factory class
+        config.setString(HighAvailabilityOptions.HA_MODE, "factory.class.FQN");
+        assertEquals(HighAvailabilityMode.FACTORY_CLASS, HighAvailabilityMode.fromConfig(config));
+    }
 
-	/**
-	 * Tests HA mode configuration with deprecated config values.
-	 */
-	@Test
-	public void testDeprecatedFromConfig() throws Exception {
-		Configuration config = new Configuration();
+    /** Tests HA mode configuration with deprecated config values. */
+    @Test
+    public void testDeprecatedFromConfig() throws Exception {
+        Configuration config = new Configuration();
 
-		// Check mapping of old default to new default
-		config.setString("recovery.mode", ConfigConstants.DEFAULT_RECOVERY_MODE);
-		assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
+        // Check mapping of old default to new default
+        config.setString("recovery.mode", ConfigConstants.DEFAULT_RECOVERY_MODE);
+        assertEquals(DEFAULT_HA_MODE, HighAvailabilityMode.fromConfig(config));
 
-		// Check deprecated config
-		config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
-		assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
+        // Check deprecated config
+        config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+        assertEquals(HighAvailabilityMode.ZOOKEEPER, HighAvailabilityMode.fromConfig(config));
 
-		// Check precedence over deprecated config
-		config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
-		config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+        // Check precedence over deprecated config
+        config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
+        config.setString("recovery.mode", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
 
-		assertEquals(HighAvailabilityMode.NONE, HighAvailabilityMode.fromConfig(config));
-	}
+        assertEquals(HighAvailabilityMode.NONE, HighAvailabilityMode.fromConfig(config));
+    }
 
-	@Test
-	public void testCheckHighAvailabilityModeActivated() throws Exception {
-		Configuration config = new Configuration();
+    @Test
+    public void testCheckHighAvailabilityModeActivated() throws Exception {
+        Configuration config = new Configuration();
 
-		// check defaults
-		assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+        // check defaults
+        assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 
-		// check NONE
-		config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
-		assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+        // check NONE
+        config.setString("high-availability", HighAvailabilityMode.NONE.name().toLowerCase());
+        assertTrue(!HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 
-		// check ZOOKEEPER
-		config.setString("high-availability", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
-		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+        // check ZOOKEEPER
+        config.setString("high-availability", HighAvailabilityMode.ZOOKEEPER.name().toLowerCase());
+        assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
 
-		// check FACTORY_CLASS
-		config.setString("high-availability", HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
-		assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
-	}
-
+        // check FACTORY_CLASS
+        config.setString(
+                "high-availability", HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
+        assertTrue(HighAvailabilityMode.isHighAvailabilityModeActivated(config));
+    }
 }

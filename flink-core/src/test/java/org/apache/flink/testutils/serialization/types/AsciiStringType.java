@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -28,58 +27,58 @@ import java.util.Random;
 
 public class AsciiStringType implements SerializationTestType {
 
-	private static final int MAX_LEN = 1500;
+    private static final int MAX_LEN = 1500;
 
-	public String value;
+    public String value;
 
-	public AsciiStringType() {
-		this.value = "";
-	}
+    public AsciiStringType() {
+        this.value = "";
+    }
 
-	private AsciiStringType(String value) {
-		this.value = value;
-	}
+    private AsciiStringType(String value) {
+        this.value = value;
+    }
 
-	@Override
-	public AsciiStringType getRandom(Random rnd) {
-		final StringBuilder bld = new StringBuilder();
-		final int len = rnd.nextInt(MAX_LEN + 1);
+    @Override
+    public AsciiStringType getRandom(Random rnd) {
+        final StringBuilder bld = new StringBuilder();
+        final int len = rnd.nextInt(MAX_LEN + 1);
 
-		for (int i = 0; i < len; i++) {
-			// 1--127
-			bld.append((char) (rnd.nextInt(126) + 1));
-		}
+        for (int i = 0; i < len; i++) {
+            // 1--127
+            bld.append((char) (rnd.nextInt(126) + 1));
+        }
 
-		return new AsciiStringType(bld.toString());
-	}
+        return new AsciiStringType(bld.toString());
+    }
 
-	@Override
-	public int length() {
-		return value.getBytes(ConfigConstants.DEFAULT_CHARSET).length + 2;
-	}
+    @Override
+    public int length() {
+        return value.getBytes(ConfigConstants.DEFAULT_CHARSET).length + 2;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeUTF(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeUTF(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readUTF();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readUTF();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return this.value.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof AsciiStringType) {
-			AsciiStringType other = (AsciiStringType) obj;
-			return this.value.equals(other.value);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof AsciiStringType) {
+            AsciiStringType other = (AsciiStringType) obj;
+            return this.value.equals(other.value);
+        } else {
+            return false;
+        }
+    }
 }

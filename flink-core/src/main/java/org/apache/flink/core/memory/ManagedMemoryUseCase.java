@@ -21,26 +21,26 @@ package org.apache.flink.core.memory;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Use cases of managed memory.
- */
+/** Use cases of managed memory. */
 @Internal
 public enum ManagedMemoryUseCase {
-	BATCH_OP(Scope.OPERATOR),
-	STATE_BACKEND(Scope.SLOT),
-	PYTHON(Scope.SLOT);
 
-	public final Scope scope;
+    /** Currently, weights are defined as mebibyte values. */
+    OPERATOR(Scope.OPERATOR),
 
-	ManagedMemoryUseCase(Scope scope) {
-		this.scope = Preconditions.checkNotNull(scope);
-	}
+    STATE_BACKEND(Scope.SLOT),
 
-	/**
-	 * Scope at which memory is managed for a use case.
-	 */
-	public enum Scope {
-		SLOT,
-		OPERATOR
-	}
+    PYTHON(Scope.SLOT);
+
+    public final Scope scope;
+
+    ManagedMemoryUseCase(Scope scope) {
+        this.scope = Preconditions.checkNotNull(scope);
+    }
+
+    /** Scope at which memory is managed for a use case. */
+    public enum Scope {
+        SLOT,
+        OPERATOR
+    }
 }

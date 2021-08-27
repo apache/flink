@@ -24,30 +24,25 @@ import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests (un)marshalling of the {@link SubtaskExecutionAttemptAccumulatorsInfo}.
- */
-public class SubtaskExecutionAttemptAccumulatorsInfoTest extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptAccumulatorsInfo> {
+/** Tests (un)marshalling of the {@link SubtaskExecutionAttemptAccumulatorsInfo}. */
+public class SubtaskExecutionAttemptAccumulatorsInfoTest
+        extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptAccumulatorsInfo> {
 
-	@Override
-	protected Class<SubtaskExecutionAttemptAccumulatorsInfo> getTestResponseClass() {
-		return SubtaskExecutionAttemptAccumulatorsInfo.class;
-	}
+    @Override
+    protected Class<SubtaskExecutionAttemptAccumulatorsInfo> getTestResponseClass() {
+        return SubtaskExecutionAttemptAccumulatorsInfo.class;
+    }
 
-	@Override
-	protected SubtaskExecutionAttemptAccumulatorsInfo getTestResponseInstance() throws Exception {
+    @Override
+    protected SubtaskExecutionAttemptAccumulatorsInfo getTestResponseInstance() throws Exception {
 
-		final List<UserAccumulator> userAccumulatorList = new ArrayList<>();
+        final List<UserAccumulator> userAccumulatorList = new ArrayList<>();
 
-		userAccumulatorList.add(new UserAccumulator("name1", "type1", "value1"));
-		userAccumulatorList.add(new UserAccumulator("name2", "type1", "value1"));
-		userAccumulatorList.add(new UserAccumulator("name3", "type2", "value3"));
+        userAccumulatorList.add(new UserAccumulator("name1", "type1", "value1"));
+        userAccumulatorList.add(new UserAccumulator("name2", "type1", "value1"));
+        userAccumulatorList.add(new UserAccumulator("name3", "type2", "value3"));
 
-		return new SubtaskExecutionAttemptAccumulatorsInfo(
-			1,
-			2,
-			new ExecutionAttemptID().toString(),
-			userAccumulatorList
-		);
-	}
+        return new SubtaskExecutionAttemptAccumulatorsInfo(
+                1, 2, new ExecutionAttemptID().toString(), userAccumulatorList);
+    }
 }

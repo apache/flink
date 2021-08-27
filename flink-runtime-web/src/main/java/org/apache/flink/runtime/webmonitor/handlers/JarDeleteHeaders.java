@@ -25,49 +25,48 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for {@link JarDeleteHandler}.
- */
-public class JarDeleteHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
+/** Message headers for {@link JarDeleteHandler}. */
+public class JarDeleteHeaders
+        implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JarDeleteMessageParameters> {
 
-	private static final JarDeleteHeaders INSTANCE = new JarDeleteHeaders();
+    private static final JarDeleteHeaders INSTANCE = new JarDeleteHeaders();
 
-	@Override
-	public Class<EmptyResponseBody> getResponseClass() {
-		return EmptyResponseBody.class;
-	}
+    @Override
+    public Class<EmptyResponseBody> getResponseClass() {
+        return EmptyResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public JarDeleteMessageParameters getUnresolvedMessageParameters() {
-		return new JarDeleteMessageParameters();
-	}
+    @Override
+    public JarDeleteMessageParameters getUnresolvedMessageParameters() {
+        return new JarDeleteMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.DELETE;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.DELETE;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jars/:" + JarIdPathParameter.KEY;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jars/:" + JarIdPathParameter.KEY;
+    }
 
-	public static JarDeleteHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JarDeleteHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Deletes a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
-	}
+    @Override
+    public String getDescription() {
+        return "Deletes a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
+    }
 }

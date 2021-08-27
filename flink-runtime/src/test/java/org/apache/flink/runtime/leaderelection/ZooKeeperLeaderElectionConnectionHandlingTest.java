@@ -20,152 +20,226 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
 
-import org.apache.curator.test.TestingServer;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
 
 /**
- * Tests for the error handling in case of a suspended connection to the ZooKeeper instance.
+ * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
  */
 public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
-	private TestingServer testingServer;
+    private static final String PATH = "/path";
 
-	private Configuration config;
+    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
-	private CuratorFramework zooKeeperClient;
+    @Rule
+    public final TestingFatalErrorHandlerResource fatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
-	@Before
-	public void before() throws Exception {
-		testingServer = new TestingServer();
+    private final Configuration configuration = new Configuration();
 
-		config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
+    @Before
+    public void setup() {
+        configuration.set(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+    }
 
-		zooKeeperClient = ZooKeeperUtils.startCuratorFramework(config);
-	}
+    @Test
+    public void testLoseLeadershipOnConnectionSuspended() throws Exception {
+        runTestWithBrieflySuspendedZooKeeperConnection(
+                configuration,
+                (connectionStateListener, contender) -> {
+                    connectionStateListener.awaitSuspendedConnection();
+                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                });
+    }
 
-	@After
-	public void after() throws Exception {
-		stopTestServer();
+    @Test
+    public void testKeepLeadershipOnSuspendedConnectionIfTolerateSuspendedConnectionsIsEnabled()
+            throws Exception {
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
+        runTestWithBrieflySuspendedZooKeeperConnection(
+                configuration,
+                (connectionStateListener, contender) -> {
+                    connectionStateListener.awaitSuspendedConnection();
+                    connectionStateListener.awaitReconnectedConnection();
+                    assertFalse(contender.hasRevokeLeadershipBeenTriggered());
+                });
+    }
 
-		if (zooKeeperClient != null) {
-			zooKeeperClient.close();
-			zooKeeperClient = null;
-		}
-	}
+    @Test
+    public void testLoseLeadershipOnLostConnectionIfTolerateSuspendedConnectionsIsEnabled()
+            throws Exception {
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 1000);
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, 1000);
+        configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
+        runTestWithLostZooKeeperConnection(
+                configuration,
+                (connectionStateListener, contender) -> {
+                    connectionStateListener.awaitLostConnection();
+                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                });
+    }
 
-	@Test
-	public void testConnectionSuspendedHandlingDuringInitialization() throws Exception {
-		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(1, Duration.ofMillis(50));
+    private void runTestWithLostZooKeeperConnection(
+            Configuration configuration,
+            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+                    validationLogic)
+            throws Exception {
+        runTestWithZooKeeperConnectionProblem(
+                configuration, validationLogic, Problem.LOST_CONNECTION);
+    }
 
-		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
-		testInstance.start(queueLeaderElectionListener);
+    private void runTestWithBrieflySuspendedZooKeeperConnection(
+            Configuration configuration,
+            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+                    validationLogic)
+            throws Exception {
+        runTestWithZooKeeperConnectionProblem(
+                configuration, validationLogic, Problem.SUSPENDED_CONNECTION);
+    }
 
-		// do the testing
-		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-		assertThat("No results are expected, yet, since no leader was elected.", firstAddress, is(nullValue()));
+    private enum Problem {
+        LOST_CONNECTION,
+        SUSPENDED_CONNECTION
+    }
 
-		stopTestServer();
+    private void runTestWithZooKeeperConnectionProblem(
+            Configuration configuration,
+            BiConsumerWithException<TestingConnectionStateListener, TestingContender, Exception>
+                    validationLogic,
+            Problem problem)
+            throws Exception {
+        CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        LeaderElectionDriverFactory leaderElectionDriverFactory =
+                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+        DefaultLeaderElectionService leaderElectionService =
+                new DefaultLeaderElectionService(leaderElectionDriverFactory);
 
-		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-		assertThat("No result is expected since there was no leader elected before stopping the server, yet.", secondAddress, is(nullValue()));
-	}
+        try {
+            final TestingConnectionStateListener connectionStateListener =
+                    new TestingConnectionStateListener();
+            client.getConnectionStateListenable().addListener(connectionStateListener);
 
-	@Test
-	public void testConnectionSuspendedHandling() throws Exception {
-		String leaderAddress = "localhost";
-		LeaderElectionService leaderElectionService = ZooKeeperUtils.createLeaderElectionService(zooKeeperClient, config);
-		TestingContender contender = new TestingContender(leaderAddress, leaderElectionService);
-		leaderElectionService.start(contender);
+            final TestingContender contender = new TestingContender();
+            leaderElectionService.start(contender);
 
-		QueueLeaderElectionListener queueLeaderElectionListener = new QueueLeaderElectionListener(2);
+            contender.awaitGrantLeadership();
 
-		ZooKeeperLeaderRetrievalService testInstance = ZooKeeperUtils.createLeaderRetrievalService(zooKeeperClient, config);
-		testInstance.start(queueLeaderElectionListener);
+            switch (problem) {
+                case SUSPENDED_CONNECTION:
+                    zooKeeperResource.restart();
+                    break;
+                case LOST_CONNECTION:
+                    zooKeeperResource.stop();
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format("Unknown problem type %s.", problem));
+            }
 
-		// do the testing
-		CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-		assertThat("The first result is expected to be the initially set leader address.", firstAddress.get(), is(leaderAddress));
+            validationLogic.accept(connectionStateListener, contender);
+        } finally {
+            leaderElectionService.stop();
+            client.close();
+        }
+    }
 
-		stopTestServer();
+    private final class TestingContender implements LeaderContender {
 
-		CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-		assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
-		assertThat("The next result is expected to be null.", secondAddress.get(), is(nullValue()));
-	}
+        private final OneShotLatch grantLeadershipLatch;
+        private final OneShotLatch revokeLeadershipLatch;
 
-	private void stopTestServer() throws IOException {
-		if (testingServer != null) {
-			testingServer.stop();
-			testingServer = null;
-		}
-	}
+        private TestingContender() {
+            this.grantLeadershipLatch = new OneShotLatch();
+            this.revokeLeadershipLatch = new OneShotLatch();
+        }
 
-	private static class QueueLeaderElectionListener implements LeaderRetrievalListener {
+        @Override
+        public void grantLeadership(UUID leaderSessionID) {
+            grantLeadershipLatch.trigger();
+        }
 
-		private final BlockingQueue<CompletableFuture<String>> queue;
-		private final Duration timeout;
+        @Override
+        public void revokeLeadership() {
+            revokeLeadershipLatch.trigger();
+        }
 
-		public QueueLeaderElectionListener(int expectedCalls) {
-			this(expectedCalls, null);
-		}
+        @Override
+        public void handleError(Exception exception) {
+            fatalErrorHandlerResource.getFatalErrorHandler().onFatalError(exception);
+        }
 
-		public QueueLeaderElectionListener(int expectedCalls, Duration timeout) {
-			this.queue = new ArrayBlockingQueue<>(expectedCalls);
-			this.timeout = timeout;
-		}
+        public void awaitGrantLeadership() throws InterruptedException {
+            grantLeadershipLatch.await();
+        }
 
-		@Override
-		public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
-			try {
-				if (timeout == null) {
-					queue.put(CompletableFuture.completedFuture(leaderAddress));
-				} else {
-					queue.offer(CompletableFuture.completedFuture(leaderAddress), timeout.toMillis(), TimeUnit.MILLISECONDS);
-				}
-			} catch (InterruptedException e) {
-				throw new IllegalStateException(e);
-			}
-		}
+        public boolean hasRevokeLeadershipBeenTriggered() {
+            return revokeLeadershipLatch.isTriggered();
+        }
 
-		public CompletableFuture<String> next() {
-			try {
-				if (timeout == null) {
-					return queue.take();
-				} else {
-					return this.queue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-				}
-			} catch (InterruptedException e) {
-				throw new IllegalStateException(e);
-			}
-		}
+        public void awaitRevokeLeadership(Duration timeout)
+                throws InterruptedException, TimeoutException {
+            revokeLeadershipLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+    }
 
-		@Override
-		public void handleError(Exception exception) {
-			throw new UnsupportedOperationException("handleError(Exception) shouldn't have been called, but it was triggered anyway.", exception);
-		}
-	}
+    private static final class TestingConnectionStateListener implements ConnectionStateListener {
+        private final OneShotLatch connectionSuspendedLatch;
+        private final OneShotLatch reconnectedLatch;
+        private final OneShotLatch connectionLostLatch;
+
+        public TestingConnectionStateListener() {
+            this.connectionSuspendedLatch = new OneShotLatch();
+            this.reconnectedLatch = new OneShotLatch();
+            this.connectionLostLatch = new OneShotLatch();
+        }
+
+        @Override
+        public void stateChanged(
+                CuratorFramework curatorFramework, ConnectionState connectionState) {
+            if (connectionState == ConnectionState.SUSPENDED) {
+                connectionSuspendedLatch.trigger();
+            }
+
+            if (connectionState == ConnectionState.RECONNECTED) {
+                reconnectedLatch.trigger();
+            }
+
+            if (connectionState == ConnectionState.LOST) {
+                connectionLostLatch.trigger();
+            }
+        }
+
+        public void awaitSuspendedConnection() throws InterruptedException {
+            connectionSuspendedLatch.await();
+        }
+
+        public void awaitReconnectedConnection() throws InterruptedException {
+            reconnectedLatch.await();
+        }
+
+        public void awaitLostConnection() throws InterruptedException {
+            connectionLostLatch.await();
+        }
+    }
 }

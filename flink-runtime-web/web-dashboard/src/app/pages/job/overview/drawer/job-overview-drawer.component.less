@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 @import "theme";
 
 :host {
@@ -47,6 +46,9 @@
   ::ng-deep {
     .ant-tabs-bar {
       margin: 0;
+    }
+    .ant-tabs-tab:first-of-type {
+      margin: 0 0 0 @margin-md;
     }
   }
 }

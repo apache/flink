@@ -27,55 +27,66 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * ALTER DDL to ADD or REPLACE columns for a Hive table.
- */
+/** ALTER DDL to ADD or REPLACE columns for a Hive table. */
 public class SqlAlterHiveTableAddReplaceColumn extends SqlAddReplaceColumns {
 
-	private final SqlNodeList origColumns;
-	private final boolean cascade;
+    private final SqlNodeList origColumns;
+    private final boolean cascade;
 
-	public SqlAlterHiveTableAddReplaceColumn(SqlParserPos pos, SqlIdentifier tableName,
-			boolean cascade, SqlNodeList columns, boolean replace) throws ParseException {
-		super(pos, tableName, columns, replace, new SqlNodeList(pos));
-		this.origColumns = HiveDDLUtils.deepCopyColList(columns);
-		HiveDDLUtils.convertDataTypes(columns);
-		this.cascade = cascade;
-		// set ALTER OP
-		getProperties().add(HiveDDLUtils.toTableOption(
-				SqlAlterHiveTable.ALTER_TABLE_OP, SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS.name(), pos));
-		// set cascade
-		if (cascade) {
-			getProperties().add(HiveDDLUtils.toTableOption(SqlAlterHiveTable.ALTER_COL_CASCADE, "true", pos));
-		}
-	}
+    public SqlAlterHiveTableAddReplaceColumn(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            boolean cascade,
+            SqlNodeList columns,
+            boolean replace)
+            throws ParseException {
+        super(pos, tableName, columns, replace, new SqlNodeList(pos));
+        this.origColumns = HiveDDLUtils.deepCopyColList(columns);
+        HiveDDLUtils.convertDataTypes(columns);
+        this.cascade = cascade;
+        // set ALTER OP
+        getProperties()
+                .add(
+                        HiveDDLUtils.toTableOption(
+                                SqlAlterHiveTable.ALTER_TABLE_OP,
+                                SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS.name(),
+                                pos));
+        // set cascade
+        if (cascade) {
+            getProperties()
+                    .add(
+                            HiveDDLUtils.toTableOption(
+                                    SqlAlterHiveTable.ALTER_COL_CASCADE, "true", pos));
+        }
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		SqlNodeList partitionSpec = getPartitionSpec();
-		if (partitionSpec != null && partitionSpec.size() > 0) {
-			writer.keyword("PARTITION");
-			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-		}
-		if (isReplace()) {
-			writer.keyword("REPLACE");
-		} else {
-			writer.keyword("ADD");
-		}
-		writer.keyword("COLUMNS");
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
-		for (SqlNode column : origColumns) {
-			printIndent(writer);
-			column.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.endList(frame);
-		if (cascade) {
-			writer.keyword("CASCADE");
-		} else {
-			writer.keyword("RESTRICT");
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        SqlNodeList partitionSpec = getPartitionSpec();
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
+        if (isReplace()) {
+            writer.keyword("REPLACE");
+        } else {
+            writer.keyword("ADD");
+        }
+        writer.keyword("COLUMNS");
+        SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");
+        for (SqlNode column : origColumns) {
+            printIndent(writer);
+            column.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.endList(frame);
+        if (cascade) {
+            writer.keyword("CASCADE");
+        } else {
+            writer.keyword("RESTRICT");
+        }
+    }
 }

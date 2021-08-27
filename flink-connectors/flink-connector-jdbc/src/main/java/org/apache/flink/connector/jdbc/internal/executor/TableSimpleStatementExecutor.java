@@ -29,45 +29,46 @@ import java.sql.SQLException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link JdbcBatchStatementExecutor} that simply adds the records into batches of
- * {@link java.sql.PreparedStatement} and doesn't buffer records in memory. Only used in Table/SQL API.
+ * A {@link JdbcBatchStatementExecutor} that simply adds the records into batches of {@link
+ * java.sql.PreparedStatement} and doesn't buffer records in memory. Only used in Table/SQL API.
  */
 public final class TableSimpleStatementExecutor implements JdbcBatchStatementExecutor<RowData> {
 
-	private final StatementFactory stmtFactory;
-	private final JdbcRowConverter converter;
+    private final StatementFactory stmtFactory;
+    private final JdbcRowConverter converter;
 
-	private transient FieldNamedPreparedStatement st;
+    private transient FieldNamedPreparedStatement st;
 
-	/**
-	 * Keep in mind object reuse: if it's on then key extractor may be required to return new object.
-	 */
-	public TableSimpleStatementExecutor(StatementFactory stmtFactory, JdbcRowConverter converter) {
-		this.stmtFactory = checkNotNull(stmtFactory);
-		this.converter = checkNotNull(converter);
-	}
+    /**
+     * Keep in mind object reuse: if it's on then key extractor may be required to return new
+     * object.
+     */
+    public TableSimpleStatementExecutor(StatementFactory stmtFactory, JdbcRowConverter converter) {
+        this.stmtFactory = checkNotNull(stmtFactory);
+        this.converter = checkNotNull(converter);
+    }
 
-	@Override
-	public void prepareStatements(Connection connection) throws SQLException {
-		st = stmtFactory.createStatement(connection);
-	}
+    @Override
+    public void prepareStatements(Connection connection) throws SQLException {
+        st = stmtFactory.createStatement(connection);
+    }
 
-	@Override
-	public void addToBatch(RowData record) throws SQLException {
-		converter.toExternal(record, st);
-		st.addBatch();
-	}
+    @Override
+    public void addToBatch(RowData record) throws SQLException {
+        converter.toExternal(record, st);
+        st.addBatch();
+    }
 
-	@Override
-	public void executeBatch() throws SQLException {
-		st.executeBatch();
-	}
+    @Override
+    public void executeBatch() throws SQLException {
+        st.executeBatch();
+    }
 
-	@Override
-	public void closeStatements() throws SQLException {
-		if (st != null) {
-			st.close();
-			st = null;
-		}
-	}
+    @Override
+    public void closeStatements() throws SQLException {
+        if (st != null) {
+            st.close();
+            st = null;
+        }
+    }
 }

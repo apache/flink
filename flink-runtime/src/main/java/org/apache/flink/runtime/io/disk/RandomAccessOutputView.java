@@ -16,64 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk;
-
-import java.io.EOFException;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.SeekableDataOutputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.util.MathUtils;
 
+import java.io.EOFException;
 
-/**
- *
- *
- */
-public class RandomAccessOutputView extends AbstractPagedOutputView implements SeekableDataOutputView
-{
-	private final MemorySegment[] segments;
-	
-	private int currentSegmentIndex;
-	
-	private final int segmentSizeBits;
-	
-	private final int segmentSizeMask;
-	
+/** */
+public class RandomAccessOutputView extends AbstractPagedOutputView
+        implements SeekableDataOutputView {
+    private final MemorySegment[] segments;
 
-	public RandomAccessOutputView(MemorySegment[] segments, int segmentSize) {
-		this(segments, segmentSize, MathUtils.log2strict(segmentSize));
-	}
-	
-	public RandomAccessOutputView(MemorySegment[] segments, int segmentSize, int segmentSizeBits) {
-		super(segments[0], segmentSize, 0);
-		
-		if ((segmentSize & (segmentSize - 1)) != 0) {
-			throw new IllegalArgumentException("Segment size must be a power of 2!");
-		}
-		
-		this.segments = segments;
-		this.segmentSizeBits = segmentSizeBits;
-		this.segmentSizeMask = segmentSize - 1;
-	}
+    private int currentSegmentIndex;
 
+    private final int segmentSizeBits;
 
-	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws EOFException {
-		if (++this.currentSegmentIndex < this.segments.length) {
-			return this.segments[this.currentSegmentIndex];
-		} else {
-			throw new EOFException();
-		}
-	}
+    private final int segmentSizeMask;
 
-	@Override
-	public void setWritePosition(long position) {
-		final int bufferNum = (int) (position >>> this.segmentSizeBits);
-		final int offset = (int) (position & this.segmentSizeMask);
-		
-		this.currentSegmentIndex = bufferNum;
-		seekOutput(this.segments[bufferNum], offset);
-	}
+    public RandomAccessOutputView(MemorySegment[] segments, int segmentSize) {
+        this(segments, segmentSize, MathUtils.log2strict(segmentSize));
+    }
+
+    public RandomAccessOutputView(MemorySegment[] segments, int segmentSize, int segmentSizeBits) {
+        super(segments[0], segmentSize, 0);
+
+        if ((segmentSize & (segmentSize - 1)) != 0) {
+            throw new IllegalArgumentException("Segment size must be a power of 2!");
+        }
+
+        this.segments = segments;
+        this.segmentSizeBits = segmentSizeBits;
+        this.segmentSizeMask = segmentSize - 1;
+    }
+
+    @Override
+    protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent)
+            throws EOFException {
+        if (++this.currentSegmentIndex < this.segments.length) {
+            return this.segments[this.currentSegmentIndex];
+        } else {
+            throw new EOFException();
+        }
+    }
+
+    @Override
+    public void setWritePosition(long position) {
+        final int bufferNum = (int) (position >>> this.segmentSizeBits);
+        final int offset = (int) (position & this.segmentSizeMask);
+
+        this.currentSegmentIndex = bufferNum;
+        seekOutput(this.segments[bufferNum], offset);
+    }
 }

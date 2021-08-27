@@ -18,15 +18,15 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-/**
- * Factory to create the streaming file sink.
- */
+/** Factory to create the streaming file sink. */
 public class TestStreamingFileSinkFactory<IN> {
 
-	public StreamingFileSink<IN> createSink(
-		StreamingFileSink.BucketsBuilder<IN, ?, ? extends StreamingFileSink.BucketsBuilder<IN, ?, ?>> bucketsBuilder,
-		long bucketCheckInterval) {
+    public StreamingFileSink<IN> createSink(
+            StreamingFileSink.BucketsBuilder<
+                            IN, ?, ? extends StreamingFileSink.BucketsBuilder<IN, ?, ?>>
+                    bucketsBuilder,
+            long bucketCheckInterval) {
 
-		return new StreamingFileSink<>(bucketsBuilder, bucketCheckInterval);
-	}
+        return new StreamingFileSink<>(bucketsBuilder, bucketCheckInterval);
+    }
 }

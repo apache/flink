@@ -64,5 +64,5 @@ RUN chmod +x /etc/sv/service/sshd/run && \
 EXPOSE 22
 
 # Start runit process supervisor which will bring up sshd.
-# In our tests we can use runit to supervise more processes, e.g., Mesos.
+# In our tests we can use runit to supervise more processes.
 CMD runsvdir -P /etc/service /dev/null > /dev/null

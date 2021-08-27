@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 
@@ -30,129 +29,184 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * This handler is mainly used for selecting the next available input index
- * in {@link StreamMultipleInputProcessor}.
+ * This handler is mainly used for selecting the next available input index in {@link
+ * StreamMultipleInputProcessor}.
  */
 @Internal
 public class MultipleInputSelectionHandler {
-	public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE;
+    // if we directly use Long.SIZE, calculation of allSelectedMask will overflow
+    public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE - 1;
 
-	@Nullable
-	private final InputSelectable inputSelectable;
+    @Nullable private final InputSelectable inputSelectable;
 
-	private InputSelection inputSelection = InputSelection.ALL;
+    private long selectedInputsMask = InputSelection.ALL.getInputMask();
 
-	private final long allSelectedMask;
+    private final long allSelectedMask;
 
-	private long availableInputsMask;
+    private long availableInputsMask;
 
-	private long notFinishedInputsMask;
+    private long notFinishedInputsMask;
 
-	public MultipleInputSelectionHandler(@Nullable InputSelectable inputSelectable, int inputCount) {
-		checkSupportedInputCount(inputCount);
-		this.inputSelectable = inputSelectable;
-		this.allSelectedMask = (1 << inputCount) - 1;
-		this.availableInputsMask = allSelectedMask;
-		this.notFinishedInputsMask = allSelectedMask;
-	}
+    private long dataFinishedButNotPartition;
 
-	public static void checkSupportedInputCount(int inputCount) {
-		checkArgument(
-			inputCount <= MAX_SUPPORTED_INPUT_COUNT,
-			"Only up to %d inputs are supported at once, while encountered %d",
-			MAX_SUPPORTED_INPUT_COUNT,
-			inputCount);
-	}
+    private enum OperatingMode {
+        NO_INPUT_SELECTABLE,
+        INPUT_SELECTABLE_PRESENT_NO_DATA_INPUTS_FINISHED,
+        INPUT_SELECTABLE_PRESENT_SOME_DATA_INPUTS_FINISHED,
+        ALL_DATA_INPUTS_FINISHED;
+    }
 
-	public InputStatus updateStatus(InputStatus inputStatus, int inputIndex) throws IOException {
-		switch (inputStatus) {
-			case MORE_AVAILABLE:
-				checkState(checkBitMask(availableInputsMask, inputIndex));
-				return InputStatus.MORE_AVAILABLE;
-			case NOTHING_AVAILABLE:
-				availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
-				break;
-			case END_OF_INPUT:
-				notFinishedInputsMask = unsetBitMask(notFinishedInputsMask, inputIndex);
-				break;
-			default:
-				throw new UnsupportedOperationException("Unsupported inputStatus = " + inputStatus);
-		}
-		return calculateOverallStatus();
-	}
+    private OperatingMode operatingMode;
 
-	public InputStatus calculateOverallStatus() throws IOException {
-		if (areAllInputsFinished()) {
-			return InputStatus.END_OF_INPUT;
-		}
+    public MultipleInputSelectionHandler(
+            @Nullable InputSelectable inputSelectable, int inputCount) {
+        checkSupportedInputCount(inputCount);
+        this.inputSelectable = inputSelectable;
+        this.allSelectedMask = (1L << inputCount) - 1;
+        this.availableInputsMask = allSelectedMask;
+        this.notFinishedInputsMask = allSelectedMask;
+        this.dataFinishedButNotPartition = 0;
+        if (inputSelectable != null) {
+            this.operatingMode = OperatingMode.INPUT_SELECTABLE_PRESENT_NO_DATA_INPUTS_FINISHED;
+        } else {
+            this.operatingMode = OperatingMode.NO_INPUT_SELECTABLE;
+        }
+    }
 
-		if (isAnyInputAvailable()) {
-			return InputStatus.MORE_AVAILABLE;
-		}
-		else {
-			long selectedNotFinishedInputMask = inputSelection.getInputMask() & notFinishedInputsMask;
-			if (selectedNotFinishedInputMask == 0) {
-				throw new IOException("Can not make a progress: all selected inputs are already finished");
-			}
-			return InputStatus.NOTHING_AVAILABLE;
-		}
-	}
+    public static void checkSupportedInputCount(int inputCount) {
+        checkArgument(
+                inputCount <= MAX_SUPPORTED_INPUT_COUNT,
+                "Only up to %s inputs are supported at once, while encountered %s",
+                MAX_SUPPORTED_INPUT_COUNT,
+                inputCount);
+    }
 
-	void nextSelection() {
-		if (inputSelectable == null) {
-			inputSelection = InputSelection.ALL;
-		} else {
-			inputSelection = inputSelectable.nextSelection();
-		}
-	}
+    public DataInputStatus updateStatusAndSelection(DataInputStatus inputStatus, int inputIndex)
+            throws IOException {
+        switch (inputStatus) {
+            case MORE_AVAILABLE:
+                nextSelection();
+                checkState(checkBitMask(availableInputsMask, inputIndex));
+                return DataInputStatus.MORE_AVAILABLE;
+            case NOTHING_AVAILABLE:
+                availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
+                break;
+            case END_OF_DATA:
+                dataFinishedButNotPartition = setBitMask(dataFinishedButNotPartition, inputIndex);
+                updateModeOnEndOfData();
+                break;
+            case END_OF_INPUT:
+                dataFinishedButNotPartition = unsetBitMask(dataFinishedButNotPartition, inputIndex);
+                notFinishedInputsMask = unsetBitMask(notFinishedInputsMask, inputIndex);
+                break;
+            default:
+                throw new UnsupportedOperationException("Unsupported inputStatus = " + inputStatus);
+        }
+        nextSelection();
+        return calculateOverallStatus(inputStatus);
+    }
 
-	int selectNextInputIndex(int lastReadInputIndex) {
-		return inputSelection.fairSelectNextIndex(
-			availableInputsMask & notFinishedInputsMask,
-			lastReadInputIndex);
-	}
+    private void updateModeOnEndOfData() {
+        boolean allDataInputsFinished =
+                ((dataFinishedButNotPartition | ~notFinishedInputsMask) & allSelectedMask)
+                        == allSelectedMask;
+        if (allDataInputsFinished) {
+            this.operatingMode = OperatingMode.ALL_DATA_INPUTS_FINISHED;
+        } else if (this.operatingMode
+                == OperatingMode.INPUT_SELECTABLE_PRESENT_NO_DATA_INPUTS_FINISHED) {
+            this.operatingMode = OperatingMode.INPUT_SELECTABLE_PRESENT_SOME_DATA_INPUTS_FINISHED;
+        }
+    }
 
-	boolean shouldSetAvailableForAnotherInput() {
-		return (inputSelection.getInputMask() & allSelectedMask & ~availableInputsMask) != 0;
-	}
+    private DataInputStatus calculateOverallStatus(DataInputStatus updatedStatus)
+            throws IOException {
+        if (areAllInputsFinished()) {
+            return DataInputStatus.END_OF_INPUT;
+        }
 
-	void setAvailableInput(int inputIndex) {
-		availableInputsMask = setBitMask(availableInputsMask, inputIndex);
-	}
+        if (updatedStatus == DataInputStatus.END_OF_DATA
+                && this.operatingMode == OperatingMode.ALL_DATA_INPUTS_FINISHED) {
+            return DataInputStatus.END_OF_DATA;
+        }
 
-	void setUnavailableInput(int inputIndex) {
-		availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
-	}
+        if (isAnyInputAvailable()) {
+            return DataInputStatus.MORE_AVAILABLE;
+        } else {
+            long selectedNotFinishedInputMask = selectedInputsMask & notFinishedInputsMask;
+            if (selectedNotFinishedInputMask == 0) {
+                throw new IOException(
+                        "Can not make a progress: all selected inputs are already finished");
+            }
+            return DataInputStatus.NOTHING_AVAILABLE;
+        }
+    }
 
-	boolean isAnyInputAvailable() {
-		return (inputSelection.getInputMask() & availableInputsMask & notFinishedInputsMask) != 0;
-	}
+    void nextSelection() {
+        switch (operatingMode) {
+            case NO_INPUT_SELECTABLE:
+            case ALL_DATA_INPUTS_FINISHED:
+                selectedInputsMask = InputSelection.ALL.getInputMask();
+                break;
+            case INPUT_SELECTABLE_PRESENT_NO_DATA_INPUTS_FINISHED:
+                selectedInputsMask = inputSelectable.nextSelection().getInputMask();
+                break;
+            case INPUT_SELECTABLE_PRESENT_SOME_DATA_INPUTS_FINISHED:
+                selectedInputsMask =
+                        (inputSelectable.nextSelection().getInputMask()
+                                        | dataFinishedButNotPartition)
+                                & allSelectedMask;
+                break;
+        }
+    }
 
-	boolean areAllInputsSelected() {
-		return inputSelection.areAllInputsSelected();
-	}
+    int selectNextInputIndex(int lastReadInputIndex) {
+        return InputSelection.fairSelectNextIndex(
+                selectedInputsMask,
+                availableInputsMask & notFinishedInputsMask,
+                lastReadInputIndex);
+    }
 
-	boolean isInputSelected(int inputIndex) {
-		return inputSelection.isInputSelected(inputIndex + 1);
-	}
+    boolean shouldSetAvailableForAnotherInput() {
+        return (selectedInputsMask & allSelectedMask & ~availableInputsMask) != 0;
+    }
 
-	public boolean isInputFinished(int inputIndex) {
-		return !checkBitMask(notFinishedInputsMask, inputIndex);
-	}
+    void setAvailableInput(int inputIndex) {
+        availableInputsMask = setBitMask(availableInputsMask, inputIndex);
+    }
 
-	public boolean areAllInputsFinished() {
-		return notFinishedInputsMask == 0;
-	}
+    void setUnavailableInput(int inputIndex) {
+        availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
+    }
 
-	long setBitMask(long mask, int inputIndex) {
-		return mask | 1L << inputIndex;
-	}
+    boolean isAnyInputAvailable() {
+        return (selectedInputsMask & availableInputsMask & notFinishedInputsMask) != 0;
+    }
 
-	long unsetBitMask(long mask, int inputIndex) {
-		return mask & ~(1L << inputIndex);
-	}
+    boolean isInputSelected(int inputIndex) {
+        return checkBitMask(selectedInputsMask, inputIndex);
+    }
 
-	boolean checkBitMask(long mask, int inputIndex) {
-		return (mask & (1L << inputIndex)) != 0;
-	}
+    public boolean isInputFinished(int inputIndex) {
+        return !checkBitMask(notFinishedInputsMask, inputIndex);
+    }
+
+    public boolean areAllInputsFinished() {
+        return notFinishedInputsMask == 0;
+    }
+
+    public boolean areAllDataInputsFinished() {
+        return this.operatingMode == OperatingMode.ALL_DATA_INPUTS_FINISHED;
+    }
+
+    long setBitMask(long mask, int inputIndex) {
+        return mask | 1L << inputIndex;
+    }
+
+    long unsetBitMask(long mask, int inputIndex) {
+        return mask & ~(1L << inputIndex);
+    }
+
+    boolean checkBitMask(long mask, int inputIndex) {
+        return (mask & (1L << inputIndex)) != 0;
+    }
 }

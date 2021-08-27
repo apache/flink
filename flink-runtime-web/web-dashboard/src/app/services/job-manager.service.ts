@@ -78,5 +78,33 @@ export class JobManagerService {
       );
   }
 
+  /**
+   * Get JM metric name
+   */
+  getMetricsName() {
+    return this.httpClient
+      .get<Array<{ id: string }>>(`${BASE_URL}/jobmanager/metrics`)
+      .pipe(map(arr => arr.map(item => item.id)));
+  }
+
+  /**
+   * Get JM metric
+   * @param listOfMetricName
+   */
+  getMetrics(listOfMetricName: string[]) {
+    const metricName = listOfMetricName.join(',');
+    return this.httpClient
+      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobmanager/metrics?get=${metricName}`)
+      .pipe(
+        map(arr => {
+          const result: { [id: string]: number } = {};
+          arr.forEach(item => {
+            result[item.id] = parseInt(item.value, 10);
+          });
+          return result;
+        })
+      );
+  }
+
   constructor(private httpClient: HttpClient) {}
 }

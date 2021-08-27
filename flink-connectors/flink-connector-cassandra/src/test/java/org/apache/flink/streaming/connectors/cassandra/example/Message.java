@@ -22,43 +22,41 @@ import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
-/**
- * Pojo with DataStax annotations..
- */
+/** Pojo with DataStax annotations.. */
 @Table(keyspace = "test", name = "message")
 public class Message implements Serializable {
 
-	private static final long serialVersionUID = 1123119384361005680L;
+    private static final long serialVersionUID = 1123119384361005680L;
 
-	@Column(name = "body")
-	private String message;
+    @Column(name = "body")
+    private String message;
 
-	public Message() {
-		this(null);
-	}
+    public Message() {
+        this(null);
+    }
 
-	public Message(String word) {
-		this.message = word;
-	}
+    public Message(String word) {
+        this.message = word;
+    }
 
-	public String getMessage() {
-		return message;
-	}
+    public String getMessage() {
+        return message;
+    }
 
-	public void setMessage(String word) {
-		this.message = word;
-	}
+    public void setMessage(String word) {
+        this.message = word;
+    }
 
-	public boolean equals(Object other) {
-		if (other instanceof Message) {
-			Message that = (Message) other;
-			return this.message.equals(that.message);
-		}
-		return false;
-	}
+    public boolean equals(Object other) {
+        if (other instanceof Message) {
+            Message that = (Message) other;
+            return this.message.equals(that.message);
+        }
+        return false;
+    }
 
-	@Override
-	public int hashCode() {
-		return message.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return message.hashCode();
+    }
 }

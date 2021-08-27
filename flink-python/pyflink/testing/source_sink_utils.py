@@ -25,7 +25,7 @@ from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table.sinks import TableSink
 from pyflink.table.types import _to_java_type
-from pyflink.util import utils
+from pyflink.util import java_utils
 
 
 class TestTableSink(TableSink):
@@ -37,9 +37,10 @@ class TestTableSink(TableSink):
 
     def __init__(self, j_table_sink, field_names, field_types):
         gateway = get_gateway()
-        j_field_names = utils.to_jarray(gateway.jvm.String, field_names)
-        j_field_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                        [_to_java_type(field_type) for field_type in field_types])
+        j_field_names = java_utils.to_jarray(gateway.jvm.String, field_names)
+        j_field_types = java_utils.to_jarray(
+            gateway.jvm.TypeInformation,
+            [_to_java_type(field_type) for field_type in field_types])
         j_table_sink = j_table_sink.configure(j_field_names, j_field_types)
         super(TestTableSink, self).__init__(j_table_sink)
 
@@ -50,17 +51,16 @@ class TestTableSink(TableSink):
 
         FLINK_SOURCE_ROOT_DIR = _find_flink_source_root()
         filename_pattern = (
-            "flink-table/flink-table-planner/target/"
-            "flink-table-planner*-tests.jar")
+            "flink-python/target/flink-python*-tests.jar")
         if not glob.glob(os.path.join(FLINK_SOURCE_ROOT_DIR, filename_pattern)):
             raise unittest.SkipTest(
-                "'flink-table-planner*-tests.jar' is not available. Will skip the related tests.")
+                "'flink-python*-tests.jar' is not available. Will skip the related tests.")
 
         gateway = get_gateway()
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestAppendSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestRetractSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.TestUpsertSink")
-        java_import(gateway.jvm, "org.apache.flink.table.runtime.stream.table.RowCollector")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestAppendSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestRetractSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.TestUpsertSink")
+        java_import(gateway.jvm, "org.apache.flink.table.legacyutils.RowCollector")
 
         TestTableSink._inited = True
 

@@ -25,23 +25,27 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JobVertexBackPressureInfo.VertexBackPressureLevel}.
- */
+/** Tests for {@link JobVertexBackPressureInfo.VertexBackPressureLevel}. */
 public class VertexBackPressureLevelTest extends TestLogger {
 
-	/**
-	 * Tests that the enum values are serialized correctly.
-	 * Clients, such as the Web UI, expect values to be lower case.
-	 */
-	@Test
-	public void testJsonValue() throws Exception {
-		assertEquals("\"ok\"", RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.OK));
-		assertEquals("\"low\"", RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.LOW));
-		assertEquals("\"high\"", RestMapperUtils.getStrictObjectMapper()
-			.writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH));
-	}
-
+    /**
+     * Tests that the enum values are serialized correctly. Clients, such as the Web UI, expect
+     * values to be lower case.
+     */
+    @Test
+    public void testJsonValue() throws Exception {
+        assertEquals(
+                "\"ok\"",
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.OK));
+        assertEquals(
+                "\"low\"",
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.LOW));
+        assertEquals(
+                "\"high\"",
+                RestMapperUtils.getStrictObjectMapper()
+                        .writeValueAsString(
+                                JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH));
+    }
 }

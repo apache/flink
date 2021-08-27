@@ -25,95 +25,112 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * Mock {@link IndexedInputGate}.
- */
+/** Mock {@link IndexedInputGate}. */
 public class MockIndexedInputGate extends IndexedInputGate {
-	private final int gateIndex;
-	private final int numberOfInputChannels;
+    private final int gateIndex;
+    private final int numberOfInputChannels;
 
-	public MockIndexedInputGate() {
-		this(0, 1);
-	}
+    public MockIndexedInputGate() {
+        this(0, 1);
+    }
 
-	public MockIndexedInputGate(int gateIndex, int numberOfInputChannels) {
-		this.gateIndex = gateIndex;
-		this.numberOfInputChannels = numberOfInputChannels;
-	}
+    public MockIndexedInputGate(int gateIndex, int numberOfInputChannels) {
+        this.gateIndex = gateIndex;
+        this.numberOfInputChannels = numberOfInputChannels;
+    }
 
-	@Override
-	public void setup() {
-	}
+    @Override
+    public void setup() {}
 
-	@Override
-	public CompletableFuture<Void> getStateConsumedFuture() {
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void finishReadRecoveredState() {
-	}
+    @Override
+    public void finishReadRecoveredState() {}
 
-	@Override
-	public void requestPartitions() {
-	}
+    @Override
+    public void requestPartitions() {}
 
-	@Override
-	public void resumeConsumption(int channelIndex) {
-	}
+    @Override
+    public void resumeConsumption(InputChannelInfo channelInfo) {}
 
-	@Override
-	public int getNumberOfInputChannels() {
-		return numberOfInputChannels;
-	}
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        throw new UnsupportedEncodingException();
+    }
 
-	@Override
-	public InputChannel getChannel(int channelIndex) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public int getNumberOfInputChannels() {
+        return numberOfInputChannels;
+    }
 
-	@Override
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-	}
+    @Override
+    public InputChannel getChannel(int channelIndex) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public List<InputChannelInfo> getChannelInfos() {
-		return IntStream.range(0, numberOfInputChannels)
-				.mapToObj(channelIndex -> new InputChannelInfo(gateIndex, channelIndex))
-				.collect(Collectors.toList());
-	}
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {}
 
-	@Override
-	public boolean isFinished() {
-		return false;
-	}
+    @Override
+    public List<InputChannelInfo> getChannelInfos() {
+        return IntStream.range(0, numberOfInputChannels)
+                .mapToObj(channelIndex -> new InputChannelInfo(gateIndex, channelIndex))
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public Optional<BufferOrEvent> getNext() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
 
-	@Override
-	public Optional<BufferOrEvent> pollNext() {
-		return getNext();
-	}
+    @Override
+    public boolean hasReceivedEndOfData() {
+        return false;
+    }
 
-	@Override
-	public void sendTaskEvent(TaskEvent event) {
-	}
+    @Override
+    public Optional<BufferOrEvent> getNext() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void close() {
-	}
+    @Override
+    public Optional<BufferOrEvent> pollNext() {
+        return getNext();
+    }
 
-	@Override
-	public int getGateIndex() {
-		return gateIndex;
-	}
+    @Override
+    public void sendTaskEvent(TaskEvent event) {}
+
+    @Override
+    public void close() {}
+
+    @Override
+    public int getGateIndex() {
+        return gateIndex;
+    }
+
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public int getBuffersInUseCount() {
+        return 0;
+    }
+
+    @Override
+    public void announceBufferSize(int bufferSize) {}
 }

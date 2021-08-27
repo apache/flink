@@ -34,72 +34,76 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link JavaSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link JavaSerializer}. */
 @RunWith(Parameterized.class)
-public class JavaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Serializable, Serializable> {
+public class JavaSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Serializable, Serializable> {
 
-	private static final String SPEC_NAME = "java-serializer";
+    private static final String SPEC_NAME = "java-serializer";
 
-	public JavaSerializerUpgradeTest(TestSpecification<Serializable, Serializable> testSpecification) {
-		super(testSpecification);
-	}
+    public JavaSerializerUpgradeTest(
+            TestSpecification<Serializable, Serializable> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
 
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					JavaSerializerSetup.class,
-					JavaSerializerVerifier.class));
-		}
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            JavaSerializerSetup.class,
+                            JavaSerializerVerifier.class));
+        }
 
-		return testSpecifications;
-	}
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "java-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "java-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class JavaSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Serializable> {
-		@Override
-		public TypeSerializer<Serializable> createPriorSerializer() {
-			return new JavaSerializer<>();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class JavaSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Serializable> {
+        @Override
+        public TypeSerializer<Serializable> createPriorSerializer() {
+            return new JavaSerializer<>();
+        }
 
-		@Override
-		public Serializable createTestData() {
-			return 26;
-		}
-	}
+        @Override
+        public Serializable createTestData() {
+            return 26;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class JavaSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Serializable> {
-		@Override
-		public TypeSerializer<Serializable> createUpgradedSerializer() {
-			return new JavaSerializer<>();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class JavaSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Serializable> {
+        @Override
+        public TypeSerializer<Serializable> createUpgradedSerializer() {
+            return new JavaSerializer<>();
+        }
 
-		@Override
-		public Matcher<Serializable> testDataMatcher() {
-			return is(26);
-		}
+        @Override
+        public Matcher<Serializable> testDataMatcher() {
+            return is(26);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Serializable>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Serializable>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }
-

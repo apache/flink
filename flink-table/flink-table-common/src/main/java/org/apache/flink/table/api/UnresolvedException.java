@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.api;
 
-/**
- * Exception for unwanted method calling on unresolved expression.
- */
+/** Exception for unwanted method calling on unresolved expression. */
 public class UnresolvedException extends RuntimeException {
-	public UnresolvedException(String msg) {
-		super(msg);
-	}
+    public UnresolvedException(String msg) {
+        super(msg);
+    }
 }

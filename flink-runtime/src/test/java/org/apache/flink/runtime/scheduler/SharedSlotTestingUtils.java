@@ -18,65 +18,17 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
-import javax.annotation.Nullable;
 
 class SharedSlotTestingUtils {
-	private SharedSlotTestingUtils() {}
+    private SharedSlotTestingUtils() {}
 
-	static ExecutionSlotSharingGroup createExecutionSlotSharingGroup(ExecutionVertexID... executions) {
-		ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
-		for (ExecutionVertexID execution : executions) {
-			group.addVertex(execution);
-		}
-		return group;
-	}
-
-	static class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSlot {
-		@Nullable
-		private Payload payload;
-
-		TestingPhysicalSlot(ResourceProfile resourceProfile, AllocationID allocationId) {
-			this(
-				allocationId,
-				new LocalTaskManagerLocation(),
-				0,
-				new SimpleAckingTaskManagerGateway(),
-				resourceProfile);
-		}
-
-		TestingPhysicalSlot(
-				AllocationID allocationId,
-				TaskManagerLocation taskManagerLocation,
-				int physicalSlotNumber,
-				TaskManagerGateway taskManagerGateway,
-				ResourceProfile resourceProfile) {
-			super(
-				allocationId,
-				taskManagerLocation,
-				physicalSlotNumber,
-				taskManagerGateway,
-				resourceProfile);
-		}
-
-		@Override
-		public boolean tryAssignPayload(Payload payload) {
-			this.payload = payload;
-			return true;
-		}
-
-		@Nullable
-		Payload getPayload() {
-			return payload;
-		}
-	}
+    static ExecutionSlotSharingGroup createExecutionSlotSharingGroup(
+            ExecutionVertexID... executions) {
+        ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
+        for (ExecutionVertexID execution : executions) {
+            group.addVertex(execution);
+        }
+        return group;
+    }
 }

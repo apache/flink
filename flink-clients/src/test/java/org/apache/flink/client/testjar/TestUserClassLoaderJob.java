@@ -24,18 +24,20 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 
-/**
- * This class can used to test situation that the jar is not in the system classpath.
- */
+/** This class can used to test situation that the jar is not in the system classpath. */
 public class TestUserClassLoaderJob {
-	public static void main(String[] args) throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final DataStreamSource<Integer> source = env.fromElements(new TestUserClassLoaderJobLib().getValue(), 1, 2, 3, 4);
-		final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
-		mapper.addSink(new DiscardingSink<>());
+        final DataStreamSource<Integer> source =
+                env.fromElements(new TestUserClassLoaderJobLib().getValue(), 1, 2, 3, 4);
+        final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
+        mapper.addSink(new DiscardingSink<>());
 
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		env.execute(TestUserClassLoaderJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
-	}
+        ParameterTool parameterTool = ParameterTool.fromArgs(args);
+        env.execute(
+                TestUserClassLoaderJob.class.getCanonicalName()
+                        + "-"
+                        + parameterTool.getRequired("arg"));
+    }
 }

@@ -34,18 +34,19 @@ import java.io.IOException;
 @Public
 public class HadoopOutputFormat<K, V> extends HadoopOutputFormatBase<K, V, Tuple2<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat, Job job) {
-		super(mapreduceOutputFormat, job);
-	}
+    public HadoopOutputFormat(
+            org.apache.hadoop.mapreduce.OutputFormat<K, V> mapreduceOutputFormat, Job job) {
+        super(mapreduceOutputFormat, job);
+    }
 
-	@Override
-	public void writeRecord(Tuple2<K, V> record) throws IOException {
-		try {
-			this.recordWriter.write(record.f0, record.f1);
-		} catch (InterruptedException e) {
-			throw new IOException("Could not write Record.", e);
-		}
-	}
+    @Override
+    public void writeRecord(Tuple2<K, V> record) throws IOException {
+        try {
+            this.recordWriter.write(record.f0, record.f1);
+        } catch (InterruptedException e) {
+            throw new IOException("Could not write Record.", e);
+        }
+    }
 }

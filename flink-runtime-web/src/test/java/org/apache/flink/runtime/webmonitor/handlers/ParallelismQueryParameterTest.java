@@ -24,21 +24,19 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link ParallelismQueryParameter}.
- */
+/** Tests for {@link ParallelismQueryParameter}. */
 public class ParallelismQueryParameterTest extends TestLogger {
 
-	private final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
+    private final ParallelismQueryParameter parallelismQueryParameter =
+            new ParallelismQueryParameter();
 
-	@Test
-	public void testConvertStringToValue()   {
-		assertEquals("42", parallelismQueryParameter.convertValueToString(42));
-	}
+    @Test
+    public void testConvertStringToValue() {
+        assertEquals("42", parallelismQueryParameter.convertValueToString(42));
+    }
 
-	@Test
-	public void testConvertValueFromString() {
-		assertEquals(42, (int) parallelismQueryParameter.convertStringToValue("42"));
-	}
-
+    @Test
+    public void testConvertValueFromString() {
+        assertEquals(42, (int) parallelismQueryParameter.convertStringToValue("42"));
+    }
 }

@@ -21,15 +21,15 @@ package org.apache.flink.cep.nfa.aftermatch;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 
 abstract class SkipRelativeToWholeMatchStrategy extends AfterMatchSkipStrategy {
-	private static final long serialVersionUID = -3214720554878479037L;
+    private static final long serialVersionUID = -3214720554878479037L;
 
-	@Override
-	public final boolean isSkipStrategy() {
-		return true;
-	}
+    @Override
+    public final boolean isSkipStrategy() {
+        return true;
+    }
 
-	@Override
-	protected final boolean shouldPrune(EventId startEventID, EventId pruningId) {
-		return startEventID != null && startEventID.compareTo(pruningId) <= 0;
-	}
+    @Override
+    protected final boolean shouldPrune(EventId startEventID, EventId pruningId) {
+        return startEventID != null && startEventID.compareTo(pruningId) <= 0;
+    }
 }

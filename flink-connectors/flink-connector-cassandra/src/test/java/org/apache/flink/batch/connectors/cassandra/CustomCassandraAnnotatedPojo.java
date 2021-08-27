@@ -20,53 +20,51 @@ package org.apache.flink.batch.connectors.cassandra;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
-/**
- * Example of Cassandra Annotated POJO class for use with {@link CassandraPojoInputFormat}.
- */
+/** Example of Cassandra Annotated POJO class for use with {@link CassandraPojoInputFormat}. */
 @Table(name = CustomCassandraAnnotatedPojo.TABLE_NAME, keyspace = "flink")
 public class CustomCassandraAnnotatedPojo {
 
-	public static final String TABLE_NAME = "batches";
+    public static final String TABLE_NAME = "batches";
 
-	@Column(name = "id")
-	private String id;
-	@Column(name = "counter")
-	private Integer counter;
-	@Column(name = "batch_id")
-	private Integer batchId;
+    @Column(name = "id")
+    private String id;
 
-	/**
-	 * Necessary for the driver's mapper instanciation.
-	 */
-	public CustomCassandraAnnotatedPojo(){}
+    @Column(name = "counter")
+    private Integer counter;
 
-	public CustomCassandraAnnotatedPojo(String id, Integer counter, Integer batchId) {
-		this.id = id;
-		this.counter = counter;
-		this.batchId = batchId;
-	}
+    @Column(name = "batch_id")
+    private Integer batchId;
 
-	public String getId() {
-		return id;
-	}
+    /** Necessary for the driver's mapper instanciation. */
+    public CustomCassandraAnnotatedPojo() {}
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    public CustomCassandraAnnotatedPojo(String id, Integer counter, Integer batchId) {
+        this.id = id;
+        this.counter = counter;
+        this.batchId = batchId;
+    }
 
-	public Integer getCounter() {
-		return counter;
-	}
+    public String getId() {
+        return id;
+    }
 
-	public void setCounter(Integer counter) {
-		this.counter = counter;
-	}
+    public void setId(String id) {
+        this.id = id;
+    }
 
-	public Integer getBatchId() {
-		return batchId;
-	}
+    public Integer getCounter() {
+        return counter;
+    }
 
-	public void setBatchId(Integer batchId) {
-		this.batchId = batchId;
-	}
+    public void setCounter(Integer counter) {
+        this.counter = counter;
+    }
+
+    public Integer getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(Integer batchId) {
+        this.batchId = batchId;
+    }
 }

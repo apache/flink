@@ -25,44 +25,44 @@ import java.util.Collection;
 import java.util.Set;
 
 class PhysicalSlotRequestBulkWithTimestamp implements PhysicalSlotRequestBulk {
-	private final PhysicalSlotRequestBulk physicalSlotRequestBulk;
+    private final PhysicalSlotRequestBulk physicalSlotRequestBulk;
 
-	private long unfulfillableTimestamp = Long.MAX_VALUE;
+    private long unfulfillableTimestamp = Long.MAX_VALUE;
 
-	PhysicalSlotRequestBulkWithTimestamp(PhysicalSlotRequestBulk physicalSlotRequestBulk) {
-		this.physicalSlotRequestBulk = physicalSlotRequestBulk;
-	}
+    PhysicalSlotRequestBulkWithTimestamp(PhysicalSlotRequestBulk physicalSlotRequestBulk) {
+        this.physicalSlotRequestBulk = physicalSlotRequestBulk;
+    }
 
-	void markFulfillable() {
-		unfulfillableTimestamp = Long.MAX_VALUE;
-	}
+    void markFulfillable() {
+        unfulfillableTimestamp = Long.MAX_VALUE;
+    }
 
-	void markUnfulfillable(final long currentTimestamp) {
-		if (isFulfillable()) {
-			unfulfillableTimestamp = currentTimestamp;
-		}
-	}
+    void markUnfulfillable(final long currentTimestamp) {
+        if (isFulfillable()) {
+            unfulfillableTimestamp = currentTimestamp;
+        }
+    }
 
-	long getUnfulfillableSince() {
-		return unfulfillableTimestamp;
-	}
+    long getUnfulfillableSince() {
+        return unfulfillableTimestamp;
+    }
 
-	private boolean isFulfillable() {
-		return unfulfillableTimestamp == Long.MAX_VALUE;
-	}
+    private boolean isFulfillable() {
+        return unfulfillableTimestamp == Long.MAX_VALUE;
+    }
 
-	@Override
-	public Collection<ResourceProfile> getPendingRequests() {
-		return physicalSlotRequestBulk.getPendingRequests();
-	}
+    @Override
+    public Collection<ResourceProfile> getPendingRequests() {
+        return physicalSlotRequestBulk.getPendingRequests();
+    }
 
-	@Override
-	public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
-		return physicalSlotRequestBulk.getAllocationIdsOfFulfilledRequests();
-	}
+    @Override
+    public Set<AllocationID> getAllocationIdsOfFulfilledRequests() {
+        return physicalSlotRequestBulk.getAllocationIdsOfFulfilledRequests();
+    }
 
-	@Override
-	public void cancel(Throwable cause) {
-		physicalSlotRequestBulk.cancel(cause);
-	}
+    @Override
+    public void cancel(Throwable cause) {
+        physicalSlotRequestBulk.cancel(cause);
+    }
 }

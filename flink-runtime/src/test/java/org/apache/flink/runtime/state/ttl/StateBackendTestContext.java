@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -47,128 +48,142 @@ import java.util.concurrent.RunnableFuture;
 
 /** Base class for state backend test context. */
 public abstract class StateBackendTestContext {
-	public static final int NUMBER_OF_KEY_GROUPS = 10;
+    public static final int NUMBER_OF_KEY_GROUPS = 10;
 
-	private final StateBackend stateBackend;
-	private final CheckpointOptions checkpointOptions;
-	private final CheckpointStreamFactory checkpointStreamFactory;
-	private final TtlTimeProvider timeProvider;
-	private final SharedStateRegistry sharedStateRegistry;
-	private final List<KeyedStateHandle> snapshots;
+    private final StateBackend stateBackend;
+    private final CheckpointOptions checkpointOptions;
+    private final CheckpointStreamFactory checkpointStreamFactory;
+    private final TtlTimeProvider timeProvider;
+    private final SharedStateRegistry sharedStateRegistry;
+    private final List<KeyedStateHandle> snapshots;
 
-	private MockEnvironment env;
+    private MockEnvironment env;
 
-	private CheckpointableKeyedStateBackend<String> keyedStateBackend;
+    private CheckpointableKeyedStateBackend<String> keyedStateBackend;
 
-	protected StateBackendTestContext(TtlTimeProvider timeProvider) {
-		this.timeProvider = Preconditions.checkNotNull(timeProvider);
-		this.stateBackend = Preconditions.checkNotNull(createStateBackend());
-		this.checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
-		this.checkpointStreamFactory = createCheckpointStreamFactory();
-		this.sharedStateRegistry = new SharedStateRegistry();
-		this.snapshots = new ArrayList<>();
-	}
+    protected StateBackendTestContext(TtlTimeProvider timeProvider) {
+        this.timeProvider = Preconditions.checkNotNull(timeProvider);
+        this.stateBackend = Preconditions.checkNotNull(createStateBackend());
+        this.checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
+        this.checkpointStreamFactory = createCheckpointStreamFactory();
+        this.sharedStateRegistry = new SharedStateRegistry();
+        this.snapshots = new ArrayList<>();
+    }
 
-	protected abstract StateBackend createStateBackend();
+    protected abstract StateBackend createStateBackend();
 
-	private CheckpointStreamFactory createCheckpointStreamFactory() {
-		try {
-			return stateBackend
-				.createCheckpointStorage(new JobID())
-				.resolveCheckpointStorageLocation(2L, checkpointOptions.getTargetLocation());
-		} catch (IOException e) {
-			throw new RuntimeException("unexpected");
-		}
-	}
+    protected CheckpointStorage createCheckpointStorage() {
+        if (stateBackend instanceof CheckpointStorage) {
+            return (CheckpointStorage) stateBackend;
+        }
 
-	void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
-		createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS, snapshot);
-	}
+        throw new IllegalStateException(
+                "The state backend under test does not implement CheckpointStorage."
+                        + "Please override 'createCheckpointStorage' and provide an appropriate"
+                        + "checkpoint storage instance");
+    }
 
-	void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot) {
-		Collection<KeyedStateHandle> stateHandles;
-		if (snapshot == null) {
-			stateHandles = Collections.emptyList();
-		} else {
-			stateHandles = new ArrayList<>(1);
-			stateHandles.add(snapshot);
-		}
-		env = MockEnvironment.builder().build();
-		try {
-			disposeKeyedStateBackend();
-			keyedStateBackend = stateBackend.createKeyedStateBackend(
-				env,
-				new JobID(),
-				"test",
-				StringSerializer.INSTANCE,
-				numberOfKeyGroups,
-				new KeyGroupRange(0, numberOfKeyGroups - 1),
-				env.getTaskKvStateRegistry(),
-				timeProvider,
-				new UnregisteredMetricsGroup(),
-				stateHandles,
-				new CloseableRegistry());
-		} catch (Exception e) {
-			throw new RuntimeException("unexpected", e);
-		}
-	}
+    private CheckpointStreamFactory createCheckpointStreamFactory() {
+        try {
+            return createCheckpointStorage()
+                    .createCheckpointStorage(new JobID())
+                    .resolveCheckpointStorageLocation(2L, checkpointOptions.getTargetLocation());
+        } catch (IOException e) {
+            throw new RuntimeException("unexpected");
+        }
+    }
 
-	void dispose() throws Exception {
-		disposeKeyedStateBackend();
-		for (KeyedStateHandle snapshot : snapshots) {
-			snapshot.discardState();
-		}
-		snapshots.clear();
-		sharedStateRegistry.close();
-		if (env != null) {
-			env.close();
-		}
-	}
+    void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
+        createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS, snapshot);
+    }
 
-	private void disposeKeyedStateBackend() {
-		if (keyedStateBackend != null) {
-			keyedStateBackend.dispose();
-			keyedStateBackend = null;
-		}
-	}
+    void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot) {
+        Collection<KeyedStateHandle> stateHandles;
+        if (snapshot == null) {
+            stateHandles = Collections.emptyList();
+        } else {
+            stateHandles = new ArrayList<>(1);
+            stateHandles.add(snapshot);
+        }
+        env = MockEnvironment.builder().build();
+        try {
+            disposeKeyedStateBackend();
+            keyedStateBackend =
+                    stateBackend.createKeyedStateBackend(
+                            env,
+                            new JobID(),
+                            "test",
+                            StringSerializer.INSTANCE,
+                            numberOfKeyGroups,
+                            new KeyGroupRange(0, numberOfKeyGroups - 1),
+                            env.getTaskKvStateRegistry(),
+                            timeProvider,
+                            new UnregisteredMetricsGroup(),
+                            stateHandles,
+                            new CloseableRegistry());
+        } catch (Exception e) {
+            throw new RuntimeException("unexpected", e);
+        }
+    }
 
-	KeyedStateHandle takeSnapshot() throws Exception {
-		SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
-		KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
-		if (jobManagerOwnedSnapshot != null) {
-			jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
-		}
-		return jobManagerOwnedSnapshot;
-	}
+    void dispose() throws Exception {
+        disposeKeyedStateBackend();
+        for (KeyedStateHandle snapshot : snapshots) {
+            snapshot.discardState();
+        }
+        snapshots.clear();
+        sharedStateRegistry.close();
+        if (env != null) {
+            env.close();
+        }
+    }
 
-	@Nonnull
-	RunnableFuture<SnapshotResult<KeyedStateHandle>> triggerSnapshot() throws Exception {
-		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture =
-			keyedStateBackend.snapshot(682375462392L, 10L,
-				checkpointStreamFactory, checkpointOptions);
-		if (!snapshotRunnableFuture.isDone()) {
-			snapshotRunnableFuture.run();
-		}
-		return snapshotRunnableFuture;
-	}
+    private void disposeKeyedStateBackend() {
+        if (keyedStateBackend != null) {
+            keyedStateBackend.dispose();
+            keyedStateBackend = null;
+        }
+    }
 
-	public void setCurrentKey(String key) {
-		//noinspection resource
-		Preconditions.checkNotNull(keyedStateBackend, "keyed backend is not initialised");
-		keyedStateBackend.setCurrentKey(key);
-	}
+    KeyedStateHandle takeSnapshot() throws Exception {
+        SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
+        KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
+        if (jobManagerOwnedSnapshot != null) {
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+        }
+        return jobManagerOwnedSnapshot;
+    }
 
-	@SuppressWarnings("unchecked")
-	<N, S extends State, V> S createState(
-		StateDescriptor<S, V> stateDescriptor,
-		@SuppressWarnings("SameParameterValue") N defaultNamespace) throws Exception {
-		S state = keyedStateBackend.getOrCreateKeyedState(StringSerializer.INSTANCE, stateDescriptor);
-		((InternalKvState<?, N, ?>) state).setCurrentNamespace(defaultNamespace);
-		return state;
-	}
+    @Nonnull
+    RunnableFuture<SnapshotResult<KeyedStateHandle>> triggerSnapshot() throws Exception {
+        RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture =
+                keyedStateBackend.snapshot(
+                        682375462392L, 10L, checkpointStreamFactory, checkpointOptions);
+        if (!snapshotRunnableFuture.isDone()) {
+            snapshotRunnableFuture.run();
+        }
+        return snapshotRunnableFuture;
+    }
 
-	@SuppressWarnings("unchecked")
-	public <B extends CheckpointableKeyedStateBackend<String>> B getKeyedStateBackend() {
-		return (B) keyedStateBackend;
-	}
+    public void setCurrentKey(String key) {
+        //noinspection resource
+        Preconditions.checkNotNull(keyedStateBackend, "keyed backend is not initialised");
+        keyedStateBackend.setCurrentKey(key);
+    }
+
+    @SuppressWarnings("unchecked")
+    <N, S extends State, V> S createState(
+            StateDescriptor<S, V> stateDescriptor,
+            @SuppressWarnings("SameParameterValue") N defaultNamespace)
+            throws Exception {
+        S state =
+                keyedStateBackend.getOrCreateKeyedState(StringSerializer.INSTANCE, stateDescriptor);
+        ((InternalKvState<?, N, ?>) state).setCurrentNamespace(defaultNamespace);
+        return state;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <B extends CheckpointableKeyedStateBackend<String>> B getKeyedStateBackend() {
+        return (B) keyedStateBackend;
+    }
 }

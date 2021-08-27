@@ -19,7 +19,11 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
@@ -30,9 +34,13 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
@@ -44,319 +52,422 @@ import org.junit.Test;
 
 import java.util.List;
 
-/**
- * IT Case for reading window operator state.
- */
-public abstract class SavepointWindowReaderITCase<B extends StateBackend> extends SavepointTestBase {
-	private static final String uid = "stateful-operator";
+/** IT Case for reading window operator state. */
+public abstract class SavepointWindowReaderITCase<B extends StateBackend>
+        extends SavepointTestBase {
+    private static final String uid = "stateful-operator";
 
-	private static final Integer[] numbers = { 1, 2, 3 };
+    private static final Integer[] numbers = {1, 2, 3};
 
-	protected abstract B getStateBackend();
+    protected abstract B getStateBackend();
 
-	@Test
-	public void testReduceWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+    @Test
+    public void testReduceWindowStateReader() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.reduce(new ReduceSum())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-			return env;
-		});
+        String savepointPath = takeSavepoint(env);
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.reduce(uid, new ReduceSum(), Types.INT, Types.INT)
-			.collect();
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
+                        .collect();
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-	@Test
-	public void testReduceEvictorWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+    @Test
+    public void testReduceEvictorWindowStateReader() throws Exception {
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.evictor(new NoOpEvictor<>())
-				.reduce(new ReduceSum())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-			return env;
-		});
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        String savepointPath = takeSavepoint(env);
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.evictor()
-			.reduce(uid, new ReduceSum(), Types.INT, Types.INT)
-			.collect();
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .evictor()
+                        .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
+                        .collect();
 
-	@Test
-	public void testAggregateWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.aggregate(new AggregateSum())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+    @Test
+    public void testAggregateWindowStateReader() throws Exception {
 
-			return env;
-		});
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .aggregate(new AggregateSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
-			.collect();
+        String savepointPath = takeSavepoint(env);
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-	@Test
-	public void testAggregateEvictorWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.evictor(new NoOpEvictor<>())
-				.aggregate(new AggregateSum())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-			return env;
-		});
+    @Test
+    public void testAggregateEvictorWindowStateReader() throws Exception {
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.evictor()
-			.aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
-			.collect();
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .aggregate(new AggregateSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        String savepointPath = takeSavepoint(env);
 
-	@Test
-	public void testProcessWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.process(new NoOpProcessWindowFunction())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .evictor()
+                        .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-			return env;
-		});
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+    @Test
+    public void testProcessWindowStateReader() throws Exception {
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-			.collect();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .process(new NoOpProcessWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-	@Test
-	public void testProcessEvictorWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        String savepointPath = takeSavepoint(env);
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.evictor(new NoOpEvictor<>())
-				.process(new NoOpProcessWindowFunction())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-			return env;
-		});
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.evictor()
-			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-			.collect();
+    @Test
+    public void testProcessEvictorWindowStateReader() throws Exception {
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-	@Test
-	public void testApplyWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .process(new NoOpProcessWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.apply(new NoOpWindowFunction())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        String savepointPath = takeSavepoint(env);
 
-			return env;
-		});
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .evictor()
+                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-			.collect();
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+    @Test
+    public void testApplyWindowStateReader() throws Exception {
 
-	@Test
-	public void testApplyEvictorWindowStateReader() throws Exception {
-		String savepointPath = takeSavepoint(numbers, source -> {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(getStateBackend());
-			env.setParallelism(4);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-			env
-				.addSource(source)
-				.rebalance()
-				.assignTimestampsAndWatermarks(WatermarkStrategy
-					.<Integer>noWatermarks()
-					.withTimestampAssigner((event, timestamp) -> 0))
-				.keyBy(id -> id)
-				.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-				.evictor(new NoOpEvictor<>())
-				.apply(new NoOpWindowFunction())
-				.uid(uid)
-				.addSink(new DiscardingSink<>());
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .apply(new NoOpWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-			return env;
-		});
+        String savepointPath = takeSavepoint(env);
 
-		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-		ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		List<Integer> results = savepoint
-			.window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-			.evictor()
-			.process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-			.collect();
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-		Assert.assertThat("Unexpected results from keyed state", results, Matchers.containsInAnyOrder(numbers));
-	}
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-	private static class NoOpProcessWindowFunction extends ProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
+    @Test
+    public void testApplyEvictorWindowStateReader() throws Exception {
 
-		@Override
-		public void process(Integer integer, Context context, Iterable<Integer> elements, Collector<Integer> out) { }
-	}
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-	private static class NoOpWindowFunction implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Integer>noWatermarks()
+                                .withTimestampAssigner((event, timestamp) -> 0))
+                .keyBy(id -> id)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                .evictor(new NoOpEvictor<>())
+                .apply(new NoOpWindowFunction())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-		@Override
-		public void apply(Integer integer, TimeWindow window, Iterable<Integer> input, Collector<Integer> out) { }
-	}
+        String savepointPath = takeSavepoint(env);
 
-	private static class BasicReaderFunction extends WindowReaderFunction<Integer, Integer, Integer, TimeWindow> {
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
 
-		@Override
-		public void readWindow(Integer key, Context<TimeWindow> context, Iterable<Integer> elements, Collector<Integer> out) throws Exception {
-			Assert.assertEquals("Unexpected window", new TimeWindow(0, 10), context.window());
-			Assert.assertThat("Unexpected registered timers", context.registeredEventTimeTimers(), Matchers.contains(9L));
+        List<Integer> results =
+                savepoint
+                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                        .evictor()
+                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
+                        .collect();
 
-			out.collect(elements.iterator().next());
-		}
-	}
+        Assert.assertThat(
+                "Unexpected results from keyed state",
+                results,
+                Matchers.containsInAnyOrder(numbers));
+    }
 
-	private static class NoOpEvictor<W extends Window> implements Evictor<Integer, W> {
+    @Test
+    public void testWindowTriggerStateReader() throws Exception {
 
-		@Override
-		public void evictBefore(Iterable<TimestampedValue<Integer>> elements, int size, W window, EvictorContext evictorContext) {
-		}
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-		@Override
-		public void evictAfter(Iterable<TimestampedValue<Integer>> elements, int size, W window, EvictorContext evictorContext) {
-		}
-	}
+        env.addSource(createSource(numbers))
+                .rebalance()
+                .keyBy(id -> id)
+                .window(GlobalWindows.create())
+                .trigger(PurgingTrigger.of(CountTrigger.of(10)))
+                .reduce(new ReduceSum())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
+
+        String savepointPath = takeSavepoint(env);
+
+        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
+        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+
+        List<Long> results =
+                savepoint
+                        .window(new GlobalWindow.Serializer())
+                        .reduce(
+                                uid,
+                                new ReduceSum(),
+                                new TriggerReaderFunction(),
+                                Types.INT,
+                                Types.INT,
+                                Types.LONG)
+                        .collect();
+
+        Assert.assertThat(
+                "Unexpected results from trigger state", results, Matchers.contains(1L, 1L, 1L));
+    }
+
+    private static class NoOpProcessWindowFunction
+            extends ProcessWindowFunction<Integer, Integer, Integer, TimeWindow> {
+
+        @Override
+        public void process(
+                Integer integer,
+                Context context,
+                Iterable<Integer> elements,
+                Collector<Integer> out) {}
+    }
+
+    private static class NoOpWindowFunction
+            implements WindowFunction<Integer, Integer, Integer, TimeWindow> {
+
+        @Override
+        public void apply(
+                Integer integer,
+                TimeWindow window,
+                Iterable<Integer> input,
+                Collector<Integer> out) {}
+    }
+
+    private static class BasicReaderFunction
+            extends WindowReaderFunction<Integer, Integer, Integer, TimeWindow> {
+
+        @Override
+        public void readWindow(
+                Integer key,
+                Context<TimeWindow> context,
+                Iterable<Integer> elements,
+                Collector<Integer> out)
+                throws Exception {
+            Assert.assertEquals("Unexpected window", new TimeWindow(0, 10), context.window());
+            Assert.assertThat(
+                    "Unexpected registered timers",
+                    context.registeredEventTimeTimers(),
+                    Matchers.contains(9L));
+
+            out.collect(elements.iterator().next());
+        }
+    }
+
+    private static class NoOpEvictor<W extends Window> implements Evictor<Integer, W> {
+
+        @Override
+        public void evictBefore(
+                Iterable<TimestampedValue<Integer>> elements,
+                int size,
+                W window,
+                EvictorContext evictorContext) {}
+
+        @Override
+        public void evictAfter(
+                Iterable<TimestampedValue<Integer>> elements,
+                int size,
+                W window,
+                EvictorContext evictorContext) {}
+    }
+
+    private static class TriggerReaderFunction
+            extends WindowReaderFunction<Integer, Long, Integer, GlobalWindow> {
+
+        private final ReducingStateDescriptor<Long> triggerCountDesc =
+                new ReducingStateDescriptor<>("count", new LongSum(), LongSerializer.INSTANCE);
+
+        @Override
+        public void readWindow(
+                Integer integer,
+                Context<GlobalWindow> context,
+                Iterable<Integer> elements,
+                Collector<Long> out)
+                throws Exception {
+            ReducingState<Long> state = context.triggerState(triggerCountDesc);
+            out.collect(state.get());
+        }
+    }
+
+    private static class LongSum implements ReduceFunction<Long> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Long reduce(Long value1, Long value2) throws Exception {
+            return value1 + value2;
+        }
+    }
 }

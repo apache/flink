@@ -35,82 +35,107 @@ import java.util.Set;
 @PublicEvolving
 public final class ChangelogMode {
 
-	private static final ChangelogMode INSERT_ONLY = ChangelogMode.newBuilder()
-		.addContainedKind(RowKind.INSERT)
-		.build();
+    private static final ChangelogMode INSERT_ONLY =
+            ChangelogMode.newBuilder().addContainedKind(RowKind.INSERT).build();
 
-	private final Set<RowKind> kinds;
+    private static final ChangelogMode UPSERT =
+            ChangelogMode.newBuilder()
+                    .addContainedKind(RowKind.INSERT)
+                    .addContainedKind(RowKind.UPDATE_AFTER)
+                    .addContainedKind(RowKind.DELETE)
+                    .build();
 
-	private ChangelogMode(Set<RowKind> kinds) {
-		Preconditions.checkArgument(
-			kinds.size() > 0,
-			"At least one kind of row should be contained in a changelog.");
-		this.kinds = Collections.unmodifiableSet(kinds);
-	}
+    private static final ChangelogMode ALL =
+            ChangelogMode.newBuilder()
+                    .addContainedKind(RowKind.INSERT)
+                    .addContainedKind(RowKind.UPDATE_BEFORE)
+                    .addContainedKind(RowKind.UPDATE_AFTER)
+                    .addContainedKind(RowKind.DELETE)
+                    .build();
 
-	/**
-	 * Shortcut for a simple {@link RowKind#INSERT}-only changelog.
-	 */
-	public static ChangelogMode insertOnly() {
-		return INSERT_ONLY;
-	}
+    private final Set<RowKind> kinds;
 
-	/**
-	 * Builder for configuring and creating instances of {@link ChangelogMode}.
-	 */
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    private ChangelogMode(Set<RowKind> kinds) {
+        Preconditions.checkArgument(
+                kinds.size() > 0, "At least one kind of row should be contained in a changelog.");
+        this.kinds = Collections.unmodifiableSet(kinds);
+    }
 
-	public Set<RowKind> getContainedKinds() {
-		return kinds;
-	}
+    /** Shortcut for a simple {@link RowKind#INSERT}-only changelog. */
+    public static ChangelogMode insertOnly() {
+        return INSERT_ONLY;
+    }
 
-	public boolean contains(RowKind kind) {
-		return kinds.contains(kind);
-	}
+    /**
+     * Shortcut for an upsert changelog that describes idempotent updates on a key and thus does not
+     * contain {@link RowKind#UPDATE_BEFORE} rows.
+     */
+    public static ChangelogMode upsert() {
+        return UPSERT;
+    }
 
-	public boolean containsOnly(RowKind kind) {
-		return kinds.size() == 1 && kinds.contains(kind);
-	}
+    /** Shortcut for a changelog that can contain all {@link RowKind}s. */
+    public static ChangelogMode all() {
+        return ALL;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ChangelogMode that = (ChangelogMode) o;
-		return kinds.equals(that.kinds);
-	}
+    /** Builder for configuring and creating instances of {@link ChangelogMode}. */
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(kinds);
-	}
+    public Set<RowKind> getContainedKinds() {
+        return kinds;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    public boolean contains(RowKind kind) {
+        return kinds.contains(kind);
+    }
 
-	/**
-	 * Builder for configuring and creating instances of {@link ChangelogMode}.
-	 */
-	public static class Builder {
+    public boolean containsOnly(RowKind kind) {
+        return kinds.size() == 1 && kinds.contains(kind);
+    }
 
-		private final Set<RowKind> kinds = EnumSet.noneOf(RowKind.class);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ChangelogMode that = (ChangelogMode) o;
+        return kinds.equals(that.kinds);
+    }
 
-		private Builder() {
-			// default constructor to allow a fluent definition
-		}
+    @Override
+    public int hashCode() {
+        return Objects.hash(kinds);
+    }
 
-		public Builder addContainedKind(RowKind kind) {
-			this.kinds.add(kind);
-			return this;
-		}
+    @Override
+    public String toString() {
+        return kinds.toString();
+    }
 
-		public ChangelogMode build() {
-			return new ChangelogMode(kinds);
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+
+    /** Builder for configuring and creating instances of {@link ChangelogMode}. */
+    public static class Builder {
+
+        private final Set<RowKind> kinds = EnumSet.noneOf(RowKind.class);
+
+        private Builder() {
+            // default constructor to allow a fluent definition
+        }
+
+        public Builder addContainedKind(RowKind kind) {
+            this.kinds.add(kind);
+            return this;
+        }
+
+        public ChangelogMode build() {
+            return new ChangelogMode(kinds);
+        }
+    }
 }

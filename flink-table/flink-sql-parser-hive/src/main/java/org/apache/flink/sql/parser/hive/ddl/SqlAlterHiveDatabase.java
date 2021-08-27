@@ -25,36 +25,33 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * Abstract class for ALTER DDL of a Hive database.
- */
+/** Abstract class for ALTER DDL of a Hive database. */
 public abstract class SqlAlterHiveDatabase extends SqlAlterDatabase {
 
-	public static final String ALTER_DATABASE_OP = "hive.alter.database.op";
+    public static final String ALTER_DATABASE_OP = "hive.alter.database.op";
 
-	protected final SqlNodeList originPropList;
+    protected final SqlNodeList originPropList;
 
-	public SqlAlterHiveDatabase(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList) {
-		super(pos, databaseName, propertyList);
-		originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
-		propertyList.add(HiveDDLUtils.toTableOption(ALTER_DATABASE_OP, getAlterOp().name(), pos));
-	}
+    public SqlAlterHiveDatabase(
+            SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList) {
+        super(pos, databaseName, propertyList);
+        originPropList = new SqlNodeList(propertyList.getList(), propertyList.getParserPosition());
+        propertyList.add(HiveDDLUtils.toTableOption(ALTER_DATABASE_OP, getAlterOp().name(), pos));
+    }
 
-	protected abstract AlterHiveDatabaseOp getAlterOp();
+    protected abstract AlterHiveDatabaseOp getAlterOp();
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER DATABASE");
-		getDatabaseName().unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER DATABASE");
+        getDatabaseName().unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET");
+    }
 
-	/**
-	 * Type of ALTER DATABASE operation.
-	 */
-	public enum AlterHiveDatabaseOp {
-		CHANGE_PROPS,
-		CHANGE_LOCATION,
-		CHANGE_OWNER
-	}
+    /** Type of ALTER DATABASE operation. */
+    public enum AlterHiveDatabaseOp {
+        CHANGE_PROPS,
+        CHANGE_LOCATION,
+        CHANGE_OWNER
+    }
 }

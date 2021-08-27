@@ -22,9 +22,14 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.topology.Vertex;
 
-/**
- * Represents a vertex in {@link LogicalTopology}, i.e. {@link JobVertex}.
- */
-public interface LogicalVertex<V extends LogicalVertex<V, R>, R extends LogicalResult<V, R>>
-	extends Vertex<JobVertexID, IntermediateDataSetID, V, R> {
+/** Represents a vertex in {@link LogicalTopology}, i.e. {@link JobVertex}. */
+public interface LogicalVertex
+        extends Vertex<JobVertexID, IntermediateDataSetID, LogicalVertex, LogicalResult> {
+
+    /**
+     * Get the input {@link LogicalEdge}s of the vertex.
+     *
+     * @return the input {@link LogicalEdge}s
+     */
+    Iterable<? extends LogicalEdge> getInputs();
 }

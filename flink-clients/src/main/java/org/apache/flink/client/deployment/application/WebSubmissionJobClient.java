@@ -35,50 +35,57 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link JobClient} that only allows asking for the job id of the job it is attached to.
  *
- * <p>This is used in web submission, where we do not want the Web UI to have jobs blocking threads while
- * waiting for their completion.
+ * <p>This is used in web submission, where we do not want the Web UI to have jobs blocking threads
+ * while waiting for their completion.
  */
 @PublicEvolving
 public class WebSubmissionJobClient implements JobClient {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	public WebSubmissionJobClient(final JobID jobId) {
-		this.jobId = checkNotNull(jobId);
-	}
+    public WebSubmissionJobClient(final JobID jobId) {
+        this.jobId = checkNotNull(jobId);
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-	@Override
-	public CompletableFuture<JobStatus> getJobStatus() {
-		throw new FlinkRuntimeException("The Job Status cannot be requested when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<JobStatus> getJobStatus() {
+        throw new FlinkRuntimeException(
+                "The Job Status cannot be requested when in Web Submission.");
+    }
 
-	@Override
-	public CompletableFuture<Void> cancel() {
-		throw new FlinkRuntimeException("Cancelling the job is not supported by the Job Client when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<Void> cancel() {
+        throw new FlinkRuntimeException(
+                "Cancelling the job is not supported by the Job Client when in Web Submission.");
+    }
 
-	@Override
-	public CompletableFuture<String> stopWithSavepoint(boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
-		throw new FlinkRuntimeException("Stop with Savepoint is not supported by the Job Client when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<String> stopWithSavepoint(
+            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+        throw new FlinkRuntimeException(
+                "Stop with Savepoint is not supported by the Job Client when in Web Submission.");
+    }
 
-	@Override
-	public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
-		throw new FlinkRuntimeException("A savepoint cannot be taken through the Job Client when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+        throw new FlinkRuntimeException(
+                "A savepoint cannot be taken through the Job Client when in Web Submission.");
+    }
 
-	@Override
-	public CompletableFuture<Map<String, Object>> getAccumulators() {
-		throw new FlinkRuntimeException("The Accumulators cannot be fetched through the Job Client when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<Map<String, Object>> getAccumulators() {
+        throw new FlinkRuntimeException(
+                "The Accumulators cannot be fetched through the Job Client when in Web Submission.");
+    }
 
-	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
-		throw new FlinkRuntimeException("The Job Result cannot be fetched through the Job Client when in Web Submission.");
-	}
+    @Override
+    public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
+        throw new FlinkRuntimeException(
+                "The Job Result cannot be fetched through the Job Client when in Web Submission.");
+    }
 }

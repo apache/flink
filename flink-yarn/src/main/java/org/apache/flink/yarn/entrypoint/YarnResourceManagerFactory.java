@@ -31,32 +31,38 @@ import org.apache.flink.yarn.YarnWorkerNode;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 
 /**
- * {@link ActiveResourceManagerFactory} implementation which creates a {@link ActiveResourceManager} with {@link YarnResourceManagerDriver}.
+ * {@link ActiveResourceManagerFactory} implementation which creates a {@link ActiveResourceManager}
+ * with {@link YarnResourceManagerDriver}.
  */
 public class YarnResourceManagerFactory extends ActiveResourceManagerFactory<YarnWorkerNode> {
 
-	private static final YarnResourceManagerFactory INSTANCE = new YarnResourceManagerFactory();
+    private static final YarnResourceManagerFactory INSTANCE = new YarnResourceManagerFactory();
 
-	private YarnResourceManagerFactory() {}
+    private YarnResourceManagerFactory() {}
 
-	public static YarnResourceManagerFactory getInstance() {
-		return INSTANCE;
-	}
+    public static YarnResourceManagerFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	protected ResourceManagerDriver<YarnWorkerNode> createResourceManagerDriver(Configuration configuration, String webInterfaceUrl, String rpcAddress) {
-		final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration = new YarnResourceManagerDriverConfiguration(System.getenv(), rpcAddress, webInterfaceUrl);
+    @Override
+    protected ResourceManagerDriver<YarnWorkerNode> createResourceManagerDriver(
+            Configuration configuration, String webInterfaceUrl, String rpcAddress) {
+        final YarnResourceManagerDriverConfiguration yarnResourceManagerDriverConfiguration =
+                new YarnResourceManagerDriverConfiguration(
+                        System.getenv(), rpcAddress, webInterfaceUrl);
 
-		return new YarnResourceManagerDriver(
-			configuration,
-			yarnResourceManagerDriverConfiguration,
-			DefaultYarnResourceManagerClientFactory.getInstance(),
-			DefaultYarnNodeManagerClientFactory.getInstance());
-	}
+        return new YarnResourceManagerDriver(
+                configuration,
+                yarnResourceManagerDriverConfiguration,
+                DefaultYarnResourceManagerClientFactory.getInstance(),
+                DefaultYarnNodeManagerClientFactory.getInstance());
+    }
 
-	@Override
-	protected ResourceManagerRuntimeServicesConfiguration createResourceManagerRuntimeServicesConfiguration(
-		Configuration configuration) throws ConfigurationException {
-		return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration, YarnWorkerResourceSpecFactory.INSTANCE);
-	}
+    @Override
+    protected ResourceManagerRuntimeServicesConfiguration
+            createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
+                    throws ConfigurationException {
+        return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
+                configuration, YarnWorkerResourceSpecFactory.INSTANCE);
+    }
 }

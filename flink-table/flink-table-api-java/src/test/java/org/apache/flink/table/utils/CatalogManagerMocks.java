@@ -21,32 +21,36 @@ package org.apache.flink.table.utils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 
-/**
- * Mock implementations of {@link CatalogManager} for testing purposes.
- */
+/** Mock implementations of {@link CatalogManager} for testing purposes. */
 public final class CatalogManagerMocks {
 
-	public static final String DEFAULT_CATALOG = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
+    public static final String DEFAULT_CATALOG = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 
-	public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+    public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 
-	public static CatalogManager createEmptyCatalogManager() {
-		return preparedCatalogManager().build();
-	}
+    public static CatalogManager createEmptyCatalogManager() {
+        final CatalogManager catalogManager = preparedCatalogManager().build();
+        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        return catalogManager;
+    }
 
-	public static CatalogManager.Builder preparedCatalogManager() {
-		return CatalogManager.newBuilder()
-			.classLoader(CatalogManagerMocks.class.getClassLoader())
-			.config(new Configuration())
-			.defaultCatalog(DEFAULT_CATALOG,
-				new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE))
-			.executionConfig(new ExecutionConfig());
-	}
+    public static CatalogManager.Builder preparedCatalogManager() {
+        return CatalogManager.newBuilder()
+                .classLoader(CatalogManagerMocks.class.getClassLoader())
+                .config(new Configuration())
+                .defaultCatalog(DEFAULT_CATALOG, createEmptyCatalog())
+                .executionConfig(new ExecutionConfig());
+    }
 
-	private CatalogManagerMocks() {
-		// no instantiation
-	}
+    public static Catalog createEmptyCatalog() {
+        return new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE);
+    }
+
+    private CatalogManagerMocks() {
+        // no instantiation
+    }
 }

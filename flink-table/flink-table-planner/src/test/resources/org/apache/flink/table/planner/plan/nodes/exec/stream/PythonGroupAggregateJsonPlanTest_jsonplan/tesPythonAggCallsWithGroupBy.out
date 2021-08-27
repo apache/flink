@@ -1,0 +1,331 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.3.data-type" : "BIGINT",
+        "schema.2.data-type" : "INT NOT NULL",
+        "schema.3.name" : "d",
+        "connector" : "values",
+        "schema.0.data-type" : "INT NOT NULL",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT NOT NULL"
+      },
+      "sourceAbilitySpecs" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 0 ], [ 2 ] ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "b" : "INT NOT NULL"
+          }, {
+            "a" : "INT NOT NULL"
+          }, {
+            "c" : "INT NOT NULL"
+          } ]
+        }
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "b" : "INT NOT NULL"
+          }, {
+            "a" : "INT NOT NULL"
+          }, {
+            "c" : "INT NOT NULL"
+          } ]
+        }
+      } ]
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a" : "INT NOT NULL"
+      }, {
+        "c" : "INT NOT NULL"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : ">",
+        "kind" : "GREATER_THAN",
+        "syntax" : "BINARY"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : "1",
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BOOLEAN",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a" : "INT NOT NULL"
+      }, {
+        "c" : "INT NOT NULL"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[b, a, c, (b > 1) AS $f3])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "a" : "INT NOT NULL"
+      }, {
+        "c" : "INT NOT NULL"
+      }, {
+        "$f3" : "BOOLEAN NOT NULL"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "EXPR$1",
+      "aggFunction" : {
+        "name" : "pyFunc",
+        "kind" : "OTHER_FUNCTION",
+        "syntax" : "FUNCTION",
+        "functionKind" : "AGGREGATE",
+        "instance" : "rO0ABXNyAGRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkVGVzdFB5dGhvbkFnZ3JlZ2F0ZUZ1bmN0aW9uera6fuZvJ50CAAB4cgBUb3JnLmFwYWNoZS5mbGluay50YWJsZS5wbGFubmVyLnJ1bnRpbWUudXRpbHMuSmF2YVVzZXJEZWZpbmVkQWdnRnVuY3Rpb25zJFdlaWdodGVkQXZnZ1Nq7DPVPgQCAAB4cgAyb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuQWdncmVnYXRlRnVuY3Rpb24g1IzcoWgbiQIAAHhyADxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5JbXBlcmF0aXZlQWdncmVnYXRlRnVuY3Rpb27yV4D2r81spwIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
+        "bridging" : true
+      },
+      "argList" : [ 1, 2 ],
+      "filterArg" : 3,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false ],
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "INT NOT NULL"
+      }, {
+        "EXPR$1" : "BIGINT"
+      } ]
+    },
+    "description" : "PythonGroupAggregate(groupBy=[b], select=[b, pyFunc(a, c) FILTER $f3 AS EXPR$1])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "CAST",
+        "kind" : "CAST",
+        "syntax" : "SPECIAL"
+      },
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : true
+      }
+    } ],
+    "condition" : null,
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "BIGINT"
+      } ]
+    },
+    "description" : "Calc(select=[CAST(b) AS a, EXPR$1 AS b])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "sink-insert-only" : "false",
+        "table-sink-class" : "DEFAULT",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.1.name" : "b",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "BIGINT"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "BIGINT"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

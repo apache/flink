@@ -31,12 +31,12 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 @PublicEvolving
 public interface DynamicTableSinkFactory extends DynamicTableFactory {
 
-	/**
-	 * Creates a {@link DynamicTableSink} instance from a {@link CatalogTable} and additional context
-	 * information.
-	 *
-	 * <p>An implementation should perform validation and the discovery of further (nested) factories
-	 * in this method.
-	 */
-	DynamicTableSink createDynamicTableSink(Context context);
+    /**
+     * Creates a {@link DynamicTableSink} instance from a {@link CatalogTable} and additional
+     * context information.
+     *
+     * <p>An implementation should perform validation and the discovery of further (nested)
+     * factories in this method.
+     */
+    DynamicTableSink createDynamicTableSink(Context context);
 }

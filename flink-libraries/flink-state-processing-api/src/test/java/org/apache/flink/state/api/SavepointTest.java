@@ -34,85 +34,85 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Tests the api of creating new savepoints.
- */
+/** Tests the api of creating new savepoints. */
 public class SavepointTest {
 
-	private static final String UID = "uid";
+    private static final String UID = "uid";
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testNewSavepointEnforceUniqueUIDs() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
+    @Test(expected = IllegalArgumentException.class)
+    public void testNewSavepointEnforceUniqueUIDs() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(10);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		SavepointMetadata metadata = new SavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
+        SavepointMetadata metadata =
+                new SavepointMetadata(1, Collections.emptyList(), Collections.emptyList());
 
-		new NewSavepoint(metadata, new MemoryStateBackend())
-			.withOperator(UID, transformation)
-			.withOperator(UID, transformation);
-	}
+        new NewSavepoint(metadata, new MemoryStateBackend())
+                .withOperator(UID, transformation)
+                .withOperator(UID, transformation);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
+    @Test(expected = IllegalArgumentException.class)
+    public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(10);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
-			OperatorIDGenerator.fromUid(UID), 1, 4));
+        Collection<OperatorState> operatorStates =
+                Collections.singletonList(
+                        new OperatorState(OperatorIDGenerator.fromUid(UID), 1, 4));
 
-		SavepointMetadata metadata = new SavepointMetadata(4, Collections.emptyList(), operatorStates);
+        SavepointMetadata metadata =
+                new SavepointMetadata(4, Collections.emptyList(), operatorStates);
 
-		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
-			.withOperator(UID, transformation)
-			.withOperator(UID, transformation);
-	}
+        new ExistingSavepoint(env, metadata, new MemoryStateBackend())
+                .withOperator(UID, transformation)
+                .withOperator(UID, transformation);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(10);
+    @Test(expected = IllegalArgumentException.class)
+    public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(10);
 
-		DataSource<Integer> input = env.fromElements(0);
+        DataSource<Integer> input = env.fromElements(0);
 
-		BootstrapTransformation<Integer> transformation = OperatorTransformation
-			.bootstrapWith(input)
-			.transform(new ExampleStateBootstrapFunction());
+        BootstrapTransformation<Integer> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .transform(new ExampleStateBootstrapFunction());
 
-		Collection<OperatorState> operatorStates = Collections.singletonList(new OperatorState(
-			OperatorIDGenerator.fromUid(UID), 1, 4));
+        Collection<OperatorState> operatorStates =
+                Collections.singletonList(
+                        new OperatorState(OperatorIDGenerator.fromUid(UID), 1, 4));
 
-		SavepointMetadata metadata = new SavepointMetadata(4, Collections.emptyList(), operatorStates);
+        SavepointMetadata metadata =
+                new SavepointMetadata(4, Collections.emptyList(), operatorStates);
 
-		new ExistingSavepoint(env, metadata, new MemoryStateBackend())
-			.withOperator(UID, transformation)
-			.write("");
-	}
+        new ExistingSavepoint(env, metadata, new MemoryStateBackend())
+                .withOperator(UID, transformation)
+                .write("");
+    }
 
-	private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {
+    private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {
 
-		@Override
-		public void processElement(Integer value, Context ctx) throws Exception {
-		}
+        @Override
+        public void processElement(Integer value, Context ctx) throws Exception {}
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {}
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-		}
-	}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {}
+    }
 }

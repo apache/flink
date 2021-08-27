@@ -24,41 +24,42 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlValueState}. */
-class TtlValueStateTestContext extends TtlStateTestContextBase<TtlValueState<?, String, String>, String, String> {
-	private static final String TEST_VAL1 = "test value1";
-	private static final String TEST_VAL2 = "test value2";
-	private static final String TEST_VAL3 = "test value3";
+class TtlValueStateTestContext
+        extends TtlStateTestContextBase<TtlValueState<?, String, String>, String, String> {
+    private static final String TEST_VAL1 = "test value1";
+    private static final String TEST_VAL2 = "test value2";
+    private static final String TEST_VAL3 = "test value3";
 
-	@Override
-	void initTestValues() {
-		updateEmpty = TEST_VAL1;
-		updateUnexpired = TEST_VAL2;
-		updateExpired = TEST_VAL3;
+    @Override
+    void initTestValues() {
+        updateEmpty = TEST_VAL1;
+        updateUnexpired = TEST_VAL2;
+        updateExpired = TEST_VAL3;
 
-		getUpdateEmpty = TEST_VAL1;
-		getUnexpired = TEST_VAL2;
-		getUpdateExpired = TEST_VAL3;
-	}
+        getUpdateEmpty = TEST_VAL1;
+        getUnexpired = TEST_VAL2;
+        getUpdateExpired = TEST_VAL3;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
-		return (StateDescriptor<US, SV>) new ValueStateDescriptor<>(
-			getName(), StringSerializer.INSTANCE);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+        return (StateDescriptor<US, SV>)
+                new ValueStateDescriptor<>(getName(), StringSerializer.INSTANCE);
+    }
 
-	@Override
-	public void update(String value) throws Exception {
-		ttlState.update(value);
-	}
+    @Override
+    public void update(String value) throws Exception {
+        ttlState.update(value);
+    }
 
-	@Override
-	public String get() throws Exception {
-		return ttlState.value();
-	}
+    @Override
+    public String get() throws Exception {
+        return ttlState.value();
+    }
 
-	@Override
-	public Object getOriginal() throws Exception {
-		return ttlState.original.value();
-	}
+    @Override
+    public Object getOriginal() throws Exception {
+        return ttlState.original.value();
+    }
 }

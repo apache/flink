@@ -29,36 +29,34 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * General tests for the {@link EnvSecretsDecorator}.
- */
+/** General tests for the {@link EnvSecretsDecorator}. */
 public class EnvSecretsDecoratorTest extends KubernetesJobManagerTestBase {
 
-	private static final String ENV_NAME = "MY_FOO";
-	private static final String ENV_SERCET_KEY = "env:MY_FOO,secret:foo,key:key_foo";
+    private static final String ENV_NAME = "MY_FOO";
+    private static final String ENV_SERCET_KEY = "env:MY_FOO,secret:foo,key:key_foo";
 
-	private EnvSecretsDecorator envSecretsDecorator;
+    private EnvSecretsDecorator envSecretsDecorator;
 
-	@Override
-	protected void setupFlinkConfig() {
-		super.setupFlinkConfig();
+    @Override
+    protected void setupFlinkConfig() {
+        super.setupFlinkConfig();
 
-		this.flinkConfig.setString(KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF.key(), ENV_SERCET_KEY);
-	}
+        this.flinkConfig.setString(
+                KubernetesConfigOptions.KUBERNETES_ENV_SECRET_KEY_REF.key(), ENV_SERCET_KEY);
+    }
 
-	@Override
-	protected void onSetup() throws Exception {
-		super.onSetup();
-		this.envSecretsDecorator = new EnvSecretsDecorator(kubernetesJobManagerParameters);
-	}
+    @Override
+    protected void onSetup() throws Exception {
+        super.onSetup();
+        this.envSecretsDecorator = new EnvSecretsDecorator(kubernetesJobManagerParameters);
+    }
 
-	@Test
-	public void testWhetherPodOrContainerIsDecorated() {
-		final FlinkPod resultFlinkPod = envSecretsDecorator.decorateFlinkPod(baseFlinkPod);
-		List<EnvVar> envVarList = resultFlinkPod.getMainContainer().getEnv();
+    @Test
+    public void testWhetherPodOrContainerIsDecorated() {
+        final FlinkPod resultFlinkPod = envSecretsDecorator.decorateFlinkPod(baseFlinkPod);
+        List<EnvVar> envVarList = resultFlinkPod.getMainContainer().getEnv();
 
-		assertEquals(1, envVarList.size());
-		assertEquals(ENV_NAME, envVarList.get(0).getName());
-	}
-
+        assertEquals(1, envVarList.size());
+        assertEquals(ENV_NAME, envVarList.get(0).getName());
+    }
 }

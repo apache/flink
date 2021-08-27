@@ -18,14 +18,15 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
@@ -38,145 +39,146 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link SortingDataInput}.
  *
- * <p>These are rather simple unit tests. See also {@link LargeSortingDataInputITCase} for more thorough tests.
+ * <p>These are rather simple unit tests. See also {@link LargeSortingDataInputITCase} for more
+ * thorough tests.
  */
 public class SortingDataInputTest {
-	@Test
-	public void simpleFixedLengthKeySorting() throws Exception {
-		CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
-		CollectionDataInput<Integer> input = new CollectionDataInput<>(
-			Arrays.asList(
-				new StreamRecord<>(1, 3),
-				new StreamRecord<>(1, 1),
-				new StreamRecord<>(2, 1),
-				new StreamRecord<>(2, 3),
-				new StreamRecord<>(1, 2),
-				new StreamRecord<>(2, 2)
-			)
-		);
-		MockEnvironment environment = MockEnvironment.builder().build();
-		SortingDataInput<Integer, Integer> sortingDataInput = new SortingDataInput<>(
-			input,
-			new IntSerializer(),
-			new IntSerializer(),
-			(KeySelector<Integer, Integer>) value -> value,
-			environment.getMemoryManager(),
-			environment.getIOManager(),
-			true,
-			1.0,
-			new Configuration(),
-			new DummyInvokable()
-		);
+    @Test
+    public void simpleFixedLengthKeySorting() throws Exception {
+        CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
+        CollectionDataInput<Integer> input =
+                new CollectionDataInput<>(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(2, 1),
+                                new StreamRecord<>(2, 3),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(2, 2)));
+        MockEnvironment environment = MockEnvironment.builder().build();
+        SortingDataInput<Integer, Integer> sortingDataInput =
+                new SortingDataInput<>(
+                        input,
+                        new IntSerializer(),
+                        new IntSerializer(),
+                        (KeySelector<Integer, Integer>) value -> value,
+                        environment.getMemoryManager(),
+                        environment.getIOManager(),
+                        true,
+                        1.0,
+                        new Configuration(),
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-		InputStatus inputStatus;
-		do {
-			inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-		} while (inputStatus != InputStatus.END_OF_INPUT);
+        DataInputStatus inputStatus;
+        do {
+            inputStatus = sortingDataInput.emitNext(collectingDataOutput);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-		assertThat(collectingDataOutput.events, equalTo(
-			Arrays.asList(
-				new StreamRecord<>(1, 1),
-				new StreamRecord<>(1, 2),
-				new StreamRecord<>(1, 3),
-				new StreamRecord<>(2, 1),
-				new StreamRecord<>(2, 2),
-				new StreamRecord<>(2, 3)
-			)
-		));
-	}
+        assertThat(
+                collectingDataOutput.events,
+                equalTo(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(2, 1),
+                                new StreamRecord<>(2, 2),
+                                new StreamRecord<>(2, 3))));
+    }
 
-	@Test
-	public void watermarkPropagation() throws Exception {
-		CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
-		CollectionDataInput<Integer> input = new CollectionDataInput<>(
-			Arrays.asList(
-				new StreamRecord<>(1, 3),
-				new Watermark(1),
-				new StreamRecord<>(1, 1),
-				new Watermark(2),
-				new StreamRecord<>(2, 1),
-				new Watermark(3),
-				new StreamRecord<>(2, 3),
-				new Watermark(4),
-				new StreamRecord<>(1, 2),
-				new Watermark(5),
-				new StreamRecord<>(2, 2),
-				new Watermark(6)
-			)
-		);
-		MockEnvironment environment = MockEnvironment.builder().build();
-		SortingDataInput<Integer, Integer> sortingDataInput = new SortingDataInput<>(
-			input,
-			new IntSerializer(),
-			new IntSerializer(),
-			(KeySelector<Integer, Integer>) value -> value,
-			environment.getMemoryManager(),
-			environment.getIOManager(),
-			true,
-			1.0,
-			new Configuration(),
-			new DummyInvokable()
-		);
+    @Test
+    public void watermarkPropagation() throws Exception {
+        CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
+        CollectionDataInput<Integer> input =
+                new CollectionDataInput<>(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 3),
+                                new Watermark(1),
+                                new StreamRecord<>(1, 1),
+                                new Watermark(2),
+                                new StreamRecord<>(2, 1),
+                                new Watermark(3),
+                                new StreamRecord<>(2, 3),
+                                new Watermark(4),
+                                new StreamRecord<>(1, 2),
+                                new Watermark(5),
+                                new StreamRecord<>(2, 2),
+                                new Watermark(6)));
+        MockEnvironment environment = MockEnvironment.builder().build();
+        SortingDataInput<Integer, Integer> sortingDataInput =
+                new SortingDataInput<>(
+                        input,
+                        new IntSerializer(),
+                        new IntSerializer(),
+                        (KeySelector<Integer, Integer>) value -> value,
+                        environment.getMemoryManager(),
+                        environment.getIOManager(),
+                        true,
+                        1.0,
+                        new Configuration(),
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-		InputStatus inputStatus;
-		do {
-			inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-		} while (inputStatus != InputStatus.END_OF_INPUT);
+        DataInputStatus inputStatus;
+        do {
+            inputStatus = sortingDataInput.emitNext(collectingDataOutput);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-		assertThat(collectingDataOutput.events, equalTo(
-			Arrays.asList(
-				new StreamRecord<>(1, 1),
-				new StreamRecord<>(1, 2),
-				new StreamRecord<>(1, 3),
-				new StreamRecord<>(2, 1),
-				new StreamRecord<>(2, 2),
-				new StreamRecord<>(2, 3),
-				new Watermark(6)
-			)
-		));
-	}
+        assertThat(
+                collectingDataOutput.events,
+                equalTo(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(2, 1),
+                                new StreamRecord<>(2, 2),
+                                new StreamRecord<>(2, 3),
+                                new Watermark(6))));
+    }
 
-	@Test
-	public void simpleVariableLengthKeySorting() throws Exception {
-		CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
-		CollectionDataInput<Integer> input = new CollectionDataInput<>(
-			Arrays.asList(
-				new StreamRecord<>(1, 3),
-				new StreamRecord<>(1, 1),
-				new StreamRecord<>(2, 1),
-				new StreamRecord<>(2, 3),
-				new StreamRecord<>(1, 2),
-				new StreamRecord<>(2, 2)
-			)
-		);
-		MockEnvironment environment = MockEnvironment.builder().build();
-		SortingDataInput<Integer, String> sortingDataInput = new SortingDataInput<>(
-			input,
-			new IntSerializer(),
-			new StringSerializer(),
-			(KeySelector<Integer, String>) value -> "" + value,
-			environment.getMemoryManager(),
-			environment.getIOManager(),
-			true,
-			1.0,
-			new Configuration(),
-			new DummyInvokable()
-		);
+    @Test
+    public void simpleVariableLengthKeySorting() throws Exception {
+        CollectingDataOutput<Integer> collectingDataOutput = new CollectingDataOutput<>();
+        CollectionDataInput<Integer> input =
+                new CollectionDataInput<>(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(2, 1),
+                                new StreamRecord<>(2, 3),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(2, 2)));
+        MockEnvironment environment = MockEnvironment.builder().build();
+        SortingDataInput<Integer, String> sortingDataInput =
+                new SortingDataInput<>(
+                        input,
+                        new IntSerializer(),
+                        new StringSerializer(),
+                        (KeySelector<Integer, String>) value -> "" + value,
+                        environment.getMemoryManager(),
+                        environment.getIOManager(),
+                        true,
+                        1.0,
+                        new Configuration(),
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
-		InputStatus inputStatus;
-		do {
-			inputStatus = sortingDataInput.emitNext(collectingDataOutput);
-		} while (inputStatus != InputStatus.END_OF_INPUT);
+        DataInputStatus inputStatus;
+        do {
+            inputStatus = sortingDataInput.emitNext(collectingDataOutput);
+        } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
-		assertThat(collectingDataOutput.events, equalTo(
-			Arrays.asList(
-				new StreamRecord<>(1, 1),
-				new StreamRecord<>(1, 2),
-				new StreamRecord<>(1, 3),
-				new StreamRecord<>(2, 1),
-				new StreamRecord<>(2, 2),
-				new StreamRecord<>(2, 3)
-			)
-		));
-	}
+        assertThat(
+                collectingDataOutput.events,
+                equalTo(
+                        Arrays.asList(
+                                new StreamRecord<>(1, 1),
+                                new StreamRecord<>(1, 2),
+                                new StreamRecord<>(1, 3),
+                                new StreamRecord<>(2, 1),
+                                new StreamRecord<>(2, 2),
+                                new StreamRecord<>(2, 3))));
+    }
 }

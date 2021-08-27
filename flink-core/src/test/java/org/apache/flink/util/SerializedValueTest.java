@@ -22,55 +22,60 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
+import java.util.Arrays;
+
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link SerializedValue}.
- */
+/** Tests for the {@link SerializedValue}. */
 public class SerializedValueTest {
 
-	@Test
-	public void testSimpleValue() {
-		try {
-			final String value = "teststring";
+    @Test
+    public void testSimpleValue() {
+        try {
+            final String value = "teststring";
 
-			SerializedValue<String> v = new SerializedValue<>(value);
-			SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
+            SerializedValue<String> v = new SerializedValue<>(value);
+            SerializedValue<String> copy = CommonTestUtils.createCopySerializable(v);
 
-			assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
-			assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
+            assertEquals(value, v.deserializeValue(getClass().getClassLoader()));
+            assertEquals(value, copy.deserializeValue(getClass().getClassLoader()));
 
-			assertEquals(v, copy);
-			assertEquals(v.hashCode(), copy.hashCode());
+            assertEquals(v, copy);
+            assertEquals(v.hashCode(), copy.hashCode());
 
-			assertNotNull(v.toString());
-			assertNotNull(copy.toString());
+            assertNotNull(v.toString());
+            assertNotNull(copy.toString());
 
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertNotEquals(0, v.getByteArray().length);
+            assertArrayEquals(v.getByteArray(), copy.getByteArray());
 
-	@Test
-	public void testNullValue() {
-		try {
-			SerializedValue<Object> v = new SerializedValue<>(null);
-			SerializedValue<Object> copy = CommonTestUtils.createCopySerializable(v);
+            byte[] bytes = v.getByteArray();
+            SerializedValue<String> saved =
+                    SerializedValue.fromBytes(Arrays.copyOf(bytes, bytes.length));
+            assertEquals(v, saved);
+            assertArrayEquals(v.getByteArray(), saved.getByteArray());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-			assertNull(copy.deserializeValue(getClass().getClassLoader()));
+    @Test(expected = NullPointerException.class)
+    public void testNullValue() throws Exception {
+        new SerializedValue<>(null);
+    }
 
-			assertEquals(v, copy);
-			assertEquals(v.hashCode(), copy.hashCode());
-			assertEquals(v.toString(), copy.toString());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test(expected = NullPointerException.class)
+    public void testFromNullBytes() {
+        SerializedValue.fromBytes(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testFromEmptyBytes() {
+        SerializedValue.fromBytes(new byte[0]);
+    }
 }

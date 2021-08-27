@@ -32,121 +32,110 @@ import javax.annotation.Nullable;
 import java.util.concurrent.Executor;
 
 /**
- * Partial {@link DispatcherServices} services container which needs to
- * be completed before being given to the {@link Dispatcher}.
+ * Partial {@link DispatcherServices} services container which needs to be completed before being
+ * given to the {@link Dispatcher}.
  */
 public class PartialDispatcherServices {
 
-	@Nonnull
-	private final Configuration configuration;
+    @Nonnull private final Configuration configuration;
 
-	@Nonnull
-	private final HighAvailabilityServices highAvailabilityServices;
+    @Nonnull private final HighAvailabilityServices highAvailabilityServices;
 
-	@Nonnull
-	private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    @Nonnull private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-	@Nonnull
-	private final BlobServer blobServer;
+    @Nonnull private final BlobServer blobServer;
 
-	@Nonnull
-	private final HeartbeatServices heartbeatServices;
+    @Nonnull private final HeartbeatServices heartbeatServices;
 
-	@Nonnull
-	private final JobManagerMetricGroupFactory jobManagerMetricGroupFactory;
+    @Nonnull private final JobManagerMetricGroupFactory jobManagerMetricGroupFactory;
 
-	@Nonnull
-	private final ArchivedExecutionGraphStore archivedExecutionGraphStore;
+    @Nonnull private final ExecutionGraphInfoStore executionGraphInfoStore;
 
-	@Nonnull
-	private final FatalErrorHandler fatalErrorHandler;
+    @Nonnull private final FatalErrorHandler fatalErrorHandler;
 
-	@Nonnull
-	private final HistoryServerArchivist historyServerArchivist;
+    @Nonnull private final HistoryServerArchivist historyServerArchivist;
 
-	@Nullable
-	private final String metricQueryServiceAddress;
+    @Nullable private final String metricQueryServiceAddress;
 
-	@Nonnull
-	private final Executor ioExecutor;
+    @Nonnull private final Executor ioExecutor;
 
-	public PartialDispatcherServices(
-			@Nonnull Configuration configuration,
-			@Nonnull HighAvailabilityServices highAvailabilityServices,
-			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			@Nonnull BlobServer blobServer,
-			@Nonnull HeartbeatServices heartbeatServices,
-			@Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			@Nonnull FatalErrorHandler fatalErrorHandler,
-			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress,
-			@Nonnull Executor ioExecutor) {
-		this.configuration = configuration;
-		this.highAvailabilityServices = highAvailabilityServices;
-		this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
-		this.blobServer = blobServer;
-		this.heartbeatServices = heartbeatServices;
-		this.jobManagerMetricGroupFactory = jobManagerMetricGroupFactory;
-		this.archivedExecutionGraphStore = archivedExecutionGraphStore;
-		this.fatalErrorHandler = fatalErrorHandler;
-		this.historyServerArchivist = historyServerArchivist;
-		this.metricQueryServiceAddress = metricQueryServiceAddress;
-		this.ioExecutor = ioExecutor;
-	}
+    public PartialDispatcherServices(
+            @Nonnull Configuration configuration,
+            @Nonnull HighAvailabilityServices highAvailabilityServices,
+            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            @Nonnull BlobServer blobServer,
+            @Nonnull HeartbeatServices heartbeatServices,
+            @Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
+            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
+            @Nonnull FatalErrorHandler fatalErrorHandler,
+            @Nonnull HistoryServerArchivist historyServerArchivist,
+            @Nullable String metricQueryServiceAddress,
+            @Nonnull Executor ioExecutor) {
+        this.configuration = configuration;
+        this.highAvailabilityServices = highAvailabilityServices;
+        this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
+        this.blobServer = blobServer;
+        this.heartbeatServices = heartbeatServices;
+        this.jobManagerMetricGroupFactory = jobManagerMetricGroupFactory;
+        this.executionGraphInfoStore = executionGraphInfoStore;
+        this.fatalErrorHandler = fatalErrorHandler;
+        this.historyServerArchivist = historyServerArchivist;
+        this.metricQueryServiceAddress = metricQueryServiceAddress;
+        this.ioExecutor = ioExecutor;
+    }
 
-	@Nonnull
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    @Nonnull
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	@Nonnull
-	public HighAvailabilityServices getHighAvailabilityServices() {
-		return highAvailabilityServices;
-	}
+    @Nonnull
+    public HighAvailabilityServices getHighAvailabilityServices() {
+        return highAvailabilityServices;
+    }
 
-	@Nonnull
-	public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
-		return resourceManagerGatewayRetriever;
-	}
+    @Nonnull
+    public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
+        return resourceManagerGatewayRetriever;
+    }
 
-	@Nonnull
-	public BlobServer getBlobServer() {
-		return blobServer;
-	}
+    @Nonnull
+    public BlobServer getBlobServer() {
+        return blobServer;
+    }
 
-	@Nonnull
-	public HeartbeatServices getHeartbeatServices() {
-		return heartbeatServices;
-	}
+    @Nonnull
+    public HeartbeatServices getHeartbeatServices() {
+        return heartbeatServices;
+    }
 
-	@Nonnull
-	public JobManagerMetricGroupFactory getJobManagerMetricGroupFactory() {
-		return jobManagerMetricGroupFactory;
-	}
+    @Nonnull
+    public JobManagerMetricGroupFactory getJobManagerMetricGroupFactory() {
+        return jobManagerMetricGroupFactory;
+    }
 
-	@Nonnull
-	public ArchivedExecutionGraphStore getArchivedExecutionGraphStore() {
-		return archivedExecutionGraphStore;
-	}
+    @Nonnull
+    public ExecutionGraphInfoStore getArchivedExecutionGraphStore() {
+        return executionGraphInfoStore;
+    }
 
-	@Nonnull
-	public FatalErrorHandler getFatalErrorHandler() {
-		return fatalErrorHandler;
-	}
+    @Nonnull
+    public FatalErrorHandler getFatalErrorHandler() {
+        return fatalErrorHandler;
+    }
 
-	@Nonnull
-	public HistoryServerArchivist getHistoryServerArchivist() {
-		return historyServerArchivist;
-	}
+    @Nonnull
+    public HistoryServerArchivist getHistoryServerArchivist() {
+        return historyServerArchivist;
+    }
 
-	@Nullable
-	public String getMetricQueryServiceAddress() {
-		return metricQueryServiceAddress;
-	}
+    @Nullable
+    public String getMetricQueryServiceAddress() {
+        return metricQueryServiceAddress;
+    }
 
-	@Nonnull
-	public Executor getIoExecutor() {
-		return ioExecutor;
-	}
+    @Nonnull
+    public Executor getIoExecutor() {
+        return ioExecutor;
+    }
 }

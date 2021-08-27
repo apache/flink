@@ -28,63 +28,62 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 import java.io.IOException;
 
-/**
- * A {@link ReducingState} which keeps value for a single key at a time.
- */
+/** A {@link ReducingState} which keeps value for a single key at a time. */
 class BatchExecutionKeyReducingState<K, N, T>
-		extends MergingAbstractBatchExecutionKeyState<K, N, T, T, T>
-		implements InternalReducingState<K, N, T> {
-	private final ReduceFunction<T> reduceFunction;
+        extends MergingAbstractBatchExecutionKeyState<K, N, T, T, T>
+        implements InternalReducingState<K, N, T> {
+    private final ReduceFunction<T> reduceFunction;
 
-	public BatchExecutionKeyReducingState(
-			T defaultValue,
-			ReduceFunction<T> reduceFunction,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<T> stateSerializer) {
-		super(defaultValue, keySerializer, namespaceSerializer, stateSerializer);
-		this.reduceFunction = reduceFunction;
-	}
+    public BatchExecutionKeyReducingState(
+            T defaultValue,
+            ReduceFunction<T> reduceFunction,
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<T> stateSerializer) {
+        super(defaultValue, keySerializer, namespaceSerializer, stateSerializer);
+        this.reduceFunction = reduceFunction;
+    }
 
-	@Override
-	public T get() {
-		return getOrDefault();
-	}
+    @Override
+    public T get() {
+        return getOrDefault();
+    }
 
-	@Override
-	public void add(T value) throws IOException {
-		if (value == null) {
-			clear();
-			return;
-		}
+    @Override
+    public void add(T value) throws IOException {
+        if (value == null) {
+            clear();
+            return;
+        }
 
-		try {
-			T currentNamespaceValue = getCurrentNamespaceValue();
-			if (currentNamespaceValue != null) {
-				setCurrentNamespaceValue(reduceFunction.reduce(currentNamespaceValue, value));
-			} else {
-				setCurrentNamespaceValue(value);
-			}
-		} catch (Exception e) {
-			throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-		}
-	}
+        try {
+            T currentNamespaceValue = getCurrentNamespaceValue();
+            if (currentNamespaceValue != null) {
+                setCurrentNamespaceValue(reduceFunction.reduce(currentNamespaceValue, value));
+            } else {
+                setCurrentNamespaceValue(value);
+            }
+        } catch (Exception e) {
+            throw new IOException("Exception while applying ReduceFunction in reducing state", e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	static <T, K, N, SV, S extends State, IS extends S> IS create(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, SV> stateDesc) {
-		return (IS) new BatchExecutionKeyReducingState<>(
-			stateDesc.getDefaultValue(),
-			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
-			keySerializer,
-			namespaceSerializer,
-			stateDesc.getSerializer());
-	}
+    @SuppressWarnings("unchecked")
+    static <T, K, N, SV, S extends State, IS extends S> IS create(
+            TypeSerializer<K> keySerializer,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, SV> stateDesc) {
+        return (IS)
+                new BatchExecutionKeyReducingState<>(
+                        stateDesc.getDefaultValue(),
+                        ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
+                        keySerializer,
+                        namespaceSerializer,
+                        stateDesc.getSerializer());
+    }
 
-	@Override
-	protected T merge(T target, T source) throws Exception {
-		return reduceFunction.reduce(target, source);
-	}
+    @Override
+    protected T merge(T target, T source) throws Exception {
+        return reduceFunction.reduce(target, source);
+    }
 }

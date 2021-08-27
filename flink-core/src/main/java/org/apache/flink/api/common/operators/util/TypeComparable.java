@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,33 +20,31 @@ package org.apache.flink.api.common.operators.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
-/**
- * Wrapper that is used to store elements for which we have a TypeComparator in a Hash Map.
- */
+/** Wrapper that is used to store elements for which we have a TypeComparator in a Hash Map. */
 @Internal
 public class TypeComparable<T> {
-	private final T elem;
-	private final TypeComparator<T> comparator;
-	private final int hashCode;
+    private final T elem;
+    private final TypeComparator<T> comparator;
+    private final int hashCode;
 
-	public TypeComparable(T elem, TypeComparator<T> comparator) {
-		this.elem = elem;
-		this.comparator = comparator;
-		this.hashCode = comparator.hash(elem);
-	}
+    public TypeComparable(T elem, TypeComparator<T> comparator) {
+        this.elem = elem;
+        this.comparator = comparator;
+        this.hashCode = comparator.hash(elem);
+    }
 
-	@Override
-	public int hashCode() {
-		return hashCode;
-	}
+    @Override
+    public int hashCode() {
+        return hashCode;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (!(o instanceof TypeComparable)) {
-			return false;
-		}
-		@SuppressWarnings("unchecked")
-		TypeComparable<T> other = (TypeComparable<T>) o;
-		return comparator.compare(elem, other.elem) == 0;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof TypeComparable)) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        TypeComparable<T> other = (TypeComparable<T>) o;
+        return comparator.compare(elem, other.elem) == 0;
+    }
 }

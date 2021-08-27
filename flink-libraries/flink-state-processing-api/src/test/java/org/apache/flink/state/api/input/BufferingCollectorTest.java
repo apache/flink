@@ -21,25 +21,24 @@ package org.apache.flink.state.api.input;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test of the buffering collector.
- */
+/** Test of the buffering collector. */
 public class BufferingCollectorTest {
 
-	@Test
-	public void testNestRemovesElement() {
-		BufferingCollector<Integer> collector = new BufferingCollector<>();
+    @Test
+    public void testNestRemovesElement() {
+        BufferingCollector<Integer> collector = new BufferingCollector<>();
 
-		collector.collect(1);
+        collector.collect(1);
 
-		Assert.assertTrue("Failed to add element to collector", collector.hasNext());
-		Assert.assertEquals("Incorrect element removed from collector", Integer.valueOf(1), collector.next());
-		Assert.assertFalse("Failed to drop element from collector", collector.hasNext());
-	}
+        Assert.assertTrue("Failed to add element to collector", collector.hasNext());
+        Assert.assertEquals(
+                "Incorrect element removed from collector", Integer.valueOf(1), collector.next());
+        Assert.assertFalse("Failed to drop element from collector", collector.hasNext());
+    }
 
-	@Test
-	public void testEmptyCollectorReturnsNull() {
-		BufferingCollector<Integer> collector = new BufferingCollector<>();
-		Assert.assertNull("Empty collector did not return null", collector.next());
-	}
+    @Test
+    public void testEmptyCollectorReturnsNull() {
+        BufferingCollector<Integer> collector = new BufferingCollector<>();
+        Assert.assertNull("Empty collector did not return null", collector.next());
+    }
 }

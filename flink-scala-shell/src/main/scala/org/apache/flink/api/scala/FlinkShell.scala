@@ -243,23 +243,23 @@ object FlinkShell {
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
     val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
-    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine)
+    effectiveConfig.addAll(customCLI.toConfiguration(commandLine))
 
     val serviceLoader = new DefaultClusterClientServiceLoader
-    val clientFactory = serviceLoader.getClusterClientFactory(executorConfig)
-    val clusterDescriptor = clientFactory.createClusterDescriptor(executorConfig)
-    val clusterSpecification = clientFactory.getClusterSpecification(executorConfig)
+    val clientFactory = serviceLoader.getClusterClientFactory(effectiveConfig)
+    val clusterDescriptor = clientFactory.createClusterDescriptor(effectiveConfig)
+    val clusterSpecification = clientFactory.getClusterSpecification(effectiveConfig)
 
     val clusterClient = try {
       clusterDescriptor
         .deploySessionCluster(clusterSpecification)
         .getClusterClient
     } finally {
-      executorConfig.set(DeploymentOptions.TARGET, "yarn-session")
+      effectiveConfig.set(DeploymentOptions.TARGET, "yarn-session")
       clusterDescriptor.close()
     }
 
-    (executorConfig, Some(clusterClient))
+    (effectiveConfig, Some(clusterClient))
   }
 
   private def fetchDeployedYarnClusterInfo(
@@ -282,9 +282,9 @@ object FlinkShell {
     val commandLine = CliFrontendParser.parse(commandLineOptions, args, true)
 
     val customCLI = frontend.validateAndGetActiveCommandLine(commandLine)
-    val executorConfig = customCLI.applyCommandLineOptionsToConfiguration(commandLine);
+    effectiveConfig.addAll(customCLI.toConfiguration(commandLine))
 
-    (executorConfig, None)
+    (effectiveConfig, None)
   }
 
   def parseArgList(config: Config, mode: String): Array[String] = {

@@ -26,15 +26,13 @@ import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * {@link MessageParameters} for polling the status of a rescaling operation.
- */
+/** {@link MessageParameters} for polling the status of a rescaling operation. */
 public class RescalingStatusMessageParameters extends JobMessageParameters {
 
-	public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+    public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, triggerIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(jobPathParameter, triggerIdPathParameter);
+    }
 }

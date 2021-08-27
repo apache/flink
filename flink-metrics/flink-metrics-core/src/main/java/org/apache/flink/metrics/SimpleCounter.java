@@ -18,57 +18,51 @@
 
 package org.apache.flink.metrics;
 
-/**
- * A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe.
- */
+/** A simple low-overhead {@link org.apache.flink.metrics.Counter} that is not thread-safe. */
 public class SimpleCounter implements Counter {
 
-	/** the current count. */
-	private long count;
+    /** the current count. */
+    private long count;
 
-	/**
-	 * Increment the current count by 1.
-	 */
-	@Override
-	public void inc() {
-		count++;
-	}
+    /** Increment the current count by 1. */
+    @Override
+    public void inc() {
+        count++;
+    }
 
-	/**
-	 * Increment the current count by the given value.
-	 *
-	 * @param n value to increment the current count by
-	 */
-	@Override
-	public void inc(long n) {
-		count += n;
-	}
+    /**
+     * Increment the current count by the given value.
+     *
+     * @param n value to increment the current count by
+     */
+    @Override
+    public void inc(long n) {
+        count += n;
+    }
 
-	/**
-	 * Decrement the current count by 1.
-	 */
-	@Override
-	public void dec() {
-		count--;
-	}
+    /** Decrement the current count by 1. */
+    @Override
+    public void dec() {
+        count--;
+    }
 
-	/**
-	 * Decrement the current count by the given value.
-	 *
-	 * @param n value to decrement the current count by
-	 */
-	@Override
-	public void dec(long n) {
-		count -= n;
-	}
+    /**
+     * Decrement the current count by the given value.
+     *
+     * @param n value to decrement the current count by
+     */
+    @Override
+    public void dec(long n) {
+        count -= n;
+    }
 
-	/**
-	 * Returns the current count.
-	 *
-	 * @return current count
-	 */
-	@Override
-	public long getCount() {
-		return count;
-	}
+    /**
+     * Returns the current count.
+     *
+     * @return current count
+     */
+    @Override
+    public long getCount() {
+        return count;
+    }
 }

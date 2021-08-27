@@ -24,14 +24,13 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
-/**
- * {@link MetricReporterFactory} for {@link GraphiteReporter}.
- */
-@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.graphite.GraphiteReporter")
+/** {@link MetricReporterFactory} for {@link GraphiteReporter}. */
+@InterceptInstantiationViaReflection(
+        reporterClassName = "org.apache.flink.metrics.graphite.GraphiteReporter")
 public class GraphiteReporterFactory implements MetricReporterFactory {
 
-	@Override
-	public MetricReporter createMetricReporter(Properties properties) {
-		return new GraphiteReporter();
-	}
+    @Override
+    public MetricReporter createMetricReporter(Properties properties) {
+        return new GraphiteReporter();
+    }
 }

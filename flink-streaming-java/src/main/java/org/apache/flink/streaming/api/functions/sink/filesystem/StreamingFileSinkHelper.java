@@ -32,79 +32,78 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import javax.annotation.Nullable;
 
 /**
- * Helper for {@link StreamingFileSink}.
- * This helper can be used by {@link RichSinkFunction} or {@link StreamOperator}.
+ * Helper for {@link StreamingFileSink}. This helper can be used by {@link RichSinkFunction} or
+ * {@link StreamOperator}.
  */
 @Internal
 public class StreamingFileSinkHelper<IN> implements ProcessingTimeCallback {
 
-	// -------------------------- state descriptors ---------------------------
+    // -------------------------- state descriptors ---------------------------
 
-	private static final ListStateDescriptor<byte[]> BUCKET_STATE_DESC =
-			new ListStateDescriptor<>("bucket-states", BytePrimitiveArraySerializer.INSTANCE);
+    private static final ListStateDescriptor<byte[]> BUCKET_STATE_DESC =
+            new ListStateDescriptor<>("bucket-states", BytePrimitiveArraySerializer.INSTANCE);
 
-	private static final ListStateDescriptor<Long> MAX_PART_COUNTER_STATE_DESC =
-			new ListStateDescriptor<>("max-part-counter", LongSerializer.INSTANCE);
+    private static final ListStateDescriptor<Long> MAX_PART_COUNTER_STATE_DESC =
+            new ListStateDescriptor<>("max-part-counter", LongSerializer.INSTANCE);
 
-	// --------------------------- fields -----------------------------
+    // --------------------------- fields -----------------------------
 
-	private final long bucketCheckInterval;
+    private final long bucketCheckInterval;
 
-	private final ProcessingTimeService procTimeService;
+    private final ProcessingTimeService procTimeService;
 
-	private final Buckets<IN, ?> buckets;
+    private final Buckets<IN, ?> buckets;
 
-	private final ListState<byte[]> bucketStates;
+    private final ListState<byte[]> bucketStates;
 
-	private final ListState<Long> maxPartCountersState;
+    private final ListState<Long> maxPartCountersState;
 
-	public StreamingFileSinkHelper(
-			Buckets<IN, ?> buckets,
-			boolean isRestored,
-			OperatorStateStore stateStore,
-			ProcessingTimeService procTimeService,
-			long bucketCheckInterval) throws Exception {
-		this.bucketCheckInterval = bucketCheckInterval;
-		this.buckets = buckets;
-		this.bucketStates = stateStore.getListState(BUCKET_STATE_DESC);
-		this.maxPartCountersState = stateStore.getUnionListState(MAX_PART_COUNTER_STATE_DESC);
-		this.procTimeService = procTimeService;
+    public StreamingFileSinkHelper(
+            Buckets<IN, ?> buckets,
+            boolean isRestored,
+            OperatorStateStore stateStore,
+            ProcessingTimeService procTimeService,
+            long bucketCheckInterval)
+            throws Exception {
+        this.bucketCheckInterval = bucketCheckInterval;
+        this.buckets = buckets;
+        this.bucketStates = stateStore.getListState(BUCKET_STATE_DESC);
+        this.maxPartCountersState = stateStore.getUnionListState(MAX_PART_COUNTER_STATE_DESC);
+        this.procTimeService = procTimeService;
 
-		if (isRestored) {
-			buckets.initializeState(bucketStates, maxPartCountersState);
-		}
+        if (isRestored) {
+            buckets.initializeState(bucketStates, maxPartCountersState);
+        }
 
-		long currentProcessingTime = procTimeService.getCurrentProcessingTime();
-		procTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
-	}
+        long currentProcessingTime = procTimeService.getCurrentProcessingTime();
+        procTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
+    }
 
-	public void commitUpToCheckpoint(long checkpointId) throws Exception {
-		buckets.commitUpToCheckpoint(checkpointId);
-	}
+    public void commitUpToCheckpoint(long checkpointId) throws Exception {
+        buckets.commitUpToCheckpoint(checkpointId);
+    }
 
-	public void snapshotState(long checkpointId) throws Exception {
-		buckets.snapshotState(
-				checkpointId,
-				bucketStates,
-				maxPartCountersState);
-	}
+    public void snapshotState(long checkpointId) throws Exception {
+        buckets.snapshotState(checkpointId, bucketStates, maxPartCountersState);
+    }
 
-	@Override
-	public void onProcessingTime(long timestamp) throws Exception {
-		final long currentTime = procTimeService.getCurrentProcessingTime();
-		buckets.onProcessingTime(currentTime);
-		procTimeService.registerTimer(currentTime + bucketCheckInterval, this);
-	}
+    @Override
+    public void onProcessingTime(long timestamp) throws Exception {
+        final long currentTime = procTimeService.getCurrentProcessingTime();
+        buckets.onProcessingTime(currentTime);
+        procTimeService.registerTimer(currentTime + bucketCheckInterval, this);
+    }
 
-	public void onElement(
-			IN value,
-			long currentProcessingTime,
-			@Nullable Long elementTimestamp,
-			long currentWatermark) throws Exception {
-		buckets.onElement(value, currentProcessingTime, elementTimestamp, currentWatermark);
-	}
+    public void onElement(
+            IN value,
+            long currentProcessingTime,
+            @Nullable Long elementTimestamp,
+            long currentWatermark)
+            throws Exception {
+        buckets.onElement(value, currentProcessingTime, elementTimestamp, currentWatermark);
+    }
 
-	public void close() {
-		this.buckets.close();
-	}
+    public void close() {
+        this.buckets.close();
+    }
 }

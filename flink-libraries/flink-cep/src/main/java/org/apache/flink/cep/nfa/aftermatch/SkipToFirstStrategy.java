@@ -19,29 +19,28 @@
 package org.apache.flink.cep.nfa.aftermatch;
 
 /**
- * Discards every partial match that started before the first event of emitted match mapped to *PatternName*.
+ * Discards every partial match that started before the first event of emitted match mapped to
+ * *PatternName*.
  */
 public final class SkipToFirstStrategy extends SkipToElementStrategy {
-	private static final long serialVersionUID = 7127107527654629026L;
+    private static final long serialVersionUID = 7127107527654629026L;
 
-	SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
-		super(patternName, shouldThrowException);
-	}
+    SkipToFirstStrategy(String patternName, boolean shouldThrowException) {
+        super(patternName, shouldThrowException);
+    }
 
-	@Override
-	public SkipToElementStrategy throwExceptionOnMiss() {
-		return new SkipToFirstStrategy(getPatternName().get(), true);
-	}
+    @Override
+    public SkipToElementStrategy throwExceptionOnMiss() {
+        return new SkipToFirstStrategy(getPatternName().get(), true);
+    }
 
-	@Override
-	int getIndex(int size) {
-		return 0;
-	}
+    @Override
+    int getIndex(int size) {
+        return 0;
+    }
 
-	@Override
-	public String toString() {
-		return "SkipToFirstStrategy{" +
-			"patternName='" + getPatternName().get() + '\'' +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "SkipToFirstStrategy{" + "patternName='" + getPatternName().get() + '\'' + '}';
+    }
 }

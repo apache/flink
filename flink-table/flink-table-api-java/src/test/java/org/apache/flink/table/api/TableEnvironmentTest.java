@@ -21,81 +21,93 @@ package org.apache.flink.table.api;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.utils.ConnectorDescriptorMock;
-import org.apache.flink.table.utils.FormatDescriptorMock;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.utils.TableEnvironmentMock;
-import org.apache.flink.table.utils.TableSourceFactoryMock;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link TableEnvironment}.
- */
+/** Tests for {@link TableEnvironment}. */
 public class TableEnvironmentTest {
 
-	@Test
-	public void testConnect() {
-		final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
+    @Test
+    public void testCreateTemporaryTableFromDescriptor() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
 
-		tableEnv
-			.connect(new ConnectorDescriptorMock(TableSourceFactoryMock.CONNECTOR_TYPE_VALUE, 1, true))
-			.withFormat(new FormatDescriptorMock("my_format", 1))
-			.withSchema(new Schema()
-				.field("my_field_0", "INT")
-				.field("my_field_1", "BOOLEAN")
-				.field("my_part_1", "BIGINT")
-				.field("my_part_2", "STRING"))
-			.withPartitionKeys(Arrays.asList("my_part_1", "my_part_2"))
-			.inAppendMode()
-			.createTemporaryTable("my_table");
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        tEnv.createTemporaryTable(
+                "T",
+                TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build());
 
-		CatalogManager.TableLookupResult lookupResult = tableEnv.catalogManager.getTable(ObjectIdentifier.of(
-			EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
-			EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
-			"my_table"))
-			.orElseThrow(AssertionError::new);
+        assertFalse(
+                tEnv.getCatalog(catalog)
+                        .orElseThrow(AssertionError::new)
+                        .tableExists(new ObjectPath(database, "T")));
 
-		assertThat(lookupResult.isTemporary(), equalTo(true));
+        final Optional<CatalogManager.TableLookupResult> lookupResult =
+                tEnv.getCatalogManager().getTable(ObjectIdentifier.of(catalog, database, "T"));
+        assertTrue(lookupResult.isPresent());
 
-		CatalogBaseTable catalogBaseTable = lookupResult.getTable();
-		assertTrue(catalogBaseTable instanceof CatalogTable);
-		CatalogTable table = (CatalogTable) catalogBaseTable;
-		assertCatalogTable(table);
-		assertCatalogTable(CatalogTableImpl.fromProperties(table.toProperties()));
-	}
+        final CatalogBaseTable catalogTable = lookupResult.get().getTable();
+        assertTrue(catalogTable instanceof CatalogTable);
+        assertEquals(schema, catalogTable.getUnresolvedSchema());
+        assertEquals("fake", catalogTable.getOptions().get("connector"));
+        assertEquals("Test", catalogTable.getOptions().get("a"));
+    }
 
-	private static void assertCatalogTable(CatalogTable table) {
-		assertThat(
-				table.getSchema(),
-				equalTo(
-						TableSchema.builder()
-								.field("my_field_0", DataTypes.INT())
-								.field("my_field_1", DataTypes.BOOLEAN())
-								.field("my_part_1", DataTypes.BIGINT())
-								.field("my_part_2", DataTypes.STRING())
-								.build()));
-		assertThat(
-				table.getPartitionKeys(),
-				equalTo(Arrays.asList("my_part_1", "my_part_2")));
+    @Test
+    public void testCreateTableFromDescriptor() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
 
-		Map<String, String> properties = new HashMap<>();
-		properties.put("update-mode", "append");
-		properties.put("connector.property-version", "1");
-		properties.put("format.type", "my_format");
-		properties.put("format.property-version", "1");
-		properties.put("connector.type", "table-source-factory-mock");
-		assertThat(table.getProperties(), equalTo(properties));
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        tEnv.createTable(
+                "T",
+                TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build());
 
-	}
+        final ObjectPath objectPath = new ObjectPath(database, "T");
+        assertTrue(
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).tableExists(objectPath));
+
+        final CatalogBaseTable catalogTable =
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getTable(objectPath);
+        assertTrue(catalogTable instanceof CatalogTable);
+        assertEquals(schema, catalogTable.getUnresolvedSchema());
+        assertEquals("fake", catalogTable.getOptions().get("connector"));
+        assertEquals("Test", catalogTable.getOptions().get("a"));
+    }
+
+    @Test
+    public void testTableFromDescriptor() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        final TableDescriptor descriptor =
+                TableDescriptor.forConnector("fake").schema(schema).build();
+
+        final Table table = tEnv.from(descriptor);
+
+        assertEquals(
+                schema, Schema.newBuilder().fromResolvedSchema(table.getResolvedSchema()).build());
+
+        assertTrue(table.getQueryOperation() instanceof CatalogQueryOperation);
+        final ObjectIdentifier tableIdentifier =
+                ((CatalogQueryOperation) table.getQueryOperation()).getTableIdentifier();
+
+        final Optional<CatalogManager.TableLookupResult> lookupResult =
+                tEnv.getCatalogManager().getTable(tableIdentifier);
+        assertTrue(lookupResult.isPresent());
+
+        assertEquals("fake", lookupResult.get().getTable().getOptions().get("connector"));
+    }
 }

@@ -57,144 +57,156 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for {@link AbstractHandler}.
- */
+/** Tests for {@link AbstractHandler}. */
 public class AbstractHandlerTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testFileCleanup() throws Exception {
-		final Path dir = temporaryFolder.newFolder().toPath();
-		final Path file = dir.resolve("file");
-		Files.createFile(file);
+    @Test
+    public void testFileCleanup() throws Exception {
+        final Path dir = temporaryFolder.newFolder().toPath();
+        final Path file = dir.resolve("file");
+        Files.createFile(file);
 
-		RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder()
-			.build();
+        RestfulGateway mockRestfulGateway = new TestingRestfulGateway.Builder().build();
 
-		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
-			CompletableFuture.completedFuture(mockRestfulGateway);
+        final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
+                () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
-		CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
-		TestHandler handler = new TestHandler(requestProcessingCompleteFuture, mockGatewayRetriever);
+        CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
+        TestHandler handler =
+                new TestHandler(requestProcessingCompleteFuture, mockGatewayRetriever);
 
-		RouteResult<?> routeResult = new RouteResult<>("", "", Collections.emptyMap(), Collections.emptyMap(), "");
-		HttpRequest request = new DefaultFullHttpRequest(
-			HttpVersion.HTTP_1_1,
-			HttpMethod.GET,
-			TestHandler.TestHeaders.INSTANCE.getTargetRestEndpointURL(),
-			Unpooled.wrappedBuffer(new byte[0]));
-		RoutedRequest<?> routerRequest = new RoutedRequest<>(routeResult, request);
+        RouteResult<?> routeResult =
+                new RouteResult<>("", "", Collections.emptyMap(), Collections.emptyMap(), "");
+        HttpRequest request =
+                new DefaultFullHttpRequest(
+                        HttpVersion.HTTP_1_1,
+                        HttpMethod.GET,
+                        TestHandler.TestHeaders.INSTANCE.getTargetRestEndpointURL(),
+                        Unpooled.wrappedBuffer(new byte[0]));
+        RoutedRequest<?> routerRequest = new RoutedRequest<>(routeResult, request);
 
-		Attribute<FileUploads> attribute = new SimpleAttribute();
-		attribute.set(new FileUploads(dir));
-		Channel channel = mock(Channel.class);
-		when(channel.attr(any(AttributeKey.class))).thenReturn(attribute);
+        Attribute<FileUploads> attribute = new SimpleAttribute();
+        attribute.set(new FileUploads(dir));
+        Channel channel = mock(Channel.class);
+        when(channel.attr(any(AttributeKey.class))).thenReturn(attribute);
 
-		ChannelHandlerContext context = mock(ChannelHandlerContext.class);
-		when(context.channel()).thenReturn(channel);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        when(context.channel()).thenReturn(channel);
 
-		handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
+        handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
 
-		// the (asynchronous) request processing is not yet complete so the files should still exist
-		Assert.assertTrue(Files.exists(file));
-		requestProcessingCompleteFuture.complete(null);
-		Assert.assertFalse(Files.exists(file));
-	}
+        // the (asynchronous) request processing is not yet complete so the files should still exist
+        Assert.assertTrue(Files.exists(file));
+        requestProcessingCompleteFuture.complete(null);
+        Assert.assertFalse(Files.exists(file));
+    }
 
-	private static class SimpleAttribute implements Attribute<FileUploads> {
+    private static class SimpleAttribute implements Attribute<FileUploads> {
 
-		private static final AttributeKey<FileUploads> KEY = AttributeKey.valueOf("test");
+        private static final AttributeKey<FileUploads> KEY = AttributeKey.valueOf("test");
 
-		private final AtomicReference<FileUploads> container = new AtomicReference<>();
+        private final AtomicReference<FileUploads> container = new AtomicReference<>();
 
-		@Override
-		public AttributeKey<FileUploads> key() {
-			return KEY;
-		}
+        @Override
+        public AttributeKey<FileUploads> key() {
+            return KEY;
+        }
 
-		@Override
-		public FileUploads get() {
-			return container.get();
-		}
+        @Override
+        public FileUploads get() {
+            return container.get();
+        }
 
-		@Override
-		public void set(FileUploads value) {
-			container.set(value);
-		}
+        @Override
+        public void set(FileUploads value) {
+            container.set(value);
+        }
 
-		@Override
-		public FileUploads getAndSet(FileUploads value) {
-			return container.getAndSet(value);
-		}
+        @Override
+        public FileUploads getAndSet(FileUploads value) {
+            return container.getAndSet(value);
+        }
 
-		@Override
-		public FileUploads setIfAbsent(FileUploads value) {
-			if (container.compareAndSet(null, value)) {
-				return value;
-			} else {
-				return container.get();
-			}
-		}
+        @Override
+        public FileUploads setIfAbsent(FileUploads value) {
+            if (container.compareAndSet(null, value)) {
+                return value;
+            } else {
+                return container.get();
+            }
+        }
 
-		@Override
-		public FileUploads getAndRemove() {
-			return container.getAndSet(null);
-		}
+        @Override
+        public FileUploads getAndRemove() {
+            return container.getAndSet(null);
+        }
 
-		@Override
-		public boolean compareAndSet(FileUploads oldValue, FileUploads newValue) {
-			return container.compareAndSet(oldValue, newValue);
-		}
+        @Override
+        public boolean compareAndSet(FileUploads oldValue, FileUploads newValue) {
+            return container.compareAndSet(oldValue, newValue);
+        }
 
-		@Override
-		public void remove() {
-			set(null);
-		}
-	}
+        @Override
+        public void remove() {
+            set(null);
+        }
+    }
 
-	private static class TestHandler extends AbstractHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
-		private final CompletableFuture<Void> completionFuture;
+    private static class TestHandler
+            extends AbstractHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
+        private final CompletableFuture<Void> completionFuture;
 
-		protected TestHandler(CompletableFuture<Void> completionFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
-			super(leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), TestHeaders.INSTANCE);
-			this.completionFuture = completionFuture;
-		}
+        protected TestHandler(
+                CompletableFuture<Void> completionFuture,
+                @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
+            super(
+                    leaderRetriever,
+                    RpcUtils.INF_TIMEOUT,
+                    Collections.emptyMap(),
+                    TestHeaders.INSTANCE);
+            this.completionFuture = completionFuture;
+        }
 
-		@Override
-		protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
-			return completionFuture;
-		}
+        @Override
+        protected CompletableFuture<Void> respondToRequest(
+                ChannelHandlerContext ctx,
+                HttpRequest httpRequest,
+                HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest,
+                RestfulGateway gateway)
+                throws RestHandlerException {
+            return completionFuture;
+        }
 
-		private enum TestHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
-			INSTANCE;
+        private enum TestHeaders
+                implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
+            INSTANCE;
 
-			@Override
-			public Class<EmptyRequestBody> getRequestClass() {
-				return EmptyRequestBody.class;
-			}
+            @Override
+            public Class<EmptyRequestBody> getRequestClass() {
+                return EmptyRequestBody.class;
+            }
 
-			@Override
-			public EmptyMessageParameters getUnresolvedMessageParameters() {
-				return EmptyMessageParameters.getInstance();
-			}
+            @Override
+            public EmptyMessageParameters getUnresolvedMessageParameters() {
+                return EmptyMessageParameters.getInstance();
+            }
 
-			@Override
-			public HttpMethodWrapper getHttpMethod() {
-				return HttpMethodWrapper.POST;
-			}
+            @Override
+            public HttpMethodWrapper getHttpMethod() {
+                return HttpMethodWrapper.POST;
+            }
 
-			@Override
-			public String getTargetRestEndpointURL() {
-				return "/test";
-			}
+            @Override
+            public String getTargetRestEndpointURL() {
+                return "/test";
+            }
 
-			@Override
-			public boolean acceptsFileUploads() {
-				return true;
-			}
-		}
-	}
+            @Override
+            public boolean acceptsFileUploads() {
+                return true;
+            }
+        }
+    }
 }

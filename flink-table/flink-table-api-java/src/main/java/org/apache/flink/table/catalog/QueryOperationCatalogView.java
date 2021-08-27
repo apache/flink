@@ -19,48 +19,67 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.QueryOperation;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
-/**
- * A view created from a {@link QueryOperation} via operations on {@link org.apache.flink.table.api.Table}.
- */
+/** A view created from a {@link QueryOperation} via operations on {@link Table}. */
 @Internal
-public class QueryOperationCatalogView extends AbstractCatalogView {
-	private final QueryOperation queryOperation;
+public final class QueryOperationCatalogView implements CatalogView {
 
-	public QueryOperationCatalogView(QueryOperation queryOperation) {
-		this(queryOperation, "");
-	}
+    private final QueryOperation queryOperation;
 
-	public QueryOperationCatalogView(QueryOperation queryOperation, String comment) {
-		super(
-			queryOperation.asSummaryString(),
-			queryOperation.asSummaryString(),
-			queryOperation.getTableSchema(),
-			new HashMap<>(),
-			comment);
-		this.queryOperation = queryOperation;
-	}
+    public QueryOperationCatalogView(QueryOperation queryOperation) {
+        this.queryOperation = queryOperation;
+    }
 
-	public QueryOperation getQueryOperation() {
-		return queryOperation;
-	}
+    public QueryOperation getQueryOperation() {
+        return queryOperation;
+    }
 
-	@Override
-	public QueryOperationCatalogView copy() {
-		return new QueryOperationCatalogView(this.queryOperation, getComment());
-	}
+    @Override
+    public Schema getUnresolvedSchema() {
+        return Schema.newBuilder().fromResolvedSchema(queryOperation.getResolvedSchema()).build();
+    }
 
-	@Override
-	public Optional<String> getDescription() {
-		return Optional.of(getComment());
-	}
+    @Override
+    public Map<String, String> getOptions() {
+        throw new TableException("A view backed by a query operation has no options.");
+    }
 
-	@Override
-	public Optional<String> getDetailedDescription() {
-		return getDescription();
-	}
+    @Override
+    public String getComment() {
+        return queryOperation.asSummaryString();
+    }
+
+    @Override
+    public QueryOperationCatalogView copy() {
+        return new QueryOperationCatalogView(queryOperation);
+    }
+
+    @Override
+    public Optional<String> getDescription() {
+        return Optional.of(getComment());
+    }
+
+    @Override
+    public Optional<String> getDetailedDescription() {
+        return getDescription();
+    }
+
+    @Override
+    public String getOriginalQuery() {
+        throw new TableException(
+                "A view backed by a query operation has no serializable representation.");
+    }
+
+    @Override
+    public String getExpandedQuery() {
+        throw new TableException(
+                "A view backed by a query operation has no serializable representation.");
+    }
 }

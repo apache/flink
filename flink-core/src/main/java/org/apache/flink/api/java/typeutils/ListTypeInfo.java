@@ -36,100 +36,96 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final TypeInformation<T> elementTypeInfo;
+    private final TypeInformation<T> elementTypeInfo;
 
+    public ListTypeInfo(Class<T> elementTypeClass) {
+        this.elementTypeInfo = of(checkNotNull(elementTypeClass, "elementTypeClass"));
+    }
 
-	public ListTypeInfo(Class<T> elementTypeClass) {
-		this.elementTypeInfo = of(checkNotNull(elementTypeClass, "elementTypeClass"));
-	}
+    public ListTypeInfo(TypeInformation<T> elementTypeInfo) {
+        this.elementTypeInfo = checkNotNull(elementTypeInfo, "elementTypeInfo");
+    }
 
-	public ListTypeInfo(TypeInformation<T> elementTypeInfo) {
-		this.elementTypeInfo = checkNotNull(elementTypeInfo, "elementTypeInfo");
-	}
+    // ------------------------------------------------------------------------
+    //  ListTypeInfo specific properties
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  ListTypeInfo specific properties
-	// ------------------------------------------------------------------------
+    /** Gets the type information for the elements contained in the list */
+    public TypeInformation<T> getElementTypeInfo() {
+        return elementTypeInfo;
+    }
 
-	/**
-	 * Gets the type information for the elements contained in the list
-	 */
-	public TypeInformation<T> getElementTypeInfo() {
-		return elementTypeInfo;
-	}
+    // ------------------------------------------------------------------------
+    //  TypeInformation implementation
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  TypeInformation implementation
-	// ------------------------------------------------------------------------
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public int getArity() {
+        return 0;
+    }
 
-	@Override
-	public int getArity() {
-		return 0;
-	}
+    @Override
+    public int getTotalFields() {
+        // similar as arrays, the lists are "opaque" to the direct field addressing logic
+        // since the list's elements are not addressable, we do not expose them
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		// similar as arrays, the lists are "opaque" to the direct field addressing logic
-		// since the list's elements are not addressable, we do not expose them
-		return 1;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<List<T>> getTypeClass() {
+        return (Class<List<T>>) (Class<?>) List.class;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<List<T>> getTypeClass() {
-		return (Class<List<T>>)(Class<?>)List.class;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
+        TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
+        return new ListSerializer<>(elementTypeSerializer);
+    }
 
-	@Override
-	public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
-		TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
-		return new ListSerializer<>(elementTypeSerializer);
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
+    @Override
+    public String toString() {
+        return "List<" + elementTypeInfo + '>';
+    }
 
-	@Override
-	public String toString() {
-		return "List<" + elementTypeInfo + '>';
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof ListTypeInfo) {
+            final ListTypeInfo<?> other = (ListTypeInfo<?>) obj;
+            return other.canEqual(this) && elementTypeInfo.equals(other.elementTypeInfo);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		else if (obj instanceof ListTypeInfo) {
-			final ListTypeInfo<?> other = (ListTypeInfo<?>) obj;
-			return other.canEqual(this) && elementTypeInfo.equals(other.elementTypeInfo);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public int hashCode() {
+        return 31 * elementTypeInfo.hashCode() + 1;
+    }
 
-	@Override
-	public int hashCode() {
-		return 31 * elementTypeInfo.hashCode() + 1;
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj != null && obj.getClass() == getClass();
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj != null && obj.getClass() == getClass();
+    }
 }

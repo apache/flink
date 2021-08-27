@@ -23,31 +23,21 @@ import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests that the {@link JobVertexAccumulatorsInfo} can be marshalled and unmarshalled.
- */
-public class JobVertexAccumulatorsInfoTest extends RestResponseMarshallingTestBase<JobVertexAccumulatorsInfo> {
-	@Override
-	protected Class<JobVertexAccumulatorsInfo> getTestResponseClass() {
-		return JobVertexAccumulatorsInfo.class;
-	}
+/** Tests that the {@link JobVertexAccumulatorsInfo} can be marshalled and unmarshalled. */
+public class JobVertexAccumulatorsInfoTest
+        extends RestResponseMarshallingTestBase<JobVertexAccumulatorsInfo> {
+    @Override
+    protected Class<JobVertexAccumulatorsInfo> getTestResponseClass() {
+        return JobVertexAccumulatorsInfo.class;
+    }
 
-	@Override
-	protected JobVertexAccumulatorsInfo getTestResponseInstance() throws Exception {
-		List<UserAccumulator> userAccumulatorList = new ArrayList<>(3);
-		userAccumulatorList.add(new UserAccumulator(
-			"test name1",
-			"test type1",
-			"test value1"));
-		userAccumulatorList.add(new UserAccumulator(
-			"test name2",
-			"test type2",
-			"test value2"));
-		userAccumulatorList.add(new UserAccumulator(
-			"test name3",
-			"test type3",
-			"test value3"));
+    @Override
+    protected JobVertexAccumulatorsInfo getTestResponseInstance() throws Exception {
+        List<UserAccumulator> userAccumulatorList = new ArrayList<>(3);
+        userAccumulatorList.add(new UserAccumulator("test name1", "test type1", "test value1"));
+        userAccumulatorList.add(new UserAccumulator("test name2", "test type2", "test value2"));
+        userAccumulatorList.add(new UserAccumulator("test name3", "test type3", "test value3"));
 
-		return new JobVertexAccumulatorsInfo("testId", userAccumulatorList);
-	}
+        return new JobVertexAccumulatorsInfo("testId", userAccumulatorList);
+    }
 }

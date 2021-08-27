@@ -19,29 +19,40 @@ package org.apache.flink.streaming.api.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
 
-import java.io.Serializable;
-
-/**
- * {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type.
- * */
+/** {@link DataStreamPythonFunctionInfo} holds a PythonFunction and its function type. */
 @Internal
-public class DataStreamPythonFunctionInfo implements Serializable {
-	private static final long serialVersionUID = 1L;
+public class DataStreamPythonFunctionInfo extends PythonFunctionInfo {
+    private static final long serialVersionUID = 2L;
 
-	private final PythonFunction pythonFunction;
-	private final int functionType;
+    private static final Object[] EMPTY = new Object[0];
 
-	public DataStreamPythonFunctionInfo(PythonFunction pythonFunction, int functionType) {
-		this.pythonFunction = pythonFunction;
-		this.functionType = functionType;
-	}
+    private final int functionType;
 
-	public PythonFunction getPythonFunction() {
-		return pythonFunction;
-	}
+    public DataStreamPythonFunctionInfo(PythonFunction pythonFunction, int functionType) {
+        super(pythonFunction, EMPTY);
+        this.functionType = functionType;
+    }
 
-	public int getFunctionType(){
-		return this.functionType;
-	}
+    public DataStreamPythonFunctionInfo(
+            PythonFunction pythonFunction, DataStreamPythonFunctionInfo input, int functionType) {
+        super(pythonFunction, new DataStreamPythonFunctionInfo[] {input});
+        this.functionType = functionType;
+    }
+
+    public int getFunctionType() {
+        return this.functionType;
+    }
+
+    public DataStreamPythonFunctionInfo copy() {
+        if (getInputs().length == 0) {
+            return new DataStreamPythonFunctionInfo(getPythonFunction(), this.functionType);
+        } else {
+            return new DataStreamPythonFunctionInfo(
+                    getPythonFunction(),
+                    ((DataStreamPythonFunctionInfo) getInputs()[0]).copy(),
+                    this.functionType);
+        }
+    }
 }

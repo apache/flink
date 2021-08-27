@@ -34,20 +34,31 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Handler for {@link ClusterDataSetListHeaders}.
- */
-public class ClusterDataSetListHandler extends AbstractResourceManagerHandler<RestfulGateway, EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
-	public ClusterDataSetListHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
-		super(leaderRetriever, timeout, responseHeaders, ClusterDataSetListHeaders.INSTANCE, resourceManagerGatewayRetriever);
-	}
+/** Handler for {@link ClusterDataSetListHeaders}. */
+public class ClusterDataSetListHandler
+        extends AbstractResourceManagerHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                ClusterDataSetListResponseBody,
+                EmptyMessageParameters> {
+    public ClusterDataSetListHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                ClusterDataSetListHeaders.INSTANCE,
+                resourceManagerGatewayRetriever);
+    }
 
-	@Override
-	protected CompletableFuture<ClusterDataSetListResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
-		return gateway.listDataSets().thenApply(ClusterDataSetListResponseBody::from);
-	}
+    @Override
+    protected CompletableFuture<ClusterDataSetListResponseBody> handleRequest(
+            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull ResourceManagerGateway gateway)
+            throws RestHandlerException {
+        return gateway.listDataSets().thenApply(ClusterDataSetListResponseBody::from);
+    }
 }

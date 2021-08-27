@@ -92,16 +92,35 @@ make_binary_release() {
 }
 
 make_python_release() {
+  PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}
   cd flink-python/
   # use lint-python.sh script to create a python environment.
   dev/lint-python.sh -s basic
   source dev/.conda/bin/activate
   pip install -r dev/dev-requirements.txt
+
+  # build apache-flink-libraries sdist
+  pushd apache-flink-libraries
+  python setup.py sdist
+  pushd dist/
+  apache_flink_libraries_actual_name=`echo *.tar.gz`
+  apache_flink_libraries_release_name="apache-flink-libraries-${PYFLINK_VERSION}.tar.gz"
+
+  if [[ "$apache_flink_libraries_actual_name" != "$apache_flink_libraries_release_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${apache_flink_libraries_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+    exit 1
+  fi
+
+  cp ${apache_flink_libraries_actual_name} "${PYTHON_RELEASE_DIR}/${apache_flink_libraries_release_name}"
+
+  popd
+
+  popd
+
   python setup.py sdist
   conda deactivate
   cd dist/
   pyflink_actual_name=`echo *.tar.gz`
-  PYFLINK_VERSION=${RELEASE_VERSION/-SNAPSHOT/.dev0}
   pyflink_release_name="apache-flink-${PYFLINK_VERSION}.tar.gz"
 
   if [[ "$pyflink_actual_name" != "$pyflink_release_name" ]] ; then
@@ -112,7 +131,7 @@ make_python_release() {
   cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
-  # py35,py36,py37 for mac and linux (6 wheel packages)
+  # py36,py37,py38 for mac and linux (6 wheel packages)
   EXPECTED_WHEEL_PACKAGES_NUM=6
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
   for wheel_file in *.whl; do
@@ -132,11 +151,13 @@ make_python_release() {
 
   # Sign sha the tgz and wheel packages
   if [ "$SKIP_GPG" == "false" ] ; then
+    gpg --armor --detach-sig "${apache_flink_libraries_release_name}"
     gpg --armor --detach-sig "${pyflink_release_name}"
     for wheel_file in *.whl; do
       gpg --armor --detach-sig "${wheel_file}"
     done
   fi
+  $SHASUM "${apache_flink_libraries_release_name}" > "${apache_flink_libraries_release_name}.sha512"
   $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
 
   for wheel_file in *.whl; do

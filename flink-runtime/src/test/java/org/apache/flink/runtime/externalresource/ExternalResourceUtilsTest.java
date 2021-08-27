@@ -20,6 +20,7 @@ package org.apache.flink.runtime.externalresource;
 
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.core.plugin.PluginManager;
@@ -30,12 +31,14 @@ import org.apache.commons.collections.IteratorUtils;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
@@ -43,204 +46,246 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link ExternalResourceUtils} class.
- */
+/** Tests for the {@link ExternalResourceUtils} class. */
 public class ExternalResourceUtilsTest extends TestLogger {
 
-	private static final String RESOURCE_NAME_1 = "foo";
-	private static final String RESOURCE_NAME_2 = "bar";
-	private static final List<String> RESOURCE_LIST = Arrays.asList(RESOURCE_NAME_1, RESOURCE_NAME_2);
-	private static final long RESOURCE_AMOUNT_1 = 2L;
-	private static final long RESOURCE_AMOUNT_2 = 1L;
-	private static final String RESOURCE_CONFIG_KEY_1 = "flink1";
-	private static final String RESOURCE_CONFIG_KEY_2 = "flink2";
-	private static final String SUFFIX = "flink.config-key";
+    private static final String RESOURCE_NAME_1 = "foo";
+    private static final String RESOURCE_NAME_2 = "bar";
+    private static final List<String> RESOURCE_LIST =
+            Arrays.asList(RESOURCE_NAME_1, RESOURCE_NAME_2);
+    private static final long RESOURCE_AMOUNT_1 = 2L;
+    private static final long RESOURCE_AMOUNT_2 = 1L;
+    private static final String RESOURCE_CONFIG_KEY_1 = "flink1";
+    private static final String RESOURCE_CONFIG_KEY_2 = "flink2";
+    private static final String SUFFIX = "flink.config-key";
 
-	@Test
-	public void testGetExternalResourcesWithConfigKeyNotSpecifiedOrEmpty() {
-		final Configuration config = new Configuration();
-		final String resourceConfigKey = "";
+    @Test
+    public void testGetExternalResourceConfigurationKeysWithConfigKeyNotSpecifiedOrEmpty() {
+        final Configuration config = new Configuration();
+        final String resourceConfigKey = "";
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), RESOURCE_AMOUNT_1);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2), RESOURCE_AMOUNT_2);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_1, SUFFIX), resourceConfigKey);
+        config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
+        config.setString(
+                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
+                        RESOURCE_NAME_1, SUFFIX),
+                resourceConfigKey);
 
-		final Map<String, Long> configMap = ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, String> configMap =
+                ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
-		assertThat(configMap.entrySet(), is(empty()));
-	}
+        assertThat(configMap.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testGetExternalResourcesWithIllegalAmount() {
-		final Configuration config = new Configuration();
-		final long resourceAmount = 0L;
+    @Test
+    public void testGetExternalResourceConfigurationKeysWithConflictConfigKey() {
+        final Configuration config = new Configuration();
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), resourceAmount);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_1, SUFFIX), RESOURCE_CONFIG_KEY_1);
+        config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
+        config.setString(
+                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
+                        RESOURCE_NAME_1, SUFFIX),
+                RESOURCE_CONFIG_KEY_1);
+        config.setString(
+                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
+                        RESOURCE_NAME_2, SUFFIX),
+                RESOURCE_CONFIG_KEY_1);
 
-		final Map<String, Long> configMap = ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, String> configMap =
+                ExternalResourceUtils.getExternalResourceConfigurationKeys(config, SUFFIX);
 
-		assertThat(configMap.entrySet(), is(empty()));
-	}
+        // Only one of the resource name would be kept.
+        assertThat(configMap.size(), is(1));
+        assertThat(configMap.values(), contains(RESOURCE_CONFIG_KEY_1));
+    }
 
-	@Test
-	public void testGetExternalResourcesWithoutConfigAmount() {
-		final Configuration config = new Configuration();
+    @Test
+    public void testConstructExternalResourceDriversFromConfig() {
+        final Configuration config = new Configuration();
+        final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
+        final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
+        plugins.put(
+                ExternalResourceDriverFactory.class,
+                IteratorUtils.singletonIterator(new TestingExternalResourceDriverFactory()));
+        final PluginManager testingPluginManager = new TestingPluginManager(plugins);
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_1, SUFFIX), RESOURCE_CONFIG_KEY_1);
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setString(
+                ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(
+                        RESOURCE_NAME_1),
+                driverFactoryClassName);
 
-		final Map<String, Long> configMap = ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, ExternalResourceDriver> externalResourceDrivers =
+                ExternalResourceUtils.externalResourceDriversFromConfig(
+                        config, testingPluginManager);
 
-		assertThat(configMap.entrySet(), is(empty()));
-	}
+        assertThat(externalResourceDrivers.size(), is(1));
+        assertThat(
+                externalResourceDrivers.get(RESOURCE_NAME_1),
+                instanceOf(TestingExternalResourceDriver.class));
+    }
 
-	@Test
-	public void testGetExternalResourcesWithConflictConfigKey() {
-		final Configuration config = new Configuration();
+    @Test
+    public void testNotConfiguredFactoryClass() {
+        final Configuration config = new Configuration();
+        final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
+        plugins.put(
+                ExternalResourceDriverFactory.class,
+                IteratorUtils.singletonIterator(new TestingExternalResourceDriverFactory()));
+        final PluginManager testingPluginManager = new TestingPluginManager(plugins);
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), RESOURCE_AMOUNT_1);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2), RESOURCE_AMOUNT_2);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_1, SUFFIX), RESOURCE_CONFIG_KEY_1);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_2, SUFFIX), RESOURCE_CONFIG_KEY_1);
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
 
-		final Map<String, Long> configMap = ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, ExternalResourceDriver> externalResourceDrivers =
+                ExternalResourceUtils.externalResourceDriversFromConfig(
+                        config, testingPluginManager);
 
-		// Only one of the config key would be kept.
-		assertThat(configMap.size(), is(1));
-		assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_1));
-	}
+        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testGetExternalResourcesWithMultipleExternalResource() {
-		final Configuration config = new Configuration();
+    @Test
+    public void testFactoryPluginDoesNotExist() {
+        final Configuration config = new Configuration();
+        final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
+        final PluginManager testingPluginManager = new TestingPluginManager(Collections.emptyMap());
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, RESOURCE_LIST);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), RESOURCE_AMOUNT_1);
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_2), RESOURCE_AMOUNT_2);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_1, SUFFIX), RESOURCE_CONFIG_KEY_1);
-		config.setString(ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(RESOURCE_NAME_2, SUFFIX), RESOURCE_CONFIG_KEY_2);
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setString(
+                ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(
+                        RESOURCE_NAME_1),
+                driverFactoryClassName);
 
-		final Map<String, Long> configMap = ExternalResourceUtils.getExternalResources(config, SUFFIX);
+        final Map<String, ExternalResourceDriver> externalResourceDrivers =
+                ExternalResourceUtils.externalResourceDriversFromConfig(
+                        config, testingPluginManager);
 
-		assertThat(configMap.size(), is(2));
-		assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_1));
-		assertTrue(configMap.containsKey(RESOURCE_CONFIG_KEY_2));
-		assertThat(configMap.get(RESOURCE_CONFIG_KEY_1), is(RESOURCE_AMOUNT_1));
-		assertThat(configMap.get(RESOURCE_CONFIG_KEY_2), is(RESOURCE_AMOUNT_2));
-	}
+        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testConstructExternalResourceDriversFromConfig() {
-		final Configuration config = new Configuration();
-		final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
-		final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
-		plugins.put(ExternalResourceDriverFactory.class, IteratorUtils.singletonIterator(new TestingExternalResourceDriverFactory()));
-		final PluginManager testingPluginManager = new TestingPluginManager(plugins);
+    @Test
+    public void testFactoryFailedToCreateDriver() {
+        final Configuration config = new Configuration();
+        final String driverFactoryClassName =
+                TestingFailedExternalResourceDriverFactory.class.getName();
+        final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
+        plugins.put(
+                ExternalResourceDriverFactory.class,
+                IteratorUtils.singletonIterator(new TestingFailedExternalResourceDriverFactory()));
+        final PluginManager testingPluginManager = new TestingPluginManager(plugins);
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
-		config.setString(ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(RESOURCE_NAME_1), driverFactoryClassName);
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setString(
+                ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(
+                        RESOURCE_NAME_1),
+                driverFactoryClassName);
 
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = ExternalResourceUtils.externalResourceDriversFromConfig(config, testingPluginManager);
+        final Map<String, ExternalResourceDriver> externalResourceDrivers =
+                ExternalResourceUtils.externalResourceDriversFromConfig(
+                        config, testingPluginManager);
 
-		assertThat(externalResourceDrivers.size(), is(1));
-		assertThat(externalResourceDrivers.get(RESOURCE_NAME_1), instanceOf(TestingExternalResourceDriver.class));
-	}
+        assertThat(externalResourceDrivers.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testNotConfiguredFactoryClass() {
-		final Configuration config = new Configuration();
-		final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
-		plugins.put(ExternalResourceDriverFactory.class, IteratorUtils.singletonIterator(new TestingExternalResourceDriverFactory()));
-		final PluginManager testingPluginManager = new TestingPluginManager(plugins);
+    @Test
+    public void testGetExternalResourceInfoProvider() {
+        final Map<String, Long> externalResourceAmountMap = new HashMap<>();
+        final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
+        externalResourceAmountMap.put(RESOURCE_NAME_1, RESOURCE_AMOUNT_1);
+        externalResourceDrivers.put(RESOURCE_NAME_1, new TestingExternalResourceDriver());
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
+        final StaticExternalResourceInfoProvider externalResourceInfoProvider =
+                (StaticExternalResourceInfoProvider)
+                        ExternalResourceUtils.createStaticExternalResourceInfoProvider(
+                                externalResourceAmountMap, externalResourceDrivers);
 
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = ExternalResourceUtils.externalResourceDriversFromConfig(config, testingPluginManager);
+        assertNotNull(externalResourceInfoProvider.getExternalResources().get(RESOURCE_NAME_1));
+    }
 
-		assertThat(externalResourceDrivers.entrySet(), is(empty()));
-	}
+    @Test
+    public void testGetExternalResourceInfoProviderWithoutAmount() {
+        final Map<String, Long> externalResourceAmountMap = new HashMap<>();
+        final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
+        externalResourceDrivers.put(RESOURCE_NAME_1, new TestingExternalResourceDriver());
 
-	@Test
-	public void testFactoryPluginDoesNotExist() {
-		final Configuration config = new Configuration();
-		final String driverFactoryClassName = TestingExternalResourceDriverFactory.class.getName();
-		final PluginManager testingPluginManager = new TestingPluginManager(Collections.emptyMap());
+        final StaticExternalResourceInfoProvider externalResourceInfoProvider =
+                (StaticExternalResourceInfoProvider)
+                        ExternalResourceUtils.createStaticExternalResourceInfoProvider(
+                                externalResourceAmountMap, externalResourceDrivers);
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
-		config.setString(ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(RESOURCE_NAME_1), driverFactoryClassName);
+        assertThat(externalResourceInfoProvider.getExternalResources().entrySet(), is(empty()));
+    }
 
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = ExternalResourceUtils.externalResourceDriversFromConfig(config, testingPluginManager);
+    @Test
+    public void testGetExternalResourceAmountMap() {
+        final Configuration config = new Configuration();
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
 
-		assertThat(externalResourceDrivers.entrySet(), is(empty()));
-	}
+        final Map<String, Long> externalResourceAmountMap =
+                ExternalResourceUtils.getExternalResourceAmountMap(config);
 
-	@Test
-	public void testFactoryFailedToCreateDriver() {
-		final Configuration config = new Configuration();
-		final String driverFactoryClassName = TestingFailedExternalResourceDriverFactory.class.getName();
-		final Map<Class<?>, Iterator<?>> plugins = new HashMap<>();
-		plugins.put(ExternalResourceDriverFactory.class, IteratorUtils.singletonIterator(new TestingFailedExternalResourceDriverFactory()));
-		final PluginManager testingPluginManager = new TestingPluginManager(plugins);
+        assertThat(externalResourceAmountMap.size(), is(1));
+        assertTrue(externalResourceAmountMap.containsKey(RESOURCE_NAME_1));
+        assertThat(externalResourceAmountMap.get(RESOURCE_NAME_1), is(RESOURCE_AMOUNT_1));
+    }
 
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
-		config.setString(ExternalResourceOptions.getExternalResourceDriverFactoryConfigOptionForResource(RESOURCE_NAME_1), driverFactoryClassName);
+    @Test
+    public void testGetExternalResourceAmountMapWithIllegalAmount() {
+        final Configuration config = new Configuration();
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), 0);
 
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = ExternalResourceUtils.externalResourceDriversFromConfig(config, testingPluginManager);
+        final Map<String, Long> externalResourceAmountMap =
+                ExternalResourceUtils.getExternalResourceAmountMap(config);
 
-		assertThat(externalResourceDrivers.entrySet(), is(empty()));
-	}
+        assertThat(externalResourceAmountMap.entrySet(), is(empty()));
+    }
 
-	@Test
-	public void testGetExternalResourceInfoProvider() {
-		final Map<String, Long> externalResourceAmountMap = new HashMap<>();
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
-		externalResourceAmountMap.put(RESOURCE_NAME_1, RESOURCE_AMOUNT_1);
-		externalResourceDrivers.put(RESOURCE_NAME_1, new TestingExternalResourceDriver());
+    @Test
+    public void testGetExternalResourcesCollection() {
+        final Configuration config = new Configuration();
+        config.set(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST,
+                Collections.singletonList(RESOURCE_NAME_1));
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
 
-		final StaticExternalResourceInfoProvider externalResourceInfoProvider =
-			(StaticExternalResourceInfoProvider) ExternalResourceUtils.createStaticExternalResourceInfoProvider(externalResourceAmountMap, externalResourceDrivers);
+        final Collection<ExternalResource> externalResources =
+                ExternalResourceUtils.getExternalResourcesCollection(config);
 
-		assertNotNull(externalResourceInfoProvider.getExternalResources().get(RESOURCE_NAME_1));
-	}
+        assertThat(externalResources.size(), is(1));
+        assertThat(
+                externalResources,
+                contains(new ExternalResource(RESOURCE_NAME_1, RESOURCE_AMOUNT_1)));
+    }
 
-	@Test
-	public void testGetExternalResourceInfoProviderWithoutAmount() {
-		final Map<String, Long> externalResourceAmountMap = new HashMap<>();
-		final Map<String, ExternalResourceDriver> externalResourceDrivers = new HashMap<>();
-		externalResourceDrivers.put(RESOURCE_NAME_1, new TestingExternalResourceDriver());
+    @Test
+    public void testRecognizeEmptyResourceList() {
+        final Configuration config = new Configuration();
+        config.setString(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), ExternalResourceOptions.NONE);
+        config.setLong(
+                ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1),
+                RESOURCE_AMOUNT_1);
 
-		final StaticExternalResourceInfoProvider externalResourceInfoProvider =
-			(StaticExternalResourceInfoProvider) ExternalResourceUtils.createStaticExternalResourceInfoProvider(externalResourceAmountMap, externalResourceDrivers);
+        final Collection<ExternalResource> externalResources =
+                ExternalResourceUtils.getExternalResourcesCollection(config);
 
-		assertThat(externalResourceInfoProvider.getExternalResources().entrySet(), is(empty()));
-	}
-
-	@Test
-	public void testGetExternalResourceAmountMap() {
-		final Configuration config = new Configuration();
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), RESOURCE_AMOUNT_1);
-
-		final Map<String, Long> externalResourceAmountMap = ExternalResourceUtils.getExternalResourceAmountMap(config);
-
-		assertThat(externalResourceAmountMap.size(), is(1));
-		assertTrue(externalResourceAmountMap.containsKey(RESOURCE_NAME_1));
-		assertThat(externalResourceAmountMap.get(RESOURCE_NAME_1), is(RESOURCE_AMOUNT_1));
-	}
-
-	@Test
-	public void testGetExternalResourceAmountMapWithIllegalAmount() {
-		final Configuration config = new Configuration();
-		config.set(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, Collections.singletonList(RESOURCE_NAME_1));
-		config.setLong(ExternalResourceOptions.getAmountConfigOptionForResource(RESOURCE_NAME_1), 0);
-
-		final Map<String, Long> externalResourceAmountMap = ExternalResourceUtils.getExternalResourceAmountMap(config);
-
-		assertThat(externalResourceAmountMap.entrySet(), is(empty()));
-	}
+        assertThat(externalResources, is(empty()));
+    }
 }

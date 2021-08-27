@@ -43,136 +43,137 @@ import java.util.Collection;
  * @param <R> The type of the value returned from the state
  */
 class RocksDBAggregatingState<K, N, T, ACC, R>
-	extends AbstractRocksDBAppendingState<K, N, T, ACC, R>
-	implements InternalAggregatingState<K, N, T, ACC, R> {
+        extends AbstractRocksDBAppendingState<K, N, T, ACC, R>
+        implements InternalAggregatingState<K, N, T, ACC, R> {
 
-	/** User-specified aggregation function. */
-	private final AggregateFunction<T, ACC, R> aggFunction;
+    /** User-specified aggregation function. */
+    private final AggregateFunction<T, ACC, R> aggFunction;
 
-	/**
-	 * Creates a new {@code RocksDBAggregatingState}.
-	 *
-	 * @param columnFamily The RocksDB column family that this state is associated to.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param valueSerializer The serializer for the state.
-	 * @param defaultValue The default value for the state.
-	 * @param aggFunction The aggregate function used for aggregating state.
-	 * @param backend The backend for which this state is bind to.
-	 */
-	private RocksDBAggregatingState(
-			ColumnFamilyHandle columnFamily,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<ACC> valueSerializer,
-			ACC defaultValue,
-			AggregateFunction<T, ACC, R> aggFunction,
-			RocksDBKeyedStateBackend<K> backend) {
+    /**
+     * Creates a new {@code RocksDBAggregatingState}.
+     *
+     * @param columnFamily The RocksDB column family that this state is associated to.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param valueSerializer The serializer for the state.
+     * @param defaultValue The default value for the state.
+     * @param aggFunction The aggregate function used for aggregating state.
+     * @param backend The backend for which this state is bind to.
+     */
+    private RocksDBAggregatingState(
+            ColumnFamilyHandle columnFamily,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<ACC> valueSerializer,
+            ACC defaultValue,
+            AggregateFunction<T, ACC, R> aggFunction,
+            RocksDBKeyedStateBackend<K> backend) {
 
-		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
-		this.aggFunction = aggFunction;
-	}
+        super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+        this.aggFunction = aggFunction;
+    }
 
-	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return backend.getKeySerializer();
-	}
+    @Override
+    public TypeSerializer<K> getKeySerializer() {
+        return backend.getKeySerializer();
+    }
 
-	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
+    @Override
+    public TypeSerializer<N> getNamespaceSerializer() {
+        return namespaceSerializer;
+    }
 
-	@Override
-	public TypeSerializer<ACC> getValueSerializer() {
-		return valueSerializer;
-	}
+    @Override
+    public TypeSerializer<ACC> getValueSerializer() {
+        return valueSerializer;
+    }
 
-	@Override
-	public R get() {
-		ACC accumulator = getInternal();
-		if (accumulator == null) {
-			return null;
-		}
-		return aggFunction.getResult(accumulator);
-	}
+    @Override
+    public R get() {
+        ACC accumulator = getInternal();
+        if (accumulator == null) {
+            return null;
+        }
+        return aggFunction.getResult(accumulator);
+    }
 
-	@Override
-	public void add(T value) {
-		byte[] key = getKeyBytes();
-		ACC accumulator = getInternal(key);
-		accumulator = accumulator == null ? aggFunction.createAccumulator() : accumulator;
-		updateInternal(key, aggFunction.add(value, accumulator));
-	}
+    @Override
+    public void add(T value) {
+        byte[] key = getKeyBytes();
+        ACC accumulator = getInternal(key);
+        accumulator = accumulator == null ? aggFunction.createAccumulator() : accumulator;
+        updateInternal(key, aggFunction.add(value, accumulator));
+    }
 
-	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) {
-		if (sources == null || sources.isEmpty()) {
-			return;
-		}
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return;
+        }
 
-		try {
-			ACC current = null;
+        try {
+            ACC current = null;
 
-			// merge the sources to the target
-			for (N source : sources) {
-				if (source != null) {
-					setCurrentNamespace(source);
-					final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
-					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+            // merge the sources to the target
+            for (N source : sources) {
+                if (source != null) {
+                    setCurrentNamespace(source);
+                    final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
+                    final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-					if (valueBytes != null) {
-						backend.db.delete(columnFamily, writeOptions, sourceKey);
-						dataInputView.setBuffer(valueBytes);
-						ACC value = valueSerializer.deserialize(dataInputView);
+                    if (valueBytes != null) {
+                        backend.db.delete(columnFamily, writeOptions, sourceKey);
+                        dataInputView.setBuffer(valueBytes);
+                        ACC value = valueSerializer.deserialize(dataInputView);
 
-						if (current != null) {
-							current = aggFunction.merge(current, value);
-						}
-						else {
-							current = value;
-						}
-					}
-				}
-			}
+                        if (current != null) {
+                            current = aggFunction.merge(current, value);
+                        } else {
+                            current = value;
+                        }
+                    }
+                }
+            }
 
-			// if something came out of merging the sources, merge it or write it to the target
-			if (current != null) {
-				setCurrentNamespace(target);
-				// create the target full-binary-key
-				final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
-				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
+            // if something came out of merging the sources, merge it or write it to the target
+            if (current != null) {
+                setCurrentNamespace(target);
+                // create the target full-binary-key
+                final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
+                final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
-				if (targetValueBytes != null) {
-					// target also had a value, merge
-					dataInputView.setBuffer(targetValueBytes);
-					ACC value = valueSerializer.deserialize(dataInputView);
+                if (targetValueBytes != null) {
+                    // target also had a value, merge
+                    dataInputView.setBuffer(targetValueBytes);
+                    ACC value = valueSerializer.deserialize(dataInputView);
 
-					current = aggFunction.merge(current, value);
-				}
+                    current = aggFunction.merge(current, value);
+                }
 
-				// serialize the resulting value
-				dataOutputView.clear();
-				valueSerializer.serialize(current, dataOutputView);
+                // serialize the resulting value
+                dataOutputView.clear();
+                valueSerializer.serialize(current, dataOutputView);
 
-				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
-			}
-		}
-		catch (Exception e) {
-			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
-		}
-	}
+                // write the resulting value
+                backend.db.put(
+                        columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
+            }
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	static <K, N, SV, S extends State, IS extends S> IS create(
-		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
-		RocksDBKeyedStateBackend<K> backend) {
-		return (IS) new RocksDBAggregatingState<>(
-			registerResult.f0,
-			registerResult.f1.getNamespaceSerializer(),
-			registerResult.f1.getStateSerializer(),
-			stateDesc.getDefaultValue(),
-			((AggregatingStateDescriptor<?, SV, ?>) stateDesc).getAggregateFunction(),
-			backend);
-	}
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS create(
+            StateDescriptor<S, SV> stateDesc,
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    registerResult,
+            RocksDBKeyedStateBackend<K> backend) {
+        return (IS)
+                new RocksDBAggregatingState<>(
+                        registerResult.f0,
+                        registerResult.f1.getNamespaceSerializer(),
+                        registerResult.f1.getStateSerializer(),
+                        stateDesc.getDefaultValue(),
+                        ((AggregatingStateDescriptor<?, SV, ?>) stateDesc).getAggregateFunction(),
+                        backend);
+    }
 }

@@ -20,116 +20,154 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class wraps {@link InputGate} provided by shuffle service and it is mainly
- * used for increasing general input metrics from {@link TaskIOMetricGroup}.
+ * This class wraps {@link InputGate} provided by shuffle service and it is mainly used for
+ * increasing general input metrics from {@link TaskIOMetricGroup}.
  */
 public class InputGateWithMetrics extends IndexedInputGate {
 
-	private final IndexedInputGate inputGate;
+    private final IndexedInputGate inputGate;
 
-	private final Counter numBytesIn;
+    private final Counter numBytesIn;
 
-	public InputGateWithMetrics(IndexedInputGate inputGate, Counter numBytesIn) {
-		this.inputGate = checkNotNull(inputGate);
-		this.numBytesIn = checkNotNull(numBytesIn);
-	}
+    private final ThroughputCalculator throughputCalculator;
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return inputGate.getAvailableFuture();
-	}
+    public InputGateWithMetrics(
+            IndexedInputGate inputGate,
+            Counter numBytesIn,
+            ThroughputCalculator throughputCalculator) {
+        this.inputGate = checkNotNull(inputGate);
+        this.numBytesIn = checkNotNull(numBytesIn);
+        this.throughputCalculator = throughputCalculator;
+    }
 
-	@Override
-	public void resumeConsumption(int channelIndex) throws IOException {
-		inputGate.resumeConsumption(channelIndex);
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return inputGate.getAvailableFuture();
+    }
 
-	@Override
-	public int getNumberOfInputChannels() {
-		return inputGate.getNumberOfInputChannels();
-	}
+    @Override
+    public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
+        inputGate.resumeConsumption(channelInfo);
+    }
 
-	@Override
-	public InputChannel getChannel(int channelIndex) {
-		return inputGate.getChannel(channelIndex);
-	}
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        inputGate.acknowledgeAllRecordsProcessed(channelInfo);
+    }
 
-	@Override
-	public int getGateIndex() {
-		return inputGate.getGateIndex();
-	}
+    @Override
+    public int getNumberOfInputChannels() {
+        return inputGate.getNumberOfInputChannels();
+    }
 
-	@Override
-	public boolean isFinished() {
-		return inputGate.isFinished();
-	}
+    @Override
+    public InputChannel getChannel(int channelIndex) {
+        return inputGate.getChannel(channelIndex);
+    }
 
-	@Override
-	public void setup() throws IOException {
-		inputGate.setup();
-	}
+    @Override
+    public int getGateIndex() {
+        return inputGate.getGateIndex();
+    }
 
-	@Override
-	public CompletableFuture<Void> getStateConsumedFuture() {
-		return inputGate.getStateConsumedFuture();
-	}
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        return inputGate.getUnfinishedChannels();
+    }
 
-	@Override
-	public void requestPartitions() throws IOException {
-		inputGate.requestPartitions();
-	}
+    @Override
+    public int getBuffersInUseCount() {
+        return inputGate.getBuffersInUseCount();
+    }
 
-	@Override
-	public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
-		inputGate.setChannelStateWriter(channelStateWriter);
-	}
+    @Override
+    public void announceBufferSize(int bufferSize) {
+        inputGate.announceBufferSize(bufferSize);
+    }
 
-	@Override
-	public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
-		return inputGate.getNext().map(this::updateMetrics);
-	}
+    @Override
+    public boolean isFinished() {
+        return inputGate.isFinished();
+    }
 
-	@Override
-	public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
-		return inputGate.pollNext().map(this::updateMetrics);
-	}
+    @Override
+    public boolean hasReceivedEndOfData() {
+        return inputGate.hasReceivedEndOfData();
+    }
 
-	@Override
-	public void sendTaskEvent(TaskEvent event) throws IOException {
-		inputGate.sendTaskEvent(event);
-	}
+    @Override
+    public void setup() throws IOException {
+        inputGate.setup();
+    }
 
-	@Override
-	public void close() throws Exception {
-		inputGate.close();
-	}
+    @Override
+    public CompletableFuture<Void> getStateConsumedFuture() {
+        return inputGate.getStateConsumedFuture();
+    }
 
-	@Override
-	public CompletableFuture<?> getPriorityEventAvailableFuture() {
-		return inputGate.getPriorityEventAvailableFuture();
-	}
+    @Override
+    public void requestPartitions() throws IOException {
+        inputGate.requestPartitions();
+    }
 
-	@Override
-	public void finishReadRecoveredState() throws IOException {
-		inputGate.finishReadRecoveredState();
-	}
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        inputGate.setChannelStateWriter(channelStateWriter);
+    }
 
-	private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
-		numBytesIn.inc(bufferOrEvent.getSize());
-		return bufferOrEvent;
-	}
+    @Override
+    public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
+        return inputGate.getNext().map(this::updateMetrics);
+    }
+
+    @Override
+    public Optional<BufferOrEvent> pollNext() throws IOException, InterruptedException {
+        return inputGate.pollNext().map(this::updateMetrics);
+    }
+
+    @Override
+    public void sendTaskEvent(TaskEvent event) throws IOException {
+        inputGate.sendTaskEvent(event);
+    }
+
+    @Override
+    public void close() throws Exception {
+        inputGate.close();
+    }
+
+    @Override
+    public CompletableFuture<?> getPriorityEventAvailableFuture() {
+        return inputGate.getPriorityEventAvailableFuture();
+    }
+
+    @Override
+    public void finishReadRecoveredState() throws IOException {
+        inputGate.finishReadRecoveredState();
+    }
+
+    private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
+        int incomingDataSize = bufferOrEvent.getSize();
+
+        numBytesIn.inc(incomingDataSize);
+        throughputCalculator.incomingDataSize(incomingDataSize);
+
+        return bufferOrEvent;
+    }
 }

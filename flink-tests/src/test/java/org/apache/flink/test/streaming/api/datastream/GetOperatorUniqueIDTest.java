@@ -30,47 +30,49 @@ import org.junit.Test;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests the uid translation to {@link org.apache.flink.runtime.jobgraph.OperatorID}.
- */
+/** Tests the uid translation to {@link org.apache.flink.runtime.jobgraph.OperatorID}. */
 @SuppressWarnings("serial")
 public class GetOperatorUniqueIDTest extends TestLogger {
 
-	/**
-	 * If expected values ever change double check that the change is not braking the contract of
-	 * {@link StreamingRuntimeContext#getOperatorUniqueID()} being stable between job submissions.
-	 */
-	@Test
-	public void testGetOperatorUniqueID() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+    /**
+     * If expected values ever change double check that the change is not braking the contract of
+     * {@link StreamingRuntimeContext#getOperatorUniqueID()} being stable between job submissions.
+     */
+    @Test
+    public void testGetOperatorUniqueID() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-		env.fromElements(1, 2, 3)
-			.map(new VerifyOperatorIDMapFunction("6c4f323f22da8fb6e34f80c61be7a689")).uid("42")
-			.map(new VerifyOperatorIDMapFunction("3e129e83691e7737fbf876b47452acbc")).uid("44");
+        env.fromElements(1, 2, 3)
+                .map(new VerifyOperatorIDMapFunction("6c4f323f22da8fb6e34f80c61be7a689"))
+                .uid("42")
+                .map(new VerifyOperatorIDMapFunction("3e129e83691e7737fbf876b47452acbc"))
+                .uid("44");
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	private static class VerifyOperatorIDMapFunction extends AbstractRichFunction implements MapFunction<Integer, Integer> {
-		private static final long serialVersionUID = 6584823409744624276L;
+    private static class VerifyOperatorIDMapFunction extends AbstractRichFunction
+            implements MapFunction<Integer, Integer> {
+        private static final long serialVersionUID = 6584823409744624276L;
 
-		private final String expectedOperatorUniqueID;
+        private final String expectedOperatorUniqueID;
 
-		public VerifyOperatorIDMapFunction(String expectedOperatorUniqueID) {
-			this.expectedOperatorUniqueID = checkNotNull(expectedOperatorUniqueID);
-		}
+        public VerifyOperatorIDMapFunction(String expectedOperatorUniqueID) {
+            this.expectedOperatorUniqueID = checkNotNull(expectedOperatorUniqueID);
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
 
-			assertEquals(expectedOperatorUniqueID, ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID());
-		}
+            assertEquals(
+                    expectedOperatorUniqueID,
+                    ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID());
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+    }
 }

@@ -21,19 +21,18 @@ package org.apache.flink.queryablestate.exceptions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.queryablestate.network.BadRequestException;
 
-/**
- * Exception thrown if there is no location information available for the given key group.
- */
+/** Exception thrown if there is no location information available for the given key group. */
 @Internal
 public class UnknownKvStateKeyGroupLocationException extends BadRequestException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates the exception.
-	 * @param serverName the name of the server that threw the exception.
-	 */
-	public UnknownKvStateKeyGroupLocationException(String serverName) {
-		super(serverName, "Unknown key-group location.");
-	}
+    /**
+     * Creates the exception.
+     *
+     * @param serverName the name of the server that threw the exception.
+     */
+    public UnknownKvStateKeyGroupLocationException(String serverName) {
+        super(serverName, "Unknown key-group location.");
+    }
 }

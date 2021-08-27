@@ -26,32 +26,31 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * ALTER DDL to change properties of a Hive database.
- */
+/** ALTER DDL to change properties of a Hive database. */
 public class SqlAlterHiveDatabaseProps extends SqlAlterHiveDatabase {
 
-	public SqlAlterHiveDatabaseProps(SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList)
-			throws ParseException {
-		super(pos, databaseName, HiveDDLUtils.checkReservedDBProperties(propertyList));
-		HiveDDLUtils.unescapeProperties(getPropertyList());
-	}
+    public SqlAlterHiveDatabaseProps(
+            SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList)
+            throws ParseException {
+        super(pos, databaseName, HiveDDLUtils.checkReservedDBProperties(propertyList));
+        HiveDDLUtils.unescapeProperties(getPropertyList());
+    }
 
-	@Override
-	protected AlterHiveDatabaseOp getAlterOp() {
-		return AlterHiveDatabaseOp.CHANGE_PROPS;
-	}
+    @Override
+    protected AlterHiveDatabaseOp getAlterOp() {
+        return AlterHiveDatabaseOp.CHANGE_PROPS;
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("DBPROPERTIES");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : originPropList) {
-			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.endList(withFrame);
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("DBPROPERTIES");
+        SqlWriter.Frame withFrame = writer.startList("(", ")");
+        for (SqlNode property : originPropList) {
+            printIndent(writer);
+            property.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.endList(withFrame);
+    }
 }

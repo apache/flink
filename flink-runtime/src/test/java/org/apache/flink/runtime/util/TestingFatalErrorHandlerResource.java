@@ -27,67 +27,71 @@ import org.junit.runners.model.Statement;
 import javax.annotation.Nullable;
 
 /**
- * Resource which provides a {@link TestingFatalErrorHandler} and checks whether no exception
- * has been caught when calling {@link #after()}.
+ * Resource which provides a {@link TestingFatalErrorHandler} and checks whether no exception has
+ * been caught when calling {@link #after()}.
  */
 public final class TestingFatalErrorHandlerResource implements TestRule {
 
-	@Nullable
-	private TestingFatalErrorHandler testingFatalErrorHandler;
+    @Nullable private TestingFatalErrorHandler testingFatalErrorHandler;
 
-	public TestingFatalErrorHandlerResource() {
-		testingFatalErrorHandler = null;
-	}
+    public TestingFatalErrorHandlerResource() {
+        testingFatalErrorHandler = null;
+    }
 
-	@Override
-	public Statement apply(Statement base, Description description) {
-		return statement(base);
-	}
+    @Override
+    public Statement apply(Statement base, Description description) {
+        return statement(base);
+    }
 
-	private Statement statement(Statement base) {
-		return new Statement() {
-			@Override
-			public void evaluate() throws Throwable {
-				before();
+    private Statement statement(Statement base) {
+        return new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                before();
 
-				// using try-with-resources in order to properly report exceptions also in case
-				// that after throws an exception (suppressed exception)
-				try (CloseableStatement closeableStatement = new CloseableStatement(base)) {
-					closeableStatement.evaluate();
-				} finally {
-					after();
-				}
-			}
-		};
-	}
+                // using try-with-resources in order to properly report exceptions also in case
+                // that after throws an exception (suppressed exception)
+                try (CloseableStatement closeableStatement = new CloseableStatement(base)) {
+                    closeableStatement.evaluate();
+                } finally {
+                    after();
+                }
+            }
+        };
+    }
 
-	public TestingFatalErrorHandler getFatalErrorHandler() {
-		return Preconditions.checkNotNull(testingFatalErrorHandler, "The %s has not been properly initialized.", TestingFatalErrorHandlerResource.class.getSimpleName());
-	}
+    public TestingFatalErrorHandler getFatalErrorHandler() {
+        return Preconditions.checkNotNull(
+                testingFatalErrorHandler,
+                "The %s has not been properly initialized.",
+                TestingFatalErrorHandlerResource.class.getSimpleName());
+    }
 
-	private void before() {
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
-	}
+    private void before() {
+        testingFatalErrorHandler = new TestingFatalErrorHandler();
+    }
 
-	private void after() throws AssertionError {
-		final Throwable exception = getFatalErrorHandler().getException();
+    private void after() throws AssertionError {
+        final Throwable exception = getFatalErrorHandler().getException();
 
-		if (exception != null) {
-			throw new AssertionError("The TestingFatalErrorHandler caught an exception.", exception);
-		}
-	}
+        if (exception != null) {
+            throw new AssertionError(
+                    "The TestingFatalErrorHandler caught an exception.", exception);
+        }
+    }
 
-	private static final class CloseableStatement implements AutoCloseable {
-		private final Statement statement;
-		private CloseableStatement(Statement statement) {
-			this.statement = statement;
-		}
+    private static final class CloseableStatement implements AutoCloseable {
+        private final Statement statement;
 
-		private void evaluate() throws Throwable {
-			statement.evaluate();
-		}
+        private CloseableStatement(Statement statement) {
+            this.statement = statement;
+        }
 
-		@Override
-		public void close() {}
-	}
+        private void evaluate() throws Throwable {
+            statement.evaluate();
+        }
+
+        @Override
+        public void close() {}
+    }
 }

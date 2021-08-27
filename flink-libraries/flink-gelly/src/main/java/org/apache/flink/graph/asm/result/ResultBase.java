@@ -19,18 +19,16 @@
 
 package org.apache.flink.graph.asm.result;
 
-/**
- * Base class for algorithm results.
- */
+/** Base class for algorithm results. */
 public abstract class ResultBase {
 
-	/**
-	 * {@link Object#toString()} must be overridden to write POJO values in the
-	 * same form as {@link org.apache.flink.api.java.tuple.Tuple}. Values are
-	 * comma-separated and enclosed in parenthesis, e.g. "(f0,f1)".
-	 *
-	 * @return tuple representation string
-	 */
-	@Override
-	public abstract String toString();
+    /**
+     * {@link Object#toString()} must be overridden to write POJO values in the same form as {@link
+     * org.apache.flink.api.java.tuple.Tuple}. Values are comma-separated and enclosed in
+     * parenthesis, e.g. "(f0,f1)".
+     *
+     * @return tuple representation string
+     */
+    @Override
+    public abstract String toString();
 }

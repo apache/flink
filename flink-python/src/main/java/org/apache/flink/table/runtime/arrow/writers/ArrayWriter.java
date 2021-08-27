@@ -25,96 +25,94 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.ListVector;
 
-/**
- * {@link ArrowFieldWriter} for Array.
- */
+/** {@link ArrowFieldWriter} for Array. */
 @Internal
 public abstract class ArrayWriter<T> extends ArrowFieldWriter<T> {
 
-	public static ArrayWriter<RowData> forRow(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
-		return new ArrayWriterForRow(listVector, elementWriter);
-	}
+    public static ArrayWriter<RowData> forRow(
+            ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+        return new ArrayWriterForRow(listVector, elementWriter);
+    }
 
-	public static ArrayWriter<ArrayData> forArray(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
-		return new ArrayWriterForArray(listVector, elementWriter);
-	}
+    public static ArrayWriter<ArrayData> forArray(
+            ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+        return new ArrayWriterForArray(listVector, elementWriter);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	private final ArrowFieldWriter<ArrayData> elementWriter;
+    private final ArrowFieldWriter<ArrayData> elementWriter;
 
-	private ArrayWriter(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
-		super(listVector);
-		this.elementWriter = Preconditions.checkNotNull(elementWriter);
-	}
+    private ArrayWriter(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+        super(listVector);
+        this.elementWriter = Preconditions.checkNotNull(elementWriter);
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract ArrayData readArray(T in, int ordinal);
+    abstract ArrayData readArray(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (!isNullAt(in, ordinal)) {
-			((ListVector) getValueVector()).startNewValue(getCount());
-			ArrayData array = readArray(in, ordinal);
-			for (int i = 0; i < array.size(); i++) {
-				elementWriter.write(array, i);
-			}
-			((ListVector) getValueVector()).endValue(getCount(), array.size());
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (!isNullAt(in, ordinal)) {
+            ((ListVector) getValueVector()).startNewValue(getCount());
+            ArrayData array = readArray(in, ordinal);
+            for (int i = 0; i < array.size(); i++) {
+                elementWriter.write(array, i);
+            }
+            ((ListVector) getValueVector()).endValue(getCount(), array.size());
+        }
+    }
 
-	@Override
-	public void finish() {
-		super.finish();
-		elementWriter.finish();
-	}
+    @Override
+    public void finish() {
+        super.finish();
+        elementWriter.finish();
+    }
 
-	@Override
-	public void reset() {
-		super.reset();
-		elementWriter.reset();
-	}
+    @Override
+    public void reset() {
+        super.reset();
+        elementWriter.reset();
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link ArrayWriter} for {@link RowData} input.
-	 */
-	public static final class ArrayWriterForRow extends ArrayWriter<RowData> {
+    /** {@link ArrayWriter} for {@link RowData} input. */
+    public static final class ArrayWriterForRow extends ArrayWriter<RowData> {
 
-		private ArrayWriterForRow(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
-			super(listVector, elementWriter);
-		}
+        private ArrayWriterForRow(
+                ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+            super(listVector, elementWriter);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		ArrayData readArray(RowData in, int ordinal) {
-			return in.getArray(ordinal);
-		}
-	}
+        @Override
+        ArrayData readArray(RowData in, int ordinal) {
+            return in.getArray(ordinal);
+        }
+    }
 
-	/**
-	 * {@link ArrayWriter} for {@link ArrayData} input.
-	 */
-	public static final class ArrayWriterForArray extends ArrayWriter<ArrayData> {
+    /** {@link ArrayWriter} for {@link ArrayData} input. */
+    public static final class ArrayWriterForArray extends ArrayWriter<ArrayData> {
 
-		private ArrayWriterForArray(ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
-			super(listVector, elementWriter);
-		}
+        private ArrayWriterForArray(
+                ListVector listVector, ArrowFieldWriter<ArrayData> elementWriter) {
+            super(listVector, elementWriter);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		ArrayData readArray(ArrayData in, int ordinal) {
-			return in.getArray(ordinal);
-		}
-	}
+        @Override
+        ArrayData readArray(ArrayData in, int ordinal) {
+            return in.getArray(ordinal);
+        }
+    }
 }

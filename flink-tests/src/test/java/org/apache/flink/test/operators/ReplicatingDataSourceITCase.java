@@ -38,81 +38,91 @@ import org.junit.runners.Parameterized;
 
 import java.util.List;
 
-/**
- * Tests for replicating DataSources.
- */
+/** Tests for replicating DataSources. */
 @RunWith(Parameterized.class)
 public class ReplicatingDataSourceITCase extends MultipleProgramsTestBase {
 
-	public ReplicatingDataSourceITCase(TestExecutionMode mode){
-		super(mode);
-	}
+    public ReplicatingDataSourceITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testReplicatedSourceToJoin() throws Exception {
-		/*
-		 * Test replicated source going into join
-		 */
+    @Test
+    public void testReplicatedSourceToJoin() throws Exception {
+        /*
+         * Test replicated source going into join
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple1<Long>> source1 = env.createInput(new ReplicatingInputFormat<Long, GenericInputSplit>
-				(new ParallelIteratorInputFormat<Long>(new NumberSequenceIterator(0L, 1000L))), BasicTypeInfo.LONG_TYPE_INFO)
-				.map(new ToTuple());
-		DataSet<Tuple1<Long>> source2 = env.generateSequence(0L, 1000L).map(new ToTuple());
+        DataSet<Tuple1<Long>> source1 =
+                env.createInput(
+                                new ReplicatingInputFormat<Long, GenericInputSplit>(
+                                        new ParallelIteratorInputFormat<Long>(
+                                                new NumberSequenceIterator(0L, 1000L))),
+                                BasicTypeInfo.LONG_TYPE_INFO)
+                        .map(new ToTuple());
+        DataSet<Tuple1<Long>> source2 = env.generateSequence(0L, 1000L).map(new ToTuple());
 
-		DataSet<Tuple> pairs = source1.join(source2).where(0).equalTo(0)
-				.projectFirst(0)
-				.sum(0);
+        DataSet<Tuple> pairs = source1.join(source2).where(0).equalTo(0).projectFirst(0).sum(0);
 
-		List<Tuple> result = pairs.collect();
+        List<Tuple> result = pairs.collect();
 
-		String expectedResult = "(500500)";
+        String expectedResult = "(500500)";
 
-		compareResultAsText(result, expectedResult);
-	}
+        compareResultAsText(result, expectedResult);
+    }
 
-	@Test
-	public void testReplicatedSourceToCross() throws Exception {
-		/*
-		 * Test replicated source going into cross
-		 */
+    @Test
+    public void testReplicatedSourceToCross() throws Exception {
+        /*
+         * Test replicated source going into cross
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple1<Long>> source1 = env.createInput(new ReplicatingInputFormat<Long, GenericInputSplit>
-				(new ParallelIteratorInputFormat<Long>(new NumberSequenceIterator(0L, 1000L))), BasicTypeInfo.LONG_TYPE_INFO)
-				.map(new ToTuple());
-		DataSet<Tuple1<Long>> source2 = env.generateSequence(0L, 1000L).map(new ToTuple());
+        DataSet<Tuple1<Long>> source1 =
+                env.createInput(
+                                new ReplicatingInputFormat<Long, GenericInputSplit>(
+                                        new ParallelIteratorInputFormat<Long>(
+                                                new NumberSequenceIterator(0L, 1000L))),
+                                BasicTypeInfo.LONG_TYPE_INFO)
+                        .map(new ToTuple());
+        DataSet<Tuple1<Long>> source2 = env.generateSequence(0L, 1000L).map(new ToTuple());
 
-		DataSet<Tuple1<Long>> pairs = source1.cross(source2)
-				.filter(new FilterFunction<Tuple2<Tuple1<Long>, Tuple1<Long>>>() {
-					@Override
-					public boolean filter(Tuple2<Tuple1<Long>, Tuple1<Long>> value) throws Exception {
-						return value.f0.f0.equals(value.f1.f0);
-					}
-				})
-				.map(new MapFunction<Tuple2<Tuple1<Long>, Tuple1<Long>>, Tuple1<Long>>() {
-					@Override
-					public Tuple1<Long> map(Tuple2<Tuple1<Long>, Tuple1<Long>> value) throws Exception {
-						return value.f0;
-					}
-				})
-				.sum(0);
+        DataSet<Tuple1<Long>> pairs =
+                source1.cross(source2)
+                        .filter(
+                                new FilterFunction<Tuple2<Tuple1<Long>, Tuple1<Long>>>() {
+                                    @Override
+                                    public boolean filter(Tuple2<Tuple1<Long>, Tuple1<Long>> value)
+                                            throws Exception {
+                                        return value.f0.f0.equals(value.f1.f0);
+                                    }
+                                })
+                        .map(
+                                new MapFunction<
+                                        Tuple2<Tuple1<Long>, Tuple1<Long>>, Tuple1<Long>>() {
+                                    @Override
+                                    public Tuple1<Long> map(
+                                            Tuple2<Tuple1<Long>, Tuple1<Long>> value)
+                                            throws Exception {
+                                        return value.f0;
+                                    }
+                                })
+                        .sum(0);
 
-		List<Tuple1<Long>> result = pairs.collect();
+        List<Tuple1<Long>> result = pairs.collect();
 
-		String expectedResult = "(500500)";
+        String expectedResult = "(500500)";
 
-		compareResultAsText(result, expectedResult);
-	}
+        compareResultAsText(result, expectedResult);
+    }
 
-	private static class ToTuple implements MapFunction<Long, Tuple1<Long>> {
+    private static class ToTuple implements MapFunction<Long, Tuple1<Long>> {
 
-		@Override
-		public Tuple1<Long> map(Long value) throws Exception {
-			return new Tuple1<Long>(value);
-		}
-	}
-
+        @Override
+        public Tuple1<Long> map(Long value) throws Exception {
+            return new Tuple1<Long>(value);
+        }
+    }
 }

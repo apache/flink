@@ -27,55 +27,57 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 /**
- * This mapper validates exactly-once and at-least-once semantics in connection with {@link SequenceGeneratorSource}.
+ * This mapper validates exactly-once and at-least-once semantics in connection with {@link
+ * SequenceGeneratorSource}.
  */
 public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
 
-	private static final long serialVersionUID = -744070793650644485L;
+    private static final long serialVersionUID = -744070793650644485L;
 
-	/** This value state tracks the current sequence number per key. */
-	private transient ValueState<Long> sequenceValue;
+    /** This value state tracks the current sequence number per key. */
+    private transient ValueState<Long> sequenceValue;
 
-	/** This defines how semantics are checked for each update. */
-	private final ValidatorFunction validator;
+    /** This defines how semantics are checked for each update. */
+    private final ValidatorFunction validator;
 
-	SemanticsCheckMapper(ValidatorFunction validator) {
-		this.validator = validator;
-	}
+    SemanticsCheckMapper(ValidatorFunction validator) {
+        this.validator = validator;
+    }
 
-	@Override
-	public void flatMap(Event event, Collector<String> out) throws Exception {
+    @Override
+    public void flatMap(Event event, Collector<String> out) throws Exception {
 
-		Long currentValue = sequenceValue.value();
-		if (currentValue == null) {
-			currentValue = 0L;
-		}
+        Long currentValue = sequenceValue.value();
+        if (currentValue == null) {
+            currentValue = 0L;
+        }
 
-		long nextValue = event.getSequenceNumber();
+        long nextValue = event.getSequenceNumber();
 
-		sequenceValue.update(nextValue);
-		if (!validator.check(currentValue, nextValue)) {
-			out.collect("Alert: " + currentValue + " -> " + nextValue + " (" + event.getKey() + ")");
-		}
-	}
+        sequenceValue.update(nextValue);
+        if (!validator.check(currentValue, nextValue)) {
+            out.collect(
+                    "Alert: " + currentValue + " -> " + nextValue + " (" + event.getKey() + ")");
+        }
+    }
 
-	@Override
-	public void open(Configuration parameters) {
-		ValueStateDescriptor<Long> sequenceStateDescriptor =
-			new ValueStateDescriptor<>("sequenceState", Long.class);
+    @Override
+    public void open(Configuration parameters) {
+        ValueStateDescriptor<Long> sequenceStateDescriptor =
+                new ValueStateDescriptor<>("sequenceState", Long.class);
 
-		sequenceValue = getRuntimeContext().getState(sequenceStateDescriptor);
-	}
+        sequenceValue = getRuntimeContext().getState(sequenceStateDescriptor);
+    }
 
-	interface ValidatorFunction extends Serializable {
-		boolean check(long current, long update);
+    interface ValidatorFunction extends Serializable {
+        boolean check(long current, long update);
 
-		static ValidatorFunction exactlyOnce() {
-			return (current, update) -> (update - current) == 1;
-		}
+        static ValidatorFunction exactlyOnce() {
+            return (current, update) -> (update - current) == 1;
+        }
 
-		static ValidatorFunction atLeastOnce() {
-			return (current, update) -> (update - current) <= 1;
-		}
-	}
+        static ValidatorFunction atLeastOnce() {
+            return (current, update) -> (update - current) <= 1;
+        }
+    }
 }

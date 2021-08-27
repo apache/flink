@@ -21,76 +21,71 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 
-/**
- * {@link Aggregator} that calculates statistics for {@link String} values.
- */
+/** {@link Aggregator} that calculates statistics for {@link String} values. */
 @Internal
 public class StringSummaryAggregator implements Aggregator<String, StringColumnSummary> {
 
-	private long nonNullCount = 0L;
-	private long nullCount = 0L;
-	private long emptyCount = 0L;
-	private int minStringLength = Integer.MAX_VALUE;
-	private int maxStringLength = -1;
-	private CompensatedSum meanLength = CompensatedSum.ZERO;
+    private long nonNullCount = 0L;
+    private long nullCount = 0L;
+    private long emptyCount = 0L;
+    private int minStringLength = Integer.MAX_VALUE;
+    private int maxStringLength = -1;
+    private CompensatedSum meanLength = CompensatedSum.ZERO;
 
-	@Override
-	public void aggregate(String value) {
-		if (value == null) {
-			nullCount++;
-		}
-		else {
-			nonNullCount++;
+    @Override
+    public void aggregate(String value) {
+        if (value == null) {
+            nullCount++;
+        } else {
+            nonNullCount++;
 
-			if (value.isEmpty()) {
-				emptyCount++;
-			}
+            if (value.isEmpty()) {
+                emptyCount++;
+            }
 
-			int length = value.length();
+            int length = value.length();
 
-			minStringLength = Math.min(minStringLength, length);
-			maxStringLength = Math.max(maxStringLength, length);
+            minStringLength = Math.min(minStringLength, length);
+            maxStringLength = Math.max(maxStringLength, length);
 
-			double delta = length - meanLength.value();
-			meanLength = meanLength.add(delta / nonNullCount);
-		}
-	}
+            double delta = length - meanLength.value();
+            meanLength = meanLength.add(delta / nonNullCount);
+        }
+    }
 
-	@Override
-	public void combine(Aggregator<String, StringColumnSummary> otherSameType) {
-		StringSummaryAggregator other = (StringSummaryAggregator) otherSameType;
+    @Override
+    public void combine(Aggregator<String, StringColumnSummary> otherSameType) {
+        StringSummaryAggregator other = (StringSummaryAggregator) otherSameType;
 
-		nullCount += other.nullCount;
+        nullCount += other.nullCount;
 
-		minStringLength = Math.min(minStringLength, other.minStringLength);
-		maxStringLength = Math.max(maxStringLength, other.maxStringLength);
+        minStringLength = Math.min(minStringLength, other.minStringLength);
+        maxStringLength = Math.max(maxStringLength, other.maxStringLength);
 
-		if (nonNullCount == 0) {
-			nonNullCount = other.nonNullCount;
-			emptyCount = other.emptyCount;
-			meanLength = other.meanLength;
+        if (nonNullCount == 0) {
+            nonNullCount = other.nonNullCount;
+            emptyCount = other.emptyCount;
+            meanLength = other.meanLength;
 
-		}
-		else if (other.nonNullCount != 0) {
-			long combinedCount = nonNullCount + other.nonNullCount;
+        } else if (other.nonNullCount != 0) {
+            long combinedCount = nonNullCount + other.nonNullCount;
 
-			emptyCount += other.emptyCount;
+            emptyCount += other.emptyCount;
 
-			double deltaMean = other.meanLength.value() - meanLength.value();
-			meanLength = meanLength.add(deltaMean * other.nonNullCount / combinedCount);
-			nonNullCount = combinedCount;
-		}
-	}
+            double deltaMean = other.meanLength.value() - meanLength.value();
+            meanLength = meanLength.add(deltaMean * other.nonNullCount / combinedCount);
+            nonNullCount = combinedCount;
+        }
+    }
 
-	@Override
-	public StringColumnSummary result() {
-		return new StringColumnSummary(
-			nonNullCount,
-			nullCount,
-			emptyCount,
-			nonNullCount == 0L ? null : minStringLength,
-			nonNullCount == 0L ? null : maxStringLength,
-			nonNullCount == 0L ? null : meanLength.value()
-		);
-	}
+    @Override
+    public StringColumnSummary result() {
+        return new StringColumnSummary(
+                nonNullCount,
+                nullCount,
+                emptyCount,
+                nonNullCount == 0L ? null : minStringLength,
+                nonNullCount == 0L ? null : maxStringLength,
+                nonNullCount == 0L ? null : meanLength.value());
+    }
 }

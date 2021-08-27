@@ -18,7 +18,7 @@
 
 import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { Injectable, Injector } from '@angular/core';
-import { NzNotificationService } from 'ng-zorro-antd';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { throwError, Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { StatusService } from 'services';

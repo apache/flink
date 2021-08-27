@@ -34,49 +34,50 @@ import java.util.function.Function;
  */
 public class HiveBulkWriterFactory implements HadoopPathBasedBulkWriter.Factory<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final HiveWriterFactory factory;
+    private final HiveWriterFactory factory;
 
-	public HiveBulkWriterFactory(HiveWriterFactory factory) {
-		this.factory = factory;
-	}
+    public HiveBulkWriterFactory(HiveWriterFactory factory) {
+        this.factory = factory;
+    }
 
-	@Override
-	public HadoopPathBasedBulkWriter<RowData> create(Path targetPath, Path inProgressPath) throws IOException {
-		FileSinkOperator.RecordWriter recordWriter = factory.createRecordWriter(inProgressPath);
-		Function<RowData, Writable> rowConverter = factory.createRowDataConverter();
-		FileSystem fs = FileSystem.get(inProgressPath.toUri(), factory.getJobConf());
-		return new HadoopPathBasedBulkWriter<RowData>() {
+    @Override
+    public HadoopPathBasedBulkWriter<RowData> create(Path targetPath, Path inProgressPath)
+            throws IOException {
+        FileSinkOperator.RecordWriter recordWriter = factory.createRecordWriter(inProgressPath);
+        Function<RowData, Writable> rowConverter = factory.createRowDataConverter();
+        FileSystem fs = FileSystem.get(inProgressPath.toUri(), factory.getJobConf());
+        return new HadoopPathBasedBulkWriter<RowData>() {
 
-			@Override
-			public long getSize() throws IOException {
-				// it's possible the in-progress file hasn't yet been created, due to writer lazy init or data buffering
-				return fs.exists(inProgressPath) ? fs.getFileStatus(inProgressPath).getLen() : 0;
-			}
+            @Override
+            public long getSize() throws IOException {
+                // it's possible the in-progress file hasn't yet been created, due to writer lazy
+                // init or data buffering
+                return fs.exists(inProgressPath) ? fs.getFileStatus(inProgressPath).getLen() : 0;
+            }
 
-			@Override
-			public void dispose() {
-				// close silently.
-				try {
-					recordWriter.close(true);
-				} catch (IOException ignored) {
-				}
-			}
+            @Override
+            public void dispose() {
+                // close silently.
+                try {
+                    recordWriter.close(true);
+                } catch (IOException ignored) {
+                }
+            }
 
-			@Override
-			public void addElement(RowData element) throws IOException {
-				recordWriter.write(rowConverter.apply(element));
-			}
+            @Override
+            public void addElement(RowData element) throws IOException {
+                recordWriter.write(rowConverter.apply(element));
+            }
 
-			@Override
-			public void flush() {
-			}
+            @Override
+            public void flush() {}
 
-			@Override
-			public void finish() throws IOException {
-				recordWriter.close(false);
-			}
-		};
-	}
+            @Override
+            public void finish() throws IOException {
+                recordWriter.close(false);
+            }
+        };
+    }
 }

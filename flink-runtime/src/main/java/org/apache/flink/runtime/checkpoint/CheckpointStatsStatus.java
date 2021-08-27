@@ -18,45 +18,42 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-/**
- * Status of the tracked checkpoint.
- */
+/** Status of the tracked checkpoint. */
 public enum CheckpointStatsStatus {
 
-	/** Checkpoint that is still in progress. */
-	IN_PROGRESS,
+    /** Checkpoint that is still in progress. */
+    IN_PROGRESS,
 
-	/** Checkpoint that has successfully completed. */
-	COMPLETED,
+    /** Checkpoint that has successfully completed. */
+    COMPLETED,
 
-	/** Checkpoint that failed. */
-	FAILED;
+    /** Checkpoint that failed. */
+    FAILED;
 
-	/**
-	 * Returns whether the checkpoint is in progress.
-	 *
-	 * @return <code>true</code> if checkpoint is in progress, <code>false</code> otherwise.
-	 */
-	public boolean isInProgress() {
-		return this == IN_PROGRESS;
-	}
+    /**
+     * Returns whether the checkpoint is in progress.
+     *
+     * @return <code>true</code> if checkpoint is in progress, <code>false</code> otherwise.
+     */
+    public boolean isInProgress() {
+        return this == IN_PROGRESS;
+    }
 
-	/**
-	 * Returns whether the checkpoint has completed successfully.
-	 *
-	 * @return <code>true</code> if checkpoint has completed, <code>false</code> otherwise.
-	 */
-	public boolean isCompleted() {
-		return this == COMPLETED;
-	}
+    /**
+     * Returns whether the checkpoint has completed successfully.
+     *
+     * @return <code>true</code> if checkpoint has completed, <code>false</code> otherwise.
+     */
+    public boolean isCompleted() {
+        return this == COMPLETED;
+    }
 
-	/**
-	 * Returns whether the checkpoint has failed.
-	 *
-	 * @return <code>true</code> if checkpoint has failed, <code>false</code> otherwise.
-	 */
-	public boolean isFailed() {
-		return this == FAILED;
-	}
-
+    /**
+     * Returns whether the checkpoint has failed.
+     *
+     * @return <code>true</code> if checkpoint has failed, <code>false</code> otherwise.
+     */
+    public boolean isFailed() {
+        return this == FAILED;
+    }
 }

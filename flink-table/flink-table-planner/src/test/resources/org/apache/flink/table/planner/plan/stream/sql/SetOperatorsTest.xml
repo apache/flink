@@ -1,0 +1,311 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testIntersect">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[c]])
+      :  +- Calc(select=[c])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[f]])
+         +- Calc(select=[f])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectAll">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c0 AS c])
++- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows($f0,c))], select=[$f0,c,c0], rowType=[RecordType(BIGINT $f0, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+   +- Calc(select=[IF((vcol_left_cnt > vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, c], where=[((vcol_left_cnt >= 1) AND (vcol_right_cnt >= 1))])
+      +- GroupAggregate(groupBy=[c], select=[c, COUNT(vcol_left_marker) AS vcol_left_cnt, COUNT(vcol_right_marker) AS vcol_right_cnt])
+         +- Exchange(distribution=[hash[c]])
+            +- Union(all=[true], union=[c, vcol_left_marker, vcol_right_marker])
+               :- Calc(select=[c, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
+               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- Calc(select=[f, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalIntersect(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntersectWithOuterProject">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalIntersect(all=[false])
+   :- LogicalProject(a=[$0], b=[$1])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- GroupAggregate(groupBy=[a, b], select=[a, b])
+   +- Exchange(distribution=[hash[a, b]])
+      +- Join(joinType=[LeftSemiJoin], where=[(((a = d) OR (a IS NULL AND d IS NULL)) AND ((b = e) OR (b IS NULL AND e IS NULL)))], select=[a, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[a, b]])
+         :  +- Calc(select=[a, b])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Exchange(distribution=[hash[d, e]])
+            +- Calc(select=[d, e])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinus">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- Join(joinType=[LeftAntiJoin], where=[IS NOT DISTINCT FROM(c, f)], select=[c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[c]])
+      :  +- Calc(select=[c])
+      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Exchange(distribution=[hash[f]])
+         +- Calc(select=[f])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusAll">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[true])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c0 AS c])
++- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows(sum_vcol_marker,c))], select=[sum_vcol_marker,c,c0], rowType=[RecordType(BIGINT sum_vcol_marker, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+   +- Calc(select=[sum_vcol_marker, c], where=[(sum_vcol_marker > 0)])
+      +- GroupAggregate(groupBy=[c], select=[c, SUM(vcol_marker) AS sum_vcol_marker])
+         +- Exchange(distribution=[hash[c]])
+            +- Union(all=[true], union=[c, vcol_marker])
+               :- Calc(select=[c, 1:BIGINT AS vcol_marker])
+               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- Calc(select=[f, -1:BIGINT AS vcol_marker])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[c], select=[c])
++- Exchange(distribution=[hash[c]])
+   +- Calc(select=[c])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMinusWithNestedTypes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable EXCEPT SELECT * FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(a=[$0], b=[$1], c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a, b, c], select=[a, b, c])
++- Exchange(distribution=[hash[a, b, c]])
+   +- Join(joinType=[LeftAntiJoin], where=[(((a = a0) OR (a IS NULL AND a0 IS NULL)) AND ((b = b0) OR (b IS NULL AND b0 IS NULL)) AND ((c = c0) OR (c IS NULL AND c0 IS NULL)))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a, b, c]])(reuse_id=[1])
+      :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionNullableTypes">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(EXPR$0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAnyType">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM A UNION ALL SELECT b FROM A]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
++- LogicalProject(b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b)]]], fields=[a, b])(reuse_id=[1])
++- Calc(select=[b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -31,19 +31,17 @@ import java.util.Map;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link BashJavaUtils}.
- */
+/** Tests for {@link BashJavaUtils}. */
 public class BashJavaUtilsTest extends TestLogger {
-	@Test
-	public void testJmLegacyHeapOptionSetsNewJvmHeap() {
-		Configuration configuration = new Configuration();
-		MemorySize heapSize = MemorySize.ofMebiBytes(10);
-		configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, heapSize);
-		String jvmArgsLine = BashJavaUtils.getJmResourceParams(configuration).get(0);
-		Map<String, String> jvmArgs = ConfigurationUtils.parseJvmArgString(jvmArgsLine);
-		String heapSizeStr = Long.toString(heapSize.getBytes());
-		assertThat(jvmArgs.get("-Xmx"), is(heapSizeStr));
-		assertThat(jvmArgs.get("-Xms"), is(heapSizeStr));
-	}
+    @Test
+    public void testJmLegacyHeapOptionSetsNewJvmHeap() {
+        Configuration configuration = new Configuration();
+        MemorySize heapSize = MemorySize.ofMebiBytes(10);
+        configuration.set(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, heapSize);
+        String jvmArgsLine = BashJavaUtils.getJmResourceParams(configuration).get(0);
+        Map<String, String> jvmArgs = ConfigurationUtils.parseJvmArgString(jvmArgsLine);
+        String heapSizeStr = Long.toString(heapSize.getBytes());
+        assertThat(jvmArgs.get("-Xmx"), is(heapSizeStr));
+        assertThat(jvmArgs.get("-Xms"), is(heapSizeStr));
+    }
 }

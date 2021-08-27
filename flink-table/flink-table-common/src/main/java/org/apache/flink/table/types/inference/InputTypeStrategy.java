@@ -39,37 +39,38 @@ import java.util.Optional;
  * conversion class that a function implementation expects from the runtime. This requires that a
  * strategy can also be called on already validated arguments without affecting the logical type.
  *
- * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link Object#equals(Object)}.
+ * <p>Note: Implementations should implement {@link Object#hashCode()} and {@link
+ * Object#equals(Object)}.
  *
  * @see InputTypeStrategies
  */
 @PublicEvolving
 public interface InputTypeStrategy {
 
-	/**
-	 * Initial input validation based on the number of arguments.
-	 */
-	ArgumentCount getArgumentCount();
+    /** Initial input validation based on the number of arguments. */
+    ArgumentCount getArgumentCount();
 
-	/**
-	 * Main logic for inferring and validating the input arguments. Returns a list of argument data types that
-	 * are valid for the given call. If the returned types differ from {@link CallContext#getArgumentDataTypes()},
-	 * a casting operation can be inserted. An empty result means that the given input is invalid.
-	 *
-	 * @param callContext provides details about the function call
-	 * @param throwOnFailure whether this function is allowed to throw an {@link ValidationException}
-	 *                       with a meaningful exception in case the inference is not successful or
-	 *                       if this function should simply return an empty result.
-	 * @return three-state result for either "true, same data types as arguments", "true, but arguments
-	 *         must be casted to returned data types", or "false, no inferred data types could be found"
-	 * @see CallContext#newValidationError(String, Object...)
-	 */
-	Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure);
+    /**
+     * Main logic for inferring and validating the input arguments. Returns a list of argument data
+     * types that are valid for the given call. If the returned types differ from {@link
+     * CallContext#getArgumentDataTypes()}, a casting operation can be inserted. An empty result
+     * means that the given input is invalid.
+     *
+     * @param callContext provides details about the function call
+     * @param throwOnFailure whether this function is allowed to throw an {@link
+     *     ValidationException} with a meaningful exception in case the inference is not successful
+     *     or if this function should simply return an empty result.
+     * @return three-state result for either "true, same data types as arguments", "true, but
+     *     arguments must be casted to returned data types", or "false, no inferred data types could
+     *     be found"
+     * @see CallContext#newValidationError(String, Object...)
+     */
+    Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure);
 
-	/**
-	 * Returns a summary of the function's expected signatures.
-	 *
-	 * @param definition the function definition that defines the function currently being called.
-	 */
-	List<Signature> getExpectedSignatures(FunctionDefinition definition);
+    /**
+     * Returns a summary of the function's expected signatures.
+     *
+     * @param definition the function definition that defines the function currently being called.
+     */
+    List<Signature> getExpectedSignatures(FunctionDefinition definition);
 }

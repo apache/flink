@@ -26,137 +26,138 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link SharedResources} class.
- */
+/** Tests for the {@link SharedResources} class. */
 public class SharedResourcesTest {
 
-	@Test
-	public void testAllocatedResourcesInMap() throws Exception {
-		final SharedResources resources = new SharedResources();
+    @Test
+    public void testAllocatedResourcesInMap() throws Exception {
+        final SharedResources resources = new SharedResources();
 
-		final TestResource tr = resources
-				.getOrAllocateSharedResource("theType", new Object(), TestResource::new, 100)
-				.resourceHandle();
+        final TestResource tr =
+                resources
+                        .getOrAllocateSharedResource(
+                                "theType", new Object(), TestResource::new, 100)
+                        .resourceHandle();
 
-		assertEquals(1, resources.getNumResources());
-		assertFalse(tr.closed);
-	}
+        assertEquals(1, resources.getNumResources());
+        assertFalse(tr.closed);
+    }
 
-	@Test
-	public void testIntermediateReleaseDoesNotRemoveFromMap() throws Exception {
-		final SharedResources resources = new SharedResources();
-		final String type = "theType";
-		final Object leaseHolder1 = new Object();
-		final Object leaseHolder2 = new Object();
+    @Test
+    public void testIntermediateReleaseDoesNotRemoveFromMap() throws Exception {
+        final SharedResources resources = new SharedResources();
+        final String type = "theType";
+        final Object leaseHolder1 = new Object();
+        final Object leaseHolder2 = new Object();
 
-		resources.getOrAllocateSharedResource(type, leaseHolder1, TestResource::new, 100);
-		resources.getOrAllocateSharedResource(type, leaseHolder2, TestResource::new, 100);
+        resources.getOrAllocateSharedResource(type, leaseHolder1, TestResource::new, 100);
+        resources.getOrAllocateSharedResource(type, leaseHolder2, TestResource::new, 100);
 
-		resources.release(type, leaseHolder1);
+        resources.release(type, leaseHolder1);
 
-		assertEquals(1, resources.getNumResources());
-	}
+        assertEquals(1, resources.getNumResources());
+    }
 
-	@Test
-	public void testReleaseIsIdempotent() throws Exception {
-		final SharedResources resources = new SharedResources();
-		final String type = "theType";
-		final Object leaseHolder1 = new Object();
-		final Object leaseHolder2 = new Object();
+    @Test
+    public void testReleaseIsIdempotent() throws Exception {
+        final SharedResources resources = new SharedResources();
+        final String type = "theType";
+        final Object leaseHolder1 = new Object();
+        final Object leaseHolder2 = new Object();
 
-		resources.getOrAllocateSharedResource(type, leaseHolder1, TestResource::new, 100);
-		resources.getOrAllocateSharedResource(type, leaseHolder2, TestResource::new, 100);
+        resources.getOrAllocateSharedResource(type, leaseHolder1, TestResource::new, 100);
+        resources.getOrAllocateSharedResource(type, leaseHolder2, TestResource::new, 100);
 
-		resources.release(type, leaseHolder2);
-		resources.release(type, leaseHolder2);
+        resources.release(type, leaseHolder2);
+        resources.release(type, leaseHolder2);
 
-		assertEquals(1, resources.getNumResources());
-	}
+        assertEquals(1, resources.getNumResources());
+    }
 
-	@Test
-	public void testLastReleaseRemovesFromMap() throws Exception {
-		final SharedResources resources = new SharedResources();
-		final String type = "theType";
-		final Object leaseHolder = new Object();
-		resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, 100);
+    @Test
+    public void testLastReleaseRemovesFromMap() throws Exception {
+        final SharedResources resources = new SharedResources();
+        final String type = "theType";
+        final Object leaseHolder = new Object();
+        resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, 100);
 
-		resources.release(type, leaseHolder);
+        resources.release(type, leaseHolder);
 
-		assertEquals(0, resources.getNumResources());
-	}
+        assertEquals(0, resources.getNumResources());
+    }
 
-	@Test
-	public void testLastReleaseDisposesResource() throws Exception {
-		final SharedResources resources = new SharedResources();
-		final String type = "theType";
-		final Object leaseHolder = new Object();
+    @Test
+    public void testLastReleaseDisposesResource() throws Exception {
+        final SharedResources resources = new SharedResources();
+        final String type = "theType";
+        final Object leaseHolder = new Object();
 
-		final TestResource tr = resources
-				.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, 100)
-				.resourceHandle();
+        final TestResource tr =
+                resources
+                        .getOrAllocateSharedResource(type, leaseHolder, TestResource::new, 100)
+                        .resourceHandle();
 
-		resources.release(type, leaseHolder);
+        resources.release(type, leaseHolder);
 
-		assertTrue(tr.closed);
-	}
+        assertTrue(tr.closed);
+    }
 
-	@Test
-	public void testLastReleaseCallsReleaseHook() throws Exception {
-		final String type = "theType";
-		final long size = 100;
-		final SharedResources resources = new SharedResources();
-		final Object leaseHolder = new Object();
-		final TestReleaseHook hook = new TestReleaseHook(size);
+    @Test
+    public void testLastReleaseCallsReleaseHook() throws Exception {
+        final String type = "theType";
+        final long size = 100;
+        final SharedResources resources = new SharedResources();
+        final Object leaseHolder = new Object();
+        final TestReleaseHook hook = new TestReleaseHook(size);
 
-		resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, size);
-		resources.release(type, leaseHolder, hook);
+        resources.getOrAllocateSharedResource(type, leaseHolder, TestResource::new, size);
+        resources.release(type, leaseHolder, hook);
 
-		assertTrue(hook.wasCalled);
-	}
+        assertTrue(hook.wasCalled);
+    }
 
-	@Test
-	public void testReleaseNoneExistingLease() throws Exception {
-		final SharedResources resources = new SharedResources();
+    @Test
+    public void testReleaseNoneExistingLease() throws Exception {
+        final SharedResources resources = new SharedResources();
 
-		resources.release("theType", new Object());
+        resources.release("theType", new Object());
 
-		assertEquals(0, resources.getNumResources());
-	}
+        assertEquals(0, resources.getNumResources());
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class TestResource implements AutoCloseable {
+    private static final class TestResource implements AutoCloseable {
 
-		final long size;
-		boolean closed;
+        final long size;
+        boolean closed;
 
-		TestResource(long size) {
-			this.size = size;
-		}
+        TestResource(long size) {
+            this.size = size;
+        }
 
-		@Override
-		public void close() {
-			closed = true;
-		}
-	}
+        @Override
+        public void close() {
+            closed = true;
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class TestReleaseHook implements Consumer<Long> {
+    private static final class TestReleaseHook implements Consumer<Long> {
 
-		private final long expectedValue;
+        private final long expectedValue;
 
-		boolean wasCalled;
+        boolean wasCalled;
 
-		TestReleaseHook(long expectedValue) {
-			this.expectedValue = expectedValue;
-		}
+        TestReleaseHook(long expectedValue) {
+            this.expectedValue = expectedValue;
+        }
 
-		@Override
-		public void accept(Long value) {
-			wasCalled = true;
-			assertEquals(expectedValue, value.longValue());
-		}
-	}
+        @Override
+        public void accept(Long value) {
+            wasCalled = true;
+            assertEquals(expectedValue, value.longValue());
+        }
+    }
 }

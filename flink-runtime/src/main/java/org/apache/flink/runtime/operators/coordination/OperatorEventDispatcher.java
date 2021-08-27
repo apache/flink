@@ -26,15 +26,15 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
  */
 public interface OperatorEventDispatcher {
 
-	/**
-	 * Register a listener that is notified every time an OperatorEvent is sent from the
-	 * OperatorCoordinator (of the operator with the given OperatorID) to this subtask.
-	 */
-	void registerEventHandler(OperatorID operator, OperatorEventHandler handler);
+    /**
+     * Register a listener that is notified every time an OperatorEvent is sent from the
+     * OperatorCoordinator (of the operator with the given OperatorID) to this subtask.
+     */
+    void registerEventHandler(OperatorID operator, OperatorEventHandler handler);
 
-	/**
-	 * Gets the gateway through which events can be passed to the OperatorCoordinator for
-	 * the operator identified by the given OperatorID.
-	 */
-	OperatorEventGateway getOperatorEventGateway(OperatorID operatorId);
+    /**
+     * Gets the gateway through which events can be passed to the OperatorCoordinator for the
+     * operator identified by the given OperatorID.
+     */
+    OperatorEventGateway getOperatorEventGateway(OperatorID operatorId);
 }

@@ -21,17 +21,17 @@ import com.google.api.gax.core.CredentialsProvider;
 import com.google.auth.Credentials;
 
 /**
- * A CredentialsProvider that simply provides the right credentials that are to be used for connecting to an emulator.
- * NOTE: The Google provided NoCredentials and NoCredentialsProvider do not behave as expected.
- *       See https://github.com/googleapis/gax-java/issues/1148
+ * A CredentialsProvider that simply provides the right credentials that are to be used for
+ * connecting to an emulator. NOTE: The Google provided NoCredentials and NoCredentialsProvider do
+ * not behave as expected. See https://github.com/googleapis/gax-java/issues/1148
  */
 public final class EmulatorCredentialsProvider implements CredentialsProvider {
-	@Override
-	public Credentials getCredentials() {
-		return EmulatorCredentials.getInstance();
-	}
+    @Override
+    public Credentials getCredentials() {
+        return EmulatorCredentials.getInstance();
+    }
 
-	public static EmulatorCredentialsProvider create() {
-		return new EmulatorCredentialsProvider();
-	}
+    public static EmulatorCredentialsProvider create() {
+        return new EmulatorCredentialsProvider();
+    }
 }

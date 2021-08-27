@@ -23,18 +23,15 @@ import org.apache.flink.metrics.AbstractHistogramTest;
 import org.junit.Test;
 
 /**
- * Tests for {@link DescriptiveStatisticsHistogram} and
- * {@link DescriptiveStatisticsHistogramStatistics}.
+ * Tests for {@link DescriptiveStatisticsHistogram} and {@link
+ * DescriptiveStatisticsHistogramStatistics}.
  */
 public class DescriptiveStatisticsHistogramTest extends AbstractHistogramTest {
 
-	/**
-	 * Tests the histogram functionality of the DropwizardHistogramWrapper.
-	 */
-	@Test
-	public void testDescriptiveHistogram() {
-		int size = 10;
-		testHistogram(size, new DescriptiveStatisticsHistogram(size));
-	}
-
+    /** Tests the histogram functionality of the DropwizardHistogramWrapper. */
+    @Test
+    public void testDescriptiveHistogram() {
+        int size = 10;
+        testHistogram(size, new DescriptiveStatisticsHistogram(size));
+    }
 }

@@ -31,36 +31,37 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface GatewayRetriever<T extends RpcGateway> {
 
-	/**
-	 * Get future of object to retrieve.
-	 *
-	 * @return Future object to retrieve
-	 */
-	CompletableFuture<T> getFuture();
+    /**
+     * Get future of object to retrieve.
+     *
+     * @return Future object to retrieve
+     */
+    CompletableFuture<T> getFuture();
 
-	/**
-	 * Returns the currently retrieved gateway if there is such an object. Otherwise
-	 * it returns an empty optional.
-	 *
-	 * @return Optional object to retrieve
-	 */
-	default Optional<T> getNow() {
-		CompletableFuture<T> leaderFuture = getFuture();
-		if (leaderFuture != null) {
-			if (leaderFuture.isCompletedExceptionally() || leaderFuture.isCancelled()) {
-				return Optional.empty();
-			} else if (leaderFuture.isDone()) {
-				try {
-					return Optional.of(leaderFuture.get());
-				} catch (Exception e) {
-					// this should never happen
-					throw new FlinkRuntimeException("Unexpected error while accessing the retrieved gateway.", e);
-				}
-			} else {
-				return Optional.empty();
-			}
-		} else {
-			return Optional.empty();
-		}
-	}
+    /**
+     * Returns the currently retrieved gateway if there is such an object. Otherwise it returns an
+     * empty optional.
+     *
+     * @return Optional object to retrieve
+     */
+    default Optional<T> getNow() {
+        CompletableFuture<T> leaderFuture = getFuture();
+        if (leaderFuture != null) {
+            if (leaderFuture.isCompletedExceptionally() || leaderFuture.isCancelled()) {
+                return Optional.empty();
+            } else if (leaderFuture.isDone()) {
+                try {
+                    return Optional.of(leaderFuture.get());
+                } catch (Exception e) {
+                    // this should never happen
+                    throw new FlinkRuntimeException(
+                            "Unexpected error while accessing the retrieved gateway.", e);
+                }
+            } else {
+                return Optional.empty();
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
 }

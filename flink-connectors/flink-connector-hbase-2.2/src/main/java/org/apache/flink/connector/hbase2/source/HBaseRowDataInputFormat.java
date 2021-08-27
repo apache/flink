@@ -34,66 +34,67 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link RowData}
+ * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link
+ * RowData}
  */
 public class HBaseRowDataInputFormat extends AbstractTableInputFormat<RowData> {
-	private static final long serialVersionUID = 1L;
-	private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataInputFormat.class);
+    private static final long serialVersionUID = 1L;
+    private static final Logger LOG = LoggerFactory.getLogger(HBaseRowDataInputFormat.class);
 
-	private final String tableName;
-	private final HBaseTableSchema schema;
-	private final String nullStringLiteral;
+    private final String tableName;
+    private final HBaseTableSchema schema;
+    private final String nullStringLiteral;
 
-	private transient HBaseSerde serde;
+    private transient HBaseSerde serde;
 
-	public HBaseRowDataInputFormat(
-			org.apache.hadoop.conf.Configuration conf,
-			String tableName,
-			HBaseTableSchema schema,
-			String nullStringLiteral) {
-		super(conf);
-		this.tableName = tableName;
-		this.schema = schema;
-		this.nullStringLiteral = nullStringLiteral;
-	}
+    public HBaseRowDataInputFormat(
+            org.apache.hadoop.conf.Configuration conf,
+            String tableName,
+            HBaseTableSchema schema,
+            String nullStringLiteral) {
+        super(conf);
+        this.tableName = tableName;
+        this.schema = schema;
+        this.nullStringLiteral = nullStringLiteral;
+    }
 
-	@Override
-	protected void initTable() throws IOException {
-		this.serde = new HBaseSerde(schema, nullStringLiteral);
-		if (table == null) {
-			connectToTable();
-		}
-		if (table != null && scan == null) {
-			scan = getScanner();
-		}
-	}
+    @Override
+    protected void initTable() throws IOException {
+        this.serde = new HBaseSerde(schema, nullStringLiteral);
+        if (table == null) {
+            connectToTable();
+        }
+        if (table != null && scan == null) {
+            scan = getScanner();
+        }
+    }
 
-	@Override
-	protected Scan getScanner() {
-		return serde.createScan();
-	}
+    @Override
+    protected Scan getScanner() {
+        return serde.createScan();
+    }
 
-	@Override
-	public String getTableName() {
-		return tableName;
-	}
+    @Override
+    public String getTableName() {
+        return tableName;
+    }
 
-	@Override
-	protected RowData mapResultToOutType(Result res) {
-		return serde.convertToRow(res);
-	}
+    @Override
+    protected RowData mapResultToOutType(Result res) {
+        return serde.convertToReusedRow(res);
+    }
 
-	private void connectToTable() throws IOException{
-		try {
-			if (connection == null) {
-				connection = ConnectionFactory.createConnection(getHadoopConfiguration());
-			}
-			TableName name = TableName.valueOf(getTableName());
-			table = connection.getTable(name);
-			regionLocator = connection.getRegionLocator(name);
-		} catch (TableNotFoundException tnfe) {
-			LOG.error("The table " + tableName + " not found ", tnfe);
-			throw new RuntimeException("HBase table '" + tableName + "' not found.", tnfe);
-		}
-	}
+    private void connectToTable() throws IOException {
+        try {
+            if (connection == null) {
+                connection = ConnectionFactory.createConnection(getHadoopConfiguration());
+            }
+            TableName name = TableName.valueOf(getTableName());
+            table = connection.getTable(name);
+            regionLocator = connection.getRegionLocator(name);
+        } catch (TableNotFoundException tnfe) {
+            LOG.error("The table " + tableName + " not found ", tnfe);
+            throw new RuntimeException("HBase table '" + tableName + "' not found.", tnfe);
+        }
+    }
 }

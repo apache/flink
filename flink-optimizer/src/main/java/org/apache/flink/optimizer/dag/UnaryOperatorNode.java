@@ -18,10 +18,6 @@
 
 package org.apache.flink.optimizer.dag;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
@@ -29,49 +25,53 @@ import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.operators.OperatorDescriptorSingle;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class UnaryOperatorNode extends SingleInputNode {
-	
-	private final List<OperatorDescriptorSingle> operators;
-	
-	private final String name;
 
-	public UnaryOperatorNode(String name, SingleInputOperator<?, ?, ?> operator, boolean onDynamicPath) {
-		super(operator);
+    private final List<OperatorDescriptorSingle> operators;
 
-		this.name = name;
-		this.operators = new ArrayList<>();
-		this.onDynamicPath = onDynamicPath;
-	}
-	
-	public UnaryOperatorNode(String name, FieldSet keys, OperatorDescriptorSingle ... operators) {
-		this(name, keys, Arrays.asList(operators));
-	}
-	
-	public UnaryOperatorNode(String name, FieldSet keys, List<OperatorDescriptorSingle> operators) {
-		super(keys);
-		
-		this.operators = operators;
-		this.name = name;
-	}
+    private final String name;
 
-	@Override
-	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return this.operators;
-	}
+    public UnaryOperatorNode(
+            String name, SingleInputOperator<?, ?, ?> operator, boolean onDynamicPath) {
+        super(operator);
 
-	@Override
-	public String getOperatorName() {
-		return this.name;
-	}
+        this.name = name;
+        this.operators = new ArrayList<>();
+        this.onDynamicPath = onDynamicPath;
+    }
 
-	@Override
-	public SemanticProperties getSemanticProperties() {
-		return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-	}
+    public UnaryOperatorNode(String name, FieldSet keys, OperatorDescriptorSingle... operators) {
+        this(name, keys, Arrays.asList(operators));
+    }
 
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		// we have no estimates by default
-	}
+    public UnaryOperatorNode(String name, FieldSet keys, List<OperatorDescriptorSingle> operators) {
+        super(keys);
+
+        this.operators = operators;
+        this.name = name;
+    }
+
+    @Override
+    protected List<OperatorDescriptorSingle> getPossibleProperties() {
+        return this.operators;
+    }
+
+    @Override
+    public String getOperatorName() {
+        return this.name;
+    }
+
+    @Override
+    public SemanticProperties getSemanticProperties() {
+        return new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+    }
+
+    @Override
+    protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+        // we have no estimates by default
+    }
 }

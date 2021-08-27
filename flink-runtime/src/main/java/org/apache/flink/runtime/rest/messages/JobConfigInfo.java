@@ -44,219 +44,221 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Response type of the {@link JobConfigHandler}.
- */
+/** Response type of the {@link JobConfigHandler}. */
 @JsonSerialize(using = JobConfigInfo.Serializer.class)
 @JsonDeserialize(using = JobConfigInfo.Deserializer.class)
 public class JobConfigInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_JOB_ID = "jid";
-	public static final String FIELD_NAME_JOB_NAME = "name";
-	public static final String FIELD_NAME_EXECUTION_CONFIG = "execution-config";
+    public static final String FIELD_NAME_JOB_ID = "jid";
+    public static final String FIELD_NAME_JOB_NAME = "name";
+    public static final String FIELD_NAME_EXECUTION_CONFIG = "execution-config";
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final String jobName;
+    private final String jobName;
 
-	@Nullable
-	private final ExecutionConfigInfo executionConfigInfo;
+    @Nullable private final ExecutionConfigInfo executionConfigInfo;
 
-	public JobConfigInfo(
-			JobID jobId,
-			String jobName,
-			@Nullable ExecutionConfigInfo executionConfigInfo) {
-		this.jobId = Preconditions.checkNotNull(jobId);
-		this.jobName = Preconditions.checkNotNull(jobName);
-		this.executionConfigInfo = executionConfigInfo;
-	}
+    public JobConfigInfo(
+            JobID jobId, String jobName, @Nullable ExecutionConfigInfo executionConfigInfo) {
+        this.jobId = Preconditions.checkNotNull(jobId);
+        this.jobName = Preconditions.checkNotNull(jobName);
+        this.executionConfigInfo = executionConfigInfo;
+    }
 
-	public JobID getJobId() {
-		return jobId;
-	}
+    public JobID getJobId() {
+        return jobId;
+    }
 
-	public String getJobName() {
-		return jobName;
-	}
+    public String getJobName() {
+        return jobName;
+    }
 
-	@Nullable
-	public ExecutionConfigInfo getExecutionConfigInfo() {
-		return executionConfigInfo;
-	}
+    @Nullable
+    public ExecutionConfigInfo getExecutionConfigInfo() {
+        return executionConfigInfo;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		JobConfigInfo that = (JobConfigInfo) o;
-		return Objects.equals(jobId, that.jobId) &&
-			Objects.equals(jobName, that.jobName) &&
-			Objects.equals(executionConfigInfo, that.executionConfigInfo);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobConfigInfo that = (JobConfigInfo) o;
+        return Objects.equals(jobId, that.jobId)
+                && Objects.equals(jobName, that.jobName)
+                && Objects.equals(executionConfigInfo, that.executionConfigInfo);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(jobId, jobName, executionConfigInfo);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(jobId, jobName, executionConfigInfo);
+    }
 
-	//---------------------------------------------------------------------------------
-	// Static helper classes
-	//---------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------
+    // Static helper classes
+    // ---------------------------------------------------------------------------------
 
-	/**
-	 * Json serializer for the {@link JobConfigInfo}.
-	 */
-	public static final class Serializer extends StdSerializer<JobConfigInfo> {
+    /** Json serializer for the {@link JobConfigInfo}. */
+    public static final class Serializer extends StdSerializer<JobConfigInfo> {
 
-		private static final long serialVersionUID = -1551666039618928811L;
+        private static final long serialVersionUID = -1551666039618928811L;
 
-		public Serializer() {
-			super(JobConfigInfo.class);
-		}
+        public Serializer() {
+            super(JobConfigInfo.class);
+        }
 
-		@Override
-		public void serialize(
-				JobConfigInfo jobConfigInfo,
-				JsonGenerator jsonGenerator,
-				SerializerProvider serializerProvider) throws IOException {
-			jsonGenerator.writeStartObject();
+        @Override
+        public void serialize(
+                JobConfigInfo jobConfigInfo,
+                JsonGenerator jsonGenerator,
+                SerializerProvider serializerProvider)
+                throws IOException {
+            jsonGenerator.writeStartObject();
 
-			jsonGenerator.writeStringField(FIELD_NAME_JOB_ID, jobConfigInfo.getJobId().toString());
-			jsonGenerator.writeStringField(FIELD_NAME_JOB_NAME, jobConfigInfo.getJobName());
+            jsonGenerator.writeStringField(FIELD_NAME_JOB_ID, jobConfigInfo.getJobId().toString());
+            jsonGenerator.writeStringField(FIELD_NAME_JOB_NAME, jobConfigInfo.getJobName());
 
-			if (jobConfigInfo.getExecutionConfigInfo() != null) {
-				jsonGenerator.writeObjectField(FIELD_NAME_EXECUTION_CONFIG, jobConfigInfo.getExecutionConfigInfo());
-			}
+            if (jobConfigInfo.getExecutionConfigInfo() != null) {
+                jsonGenerator.writeObjectField(
+                        FIELD_NAME_EXECUTION_CONFIG, jobConfigInfo.getExecutionConfigInfo());
+            }
 
-			jsonGenerator.writeEndObject();
-		}
-	}
+            jsonGenerator.writeEndObject();
+        }
+    }
 
-	/**
-	 * Json deserializer for the {@link JobConfigInfo}.
-	 */
-	public static final class Deserializer extends StdDeserializer<JobConfigInfo> {
+    /** Json deserializer for the {@link JobConfigInfo}. */
+    public static final class Deserializer extends StdDeserializer<JobConfigInfo> {
 
-		private static final long serialVersionUID = -3580088509877177213L;
+        private static final long serialVersionUID = -3580088509877177213L;
 
-		public Deserializer() {
-			super(JobConfigInfo.class);
-		}
+        public Deserializer() {
+            super(JobConfigInfo.class);
+        }
 
-		@Override
-		public JobConfigInfo deserialize(
-				JsonParser jsonParser,
-				DeserializationContext deserializationContext) throws IOException {
-			JsonNode rootNode = jsonParser.readValueAsTree();
+        @Override
+        public JobConfigInfo deserialize(
+                JsonParser jsonParser, DeserializationContext deserializationContext)
+                throws IOException {
+            JsonNode rootNode = jsonParser.readValueAsTree();
 
-			final JobID jobId = JobID.fromHexString(rootNode.get(FIELD_NAME_JOB_ID).asText());
-			final String jobName = rootNode.get(FIELD_NAME_JOB_NAME).asText();
+            final JobID jobId = JobID.fromHexString(rootNode.get(FIELD_NAME_JOB_ID).asText());
+            final String jobName = rootNode.get(FIELD_NAME_JOB_NAME).asText();
 
-			final ExecutionConfigInfo executionConfigInfo;
+            final ExecutionConfigInfo executionConfigInfo;
 
-			if (rootNode.has(FIELD_NAME_EXECUTION_CONFIG)) {
-				executionConfigInfo = RestMapperUtils.getStrictObjectMapper().treeToValue(rootNode.get(FIELD_NAME_EXECUTION_CONFIG), ExecutionConfigInfo.class);
-			} else {
-				executionConfigInfo = null;
-			}
+            if (rootNode.has(FIELD_NAME_EXECUTION_CONFIG)) {
+                executionConfigInfo =
+                        RestMapperUtils.getStrictObjectMapper()
+                                .treeToValue(
+                                        rootNode.get(FIELD_NAME_EXECUTION_CONFIG),
+                                        ExecutionConfigInfo.class);
+            } else {
+                executionConfigInfo = null;
+            }
 
-			return new JobConfigInfo(jobId, jobName, executionConfigInfo);
-		}
-	}
+            return new JobConfigInfo(jobId, jobName, executionConfigInfo);
+        }
+    }
 
-	/**
-	 * Nested class to encapsulate the execution configuration.
-	 */
-	public static final class ExecutionConfigInfo {
+    /** Nested class to encapsulate the execution configuration. */
+    public static final class ExecutionConfigInfo {
 
-		public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
-		public static final String FIELD_NAME_RESTART_STRATEGY = "restart-strategy";
-		public static final String FIELD_NAME_PARALLELISM = "job-parallelism";
-		public static final String FIELD_NAME_OBJECT_REUSE_MODE = "object-reuse-mode";
-		public static final String FIELD_NAME_GLOBAL_JOB_PARAMETERS = "user-config";
+        public static final String FIELD_NAME_EXECUTION_MODE = "execution-mode";
+        public static final String FIELD_NAME_RESTART_STRATEGY = "restart-strategy";
+        public static final String FIELD_NAME_PARALLELISM = "job-parallelism";
+        public static final String FIELD_NAME_OBJECT_REUSE_MODE = "object-reuse-mode";
+        public static final String FIELD_NAME_GLOBAL_JOB_PARAMETERS = "user-config";
 
-		@JsonProperty(FIELD_NAME_EXECUTION_MODE)
-		private final String executionMode;
+        @JsonProperty(FIELD_NAME_EXECUTION_MODE)
+        private final String executionMode;
 
-		@JsonProperty(FIELD_NAME_RESTART_STRATEGY)
-		private final String restartStrategy;
+        @JsonProperty(FIELD_NAME_RESTART_STRATEGY)
+        private final String restartStrategy;
 
-		@JsonProperty(FIELD_NAME_PARALLELISM)
-		private final int parallelism;
+        @JsonProperty(FIELD_NAME_PARALLELISM)
+        private final int parallelism;
 
-		@JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE)
-		private final boolean isObjectReuse;
+        @JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE)
+        private final boolean isObjectReuse;
 
-		@JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
-		private final Map<String, String> globalJobParameters;
+        @JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
+        private final Map<String, String> globalJobParameters;
 
-		@JsonCreator
-		public ExecutionConfigInfo(
-				@JsonProperty(FIELD_NAME_EXECUTION_MODE) String executionMode,
-				@JsonProperty(FIELD_NAME_RESTART_STRATEGY) String restartStrategy,
-				@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
-				@JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectReuse,
-				@JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS) Map<String, String> globalJobParameters) {
-			this.executionMode = Preconditions.checkNotNull(executionMode);
-			this.restartStrategy = Preconditions.checkNotNull(restartStrategy);
-			this.parallelism = parallelism;
-			this.isObjectReuse = isObjectReuse;
-			this.globalJobParameters = Preconditions.checkNotNull(globalJobParameters);
-		}
+        @JsonCreator
+        public ExecutionConfigInfo(
+                @JsonProperty(FIELD_NAME_EXECUTION_MODE) String executionMode,
+                @JsonProperty(FIELD_NAME_RESTART_STRATEGY) String restartStrategy,
+                @JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
+                @JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectReuse,
+                @JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
+                        Map<String, String> globalJobParameters) {
+            this.executionMode = Preconditions.checkNotNull(executionMode);
+            this.restartStrategy = Preconditions.checkNotNull(restartStrategy);
+            this.parallelism = parallelism;
+            this.isObjectReuse = isObjectReuse;
+            this.globalJobParameters = Preconditions.checkNotNull(globalJobParameters);
+        }
 
-		public String getExecutionMode() {
-			return executionMode;
-		}
+        public String getExecutionMode() {
+            return executionMode;
+        }
 
-		public String getRestartStrategy() {
-			return restartStrategy;
-		}
+        public String getRestartStrategy() {
+            return restartStrategy;
+        }
 
-		public int getParallelism() {
-			return parallelism;
-		}
+        public int getParallelism() {
+            return parallelism;
+        }
 
-		@JsonIgnore
-		public boolean isObjectReuse() {
-			return isObjectReuse;
-		}
+        @JsonIgnore
+        public boolean isObjectReuse() {
+            return isObjectReuse;
+        }
 
-		public Map<String, String> getGlobalJobParameters() {
-			return globalJobParameters;
-		}
+        public Map<String, String> getGlobalJobParameters() {
+            return globalJobParameters;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ExecutionConfigInfo that = (ExecutionConfigInfo) o;
-			return parallelism == that.parallelism &&
-				isObjectReuse == that.isObjectReuse &&
-				Objects.equals(executionMode, that.executionMode) &&
-				Objects.equals(restartStrategy, that.restartStrategy) &&
-				Objects.equals(globalJobParameters, that.globalJobParameters);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ExecutionConfigInfo that = (ExecutionConfigInfo) o;
+            return parallelism == that.parallelism
+                    && isObjectReuse == that.isObjectReuse
+                    && Objects.equals(executionMode, that.executionMode)
+                    && Objects.equals(restartStrategy, that.restartStrategy)
+                    && Objects.equals(globalJobParameters, that.globalJobParameters);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(executionMode, restartStrategy, parallelism, isObjectReuse, globalJobParameters);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(
+                    executionMode,
+                    restartStrategy,
+                    parallelism,
+                    isObjectReuse,
+                    globalJobParameters);
+        }
 
-		public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
-			return new ExecutionConfigInfo(
-				archivedExecutionConfig.getExecutionMode(),
-				archivedExecutionConfig.getRestartStrategyDescription(),
-				archivedExecutionConfig.getParallelism(),
-				archivedExecutionConfig.getObjectReuseEnabled(),
-				ConfigurationUtils.hideSensitiveValues(archivedExecutionConfig.getGlobalJobParameters()));
-		}
-	}
+        public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
+            return new ExecutionConfigInfo(
+                    archivedExecutionConfig.getExecutionMode(),
+                    archivedExecutionConfig.getRestartStrategyDescription(),
+                    archivedExecutionConfig.getParallelism(),
+                    archivedExecutionConfig.getObjectReuseEnabled(),
+                    ConfigurationUtils.hideSensitiveValues(
+                            archivedExecutionConfig.getGlobalJobParameters()));
+        }
+    }
 }

@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation;
 import org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType;
@@ -30,113 +30,107 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.lang.String.format;
 import static org.apache.flink.table.operations.SetQueryOperation.SetQueryOperationType.UNION;
 
-/**
- * Utility class for creating a valid {@link SetQueryOperation}.
- */
+/** Utility class for creating a valid {@link SetQueryOperation}. */
 @Internal
 final class SetOperationFactory {
 
-	private final boolean isStreamingMode;
+    private final boolean isStreamingMode;
 
-	public SetOperationFactory(boolean isStreamingMode) {
-		this.isStreamingMode = isStreamingMode;
-	}
+    public SetOperationFactory(boolean isStreamingMode) {
+        this.isStreamingMode = isStreamingMode;
+    }
 
-	/**
-	 * Creates a valid algebraic operation.
-	 *
-	 * @param type type of operation to create
-	 * @param left first relational operation of the operation
-	 * @param right second relational operation of the operation
-	 * @param all flag defining how duplicates should be handled
-	 * @return creates a valid algebraic operation
-	 */
-	QueryOperation create(
-			SetQueryOperationType type,
-			QueryOperation left,
-			QueryOperation right,
-			boolean all) {
-		failIfStreaming(type, all);
-		validateSetOperation(type, left, right);
-		return new SetQueryOperation(left, right, type, all, createCommonTableSchema(left, right));
-	}
+    /**
+     * Creates a valid algebraic operation.
+     *
+     * @param type type of operation to create
+     * @param left first relational operation of the operation
+     * @param right second relational operation of the operation
+     * @param all flag defining how duplicates should be handled
+     * @return creates a valid algebraic operation
+     */
+    QueryOperation create(
+            SetQueryOperationType type, QueryOperation left, QueryOperation right, boolean all) {
+        failIfStreaming(type, all);
+        validateSetOperation(type, left, right);
+        return new SetQueryOperation(left, right, type, all, createCommonTableSchema(left, right));
+    }
 
-	private void validateSetOperation(
-			SetQueryOperationType operationType,
-			QueryOperation left,
-			QueryOperation right) {
-		TableSchema leftSchema = left.getTableSchema();
-		int leftFieldCount = leftSchema.getFieldCount();
-		TableSchema rightSchema = right.getTableSchema();
-		int rightFieldCount = rightSchema.getFieldCount();
+    private void validateSetOperation(
+            SetQueryOperationType operationType, QueryOperation left, QueryOperation right) {
+        ResolvedSchema leftSchema = left.getResolvedSchema();
+        int leftFieldCount = leftSchema.getColumnCount();
+        ResolvedSchema rightSchema = right.getResolvedSchema();
+        int rightFieldCount = rightSchema.getColumnCount();
 
-		if (leftFieldCount != rightFieldCount) {
-			throw new ValidationException(
-				format(
-					"The %s operation on two tables of different column sizes: %d and %d is not supported",
-					operationType.toString().toLowerCase(),
-					leftFieldCount,
-					rightFieldCount));
-		}
+        if (leftFieldCount != rightFieldCount) {
+            throw new ValidationException(
+                    format(
+                            "The %s operation on two tables of different column sizes: %d and %d is not supported",
+                            operationType.toString().toLowerCase(),
+                            leftFieldCount,
+                            rightFieldCount));
+        }
 
-		final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
-		final DataType[] rightDataTypes = rightSchema.getFieldDataTypes();
+        final List<DataType> leftDataTypes = leftSchema.getColumnDataTypes();
+        final List<DataType> rightDataTypes = rightSchema.getColumnDataTypes();
 
-		IntStream.range(0, leftFieldCount)
-			.forEach(idx -> {
-				if (!findCommonColumnType(leftDataTypes, rightDataTypes, idx).isPresent()) {
-					throw new ValidationException(
-						format(
-							"Incompatible types for %s operation. " +
-								"Could not find a common type at position %s for '%s' and '%s'.",
-							operationType.toString().toLowerCase(),
-							idx,
-							leftDataTypes[idx],
-							rightDataTypes[idx]));
-				}
-			});
-	}
+        IntStream.range(0, leftFieldCount)
+                .forEach(
+                        idx -> {
+                            if (!findCommonColumnType(leftDataTypes, rightDataTypes, idx)
+                                    .isPresent()) {
+                                throw new ValidationException(
+                                        format(
+                                                "Incompatible types for %s operation. "
+                                                        + "Could not find a common type at position %s for '%s' and '%s'.",
+                                                operationType.toString().toLowerCase(),
+                                                idx,
+                                                leftDataTypes.get(idx),
+                                                rightDataTypes.get(idx)));
+                            }
+                        });
+    }
 
-	private void failIfStreaming(SetQueryOperationType type, boolean all) {
-		boolean shouldFailInCaseOfStreaming = !all || type != UNION;
+    private void failIfStreaming(SetQueryOperationType type, boolean all) {
+        boolean shouldFailInCaseOfStreaming = !all || type != UNION;
 
-		if (isStreamingMode && shouldFailInCaseOfStreaming) {
-			throw new ValidationException(
-				format(
-					"The %s operation on two unbounded tables is currently not supported.",
-					type));
-		}
-	}
+        if (isStreamingMode && shouldFailInCaseOfStreaming) {
+            throw new ValidationException(
+                    format(
+                            "The %s operation on two unbounded tables is currently not supported.",
+                            type));
+        }
+    }
 
-	private TableSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {
-		final TableSchema leftSchema = left.getTableSchema();
-		final DataType[] leftDataTypes = leftSchema.getFieldDataTypes();
-		final DataType[] rightDataTypes = right.getTableSchema().getFieldDataTypes();
+    private ResolvedSchema createCommonTableSchema(QueryOperation left, QueryOperation right) {
+        final ResolvedSchema leftSchema = left.getResolvedSchema();
+        final List<DataType> leftDataTypes = leftSchema.getColumnDataTypes();
+        final List<DataType> rightDataTypes = right.getResolvedSchema().getColumnDataTypes();
 
-		final DataType[] resultDataTypes = IntStream.range(0, leftSchema.getFieldCount())
-			.mapToObj(idx ->
-				findCommonColumnType(leftDataTypes, rightDataTypes, idx)
-					.orElseThrow(AssertionError::new)
-			)
-			.map(TypeConversions::fromLogicalToDataType)
-			.toArray(DataType[]::new);
-		return TableSchema.builder()
-			.fields(leftSchema.getFieldNames(), resultDataTypes)
-			.build();
-	}
+        final List<DataType> resultDataTypes =
+                IntStream.range(0, leftSchema.getColumnCount())
+                        .mapToObj(
+                                idx ->
+                                        findCommonColumnType(leftDataTypes, rightDataTypes, idx)
+                                                .orElseThrow(AssertionError::new))
+                        .map(TypeConversions::fromLogicalToDataType)
+                        .collect(Collectors.toList());
+        return ResolvedSchema.physical(leftSchema.getColumnNames(), resultDataTypes);
+    }
 
-	private Optional<LogicalType> findCommonColumnType(
-			DataType[] leftDataTypes,
-			DataType[] rightDataTypes,
-			int idx) {
-		final LogicalType leftType = leftDataTypes[idx].getLogicalType();
-		final LogicalType rightType = rightDataTypes[idx].getLogicalType();
-		return LogicalTypeMerging.findCommonType(Arrays.asList(leftType, rightType));
-	}
+    private Optional<LogicalType> findCommonColumnType(
+            List<DataType> leftDataTypes, List<DataType> rightDataTypes, int idx) {
+        final LogicalType leftType = leftDataTypes.get(idx).getLogicalType();
+        final LogicalType rightType = rightDataTypes.get(idx).getLogicalType();
+        return LogicalTypeMerging.findCommonType(Arrays.asList(leftType, rightType));
+    }
 }

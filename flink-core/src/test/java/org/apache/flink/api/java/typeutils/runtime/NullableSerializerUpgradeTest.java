@@ -34,113 +34,121 @@ import java.util.Collection;
 
 import static org.hamcrest.CoreMatchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
 @RunWith(Parameterized.class)
 public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 
-	public NullableSerializerUpgradeTest(TestSpecification<Long, Long> testSpecification) {
-		super(testSpecification);
-	}
+    public NullableSerializerUpgradeTest(TestSpecification<Long, Long> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"nullable-padded-serializer",
-					migrationVersion,
-					NullablePaddedSerializerSetup.class,
-					NullablePaddedSerializerVerifier.class));
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "nullable-padded-serializer",
+                            migrationVersion,
+                            NullablePaddedSerializerSetup.class,
+                            NullablePaddedSerializerVerifier.class));
 
-			testSpecifications.add(
-				new TestSpecification<>(
-					"nullable-not-padded-serializer",
-					migrationVersion,
-					NullableNotPaddedSerializerSetup.class,
-					NullableNotPaddedSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "nullable-not-padded-serializer",
+                            migrationVersion,
+                            NullableNotPaddedSerializerSetup.class,
+                            NullableNotPaddedSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "nullable-padded-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "nullable-padded-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class NullablePaddedSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Long> {
-		@Override
-		public TypeSerializer<Long> createPriorSerializer() {
-			return NullableSerializer.wrap(LongSerializer.INSTANCE, true);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class NullablePaddedSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Long> {
+        @Override
+        public TypeSerializer<Long> createPriorSerializer() {
+            return NullableSerializer.wrap(LongSerializer.INSTANCE, true);
+        }
 
-		@Override
-		public Long createTestData() {
-			return null;
-		}
-	}
+        @Override
+        public Long createTestData() {
+            return null;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class NullablePaddedSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Long> {
-		@Override
-		public TypeSerializer<Long> createUpgradedSerializer() {
-			return NullableSerializer.wrap(LongSerializer.INSTANCE, true);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class NullablePaddedSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Long> {
+        @Override
+        public TypeSerializer<Long> createUpgradedSerializer() {
+            return NullableSerializer.wrap(LongSerializer.INSTANCE, true);
+        }
 
-		@Override
-		public Matcher<Long> testDataMatcher() {
-			return is((Long) null);
-		}
+        @Override
+        public Matcher<Long> testDataMatcher() {
+            return is((Long) null);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "nullable-not-padded-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "nullable-not-padded-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class NullableNotPaddedSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Long> {
-		@Override
-		public TypeSerializer<Long> createPriorSerializer() {
-			return NullableSerializer.wrap(LongSerializer.INSTANCE, false);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class NullableNotPaddedSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Long> {
+        @Override
+        public TypeSerializer<Long> createPriorSerializer() {
+            return NullableSerializer.wrap(LongSerializer.INSTANCE, false);
+        }
 
-		@Override
-		public Long createTestData() {
-			return null;
-		}
-	}
+        @Override
+        public Long createTestData() {
+            return null;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class NullableNotPaddedSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Long> {
-		@Override
-		public TypeSerializer<Long> createUpgradedSerializer() {
-			return NullableSerializer.wrap(LongSerializer.INSTANCE, false);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class NullableNotPaddedSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Long> {
+        @Override
+        public TypeSerializer<Long> createUpgradedSerializer() {
+            return NullableSerializer.wrap(LongSerializer.INSTANCE, false);
+        }
 
-		@Override
-		public Matcher<Long> testDataMatcher() {
-			return is((Long) null);
-		}
+        @Override
+        public Matcher<Long> testDataMatcher() {
+            return is((Long) null);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

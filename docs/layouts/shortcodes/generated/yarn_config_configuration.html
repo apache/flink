@@ -1,0 +1,180 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.yarn.config-key</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>If configured, Flink will add this key to the resource profile of container request to Yarn. The value will be set to the value of external-resource.&lt;resource_name&gt;.amount.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.hadoop.&lt;key&gt;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A general option to probe Hadoop configuration through prefix 'flink.hadoop.'. Flink will remove the prefix to get &lt;key&gt; (from <a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/core-default.xml">core-default.xml</a> and <a href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/hdfs-default.xml">hdfs-default.xml</a>) then set the &lt;key&gt; and value to Hadoop configuration. For example, flink.hadoop.dfs.replication=5 in Flink configuration and convert to dfs.replication=5 in Hadoop configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>flink.yarn.&lt;key&gt;</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A general option to probe Yarn configuration through prefix 'flink.yarn.'. Flink will remove the prefix 'flink.' to get yarn.&lt;key&gt; (from <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn-default.xml</a>) then set the yarn.&lt;key&gt; and value to Yarn configuration. For example, flink.yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Flink configuration and convert to yarn.resourcemanager.container.liveness-monitor.interval-ms=300000 in Yarn configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/">here</a> for more information.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application-attempts</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application-master.port</h5></td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>String</td>
+            <td>With this configuration option, users can specify a port, a range of ports or a list of ports for the Application Master (and JobManager) RPC port. By default we recommend using the default value (0) to let the operating system choose an appropriate port. In particular when multiple AMs are running on the same physical host, fixed port assignments prevent the AM from starting. For example when running Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of allowed ports.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.id</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The YARN application id of the running yarn cluster. This is the YARN cluster where the pipeline is going to be executed.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.name</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A custom name for your YARN application.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.node-label</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify YARN node label for the YARN application.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.priority</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>A non-negative integer indicating the priority for submitting a Flink YARN application. It will only take effect if YARN priority scheduling setting is enabled. Larger integer corresponds with higher priority. If priority is negative or set to '-1'(default), Flink will unset yarn priority setting and use cluster default priority. Please refer to YARN's official documentation for specific settings required to enable priority scheduling for the targeted YARN version.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.queue</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The YARN queue on which to put the current pipeline.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.application.type</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A custom type for your YARN application..</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.appmaster.vcores</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of virtual cores (vcores) used by YARN application master.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.containers.vcores</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of virtual cores (vcores) per YARN container. By default, the number of vcores is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting the <code class="highlighter-rouge">org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.file-replication</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>Number of file replication of each local resource file. If it is not configured, Flink will use the default replication value in hadoop configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.flink-dist-jar</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The location of the Flink dist jar.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.heartbeat.container-request-interval</h5></td>
+            <td style="word-wrap: break-word;">500</td>
+            <td>Integer</td>
+            <td>Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.heartbeat.interval</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Time between heartbeats with the ResourceManager in seconds.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.per-job-cluster.include-user-jar</h5></td>
+            <td style="word-wrap: break-word;">ORDER</td>
+            <td><p>Enum</p></td>
+            <td>Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>yarn.properties-file.location</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>When a Flink job is submitted to YARN, the JobManager’s host and the number of available processing slots is written into a properties file, so that the Flink client is able to pick those details up. This configuration parameter allows changing the default location of that file (for example for environments sharing a Flink installation between users).</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.provided.lib.dirs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of provided lib directories. They should be pre-uploaded and world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that they doesn't need to be downloaded every time for each application. An example could be hdfs://$namenode_address/path/of/flink/lib</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.kerberos.additionalFileSystems</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>
+            <td style="word-wrap: break-word;">"krb5.keytab"</td>
+            <td>String</td>
+            <td>Local (on NodeManager) path where kerberos keytab file will be localized to. If yarn.security.kerberos.ship-local-keytab set to true, Flink willl ship the keytab file as a YARN local resource. In this case, the path is relative to the local resource directory. If set to false, Flink will try to directly locate the keytab from the path itself.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.kerberos.ship-local-keytab</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When this is true Flink will ship the keytab file configured via security.kerberos.login.keytab as a localized YARN resource.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.ship-archives</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip".</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.ship-files</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.staging-directory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Staging directory used to store YARN files while submitting applications. Per default, it uses the home directory of the configured file system.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.tags</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A comma-separated list of tags to apply to the Flink YARN application.</td>
+        </tr>
+    </tbody>
+</table>

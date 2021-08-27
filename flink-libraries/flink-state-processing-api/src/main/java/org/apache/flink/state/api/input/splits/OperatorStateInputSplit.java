@@ -32,24 +32,25 @@ import java.util.List;
 @Internal
 public final class OperatorStateInputSplit implements InputSplit {
 
-	private static final long serialVersionUID = -1892383531558135420L;
+    private static final long serialVersionUID = -1892383531558135420L;
 
-	private final List<StateObjectCollection<OperatorStateHandle>> managedOperatorState;
+    private final List<StateObjectCollection<OperatorStateHandle>> managedOperatorState;
 
-	private final int splitNum;
+    private final int splitNum;
 
-	public OperatorStateInputSplit(StateObjectCollection<OperatorStateHandle> managedOperatorState, int splitNum) {
-		this.managedOperatorState = Collections.singletonList(managedOperatorState);
-		this.splitNum = splitNum;
-	}
+    public OperatorStateInputSplit(
+            StateObjectCollection<OperatorStateHandle> managedOperatorState, int splitNum) {
+        this.managedOperatorState = Collections.singletonList(managedOperatorState);
+        this.splitNum = splitNum;
+    }
 
-	@Override
-	public int getSplitNumber() {
-		return splitNum;
-	}
+    @Override
+    public int getSplitNumber() {
+        return splitNum;
+    }
 
-	@Nonnull
-	public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedManagedOperatorState() {
-		return this.managedOperatorState;
-	}
+    @Nonnull
+    public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedManagedOperatorState() {
+        return this.managedOperatorState;
+    }
 }

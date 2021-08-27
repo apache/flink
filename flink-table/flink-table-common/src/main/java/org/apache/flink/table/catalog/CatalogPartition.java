@@ -21,43 +21,41 @@ package org.apache.flink.table.catalog;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Represents a partition object in catalog.
- */
+/** Represents a partition object in catalog. */
 public interface CatalogPartition {
 
-	/**
-	 * Get a map of properties associated with the partition.
-	 *
-	 * @return a map of properties with the partition
-	 */
-	Map<String, String> getProperties();
+    /**
+     * Get a map of properties associated with the partition.
+     *
+     * @return a map of properties with the partition
+     */
+    Map<String, String> getProperties();
 
-	/**
-	 * Get comment of the partition.
-	 *
-	 * @return comment of the partition
-	 */
-	String getComment();
+    /**
+     * Get comment of the partition.
+     *
+     * @return comment of the partition
+     */
+    String getComment();
 
-	/**
-	 * Get a deep copy of the CatalogPartition instance.
-	 *
-	 * @return a copy of CatalogPartition instance
-	 */
-	CatalogPartition copy();
+    /**
+     * Get a deep copy of the CatalogPartition instance.
+     *
+     * @return a copy of CatalogPartition instance
+     */
+    CatalogPartition copy();
 
-	/**
-	 * Get a brief description of the database.
-	 *
-	 * @return an optional short description of the database
-	 */
-	Optional<String> getDescription();
+    /**
+     * Get a brief description of the database.
+     *
+     * @return an optional short description of the database
+     */
+    Optional<String> getDescription();
 
-	/**
-	 * Get a detailed description of the database.
-	 *
-	 * @return an optional long description of the database
-	 */
-	Optional<String> getDetailedDescription();
+    /**
+     * Get a detailed description of the database.
+     *
+     * @return an optional long description of the database
+     */
+    Optional<String> getDetailedDescription();
 }

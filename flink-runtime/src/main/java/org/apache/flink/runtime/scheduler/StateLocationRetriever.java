@@ -23,17 +23,16 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Optional;
 
-/**
- * Component to retrieve the state location of an execution vertex.
- */
+/** Component to retrieve the state location of an execution vertex. */
 @FunctionalInterface
 public interface StateLocationRetriever {
 
-	/**
-	 * Returns state location of an execution vertex.
-	 *
-	 * @param executionVertexId id of the execution vertex
-	 * @return optional that is assigned with the vertex's state location if the location exists, otherwise empty
-	 */
-	Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId);
+    /**
+     * Returns state location of an execution vertex.
+     *
+     * @param executionVertexId id of the execution vertex
+     * @return optional that is assigned with the vertex's state location if the location exists,
+     *     otherwise empty
+     */
+    Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId);
 }

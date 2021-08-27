@@ -21,31 +21,29 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for the {@link ArchivedJson}.
- */
+/** Tests for the {@link ArchivedJson}. */
 public class ArchivedJsonTest {
 
-	@Test
-	public void testEquals() {
-		ArchivedJson original = new ArchivedJson("path", "json");
-		ArchivedJson twin = new ArchivedJson("path", "json");
-		ArchivedJson identicalPath = new ArchivedJson("path", "hello");
-		ArchivedJson identicalJson = new ArchivedJson("hello", "json");
+    @Test
+    public void testEquals() {
+        ArchivedJson original = new ArchivedJson("path", "json");
+        ArchivedJson twin = new ArchivedJson("path", "json");
+        ArchivedJson identicalPath = new ArchivedJson("path", "hello");
+        ArchivedJson identicalJson = new ArchivedJson("hello", "json");
 
-		Assert.assertEquals(original, original);
-		Assert.assertEquals(original, twin);
-		Assert.assertNotEquals(original, identicalPath);
-		Assert.assertNotEquals(original, identicalJson);
-	}
+        Assert.assertEquals(original, original);
+        Assert.assertEquals(original, twin);
+        Assert.assertNotEquals(original, identicalPath);
+        Assert.assertNotEquals(original, identicalJson);
+    }
 
-	@Test
-	public void testHashCode() {
-		ArchivedJson original = new ArchivedJson("path", "json");
-		ArchivedJson twin = new ArchivedJson("path", "json");
+    @Test
+    public void testHashCode() {
+        ArchivedJson original = new ArchivedJson("path", "json");
+        ArchivedJson twin = new ArchivedJson("path", "json");
 
-		Assert.assertEquals(original, original);
-		Assert.assertEquals(original, twin);
-		Assert.assertEquals(original.hashCode(), twin.hashCode());
-	}
+        Assert.assertEquals(original, original);
+        Assert.assertEquals(original, twin);
+        Assert.assertEquals(original.hashCode(), twin.hashCode());
+    }
 }

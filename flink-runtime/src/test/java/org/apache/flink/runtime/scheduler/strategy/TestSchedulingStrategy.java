@@ -30,90 +30,86 @@ import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link SchedulingStrategy} instance for tests.
- */
+/** {@link SchedulingStrategy} instance for tests. */
 public class TestSchedulingStrategy implements SchedulingStrategy {
 
-	private final SchedulerOperations schedulerOperations;
+    private final SchedulerOperations schedulerOperations;
 
-	private final SchedulingTopology schedulingTopology;
+    private final SchedulingTopology schedulingTopology;
 
-	private final DeploymentOption deploymentOption = new DeploymentOption(false);
+    private final DeploymentOption deploymentOption = new DeploymentOption(false);
 
-	private Set<ExecutionVertexID> receivedVerticesToRestart;
+    private Set<ExecutionVertexID> receivedVerticesToRestart;
 
-	public TestSchedulingStrategy(
-			final SchedulerOperations schedulerOperations,
-			final SchedulingTopology schedulingTopology) {
+    public TestSchedulingStrategy(
+            final SchedulerOperations schedulerOperations,
+            final SchedulingTopology schedulingTopology) {
 
-		this.schedulerOperations = checkNotNull(schedulerOperations);
-		this.schedulingTopology = checkNotNull(schedulingTopology);
-	}
+        this.schedulerOperations = checkNotNull(schedulerOperations);
+        this.schedulingTopology = checkNotNull(schedulingTopology);
+    }
 
-	@Override
-	public void startScheduling() {
-	}
+    @Override
+    public void startScheduling() {}
 
-	@Override
-	public void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
-		this.receivedVerticesToRestart = verticesToRestart;
-	}
+    @Override
+    public void restartTasks(final Set<ExecutionVertexID> verticesToRestart) {
+        this.receivedVerticesToRestart = verticesToRestart;
+    }
 
-	@Override
-	public void onExecutionStateChange(final ExecutionVertexID executionVertexId, final ExecutionState executionState) {
-	}
+    @Override
+    public void onExecutionStateChange(
+            final ExecutionVertexID executionVertexId, final ExecutionState executionState) {}
 
-	@Override
-	public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {
-	}
+    @Override
+    public void onPartitionConsumable(final IntermediateResultPartitionID resultPartitionId) {}
 
-	public void schedule(final List<ExecutionVertexID> verticesToSchedule) {
-		allocateSlotsAndDeploy(verticesToSchedule);
-	}
+    public void schedule(final List<ExecutionVertexID> verticesToSchedule) {
+        allocateSlotsAndDeploy(verticesToSchedule);
+    }
 
-	public SchedulingTopology getSchedulingTopology() {
-		return schedulingTopology;
-	}
+    public SchedulingTopology getSchedulingTopology() {
+        return schedulingTopology;
+    }
 
-	public Set<ExecutionVertexID> getReceivedVerticesToRestart() {
-		return receivedVerticesToRestart;
-	}
+    public Set<ExecutionVertexID> getReceivedVerticesToRestart() {
+        return receivedVerticesToRestart;
+    }
 
-	private void allocateSlotsAndDeploy(final List<ExecutionVertexID> verticesToSchedule) {
-		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
-			createExecutionVertexDeploymentOptions(verticesToSchedule);
-		schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
-	}
+    private void allocateSlotsAndDeploy(final List<ExecutionVertexID> verticesToSchedule) {
+        final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
+                createExecutionVertexDeploymentOptions(verticesToSchedule);
+        schedulerOperations.allocateSlotsAndDeploy(executionVertexDeploymentOptions);
+    }
 
-	private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
-			final List<ExecutionVertexID> vertices) {
+    private List<ExecutionVertexDeploymentOption> createExecutionVertexDeploymentOptions(
+            final List<ExecutionVertexID> vertices) {
 
-		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions = new ArrayList<>(vertices.size());
-		for (ExecutionVertexID executionVertexID : vertices) {
-			executionVertexDeploymentOptions.add(new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
-		}
-		return executionVertexDeploymentOptions;
-	}
+        final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
+                new ArrayList<>(vertices.size());
+        for (ExecutionVertexID executionVertexID : vertices) {
+            executionVertexDeploymentOptions.add(
+                    new ExecutionVertexDeploymentOption(executionVertexID, deploymentOption));
+        }
+        return executionVertexDeploymentOptions;
+    }
 
-	/**
-	 * The factory for creating {@link TestSchedulingStrategy}.
-	 */
-	public static class Factory implements SchedulingStrategyFactory {
+    /** The factory for creating {@link TestSchedulingStrategy}. */
+    public static class Factory implements SchedulingStrategyFactory {
 
-		private TestSchedulingStrategy lastInstance;
+        private TestSchedulingStrategy lastInstance;
 
-		@Override
-		public SchedulingStrategy createInstance(
-				final SchedulerOperations schedulerOperations,
-				final SchedulingTopology schedulingTopology) {
+        @Override
+        public SchedulingStrategy createInstance(
+                final SchedulerOperations schedulerOperations,
+                final SchedulingTopology schedulingTopology) {
 
-			lastInstance = new TestSchedulingStrategy(schedulerOperations, schedulingTopology);
-			return lastInstance;
-		}
+            lastInstance = new TestSchedulingStrategy(schedulerOperations, schedulingTopology);
+            return lastInstance;
+        }
 
-		public TestSchedulingStrategy getLastCreatedSchedulingStrategy() {
-			return lastInstance;
-		}
-	}
+        public TestSchedulingStrategy getLastCreatedSchedulingStrategy() {
+            return lastInstance;
+        }
+    }
 }

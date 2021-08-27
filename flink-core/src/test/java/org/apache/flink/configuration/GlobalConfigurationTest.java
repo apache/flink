@@ -36,99 +36,103 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * This class contains tests for the global configuration (parsing configuration directory information).
+ * This class contains tests for the global configuration (parsing configuration directory
+ * information).
  */
 public class GlobalConfigurationTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigurationYAML() {
-		File tmpDir = tempFolder.getRoot();
-		File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+    @Test
+    public void testConfigurationYAML() {
+        File tmpDir = tempFolder.getRoot();
+        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
 
-		try {
-			try (final PrintWriter pw = new PrintWriter(confFile)) {
+        try {
+            try (final PrintWriter pw = new PrintWriter(confFile)) {
 
-				pw.println("###########################"); // should be skipped
-				pw.println("# Some : comments : to skip"); // should be skipped
-				pw.println("###########################"); // should be skipped
-				pw.println("mykey1: myvalue1"); // OK, simple correct case
-				pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-				pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-				pw.println(" some nonsense without colon and whitespace separator"); // SKIP
-				pw.println(" :  "); // SKIP
-				pw.println("   "); // SKIP (silently)
-				pw.println(" "); // SKIP (silently)
-				pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-				pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-				pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-				pw.println("mykey7: "); // SKIP, no value provided
-				pw.println(": myvalue8"); // SKIP, no key provided
+                pw.println("###########################"); // should be skipped
+                pw.println("# Some : comments : to skip"); // should be skipped
+                pw.println("###########################"); // should be skipped
+                pw.println("mykey1: myvalue1"); // OK, simple correct case
+                pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
+                pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
+                pw.println(" some nonsense without colon and whitespace separator"); // SKIP
+                pw.println(" :  "); // SKIP
+                pw.println("   "); // SKIP (silently)
+                pw.println(" "); // SKIP (silently)
+                pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
+                pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
+                pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
+                pw.println("mykey7: "); // SKIP, no value provided
+                pw.println(": myvalue8"); // SKIP, no key provided
 
-				pw.println("mykey9: myvalue9"); // OK
-				pw.println("mykey9: myvalue10"); // OK, overwrite last value
+                pw.println("mykey9: myvalue9"); // OK
+                pw.println("mykey9: myvalue10"); // OK, overwrite last value
 
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
 
-			Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+            Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 
-			// all distinct keys from confFile1 + confFile2 key
-			assertEquals(6, conf.keySet().size());
+            // all distinct keys from confFile1 + confFile2 key
+            assertEquals(6, conf.keySet().size());
 
-			// keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
-			assertEquals("myvalue1", conf.getString("mykey1", null));
-			assertEquals("myvalue2", conf.getString("mykey2", null));
-			assertEquals("null", conf.getString("mykey3", "null"));
-			assertEquals("myvalue4", conf.getString("mykey4", null));
-			assertEquals("myvalue5", conf.getString("mykey5", null));
-			assertEquals("my: value6", conf.getString("mykey6", null));
-			assertEquals("null", conf.getString("mykey7", "null"));
-			assertEquals("null", conf.getString("mykey8", "null"));
-			assertEquals("myvalue10", conf.getString("mykey9", null));
-		} finally {
-			confFile.delete();
-			tmpDir.delete();
-		}
-	}
+            // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
+            assertEquals("myvalue1", conf.getString("mykey1", null));
+            assertEquals("myvalue2", conf.getString("mykey2", null));
+            assertEquals("null", conf.getString("mykey3", "null"));
+            assertEquals("myvalue4", conf.getString("mykey4", null));
+            assertEquals("myvalue5", conf.getString("mykey5", null));
+            assertEquals("my: value6", conf.getString("mykey6", null));
+            assertEquals("null", conf.getString("mykey7", "null"));
+            assertEquals("null", conf.getString("mykey8", "null"));
+            assertEquals("myvalue10", conf.getString("mykey9", null));
+        } finally {
+            confFile.delete();
+            tmpDir.delete();
+        }
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testFailIfNull() {
-		GlobalConfiguration.loadConfiguration((String) null);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testFailIfNull() {
+        GlobalConfiguration.loadConfiguration((String) null);
+    }
 
-	@Test(expected = IllegalConfigurationException.class)
-	public void testFailIfNotLoaded() {
-		GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
-	}
+    @Test(expected = IllegalConfigurationException.class)
+    public void testFailIfNotLoaded() {
+        GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+    }
 
-	@Test(expected = IllegalConfigurationException.class)
-	public void testInvalidConfiguration() throws IOException {
-		GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
-	}
+    @Test(expected = IllegalConfigurationException.class)
+    public void testInvalidConfiguration() throws IOException {
+        GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+    }
 
-	@Test
-	// We allow malformed YAML files
-	public void testInvalidYamlFile() throws IOException {
-		final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
+    @Test
+    // We allow malformed YAML files
+    public void testInvalidYamlFile() throws IOException {
+        final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
 
-		try (PrintWriter pw = new PrintWriter(confFile)) {
-			pw.append("invalid");
-		}
+        try (PrintWriter pw = new PrintWriter(confFile)) {
+            pw.append("invalid");
+        }
 
-		assertNotNull(GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
-	}
+        assertNotNull(
+                GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
+    }
 
-	@Test
-	public void testHiddenKey() {
-		assertTrue(GlobalConfiguration.isSensitive("password123"));
-		assertTrue(GlobalConfiguration.isSensitive("123pasSword"));
-		assertTrue(GlobalConfiguration.isSensitive("PasSword"));
-		assertTrue(GlobalConfiguration.isSensitive("Secret"));
-		assertTrue(GlobalConfiguration.isSensitive("fs.azure.account.key.storageaccount123456.core.windows.net"));
-		assertFalse(GlobalConfiguration.isSensitive("Hello"));
-	}
+    @Test
+    public void testHiddenKey() {
+        assertTrue(GlobalConfiguration.isSensitive("password123"));
+        assertTrue(GlobalConfiguration.isSensitive("123pasSword"));
+        assertTrue(GlobalConfiguration.isSensitive("PasSword"));
+        assertTrue(GlobalConfiguration.isSensitive("Secret"));
+        assertTrue(
+                GlobalConfiguration.isSensitive(
+                        "fs.azure.account.key.storageaccount123456.core.windows.net"));
+        assertFalse(GlobalConfiguration.isSensitive("Hello"));
+        assertTrue(GlobalConfiguration.isSensitive("metrics.reporter.dghttp.apikey"));
+    }
 }

@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.connector.jdbc.table.JdbcDynamicTableFactory
+org.apache.flink.connector.jdbc.catalog.factory.JdbcCatalogFactory

@@ -24,50 +24,48 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A {@link Clock} implementation which allows to advance time manually.
- */
+/** A {@link Clock} implementation which allows to advance time manually. */
 @PublicEvolving
 public final class ManualClock extends Clock {
 
-	private final AtomicLong currentTime;
+    private final AtomicLong currentTime;
 
-	public ManualClock() {
-		this(0);
-	}
+    public ManualClock() {
+        this(0);
+    }
 
-	public ManualClock(long startTime) {
-		this.currentTime = new AtomicLong(startTime);
-	}
+    public ManualClock(long startTime) {
+        this.currentTime = new AtomicLong(startTime);
+    }
 
-	@Override
-	public long absoluteTimeMillis() {
-		return currentTime.get() / 1_000_000L;
-	}
+    @Override
+    public long absoluteTimeMillis() {
+        return currentTime.get() / 1_000_000L;
+    }
 
-	@Override
-	public long relativeTimeMillis() {
-		return currentTime.get() / 1_000_000L;
-	}
+    @Override
+    public long relativeTimeMillis() {
+        return currentTime.get() / 1_000_000L;
+    }
 
-	@Override
-	public long relativeTimeNanos() {
-		return currentTime.get();
-	}
+    @Override
+    public long relativeTimeNanos() {
+        return currentTime.get();
+    }
 
-	/**
-	 * Advances the time by the given duration. Time can also move backwards by supplying a negative
-	 * value. This method performs no overflow check.
-	 */
-	public void advanceTime(long duration, TimeUnit timeUnit) {
-		currentTime.addAndGet(timeUnit.toNanos(duration));
-	}
+    /**
+     * Advances the time by the given duration. Time can also move backwards by supplying a negative
+     * value. This method performs no overflow check.
+     */
+    public void advanceTime(long duration, TimeUnit timeUnit) {
+        currentTime.addAndGet(timeUnit.toNanos(duration));
+    }
 
-	/**
-	 * Advances the time by the given duration. Time can also move backwards by supplying a negative
-	 * value. This method performs no overflow check.
-	 */
-	public void advanceTime(Duration duration) {
-		currentTime.addAndGet(duration.toNanos());
-	}
+    /**
+     * Advances the time by the given duration. Time can also move backwards by supplying a negative
+     * value. This method performs no overflow check.
+     */
+    public void advanceTime(Duration duration) {
+        currentTime.addAndGet(duration.toNanos());
+    }
 }

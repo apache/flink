@@ -24,32 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.CharValue;
 
-/**
- * Tests for {@link CharValueArrayComparator}.
- */
+/** Tests for {@link CharValueArrayComparator}. */
 public class CharValueArrayComparatorTest extends ComparatorTestBase<CharValueArray> {
 
-	@Override
-	protected TypeComparator<CharValueArray> createComparator(boolean ascending) {
-		return new CharValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<CharValueArray> createComparator(boolean ascending) {
+        return new CharValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<CharValueArray> createSerializer() {
-		return new CharValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<CharValueArray> createSerializer() {
+        return new CharValueArraySerializer();
+    }
 
-	@Override
-	protected CharValueArray[] getSortedTestData() {
-		CharValueArray lva0 = new CharValueArray();
+    @Override
+    protected CharValueArray[] getSortedTestData() {
+        CharValueArray lva0 = new CharValueArray();
 
-		CharValueArray lva1 = new CharValueArray();
-		lva1.add(new CharValue((char) 5));
+        CharValueArray lva1 = new CharValueArray();
+        lva1.add(new CharValue((char) 5));
 
-		CharValueArray lva2 = new CharValueArray();
-		lva2.add(new CharValue((char) 5));
-		lva2.add(new CharValue((char) 10));
+        CharValueArray lva2 = new CharValueArray();
+        lva2.add(new CharValue((char) 5));
+        lva2.add(new CharValue((char) 10));
 
-		return new CharValueArray[]{ lva0, lva1 };
-	}
+        return new CharValueArray[] {lva0, lva1};
+    }
 }

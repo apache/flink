@@ -20,123 +20,111 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * Aggregator that can handle Short types.
- */
+/** Aggregator that can handle Short types. */
 @Internal
 public class ShortSummaryAggregator extends NumericSummaryAggregator<Short> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Like Math.min() except for shorts.
-	 */
-	public static Short min(Short a, Short b) {
-		return a <= b ? a : b;
-	}
+    /** Like Math.min() except for shorts. */
+    public static Short min(Short a, Short b) {
+        return a <= b ? a : b;
+    }
 
-	/**
-	 * Like Math.max() except for shorts.
-	 */
-	public static Short max(Short a, Short b) {
-		return a >= b ? a : b;
-	}
+    /** Like Math.max() except for shorts. */
+    public static Short max(Short a, Short b) {
+        return a >= b ? a : b;
+    }
 
-	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
+    // Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	/**
-	 * Aggregator for min operation.
-	 */
-	public static class MinShortAggregator implements Aggregator<Short, Short> {
+    /** Aggregator for min operation. */
+    public static class MinShortAggregator implements Aggregator<Short, Short> {
 
-		private short min = Short.MAX_VALUE;
+        private short min = Short.MAX_VALUE;
 
-		@Override
-		public void aggregate(Short value) {
-			min = min(min, value);
-		}
+        @Override
+        public void aggregate(Short value) {
+            min = min(min, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Short, Short> other) {
-			min = min(min, ((MinShortAggregator) other).min);
-		}
+        @Override
+        public void combine(Aggregator<Short, Short> other) {
+            min = min(min, ((MinShortAggregator) other).min);
+        }
 
-		@Override
-		public Short result() {
-			return min;
-		}
-	}
+        @Override
+        public Short result() {
+            return min;
+        }
+    }
 
-	/**
-	 * Aggregator for max operation.
-	 */
-	public static class MaxShortAggregator implements Aggregator<Short, Short> {
+    /** Aggregator for max operation. */
+    public static class MaxShortAggregator implements Aggregator<Short, Short> {
 
-		private short max = Short.MIN_VALUE;
+        private short max = Short.MIN_VALUE;
 
-		@Override
-		public void aggregate(Short value) {
-			max = max(max, value);
-		}
+        @Override
+        public void aggregate(Short value) {
+            max = max(max, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Short, Short> other) {
-			max = max(max, ((MaxShortAggregator) other).max);
-		}
+        @Override
+        public void combine(Aggregator<Short, Short> other) {
+            max = max(max, ((MaxShortAggregator) other).max);
+        }
 
-		@Override
-		public Short result() {
-			return max;
-		}
-	}
+        @Override
+        public Short result() {
+            return max;
+        }
+    }
 
-	/**
-	 * Aggregator for sum operation.
-	 */
-	public static class SumShortAggregator implements Aggregator<Short, Short> {
+    /** Aggregator for sum operation. */
+    public static class SumShortAggregator implements Aggregator<Short, Short> {
 
-		private short sum = 0;
+        private short sum = 0;
 
-		@Override
-		public void aggregate(Short value) {
-			sum += value;
-		}
+        @Override
+        public void aggregate(Short value) {
+            sum += value;
+        }
 
-		@Override
-		public void combine(Aggregator<Short, Short> other) {
-			sum += ((SumShortAggregator) other).sum;
-		}
+        @Override
+        public void combine(Aggregator<Short, Short> other) {
+            sum += ((SumShortAggregator) other).sum;
+        }
 
-		@Override
-		public Short result() {
-			return sum;
-		}
-	}
+        @Override
+        public Short result() {
+            return sum;
+        }
+    }
 
-	@Override
-	protected Aggregator<Short, Short> initMin() {
-		return new MinShortAggregator();
-	}
+    @Override
+    protected Aggregator<Short, Short> initMin() {
+        return new MinShortAggregator();
+    }
 
-	@Override
-	protected Aggregator<Short, Short> initMax() {
-		return new MaxShortAggregator();
-	}
+    @Override
+    protected Aggregator<Short, Short> initMax() {
+        return new MaxShortAggregator();
+    }
 
-	@Override
-	protected Aggregator<Short, Short> initSum() {
-		return new SumShortAggregator();
-	}
+    @Override
+    protected Aggregator<Short, Short> initSum() {
+        return new SumShortAggregator();
+    }
 
-	@Override
-	protected boolean isNan(Short number) {
-		// NaN never applies here because only types like Float and Double have NaN
-		return false;
-	}
+    @Override
+    protected boolean isNan(Short number) {
+        // NaN never applies here because only types like Float and Double have NaN
+        return false;
+    }
 
-	@Override
-	protected boolean isInfinite(Short number) {
-		// Infinity never applies here because only types like Float and Double have Infinity
-		return false;
-	}
+    @Override
+    protected boolean isInfinite(Short number) {
+        // Infinity never applies here because only types like Float and Double have Infinity
+        return false;
+    }
 }

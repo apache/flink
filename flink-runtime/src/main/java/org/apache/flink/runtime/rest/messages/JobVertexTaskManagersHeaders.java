@@ -23,57 +23,60 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Message headers for the {@link JobVertexTaskManagersHandler}.
- */
-public class JobVertexTaskManagersHeaders implements MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> {
+/** Message headers for the {@link JobVertexTaskManagersHandler}. */
+public class JobVertexTaskManagersHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> {
 
-	private static final JobVertexTaskManagersHeaders INSTANCE = new JobVertexTaskManagersHeaders();
+    private static final JobVertexTaskManagersHeaders INSTANCE = new JobVertexTaskManagersHeaders();
 
-	public static final String URL = "/jobs" +
-		"/:" + JobIDPathParameter.KEY +
-		"/vertices" +
-		"/:" + JobVertexIdPathParameter.KEY +
-		"/taskmanagers";
+    public static final String URL =
+            "/jobs"
+                    + "/:"
+                    + JobIDPathParameter.KEY
+                    + "/vertices"
+                    + "/:"
+                    + JobVertexIdPathParameter.KEY
+                    + "/taskmanagers";
 
-	private JobVertexTaskManagersHeaders() {}
+    private JobVertexTaskManagersHeaders() {}
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public Class<JobVertexTaskManagersInfo> getResponseClass() {
-		return JobVertexTaskManagersInfo.class;
-	}
+    @Override
+    public Class<JobVertexTaskManagersInfo> getResponseClass() {
+        return JobVertexTaskManagersInfo.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public JobVertexMessageParameters getUnresolvedMessageParameters() {
-		return new JobVertexMessageParameters();
-	}
+    @Override
+    public JobVertexMessageParameters getUnresolvedMessageParameters() {
+        return new JobVertexMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 
-	public static JobVertexTaskManagersHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JobVertexTaskManagersHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns task information aggregated by task manager.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns task information aggregated by task manager.";
+    }
 }

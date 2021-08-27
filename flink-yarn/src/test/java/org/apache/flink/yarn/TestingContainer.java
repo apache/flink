@@ -25,44 +25,42 @@ import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerPBImpl;
 
-/**
- * A {@link Container} implementation for testing.
- */
+/** A {@link Container} implementation for testing. */
 class TestingContainer extends ContainerPBImpl {
-	private final ContainerId containerId;
-	private final NodeId nodeId;
-	private final Resource resource;
-	private final Priority priority;
+    private final ContainerId containerId;
+    private final NodeId nodeId;
+    private final Resource resource;
+    private final Priority priority;
 
-	TestingContainer(
-		final ContainerId containerId,
-		final NodeId nodeId,
-		final Resource resource,
-		final Priority priority) {
+    TestingContainer(
+            final ContainerId containerId,
+            final NodeId nodeId,
+            final Resource resource,
+            final Priority priority) {
 
-		this.containerId = containerId;
-		this.nodeId = nodeId;
-		this.resource = resource;
-		this.priority = priority;
-	}
+        this.containerId = containerId;
+        this.nodeId = nodeId;
+        this.resource = resource;
+        this.priority = priority;
+    }
 
-	@Override
-	public ContainerId getId() {
-		return containerId;
-	}
+    @Override
+    public ContainerId getId() {
+        return containerId;
+    }
 
-	@Override
-	public NodeId getNodeId() {
-		return nodeId;
-	}
+    @Override
+    public NodeId getNodeId() {
+        return nodeId;
+    }
 
-	@Override
-	public Resource getResource() {
-		return resource;
-	}
+    @Override
+    public Resource getResource() {
+        return resource;
+    }
 
-	@Override
-	public Priority getPriority() {
-		return priority;
-	}
+    @Override
+    public Priority getPriority() {
+        return priority;
+    }
 }

@@ -1,0 +1,437 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testConvertToIn_EqualsToThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($0, Sarg[1, 2, 3, 4])])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_GreaterThanThreshold_Double">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE d = 1 OR d = 2 OR d = 3 OR d = 4 OR d = 5 OR d = 6 OR d = 7 OR d = 8 OR d = 9 OR d = 10 OR d = 11 OR d = 12 OR d = 13 OR d = 14 OR d = 15 OR d = 16 OR d = 17 OR d = 18 OR d = 19 OR d = 20]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19), =($3, 20))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($3, Sarg[1E0:DOUBLE, 2E0:DOUBLE, 3E0:DOUBLE, 4E0:DOUBLE, 5E0:DOUBLE, 6E0:DOUBLE, 7E0:DOUBLE, 8E0:DOUBLE, 9E0:DOUBLE, 1E1:DOUBLE, 1.1E1:DOUBLE, 1.2E1:DOUBLE, 1.3E1:DOUBLE, 1.4E1:DOUBLE, 1.5E1:DOUBLE, 1.6E1:DOUBLE, 1.7E1:DOUBLE, 1.8E1:DOUBLE, 1.9E1:DOUBLE, 2E1:DOUBLE]:DOUBLE)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_GreaterThanThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR a = 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($0, 5))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[SEARCH($0, Sarg[1, 2, 3, 4, 5])])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_LessThanThreshold_Double">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE d = 1 OR d = 2 OR d = 3 OR d = 4 OR d = 5 OR d = 6 OR d = 7 OR d = 8 OR d = 9 OR d = 10 OR d = 11 OR d = 12 OR d = 13 OR d = 14 OR d = 15 OR d = 16 OR d = 17 OR d = 18 OR d = 19]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($3, 1), =($3, 2), =($3, 3), =($3, 4), =($3, 5), =($3, 6), =($3, 7), =($3, 8), =($3, 9), =($3, 10), =($3, 11), =($3, 12), =($3, 13), =($3, 14), =($3, 15), =($3, 16), =($3, 17), =($3, 18), =($3, 19))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_LessThanThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_WithAnd1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (a = 1 OR a = 2 OR a = 3 OR a = 4) AND b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4)), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(SEARCH($0, Sarg[1, 2, 3, 4]), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_WithAnd2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 AND b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), =($1, 1)))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), =($1, 1)))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_WithOr1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToIn_WithOr2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR b = 1 OR a = 3 OR a = 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($1, 1), =($0, 3), =($0, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToInAndNotIn1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1 OR (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 2), =($0, 3), =($0, 4), =($1, 1), AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1), SEARCH($0, Sarg[1, 2, 3, 4]))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToInAndNotIn2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE b = 1 OR a = 1 OR a = 2 OR a = 3 OR a = 4  AND (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($1, 1), =($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), <>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($1, 1), =($0, 1), =($0, 2), =($0, 3), AND(=($0, 4), NOT IN($0, 1, 2, 3, 4)))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToInAndNotIn3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND c = 1) OR b = 3 OR b = 4 OR c = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(=($1, 1), =($1, 2), AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($2, 1)), =($1, 3), =($1, 4), =($2, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(AND(=($2, 1), NOT IN($0, 1, 2, 3, 4)), SEARCH($1, Sarg[1L:BIGINT, 2L:BIGINT, 3L:BIGINT, 4L:BIGINT]:BIGINT), =($2, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_EqualsToThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[NOT IN($0, 1, 2, 3, 4)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_GreaterThanThreshold_Double">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE d <> 1 AND d <> 2 AND d <> 3 AND d <> 4 AND d <> 5 AND d <> 6 AND d <> 7 AND d <> 8 AND d <> 9 AND d <> 10 AND d <> 11 AND d <> 12 AND d <> 13 AND d <> 14 AND d <> 15 AND d <> 16 AND d <> 17 AND d <> 18 AND d <> 19 AND d <> 20]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19), <>($3, 20))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[NOT IN($3, 1:DOUBLE, 2:DOUBLE, 3:DOUBLE, 4:DOUBLE, 5:DOUBLE, 6:DOUBLE, 7:DOUBLE, 8:DOUBLE, 9:DOUBLE, 10:DOUBLE, 11:DOUBLE, 12:DOUBLE, 13:DOUBLE, 14:DOUBLE, 15:DOUBLE, 16:DOUBLE, 17:DOUBLE, 18:DOUBLE, 19:DOUBLE, 20:DOUBLE)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_GreaterThanThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND a = 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($0, 5))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(=($0, 5), NOT IN($0, 1, 2, 3, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_LessThanThreshold_Double">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE d <> 1 AND d <> 2 AND d <> 3 AND d <> 4 AND d <> 5 AND d <> 6 AND d <> 7 AND d <> 8 AND d <> 9 AND d <> 10 AND d <> 11 AND d <> 12 AND d <> 13 AND d <> 14 AND d <> 15 AND d <> 16 AND d <> 17 AND d <> 18 AND d <> 19]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($3, 1), <>($3, 2), <>($3, 3), <>($3, 4), <>($3, 5), <>($3, 6), <>($3, 7), <>($3, 8), <>($3, 9), <>($3, 10), <>($3, 11), <>($3, 12), <>($3, 13), <>($3, 14), <>($3, 15), <>($3, 16), <>($3, 17), <>($3, 18), <>($3, 19))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_LessThanThreshold_Int">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithAnd1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(=($1, 1), NOT IN($0, 1, 2, 3, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithAnd2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2  AND b = 1 AND a <> 3 AND a <> 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(<>($0, 1), <>($0, 2), =($1, 1), <>($0, 3), <>($0, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[AND(=($1, 1), NOT IN($0, 1, 2, 3, 4))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithOr1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithOr2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(AND(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4)), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(NOT IN($0, 1, 2, 3, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConvertToNotIn_WithOr3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a <> 1 OR a <> 2 OR a <> 3 OR a <> 4 OR b = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4])
++- LogicalFilter(condition=[OR(<>($0, 1), <>($0, 2), <>($0, 3), <>($0, 4), =($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

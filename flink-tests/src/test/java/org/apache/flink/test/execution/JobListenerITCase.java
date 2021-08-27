@@ -43,227 +43,235 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * Unit tests for {@link JobListener}.
- */
+/** Unit tests for {@link JobListener}. */
 public class JobListenerITCase extends TestLogger {
 
-	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-					.build());
+    @ClassRule
+    public static MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder().build());
 
-	private static Configuration getClientConfiguration() {
-		Configuration result = new Configuration(miniClusterResource.getClientConfiguration());
-		result.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
-		return result;
-	}
+    private static Configuration getClientConfiguration() {
+        Configuration result = new Configuration(miniClusterResource.getClientConfiguration());
+        result.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        return result;
+    }
 
-	@Test
-	public void testExecuteCallsJobListenerOnBatchEnvironment() throws Exception {
-		AtomicReference<JobID> jobIdReference = new AtomicReference<>();
-		OneShotLatch submissionLatch = new OneShotLatch();
-		OneShotLatch executionLatch = new OneShotLatch();
+    @Test
+    public void testExecuteCallsJobListenerOnBatchEnvironment() throws Exception {
+        AtomicReference<JobID> jobIdReference = new AtomicReference<>();
+        OneShotLatch submissionLatch = new OneShotLatch();
+        OneShotLatch executionLatch = new OneShotLatch();
 
-		ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				jobIdReference.set(jobClient.getJobID());
-				submissionLatch.trigger();
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        jobIdReference.set(jobClient.getJobID());
+                        submissionLatch.trigger();
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-				executionLatch.trigger();
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {
+                        executionLatch.trigger();
+                    }
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
-		JobExecutionResult jobExecutionResult = env.execute();
+        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        JobExecutionResult jobExecutionResult = env.execute();
 
-		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
-		executionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 
-		assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
-	}
+        assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
+    }
 
-	@Test
-	public void testExecuteAsyncCallsJobListenerOnBatchEnvironment() throws Exception {
-		AtomicReference<JobID> jobIdReference = new AtomicReference<>();
-		OneShotLatch submissionLatch = new OneShotLatch();
+    @Test
+    public void testExecuteAsyncCallsJobListenerOnBatchEnvironment() throws Exception {
+        AtomicReference<JobID> jobIdReference = new AtomicReference<>();
+        OneShotLatch submissionLatch = new OneShotLatch();
 
-		ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				jobIdReference.set(jobClient.getJobID());
-				submissionLatch.trigger();
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        jobIdReference.set(jobClient.getJobID());
+                        submissionLatch.trigger();
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
-		JobClient jobClient = env.executeAsync();
+        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        JobClient jobClient = env.executeAsync();
 
-		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
-		// when executing asynchronously we don't get an "executed" callback
+        submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        // when executing asynchronously we don't get an "executed" callback
 
-		assertThat(jobClient.getJobID(), is(jobIdReference.get()));
-	}
+        assertThat(jobClient.getJobID(), is(jobIdReference.get()));
+    }
 
-	@Test
-	public void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
-		AtomicReference<Thread> threadReference = new AtomicReference<>();
+    @Test
+    public void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
+        AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-		ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				threadReference.set(Thread.currentThread());
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        threadReference.set(Thread.currentThread());
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
-		env.execute();
+        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.execute();
 
-		assertThat(Thread.currentThread(), is(threadReference.get()));
-	}
+        assertThat(Thread.currentThread(), is(threadReference.get()));
+    }
 
-	@Test
-	public void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
-		AtomicReference<Thread> threadReference = new AtomicReference<>();
+    @Test
+    public void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
+        AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-		ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				threadReference.set(Thread.currentThread());
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        threadReference.set(Thread.currentThread());
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
-		env.executeAsync();
+        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.executeAsync();
 
-		assertThat(Thread.currentThread(), is(threadReference.get()));
-	}
+        assertThat(Thread.currentThread(), is(threadReference.get()));
+    }
 
-	@Test
-	public void testExecuteCallsJobListenerOnStreamingEnvironment() throws Exception {
-		AtomicReference<JobID> jobIdReference = new AtomicReference<>();
-		OneShotLatch submissionLatch = new OneShotLatch();
-		OneShotLatch executionLatch = new OneShotLatch();
+    @Test
+    public void testExecuteCallsJobListenerOnStreamingEnvironment() throws Exception {
+        AtomicReference<JobID> jobIdReference = new AtomicReference<>();
+        OneShotLatch submissionLatch = new OneShotLatch();
+        OneShotLatch executionLatch = new OneShotLatch();
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				jobIdReference.set(jobClient.getJobID());
-				submissionLatch.trigger();
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        jobIdReference.set(jobClient.getJobID());
+                        submissionLatch.trigger();
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-				executionLatch.trigger();
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {
+                        executionLatch.trigger();
+                    }
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
-		JobExecutionResult jobExecutionResult = env.execute();
+        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        JobExecutionResult jobExecutionResult = env.execute();
 
-		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
-		executionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        executionLatch.await(2000L, TimeUnit.MILLISECONDS);
 
-		assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
-	}
+        assertThat(jobExecutionResult.getJobID(), is(jobIdReference.get()));
+    }
 
-	@Test
-	public void testExecuteAsyncCallsJobListenerOnStreamingEnvironment() throws Exception {
-		AtomicReference<JobID> jobIdReference = new AtomicReference<>();
-		OneShotLatch submissionLatch = new OneShotLatch();
+    @Test
+    public void testExecuteAsyncCallsJobListenerOnStreamingEnvironment() throws Exception {
+        AtomicReference<JobID> jobIdReference = new AtomicReference<>();
+        OneShotLatch submissionLatch = new OneShotLatch();
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				jobIdReference.set(jobClient.getJobID());
-				submissionLatch.trigger();
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        jobIdReference.set(jobClient.getJobID());
+                        submissionLatch.trigger();
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
-		JobClient jobClient = env.executeAsync();
+        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        JobClient jobClient = env.executeAsync();
 
-		submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
-		// when executing asynchronously we don't get an "executed" callback
+        submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
+        // when executing asynchronously we don't get an "executed" callback
 
-		assertThat(jobClient.getJobID(), is(jobIdReference.get()));
-	}
+        assertThat(jobClient.getJobID(), is(jobIdReference.get()));
+    }
 
-	@Test
-	public void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
-		AtomicReference<Thread> threadReference = new AtomicReference<>();
+    @Test
+    public void testExecuteCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
+        AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				threadReference.set(Thread.currentThread());
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        threadReference.set(Thread.currentThread());
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
-		env.execute();
+        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.execute();
 
-		assertThat(Thread.currentThread(), is(threadReference.get()));
-	}
+        assertThat(Thread.currentThread(), is(threadReference.get()));
+    }
 
-	@Test
-	public void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
-		AtomicReference<Thread> threadReference = new AtomicReference<>();
+    @Test
+    public void testExecuteAsyncCallsJobListenerOnMainThreadOnStreamEnvironment() throws Exception {
+        AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-		StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
-		env.registerJobListener(new JobListener() {
-			@Override
-			public void onJobSubmitted(JobClient jobClient, Throwable t) {
-				threadReference.set(Thread.currentThread());
-			}
+        env.registerJobListener(
+                new JobListener() {
+                    @Override
+                    public void onJobSubmitted(JobClient jobClient, Throwable t) {
+                        threadReference.set(Thread.currentThread());
+                    }
 
-			@Override
-			public void onJobExecuted(JobExecutionResult jobExecutionResult, Throwable throwable) {
-			}
-		});
+                    @Override
+                    public void onJobExecuted(
+                            JobExecutionResult jobExecutionResult, Throwable throwable) {}
+                });
 
-		env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
-		env.executeAsync();
+        env.fromElements(1, 2, 3, 4, 5).addSink(new DiscardingSink<>());
+        env.executeAsync();
 
-		assertThat(Thread.currentThread(), is(threadReference.get()));
-	}
+        assertThat(Thread.currentThread(), is(threadReference.get()));
+    }
 }

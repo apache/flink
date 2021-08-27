@@ -30,39 +30,36 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link MapRFsFactory}.
- */
+/** Tests for the {@link MapRFsFactory}. */
 public class MapRFsFactoryTest extends TestLogger {
 
-	@Test
-	public void testMapRFsScheme() throws Exception {
-		final Path path = new Path("maprfs:///my/path");
+    @Test
+    public void testMapRFsScheme() throws Exception {
+        final Path path = new Path("maprfs:///my/path");
 
-		final FileSystem fs = path.getFileSystem();
+        final FileSystem fs = path.getFileSystem();
 
-		assertEquals(path.toUri().getScheme(), fs.getUri().getScheme());
-	}
+        assertEquals(path.toUri().getScheme(), fs.getUri().getScheme());
+    }
 
-	@Test
-	public void testMapRFsKind() throws Exception {
-		final Path path = new Path("maprfs:///my/path");
+    @Test
+    public void testMapRFsKind() throws Exception {
+        final Path path = new Path("maprfs:///my/path");
 
-		final FileSystem fs = path.getFileSystem();
+        final FileSystem fs = path.getFileSystem();
 
-		assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
-	}
+        assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
+    }
 
-	@Test
-	public void testCreateWithAuthorityNoCldbFails() throws Exception {
-		final Path path = new Path("maprfs://localhost:12345/");
+    @Test
+    public void testCreateWithAuthorityNoCldbFails() throws Exception {
+        final Path path = new Path("maprfs://localhost:12345/");
 
-		try {
-			path.getFileSystem();
-			fail("should have failed with an exception");
-		}
-		catch (IOException e) {
-			// expected, because we have no CLDB config available
-		}
-	}
+        try {
+            path.getFileSystem();
+            fail("should have failed with an exception");
+        } catch (IOException e) {
+            // expected, because we have no CLDB config available
+        }
+    }
 }

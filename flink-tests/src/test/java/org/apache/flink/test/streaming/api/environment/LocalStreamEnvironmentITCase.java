@@ -27,48 +27,47 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link LocalStreamEnvironment}.
- */
+/** Tests for {@link LocalStreamEnvironment}. */
 @SuppressWarnings("serial")
 public class LocalStreamEnvironmentITCase extends TestLogger {
 
-	/**
-	 * Test test verifies that the execution environment can be used to execute a
-	 * single job with multiple slots.
-	 */
-	@Test
-	public void testRunIsolatedJob() throws Exception {
-		LocalStreamEnvironment env = new LocalStreamEnvironment();
-		assertEquals(1, env.getParallelism());
+    /**
+     * Test test verifies that the execution environment can be used to execute a single job with
+     * multiple slots.
+     */
+    @Test
+    public void testRunIsolatedJob() throws Exception {
+        LocalStreamEnvironment env = new LocalStreamEnvironment();
+        assertEquals(1, env.getParallelism());
 
-		addSmallBoundedJob(env, 3);
-		env.execute();
-	}
+        addSmallBoundedJob(env, 3);
+        env.execute();
+    }
 
-	/**
-	 * Test test verifies that the execution environment can be used to execute multiple
-	 * bounded streaming jobs after one another.
-	 */
-	@Test
-	public void testMultipleJobsAfterAnother() throws Exception {
-		LocalStreamEnvironment env = new LocalStreamEnvironment();
+    /**
+     * Test test verifies that the execution environment can be used to execute multiple bounded
+     * streaming jobs after one another.
+     */
+    @Test
+    public void testMultipleJobsAfterAnother() throws Exception {
+        LocalStreamEnvironment env = new LocalStreamEnvironment();
 
-		addSmallBoundedJob(env, 3);
-		env.execute();
+        addSmallBoundedJob(env, 3);
+        env.execute();
 
-		addSmallBoundedJob(env, 5);
-		env.execute();
-	}
+        addSmallBoundedJob(env, 5);
+        env.execute();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static void addSmallBoundedJob(StreamExecutionEnvironment env, int parallelism) {
-		DataStream<Long> stream = env.generateSequence(1, 100).setParallelism(parallelism);
+    private static void addSmallBoundedJob(StreamExecutionEnvironment env, int parallelism) {
+        DataStream<Long> stream = env.generateSequence(1, 100).setParallelism(parallelism);
 
-		stream
-				.filter(ignored -> false).setParallelism(parallelism)
-					.startNewChain()
-					.print().setParallelism(parallelism);
-	}
+        stream.filter(ignored -> false)
+                .setParallelism(parallelism)
+                .startNewChain()
+                .print()
+                .setParallelism(parallelism);
+    }
 }

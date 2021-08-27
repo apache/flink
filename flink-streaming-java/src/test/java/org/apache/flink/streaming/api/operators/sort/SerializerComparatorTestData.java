@@ -29,81 +29,81 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Test data for {@link VariableLengthByteKeyComparatorTest}, {@link FixedLengthByteKeyComparatorTest},
- * {@link FixedLengthKeyAndValueSerializerTest}, and {@link VariableLengthKeyAndValueSerializerTest}.
+ * Test data for {@link VariableLengthByteKeyComparatorTest}, {@link
+ * FixedLengthByteKeyComparatorTest}, {@link FixedLengthKeyAndValueSerializerTest}, and {@link
+ * VariableLengthKeyAndValueSerializerTest}.
  */
 final class SerializerComparatorTestData {
-	@SuppressWarnings("unchecked")
-	static Tuple2<byte[], StreamRecord<Integer>>[] getOrderedIntTestData() {
-		IntSerializer intSerializer = new IntSerializer();
-		DataOutputSerializer outputSerializer = new DataOutputSerializer(intSerializer.getLength());
+    @SuppressWarnings("unchecked")
+    static Tuple2<byte[], StreamRecord<Integer>>[] getOrderedIntTestData() {
+        IntSerializer intSerializer = new IntSerializer();
+        DataOutputSerializer outputSerializer = new DataOutputSerializer(intSerializer.getLength());
 
-		return IntStream.range(-10, 10)
-			.mapToObj(
-				idx -> {
-					try {
-						intSerializer.serialize(idx, outputSerializer);
-						byte[] copyOfBuffer = outputSerializer.getCopyOfBuffer();
-						outputSerializer.clear();
-						return Tuple2.of(copyOfBuffer, new StreamRecord<>(idx, idx));
-					} catch (IOException e) {
-						throw new AssertionError(e);
-					}
-				}
-			).toArray(Tuple2[]::new);
-	}
+        return IntStream.range(-10, 10)
+                .mapToObj(
+                        idx -> {
+                            try {
+                                intSerializer.serialize(idx, outputSerializer);
+                                byte[] copyOfBuffer = outputSerializer.getCopyOfBuffer();
+                                outputSerializer.clear();
+                                return Tuple2.of(copyOfBuffer, new StreamRecord<>(idx, idx));
+                            } catch (IOException e) {
+                                throw new AssertionError(e);
+                            }
+                        })
+                .toArray(Tuple2[]::new);
+    }
 
-	@SuppressWarnings("unchecked")
-	static Tuple2<byte[], StreamRecord<String>>[] getOrderedStringTestData() {
-		StringSerializer stringSerializer = new StringSerializer();
-		DataOutputSerializer outputSerializer = new DataOutputSerializer(64);
-		return Stream.of(
-			new String(new byte[] {-1, 0}),
-			new String(new byte[] {0, 1}),
-			"A",
-			"AB",
-			"ABC",
-			"ABCD",
-			"ABCDE",
-			"ABCDEF",
-			"ABCDEFG",
-			"ABCDEFGH")
-			.map(
-				str -> {
-					try {
-						stringSerializer.serialize(str, outputSerializer);
-						byte[] copyOfBuffer = outputSerializer.getCopyOfBuffer();
-						outputSerializer.clear();
-						return Tuple2.of(copyOfBuffer, new StreamRecord<>(str, 0));
-					} catch (IOException e) {
-						throw new AssertionError(e);
-					}
-				}
-			).sorted(
-				(o1, o2) -> {
-					byte[] key0 = o1.f0;
-					byte[] key1 = o2.f0;
+    @SuppressWarnings("unchecked")
+    static Tuple2<byte[], StreamRecord<String>>[] getOrderedStringTestData() {
+        StringSerializer stringSerializer = new StringSerializer();
+        DataOutputSerializer outputSerializer = new DataOutputSerializer(64);
+        return Stream.of(
+                        new String(new byte[] {-1, 0}),
+                        new String(new byte[] {0, 1}),
+                        "A",
+                        "AB",
+                        "ABC",
+                        "ABCD",
+                        "ABCDE",
+                        "ABCDEF",
+                        "ABCDEFG",
+                        "ABCDEFGH")
+                .map(
+                        str -> {
+                            try {
+                                stringSerializer.serialize(str, outputSerializer);
+                                byte[] copyOfBuffer = outputSerializer.getCopyOfBuffer();
+                                outputSerializer.clear();
+                                return Tuple2.of(copyOfBuffer, new StreamRecord<>(str, 0));
+                            } catch (IOException e) {
+                                throw new AssertionError(e);
+                            }
+                        })
+                .sorted(
+                        (o1, o2) -> {
+                            byte[] key0 = o1.f0;
+                            byte[] key1 = o2.f0;
 
-					int firstLength = key0.length;
-					int secondLength = key1.length;
-					int minLength = Math.min(firstLength, secondLength);
-					for (int i = 0; i < minLength; i++) {
-						int cmp = Byte.compare(key0[i], key1[i]);
+                            int firstLength = key0.length;
+                            int secondLength = key1.length;
+                            int minLength = Math.min(firstLength, secondLength);
+                            for (int i = 0; i < minLength; i++) {
+                                int cmp = Byte.compare(key0[i], key1[i]);
 
-						if (cmp != 0) {
-							return cmp;
-						}
-					}
+                                if (cmp != 0) {
+                                    return cmp;
+                                }
+                            }
 
-					int lengthCmp = Integer.compare(firstLength, secondLength);
-					if (lengthCmp != 0) {
-						return lengthCmp;
-					}
-					return Long.compare(o1.f1.getTimestamp(), o2.f1.getTimestamp());
-				}
-			).toArray(Tuple2[]::new);
-	}
+                            int lengthCmp = Integer.compare(firstLength, secondLength);
+                            if (lengthCmp != 0) {
+                                return lengthCmp;
+                            }
+                            return Long.compare(o1.f1.getTimestamp(), o2.f1.getTimestamp());
+                        })
+                .toArray(Tuple2[]::new);
+    }
 
-	private SerializerComparatorTestData() {
-	}
+    private SerializerComparatorTestData() {}
 }

@@ -20,40 +20,36 @@ package org.apache.flink.orc.data;
 
 import java.io.Serializable;
 
-/**
- * A sample type used for the integration test case.
- */
+/** A sample type used for the integration test case. */
 public class Record implements Serializable {
-	private final String name;
-	private final int age;
+    private final String name;
+    private final int age;
 
-	public Record(String name, int age) {
-		this.name = name;
-		this.age = age;
-	}
+    public Record(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
 
-	public String getName() {
-		return this.name;
-	}
+    public String getName() {
+        return this.name;
+    }
 
-	public int getAge() {
-		return this.age;
-	}
+    public int getAge() {
+        return this.age;
+    }
 
-	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
 
-		if (!(other instanceof Record)) {
-			return false;
-		}
+        if (!(other instanceof Record)) {
+            return false;
+        }
 
-		Record otherRecord = (Record) other;
+        Record otherRecord = (Record) other;
 
-		return this.name.equals(otherRecord.getName())
-			&& this.age == otherRecord.getAge();
-	}
+        return this.name.equals(otherRecord.getName()) && this.age == otherRecord.getAge();
+    }
 }
-

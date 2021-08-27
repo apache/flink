@@ -27,19 +27,18 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *
  * @param <OUT> The output type of the operator
  * @deprecated This class is deprecated in favour of using {@link StreamOperatorFactory} and it's
- * {@link StreamOperatorFactory#createStreamOperator} and passing the required parameters to the
- * Operator's constructor in create method.
+ *     {@link StreamOperatorFactory#createStreamOperator} and passing the required parameters to the
+ *     Operator's constructor in create method.
  */
 @Deprecated
 @PublicEvolving
 public interface SetupableStreamOperator<OUT> {
 
-	/**
-	 * Initializes the operator. Sets access to the context and the output.
-	 */
-	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
+    /** Initializes the operator. Sets access to the context and the output. */
+    void setup(
+            StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
 
-	ChainingStrategy getChainingStrategy();
+    ChainingStrategy getChainingStrategy();
 
-	void setChainingStrategy(ChainingStrategy strategy);
+    void setChainingStrategy(ChainingStrategy strategy);
 }

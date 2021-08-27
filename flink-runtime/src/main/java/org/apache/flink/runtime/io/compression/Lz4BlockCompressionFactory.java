@@ -18,25 +18,22 @@
 
 package org.apache.flink.runtime.io.compression;
 
-/**
- * Implementation of {@link BlockCompressionFactory} for Lz4 codec.
- */
+/** Implementation of {@link BlockCompressionFactory} for Lz4 codec. */
 public class Lz4BlockCompressionFactory implements BlockCompressionFactory {
 
+    /**
+     * We put two integers before each compressed block, the first integer represents the compressed
+     * length of the block, and the second one represents the original length of the block.
+     */
+    public static final int HEADER_LENGTH = 8;
 
-	/**
-	 * We put two integers before each compressed block, the first integer represents the compressed
-	 * length of the block, and the second one represents the original length of the block.
-	 */
-	public static final int HEADER_LENGTH = 8;
+    @Override
+    public BlockCompressor getCompressor() {
+        return new Lz4BlockCompressor();
+    }
 
-	@Override
-	public BlockCompressor getCompressor() {
-		return new Lz4BlockCompressor();
-	}
-
-	@Override
-	public BlockDecompressor getDecompressor() {
-		return new Lz4BlockDecompressor();
-	}
+    @Override
+    public BlockDecompressor getDecompressor() {
+        return new Lz4BlockDecompressor();
+    }
 }

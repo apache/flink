@@ -37,118 +37,127 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link UnionSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link UnionSerializer}. */
 @RunWith(Parameterized.class)
-public class UnionSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<TaggedUnion<String, Long>, TaggedUnion<String, Long>> {
+public class UnionSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<
+                TaggedUnion<String, Long>, TaggedUnion<String, Long>> {
 
-	public UnionSerializerUpgradeTest(TestSpecification<TaggedUnion<String, Long>, TaggedUnion<String, Long>> testSpecification) {
-		super(testSpecification);
-	}
+    public UnionSerializerUpgradeTest(
+            TestSpecification<TaggedUnion<String, Long>, TaggedUnion<String, Long>>
+                    testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"union-serializer-one",
-					migrationVersion,
-					UnionSerializerOneSetup.class,
-					UnionSerializerOneVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-					"union-serializer-two",
-					migrationVersion,
-					UnionSerializerTwoSetup.class,
-					UnionSerializerTwoVerifier.class));
-		}
-		return testSpecifications;
-	}
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "union-serializer-one",
+                            migrationVersion,
+                            UnionSerializerOneSetup.class,
+                            UnionSerializerOneVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "union-serializer-two",
+                            migrationVersion,
+                            UnionSerializerTwoSetup.class,
+                            UnionSerializerTwoVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	private static TypeSerializer<TaggedUnion<String, Long>> stringLongRowSupplier() {
-		return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
-	}
+    private static TypeSerializer<TaggedUnion<String, Long>> stringLongRowSupplier() {
+        return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "union-serializer-for-TaggedUnion.one"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "union-serializer-for-TaggedUnion.one"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class UnionSerializerOneSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TaggedUnion<String, Long>> {
-		@Override
-		public TypeSerializer<TaggedUnion<String, Long>> createPriorSerializer() {
-			return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class UnionSerializerOneSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TaggedUnion<String, Long>> {
+        @Override
+        public TypeSerializer<TaggedUnion<String, Long>> createPriorSerializer() {
+            return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
+        }
 
-		@Override
-		public TaggedUnion<String, Long> createTestData() {
-			return TaggedUnion.one("flink");
-		}
-	}
+        @Override
+        public TaggedUnion<String, Long> createTestData() {
+            return TaggedUnion.one("flink");
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class UnionSerializerOneVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TaggedUnion<String, Long>> {
-		@Override
-		public TypeSerializer<TaggedUnion<String, Long>> createUpgradedSerializer() {
-			return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class UnionSerializerOneVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TaggedUnion<String, Long>> {
+        @Override
+        public TypeSerializer<TaggedUnion<String, Long>> createUpgradedSerializer() {
+            return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<TaggedUnion<String, Long>> testDataMatcher() {
-			return is(TaggedUnion.one("flink"));
-		}
+        @Override
+        public Matcher<TaggedUnion<String, Long>> testDataMatcher() {
+            return is(TaggedUnion.one("flink"));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<TaggedUnion<String, Long>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<TaggedUnion<String, Long>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "union-serializer-for-TaggedUnion.two"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "union-serializer-for-TaggedUnion.two"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class UnionSerializerTwoSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TaggedUnion<String, Long>> {
-		@Override
-		public TypeSerializer<TaggedUnion<String, Long>> createPriorSerializer() {
-			return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class UnionSerializerTwoSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TaggedUnion<String, Long>> {
+        @Override
+        public TypeSerializer<TaggedUnion<String, Long>> createPriorSerializer() {
+            return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
+        }
 
-		@Override
-		public TaggedUnion<String, Long> createTestData() {
-			return TaggedUnion.two(23456L);
-		}
-	}
+        @Override
+        public TaggedUnion<String, Long> createTestData() {
+            return TaggedUnion.two(23456L);
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class UnionSerializerTwoVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TaggedUnion<String, Long>> {
-		@Override
-		public TypeSerializer<TaggedUnion<String, Long>> createUpgradedSerializer() {
-			return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class UnionSerializerTwoVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TaggedUnion<String, Long>> {
+        @Override
+        public TypeSerializer<TaggedUnion<String, Long>> createUpgradedSerializer() {
+            return new UnionSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE);
+        }
 
-		@Override
-		public Matcher<TaggedUnion<String, Long>> testDataMatcher() {
-			return is(TaggedUnion.two(23456L));
-		}
+        @Override
+        public Matcher<TaggedUnion<String, Long>> testDataMatcher() {
+            return is(TaggedUnion.two(23456L));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<TaggedUnion<String, Long>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<TaggedUnion<String, Long>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }
-
-
-

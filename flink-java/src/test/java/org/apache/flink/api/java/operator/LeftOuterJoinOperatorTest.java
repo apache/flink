@@ -34,219 +34,229 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests for {@link DataSet#leftOuterJoin(DataSet)}.
- */
+/** Tests for {@link DataSet#leftOuterJoin(DataSet)}. */
 public class LeftOuterJoinOperatorTest {
 
-	// TUPLE DATA
-	private static final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
-		new ArrayList<>();
+    // TUPLE DATA
+    private static final List<Tuple5<Integer, Long, String, Long, Integer>> emptyTupleData =
+            new ArrayList<>();
 
-	private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo = new
-		TupleTypeInfo<>(
-		BasicTypeInfo.INT_TYPE_INFO,
-		BasicTypeInfo.LONG_TYPE_INFO,
-		BasicTypeInfo.STRING_TYPE_INFO,
-		BasicTypeInfo.LONG_TYPE_INFO,
-		BasicTypeInfo.INT_TYPE_INFO
-	);
+    private final TupleTypeInfo<Tuple5<Integer, Long, String, Long, Integer>> tupleTypeInfo =
+            new TupleTypeInfo<>(
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.LONG_TYPE_INFO,
+                    BasicTypeInfo.STRING_TYPE_INFO,
+                    BasicTypeInfo.LONG_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO);
 
-	@Test
-	public void testLeftOuter1() {
+    @Test
+    public void testLeftOuter1() {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-			.where(0).equalTo(4)
-			.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2).where(0).equalTo(4).with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuter2() {
+    @Test
+    public void testLeftOuter2() {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-				.where("f1").equalTo("f3")
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2).where("f1").equalTo("f3").with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuter3() {
+    @Test
+    public void testLeftOuter3() {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-				.where(new IntKeySelector()).equalTo(new IntKeySelector())
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2)
+                .where(new IntKeySelector())
+                .equalTo(new IntKeySelector())
+                .with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuter4() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test
+    public void testLeftOuter4() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-				.where(0).equalTo(new IntKeySelector())
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2).where(0).equalTo(new IntKeySelector()).with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuter5() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test
+    public void testLeftOuter5() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-				.where(new IntKeySelector()).equalTo("f4")
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2).where(new IntKeySelector()).equalTo("f4").with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuter6() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test
+    public void testLeftOuter6() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2)
-				.where("f0").equalTo(4)
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2).where("f0").equalTo(4).with(new DummyJoin());
+    }
 
-	@Test(expected = IndexOutOfBoundsException.class)
-	public void testLeftOuter7() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test(expected = IndexOutOfBoundsException.class)
+    public void testLeftOuter7() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// invalid key position
-		ds1.leftOuterJoin(ds2)
-				.where(5).equalTo(0)
-				.with(new DummyJoin());
-	}
+        // invalid key position
+        ds1.leftOuterJoin(ds2).where(5).equalTo(0).with(new DummyJoin());
+    }
 
-	@Test(expected = CompositeType.InvalidFieldReferenceException.class)
-	public void testLeftOuter8() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    public void testLeftOuter8() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// invalid key reference
-		ds1.leftOuterJoin(ds2)
-				.where(1).equalTo("f5")
-				.with(new DummyJoin());
-	}
+        // invalid key reference
+        ds1.leftOuterJoin(ds2).where(1).equalTo("f5").with(new DummyJoin());
+    }
 
-	@Test(expected = InvalidProgramException.class)
-	public void testLeftOuter9() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test(expected = InvalidProgramException.class)
+    public void testLeftOuter9() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// key types do not match
-		ds1.leftOuterJoin(ds2)
-				.where(0).equalTo(1)
-				.with(new DummyJoin());
-	}
+        // key types do not match
+        ds1.leftOuterJoin(ds2).where(0).equalTo(1).with(new DummyJoin());
+    }
 
-	@Test(expected = InvalidProgramException.class)
-	public void testLeftOuter10() {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+    @Test(expected = InvalidProgramException.class)
+    public void testLeftOuter10() {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// key types do not match
-		ds1.leftOuterJoin(ds2)
-				.where(new IntKeySelector()).equalTo(new LongKeySelector())
-				.with(new DummyJoin());
-	}
+        // key types do not match
+        ds1.leftOuterJoin(ds2)
+                .where(new IntKeySelector())
+                .equalTo(new LongKeySelector())
+                .with(new DummyJoin());
+    }
 
-	@Test
-	public void testLeftOuterStrategy1() {
-		this.testLeftOuterStrategies(JoinHint.OPTIMIZER_CHOOSES);
-	}
+    @Test
+    public void testLeftOuterStrategy1() {
+        this.testLeftOuterStrategies(JoinHint.OPTIMIZER_CHOOSES);
+    }
 
-	@Test
-	public void testLeftOuterStrategy2() {
-		this.testLeftOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
-	}
+    @Test
+    public void testLeftOuterStrategy2() {
+        this.testLeftOuterStrategies(JoinHint.REPARTITION_SORT_MERGE);
+    }
 
-	@Test
-	public void testLeftOuterStrategy3() {
-		this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
-	}
+    @Test
+    public void testLeftOuterStrategy3() {
+        this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
+    }
 
-	@Test
-	public void testLeftOuterStrategy4() {
-		this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
-	}
+    @Test
+    public void testLeftOuterStrategy4() {
+        this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
+    }
 
-	@Test
-	public void testLeftOuterStrategy5() {
-		this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
-	}
+    @Test
+    public void testLeftOuterStrategy5() {
+        this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
+    }
 
-	@Test(expected = InvalidProgramException.class)
-	public void testLeftOuterStrategy6() {
-		this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
-	}
+    @Test(expected = InvalidProgramException.class)
+    public void testLeftOuterStrategy6() {
+        this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
+    }
 
-	private void testLeftOuterStrategies(JoinHint hint) {
+    private void testLeftOuterStrategies(JoinHint hint) {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
-		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
+        DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
+                env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should work
-		ds1.leftOuterJoin(ds2, hint)
-				.where(0).equalTo(4)
-				.with(new DummyJoin());
-	}
+        // should work
+        ds1.leftOuterJoin(ds2, hint).where(0).equalTo(4).with(new DummyJoin());
+    }
 
-	/*
-	 * ####################################################################
-	 */
+    /*
+     * ####################################################################
+     */
 
-	@SuppressWarnings("serial")
-	private static class DummyJoin implements
-			JoinFunction<Tuple5<Integer, Long, String, Long, Integer>, Tuple5<Integer, Long, String, Long, Integer>, Long> {
+    @SuppressWarnings("serial")
+    private static class DummyJoin
+            implements JoinFunction<
+                    Tuple5<Integer, Long, String, Long, Integer>,
+                    Tuple5<Integer, Long, String, Long, Integer>,
+                    Long> {
 
-		@Override
-		public Long join(Tuple5<Integer, Long, String, Long, Integer> v1, Tuple5<Integer, Long, String, Long, Integer> v2) throws Exception {
-			return 1L;
-		}
-	}
+        @Override
+        public Long join(
+                Tuple5<Integer, Long, String, Long, Integer> v1,
+                Tuple5<Integer, Long, String, Long, Integer> v2)
+                throws Exception {
+            return 1L;
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static class IntKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
+    @SuppressWarnings("serial")
+    private static class IntKeySelector
+            implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Integer> {
 
-		@Override
-		public Integer getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
-			return v.f0;
-		}
-	}
+        @Override
+        public Integer getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
+            return v.f0;
+        }
+    }
 
-	@SuppressWarnings("serial")
-	private static class LongKeySelector implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
+    @SuppressWarnings("serial")
+    private static class LongKeySelector
+            implements KeySelector<Tuple5<Integer, Long, String, Long, Integer>, Long> {
 
-		@Override
-		public Long getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
-			return v.f1;
-		}
-	}
-
+        @Override
+        public Long getKey(Tuple5<Integer, Long, String, Long, Integer> v) throws Exception {
+            return v.f1;
+        }
+    }
 }

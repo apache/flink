@@ -32,35 +32,45 @@ import java.io.IOException;
 import java.time.Duration;
 
 /**
- * A convenience PubSubSubscriberFactory that can be used to connect to a PubSub emulator.
- * The PubSub emulators do not support SSL or Credentials and as such this SubscriberStub does not require or provide this.
+ * A convenience PubSubSubscriberFactory that can be used to connect to a PubSub emulator. The
+ * PubSub emulators do not support SSL or Credentials and as such this SubscriberStub does not
+ * require or provide this.
  */
 public class PubSubSubscriberFactoryForEmulator implements PubSubSubscriberFactory {
-	private final String hostAndPort;
-	private final String projectSubscriptionName;
-	private final int retries;
-	private final Duration timeout;
-	private final int maxMessagesPerPull;
+    private final String hostAndPort;
+    private final String projectSubscriptionName;
+    private final int retries;
+    private final Duration timeout;
+    private final int maxMessagesPerPull;
 
-	public PubSubSubscriberFactoryForEmulator(String hostAndPort, String project, String subscription, int retries, Duration timeout, int maxMessagesPerPull) {
-		this.hostAndPort = hostAndPort;
-		this.retries = retries;
-		this.timeout = timeout;
-		this.maxMessagesPerPull = maxMessagesPerPull;
-		this.projectSubscriptionName = ProjectSubscriptionName.format(project, subscription);
-	}
+    public PubSubSubscriberFactoryForEmulator(
+            String hostAndPort,
+            String project,
+            String subscription,
+            int retries,
+            Duration timeout,
+            int maxMessagesPerPull) {
+        this.hostAndPort = hostAndPort;
+        this.retries = retries;
+        this.timeout = timeout;
+        this.maxMessagesPerPull = maxMessagesPerPull;
+        this.projectSubscriptionName = ProjectSubscriptionName.format(project, subscription);
+    }
 
-	@Override
-	public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
-		ManagedChannel managedChannel = NettyChannelBuilder.forTarget(hostAndPort)
-														.usePlaintext() // This is 'Ok' because this is ONLY used for testing.
-														.build();
+    @Override
+    public PubSubSubscriber getSubscriber(Credentials credentials) throws IOException {
+        ManagedChannel managedChannel =
+                NettyChannelBuilder.forTarget(hostAndPort)
+                        .usePlaintext() // This is 'Ok' because this is ONLY used for testing.
+                        .build();
 
-		PullRequest pullRequest = PullRequest.newBuilder()
-											.setMaxMessages(maxMessagesPerPull)
-											.setSubscription(projectSubscriptionName)
-											.build();
-		SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(managedChannel);
-		return new BlockingGrpcPubSubSubscriber(projectSubscriptionName, managedChannel, stub, pullRequest, retries, timeout);
-	}
+        PullRequest pullRequest =
+                PullRequest.newBuilder()
+                        .setMaxMessages(maxMessagesPerPull)
+                        .setSubscription(projectSubscriptionName)
+                        .build();
+        SubscriberGrpc.SubscriberBlockingStub stub = SubscriberGrpc.newBlockingStub(managedChannel);
+        return new BlockingGrpcPubSubSubscriber(
+                projectSubscriptionName, managedChannel, stub, pullRequest, retries, timeout);
+    }
 }

@@ -43,173 +43,183 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-
-/**
- * A helper class to make managing the testing topics a bit easier.
- */
+/** A helper class to make managing the testing topics a bit easier. */
 public class PubsubHelper {
 
-	private static final Logger LOG = LoggerFactory.getLogger(PubsubHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PubsubHelper.class);
 
-	private TransportChannelProvider channelProvider;
+    private TransportChannelProvider channelProvider;
 
-	private TopicAdminClient topicClient;
-	private SubscriptionAdminClient subscriptionAdminClient;
+    private TopicAdminClient topicClient;
+    private SubscriptionAdminClient subscriptionAdminClient;
 
-	public PubsubHelper(TransportChannelProvider channelProvider) {
-		this.channelProvider = channelProvider;
-	}
+    public PubsubHelper(TransportChannelProvider channelProvider) {
+        this.channelProvider = channelProvider;
+    }
 
-	public TopicAdminClient getTopicAdminClient() throws IOException {
-		if (topicClient == null) {
-			TopicAdminSettings topicAdminSettings = TopicAdminSettings.newBuilder()
-				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(EmulatorCredentialsProvider.create())
-				.build();
-			topicClient = TopicAdminClient.create(topicAdminSettings);
-		}
-		return topicClient;
-	}
+    public TopicAdminClient getTopicAdminClient() throws IOException {
+        if (topicClient == null) {
+            TopicAdminSettings topicAdminSettings =
+                    TopicAdminSettings.newBuilder()
+                            .setTransportChannelProvider(channelProvider)
+                            .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                            .build();
+            topicClient = TopicAdminClient.create(topicAdminSettings);
+        }
+        return topicClient;
+    }
 
-	public Topic createTopic(String project, String topic) throws IOException {
-		deleteTopic(project, topic);
-		TopicName topicName = TopicName.of(project, topic);
-		TopicAdminClient adminClient = getTopicAdminClient();
-		LOG.info("CreateTopic {}", topicName);
-		return adminClient.createTopic(topicName);
-	}
+    public Topic createTopic(String project, String topic) throws IOException {
+        deleteTopic(project, topic);
+        TopicName topicName = TopicName.of(project, topic);
+        TopicAdminClient adminClient = getTopicAdminClient();
+        LOG.info("CreateTopic {}", topicName);
+        return adminClient.createTopic(topicName);
+    }
 
-	public void deleteTopic(String project, String topic) throws IOException {
-		deleteTopic(TopicName.of(project, topic));
-	}
+    public void deleteTopic(String project, String topic) throws IOException {
+        deleteTopic(TopicName.of(project, topic));
+    }
 
-	public void deleteTopic(TopicName topicName) throws IOException {
-		TopicAdminClient adminClient = getTopicAdminClient();
-		try {
-			adminClient.getTopic(topicName);
-		} catch (NotFoundException e) {
-			// Doesn't exist. Good.
-			return;
-		}
+    public void deleteTopic(TopicName topicName) throws IOException {
+        TopicAdminClient adminClient = getTopicAdminClient();
+        try {
+            adminClient.getTopic(topicName);
+        } catch (NotFoundException e) {
+            // Doesn't exist. Good.
+            return;
+        }
 
-		// If it exists we delete all subscriptions and the topic itself.
-		LOG.info("DeleteTopic {} first delete old subscriptions.", topicName);
-		adminClient
-			.listTopicSubscriptions(topicName)
-			.iterateAllAsProjectSubscriptionName()
-			.forEach(subscriptionAdminClient::deleteSubscription);
-		LOG.info("DeleteTopic {}", topicName);
-		adminClient
-			.deleteTopic(topicName);
-	}
+        // If it exists we delete all subscriptions and the topic itself.
+        LOG.info("DeleteTopic {} first delete old subscriptions.", topicName);
+        adminClient
+                .listTopicSubscriptions(topicName)
+                .iterateAllAsProjectSubscriptionName()
+                .forEach(subscriptionAdminClient::deleteSubscription);
+        LOG.info("DeleteTopic {}", topicName);
+        adminClient.deleteTopic(topicName);
+    }
 
-	public SubscriptionAdminClient getSubscriptionAdminClient() throws IOException {
-		if (subscriptionAdminClient == null) {
-			SubscriptionAdminSettings subscriptionAdminSettings =
-				SubscriptionAdminSettings
-					.newBuilder()
-					.setTransportChannelProvider(channelProvider)
-					.setCredentialsProvider(EmulatorCredentialsProvider.create())
-					.build();
-			subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings);
-		}
-		return subscriptionAdminClient;
-	}
+    public SubscriptionAdminClient getSubscriptionAdminClient() throws IOException {
+        if (subscriptionAdminClient == null) {
+            SubscriptionAdminSettings subscriptionAdminSettings =
+                    SubscriptionAdminSettings.newBuilder()
+                            .setTransportChannelProvider(channelProvider)
+                            .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                            .build();
+            subscriptionAdminClient = SubscriptionAdminClient.create(subscriptionAdminSettings);
+        }
+        return subscriptionAdminClient;
+    }
 
-	public void createSubscription(String subscriptionProject, String subscription, String topicProject, String topic) throws IOException {
-		ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.newBuilder()
-			.setProject(subscriptionProject)
-			.setSubscription(subscription)
-			.build();
+    public void createSubscription(
+            String subscriptionProject, String subscription, String topicProject, String topic)
+            throws IOException {
+        ProjectSubscriptionName subscriptionName =
+                ProjectSubscriptionName.newBuilder()
+                        .setProject(subscriptionProject)
+                        .setSubscription(subscription)
+                        .build();
 
-		deleteSubscription(subscriptionName);
+        deleteSubscription(subscriptionName);
 
-		TopicName topicName = TopicName.of(topicProject, topic);
+        TopicName topicName = TopicName.of(topicProject, topic);
 
-		PushConfig pushConfig = PushConfig.getDefaultInstance();
+        PushConfig pushConfig = PushConfig.getDefaultInstance();
 
-		LOG.info("CreateSubscription {}", subscriptionName);
-		getSubscriptionAdminClient().createSubscription(subscriptionName, topicName, pushConfig, 1).isInitialized();
-	}
+        LOG.info("CreateSubscription {}", subscriptionName);
+        getSubscriptionAdminClient()
+                .createSubscription(subscriptionName, topicName, pushConfig, 1)
+                .isInitialized();
+    }
 
-	public void deleteSubscription(String subscriptionProject, String subscription) throws IOException {
-		deleteSubscription(ProjectSubscriptionName
-			.newBuilder()
-			.setProject(subscriptionProject)
-			.setSubscription(subscription)
-			.build());
-	}
+    public void deleteSubscription(String subscriptionProject, String subscription)
+            throws IOException {
+        deleteSubscription(
+                ProjectSubscriptionName.newBuilder()
+                        .setProject(subscriptionProject)
+                        .setSubscription(subscription)
+                        .build());
+    }
 
-	public void deleteSubscription(ProjectSubscriptionName subscriptionName) throws IOException {
-		SubscriptionAdminClient adminClient = getSubscriptionAdminClient();
-		try {
-			adminClient.getSubscription(subscriptionName);
-			// If it already exists we must first delete it.
-			LOG.info("DeleteSubscription {}", subscriptionName);
-			adminClient.deleteSubscription(subscriptionName);
-		} catch (NotFoundException e) {
-			// Doesn't exist. Good.
-		}
-	}
+    public void deleteSubscription(ProjectSubscriptionName subscriptionName) throws IOException {
+        SubscriptionAdminClient adminClient = getSubscriptionAdminClient();
+        try {
+            adminClient.getSubscription(subscriptionName);
+            // If it already exists we must first delete it.
+            LOG.info("DeleteSubscription {}", subscriptionName);
+            adminClient.deleteSubscription(subscriptionName);
+        } catch (NotFoundException e) {
+            // Doesn't exist. Good.
+        }
+    }
 
-	//
-	// Mostly copied from the example on https://cloud.google.com/pubsub/docs/pull
-	// Licensed under the Apache 2.0 License to "Google LLC" from https://github.com/googleapis/google-cloud-java/blob/master/google-cloud-examples/src/main/java/com/google/cloud/examples/pubsub/snippets/SubscriberSnippets.java.
-	//
-	public List<ReceivedMessage> pullMessages(String projectId, String subscriptionId, int maxNumberOfMessages) throws Exception {
-		SubscriberStubSettings subscriberStubSettings =
-			SubscriberStubSettings.newBuilder()
-				.setTransportChannelProvider(channelProvider)
-				.setCredentialsProvider(EmulatorCredentialsProvider.create())
-				.build();
-		try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
-			String subscriptionName = ProjectSubscriptionName.format(projectId, subscriptionId);
-			PullRequest pullRequest =
-				PullRequest.newBuilder()
-					.setMaxMessages(maxNumberOfMessages)
-					.setSubscription(subscriptionName)
-					.build();
+    //
+    // Mostly copied from the example on https://cloud.google.com/pubsub/docs/pull
+    // Licensed under the Apache 2.0 License to "Google LLC" from
+    // https://github.com/googleapis/google-cloud-java/blob/master/google-cloud-examples/src/main/java/com/google/cloud/examples/pubsub/snippets/SubscriberSnippets.java.
+    //
+    public List<ReceivedMessage> pullMessages(
+            String projectId, String subscriptionId, int maxNumberOfMessages) throws Exception {
+        SubscriberStubSettings subscriberStubSettings =
+                SubscriberStubSettings.newBuilder()
+                        .setTransportChannelProvider(channelProvider)
+                        .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                        .build();
+        try (SubscriberStub subscriber = GrpcSubscriberStub.create(subscriberStubSettings)) {
+            String subscriptionName = ProjectSubscriptionName.format(projectId, subscriptionId);
+            PullRequest pullRequest =
+                    PullRequest.newBuilder()
+                            .setMaxMessages(maxNumberOfMessages)
+                            .setSubscription(subscriptionName)
+                            .build();
 
-			List<ReceivedMessage> receivedMessages = subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
-			acknowledgeIds(subscriber, subscriptionName, receivedMessages);
-			return receivedMessages;
-		}
-	}
+            List<ReceivedMessage> receivedMessages =
+                    subscriber.pullCallable().call(pullRequest).getReceivedMessagesList();
+            acknowledgeIds(subscriber, subscriptionName, receivedMessages);
+            return receivedMessages;
+        }
+    }
 
-	private void acknowledgeIds(SubscriberStub subscriber, String subscriptionName, List<ReceivedMessage> receivedMessages) {
-		if (receivedMessages.isEmpty()) {
-			return;
-		}
+    private void acknowledgeIds(
+            SubscriberStub subscriber,
+            String subscriptionName,
+            List<ReceivedMessage> receivedMessages) {
+        if (receivedMessages.isEmpty()) {
+            return;
+        }
 
-		List<String> ackIds = receivedMessages.stream().map(ReceivedMessage::getAckId).collect(Collectors.toList());
-		// acknowledge received messages
-		AcknowledgeRequest acknowledgeRequest =
-			AcknowledgeRequest.newBuilder()
-							.setSubscription(subscriptionName)
-							.addAllAckIds(ackIds)
-							.build();
-		// use acknowledgeCallable().futureCall to asynchronously perform this operation
-		subscriber.acknowledgeCallable().call(acknowledgeRequest);
-	}
+        List<String> ackIds =
+                receivedMessages.stream()
+                        .map(ReceivedMessage::getAckId)
+                        .collect(Collectors.toList());
+        // acknowledge received messages
+        AcknowledgeRequest acknowledgeRequest =
+                AcknowledgeRequest.newBuilder()
+                        .setSubscription(subscriptionName)
+                        .addAllAckIds(ackIds)
+                        .build();
+        // use acknowledgeCallable().futureCall to asynchronously perform this operation
+        subscriber.acknowledgeCallable().call(acknowledgeRequest);
+    }
 
-	public Subscriber subscribeToSubscription(String project, String subscription, MessageReceiver messageReceiver) {
-		ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(project, subscription);
-		Subscriber subscriber =
-			Subscriber
-				.newBuilder(subscriptionName, messageReceiver)
-				.setChannelProvider(channelProvider)
-				.setCredentialsProvider(EmulatorCredentialsProvider.create())
-				.build();
-		subscriber.startAsync();
-		return subscriber;
-	}
+    public Subscriber subscribeToSubscription(
+            String project, String subscription, MessageReceiver messageReceiver) {
+        ProjectSubscriptionName subscriptionName =
+                ProjectSubscriptionName.of(project, subscription);
+        Subscriber subscriber =
+                Subscriber.newBuilder(subscriptionName, messageReceiver)
+                        .setChannelProvider(channelProvider)
+                        .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                        .build();
+        subscriber.startAsync();
+        return subscriber;
+    }
 
-	public Publisher createPublisher(String project, String topic) throws IOException {
-		return Publisher
-			.newBuilder(TopicName.of(project, topic))
-			.setChannelProvider(channelProvider)
-			.setCredentialsProvider(EmulatorCredentialsProvider.create())
-			.build();
-	}
-
+    public Publisher createPublisher(String project, String topic) throws IOException {
+        return Publisher.newBuilder(TopicName.of(project, topic))
+                .setChannelProvider(channelProvider)
+                .setCredentialsProvider(EmulatorCredentialsProvider.create())
+                .build();
+    }
 }

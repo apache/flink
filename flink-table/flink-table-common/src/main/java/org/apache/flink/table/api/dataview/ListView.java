@@ -34,25 +34,27 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A {@link DataView} that provides {@link List}-like functionality in the accumulator of an {@link AggregateFunction}
- * or {@link TableAggregateFunction} when large amounts of data are expected.
+ * A {@link DataView} that provides {@link List}-like functionality in the accumulator of an {@link
+ * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
  *
- * <p>A {@link ListView} can be backed by a Java {@link ArrayList} or can leverage Flink's state backends
- * depending on the context in which the aggregate function is used. In many unbounded data scenarios,
- * the {@link ListView} delegates all calls to a {@link ListState} instead of the {@link ArrayList}.
+ * <p>A {@link ListView} can be backed by a Java {@link ArrayList} or can leverage Flink's state
+ * backends depending on the context in which the aggregate function is used. In many unbounded data
+ * scenarios, the {@link ListView} delegates all calls to a {@link ListState} instead of the {@link
+ * ArrayList}.
  *
- * <p>Note: Elements of a {@link ListView} must not be null. For heap-based state backends, {@code hashCode/equals}
- * of the original (i.e. external) class are used. However, the serialization format will use internal
- * data structures.
+ * <p>Note: Elements of a {@link ListView} must not be null. For heap-based state backends, {@code
+ * hashCode/equals} of the original (i.e. external) class are used. However, the serialization
+ * format will use internal data structures.
  *
- * <p>The {@link DataType} of the view's elements is reflectively extracted from the accumulator definition.
- * This includes the generic argument {@code T} of this class. If reflective extraction is not successful,
- * it is possible to use a {@link DataTypeHint} on top the accumulator field. It will be mapped to the
- * underlying collection.
+ * <p>The {@link DataType} of the view's elements is reflectively extracted from the accumulator
+ * definition. This includes the generic argument {@code T} of this class. If reflective extraction
+ * is not successful, it is possible to use a {@link DataTypeHint} on top the accumulator field. It
+ * will be mapped to the underlying collection.
  *
- * <p>The following examples show how to specify an {@link AggregateFunction} with a {@link ListView}:
+ * <p>The following examples show how to specify an {@link AggregateFunction} with a {@link
+ * ListView}:
+ *
  * <pre>{@code
- *
  *  public class MyAccumulator {
  *
  *    public ListView<String> list = new ListView<>();
@@ -91,126 +93,115 @@ import java.util.Objects;
 @PublicEvolving
 public class ListView<T> implements DataView {
 
-	private List<T> list = new ArrayList<>();
+    private List<T> list = new ArrayList<>();
 
-	/**
-	 * Creates a list view.
-	 *
-	 * <p>The {@link DataType} of the contained elements is reflectively extracted.
-	 */
-	public ListView() {
-		// default constructor
-	}
+    /**
+     * Creates a list view.
+     *
+     * <p>The {@link DataType} of the contained elements is reflectively extracted.
+     */
+    public ListView() {
+        // default constructor
+    }
 
-	/**
-	 * Returns the entire view's content as an instance of {@link List}.
-	 */
-	public List<T> getList() {
-		return list;
-	}
+    /** Returns the entire view's content as an instance of {@link List}. */
+    public List<T> getList() {
+        return list;
+    }
 
-	/**
-	 * Replaces the entire view's content with the content of the given {@link List}.
-	 */
-	public void setList(List<T> list) {
-		this.list = list;
-	}
+    /** Replaces the entire view's content with the content of the given {@link List}. */
+    public void setList(List<T> list) {
+        this.list = list;
+    }
 
-	/**
-	 * Returns an iterable of the list view.
-	 *
-	 * @throws Exception Thrown if the system cannot get data.
-	 * @return The iterable of the list.
-	 */
-	public Iterable<T> get() throws Exception {
-		return list;
-	}
+    /**
+     * Returns an iterable of the list view.
+     *
+     * @throws Exception Thrown if the system cannot get data.
+     * @return The iterable of the list.
+     */
+    public Iterable<T> get() throws Exception {
+        return list;
+    }
 
-	/**
-	 * Adds the given value to the list.
-	 *
-	 * @throws Exception Thrown if the system cannot add data.
-	 * @param value The element to be appended to this list view.
-	 */
-	public void add(T value) throws Exception {
-		list.add(value);
-	}
+    /**
+     * Adds the given value to the list.
+     *
+     * @throws Exception Thrown if the system cannot add data.
+     * @param value The element to be appended to this list view.
+     */
+    public void add(T value) throws Exception {
+        list.add(value);
+    }
 
-	/**
-	 * Adds all of the elements of the specified list to this list view.
-	 *
-	 * @throws Exception Thrown if the system cannot add all data.
-	 * @param list The list with the elements that will be stored in this list view.
-	 */
-	public void addAll(List<T> list) throws Exception {
-		this.list.addAll(list);
-	}
+    /**
+     * Adds all of the elements of the specified list to this list view.
+     *
+     * @throws Exception Thrown if the system cannot add all data.
+     * @param list The list with the elements that will be stored in this list view.
+     */
+    public void addAll(List<T> list) throws Exception {
+        this.list.addAll(list);
+    }
 
-	/**
-	 * Removes the given value from the list.
-	 *
-	 * @param value The element to be removed from this list view.
-	 */
-	public boolean remove(T value) throws Exception {
-		return list.remove(value);
-	}
+    /**
+     * Removes the given value from the list.
+     *
+     * @param value The element to be removed from this list view.
+     */
+    public boolean remove(T value) throws Exception {
+        return list.remove(value);
+    }
 
-	/**
-	 * Removes all of the elements from this list view.
-	 */
-	@Override
-	public void clear() {
-		list.clear();
-	}
+    /** Removes all of the elements from this list view. */
+    @Override
+    public void clear() {
+        list.clear();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (!(o instanceof ListView)) {
-			return false;
-		}
-		final ListView<?> listView = (ListView<?>) o;
-		return getList().equals(listView.getList());
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ListView)) {
+            return false;
+        }
+        final ListView<?> listView = (ListView<?>) o;
+        return getList().equals(listView.getList());
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(getList());
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(getList());
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Utilities
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Utilities
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Utility method for creating a {@link DataType} of {@link ListView} explicitly.
-	 */
-	public static DataType newListViewDataType(DataType elementDataType) {
-		return DataTypes.STRUCTURED(
-			ListView.class,
-			DataTypes.FIELD(
-				"list",
-				DataTypes.ARRAY(elementDataType).bridgedTo(List.class)));
-	}
+    /** Utility method for creating a {@link DataType} of {@link ListView} explicitly. */
+    public static DataType newListViewDataType(DataType elementDataType) {
+        return DataTypes.STRUCTURED(
+                ListView.class,
+                DataTypes.FIELD("list", DataTypes.ARRAY(elementDataType).bridgedTo(List.class)));
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Legacy
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Legacy
+    // --------------------------------------------------------------------------------------------
 
-	@Deprecated
-	public transient TypeInformation<?> elementType;
+    @Deprecated public transient TypeInformation<?> elementType;
 
-	/**
-	 * Creates a {@link ListView} for elements of the specified type.
-	 *
-	 * @param elementType The type of the list view elements.
-	 * @deprecated This method uses the old type system. Please use a {@link DataTypeHint}
-	 *             instead if the reflective type extraction is not successful.
-	 */
-	@Deprecated
-	public ListView(TypeInformation<?> elementType) {
-		this.elementType = elementType;
-	}
+    /**
+     * Creates a {@link ListView} for elements of the specified type.
+     *
+     * @param elementType The type of the list view elements.
+     * @deprecated This method uses the old type system. Please use a {@link DataTypeHint} instead
+     *     if the reflective type extraction is not successful.
+     */
+    @Deprecated
+    public ListView(TypeInformation<?> elementType) {
+        this.elementType = elementType;
+    }
 }

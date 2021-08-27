@@ -24,34 +24,31 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Tests for {@link BooleanParameter}.
- */
-public class BooleanParameterTest
-extends ParameterTestBase {
+/** Tests for {@link BooleanParameter}. */
+public class BooleanParameterTest extends ParameterTestBase {
 
-	private BooleanParameter parameter;
+    private BooleanParameter parameter;
 
-	@Before
-	public void setup() {
-		super.setup();
+    @Before
+    public void setup() {
+        super.setup();
 
-		parameter = new BooleanParameter(owner, "test");
-	}
+        parameter = new BooleanParameter(owner, "test");
+    }
 
-	@Test
-	public void testTrue() {
-		Assert.assertEquals("[--test]", parameter.getUsage());
+    @Test
+    public void testTrue() {
+        Assert.assertEquals("[--test]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{"--test"}));
-		Assert.assertEquals(true, parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {"--test"}));
+        Assert.assertEquals(true, parameter.getValue());
+    }
 
-	@Test
-	public void testFalse() {
-		Assert.assertEquals("[--test]", parameter.getUsage());
+    @Test
+    public void testFalse() {
+        Assert.assertEquals("[--test]", parameter.getUsage());
 
-		parameter.configure(ParameterTool.fromArgs(new String[]{}));
-		Assert.assertEquals(false, parameter.getValue());
-	}
+        parameter.configure(ParameterTool.fromArgs(new String[] {}));
+        Assert.assertEquals(false, parameter.getValue());
+    }
 }

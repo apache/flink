@@ -21,31 +21,32 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * A buffer which encapsulates the logic of dealing with the response from the {@link CollectSinkFunction}.
- * It ignores the checkpoint related fields in the response.
- * See Java doc of {@link CollectSinkFunction} for explanation of this communication protocol.
+ * A buffer which encapsulates the logic of dealing with the response from the {@link
+ * CollectSinkFunction}. It ignores the checkpoint related fields in the response. See Java doc of
+ * {@link CollectSinkFunction} for explanation of this communication protocol.
  */
 public class UncheckpointedCollectResultBuffer<T> extends AbstractCollectResultBuffer<T> {
 
-	private final boolean failureTolerance;
+    private final boolean failureTolerance;
 
-	public UncheckpointedCollectResultBuffer(TypeSerializer<T> serializer, boolean failureTolerance) {
-		super(serializer);
-		this.failureTolerance = failureTolerance;
-	}
+    public UncheckpointedCollectResultBuffer(
+            TypeSerializer<T> serializer, boolean failureTolerance) {
+        super(serializer);
+        this.failureTolerance = failureTolerance;
+    }
 
-	@Override
-	protected void sinkRestarted(long lastCheckpointedOffset) {
-		if (!failureTolerance) {
-			// sink restarted but we do not tolerate failure
-			throw new RuntimeException("Job restarted");
-		}
-		reset();
-	}
+    @Override
+    protected void sinkRestarted(long lastCheckpointedOffset) {
+        if (!failureTolerance) {
+            // sink restarted but we do not tolerate failure
+            throw new RuntimeException("Job restarted");
+        }
+        reset();
+    }
 
-	@Override
-	protected void maintainVisibility(long currentVisiblePos, long lastCheckpointedOffset) {
-		// the results are instantly visible by users
-		makeResultsVisible(getOffset());
-	}
+    @Override
+    protected void maintainVisibility(long currentVisiblePos, long lastCheckpointedOffset) {
+        // the results are instantly visible by users
+        makeResultsVisible(getOffset());
+    }
 }

@@ -22,38 +22,36 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import java.util.Map;
 
-/**
- * A tracker for deployed executions.
- */
+/** A tracker for deployed executions. */
 public interface ExecutionDeploymentTracker {
 
-	/**
-	 * Starts tracking the given execution that is being deployed on the given host.
-	 *
-	 * @param executionAttemptId execution to start tracking
-	 * @param host hosting task executor
-	 */
-	void startTrackingPendingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host);
+    /**
+     * Starts tracking the given execution that is being deployed on the given host.
+     *
+     * @param executionAttemptId execution to start tracking
+     * @param host hosting task executor
+     */
+    void startTrackingPendingDeploymentOf(ExecutionAttemptID executionAttemptId, ResourceID host);
 
-	/**
-	 * Marks the deployment of the given execution as complete.
-	 *
-	 * @param executionAttemptId execution whose deployment to mark as complete
-	 */
-	void completeDeploymentOf(ExecutionAttemptID executionAttemptId);
+    /**
+     * Marks the deployment of the given execution as complete.
+     *
+     * @param executionAttemptId execution whose deployment to mark as complete
+     */
+    void completeDeploymentOf(ExecutionAttemptID executionAttemptId);
 
-	/**
-	 * Stops tracking the given execution.
-	 *
-	 * @param executionAttemptId execution to stop tracking
-	 */
-	void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId);
+    /**
+     * Stops tracking the given execution.
+     *
+     * @param executionAttemptId execution to stop tracking
+     */
+    void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId);
 
-	/**
-	 * Returns all tracked executions for the given host.
-	 *
-	 * @param host hosting task executor
-	 * @return tracked executions
-	 */
-	Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host);
+    /**
+     * Returns all tracked executions for the given host.
+     *
+     * @param host hosting task executor
+     * @return tracked executions
+     */
+    Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host);
 }

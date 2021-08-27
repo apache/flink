@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,104 +43,167 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
 
 /**
- * Table format factory for providing configured instances of Schema Registry Avro to RowData
- * {@link SerializationSchema} and {@link DeserializationSchema}.
+ * Table format factory for providing configured instances of Schema Registry Avro to RowData {@link
+ * SerializationSchema} and {@link DeserializationSchema}.
  */
-public class RegistryAvroFormatFactory implements
-		DeserializationFormatFactory,
-		SerializationFormatFactory {
+@Internal
+public class RegistryAvroFormatFactory
+        implements DeserializationFormatFactory, SerializationFormatFactory {
 
-	public static final String IDENTIFIER = "avro-confluent";
+    public static final String IDENTIFIER = "avro-confluent";
 
-	@Override
-	public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+    @Override
+    public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-		return new DecodingFormat<DeserializationSchema<RowData>>() {
-			@Override
-			public DeserializationSchema<RowData> createRuntimeDecoder(
-					DynamicTableSource.Context context,
-					DataType producedDataType) {
-				final RowType rowType = (RowType) producedDataType.getLogicalType();
-				final TypeInformation<RowData> rowDataTypeInfo =
-						(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
-				return new AvroRowDataDeserializationSchema(
-						ConfluentRegistryAvroDeserializationSchema.forGeneric(
-								AvroSchemaConverter.convertToSchema(rowType),
-								schemaRegistryURL),
-						AvroToRowDataConverters.createRowConverter(rowType),
-						rowDataTypeInfo);
-			}
+        String schemaRegistryURL = formatOptions.get(URL);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+        return new DecodingFormat<DeserializationSchema<RowData>>() {
+            @Override
+            public DeserializationSchema<RowData> createRuntimeDecoder(
+                    DynamicTableSource.Context context, DataType producedDataType) {
+                final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final TypeInformation<RowData> rowDataTypeInfo =
+                        context.createTypeInformation(producedDataType);
+                return new AvroRowDataDeserializationSchema(
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
+                        AvroToRowDataConverters.createRowConverter(rowType),
+                        rowDataTypeInfo);
+            }
 
-	@Override
-	public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
-			DynamicTableFactory.Context context,
-			ReadableConfig formatOptions) {
-		FactoryUtil.validateFactoryOptions(this, formatOptions);
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-		String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-		Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
-		if (!subject.isPresent()) {
-			throw new ValidationException(String.format("Option %s.%s is required for serialization",
-					IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
-		}
+    @Override
+    public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
+            DynamicTableFactory.Context context, ReadableConfig formatOptions) {
+        FactoryUtil.validateFactoryOptions(this, formatOptions);
 
-		return new EncodingFormat<SerializationSchema<RowData>>() {
-			@Override
-			public SerializationSchema<RowData> createRuntimeEncoder(
-					DynamicTableSink.Context context,
-					DataType consumedDataType) {
-				final RowType rowType = (RowType) consumedDataType.getLogicalType();
-				return new AvroRowDataSerializationSchema(
-						rowType,
-						ConfluentRegistryAvroSerializationSchema.forGeneric(
-								subject.get(),
-								AvroSchemaConverter.convertToSchema(rowType),
-								schemaRegistryURL),
-						RowDataToAvroConverters.createRowConverter(rowType));
-			}
+        String schemaRegistryURL = formatOptions.get(URL);
+        Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
-			@Override
-			public ChangelogMode getChangelogMode() {
-				return ChangelogMode.insertOnly();
-			}
-		};
-	}
+        if (!subject.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Option %s.%s is required for serialization",
+                            IDENTIFIER, SUBJECT.key()));
+        }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+        return new EncodingFormat<SerializationSchema<RowData>>() {
+            @Override
+            public SerializationSchema<RowData> createRuntimeEncoder(
+                    DynamicTableSink.Context context, DataType consumedDataType) {
+                final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                return new AvroRowDataSerializationSchema(
+                        rowType,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                subject.get(),
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
+                        RowDataToAvroConverters.createConverter(rowType));
+            }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_URL);
-		return options;
-	}
+            @Override
+            public ChangelogMode getChangelogMode() {
+                return ChangelogMode.insertOnly();
+            }
+        };
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(SCHEMA_REGISTRY_SUBJECT);
-		return options;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(URL);
+        return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(SUBJECT);
+        options.add(PROPERTIES);
+        options.add(SSL_KEYSTORE_LOCATION);
+        options.add(SSL_KEYSTORE_PASSWORD);
+        options.add(SSL_TRUSTSTORE_LOCATION);
+        options.add(SSL_TRUSTSTORE_PASSWORD);
+        options.add(BASIC_AUTH_CREDENTIALS_SOURCE);
+        options.add(BASIC_AUTH_USER_INFO);
+        options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
+        options.add(BEARER_AUTH_TOKEN);
+        return options;
+    }
+
+    public static @Nullable Map<String, String> buildOptionalPropertiesMap(
+            ReadableConfig formatOptions) {
+        final Map<String, String> properties = new HashMap<>();
+
+        formatOptions.getOptional(PROPERTIES).ifPresent(properties::putAll);
+
+        formatOptions
+                .getOptional(SSL_KEYSTORE_LOCATION)
+                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.location", v));
+        formatOptions
+                .getOptional(SSL_KEYSTORE_PASSWORD)
+                .ifPresent(v -> properties.put("schema.registry.ssl.keystore.password", v));
+        formatOptions
+                .getOptional(SSL_TRUSTSTORE_LOCATION)
+                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.location", v));
+        formatOptions
+                .getOptional(SSL_TRUSTSTORE_PASSWORD)
+                .ifPresent(v -> properties.put("schema.registry.ssl.truststore.password", v));
+        formatOptions
+                .getOptional(BASIC_AUTH_CREDENTIALS_SOURCE)
+                .ifPresent(v -> properties.put("basic.auth.credentials.source", v));
+        formatOptions
+                .getOptional(BASIC_AUTH_USER_INFO)
+                .ifPresent(v -> properties.put("basic.auth.user.info", v));
+        formatOptions
+                .getOptional(BEARER_AUTH_CREDENTIALS_SOURCE)
+                .ifPresent(v -> properties.put("bearer.auth.credentials.source", v));
+        formatOptions
+                .getOptional(BEARER_AUTH_TOKEN)
+                .ifPresent(v -> properties.put("bearer.auth.token", v));
+
+        if (properties.isEmpty()) {
+            return null;
+        }
+        return properties;
+    }
 }

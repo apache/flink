@@ -25,299 +25,316 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 
 import java.util.Objects;
 
-/**
- * Checkpoint statistics for a subtask.
- */
+/** Checkpoint statistics for a subtask. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
 @JsonSubTypes({
-	@JsonSubTypes.Type(value = SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.class, name = "completed"),
-	@JsonSubTypes.Type(value = SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics.class, name = "pending")})
+    @JsonSubTypes.Type(
+            value = SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.class,
+            name = "completed"),
+    @JsonSubTypes.Type(
+            value = SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics.class,
+            name = "pending")
+})
 public class SubtaskCheckpointStatistics {
 
-	public static final String FIELD_NAME_INDEX = "index";
+    public static final String FIELD_NAME_INDEX = "index";
 
-	public static final String FIELD_NAME_CHECKPOINT_STATUS = "status";
+    public static final String FIELD_NAME_CHECKPOINT_STATUS = "status";
 
-	@JsonProperty(FIELD_NAME_INDEX)
-	private final int index;
+    @JsonProperty(FIELD_NAME_INDEX)
+    private final int index;
 
-	@JsonProperty(FIELD_NAME_CHECKPOINT_STATUS)
-	private final String checkpointStatus;
+    @JsonProperty(FIELD_NAME_CHECKPOINT_STATUS)
+    private final String checkpointStatus;
 
-	@JsonCreator
-	private SubtaskCheckpointStatistics(
-			@JsonProperty(FIELD_NAME_INDEX) int index,
-			@JsonProperty(FIELD_NAME_CHECKPOINT_STATUS) String checkpointStatus) {
-		this.index = index;
-		this.checkpointStatus = checkpointStatus;
-	}
+    @JsonCreator
+    private SubtaskCheckpointStatistics(
+            @JsonProperty(FIELD_NAME_INDEX) int index,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_STATUS) String checkpointStatus) {
+        this.index = index;
+        this.checkpointStatus = checkpointStatus;
+    }
 
-	public int getIndex() {
-		return index;
-	}
+    public int getIndex() {
+        return index;
+    }
 
-	public String getCheckpointStatus() {
-		return checkpointStatus;
-	}
+    public String getCheckpointStatus() {
+        return checkpointStatus;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		SubtaskCheckpointStatistics that = (SubtaskCheckpointStatistics) o;
-		return index == that.index &&
-			Objects.equals(checkpointStatus, that.checkpointStatus);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SubtaskCheckpointStatistics that = (SubtaskCheckpointStatistics) o;
+        return index == that.index && Objects.equals(checkpointStatus, that.checkpointStatus);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(index, checkpointStatus);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(index, checkpointStatus);
+    }
 
-	// ---------------------------------------------------------------------------------
-	// Static inner classes
-	// ---------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------
+    // Static inner classes
+    // ---------------------------------------------------------------------------------
 
-	/**
-	 * Checkpoint statistics for a completed subtask checkpoint.
-	 */
-	public static final class CompletedSubtaskCheckpointStatistics extends SubtaskCheckpointStatistics {
+    /** Checkpoint statistics for a completed subtask checkpoint. */
+    public static final class CompletedSubtaskCheckpointStatistics
+            extends SubtaskCheckpointStatistics {
 
-		public static final String FIELD_NAME_ACK_TIMESTAMP = "ack_timestamp";
+        public static final String FIELD_NAME_ACK_TIMESTAMP = "ack_timestamp";
 
-		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
+        public static final String FIELD_NAME_DURATION = "end_to_end_duration";
 
-		/**
-		 * The accurate name of this field should be 'checkpointed_data_size',
-		 * keep it as before to not break backwards compatibility for old web UI.
-		 *
-		 * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
-		 */
-		public static final String FIELD_NAME_STATE_SIZE = "state_size";
+        /**
+         * The accurate name of this field should be 'checkpointed_data_size', keep it as before to
+         * not break backwards compatibility for old web UI.
+         *
+         * @see <a href="https://issues.apache.org/jira/browse/FLINK-13390">FLINK-13390</a>
+         */
+        public static final String FIELD_NAME_STATE_SIZE = "state_size";
 
-		public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint";
+        public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint";
 
-		public static final String FIELD_NAME_ALIGNMENT = "alignment";
+        public static final String FIELD_NAME_ALIGNMENT = "alignment";
 
-		public static final String FIELD_NAME_START_DELAY = "start_delay";
+        public static final String FIELD_NAME_START_DELAY = "start_delay";
 
-		@JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
-		private final long ackTimestamp;
+        public static final String FIELD_NAME_UNALIGNED_CHECKPOINT = "unaligned_checkpoint";
 
-		@JsonProperty(FIELD_NAME_DURATION)
-		private final long duration;
+        public static final String FIELD_NAME_ABORTED = "aborted";
 
-		@JsonProperty(FIELD_NAME_STATE_SIZE)
-		private final long stateSize;
+        @JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
+        private final long ackTimestamp;
 
-		@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION)
-		private final CheckpointDuration checkpointDuration;
+        @JsonProperty(FIELD_NAME_DURATION)
+        private final long duration;
 
-		@JsonProperty(FIELD_NAME_ALIGNMENT)
-		private final CheckpointAlignment alignment;
+        @JsonProperty(FIELD_NAME_STATE_SIZE)
+        private final long stateSize;
 
-		@JsonProperty(FIELD_NAME_START_DELAY)
-		private final long startDelay;
+        @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION)
+        private final CheckpointDuration checkpointDuration;
 
-		@JsonCreator
-		public CompletedSubtaskCheckpointStatistics(
-				@JsonProperty(FIELD_NAME_INDEX) int index,
-				@JsonProperty(FIELD_NAME_ACK_TIMESTAMP) long ackTimestamp,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
-				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
-				@JsonProperty(FIELD_NAME_START_DELAY) long startDelay) {
-			super(index, "completed");
-			this.ackTimestamp = ackTimestamp;
-			this.duration = duration;
-			this.stateSize = stateSize;
-			this.checkpointDuration = checkpointDuration;
-			this.alignment = alignment;
-			this.startDelay = startDelay;
-		}
+        @JsonProperty(FIELD_NAME_ALIGNMENT)
+        private final CheckpointAlignment alignment;
 
-		public long getAckTimestamp() {
-			return ackTimestamp;
-		}
+        @JsonProperty(FIELD_NAME_START_DELAY)
+        private final long startDelay;
 
-		public long getDuration() {
-			return duration;
-		}
+        @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINT)
+        private boolean unalignedCheckpoint;
 
-		public long getStateSize() {
-			return stateSize;
-		}
+        @JsonProperty(FIELD_NAME_ABORTED)
+        private final boolean aborted;
 
-		public CheckpointDuration getCheckpointDuration() {
-			return checkpointDuration;
-		}
+        @JsonCreator
+        public CompletedSubtaskCheckpointStatistics(
+                @JsonProperty(FIELD_NAME_INDEX) int index,
+                @JsonProperty(FIELD_NAME_ACK_TIMESTAMP) long ackTimestamp,
+                @JsonProperty(FIELD_NAME_DURATION) long duration,
+                @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
+                @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
+                @JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
+                @JsonProperty(FIELD_NAME_START_DELAY) long startDelay,
+                @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINT) boolean unalignedCheckpoint,
+                @JsonProperty(FIELD_NAME_ABORTED) boolean aborted) {
+            super(index, "completed");
+            this.ackTimestamp = ackTimestamp;
+            this.duration = duration;
+            this.stateSize = stateSize;
+            this.checkpointDuration = checkpointDuration;
+            this.alignment = alignment;
+            this.startDelay = startDelay;
+            this.unalignedCheckpoint = unalignedCheckpoint;
+            this.aborted = aborted;
+        }
 
-		public CheckpointAlignment getAlignment() {
-			return alignment;
-		}
+        public long getAckTimestamp() {
+            return ackTimestamp;
+        }
 
-		public long getStartDelay() {
-			return startDelay;
-		}
+        public long getDuration() {
+            return duration;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			CompletedSubtaskCheckpointStatistics that = (CompletedSubtaskCheckpointStatistics) o;
-			return ackTimestamp == that.ackTimestamp &&
-				duration == that.duration &&
-				stateSize == that.stateSize &&
-				Objects.equals(checkpointDuration, that.checkpointDuration) &&
-				Objects.equals(alignment, that.alignment) &&
-				startDelay == that.startDelay;
-		}
+        public long getStateSize() {
+            return stateSize;
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(
-				ackTimestamp,
-				duration,
-				stateSize,
-				checkpointDuration,
-				alignment,
-				startDelay);
-		}
+        public CheckpointDuration getCheckpointDuration() {
+            return checkpointDuration;
+        }
 
-		/**
-		 * Duration of the checkpoint.
-		 */
-		public static final class CheckpointDuration {
+        public CheckpointAlignment getAlignment() {
+            return alignment;
+        }
 
-			public static final String FIELD_NAME_SYNC_DURATION = "sync";
+        public long getStartDelay() {
+            return startDelay;
+        }
 
-			public static final String FIELD_NAME_ASYNC_DURATION = "async";
+        public boolean getUnalignedCheckpoint() {
+            return unalignedCheckpoint;
+        }
 
-			@JsonProperty(FIELD_NAME_SYNC_DURATION)
-			private final long syncDuration;
+        public boolean isAborted() {
+            return aborted;
+        }
 
-			@JsonProperty(FIELD_NAME_ASYNC_DURATION)
-			private final long asyncDuration;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            CompletedSubtaskCheckpointStatistics that = (CompletedSubtaskCheckpointStatistics) o;
+            return ackTimestamp == that.ackTimestamp
+                    && duration == that.duration
+                    && stateSize == that.stateSize
+                    && Objects.equals(checkpointDuration, that.checkpointDuration)
+                    && Objects.equals(alignment, that.alignment)
+                    && startDelay == that.startDelay
+                    && unalignedCheckpoint == that.unalignedCheckpoint
+                    && aborted == that.aborted;
+        }
 
-			@JsonCreator
-			public CheckpointDuration(
-					@JsonProperty(FIELD_NAME_SYNC_DURATION) long syncDuration,
-					@JsonProperty(FIELD_NAME_ASYNC_DURATION) long asyncDuration) {
-				this.syncDuration = syncDuration;
-				this.asyncDuration = asyncDuration;
-			}
+        @Override
+        public int hashCode() {
+            return Objects.hash(
+                    ackTimestamp,
+                    duration,
+                    stateSize,
+                    checkpointDuration,
+                    alignment,
+                    startDelay,
+                    unalignedCheckpoint,
+                    aborted);
+        }
 
-			public long getSyncDuration() {
-				return syncDuration;
-			}
+        /** Duration of the checkpoint. */
+        public static final class CheckpointDuration {
 
-			public long getAsyncDuration() {
-				return asyncDuration;
-			}
+            public static final String FIELD_NAME_SYNC_DURATION = "sync";
 
-			@Override
-			public boolean equals(Object o) {
-				if (this == o) {
-					return true;
-				}
-				if (o == null || getClass() != o.getClass()) {
-					return false;
-				}
-				CheckpointDuration that = (CheckpointDuration) o;
-				return syncDuration == that.syncDuration &&
-					asyncDuration == that.asyncDuration;
-			}
+            public static final String FIELD_NAME_ASYNC_DURATION = "async";
 
-			@Override
-			public int hashCode() {
-				return Objects.hash(syncDuration, asyncDuration);
-			}
-		}
+            @JsonProperty(FIELD_NAME_SYNC_DURATION)
+            private final long syncDuration;
 
-		/**
-		 * Alignment statistics of the checkpoint.
-		 */
-		public static final class CheckpointAlignment {
+            @JsonProperty(FIELD_NAME_ASYNC_DURATION)
+            private final long asyncDuration;
 
-			public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "buffered";
+            @JsonCreator
+            public CheckpointDuration(
+                    @JsonProperty(FIELD_NAME_SYNC_DURATION) long syncDuration,
+                    @JsonProperty(FIELD_NAME_ASYNC_DURATION) long asyncDuration) {
+                this.syncDuration = syncDuration;
+                this.asyncDuration = asyncDuration;
+            }
 
-			public static final String FIELD_NAME_ALIGNMENT_PROCESSED = "processed";
+            public long getSyncDuration() {
+                return syncDuration;
+            }
 
-			public static final String FIELD_NAME_ALIGNMENT_PERSISTED = "persisted";
+            public long getAsyncDuration() {
+                return asyncDuration;
+            }
 
-			public static final String FIELD_NAME_ALIGNMENT_DURATION = "duration";
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
+                }
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                CheckpointDuration that = (CheckpointDuration) o;
+                return syncDuration == that.syncDuration && asyncDuration == that.asyncDuration;
+            }
 
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-			private final long alignmentBuffered;
+            @Override
+            public int hashCode() {
+                return Objects.hash(syncDuration, asyncDuration);
+            }
+        }
 
-			@JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED)
-			private final long processed;
+        /** Alignment statistics of the checkpoint. */
+        public static final class CheckpointAlignment {
 
-			@JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED)
-			private final long persisted;
+            public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "buffered";
 
-			@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION)
-			private final long alignmentDuration;
+            public static final String FIELD_NAME_ALIGNMENT_PROCESSED = "processed";
 
-			@JsonCreator
-			public CheckpointAlignment(
-					@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
-					@JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED) long processed,
-					@JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED) long persisted,
-					@JsonProperty(FIELD_NAME_ALIGNMENT_DURATION) long alignmentDuration) {
-				this.alignmentBuffered = alignmentBuffered;
-				this.processed = processed;
-				this.persisted = persisted;
-				this.alignmentDuration = alignmentDuration;
-			}
+            public static final String FIELD_NAME_ALIGNMENT_PERSISTED = "persisted";
 
-			public long getAlignmentDuration() {
-				return alignmentDuration;
-			}
+            public static final String FIELD_NAME_ALIGNMENT_DURATION = "duration";
 
-			@Override
-			public boolean equals(Object o) {
-				if (this == o) {
-					return true;
-				}
-				if (o == null || getClass() != o.getClass()) {
-					return false;
-				}
-				CheckpointAlignment that = (CheckpointAlignment) o;
-				return alignmentBuffered == that.alignmentBuffered &&
-					processed == that.processed &&
-					persisted == that.persisted &&
-					alignmentDuration == that.alignmentDuration;
-			}
+            @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
+            private final long alignmentBuffered;
 
-			@Override
-			public int hashCode() {
-				return Objects.hash(
-					alignmentBuffered,
-					processed,
-					persisted,
-					alignmentDuration);
-			}
-		}
-	}
+            @JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED)
+            private final long processed;
 
-	/**
-	 * Checkpoint statistics for a pending subtask checkpoint.
-	 */
-	public static final class PendingSubtaskCheckpointStatistics extends SubtaskCheckpointStatistics {
+            @JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED)
+            private final long persisted;
 
-		@JsonCreator
-		public PendingSubtaskCheckpointStatistics(@JsonProperty(FIELD_NAME_INDEX) int index) {
-			super(index, "pending_or_failed");
-		}
-	}
+            @JsonProperty(FIELD_NAME_ALIGNMENT_DURATION)
+            private final long alignmentDuration;
+
+            @JsonCreator
+            public CheckpointAlignment(
+                    @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
+                    @JsonProperty(FIELD_NAME_ALIGNMENT_PROCESSED) long processed,
+                    @JsonProperty(FIELD_NAME_ALIGNMENT_PERSISTED) long persisted,
+                    @JsonProperty(FIELD_NAME_ALIGNMENT_DURATION) long alignmentDuration) {
+                this.alignmentBuffered = alignmentBuffered;
+                this.processed = processed;
+                this.persisted = persisted;
+                this.alignmentDuration = alignmentDuration;
+            }
+
+            public long getAlignmentDuration() {
+                return alignmentDuration;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) {
+                    return true;
+                }
+                if (o == null || getClass() != o.getClass()) {
+                    return false;
+                }
+                CheckpointAlignment that = (CheckpointAlignment) o;
+                return alignmentBuffered == that.alignmentBuffered
+                        && processed == that.processed
+                        && persisted == that.persisted
+                        && alignmentDuration == that.alignmentDuration;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(alignmentBuffered, processed, persisted, alignmentDuration);
+            }
+        }
+    }
+
+    /** Checkpoint statistics for a pending subtask checkpoint. */
+    public static final class PendingSubtaskCheckpointStatistics
+            extends SubtaskCheckpointStatistics {
+
+        @JsonCreator
+        public PendingSubtaskCheckpointStatistics(@JsonProperty(FIELD_NAME_INDEX) int index) {
+            super(index, "pending_or_failed");
+        }
+    }
 }

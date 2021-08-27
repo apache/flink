@@ -31,31 +31,28 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Support setting environment variables via Secrets.
- */
+/** Support setting environment variables via Secrets. */
 public class EnvSecretsDecorator extends AbstractKubernetesStepDecorator {
 
-	private final AbstractKubernetesParameters kubernetesComponentConf;
+    private final AbstractKubernetesParameters kubernetesComponentConf;
 
-	public EnvSecretsDecorator(AbstractKubernetesParameters kubernetesComponentConf) {
-		this.kubernetesComponentConf = checkNotNull(kubernetesComponentConf);
-	}
+    public EnvSecretsDecorator(AbstractKubernetesParameters kubernetesComponentConf) {
+        this.kubernetesComponentConf = checkNotNull(kubernetesComponentConf);
+    }
 
-	@Override
-	public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-		final Container basicMainContainer = new ContainerBuilder(flinkPod.getMainContainer())
-			.addAllToEnv(getSecretEnvs())
-			.build();
+    @Override
+    public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
+        final Container basicMainContainer =
+                new ContainerBuilder(flinkPod.getMainContainer())
+                        .addAllToEnv(getSecretEnvs())
+                        .build();
 
-		return new FlinkPod.Builder(flinkPod)
-			.withMainContainer(basicMainContainer)
-			.build();
-	}
+        return new FlinkPod.Builder(flinkPod).withMainContainer(basicMainContainer).build();
+    }
 
-	private List<EnvVar> getSecretEnvs() {
-		return kubernetesComponentConf.getEnvironmentsFromSecrets().stream()
-			.map(e -> KubernetesSecretEnvVar.fromMap(e).getInternalResource())
-			.collect(Collectors.toList());
-	}
+    private List<EnvVar> getSecretEnvs() {
+        return kubernetesComponentConf.getEnvironmentsFromSecrets().stream()
+                .map(e -> KubernetesSecretEnvVar.fromMap(e).getInternalResource())
+                .collect(Collectors.toList());
+    }
 }

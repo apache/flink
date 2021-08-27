@@ -31,50 +31,50 @@ import java.util.Collection;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link PipelineExecutorFactory} for an {@link EmbeddedExecutor}
- * that returns a {@link WebSubmissionJobClient}.
+ * A {@link PipelineExecutorFactory} for an {@link EmbeddedExecutor} that returns a {@link
+ * WebSubmissionJobClient}.
  */
 @Internal
 public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
 
-	private final Collection<JobID> submittedJobIds;
+    private final Collection<JobID> submittedJobIds;
 
-	private final DispatcherGateway dispatcherGateway;
+    private final DispatcherGateway dispatcherGateway;
 
-	/**
-	 * Creates an {@link WebSubmissionExecutorFactory}.
-	 *
-	 * @param submittedJobIds   a list that is going to be filled with the job ids of the
-	 *                          new jobs that will be submitted. This is essentially used to return the submitted job ids
-	 *                          to the caller.
-	 * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit jobs.
-	 */
-	public WebSubmissionExecutorFactory(
-			final Collection<JobID> submittedJobIds,
-			final DispatcherGateway dispatcherGateway) {
-		this.submittedJobIds = checkNotNull(submittedJobIds);
-		this.dispatcherGateway = checkNotNull(dispatcherGateway);
-	}
+    /**
+     * Creates an {@link WebSubmissionExecutorFactory}.
+     *
+     * @param submittedJobIds a list that is going to be filled with the job ids of the new jobs
+     *     that will be submitted. This is essentially used to return the submitted job ids to the
+     *     caller.
+     * @param dispatcherGateway the dispatcher of the cluster which is going to be used to submit
+     *     jobs.
+     */
+    public WebSubmissionExecutorFactory(
+            final Collection<JobID> submittedJobIds, final DispatcherGateway dispatcherGateway) {
+        this.submittedJobIds = checkNotNull(submittedJobIds);
+        this.dispatcherGateway = checkNotNull(dispatcherGateway);
+    }
 
-	@Override
-	public String getName() {
-		return EmbeddedExecutor.NAME;
-	}
+    @Override
+    public String getName() {
+        return EmbeddedExecutor.NAME;
+    }
 
-	@Override
-	public boolean isCompatibleWith(final Configuration configuration) {
-		// this is always false because we simply have a special executor loader
-		// for this one that does not check for compatibility.
-		return false;
-	}
+    @Override
+    public boolean isCompatibleWith(final Configuration configuration) {
+        // this is always false because we simply have a special executor loader
+        // for this one that does not check for compatibility.
+        return false;
+    }
 
-	@Override
-	public PipelineExecutor getExecutor(final Configuration configuration) {
-		checkNotNull(configuration);
+    @Override
+    public PipelineExecutor getExecutor(final Configuration configuration) {
+        checkNotNull(configuration);
 
-		return new EmbeddedExecutor(
-				submittedJobIds,
-				dispatcherGateway,
-				(jobId, userCodeClassloader) -> new WebSubmissionJobClient(jobId));
-	}
+        return new EmbeddedExecutor(
+                submittedJobIds,
+                dispatcherGateway,
+                (jobId, userCodeClassloader) -> new WebSubmissionJobClient(jobId));
+    }
 }

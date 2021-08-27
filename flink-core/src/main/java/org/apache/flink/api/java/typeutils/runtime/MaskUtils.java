@@ -23,90 +23,96 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Utilities for reading and writing binary masks.
- */
+/** Utilities for reading and writing binary masks. */
 @Internal
 public final class MaskUtils {
 
-	@SuppressWarnings("UnusedAssignment")
-	public static void writeMask(boolean[] mask, DataOutputView target) throws IOException {
-		final int len = mask.length;
+    public static void writeMask(boolean[] mask, DataOutputView target) throws IOException {
+        writeMask(mask, mask.length, target);
+    }
 
-		int b = 0x00;
-		int bytePos = 0;
+    @SuppressWarnings("UnusedAssignment")
+    public static void writeMask(boolean[] mask, int len, DataOutputView target)
+            throws IOException {
+        int b = 0x00;
+        int bytePos = 0;
 
-		int fieldPos = 0;
-		int numPos = 0;
-		while (fieldPos < len) {
-			b = 0x00;
-			// set bits in byte
-			bytePos = 0;
-			numPos = Math.min(8, len - fieldPos);
-			while (bytePos < numPos) {
-				b = b << 1;
-				// set bit if element is true
-				if (mask[fieldPos + bytePos]) {
-					b |= 0x01;
-				}
-				bytePos += 1;
-			}
-			fieldPos += numPos;
-			// shift bits if last byte is not completely filled
-			b <<= (8 - bytePos);
-			// write byte
-			target.writeByte(b);
-		}
-	}
+        int fieldPos = 0;
+        int numPos = 0;
+        while (fieldPos < len) {
+            b = 0x00;
+            // set bits in byte
+            bytePos = 0;
+            numPos = Math.min(8, len - fieldPos);
+            while (bytePos < numPos) {
+                b = b << 1;
+                // set bit if element is true
+                if (mask[fieldPos + bytePos]) {
+                    b |= 0x01;
+                }
+                bytePos += 1;
+            }
+            fieldPos += numPos;
+            // shift bits if last byte is not completely filled
+            b <<= (8 - bytePos);
+            // write byte
+            target.writeByte(b);
+        }
+    }
 
-	@SuppressWarnings("UnusedAssignment")
-	public static void readIntoMask(DataInputView source, boolean[] mask) throws IOException {
-		final int len = mask.length;
+    public static void readIntoMask(DataInputView source, boolean[] mask) throws IOException {
+        readIntoMask(source, mask, mask.length);
+    }
 
-		int b = 0x00;
-		int bytePos = 0;
+    @SuppressWarnings("UnusedAssignment")
+    public static void readIntoMask(DataInputView source, boolean[] mask, int len)
+            throws IOException {
+        int b = 0x00;
+        int bytePos = 0;
 
-		int fieldPos = 0;
-		int numPos = 0;
-		while (fieldPos < len) {
-			// read byte
-			b = source.readUnsignedByte();
-			bytePos = 0;
-			numPos = Math.min(8, len - fieldPos);
-			while (bytePos < numPos) {
-				mask[fieldPos + bytePos] = (b & 0x80) > 0;
-				b = b << 1;
-				bytePos += 1;
-			}
-			fieldPos += numPos;
-		}
-	}
+        int fieldPos = 0;
+        int numPos = 0;
+        while (fieldPos < len) {
+            // read byte
+            b = source.readUnsignedByte();
+            bytePos = 0;
+            numPos = Math.min(8, len - fieldPos);
+            while (bytePos < numPos) {
+                mask[fieldPos + bytePos] = (b & 0x80) > 0;
+                b = b << 1;
+                bytePos += 1;
+            }
+            fieldPos += numPos;
+        }
+    }
 
-	@SuppressWarnings("UnusedAssignment")
-	public static void readIntoAndCopyMask(
-			DataInputView source,
-			DataOutputView target,
-			boolean[] mask) throws IOException {
-		final int len = mask.length;
+    public static void readIntoAndCopyMask(
+            DataInputView source, DataOutputView target, boolean[] mask) throws IOException {
+        readIntoAndCopyMask(source, target, mask, mask.length);
+    }
 
-		int b = 0x00;
-		int bytePos = 0;
+    @SuppressWarnings("UnusedAssignment")
+    public static void readIntoAndCopyMask(
+            DataInputView source, DataOutputView target, boolean[] mask, int len)
+            throws IOException {
+        int b = 0x00;
+        int bytePos = 0;
 
-		int fieldPos = 0;
-		int numPos = 0;
-		while (fieldPos < len) {
-			// read byte
-			b = source.readUnsignedByte();
-			// copy byte
-			target.writeByte(b);
-			bytePos = 0;
-			numPos = Math.min(8, len - fieldPos);
-			while (bytePos < numPos) {
-				mask[fieldPos + bytePos] = (b & 0x80) > 0;
-				b = b << 1;
-				bytePos += 1;
-			}
-			fieldPos += numPos;
-		}
-	}
+        int fieldPos = 0;
+        int numPos = 0;
+        while (fieldPos < len) {
+            // read byte
+            b = source.readUnsignedByte();
+            // copy byte
+            target.writeByte(b);
+            bytePos = 0;
+            numPos = Math.min(8, len - fieldPos);
+            while (bytePos < numPos) {
+                mask[fieldPos + bytePos] = (b & 0x80) > 0;
+                b = b << 1;
+                bytePos += 1;
+            }
+            fieldPos += numPos;
+        }
+    }
 }

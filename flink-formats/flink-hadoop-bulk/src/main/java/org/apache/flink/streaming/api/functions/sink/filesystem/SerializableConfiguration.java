@@ -24,32 +24,30 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-/**
- * Wrapper of hadoop Configuration to make it serializable.
- */
+/** Wrapper of hadoop Configuration to make it serializable. */
 public class SerializableConfiguration implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient Configuration configuration;
+    private transient Configuration configuration;
 
-	public SerializableConfiguration(Configuration configuration) {
-		this.configuration = configuration;
-	}
+    public SerializableConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+    }
 
-	public Configuration getConfiguration() {
-		return configuration;
-	}
+    public Configuration getConfiguration() {
+        return configuration;
+    }
 
-	private void writeObject(ObjectOutputStream out) throws IOException {
-		configuration.write(out);
-	}
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        configuration.write(out);
+    }
 
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		if (configuration == null) {
-			configuration = new Configuration();
-		}
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        if (configuration == null) {
+            configuration = new Configuration();
+        }
 
-		configuration.readFields(in);
-	}
+        configuration.readFields(in);
+    }
 }

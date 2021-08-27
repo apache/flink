@@ -23,10 +23,11 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.eventtime.{TimestampAssigner, WatermarkGenerator, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
-import org.apache.flink.api.common.operators.ResourceSpec
+import org.apache.flink.api.common.operators.{ResourceSpec, SlotSharingGroup}
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.sink.Sink
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -40,7 +41,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{CloseableIterator, Collector}
 
 import scala.collection.JavaConverters._
 
@@ -318,6 +319,29 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @PublicEvolving
   def slotSharingGroup(slotSharingGroup: String): DataStream[T] = {
+    stream match {
+      case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
+      case _ =>
+        throw new UnsupportedOperationException("Only supported for operators.")
+    }
+    this
+  }
+
+  /**
+   * Sets the slot sharing group of this operation. Parallel instances of
+   * operations that are in the same slot sharing group will be co-located in the same
+   * TaskManager slot, if possible.
+   *
+   * Operations inherit the slot sharing group of input operations if all input operations
+   * are in the same slot sharing group and no slot sharing group was explicitly specified.
+   *
+   * Initially an operation is in the default slot sharing group. An operation can be put into
+   * the default group explicitly by setting the slot sharing group to `"default"`.
+   *
+   * @param slotSharingGroup Which contains name and its resource spec.
+   */
+  @PublicEvolving
+  def slotSharingGroup(slotSharingGroup: SlotSharingGroup): DataStream[T] = {
     stream match {
       case ds: SingleOutputStreamOperator[T] => ds.slotSharingGroup(slotSharingGroup)
       case _ =>
@@ -1124,6 +1148,61 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     this.addSink(sinkFunction)
   }
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   */
+  def sinkTo(sink: Sink[T, _, _, _]): DataStreamSink[T] = stream.sinkTo(sink)
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect())
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(jobExecutionName: String): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect(jobExecutionName))
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(limit: Int): List[T] =
+    stream.executeAndCollect(limit).asScala.toList
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(jobExecutionName: String, limit: Int): List[T] =
+    stream.executeAndCollect(jobExecutionName, limit).asScala.toList
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning

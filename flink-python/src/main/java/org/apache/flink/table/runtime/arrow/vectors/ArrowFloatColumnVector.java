@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,28 +24,24 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.Float4Vector;
 
-/**
- * Arrow column vector for Float.
- */
+/** Arrow column vector for Float. */
 @Internal
 public final class ArrowFloatColumnVector implements FloatColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of float values of a column to read.
-	 */
-	private final Float4Vector floatVector;
+    /** Container which is used to store the sequence of float values of a column to read. */
+    private final Float4Vector floatVector;
 
-	public ArrowFloatColumnVector(Float4Vector floatVector) {
-		this.floatVector = Preconditions.checkNotNull(floatVector);
-	}
+    public ArrowFloatColumnVector(Float4Vector floatVector) {
+        this.floatVector = Preconditions.checkNotNull(floatVector);
+    }
 
-	@Override
-	public float getFloat(int i) {
-		return floatVector.get(i);
-	}
+    @Override
+    public float getFloat(int i) {
+        return floatVector.get(i);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return floatVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return floatVector.isNull(i);
+    }
 }

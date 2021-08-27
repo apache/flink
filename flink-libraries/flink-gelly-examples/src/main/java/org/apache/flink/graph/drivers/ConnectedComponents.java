@@ -27,41 +27,37 @@ import org.apache.flink.graph.library.GSAConnectedComponents;
 /**
  * Driver for {@link org.apache.flink.graph.library.GSAConnectedComponents}.
  *
- * <p>The gather-sum-apply implementation is used because scatter-gather does not
- * handle object reuse (see FLINK-5891).
+ * <p>The gather-sum-apply implementation is used because scatter-gather does not handle object
+ * reuse (see FLINK-5891).
  */
-public class ConnectedComponents<K extends Comparable<K>, VV, EV>
-extends DriverBase<K, VV, EV> {
+public class ConnectedComponents<K extends Comparable<K>, VV, EV> extends DriverBase<K, VV, EV> {
 
-	@Override
-	public String getShortDescription() {
-		return "ConnectedComponents";
-	}
+    @Override
+    public String getShortDescription() {
+        return "ConnectedComponents";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return "ConnectedComponents";
-	}
+    @Override
+    public String getLongDescription() {
+        return "ConnectedComponents";
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		return graph
-			.mapVertices(new MapVertices<>())
-			.run(new GSAConnectedComponents<>(Integer.MAX_VALUE));
-	}
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        return graph.mapVertices(new MapVertices<>())
+                .run(new GSAConnectedComponents<>(Integer.MAX_VALUE));
+    }
 
-	/**
-	 * Initialize vertices into separate components by setting each vertex
-	 * value to the vertex ID.
-	 *
-	 * @param <T> vertex ID type
-	 * @param <VT> vertex value type
-	 */
-	private static final class MapVertices<T, VT>
-	implements MapFunction<Vertex<T, VT>, T> {
-		@Override
-		public T map(Vertex<T, VT> value) throws Exception {
-			return value.f0;
-		}
-	}
+    /**
+     * Initialize vertices into separate components by setting each vertex value to the vertex ID.
+     *
+     * @param <T> vertex ID type
+     * @param <VT> vertex value type
+     */
+    private static final class MapVertices<T, VT> implements MapFunction<Vertex<T, VT>, T> {
+        @Override
+        public T map(Vertex<T, VT> value) throws Exception {
+            return value.f0;
+        }
+    }
 }

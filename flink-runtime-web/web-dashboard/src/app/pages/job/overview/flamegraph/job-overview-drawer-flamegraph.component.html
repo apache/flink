@@ -1,0 +1,48 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+
+<span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
+          Operator is not running. Cannot sample back pressure.
+</span>
+
+Type:
+<nz-radio-group [(ngModel)]="graphType" nzButtonStyle="solid">
+  <label nz-radio-button nzValue="on_cpu" (click)="selectFrameGraphType()" title="Includes Thread.State.[RUNNABLE, NEW]">On-CPU</label>
+  <label nz-radio-button nzValue="off_cpu" (click)="selectFrameGraphType()" title="Includes Thread.State.[WAITING, TIMED_WAITING, BLOCKED]">Off-CPU</label>
+  <label nz-radio-button nzValue="full" (click)="selectFrameGraphType()" title="Includes stack traces of threads in all states">Mixed</label>
+</nz-radio-group>
+
+<ng-container [ngSwitch]="flameGraph.endTimestamp">
+  <span *ngSwitchCase="-1">The task has already been terminated</span>
+  <span *ngSwitchCase="-2">The flame graph feature is currently disabled (enable it by setting rest.flamegraph.enabled: true)</span>
+  <span *ngSwitchCase="-3">We are waiting for the first samples to create a flame graph</span>
+  <span *ngSwitchDefault>Measurement: {{ (now - flameGraph.endTimestamp) | humanizeDuration }} ago</span>
+</ng-container>
+
+<div class="flame-graph-area">
+  <flink-flame-graph [data]="flameGraph['data']" [graphType]="graphType"></flink-flame-graph>
+</div>
+
+<div style="padding-top: 100px">
+  <nz-spin *ngIf="isLoading"></nz-spin>
+</div>
+
+
+
+

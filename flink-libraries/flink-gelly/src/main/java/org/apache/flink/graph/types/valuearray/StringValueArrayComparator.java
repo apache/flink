@@ -37,181 +37,186 @@ import static org.apache.flink.graph.types.valuearray.StringValueArray.HIGH_BIT;
 @Internal
 public class StringValueArrayComparator extends TypeComparator<StringValueArray> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final boolean ascendingComparison;
+    private final boolean ascendingComparison;
 
-	private final StringValueArray reference = new StringValueArray();
+    private final StringValueArray reference = new StringValueArray();
 
-	private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
+    private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
 
-	public StringValueArrayComparator(boolean ascending) {
-		this.ascendingComparison = ascending;
-	}
+    public StringValueArrayComparator(boolean ascending) {
+        this.ascendingComparison = ascending;
+    }
 
-	@Override
-	public int hash(StringValueArray record) {
-		return record.hashCode();
-	}
+    @Override
+    public int hash(StringValueArray record) {
+        return record.hashCode();
+    }
 
-	@Override
-	public void setReference(StringValueArray toCompare) {
-		toCompare.copyTo(reference);
-	}
+    @Override
+    public void setReference(StringValueArray toCompare) {
+        toCompare.copyTo(reference);
+    }
 
-	@Override
-	public boolean equalToReference(StringValueArray candidate) {
-		return candidate.equals(this.reference);
-	}
+    @Override
+    public boolean equalToReference(StringValueArray candidate) {
+        return candidate.equals(this.reference);
+    }
 
-	@Override
-	public int compareToReference(TypeComparator<StringValueArray> referencedComparator) {
-		int comp = ((StringValueArrayComparator) referencedComparator).reference.compareTo(reference);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compareToReference(TypeComparator<StringValueArray> referencedComparator) {
+        int comp =
+                ((StringValueArrayComparator) referencedComparator).reference.compareTo(reference);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	@Override
-	public int compare(StringValueArray first, StringValueArray second) {
-		int comp = first.compareTo(second);
-		return ascendingComparison ? comp : -comp;
-	}
+    @Override
+    public int compare(StringValueArray first, StringValueArray second) {
+        int comp = first.compareTo(second);
+        return ascendingComparison ? comp : -comp;
+    }
 
-	/**
-	 * Read the length of the next serialized {@code StringValue}.
-	 *
-	 * @param source the input view containing the record
-	 * @return the length of the next serialized {@code StringValue}
-	 * @throws IOException if the input view raised an exception when reading the length
-	 */
-	private static int readStringLength(DataInputView source) throws IOException {
-		int len = source.readByte() & 0xFF;
+    /**
+     * Read the length of the next serialized {@code StringValue}.
+     *
+     * @param source the input view containing the record
+     * @return the length of the next serialized {@code StringValue}
+     * @throws IOException if the input view raised an exception when reading the length
+     */
+    private static int readStringLength(DataInputView source) throws IOException {
+        int len = source.readByte() & 0xFF;
 
-		if (len >= HIGH_BIT) {
-			int shift = 7;
-			int curr;
-			len = len & 0x7F;
-			while ((curr = source.readByte() & 0xFF) >= HIGH_BIT) {
-				len |= (curr & 0x7F) << shift;
-				shift += 7;
-			}
-			len |= curr << shift;
-		}
+        if (len >= HIGH_BIT) {
+            int shift = 7;
+            int curr;
+            len = len & 0x7F;
+            while ((curr = source.readByte() & 0xFF) >= HIGH_BIT) {
+                len |= (curr & 0x7F) << shift;
+                shift += 7;
+            }
+            len |= curr << shift;
+        }
 
-		return len;
-	}
+        return len;
+    }
 
-	/**
-	 * Read the next character from the serialized {@code StringValue}.
-	 *
-	 * @param source the input view containing the record
-	 * @return the next {@code char} of the current serialized {@code StringValue}
-	 * @throws IOException if the input view raised an exception when reading the length
-	 */
-	private static char readStringChar(DataInputView source) throws IOException {
-		int c = source.readByte() & 0xFF;
+    /**
+     * Read the next character from the serialized {@code StringValue}.
+     *
+     * @param source the input view containing the record
+     * @return the next {@code char} of the current serialized {@code StringValue}
+     * @throws IOException if the input view raised an exception when reading the length
+     */
+    private static char readStringChar(DataInputView source) throws IOException {
+        int c = source.readByte() & 0xFF;
 
-		if (c >= HIGH_BIT) {
-			int shift = 7;
-			int curr;
-			c = c & 0x7F;
-			while ((curr = source.readByte() & 0xFF) >= HIGH_BIT) {
-				c |= (curr & 0x7F) << shift;
-				shift += 7;
-			}
-			c |= curr << shift;
-		}
+        if (c >= HIGH_BIT) {
+            int shift = 7;
+            int curr;
+            c = c & 0x7F;
+            while ((curr = source.readByte() & 0xFF) >= HIGH_BIT) {
+                c |= (curr & 0x7F) << shift;
+                shift += 7;
+            }
+            c |= curr << shift;
+        }
 
-		return (char) c;
-	}
+        return (char) c;
+    }
 
-	@Override
-	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
-		int firstCount = firstSource.readInt();
-		int secondCount = secondSource.readInt();
+    @Override
+    public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
+            throws IOException {
+        int firstCount = firstSource.readInt();
+        int secondCount = secondSource.readInt();
 
-		int minCount = Math.min(firstCount, secondCount);
-		while (minCount-- > 0) {
-			int firstLength = readStringLength(firstSource);
-			int secondLength = readStringLength(secondSource);
+        int minCount = Math.min(firstCount, secondCount);
+        while (minCount-- > 0) {
+            int firstLength = readStringLength(firstSource);
+            int secondLength = readStringLength(secondSource);
 
-			int minLength = Math.min(firstLength, secondLength);
-			while (minLength-- > 0) {
-				char firstChar = readStringChar(firstSource);
-				char secondChar = readStringChar(secondSource);
+            int minLength = Math.min(firstLength, secondLength);
+            while (minLength-- > 0) {
+                char firstChar = readStringChar(firstSource);
+                char secondChar = readStringChar(secondSource);
 
-				int cmp = Character.compare(firstChar, secondChar);
-				if (cmp != 0) {
-					return ascendingComparison ? cmp : -cmp;
-				}
-			}
+                int cmp = Character.compare(firstChar, secondChar);
+                if (cmp != 0) {
+                    return ascendingComparison ? cmp : -cmp;
+                }
+            }
 
-			int cmp = Integer.compare(firstLength, secondLength);
-			if (cmp != 0) {
-				return ascendingComparison ? cmp : -cmp;
-			}
-		}
+            int cmp = Integer.compare(firstLength, secondLength);
+            if (cmp != 0) {
+                return ascendingComparison ? cmp : -cmp;
+            }
+        }
 
-		int cmp = Integer.compare(firstCount, secondCount);
-		return ascendingComparison ? cmp : -cmp;
-	}
+        int cmp = Integer.compare(firstCount, secondCount);
+        return ascendingComparison ? cmp : -cmp;
+    }
 
-	@Override
-	public boolean supportsNormalizedKey() {
-		return NormalizableKey.class.isAssignableFrom(StringValueArray.class);
-	}
+    @Override
+    public boolean supportsNormalizedKey() {
+        return NormalizableKey.class.isAssignableFrom(StringValueArray.class);
+    }
 
-	@Override
-	public int getNormalizeKeyLen() {
-		return reference.getMaxNormalizedKeyLen();
-	}
+    @Override
+    public int getNormalizeKeyLen() {
+        return reference.getMaxNormalizedKeyLen();
+    }
 
-	@Override
-	public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
-		return keyBytes < getNormalizeKeyLen();
-	}
+    @Override
+    public boolean isNormalizedKeyPrefixOnly(int keyBytes) {
+        return keyBytes < getNormalizeKeyLen();
+    }
 
-	@Override
-	public void putNormalizedKey(StringValueArray record, MemorySegment target, int offset, int numBytes) {
-		record.copyNormalizedKey(target, offset, numBytes);
-	}
+    @Override
+    public void putNormalizedKey(
+            StringValueArray record, MemorySegment target, int offset, int numBytes) {
+        record.copyNormalizedKey(target, offset, numBytes);
+    }
 
-	@Override
-	public boolean invertNormalizedKey() {
-		return !ascendingComparison;
-	}
+    @Override
+    public boolean invertNormalizedKey() {
+        return !ascendingComparison;
+    }
 
-	@Override
-	public TypeComparator<StringValueArray> duplicate() {
-		return new StringValueArrayComparator(ascendingComparison);
-	}
+    @Override
+    public TypeComparator<StringValueArray> duplicate() {
+        return new StringValueArrayComparator(ascendingComparison);
+    }
 
-	@Override
-	public int extractKeys(Object record, Object[] target, int index) {
-		target[index] = record;
-		return 1;
-	}
+    @Override
+    public int extractKeys(Object record, Object[] target, int index) {
+        target[index] = record;
+        return 1;
+    }
 
-	@Override
-	public TypeComparator<?>[] getFlatComparators() {
-		return comparators;
-	}
+    @Override
+    public TypeComparator<?>[] getFlatComparators() {
+        return comparators;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// unsupported normalization
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // unsupported normalization
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean supportsSerializationWithKeyNormalization() {
-		return false;
-	}
+    @Override
+    public boolean supportsSerializationWithKeyNormalization() {
+        return false;
+    }
 
-	@Override
-	public void writeWithKeyNormalization(StringValueArray record, DataOutputView target) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void writeWithKeyNormalization(StringValueArray record, DataOutputView target)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public StringValueArray readWithKeyDenormalization(StringValueArray reuse, DataInputView source) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public StringValueArray readWithKeyDenormalization(StringValueArray reuse, DataInputView source)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
 }

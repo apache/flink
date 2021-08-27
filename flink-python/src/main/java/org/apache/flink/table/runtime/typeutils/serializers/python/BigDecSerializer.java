@@ -36,73 +36,72 @@ import java.math.BigDecimal;
 @Internal
 public class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final BigDecSerializer INSTANCE = new BigDecSerializer();
+    public static final BigDecSerializer INSTANCE = new BigDecSerializer();
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return true;
+    }
 
-	@Override
-	public BigDecimal createInstance() {
-		return BigDecimal.ZERO;
-	}
+    @Override
+    public BigDecimal createInstance() {
+        return BigDecimal.ZERO;
+    }
 
-	@Override
-	public BigDecimal copy(BigDecimal from) {
-		return from;
-	}
+    @Override
+    public BigDecimal copy(BigDecimal from) {
+        return from;
+    }
 
-	@Override
-	public BigDecimal copy(BigDecimal from, BigDecimal reuse) {
-		return from;
-	}
+    @Override
+    public BigDecimal copy(BigDecimal from, BigDecimal reuse) {
+        return from;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(BigDecimal record, DataOutputView target) throws IOException {
-		byte[] bytes = StringUtf8Utils.encodeUTF8(record.toString());
-		target.writeInt(bytes.length);
-		target.write(bytes);
-	}
+    @Override
+    public void serialize(BigDecimal record, DataOutputView target) throws IOException {
+        byte[] bytes = StringUtf8Utils.encodeUTF8(record.toString());
+        target.writeInt(bytes.length);
+        target.write(bytes);
+    }
 
-	@Override
-	public BigDecimal deserialize(DataInputView source) throws IOException {
-		final int size = source.readInt();
-		byte[] bytes = new byte[size];
-		source.readFully(bytes);
-		return new BigDecimal(StringUtf8Utils.decodeUTF8(bytes, 0, size));
-	}
+    @Override
+    public BigDecimal deserialize(DataInputView source) throws IOException {
+        final int size = source.readInt();
+        byte[] bytes = new byte[size];
+        source.readFully(bytes);
+        return new BigDecimal(StringUtf8Utils.decodeUTF8(bytes, 0, size));
+    }
 
-	@Override
-	public BigDecimal deserialize(BigDecimal reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public BigDecimal deserialize(BigDecimal reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<BigDecimal> snapshotConfiguration() {
-		return new BigDecSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<BigDecimal> snapshotConfiguration() {
+        return new BigDecSerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class BigDecSerializerSnapshot extends SimpleTypeSerializerSnapshot<BigDecimal> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class BigDecSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<BigDecimal> {
 
-		public BigDecSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        public BigDecSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

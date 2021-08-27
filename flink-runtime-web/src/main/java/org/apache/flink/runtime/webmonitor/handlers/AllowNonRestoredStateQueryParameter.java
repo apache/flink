@@ -22,30 +22,30 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
- * Query parameter that specifies whether non restored state is allowed if the savepoint
- * contains state for an operator that is not part of the job.
+ * Query parameter that specifies whether non restored state is allowed if the savepoint contains
+ * state for an operator that is not part of the job.
  *
  * @see SavepointRestoreSettings#allowNonRestoredState()
  */
 public class AllowNonRestoredStateQueryParameter extends MessageQueryParameter<Boolean> {
 
-	protected AllowNonRestoredStateQueryParameter() {
-		super("allowNonRestoredState", MessageParameterRequisiteness.OPTIONAL);
-	}
+    protected AllowNonRestoredStateQueryParameter() {
+        super("allowNonRestoredState", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public Boolean convertStringToValue(final String value) {
-		return Boolean.valueOf(value);
-	}
+    @Override
+    public Boolean convertStringToValue(final String value) {
+        return Boolean.valueOf(value);
+    }
 
-	@Override
-	public String convertValueToString(final Boolean value) {
-		return value.toString();
-	}
+    @Override
+    public String convertValueToString(final Boolean value) {
+        return value.toString();
+    }
 
-	@Override
-	public String getDescription() {
-		return "Boolean value that specifies whether the job submission should be rejected " +
-			"if the savepoint contains state that cannot be mapped back to the job.";
-	}
+    @Override
+    public String getDescription() {
+        return "Boolean value that specifies whether the job submission should be rejected "
+                + "if the savepoint contains state that cannot be mapped back to the job.";
+    }
 }

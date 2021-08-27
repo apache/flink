@@ -33,57 +33,64 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JobResultDeserializer}.
- */
+/** Tests for {@link JobResultDeserializer}. */
 public class JobResultDeserializerTest extends TestLogger {
 
-	private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
-	@Before
-	public void setUp() {
-		final SimpleModule simpleModule = new SimpleModule();
-		simpleModule.addDeserializer(JobResult.class, new JobResultDeserializer());
+    @Before
+    public void setUp() {
+        final SimpleModule simpleModule = new SimpleModule();
+        simpleModule.addDeserializer(JobResult.class, new JobResultDeserializer());
 
-		objectMapper = new ObjectMapper();
-		objectMapper.registerModule(simpleModule);
-	}
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(simpleModule);
+    }
 
-	@Test
-	public void testDeserialization() throws Exception {
-		final JobResult jobResult = objectMapper.readValue("{\n" +
-			"\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n" +
-			"\t\"accumulator-results\": {},\n" +
-			"\t\"net-runtime\": 0,\n" +
-			"\t\"unknownfield\": \"foobar\"\n" +
-			"}", JobResult.class);
+    @Test
+    public void testDeserialization() throws Exception {
+        final JobResult jobResult =
+                objectMapper.readValue(
+                        "{\n"
+                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                                + "\t\"accumulator-results\": {},\n"
+                                + "\t\"net-runtime\": 0,\n"
+                                + "\t\"unknownfield\": \"foobar\"\n"
+                                + "}",
+                        JobResult.class);
 
-		assertThat(jobResult.getJobId(), equalTo(JobID.fromHexString("1bb5e8c7df49938733b7c6a73678de6a")));
-		assertThat(jobResult.getNetRuntime(), equalTo(0L));
-		assertThat(jobResult.getAccumulatorResults().size(), equalTo(0));
-		assertThat(jobResult.getSerializedThrowable().isPresent(), equalTo(false));
-	}
+        assertThat(
+                jobResult.getJobId(),
+                equalTo(JobID.fromHexString("1bb5e8c7df49938733b7c6a73678de6a")));
+        assertThat(jobResult.getNetRuntime(), equalTo(0L));
+        assertThat(jobResult.getAccumulatorResults().size(), equalTo(0));
+        assertThat(jobResult.getSerializedThrowable().isPresent(), equalTo(false));
+    }
 
-	@Test
-	public void testInvalidType() throws Exception {
-		try {
-			objectMapper.readValue("{\n" +
-				"\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n" +
-				"\t\"net-runtime\": \"invalid\"\n" +
-				"}", JobResult.class);
-		} catch (final JsonMappingException e) {
-			assertThat(e.getMessage(), containsString("Expected token VALUE_NUMBER_INT (was VALUE_STRING)"));
-		}
-	}
+    @Test
+    public void testInvalidType() throws Exception {
+        try {
+            objectMapper.readValue(
+                    "{\n"
+                            + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                            + "\t\"net-runtime\": \"invalid\"\n"
+                            + "}",
+                    JobResult.class);
+        } catch (final JsonMappingException e) {
+            assertThat(
+                    e.getMessage(),
+                    containsString("Expected token VALUE_NUMBER_INT (was VALUE_STRING)"));
+        }
+    }
 
-	@Test
-	public void testIncompleteJobResult() throws Exception {
-		try {
-			objectMapper.readValue("{\n" +
-				"\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\"\n" +
-				"}", JobResult.class);
-		} catch (final JsonMappingException e) {
-			assertThat(e.getMessage(), containsString("Could not deserialize JobResult"));
-		}
-	}
+    @Test
+    public void testIncompleteJobResult() throws Exception {
+        try {
+            objectMapper.readValue(
+                    "{\n" + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\"\n" + "}",
+                    JobResult.class);
+        } catch (final JsonMappingException e) {
+            assertThat(e.getMessage(), containsString("Could not deserialize JobResult"));
+        }
+    }
 }

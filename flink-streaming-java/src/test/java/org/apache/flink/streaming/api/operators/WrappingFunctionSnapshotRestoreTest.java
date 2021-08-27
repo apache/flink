@@ -39,156 +39,156 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Test snapshot state with {@link WrappingFunction}.
- */
+/** Test snapshot state with {@link WrappingFunction}. */
 public class WrappingFunctionSnapshotRestoreTest {
 
-	@Test
-	public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {
+    @Test
+    public void testSnapshotAndRestoreWrappedCheckpointedFunction() throws Exception {
 
-		StreamMap<Integer, Integer> operator = new StreamMap<>(
-				new WrappingTestFun(new WrappingTestFun(new InnerTestFun())));
+        StreamMap<Integer, Integer> operator =
+                new StreamMap<>(new WrappingTestFun(new WrappingTestFun(new InnerTestFun())));
 
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(5, 12L));
+        testHarness.processElement(new StreamRecord<>(5, 12L));
 
-		// snapshot and restore from scratch
-		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+        // snapshot and restore from scratch
+        OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
-		testHarness.close();
+        testHarness.close();
 
-		InnerTestFun innerTestFun = new InnerTestFun();
-		operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
+        InnerTestFun innerTestFun = new InnerTestFun();
+        operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
 
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+        testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
-		testHarness.setup();
-		testHarness.initializeState(snapshot);
-		testHarness.open();
+        testHarness.setup();
+        testHarness.initializeState(snapshot);
+        testHarness.open();
 
-		Assert.assertTrue(innerTestFun.wasRestored);
-		testHarness.close();
-	}
+        Assert.assertTrue(innerTestFun.wasRestored);
+        testHarness.close();
+    }
 
-	@Test
-	public void testSnapshotAndRestoreWrappedListCheckpointed() throws Exception {
+    @Test
+    public void testSnapshotAndRestoreWrappedListCheckpointed() throws Exception {
 
-		StreamMap<Integer, Integer> operator = new StreamMap<>(
-				new WrappingTestFun(new WrappingTestFun(new InnerTestFunList())));
+        StreamMap<Integer, Integer> operator =
+                new StreamMap<>(new WrappingTestFun(new WrappingTestFun(new InnerTestFunList())));
 
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
 
-		testHarness.setup();
-		testHarness.open();
+        testHarness.setup();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(5, 12L));
+        testHarness.processElement(new StreamRecord<>(5, 12L));
 
-		// snapshot and restore from scratch
-		OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
+        // snapshot and restore from scratch
+        OperatorSubtaskState snapshot = testHarness.snapshot(0, 0);
 
-		testHarness.close();
+        testHarness.close();
 
-		InnerTestFunList innerTestFun = new InnerTestFunList();
-		operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
+        InnerTestFunList innerTestFun = new InnerTestFunList();
+        operator = new StreamMap<>(new WrappingTestFun(new WrappingTestFun(innerTestFun)));
 
-		testHarness = new OneInputStreamOperatorTestHarness<>(operator);
+        testHarness = new OneInputStreamOperatorTestHarness<>(operator);
 
-		testHarness.setup();
-		testHarness.initializeState(snapshot);
-		testHarness.open();
+        testHarness.setup();
+        testHarness.initializeState(snapshot);
+        testHarness.open();
 
-		Assert.assertTrue(innerTestFun.wasRestored);
-		testHarness.close();
-	}
+        Assert.assertTrue(innerTestFun.wasRestored);
+        testHarness.close();
+    }
 
-	static class WrappingTestFun
-			extends WrappingFunction<MapFunction<Integer, Integer>> implements MapFunction<Integer, Integer> {
+    static class WrappingTestFun extends WrappingFunction<MapFunction<Integer, Integer>>
+            implements MapFunction<Integer, Integer> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		public WrappingTestFun(MapFunction<Integer, Integer> wrappedFunction) {
-			super(wrappedFunction);
-		}
+        public WrappingTestFun(MapFunction<Integer, Integer> wrappedFunction) {
+            super(wrappedFunction);
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+    }
 
-	static class InnerTestFun
-			extends AbstractRichFunction implements MapFunction<Integer, Integer>, CheckpointedFunction {
+    static class InnerTestFun extends AbstractRichFunction
+            implements MapFunction<Integer, Integer>, CheckpointedFunction {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private ListState<Integer> serializableListState;
-		private boolean wasRestored;
+        private ListState<Integer> serializableListState;
+        private boolean wasRestored;
 
-		public InnerTestFun() {
-			wasRestored = false;
-		}
+        public InnerTestFun() {
+            wasRestored = false;
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			if (!wasRestored) {
-				serializableListState.add(42);
-			}
-		}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            if (!wasRestored) {
+                serializableListState.add(42);
+            }
+        }
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			serializableListState = context
-					.getOperatorStateStore()
-					.getListState(new ListStateDescriptor<>("test-state", IntSerializer.INSTANCE));
-			if (context.isRestored()) {
-				Iterator<Integer> integers = serializableListState.get().iterator();
-				int act = integers.next();
-				Assert.assertEquals(42, act);
-				Assert.assertFalse(integers.hasNext());
-				wasRestored = true;
-			}
-		}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            serializableListState =
+                    context.getOperatorStateStore()
+                            .getListState(
+                                    new ListStateDescriptor<>(
+                                            "test-state", IntSerializer.INSTANCE));
+            if (context.isRestored()) {
+                Iterator<Integer> integers = serializableListState.get().iterator();
+                int act = integers.next();
+                Assert.assertEquals(42, act);
+                Assert.assertFalse(integers.hasNext());
+                wasRestored = true;
+            }
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+    }
 
-	static class InnerTestFunList
-			extends AbstractRichFunction implements MapFunction<Integer, Integer>, ListCheckpointed<Integer> {
+    static class InnerTestFunList extends AbstractRichFunction
+            implements MapFunction<Integer, Integer>, ListCheckpointed<Integer> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private boolean wasRestored;
+        private boolean wasRestored;
 
-		public InnerTestFunList() {
-			wasRestored = false;
-		}
+        public InnerTestFunList() {
+            wasRestored = false;
+        }
 
-		@Override
-		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(42);
-		}
+        @Override
+        public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+            return Collections.singletonList(42);
+        }
 
-		@Override
-		public void restoreState(List<Integer> state) throws Exception {
-			Assert.assertEquals(1, state.size());
-			int val = state.get(0);
-			Assert.assertEquals(42, val);
-			wasRestored = true;
-		}
+        @Override
+        public void restoreState(List<Integer> state) throws Exception {
+            Assert.assertEquals(1, state.size());
+            int val = state.get(0);
+            Assert.assertEquals(42, val);
+            wasRestored = true;
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+    }
 }

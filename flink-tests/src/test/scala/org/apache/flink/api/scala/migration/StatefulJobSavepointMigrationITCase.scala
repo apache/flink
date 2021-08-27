@@ -66,7 +66,11 @@ object StatefulJobSavepointMigrationITCase {
       (MigrationVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
       (MigrationVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (MigrationVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (MigrationVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      (MigrationVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
   }
 
   // TODO to generate savepoints for a specific Flink version / backend type,

@@ -17,7 +17,7 @@
  */
 
 /**
- * This package contains the messages that are sent between Flink's distributed
- * components to coordinate the distributed operations.
+ * This package contains the messages that are sent between Flink's distributed components to
+ * coordinate the distributed operations.
  */
 package org.apache.flink.runtime.messages;

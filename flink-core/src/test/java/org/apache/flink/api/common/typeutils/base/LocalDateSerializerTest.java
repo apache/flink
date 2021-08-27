@@ -23,34 +23,32 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.time.LocalDate;
 
-/**
- * A test for the {@link LocalDateSerializer}.
- */
+/** A test for the {@link LocalDateSerializer}. */
 public class LocalDateSerializerTest extends SerializerTestBase<LocalDate> {
 
-	@Override
-	protected TypeSerializer<LocalDate> createSerializer() {
-		return new LocalDateSerializer();
-	}
+    @Override
+    protected TypeSerializer<LocalDate> createSerializer() {
+        return new LocalDateSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return 6;
-	}
+    @Override
+    protected int getLength() {
+        return 6;
+    }
 
-	@Override
-	protected Class<LocalDate> getTypeClass() {
-		return LocalDate.class;
-	}
+    @Override
+    protected Class<LocalDate> getTypeClass() {
+        return LocalDate.class;
+    }
 
-	@Override
-	protected LocalDate[] getTestData() {
-		return new LocalDate[] {
-			LocalDate.of(0, 1, 1),
-			LocalDate.of(1970, 1, 1),
-			LocalDate.of(1990, 10, 14),
-			LocalDate.of(2013, 8, 12),
-			LocalDate.of(2040, 5, 12)
-		};
-	}
+    @Override
+    protected LocalDate[] getTestData() {
+        return new LocalDate[] {
+            LocalDate.of(0, 1, 1),
+            LocalDate.of(1970, 1, 1),
+            LocalDate.of(1990, 10, 14),
+            LocalDate.of(2013, 8, 12),
+            LocalDate.of(2040, 5, 12)
+        };
+    }
 }

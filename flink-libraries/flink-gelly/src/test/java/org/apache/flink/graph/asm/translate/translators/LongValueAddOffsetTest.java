@@ -24,28 +24,45 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link LongValueAddOffset}.
- */
+/** Tests for {@link LongValueAddOffset}. */
 public class LongValueAddOffsetTest {
 
-	@Test
-	public void testTranslation() throws Exception {
-		LongValue reuse = new LongValue();
+    @Test
+    public void testTranslation() throws Exception {
+        LongValue reuse = new LongValue();
 
-		assertEquals(new LongValue(0), new LongValueAddOffset(0).translate(new LongValue(0), reuse));
-		assertEquals(new LongValue(3), new LongValueAddOffset(1).translate(new LongValue(2), reuse));
-		assertEquals(new LongValue(1), new LongValueAddOffset(-1).translate(new LongValue(2), reuse));
+        assertEquals(
+                new LongValue(0), new LongValueAddOffset(0).translate(new LongValue(0), reuse));
+        assertEquals(
+                new LongValue(3), new LongValueAddOffset(1).translate(new LongValue(2), reuse));
+        assertEquals(
+                new LongValue(1), new LongValueAddOffset(-1).translate(new LongValue(2), reuse));
 
-		assertEquals(new LongValue(-1), new LongValueAddOffset(Long.MIN_VALUE).translate(new LongValue(Long.MAX_VALUE), reuse));
-		assertEquals(new LongValue(-1), new LongValueAddOffset(Long.MAX_VALUE).translate(new LongValue(Long.MIN_VALUE), reuse));
+        assertEquals(
+                new LongValue(-1),
+                new LongValueAddOffset(Long.MIN_VALUE)
+                        .translate(new LongValue(Long.MAX_VALUE), reuse));
+        assertEquals(
+                new LongValue(-1),
+                new LongValueAddOffset(Long.MAX_VALUE)
+                        .translate(new LongValue(Long.MIN_VALUE), reuse));
 
-		// underflow wraps to positive values
-		assertEquals(new LongValue(Long.MAX_VALUE), new LongValueAddOffset(-1).translate(new LongValue(Long.MIN_VALUE), reuse));
-		assertEquals(new LongValue(0), new LongValueAddOffset(Long.MIN_VALUE).translate(new LongValue(Long.MIN_VALUE), reuse));
+        // underflow wraps to positive values
+        assertEquals(
+                new LongValue(Long.MAX_VALUE),
+                new LongValueAddOffset(-1).translate(new LongValue(Long.MIN_VALUE), reuse));
+        assertEquals(
+                new LongValue(0),
+                new LongValueAddOffset(Long.MIN_VALUE)
+                        .translate(new LongValue(Long.MIN_VALUE), reuse));
 
-		// overflow wraps to negative values
-		assertEquals(new LongValue(Long.MIN_VALUE), new LongValueAddOffset(1).translate(new LongValue(Long.MAX_VALUE), reuse));
-		assertEquals(new LongValue(-2), new LongValueAddOffset(Long.MAX_VALUE).translate(new LongValue(Long.MAX_VALUE), reuse));
-	}
+        // overflow wraps to negative values
+        assertEquals(
+                new LongValue(Long.MIN_VALUE),
+                new LongValueAddOffset(1).translate(new LongValue(Long.MAX_VALUE), reuse));
+        assertEquals(
+                new LongValue(-2),
+                new LongValueAddOffset(Long.MAX_VALUE)
+                        .translate(new LongValue(Long.MAX_VALUE), reuse));
+    }
 }

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultPartitionConsumab
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -51,7 +52,7 @@ import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -64,182 +65,193 @@ import java.util.concurrent.Executor;
 
 import static org.mockito.Mockito.mock;
 
-/**
- * Util that helps building {@link Task} objects for testing.
- */
+/** Util that helps building {@link Task} objects for testing. */
 public final class TestTaskBuilder {
 
-	private Class<? extends AbstractInvokable> invokable = AbstractInvokable.class;
-	private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
-	private LibraryCacheManager.ClassLoaderHandle classLoaderHandle = TestingClassLoaderLease.newBuilder().build();
-	private ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
-	private PartitionProducerStateChecker partitionProducerStateChecker = new NoOpPartitionProducerStateChecker();
-	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
-	private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
-	private Executor executor = TestingUtils.defaultExecutor();
-	private Configuration taskManagerConfig = new Configuration();
-	private Configuration taskConfig = new Configuration();
-	private ExecutionConfig executionConfig = new ExecutionConfig();
-	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
-	private List<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
-	private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
-	private JobID jobId = new JobID();
-	private AllocationID allocationID = new AllocationID();
-	private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
-	private ExternalResourceInfoProvider externalResourceInfoProvider = ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private Class<? extends TaskInvokable> invokable = AbstractInvokable.class;
+    private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
+    private LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
+            TestingClassLoaderLease.newBuilder().build();
+    private ResultPartitionConsumableNotifier consumableNotifier =
+            new NoOpResultPartitionConsumableNotifier();
+    private PartitionProducerStateChecker partitionProducerStateChecker =
+            new NoOpPartitionProducerStateChecker();
+    private final ShuffleEnvironment<?, ?> shuffleEnvironment;
+    private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
+    private Executor executor = TestingUtils.defaultExecutor();
+    private Configuration taskManagerConfig = new Configuration();
+    private Configuration taskConfig = new Configuration();
+    private ExecutionConfig executionConfig = new ExecutionConfig();
+    private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
+    private List<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
+    private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
+    private JobID jobId = new JobID();
+    private AllocationID allocationID = new AllocationID();
+    private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+    private ExternalResourceInfoProvider externalResourceInfoProvider =
+            ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
 
-	public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
-		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
-	}
+    public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
+        this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
+    }
 
-	public TestTaskBuilder setInvokable(Class<? extends AbstractInvokable> invokable) {
-		this.invokable = invokable;
-		return this;
-	}
+    public TestTaskBuilder setInvokable(Class<? extends TaskInvokable> invokable) {
+        this.invokable = invokable;
+        return this;
+    }
 
-	public TestTaskBuilder setTaskManagerActions(TaskManagerActions taskManagerActions) {
-		this.taskManagerActions = taskManagerActions;
-		return this;
-	}
+    public TestTaskBuilder setTaskManagerActions(TaskManagerActions taskManagerActions) {
+        this.taskManagerActions = taskManagerActions;
+        return this;
+    }
 
-	public TestTaskBuilder setClassLoaderHandle(LibraryCacheManager.ClassLoaderHandle classLoaderHandle) {
-		this.classLoaderHandle = classLoaderHandle;
-		return this;
-	}
+    public TestTaskBuilder setClassLoaderHandle(
+            LibraryCacheManager.ClassLoaderHandle classLoaderHandle) {
+        this.classLoaderHandle = classLoaderHandle;
+        return this;
+    }
 
-	public TestTaskBuilder setConsumableNotifier(ResultPartitionConsumableNotifier consumableNotifier) {
-		this.consumableNotifier = consumableNotifier;
-		return this;
-	}
+    public TestTaskBuilder setConsumableNotifier(
+            ResultPartitionConsumableNotifier consumableNotifier) {
+        this.consumableNotifier = consumableNotifier;
+        return this;
+    }
 
-	public TestTaskBuilder setPartitionProducerStateChecker(PartitionProducerStateChecker partitionProducerStateChecker) {
-		this.partitionProducerStateChecker = partitionProducerStateChecker;
-		return this;
-	}
+    public TestTaskBuilder setPartitionProducerStateChecker(
+            PartitionProducerStateChecker partitionProducerStateChecker) {
+        this.partitionProducerStateChecker = partitionProducerStateChecker;
+        return this;
+    }
 
-	public TestTaskBuilder setKvStateService(KvStateService kvStateService) {
-		this.kvStateService = kvStateService;
-		return this;
-	}
+    public TestTaskBuilder setKvStateService(KvStateService kvStateService) {
+        this.kvStateService = kvStateService;
+        return this;
+    }
 
-	public TestTaskBuilder setExecutor(Executor executor) {
-		this.executor = executor;
-		return this;
-	}
+    public TestTaskBuilder setExecutor(Executor executor) {
+        this.executor = executor;
+        return this;
+    }
 
-	public TestTaskBuilder setTaskManagerConfig(Configuration taskManagerConfig) {
-		this.taskManagerConfig = taskManagerConfig;
-		return this;
-	}
+    public TestTaskBuilder setTaskManagerConfig(Configuration taskManagerConfig) {
+        this.taskManagerConfig = taskManagerConfig;
+        return this;
+    }
 
-	public TestTaskBuilder setTaskConfig(Configuration taskConfig) {
-		this.taskConfig = taskConfig;
-		return this;
-	}
+    public TestTaskBuilder setTaskConfig(Configuration taskConfig) {
+        this.taskConfig = taskConfig;
+        return this;
+    }
 
-	public TestTaskBuilder setExecutionConfig(ExecutionConfig executionConfig) {
-		this.executionConfig = executionConfig;
-		return this;
-	}
+    public TestTaskBuilder setExecutionConfig(ExecutionConfig executionConfig) {
+        this.executionConfig = executionConfig;
+        return this;
+    }
 
-	public TestTaskBuilder setRequiredJarFileBlobKeys(Collection<PermanentBlobKey> requiredJarFileBlobKeys) {
-		this.requiredJarFileBlobKeys = requiredJarFileBlobKeys;
-		return this;
-	}
+    public TestTaskBuilder setRequiredJarFileBlobKeys(
+            Collection<PermanentBlobKey> requiredJarFileBlobKeys) {
+        this.requiredJarFileBlobKeys = requiredJarFileBlobKeys;
+        return this;
+    }
 
-	public TestTaskBuilder setResultPartitions(List<ResultPartitionDeploymentDescriptor> resultPartitions) {
-		this.resultPartitions = resultPartitions;
-		return this;
-	}
+    public TestTaskBuilder setResultPartitions(
+            List<ResultPartitionDeploymentDescriptor> resultPartitions) {
+        this.resultPartitions = resultPartitions;
+        return this;
+    }
 
-	public TestTaskBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
-		this.inputGates = inputGates;
-		return this;
-	}
+    public TestTaskBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
+        this.inputGates = inputGates;
+        return this;
+    }
 
-	public TestTaskBuilder setJobId(JobID jobId) {
-		this.jobId = jobId;
-		return this;
-	}
+    public TestTaskBuilder setJobId(JobID jobId) {
+        this.jobId = jobId;
+        return this;
+    }
 
-	public TestTaskBuilder setAllocationID(AllocationID allocationID) {
-		this.allocationID = allocationID;
-		return this;
-	}
+    public TestTaskBuilder setAllocationID(AllocationID allocationID) {
+        this.allocationID = allocationID;
+        return this;
+    }
 
-	public TestTaskBuilder setExecutionAttemptId(ExecutionAttemptID executionAttemptId) {
-		this.executionAttemptId = executionAttemptId;
-		return this;
-	}
+    public TestTaskBuilder setExecutionAttemptId(ExecutionAttemptID executionAttemptId) {
+        this.executionAttemptId = executionAttemptId;
+        return this;
+    }
 
-	public TestTaskBuilder setExternalResourceInfoProvider(ExternalResourceInfoProvider externalResourceInfoProvider) {
-		this.externalResourceInfoProvider = externalResourceInfoProvider;
-		return this;
-	}
+    public TestTaskBuilder setExternalResourceInfoProvider(
+            ExternalResourceInfoProvider externalResourceInfoProvider) {
+        this.externalResourceInfoProvider = externalResourceInfoProvider;
+        return this;
+    }
 
-	public Task build() throws Exception {
-		final JobVertexID jobVertexId = new JobVertexID();
+    public TestTaskBuilder setCheckpointResponder(TestCheckpointResponder testCheckpointResponder) {
+        this.testCheckpointResponder = testCheckpointResponder;
+        return this;
+    }
 
-		final SerializedValue<ExecutionConfig> serializedExecutionConfig = new SerializedValue<>(executionConfig);
+    public Task build() throws Exception {
+        final JobVertexID jobVertexId = new JobVertexID();
 
-		final JobInformation jobInformation = new JobInformation(
-			jobId,
-			"Test Job",
-			serializedExecutionConfig,
-			new Configuration(),
-			requiredJarFileBlobKeys,
-			Collections.emptyList());
+        final SerializedValue<ExecutionConfig> serializedExecutionConfig =
+                new SerializedValue<>(executionConfig);
 
-		final TaskInformation taskInformation = new TaskInformation(
-			jobVertexId,
-			"Test Task",
-			1,
-			1,
-			invokable.getName(),
-			taskConfig);
+        final JobInformation jobInformation =
+                new JobInformation(
+                        jobId,
+                        "Test Job",
+                        serializedExecutionConfig,
+                        new Configuration(),
+                        requiredJarFileBlobKeys,
+                        Collections.emptyList());
 
-		final TaskMetricGroup taskMetricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        final TaskInformation taskInformation =
+                new TaskInformation(
+                        jobVertexId, "Test Task", 1, 1, invokable.getName(), taskConfig);
 
-		return new Task(
-			jobInformation,
-			taskInformation,
-			executionAttemptId,
-			allocationID,
-			0,
-			0,
-			resultPartitions,
-			inputGates,
-			0,
-			MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
-			mock(IOManager.class),
-			shuffleEnvironment,
-			kvStateService,
-			new BroadcastVariableManager(),
-			new TaskEventDispatcher(),
-			externalResourceInfoProvider,
-			new TestTaskStateManager(),
-			taskManagerActions,
-			new MockInputSplitProvider(),
-			new TestCheckpointResponder(),
-			new NoOpTaskOperatorEventGateway(),
-			new TestGlobalAggregateManager(),
-			classLoaderHandle,
-			mock(FileCache.class),
-			new TestingTaskManagerRuntimeInfo(taskManagerConfig),
-			taskMetricGroup,
-			consumableNotifier,
-			partitionProducerStateChecker,
-			executor);
-	}
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 
-	public static void setTaskState(Task task, ExecutionState state) {
-		try {
-			Field f = Task.class.getDeclaredField("executionState");
-			f.setAccessible(true);
-			f.set(task, state);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Modifying the task state failed", e);
-		}
-	}
+        return new Task(
+                jobInformation,
+                taskInformation,
+                executionAttemptId,
+                allocationID,
+                0,
+                0,
+                resultPartitions,
+                inputGates,
+                MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
+                mock(IOManager.class),
+                shuffleEnvironment,
+                kvStateService,
+                new BroadcastVariableManager(),
+                new TaskEventDispatcher(),
+                externalResourceInfoProvider,
+                new TestTaskStateManager(),
+                taskManagerActions,
+                new MockInputSplitProvider(),
+                testCheckpointResponder,
+                new NoOpTaskOperatorEventGateway(),
+                new TestGlobalAggregateManager(),
+                classLoaderHandle,
+                mock(FileCache.class),
+                new TestingTaskManagerRuntimeInfo(taskManagerConfig),
+                taskMetricGroup,
+                consumableNotifier,
+                partitionProducerStateChecker,
+                executor);
+    }
+
+    public static void setTaskState(Task task, ExecutionState state) {
+        try {
+            Field f = Task.class.getDeclaredField("executionState");
+            f.setAccessible(true);
+            f.set(task, state);
+        } catch (Exception e) {
+            throw new RuntimeException("Modifying the task state failed", e);
+        }
+    }
 }

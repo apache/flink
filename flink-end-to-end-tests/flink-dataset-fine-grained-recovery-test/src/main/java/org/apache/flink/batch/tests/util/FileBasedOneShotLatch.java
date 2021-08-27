@@ -40,90 +40,90 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @NotThreadSafe
 public class FileBasedOneShotLatch implements Closeable {
 
-	private final Path latchFile;
+    private final Path latchFile;
 
-	private final WatchService watchService;
+    private final WatchService watchService;
 
-	private boolean released;
+    private boolean released;
 
-	public FileBasedOneShotLatch(final Path latchFile) {
-		this.latchFile = checkNotNull(latchFile);
+    public FileBasedOneShotLatch(final Path latchFile) {
+        this.latchFile = checkNotNull(latchFile);
 
-		final Path parentDir = checkNotNull(latchFile.getParent(), "latchFile must have a parent");
-		this.watchService = initWatchService(parentDir);
-	}
+        final Path parentDir = checkNotNull(latchFile.getParent(), "latchFile must have a parent");
+        this.watchService = initWatchService(parentDir);
+    }
 
-	private static WatchService initWatchService(final Path parentDir) {
-		final WatchService watchService = createWatchService(parentDir);
-		watchForLatchFile(watchService, parentDir);
-		return watchService;
-	}
+    private static WatchService initWatchService(final Path parentDir) {
+        final WatchService watchService = createWatchService(parentDir);
+        watchForLatchFile(watchService, parentDir);
+        return watchService;
+    }
 
-	private static WatchService createWatchService(final Path parentDir) {
-		try {
-			return parentDir.getFileSystem().newWatchService();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private static WatchService createWatchService(final Path parentDir) {
+        try {
+            return parentDir.getFileSystem().newWatchService();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	private static void watchForLatchFile(final WatchService watchService, final Path parentDir) {
-		try {
-			parentDir.register(
-				watchService,
-				new WatchEvent.Kind[]{StandardWatchEventKinds.ENTRY_CREATE},
-				SensitivityWatchEventModifier.HIGH);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private static void watchForLatchFile(final WatchService watchService, final Path parentDir) {
+        try {
+            parentDir.register(
+                    watchService,
+                    new WatchEvent.Kind[] {StandardWatchEventKinds.ENTRY_CREATE},
+                    SensitivityWatchEventModifier.HIGH);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	/**
-	 * Waits until the latch file is created.
-	 *
-	 * <p>When this method returns, subsequent invocations will not block even after the latch file
-	 * is deleted. Note that this method may not return if the latch file is deleted before this
-	 * method returns.
-	 *
-	 * @throws InterruptedException if interrupted while waiting
-	 */
-	public void await() throws InterruptedException {
-		if (isReleasedOrReleasable()) {
-			return;
-		}
+    /**
+     * Waits until the latch file is created.
+     *
+     * <p>When this method returns, subsequent invocations will not block even after the latch file
+     * is deleted. Note that this method may not return if the latch file is deleted before this
+     * method returns.
+     *
+     * @throws InterruptedException if interrupted while waiting
+     */
+    public void await() throws InterruptedException {
+        if (isReleasedOrReleasable()) {
+            return;
+        }
 
-		awaitLatchFile(watchService);
-	}
+        awaitLatchFile(watchService);
+    }
 
-	private void awaitLatchFile(final WatchService watchService) throws InterruptedException {
-		while (true) {
-			WatchKey watchKey = watchService.take();
-			if (isReleasedOrReleasable()) {
-				break;
-			}
-			watchKey.reset();
-		}
-	}
+    private void awaitLatchFile(final WatchService watchService) throws InterruptedException {
+        while (true) {
+            WatchKey watchKey = watchService.take();
+            if (isReleasedOrReleasable()) {
+                break;
+            }
+            watchKey.reset();
+        }
+    }
 
-	private boolean isReleasedOrReleasable() {
-		if (released) {
-			return true;
-		}
+    private boolean isReleasedOrReleasable() {
+        if (released) {
+            return true;
+        }
 
-		if (Files.exists(latchFile)) {
-			releaseLatch();
-			return true;
-		}
+        if (Files.exists(latchFile)) {
+            releaseLatch();
+            return true;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	private void releaseLatch() {
-		released = true;
-	}
+    private void releaseLatch() {
+        released = true;
+    }
 
-	@Override
-	public void close() throws IOException {
-		watchService.close();
-	}
+    @Override
+    public void close() throws IOException {
+        watchService.close();
+    }
 }

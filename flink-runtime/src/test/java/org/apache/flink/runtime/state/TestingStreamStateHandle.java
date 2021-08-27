@@ -22,29 +22,27 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.UUID;
 
-/**
- * A simple test mock for a {@link StreamStateHandle}.
- */
+/** A simple test mock for a {@link StreamStateHandle}. */
 public class TestingStreamStateHandle extends ByteStreamStateHandle {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private boolean disposed;
+    private boolean disposed;
 
-	public TestingStreamStateHandle() {
-		super(UUID.randomUUID().toString(), new byte[0]);
-	}
+    public TestingStreamStateHandle() {
+        super(UUID.randomUUID().toString(), new byte[0]);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void discardState() {
-		super.discardState();
-		disposed = true;
-	}
+    @Override
+    public void discardState() {
+        super.discardState();
+        disposed = true;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public boolean isDisposed() {
-		return disposed;
-	}
+    public boolean isDisposed() {
+        return disposed;
+    }
 }

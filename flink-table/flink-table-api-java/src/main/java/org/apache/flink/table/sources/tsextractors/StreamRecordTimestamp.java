@@ -38,38 +38,37 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STREAM
 @PublicEvolving
 public final class StreamRecordTimestamp extends TimestampExtractor {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final StreamRecordTimestamp INSTANCE = new StreamRecordTimestamp();
+    public static final StreamRecordTimestamp INSTANCE = new StreamRecordTimestamp();
 
-	@Override
-	public String[] getArgumentFields() {
-		return new String[0];
-	}
+    @Override
+    public String[] getArgumentFields() {
+        return new String[0];
+    }
 
-	@Override
-	public void validateArgumentFields(TypeInformation<?>[] argumentFieldTypes) {
-	}
+    @Override
+    public void validateArgumentFields(TypeInformation<?>[] argumentFieldTypes) {}
 
-	@Override
-	public Expression getExpression(ResolvedFieldReference[] fieldAccesses) {
-		return ApiExpressionUtils.unresolvedCall(STREAM_RECORD_TIMESTAMP);
-	}
+    @Override
+    public Expression getExpression(ResolvedFieldReference[] fieldAccesses) {
+        return ApiExpressionUtils.unresolvedCall(STREAM_RECORD_TIMESTAMP);
+    }
 
-	@Override
-	public Map<String, String> toProperties() {
-		Map<String, String> map = new HashMap<>();
-		map.put(Rowtime.ROWTIME_TIMESTAMPS_TYPE, Rowtime.ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE);
-		return map;
-	}
+    @Override
+    public Map<String, String> toProperties() {
+        Map<String, String> map = new HashMap<>();
+        map.put(Rowtime.ROWTIME_TIMESTAMPS_TYPE, Rowtime.ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_SOURCE);
+        return map;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		return this == o || o != null && getClass() == o.getClass();
-	}
+    @Override
+    public boolean equals(Object o) {
+        return this == o || o != null && getClass() == o.getClass();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.getClass().hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return this.getClass().hashCode();
+    }
 }

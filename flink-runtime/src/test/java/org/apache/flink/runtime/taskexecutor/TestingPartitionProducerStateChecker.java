@@ -27,34 +27,61 @@ import org.apache.flink.util.function.TriFunction;
 import java.util.concurrent.CompletableFuture;
 
 public class TestingPartitionProducerStateChecker implements PartitionProducerStateChecker {
-	private final TriFunction<JobID, IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> partitionProducerStateFunction;
+    private final TriFunction<
+                    JobID,
+                    IntermediateDataSetID,
+                    ResultPartitionID,
+                    CompletableFuture<ExecutionState>>
+            partitionProducerStateFunction;
 
-	private TestingPartitionProducerStateChecker(TriFunction<JobID, IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> partitionProducerStateFunction) {
-		this.partitionProducerStateFunction = partitionProducerStateFunction;
-	}
+    private TestingPartitionProducerStateChecker(
+            TriFunction<
+                            JobID,
+                            IntermediateDataSetID,
+                            ResultPartitionID,
+                            CompletableFuture<ExecutionState>>
+                    partitionProducerStateFunction) {
+        this.partitionProducerStateFunction = partitionProducerStateFunction;
+    }
 
-	@Override
-	public CompletableFuture<ExecutionState> requestPartitionProducerState(JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID resultPartitionId) {
-		return partitionProducerStateFunction.apply(jobId, intermediateDataSetId, resultPartitionId);
-	}
+    @Override
+    public CompletableFuture<ExecutionState> requestPartitionProducerState(
+            JobID jobId,
+            IntermediateDataSetID intermediateDataSetId,
+            ResultPartitionID resultPartitionId) {
+        return partitionProducerStateFunction.apply(
+                jobId, intermediateDataSetId, resultPartitionId);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	public static final class Builder {
+    public static final class Builder {
 
-		private TriFunction<JobID, IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> partitionProducerStateFunction = (ignoredA, ignoredB, ignoredC) -> new CompletableFuture<>();
+        private TriFunction<
+                        JobID,
+                        IntermediateDataSetID,
+                        ResultPartitionID,
+                        CompletableFuture<ExecutionState>>
+                partitionProducerStateFunction =
+                        (ignoredA, ignoredB, ignoredC) -> new CompletableFuture<>();
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setPartitionProducerStateFunction(TriFunction<JobID, IntermediateDataSetID, ResultPartitionID, CompletableFuture<ExecutionState>> partitionProducerStateFunction) {
-			this.partitionProducerStateFunction = partitionProducerStateFunction;
-			return this;
-		}
+        public Builder setPartitionProducerStateFunction(
+                TriFunction<
+                                JobID,
+                                IntermediateDataSetID,
+                                ResultPartitionID,
+                                CompletableFuture<ExecutionState>>
+                        partitionProducerStateFunction) {
+            this.partitionProducerStateFunction = partitionProducerStateFunction;
+            return this;
+        }
 
-		public TestingPartitionProducerStateChecker build() {
-			return new TestingPartitionProducerStateChecker(partitionProducerStateFunction);
-		}
-	}
+        public TestingPartitionProducerStateChecker build() {
+            return new TestingPartitionProducerStateChecker(partitionProducerStateFunction);
+        }
+    }
 }

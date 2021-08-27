@@ -21,19 +21,19 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * General Exception for all errors during table handling.
-  *
-  * <p>This exception indicates that an internal error occurred or that a feature is not supported
-  * yet. Usually, this exception does not indicate a fault of the user.
-  */
+ * General Exception for all errors during table handling.
+ *
+ * <p>This exception indicates that an internal error occurred or that a feature is not supported
+ * yet. Usually, this exception does not indicate a fault of the user.
+ */
 @PublicEvolving
 public class TableException extends RuntimeException {
 
-	public TableException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public TableException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public TableException(String message) {
-		super(message);
-	}
+    public TableException(String message) {
+        super(message);
+    }
 }

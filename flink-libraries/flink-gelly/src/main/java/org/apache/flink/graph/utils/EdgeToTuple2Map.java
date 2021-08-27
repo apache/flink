@@ -32,14 +32,14 @@ import org.apache.flink.graph.Edge;
 @ForwardedFields("f0; f1")
 public class EdgeToTuple2Map<K, EV> implements MapFunction<Edge<K, EV>, Tuple2<K, K>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private Tuple2<K, K> output = new Tuple2<>();
+    private Tuple2<K, K> output = new Tuple2<>();
 
-	@Override
-	public Tuple2<K, K> map(Edge<K, EV> edge) {
-		output.f0 = edge.f0;
-		output.f1 = edge.f1;
-		return output;
-	}
+    @Override
+    public Tuple2<K, K> map(Edge<K, EV> edge) {
+        output.f0 = edge.f0;
+        output.f1 = edge.f1;
+        return output;
+    }
 }

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,33 +27,30 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.complex.ListVector;
 
-/**
- * Arrow column vector for Array.
- */
+/** Arrow column vector for Array. */
 @Internal
 public final class ArrowArrayColumnVector implements ArrayColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of array values of a column to read.
-	 */
-	private final ListVector listVector;
-	private final ColumnVector elementVector;
+    /** Container which is used to store the sequence of array values of a column to read. */
+    private final ListVector listVector;
 
-	public ArrowArrayColumnVector(ListVector listVector, ColumnVector elementVector) {
-		this.listVector = Preconditions.checkNotNull(listVector);
-		this.elementVector = Preconditions.checkNotNull(elementVector);
-	}
+    private final ColumnVector elementVector;
 
-	@Override
-	public ArrayData getArray(int i) {
-		int index = i * ListVector.OFFSET_WIDTH;
-		int start = listVector.getOffsetBuffer().getInt(index);
-		int end = listVector.getOffsetBuffer().getInt(index + ListVector.OFFSET_WIDTH);
-		return new ColumnarArrayData(elementVector, start, end - start);
-	}
+    public ArrowArrayColumnVector(ListVector listVector, ColumnVector elementVector) {
+        this.listVector = Preconditions.checkNotNull(listVector);
+        this.elementVector = Preconditions.checkNotNull(elementVector);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return listVector.isNull(i);
-	}
+    @Override
+    public ArrayData getArray(int i) {
+        int index = i * ListVector.OFFSET_WIDTH;
+        int start = listVector.getOffsetBuffer().getInt(index);
+        int end = listVector.getOffsetBuffer().getInt(index + ListVector.OFFSET_WIDTH);
+        return new ColumnarArrayData(elementVector, start, end - start);
+    }
+
+    @Override
+    public boolean isNullAt(int i) {
+        return listVector.isNull(i);
+    }
 }

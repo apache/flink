@@ -28,45 +28,45 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * Currently, this statement executor is only used for table/sql to buffer records,
- * because the {@link PreparedStatement#executeBatch()} may fail and clear buffered records,
- * so we have to buffer the records and replay the records when retrying {@link #executeBatch()}.
+ * Currently, this statement executor is only used for table/sql to buffer records, because the
+ * {@link PreparedStatement#executeBatch()} may fail and clear buffered records, so we have to
+ * buffer the records and replay the records when retrying {@link #executeBatch()}.
  */
 public final class TableBufferedStatementExecutor implements JdbcBatchStatementExecutor<RowData> {
 
-	private final JdbcBatchStatementExecutor<RowData> statementExecutor;
-	private final Function<RowData, RowData> valueTransform;
-	private final List<RowData> buffer = new ArrayList<>();
+    private final JdbcBatchStatementExecutor<RowData> statementExecutor;
+    private final Function<RowData, RowData> valueTransform;
+    private final List<RowData> buffer = new ArrayList<>();
 
-	public TableBufferedStatementExecutor(
-			JdbcBatchStatementExecutor<RowData> statementExecutor,
-			Function<RowData, RowData> valueTransform) {
-		this.statementExecutor = statementExecutor;
-		this.valueTransform = valueTransform;
-	}
+    public TableBufferedStatementExecutor(
+            JdbcBatchStatementExecutor<RowData> statementExecutor,
+            Function<RowData, RowData> valueTransform) {
+        this.statementExecutor = statementExecutor;
+        this.valueTransform = valueTransform;
+    }
 
-	@Override
-	public void prepareStatements(Connection connection) throws SQLException {
-		statementExecutor.prepareStatements(connection);
-	}
+    @Override
+    public void prepareStatements(Connection connection) throws SQLException {
+        statementExecutor.prepareStatements(connection);
+    }
 
-	@Override
-	public void addToBatch(RowData record) throws SQLException {
-		RowData value = valueTransform.apply(record); // copy or not
-		buffer.add(value);
-	}
+    @Override
+    public void addToBatch(RowData record) throws SQLException {
+        RowData value = valueTransform.apply(record); // copy or not
+        buffer.add(value);
+    }
 
-	@Override
-	public void executeBatch() throws SQLException {
-		for (RowData value : buffer) {
-			statementExecutor.addToBatch(value);
-		}
-		statementExecutor.executeBatch();
-		buffer.clear();
-	}
+    @Override
+    public void executeBatch() throws SQLException {
+        for (RowData value : buffer) {
+            statementExecutor.addToBatch(value);
+        }
+        statementExecutor.executeBatch();
+        buffer.clear();
+    }
 
-	@Override
-	public void closeStatements() throws SQLException {
-		statementExecutor.closeStatements();
-	}
+    @Override
+    public void closeStatements() throws SQLException {
+        statementExecutor.closeStatements();
+    }
 }

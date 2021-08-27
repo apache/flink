@@ -22,24 +22,24 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /**
- * A {@link IterativeCondition condition} which filters elements of the given type.
- * An element is filtered out iff it is not assignable to the given subtype of {@code T}.
+ * A {@link IterativeCondition condition} which filters elements of the given type. An element is
+ * filtered out iff it is not assignable to the given subtype of {@code T}.
  *
  * @param <T> Type of the elements to be filtered
  */
 @Internal
 public class SubtypeCondition<T> extends SimpleCondition<T> {
-	private static final long serialVersionUID = -2990017519957561355L;
+    private static final long serialVersionUID = -2990017519957561355L;
 
-	/** The subtype to filter for. */
-	private final Class<? extends T> subtype;
+    /** The subtype to filter for. */
+    private final Class<? extends T> subtype;
 
-	public SubtypeCondition(final Class<? extends T> subtype) {
-		this.subtype = Preconditions.checkNotNull(subtype, "The subtype cannot be null.");
-	}
+    public SubtypeCondition(final Class<? extends T> subtype) {
+        this.subtype = Preconditions.checkNotNull(subtype, "The subtype cannot be null.");
+    }
 
-	@Override
-	public boolean filter(T value) throws Exception {
-		return subtype.isAssignableFrom(value.getClass());
-	}
+    @Override
+    public boolean filter(T value) throws Exception {
+        return subtype.isAssignableFrom(value.getClass());
+    }
 }

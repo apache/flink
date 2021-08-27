@@ -21,32 +21,33 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * This class contains a checkpointId and a List of AcknowledgementIds.
- * This class is used by {@link AcknowledgeOnCheckpoint} to keep track of acknowledgementIds
+ * This class contains a checkpointId and a List of AcknowledgementIds. This class is used by {@link
+ * AcknowledgeOnCheckpoint} to keep track of acknowledgementIds
+ *
  * @param <AcknowledgeId> Type of the Ids used for acknowledging.
  */
 public class AcknowledgeIdsForCheckpoint<AcknowledgeId> implements Serializable {
-	private long checkpointId;
-	private List<AcknowledgeId> acknowledgeIds;
+    private long checkpointId;
+    private List<AcknowledgeId> acknowledgeIds;
 
-	AcknowledgeIdsForCheckpoint(long checkpointId, List<AcknowledgeId> acknowledgeIds) {
-		this.checkpointId = checkpointId;
-		this.acknowledgeIds = acknowledgeIds;
-	}
+    AcknowledgeIdsForCheckpoint(long checkpointId, List<AcknowledgeId> acknowledgeIds) {
+        this.checkpointId = checkpointId;
+        this.acknowledgeIds = acknowledgeIds;
+    }
 
-	public long getCheckpointId() {
-		return checkpointId;
-	}
+    public long getCheckpointId() {
+        return checkpointId;
+    }
 
-	public void setCheckpointId(long checkpointId) {
-		this.checkpointId = checkpointId;
-	}
+    public void setCheckpointId(long checkpointId) {
+        this.checkpointId = checkpointId;
+    }
 
-	public List<AcknowledgeId> getAcknowledgeIds() {
-		return acknowledgeIds;
-	}
+    public List<AcknowledgeId> getAcknowledgeIds() {
+        return acknowledgeIds;
+    }
 
-	public void setAcknowledgeIds(List<AcknowledgeId> acknowledgeIds) {
-		this.acknowledgeIds = acknowledgeIds;
-	}
+    public void setAcknowledgeIds(List<AcknowledgeId> acknowledgeIds) {
+        this.acknowledgeIds = acknowledgeIds;
+    }
 }

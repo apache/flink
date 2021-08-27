@@ -40,151 +40,157 @@ import java.util.Deque;
 @Experimental
 public abstract class SequenceGenerator<T> implements DataGenerator<T> {
 
-	private final long start;
-	private final long end;
+    private final long start;
+    private final long end;
 
-	private transient ListState<Long> checkpointedState;
-	protected transient Deque<Long> valuesToEmit;
+    private transient ListState<Long> checkpointedState;
+    protected transient Deque<Long> valuesToEmit;
 
-	/**
-	 * Creates a DataGenerator that emits all numbers from the given interval exactly once.
-	 *
-	 * @param start Start of the range of numbers to emit.
-	 * @param end End of the range of numbers to emit.
-	 */
-	public SequenceGenerator(long start, long end) {
-		this.start = start;
-		this.end = end;
-	}
+    /**
+     * Creates a DataGenerator that emits all numbers from the given interval exactly once.
+     *
+     * @param start Start of the range of numbers to emit.
+     * @param end End of the range of numbers to emit.
+     */
+    public SequenceGenerator(long start, long end) {
+        this.start = start;
+        this.end = end;
+    }
 
-	@Override
-	public void open(
-			String name,
-			FunctionInitializationContext context,
-			RuntimeContext runtimeContext) throws Exception {
-		Preconditions.checkState(this.checkpointedState == null,
-				"The " + getClass().getSimpleName() + " has already been initialized.");
+    @Override
+    public void open(
+            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
+            throws Exception {
+        Preconditions.checkState(
+                this.checkpointedState == null,
+                "The " + getClass().getSimpleName() + " has already been initialized.");
 
-		this.checkpointedState = context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>(
-						name + "-sequence-state",
-						LongSerializer.INSTANCE));
-		this.valuesToEmit = new ArrayDeque<>();
-		if (context.isRestored()) {
-			// upon restoring
+        this.checkpointedState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        name + "-sequence-state", LongSerializer.INSTANCE));
+        this.valuesToEmit = new ArrayDeque<>();
+        if (context.isRestored()) {
+            // upon restoring
 
-			for (Long v : this.checkpointedState.get()) {
-				this.valuesToEmit.add(v);
-			}
-		} else {
-			// the first time the job is executed
-			final int stepSize = runtimeContext.getNumberOfParallelSubtasks();
-			final int taskIdx = runtimeContext.getIndexOfThisSubtask();
-			final long congruence = start + taskIdx;
+            for (Long v : this.checkpointedState.get()) {
+                this.valuesToEmit.add(v);
+            }
+        } else {
+            // the first time the job is executed
+            final int stepSize = runtimeContext.getNumberOfParallelSubtasks();
+            final int taskIdx = runtimeContext.getIndexOfThisSubtask();
+            final long congruence = start + taskIdx;
 
-			long totalNoOfElements = Math.abs(end - start + 1);
-			final int baseSize = safeDivide(totalNoOfElements, stepSize);
-			final int toCollect = (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+            long totalNoOfElements = Math.abs(end - start + 1);
+            final int baseSize = safeDivide(totalNoOfElements, stepSize);
+            final int toCollect =
+                    (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
 
-			for (long collected = 0; collected < toCollect; collected++) {
-				this.valuesToEmit.add(collected * stepSize + congruence);
-			}
-		}
-	}
+            for (long collected = 0; collected < toCollect; collected++) {
+                this.valuesToEmit.add(collected * stepSize + congruence);
+            }
+        }
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(this.checkpointedState != null,
-				"The " + getClass().getSimpleName() + " state has not been properly initialized.");
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        Preconditions.checkState(
+                this.checkpointedState != null,
+                "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-		this.checkpointedState.clear();
-		for (Long v : this.valuesToEmit) {
-			this.checkpointedState.add(v);
-		}
-	}
+        this.checkpointedState.clear();
+        for (Long v : this.valuesToEmit) {
+            this.checkpointedState.add(v);
+        }
+    }
 
-	@Override
-	public boolean hasNext() {
-		return !this.valuesToEmit.isEmpty();
-	}
+    @Override
+    public boolean hasNext() {
+        return !this.valuesToEmit.isEmpty();
+    }
 
-	private static int safeDivide(long left, long right) {
-		Preconditions.checkArgument(right > 0);
-		Preconditions.checkArgument(left >= 0);
-		Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-		return (int) (left / right);
-	}
+    private static int safeDivide(long left, long right) {
+        Preconditions.checkArgument(right > 0);
+        Preconditions.checkArgument(left >= 0);
+        Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
+        return (int) (left / right);
+    }
 
-	public static SequenceGenerator<Long> longGenerator(long start, long end) {
-		return new SequenceGenerator<Long>(start, end) {
-			@Override
-			public Long next() {
-				return valuesToEmit.poll();
-			}
-		};
-	}
+    public static SequenceGenerator<Long> longGenerator(long start, long end) {
+        return new SequenceGenerator<Long>(start, end) {
+            @Override
+            public Long next() {
+                return valuesToEmit.poll();
+            }
+        };
+    }
 
-	public static SequenceGenerator<Integer> intGenerator(int start, int end) {
-		return new SequenceGenerator<Integer>(start, end) {
-			@Override
-			public Integer next() {
-				return valuesToEmit.poll().intValue();
-			}
-		};
-	}
+    public static SequenceGenerator<Integer> intGenerator(int start, int end) {
+        return new SequenceGenerator<Integer>(start, end) {
+            @Override
+            public Integer next() {
+                return valuesToEmit.poll().intValue();
+            }
+        };
+    }
 
-	public static SequenceGenerator<Short> shortGenerator(short start, short end) {
-		return new SequenceGenerator<Short>(start, end) {
-			@Override
-			public Short next() {
-				return valuesToEmit.poll().shortValue();
-			}
-		};
-	}
+    public static SequenceGenerator<Short> shortGenerator(short start, short end) {
+        return new SequenceGenerator<Short>(start, end) {
+            @Override
+            public Short next() {
+                return valuesToEmit.poll().shortValue();
+            }
+        };
+    }
 
-	public static SequenceGenerator<Byte> byteGenerator(byte start, byte end) {
-		return new SequenceGenerator<Byte>(start, end) {
-			@Override
-			public Byte next() {
-				return valuesToEmit.poll().byteValue();
-			}
-		};
-	}
+    public static SequenceGenerator<Byte> byteGenerator(byte start, byte end) {
+        return new SequenceGenerator<Byte>(start, end) {
+            @Override
+            public Byte next() {
+                return valuesToEmit.poll().byteValue();
+            }
+        };
+    }
 
-	public static SequenceGenerator<Float> floatGenerator(short start, short end) {
-		return new SequenceGenerator<Float>(start, end) {
-			@Override
-			public Float next() {
-				return valuesToEmit.poll().floatValue();
-			}
-		};
-	}
+    public static SequenceGenerator<Float> floatGenerator(short start, short end) {
+        return new SequenceGenerator<Float>(start, end) {
+            @Override
+            public Float next() {
+                return valuesToEmit.poll().floatValue();
+            }
+        };
+    }
 
-	public static SequenceGenerator<Double> doubleGenerator(int start, int end) {
-		return new SequenceGenerator<Double>(start, end) {
-			@Override
-			public Double next() {
-				return valuesToEmit.poll().doubleValue();
-			}
-		};
-	}
+    public static SequenceGenerator<Double> doubleGenerator(int start, int end) {
+        return new SequenceGenerator<Double>(start, end) {
+            @Override
+            public Double next() {
+                return valuesToEmit.poll().doubleValue();
+            }
+        };
+    }
 
-	public static SequenceGenerator<BigDecimal> bigDecimalGenerator(int start, int end, int precision, int scale) {
-		return new SequenceGenerator<BigDecimal>(start, end) {
-			@Override
-			public BigDecimal next() {
-				BigDecimal decimal = new BigDecimal(valuesToEmit.poll().doubleValue(), new MathContext(precision));
-				return decimal.setScale(scale, RoundingMode.DOWN);
-			}
-		};
-	}
+    public static SequenceGenerator<BigDecimal> bigDecimalGenerator(
+            int start, int end, int precision, int scale) {
+        return new SequenceGenerator<BigDecimal>(start, end) {
+            @Override
+            public BigDecimal next() {
+                BigDecimal decimal =
+                        new BigDecimal(
+                                valuesToEmit.poll().doubleValue(), new MathContext(precision));
+                return decimal.setScale(scale, RoundingMode.DOWN);
+            }
+        };
+    }
 
-	public static SequenceGenerator<String> stringGenerator(long start, long end) {
-		return new SequenceGenerator<String>(start, end) {
-			@Override
-			public String next() {
-				return valuesToEmit.poll().toString();
-			}
-		};
-	}
+    public static SequenceGenerator<String> stringGenerator(long start, long end) {
+        return new SequenceGenerator<String>(start, end) {
+            @Override
+            public String next() {
+                return valuesToEmit.poll().toString();
+            }
+        };
+    }
 }

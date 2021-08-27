@@ -25,22 +25,21 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-/**
- * Tests for {@link OutputFormatSinkFunction}.
- */
+/** Tests for {@link OutputFormatSinkFunction}. */
 public class OutputFormatSinkFunctionTest {
 
-	@Test
-	public void setRuntimeContext() throws Exception {
-		RuntimeContext mockRuntimeContext = Mockito.mock(RuntimeContext.class);
+    @Test
+    public void setRuntimeContext() throws Exception {
+        RuntimeContext mockRuntimeContext = Mockito.mock(RuntimeContext.class);
 
-		// Make sure setRuntimeContext of the rich output format is called
-		RichOutputFormat<?> mockRichOutputFormat = Mockito.mock(RichOutputFormat.class);
-		new OutputFormatSinkFunction<>(mockRichOutputFormat).setRuntimeContext(mockRuntimeContext);
-		Mockito.verify(mockRichOutputFormat, Mockito.times(1)).setRuntimeContext(Mockito.eq(mockRuntimeContext));
+        // Make sure setRuntimeContext of the rich output format is called
+        RichOutputFormat<?> mockRichOutputFormat = Mockito.mock(RichOutputFormat.class);
+        new OutputFormatSinkFunction<>(mockRichOutputFormat).setRuntimeContext(mockRuntimeContext);
+        Mockito.verify(mockRichOutputFormat, Mockito.times(1))
+                .setRuntimeContext(Mockito.eq(mockRuntimeContext));
 
-		// Make sure setRuntimeContext work well when output format is not RichOutputFormat
-		OutputFormat<?> mockOutputFormat = Mockito.mock(OutputFormat.class);
-		new OutputFormatSinkFunction<>(mockOutputFormat).setRuntimeContext(mockRuntimeContext);
-	}
+        // Make sure setRuntimeContext work well when output format is not RichOutputFormat
+        OutputFormat<?> mockOutputFormat = Mockito.mock(OutputFormat.class);
+        new OutputFormatSinkFunction<>(mockOutputFormat).setRuntimeContext(mockRuntimeContext);
+    }
 }

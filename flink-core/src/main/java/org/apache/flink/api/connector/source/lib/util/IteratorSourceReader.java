@@ -19,130 +19,159 @@
 package org.apache.flink.api.connector.source.lib.util;
 
 import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.event.NoMoreSplitsEvent;
-import org.apache.flink.api.connector.source.event.RequestSplitEvent;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link SourceReader} that returns the values of an iterator, supplied via an
- * {@link IteratorSourceSplit}.
+ * A {@link SourceReader} that returns the values of an iterator, supplied via an {@link
+ * IteratorSourceSplit}.
  *
- * <p>The {@code IteratorSourceSplit} is also responsible for taking the current iterator and turning
- * it back into a split for checkpointing.
+ * <p>The {@code IteratorSourceSplit} is also responsible for taking the current iterator and
+ * turning it back into a split for checkpointing.
  *
  * @param <E> The type of events returned by the reader.
  * @param <IterT> The type of the iterator that produces the events. This type exists to make the
- *                 conversion between iterator and {@code IteratorSourceSplit} type safe.
- * @param <SplitT> The concrete type of the {@code IteratorSourceSplit} that creates and converts the
- *                 iterator that produces this reader's elements.
+ *     conversion between iterator and {@code IteratorSourceSplit} type safe.
+ * @param <SplitT> The concrete type of the {@code IteratorSourceSplit} that creates and converts
+ *     the iterator that produces this reader's elements.
  */
-public class IteratorSourceReader<E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
-		implements SourceReader<E, SplitT> {
+public class IteratorSourceReader<
+                E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
+        implements SourceReader<E, SplitT> {
 
-	/** The context for this reader, to communicate with the enumerator. */
-	private final SourceReaderContext context;
+    /** The context for this reader, to communicate with the enumerator. */
+    private final SourceReaderContext context;
 
-	/** The availability future. This reader is available as soon as a split is assigned. */
-	private final CompletableFuture<Void> availability;
+    /** The availability future. This reader is available as soon as a split is assigned. */
+    private CompletableFuture<Void> availability;
 
-	/** The iterator producing data. Non-null after a split has been assigned.
-	 * This field is null or non-null always together with the {@link #currentSplit} field. */
-	@Nullable
-	private IterT iterator;
+    /**
+     * The iterator producing data. Non-null after a split has been assigned. This field is null or
+     * non-null always together with the {@link #currentSplit} field.
+     */
+    @Nullable private IterT iterator;
 
-	/** The split whose data we return. Non-null after a split has been assigned.
-	 * This field is null or non-null always together with the {@link #iterator} field. */
-	@Nullable
-	private SplitT currentSplit;
+    /**
+     * The split whose data we return. Non-null after a split has been assigned. This field is null
+     * or non-null always together with the {@link #iterator} field.
+     */
+    @Nullable private SplitT currentSplit;
 
-	/** The remaining splits. Null means no splits have yet been assigned. */
-	@Nullable
-	private Queue<SplitT> remainingSplits;
+    /** The remaining splits that were assigned but not yet processed. */
+    private final Queue<SplitT> remainingSplits;
 
-	public IteratorSourceReader(SourceReaderContext context) {
-		this.context = checkNotNull(context);
-		this.availability = new CompletableFuture<>();
-	}
+    private boolean noMoreSplits;
 
-	// ------------------------------------------------------------------------
+    public IteratorSourceReader(SourceReaderContext context) {
+        this.context = checkNotNull(context);
+        this.availability = new CompletableFuture<>();
+        this.remainingSplits = new ArrayDeque<>();
+    }
 
-	@Override
-	public void start() {
-		// request a split only if we did not get one during restore
-		if (iterator == null) {
-			context.sendSourceEventToCoordinator(new RequestSplitEvent());
-		}
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public InputStatus pollNext(ReaderOutput<E> output) {
-		if (iterator != null && iterator.hasNext()) {
-			output.collect(iterator.next());
-			return InputStatus.MORE_AVAILABLE;
-		} else if (remainingSplits == null) {
-			// nothing assigned yet, need to wait and come back when splits have been assigned
-			return InputStatus.NOTHING_AVAILABLE;
-		} else {
-			currentSplit = remainingSplits.poll();
-			if (currentSplit != null) {
-				iterator = currentSplit.getIterator();
-				return pollNext(output);
-			} else {
-				return InputStatus.END_OF_INPUT;
-			}
-		}
-	}
+    @Override
+    public void start() {
+        // request a split if we don't have one
+        if (remainingSplits.isEmpty()) {
+            context.sendSplitRequest();
+        }
+    }
 
-	@Override
-	public CompletableFuture<Void> isAvailable() {
-		return availability;
-	}
+    @Override
+    public InputStatus pollNext(ReaderOutput<E> output) {
+        if (iterator != null) {
+            if (iterator.hasNext()) {
+                output.collect(iterator.next());
+                return InputStatus.MORE_AVAILABLE;
+            } else {
+                finishSplit();
+            }
+        }
 
-	@Override
-	public void addSplits(List<SplitT> splits) {
-		checkState(remainingSplits == null, "Cannot accept more than one split assignment");
-		remainingSplits = new ArrayDeque<>(splits);
-		availability.complete(null); // from now on we are always available
-	}
+        return tryMoveToNextSplit();
+    }
 
-	@Override
-	public List<SplitT> snapshotState() {
-		final ArrayList<SplitT> allSplits = new ArrayList<>(1 + remainingSplits.size());
-		if (iterator != null) {
-			@SuppressWarnings("unchecked")
-			final SplitT inProgressSplit = (SplitT) currentSplit.getUpdatedSplitForIterator(iterator);
-			allSplits.add(inProgressSplit);
-		}
-		allSplits.addAll(remainingSplits);
-		return allSplits;
-	}
+    private void finishSplit() {
+        iterator = null;
+        currentSplit = null;
 
-	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		if (sourceEvent instanceof NoMoreSplitsEvent) {
-			// non-null queue signals splits were assigned, in this case no splits
-			remainingSplits = new ArrayDeque<>();
-		} else {
-			throw new FlinkRuntimeException("Unexpected event: " + sourceEvent);
-		}
-	}
+        // request another split if no other is left
+        // we do this only here in the finishSplit part to avoid requesting a split
+        // whenever the reader is polled and doesn't currently have a split
+        if (remainingSplits.isEmpty() && !noMoreSplits) {
+            context.sendSplitRequest();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {}
+    private InputStatus tryMoveToNextSplit() {
+        currentSplit = remainingSplits.poll();
+        if (currentSplit != null) {
+            iterator = currentSplit.getIterator();
+            return InputStatus.MORE_AVAILABLE;
+        } else if (noMoreSplits) {
+            return InputStatus.END_OF_INPUT;
+        } else {
+            // ensure we are not called in a loop by resetting the availability future
+            if (availability.isDone()) {
+                availability = new CompletableFuture<>();
+            }
+
+            return InputStatus.NOTHING_AVAILABLE;
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> isAvailable() {
+        return availability;
+    }
+
+    @Override
+    public void addSplits(List<SplitT> splits) {
+        remainingSplits.addAll(splits);
+        // set availability so that pollNext is actually called
+        availability.complete(null);
+    }
+
+    @Override
+    public void notifyNoMoreSplits() {
+        noMoreSplits = true;
+        // set availability so that pollNext is actually called
+        availability.complete(null);
+    }
+
+    @Override
+    public List<SplitT> snapshotState(long checkpointId) {
+        if (currentSplit == null && remainingSplits.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        final ArrayList<SplitT> allSplits = new ArrayList<>(1 + remainingSplits.size());
+        if (iterator != null && iterator.hasNext()) {
+            assert currentSplit != null;
+
+            @SuppressWarnings("unchecked")
+            final SplitT inProgressSplit =
+                    (SplitT) currentSplit.getUpdatedSplitForIterator(iterator);
+            allSplits.add(inProgressSplit);
+        }
+        allSplits.addAll(remainingSplits);
+        return allSplits;
+    }
+
+    @Override
+    public void close() throws Exception {}
 }

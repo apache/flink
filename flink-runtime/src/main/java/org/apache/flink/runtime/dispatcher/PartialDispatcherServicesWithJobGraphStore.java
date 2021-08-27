@@ -32,60 +32,58 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
 
-/**
- * {@link DispatcherFactory} services container.
- */
+/** {@link DispatcherFactory} services container. */
 public class PartialDispatcherServicesWithJobGraphStore extends PartialDispatcherServices {
 
-	@Nonnull
-	private final JobGraphWriter jobGraphWriter;
+    @Nonnull private final JobGraphWriter jobGraphWriter;
 
-	public PartialDispatcherServicesWithJobGraphStore(
-			@Nonnull Configuration configuration,
-			@Nonnull HighAvailabilityServices highAvailabilityServices,
-			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			@Nonnull BlobServer blobServer,
-			@Nonnull HeartbeatServices heartbeatServices,
-			@Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
-			@Nonnull ArchivedExecutionGraphStore archivedExecutionGraphStore,
-			@Nonnull FatalErrorHandler fatalErrorHandler,
-			@Nonnull HistoryServerArchivist historyServerArchivist,
-			@Nullable String metricQueryServiceAddress,
-			@Nonnull Executor ioExecutor,
-			@Nonnull JobGraphWriter jobGraphWriter) {
-		super(
-			configuration,
-			highAvailabilityServices,
-			resourceManagerGatewayRetriever,
-			blobServer,
-			heartbeatServices,
-			jobManagerMetricGroupFactory,
-			archivedExecutionGraphStore,
-			fatalErrorHandler,
-			historyServerArchivist,
-			metricQueryServiceAddress,
-			ioExecutor);
-		this.jobGraphWriter = jobGraphWriter;
-	}
+    public PartialDispatcherServicesWithJobGraphStore(
+            @Nonnull Configuration configuration,
+            @Nonnull HighAvailabilityServices highAvailabilityServices,
+            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            @Nonnull BlobServer blobServer,
+            @Nonnull HeartbeatServices heartbeatServices,
+            @Nonnull JobManagerMetricGroupFactory jobManagerMetricGroupFactory,
+            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
+            @Nonnull FatalErrorHandler fatalErrorHandler,
+            @Nonnull HistoryServerArchivist historyServerArchivist,
+            @Nullable String metricQueryServiceAddress,
+            @Nonnull Executor ioExecutor,
+            @Nonnull JobGraphWriter jobGraphWriter) {
+        super(
+                configuration,
+                highAvailabilityServices,
+                resourceManagerGatewayRetriever,
+                blobServer,
+                heartbeatServices,
+                jobManagerMetricGroupFactory,
+                executionGraphInfoStore,
+                fatalErrorHandler,
+                historyServerArchivist,
+                metricQueryServiceAddress,
+                ioExecutor);
+        this.jobGraphWriter = jobGraphWriter;
+    }
 
-	@Nonnull
-	public JobGraphWriter getJobGraphWriter() {
-		return jobGraphWriter;
-	}
+    @Nonnull
+    public JobGraphWriter getJobGraphWriter() {
+        return jobGraphWriter;
+    }
 
-	public static PartialDispatcherServicesWithJobGraphStore from(PartialDispatcherServices partialDispatcherServices, JobGraphWriter jobGraphWriter) {
-		return new PartialDispatcherServicesWithJobGraphStore(
-			partialDispatcherServices.getConfiguration(),
-			partialDispatcherServices.getHighAvailabilityServices(),
-			partialDispatcherServices.getResourceManagerGatewayRetriever(),
-			partialDispatcherServices.getBlobServer(),
-			partialDispatcherServices.getHeartbeatServices(),
-			partialDispatcherServices.getJobManagerMetricGroupFactory(),
-			partialDispatcherServices.getArchivedExecutionGraphStore(),
-			partialDispatcherServices.getFatalErrorHandler(),
-			partialDispatcherServices.getHistoryServerArchivist(),
-			partialDispatcherServices.getMetricQueryServiceAddress(),
-			partialDispatcherServices.getIoExecutor(),
-			jobGraphWriter);
-	}
+    public static PartialDispatcherServicesWithJobGraphStore from(
+            PartialDispatcherServices partialDispatcherServices, JobGraphWriter jobGraphWriter) {
+        return new PartialDispatcherServicesWithJobGraphStore(
+                partialDispatcherServices.getConfiguration(),
+                partialDispatcherServices.getHighAvailabilityServices(),
+                partialDispatcherServices.getResourceManagerGatewayRetriever(),
+                partialDispatcherServices.getBlobServer(),
+                partialDispatcherServices.getHeartbeatServices(),
+                partialDispatcherServices.getJobManagerMetricGroupFactory(),
+                partialDispatcherServices.getArchivedExecutionGraphStore(),
+                partialDispatcherServices.getFatalErrorHandler(),
+                partialDispatcherServices.getHistoryServerArchivist(),
+                partialDispatcherServices.getMetricQueryServiceAddress(),
+                partialDispatcherServices.getIoExecutor(),
+                jobGraphWriter);
+    }
 }

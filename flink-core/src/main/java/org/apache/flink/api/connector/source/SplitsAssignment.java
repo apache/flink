@@ -34,26 +34,24 @@ import java.util.Map;
 @PublicEvolving
 public final class SplitsAssignment<SplitT extends SourceSplit> {
 
-	private final Map<Integer, List<SplitT>> assignment;
+    private final Map<Integer, List<SplitT>> assignment;
 
-	public SplitsAssignment(Map<Integer, List<SplitT>> assignment) {
-		this.assignment = assignment;
-	}
+    public SplitsAssignment(Map<Integer, List<SplitT>> assignment) {
+        this.assignment = assignment;
+    }
 
-	public SplitsAssignment(SplitT split, int subtask) {
-		this.assignment = new HashMap<>();
-		this.assignment.put(subtask, Collections.singletonList(split));
-	}
+    public SplitsAssignment(SplitT split, int subtask) {
+        this.assignment = new HashMap<>();
+        this.assignment.put(subtask, Collections.singletonList(split));
+    }
 
-	/**
-	 * @return A mapping from subtask ID to their split assignment.
-	 */
-	public Map<Integer, List<SplitT>> assignment() {
-		return assignment;
-	}
+    /** @return A mapping from subtask ID to their split assignment. */
+    public Map<Integer, List<SplitT>> assignment() {
+        return assignment;
+    }
 
-	@Override
-	public String toString() {
-		return assignment.toString();
-	}
+    @Override
+    public String toString() {
+        return assignment.toString();
+    }
 }

@@ -29,22 +29,21 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-/**
- * {@link RequestBody} for querying the plan from a jar.
- */
+/** {@link RequestBody} for querying the plan from a jar. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JarPlanRequestBody extends JarRequestBody {
-	JarPlanRequestBody() {
-		super(null, null, null, null, null);
-	}
+    JarPlanRequestBody() {
+        super(null, null, null, null, null);
+    }
 
-	@JsonCreator
-	JarPlanRequestBody(
-		@Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-		@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
-		@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST) List<String> programArgumentsList,
-		@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
-		@Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId) {
-		super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
-	}
+    @JsonCreator
+    JarPlanRequestBody(
+            @Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
+            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
+            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
+                    List<String> programArgumentsList,
+            @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
+            @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId) {
+        super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
+    }
 }

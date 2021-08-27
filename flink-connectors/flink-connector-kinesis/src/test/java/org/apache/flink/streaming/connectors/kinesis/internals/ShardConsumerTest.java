@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling.PollingRecordPublisherFactory;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -32,133 +34,214 @@ import java.util.Properties;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.createFakeShardConsumerMetricGroup;
 import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.fakeSequenceNumber;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for the {@link ShardConsumer} using Polling consumption mocked Kinesis behaviours.
- */
+/** Tests for the {@link ShardConsumer} using Polling consumption mocked Kinesis behaviours. */
 public class ShardConsumerTest {
 
-	@Test
-	public void testMetricsReporting() throws Exception {
-		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(500, 5, 500);
+    @Test
+    public void testMetricsReporting() throws Exception {
+        KinesisProxyInterface kinesis =
+                FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                        500, 5, 500);
 
-		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
-		assertEquals(500, metrics.getMillisBehindLatest());
-	}
+        ShardConsumerMetricsReporter metrics =
+                assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber());
+        assertEquals(500, metrics.getMillisBehindLatest());
+    }
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceNumber() throws Exception {
-		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(1000, 9, 500L));
+    @Test
+    public void testConsumerAndProducerMetricsAreUnregisteredAfterShardCompletes()
+            throws Exception {
+        KinesisProxyInterface kinesis =
+                FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                        500, 5, 500);
+        AbstractMetricGroup metricGroup = createFakeShardConsumerMetricGroup();
+        assertNumberOfMessagesReceivedFromKinesis(500, kinesis, fakeSequenceNumber(), metricGroup);
+        assertTrue(metricGroup.isClosed());
+    }
 
-		assertNumberOfMessagesReceivedFromKinesis(1000, kinesis, fakeSequenceNumber());
-		verify(kinesis).getShardIterator(any(), eq("AFTER_SEQUENCE_NUMBER"), eq("fakeStartingState"));
-	}
+    @Test
+    public void testTimestampStartingPositionWithEmptyShard() throws Exception {
+        Properties consumerProperties = new Properties();
+        consumerProperties.setProperty(
+                ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "2020-11-11T09:14");
+        consumerProperties.setProperty(
+                ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "yyyy-MM-dd'T'HH:mm");
+        SequenceNumber sequenceNumber = SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get();
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceSentinelTimestamp() throws Exception {
-		String format = "yyyy-MM-dd'T'HH:mm";
-		String timestamp = "2020-07-02T09:14";
-		Date expectedTimestamp = new SimpleDateFormat(format).parse(timestamp);
+        final int numberOfIterations = 3;
+        KinesisProxyInterface kinesis =
+                spy(FakeKinesisBehavioursFactory.emptyShard(numberOfIterations));
 
-		Properties consumerProperties = new Properties();
-		consumerProperties.setProperty(STREAM_INITIAL_TIMESTAMP, timestamp);
-		consumerProperties.setProperty(STREAM_TIMESTAMP_DATE_FORMAT, format);
-		SequenceNumber sequenceNumber = SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get();
+        assertNumberOfMessagesReceivedFromKinesis(0, kinesis, sequenceNumber, consumerProperties);
+        verify(kinesis).getShardIterator(any(), eq("AT_TIMESTAMP"), any());
+        verify(kinesis, times(numberOfIterations)).getRecords(any(), anyInt());
+    }
 
-		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(10, 1, 0));
+    @Test
+    public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceNumber()
+            throws Exception {
+        KinesisProxyInterface kinesis =
+                spy(
+                        FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                                1000, 9, 500L));
 
-		assertNumberOfMessagesReceivedFromKinesis(10, kinesis, sequenceNumber, consumerProperties);
-		verify(kinesis).getShardIterator(any(), eq("AT_TIMESTAMP"), eq(expectedTimestamp));
-	}
+        assertNumberOfMessagesReceivedFromKinesis(1000, kinesis, fakeSequenceNumber());
+        verify(kinesis)
+                .getShardIterator(any(), eq("AFTER_SEQUENCE_NUMBER"), eq("fakeStartingState"));
+    }
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceSentinelEarliest() throws Exception {
-		SequenceNumber sequenceNumber = SENTINEL_EARLIEST_SEQUENCE_NUM.get();
+    @Test
+    public void
+            testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceSentinelTimestamp()
+                    throws Exception {
+        String format = "yyyy-MM-dd'T'HH:mm";
+        String timestamp = "2020-07-02T09:14";
+        Date expectedTimestamp = new SimpleDateFormat(format).parse(timestamp);
 
-		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(50, 2, 0));
+        Properties consumerProperties = new Properties();
+        consumerProperties.setProperty(STREAM_INITIAL_TIMESTAMP, timestamp);
+        consumerProperties.setProperty(STREAM_TIMESTAMP_DATE_FORMAT, format);
+        SequenceNumber sequenceNumber = SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get();
 
-		assertNumberOfMessagesReceivedFromKinesis(50, kinesis, sequenceNumber);
-		verify(kinesis).getShardIterator(any(), eq("TRIM_HORIZON"), eq(null));
-	}
+        KinesisProxyInterface kinesis =
+                spy(
+                        FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                                10, 1, 0));
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithUnexpectedExpiredIterator() throws Exception {
-		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(1000, 9, 7, 500L);
+        assertNumberOfMessagesReceivedFromKinesis(10, kinesis, sequenceNumber, consumerProperties);
+        verify(kinesis).getShardIterator(any(), eq("AT_TIMESTAMP"), eq(expectedTimestamp));
+    }
 
-		// Get a total of 1000 records with 9 getRecords() calls,
-		// and the 7th getRecords() call will encounter an unexpected expired shard iterator
-		assertNumberOfMessagesReceivedFromKinesis(1000, kinesis, fakeSequenceNumber());
-	}
+    @Test
+    public void
+            testCorrectNumOfCollectedRecordsAndUpdatedStateWithStartingSequenceSentinelEarliest()
+                    throws Exception {
+        SequenceNumber sequenceNumber = SENTINEL_EARLIEST_SEQUENCE_NUM.get();
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() throws Exception {
-		Properties consumerProperties = new Properties();
-		consumerProperties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
+        KinesisProxyInterface kinesis =
+                spy(
+                        FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(
+                                50, 2, 0));
 
-		KinesisProxyInterface kinesis = FakeKinesisBehavioursFactory.initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(10, 2, 500L);
+        assertNumberOfMessagesReceivedFromKinesis(50, kinesis, sequenceNumber);
+        verify(kinesis).getShardIterator(any(), eq("TRIM_HORIZON"), eq(null));
+    }
 
-		// Avg record size for first batch --> 10 * 10 Kb/10 = 10 Kb
-		// Number of records fetched in second batch --> 2 Mb/10Kb * 5 = 40
-		// Total number of records = 10 + 40 = 50
-		assertNumberOfMessagesReceivedFromKinesis(50, kinesis, fakeSequenceNumber(), consumerProperties);
-	}
+    @Test
+    public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithUnexpectedExpiredIterator()
+            throws Exception {
+        KinesisProxyInterface kinesis =
+                FakeKinesisBehavioursFactory
+                        .totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(
+                                1000, 9, 7, 500L);
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAggregatedRecords() throws Exception {
-		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.aggregatedRecords(3, 5, 10));
+        // Get a total of 1000 records with 9 getRecords() calls,
+        // and the 7th getRecords() call will encounter an unexpected expired shard iterator
+        assertNumberOfMessagesReceivedFromKinesis(1000, kinesis, fakeSequenceNumber());
+    }
 
-		// Expecting to receive all messages
-		// 10 batches of 3 aggregated records each with 5 child records
-		// 10 * 3 * 5 = 150
-		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(150, kinesis, fakeSequenceNumber());
-		assertEquals(3, metrics.getNumberOfAggregatedRecords());
-		assertEquals(15, metrics.getNumberOfDeaggregatedRecords());
+    @Test
+    public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads()
+            throws Exception {
+        Properties consumerProperties = new Properties();
+        consumerProperties.setProperty(SHARD_USE_ADAPTIVE_READS, "true");
 
-		verify(kinesis).getShardIterator(any(), eq("AFTER_SEQUENCE_NUMBER"), eq("fakeStartingState"));
-	}
+        KinesisProxyInterface kinesis =
+                FakeKinesisBehavioursFactory
+                        .initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(10, 2, 500L);
 
-	@Test
-	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAggregatedRecordsWithSubSequenceStartingNumber() throws Exception {
-		SequenceNumber sequenceNumber = new SequenceNumber("0", 5);
-		KinesisProxyInterface kinesis = spy(FakeKinesisBehavioursFactory.aggregatedRecords(1, 10, 5));
+        // Avg record size for first batch --> 10 * 10 Kb/10 = 10 Kb
+        // Number of records fetched in second batch --> 2 Mb/10Kb * 5 = 40
+        // Total number of records = 10 + 40 = 50
+        assertNumberOfMessagesReceivedFromKinesis(
+                50, kinesis, fakeSequenceNumber(), consumerProperties);
+    }
 
-		// Expecting to start consuming from last sub sequence number
-		// 5 batches of 1 aggregated record each with 10 child records
-		// Last consumed message was sub-sequence 5 (6/10) (zero based) (remaining are 6, 7, 8, 9)
-		// 5 * 1 * 10 - 6 = 44
-		ShardConsumerMetricsReporter metrics = assertNumberOfMessagesReceivedFromKinesis(44, kinesis, sequenceNumber);
-		assertEquals(1, metrics.getNumberOfAggregatedRecords());
-		assertEquals(10, metrics.getNumberOfDeaggregatedRecords());
+    @Test
+    public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAggregatedRecords()
+            throws Exception {
+        KinesisProxyInterface kinesis =
+                spy(FakeKinesisBehavioursFactory.aggregatedRecords(3, 5, 10));
 
-		verify(kinesis).getShardIterator(any(), eq("AT_SEQUENCE_NUMBER"), eq("0"));
-	}
+        // Expecting to receive all messages
+        // 10 batches of 3 aggregated records each with 5 child records
+        // 10 * 3 * 5 = 150
+        ShardConsumerMetricsReporter metrics =
+                assertNumberOfMessagesReceivedFromKinesis(150, kinesis, fakeSequenceNumber());
+        assertEquals(3, metrics.getNumberOfAggregatedRecords());
+        assertEquals(15, metrics.getNumberOfDeaggregatedRecords());
 
-	private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
-			final int expectedNumberOfMessages,
-			final KinesisProxyInterface kinesis,
-			final SequenceNumber startingSequenceNumber) throws Exception {
-		return assertNumberOfMessagesReceivedFromKinesis(expectedNumberOfMessages, kinesis, startingSequenceNumber, new Properties());
-	}
+        verify(kinesis)
+                .getShardIterator(any(), eq("AFTER_SEQUENCE_NUMBER"), eq("fakeStartingState"));
+    }
 
-	private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
-			final int expectedNumberOfMessages,
-			final KinesisProxyInterface kinesis,
-			final SequenceNumber startingSequenceNumber,
-			final Properties consumerProperties) throws Exception {
+    @Test
+    public void
+            testCorrectNumOfCollectedRecordsAndUpdatedStateWithAggregatedRecordsWithSubSequenceStartingNumber()
+                    throws Exception {
+        SequenceNumber sequenceNumber = new SequenceNumber("0", 5);
+        KinesisProxyInterface kinesis =
+                spy(FakeKinesisBehavioursFactory.aggregatedRecords(1, 10, 5));
 
-		return ShardConsumerTestUtils.assertNumberOfMessagesReceivedFromKinesis(
-			expectedNumberOfMessages,
-			new PollingRecordPublisherFactory(config -> kinesis),
-			startingSequenceNumber,
-			consumerProperties);
-	}
+        // Expecting to start consuming from last sub sequence number
+        // 5 batches of 1 aggregated record each with 10 child records
+        // Last consumed message was sub-sequence 5 (6/10) (zero based) (remaining are 6, 7, 8, 9)
+        // 5 * 1 * 10 - 6 = 44
+        ShardConsumerMetricsReporter metrics =
+                assertNumberOfMessagesReceivedFromKinesis(44, kinesis, sequenceNumber);
+        assertEquals(1, metrics.getNumberOfAggregatedRecords());
+        assertEquals(10, metrics.getNumberOfDeaggregatedRecords());
 
+        verify(kinesis).getShardIterator(any(), eq("AT_SEQUENCE_NUMBER"), eq("0"));
+    }
+
+    private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final KinesisProxyInterface kinesis,
+            final SequenceNumber startingSequenceNumber)
+            throws Exception {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages, kinesis, startingSequenceNumber, new Properties());
+    }
+
+    private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final KinesisProxyInterface kinesis,
+            final SequenceNumber startingSequenceNumber,
+            final AbstractMetricGroup metricGroup)
+            throws Exception {
+        return ShardConsumerTestUtils.assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                new PollingRecordPublisherFactory(config -> kinesis),
+                startingSequenceNumber,
+                new Properties(),
+                metricGroup);
+    }
+
+    private ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final KinesisProxyInterface kinesis,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties)
+            throws Exception {
+
+        return ShardConsumerTestUtils.assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                new PollingRecordPublisherFactory(config -> kinesis),
+                startingSequenceNumber,
+                consumerProperties);
+    }
 }

@@ -44,138 +44,142 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Integration tests for proper initialization of the job manager metrics.
- */
+/** Integration tests for proper initialization of the job manager metrics. */
 public class JobManagerMetricsITCase extends TestLogger {
 
-	private static final String JOB_MANAGER_METRICS_PREFIX = "localhost.jobmanager.";
+    private static final String JOB_MANAGER_METRICS_PREFIX = "localhost.jobmanager.";
 
-	private static final BlockerSync sync = new BlockerSync();
+    private static final BlockerSync sync = new BlockerSync();
 
-	private CheckedThread jobExecuteThread;
+    private CheckedThread jobExecuteThread;
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(1)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-	@Before
-	public void setUp() throws Exception {
-		jobExecuteThread = new CheckedThread() {
+    @Before
+    public void setUp() throws Exception {
+        jobExecuteThread =
+                new CheckedThread() {
 
-			@Override
-			public void go() throws Exception {
-				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				env.addSource(new SourceFunction<String>() {
+                    @Override
+                    public void go() throws Exception {
+                        StreamExecutionEnvironment env =
+                                StreamExecutionEnvironment.getExecutionEnvironment();
+                        env.addSource(
+                                        new SourceFunction<String>() {
 
-					@Override
-					public void run(SourceContext<String> ctx) throws Exception {
-						sync.block();
-					}
+                                            @Override
+                                            public void run(SourceContext<String> ctx)
+                                                    throws Exception {
+                                                sync.block();
+                                            }
 
-					@Override
-					public void cancel() {
-						sync.releaseBlocker();
-					}
+                                            @Override
+                                            public void cancel() {
+                                                sync.releaseBlocker();
+                                            }
+                                        })
+                                .addSink(new PrintSinkFunction());
 
-				}).addSink(new PrintSinkFunction());
+                        env.execute();
+                    }
+                };
 
-				env.execute();
-			}
+        jobExecuteThread.start();
+        sync.awaitBlocker();
+    }
 
-		};
+    @Test
+    public void testJobManagerMetrics() throws Exception {
+        assertEquals(1, TestReporter.OPENED_REPORTERS.size());
+        TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
 
-		jobExecuteThread.start();
-		sync.awaitBlocker();
-	}
+        List<String> expectedPatterns = getExpectedPatterns();
 
-	@Test
-	public void testJobManagerMetrics() throws Exception {
-		assertEquals(1, TestReporter.OPENED_REPORTERS.size());
-		TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
+        Collection<String> gaugeNames = reporter.getGauges().values();
 
-		List<String> expectedPatterns = getExpectedPatterns();
+        for (String expectedPattern : expectedPatterns) {
+            boolean found = false;
+            for (String gaugeName : gaugeNames) {
+                if (gaugeName.matches(expectedPattern)) {
+                    found = true;
+                }
+            }
+            if (!found) {
+                fail(
+                        String.format(
+                                "Failed to find gauge [%s] in registered gauges [%s]",
+                                expectedPattern, gaugeNames));
+            }
+        }
 
-		Collection<String> gaugeNames = reporter.getGauges().values();
+        for (Map.Entry<Gauge<?>, String> entry : reporter.getGauges().entrySet()) {
+            if (entry.getValue().contains(MetricNames.TASK_SLOTS_AVAILABLE)) {
+                assertEquals(0L, entry.getKey().getValue());
+            } else if (entry.getValue().contains(MetricNames.TASK_SLOTS_TOTAL)) {
+                assertEquals(1L, entry.getKey().getValue());
+            } else if (entry.getValue().contains(MetricNames.NUM_REGISTERED_TASK_MANAGERS)) {
+                assertEquals(1L, entry.getKey().getValue());
+            } else if (entry.getValue().contains(MetricNames.NUM_RUNNING_JOBS)) {
+                assertEquals(1L, entry.getKey().getValue());
+            }
+        }
 
-		for (String expectedPattern : expectedPatterns) {
-			boolean found = false;
-			for (String gaugeName : gaugeNames) {
-				if (gaugeName.matches(expectedPattern)) {
-					found = true;
-				}
-			}
-			if (!found) {
-				fail(String.format("Failed to find gauge [%s] in registered gauges [%s]",
-					expectedPattern, gaugeNames));
-			}
-		}
+        sync.releaseBlocker();
+        jobExecuteThread.sync();
+    }
 
-		for (Map.Entry<Gauge<?>, String> entry : reporter.getGauges().entrySet()) {
-			if (entry.getValue().contains(MetricNames.TASK_SLOTS_AVAILABLE)) {
-				assertEquals(0L, entry.getKey().getValue());
-			} else if (entry.getValue().contains(MetricNames.TASK_SLOTS_TOTAL)) {
-				assertEquals(1L, entry.getKey().getValue());
-			} else if (entry.getValue().contains(MetricNames.NUM_REGISTERED_TASK_MANAGERS)) {
-				assertEquals(1L, entry.getKey().getValue());
-			} else if (entry.getValue().contains(MetricNames.NUM_RUNNING_JOBS)) {
-				assertEquals(1L, entry.getKey().getValue());
-			}
-		}
+    private static Configuration getConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                "metrics.reporter.test_reporter.class", TestReporter.class.getName());
+        return configuration;
+    }
 
-		sync.releaseBlocker();
-		jobExecuteThread.sync();
-	}
+    private static List<String> getExpectedPatterns() {
+        String[] expectedGauges =
+                new String[] {
+                    MetricNames.TASK_SLOTS_AVAILABLE,
+                    MetricNames.TASK_SLOTS_TOTAL,
+                    MetricNames.NUM_REGISTERED_TASK_MANAGERS,
+                    MetricNames.NUM_RUNNING_JOBS
+                };
 
-	private static Configuration getConfiguration() {
-		Configuration configuration = new Configuration();
-		configuration.setString("metrics.reporter.test_reporter.class", TestReporter.class.getName());
-		return configuration;
-	}
+        List<String> patterns = new ArrayList<>();
+        for (String expectedGauge : expectedGauges) {
+            patterns.add(JOB_MANAGER_METRICS_PREFIX + expectedGauge);
+        }
 
-	private static List<String> getExpectedPatterns() {
-		String[] expectedGauges = new String[]{
-			MetricNames.TASK_SLOTS_AVAILABLE,
-			MetricNames.TASK_SLOTS_TOTAL,
-			MetricNames.NUM_REGISTERED_TASK_MANAGERS,
-			MetricNames.NUM_RUNNING_JOBS
-		};
+        return patterns;
+    }
 
-		List<String> patterns = new ArrayList<>();
-		for (String expectedGauge : expectedGauges) {
-			patterns.add(JOB_MANAGER_METRICS_PREFIX + expectedGauge);
-		}
+    /** Test metric reporter that exposes registered metrics. */
+    public static final class TestReporter extends AbstractReporter {
+        public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
 
-		return patterns;
-	}
+        @Override
+        public String filterCharacters(String input) {
+            return input;
+        }
 
-	/**
-	 * Test metric reporter that exposes registered metrics.
-	 */
-	public static final class TestReporter extends AbstractReporter {
-		public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
+        @Override
+        public void open(MetricConfig config) {
+            OPENED_REPORTERS.add(this);
+        }
 
-		@Override
-		public String filterCharacters(String input) {
-			return input;
-		}
+        @Override
+        public void close() {
+            OPENED_REPORTERS.remove(this);
+        }
 
-		@Override
-		public void open(MetricConfig config) {
-			OPENED_REPORTERS.add(this);
-		}
-
-		@Override
-		public void close() {
-			OPENED_REPORTERS.remove(this);
-		}
-
-		public Map<Gauge<?>, String> getGauges() {
-			return gauges;
-		}
-	}
+        public Map<Gauge<?>, String> getGauges() {
+            return gauges;
+        }
+    }
 }

@@ -32,50 +32,50 @@ import java.util.Collection;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/**
- * Base class for Arrow Python aggregate function operator tests.
- */
+/** Base class for Arrow Python aggregate function operator tests. */
 public abstract class ArrowPythonAggregateFunctionOperatorTestBase {
 
-	private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(getOutputLogicalType());
+    private RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(getOutputLogicalType());
 
-	protected RowData newRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return row(fields);
-		} else {
-			RowData row = row(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    protected RowData newRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return row(fields);
+        } else {
+            RowData row = row(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	protected RowData newBinaryRow(boolean accumulateMsg, Object... fields) {
-		if (accumulateMsg) {
-			return binaryrow(fields);
-		} else {
-			RowData row = binaryrow(fields);
-			row.setRowKind(RowKind.DELETE);
-			return row;
-		}
-	}
+    protected RowData newBinaryRow(boolean accumulateMsg, Object... fields) {
+        if (accumulateMsg) {
+            return binaryrow(fields);
+        } else {
+            RowData row = binaryrow(fields);
+            row.setRowKind(RowKind.DELETE);
+            return row;
+        }
+    }
 
-	protected void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
-		assertor.assertOutputEquals(message, expected, actual);
-	}
+    protected void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual) {
+        assertor.assertOutputEquals(message, expected, actual);
+    }
 
-	public abstract OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(Configuration config) throws Exception;
+    public abstract OneInputStreamOperatorTestHarness<RowData, RowData> getTestHarness(
+            Configuration config) throws Exception;
 
-	public abstract LogicalType[] getOutputLogicalType();
+    public abstract LogicalType[] getOutputLogicalType();
 
-	public abstract RowType getInputType();
+    public abstract RowType getInputType();
 
-	public abstract RowType getOutputType();
+    public abstract RowType getOutputType();
 
-	public abstract AbstractArrowPythonAggregateFunctionOperator getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] pandasAggregateFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] groupingSet,
-		int[] udafInputOffsets);
+    public abstract AbstractArrowPythonAggregateFunctionOperator getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] pandasAggregateFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] groupingSet,
+            int[] udafInputOffsets);
 }

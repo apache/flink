@@ -24,30 +24,30 @@ import java.util.Collection;
 import java.util.function.Supplier;
 
 /** In memory mock internal merging state base class. */
-abstract class MockInternalMergingState<K, N, IN, ACC, OUT>
-	extends MockInternalKvState<K, N, ACC> implements InternalMergingState<K, N, IN, ACC, OUT> {
+abstract class MockInternalMergingState<K, N, IN, ACC, OUT> extends MockInternalKvState<K, N, ACC>
+        implements InternalMergingState<K, N, IN, ACC, OUT> {
 
-	MockInternalMergingState() {
-		super();
-	}
+    MockInternalMergingState() {
+        super();
+    }
 
-	MockInternalMergingState(Supplier<ACC> emptyValue) {
-		super(emptyValue);
-	}
+    MockInternalMergingState(Supplier<ACC> emptyValue) {
+        super(emptyValue);
+    }
 
-	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
-		ACC acc = null;
-		for (N n : sources) {
-			setCurrentNamespace(n);
-			ACC nAcc = getInternal();
-			acc = nAcc == null ? acc : (acc == null ? nAcc : mergeState(acc, nAcc));
-		}
-		if (acc != null) {
-			setCurrentNamespace(target);
-			updateInternal(acc);
-		}
-	}
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+        ACC acc = null;
+        for (N n : sources) {
+            setCurrentNamespace(n);
+            ACC nAcc = getInternal();
+            acc = nAcc == null ? acc : (acc == null ? nAcc : mergeState(acc, nAcc));
+        }
+        if (acc != null) {
+            setCurrentNamespace(target);
+            updateInternal(acc);
+        }
+    }
 
-	abstract ACC mergeState(ACC acc, ACC nAcc) throws Exception;
+    abstract ACC mergeState(ACC acc, ACC nAcc) throws Exception;
 }

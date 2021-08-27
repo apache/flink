@@ -26,44 +26,40 @@ import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
 
-/**
- * Tests the behaviors of {@link HadoopRenameFileCommitter} with local file system.
- */
+/** Tests the behaviors of {@link HadoopRenameFileCommitter} with local file system. */
 public class HadoopRenameCommitterLocalFSTest extends AbstractFileCommitterTest {
 
-	public HadoopRenameCommitterLocalFSTest(boolean override) throws IOException {
-		super(override);
-	}
+    public HadoopRenameCommitterLocalFSTest(boolean override) throws IOException {
+        super(override);
+    }
 
-	@Override
-	protected Path getBasePath() throws IOException {
-		return new Path(TEMPORARY_FOLDER.newFolder().toURI());
-	}
+    @Override
+    protected Path getBasePath() throws IOException {
+        return new Path(TEMPORARY_FOLDER.newFolder().toURI());
+    }
 
-	@Override
-	protected Configuration getConfiguration() {
-		return new Configuration();
-	}
+    @Override
+    protected Configuration getConfiguration() {
+        return new Configuration();
+    }
 
-	@Override
-	protected HadoopFileCommitter createNewCommitter(
-		Configuration configuration,
-		Path targetFilePath) throws IOException {
+    @Override
+    protected HadoopFileCommitter createNewCommitter(
+            Configuration configuration, Path targetFilePath) throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath);
+    }
 
-	@Override
-	protected HadoopFileCommitter createPendingCommitter(
-		Configuration configuration,
-		Path targetFilePath,
-		Path tempFilePath) throws IOException {
+    @Override
+    protected HadoopFileCommitter createPendingCommitter(
+            Configuration configuration, Path targetFilePath, Path tempFilePath)
+            throws IOException {
 
-		return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
-	}
+        return new HadoopRenameFileCommitter(configuration, targetFilePath, tempFilePath);
+    }
 
-	@Override
-	public void cleanup(Configuration configuration, Path basePath) {
-		// Empty method.
-	}
+    @Override
+    public void cleanup(Configuration configuration, Path basePath) {
+        // Empty method.
+    }
 }

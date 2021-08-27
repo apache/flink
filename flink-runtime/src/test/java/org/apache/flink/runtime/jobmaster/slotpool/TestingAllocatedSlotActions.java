@@ -26,23 +26,23 @@ import javax.annotation.Nullable;
 
 import java.util.function.Consumer;
 
-/**
- * Simple {@link AllocatedSlotActions} implementations for testing purposes.
- */
+/** Simple {@link AllocatedSlotActions} implementations for testing purposes. */
 public class TestingAllocatedSlotActions implements AllocatedSlotActions {
 
-	private volatile Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer;
+    private volatile Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer;
 
-	public void setReleaseSlotConsumer(@Nullable Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer) {
-		this.releaseSlotConsumer = releaseSlotConsumer;
-	}
+    public void setReleaseSlotConsumer(
+            @Nullable Consumer<Tuple2<SlotRequestId, Throwable>> releaseSlotConsumer) {
+        this.releaseSlotConsumer = releaseSlotConsumer;
+    }
 
-	@Override
-	public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
-		Consumer<Tuple2<SlotRequestId, Throwable>> currentReleaseSlotConsumer = this.releaseSlotConsumer;
+    @Override
+    public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
+        Consumer<Tuple2<SlotRequestId, Throwable>> currentReleaseSlotConsumer =
+                this.releaseSlotConsumer;
 
-		if (currentReleaseSlotConsumer != null) {
-			currentReleaseSlotConsumer.accept(Tuple2.of(slotRequestId, cause));
-		}
-	}
+        if (currentReleaseSlotConsumer != null) {
+            currentReleaseSlotConsumer.accept(Tuple2.of(slotRequestId, cause));
+        }
+    }
 }

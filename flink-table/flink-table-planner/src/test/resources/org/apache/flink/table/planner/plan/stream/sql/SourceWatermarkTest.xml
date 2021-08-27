@@ -1,0 +1,189 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testWatermarkWithUdf">
+    <Resource name="sql">
+      <![CDATA[SELECT a - b FROM UdfTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[-($0, $1)])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(a - b) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func($2, $0), $0), $0)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectTransposeWatermarkAssigner">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, ts FROM t1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], ts=[$5])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($5, 10000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], t=[$4], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-($2, 10000:INTERVAL SECOND)]]], fields=[a, b, t])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleWatermarkPushDown">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, c FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkOnComputedColumnExcluedRowTime1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM VirtualTable WHERE b > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b], where=[(b > 10)])
++- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)], filter=[]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkOnCurrentRowTimestampFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM timeTestTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rowtime=[$2])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   +- LogicalProject(a=[$0], b=[$1], rowtime=[TO_TIMESTAMP_LTZ($1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, timeTestTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, Reinterpret(TO_TIMESTAMP_LTZ(b, 0)) AS rowtime])
++- TableSourceScan(table=[[default_catalog, default_database, timeTestTable, watermark=[TO_TIMESTAMP_LTZ($1, 0)]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkOnNestedRowWithNestedProjection">
+    <Resource name="sql">
+      <![CDATA[select c.e, c.d from NestedTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(e=[$2.d.e], d=[$2.d])
++- LogicalWatermarkAssigner(rowtime=[g], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], g=[$2.d.f])
+      +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c.d.e AS e, c.d AS d])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], metadata=[], watermark=[-($0.d.f, 5000:INTERVAL SECOND)]]], fields=[c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkOnTimestampLtzCol">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyLtzTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP_LTZ($3, 3)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyLtzTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ($2, 3)]]], fields=[a, b, originTime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkOnComputedColumnExcludedRowTime2">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, SECOND(d) FROM VirtualTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[EXTRACT(FLAG(SECOND), $3)])
++- LogicalWatermarkAssigner(rowtime=[d], watermark=[-($3, 5000:INTERVAL SECOND)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, EXTRACT(FLAG(SECOND), CAST(Reinterpret((c + 5000:INTERVAL SECOND)))) AS EXPR$2])
++- TableSourceScan(table=[[default_catalog, default_database, VirtualTable, watermark=[-(+($2, 5000:INTERVAL SECOND), 5000:INTERVAL SECOND)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWatermarkWithMetadata">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], originTime=[$3], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME(/($3, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/($2, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

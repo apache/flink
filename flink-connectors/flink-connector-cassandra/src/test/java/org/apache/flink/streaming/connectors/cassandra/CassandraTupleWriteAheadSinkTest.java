@@ -45,88 +45,103 @@ import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
-/**
- * Tests for the {@link CassandraTupleWriteAheadSink}.
- */
+/** Tests for the {@link CassandraTupleWriteAheadSink}. */
 public class CassandraTupleWriteAheadSinkTest {
 
-	@Test(timeout = 20000)
-	public void testAckLoopExitOnException() throws Exception {
-		final AtomicReference<Runnable> runnableFuture = new AtomicReference<>();
+    @Test(timeout = 20000)
+    public void testAckLoopExitOnException() throws Exception {
+        final AtomicReference<Runnable> runnableFuture = new AtomicReference<>();
 
-		final ClusterBuilder clusterBuilder = new ClusterBuilder() {
-			private static final long serialVersionUID = 4624400760492936756L;
+        final ClusterBuilder clusterBuilder =
+                new ClusterBuilder() {
+                    private static final long serialVersionUID = 4624400760492936756L;
 
-			@Override
-			protected Cluster buildCluster(Cluster.Builder builder) {
-				try {
-					BoundStatement boundStatement = mock(BoundStatement.class);
-					when(boundStatement.setDefaultTimestamp(any(long.class))).thenReturn(boundStatement);
+                    @Override
+                    protected Cluster buildCluster(Cluster.Builder builder) {
+                        try {
+                            BoundStatement boundStatement = mock(BoundStatement.class);
+                            when(boundStatement.setDefaultTimestamp(any(long.class)))
+                                    .thenReturn(boundStatement);
 
-					PreparedStatement preparedStatement = mock(PreparedStatement.class);
-					when(preparedStatement.bind(Matchers.anyVararg())).thenReturn(boundStatement);
+                            PreparedStatement preparedStatement = mock(PreparedStatement.class);
+                            when(preparedStatement.bind(Matchers.anyVararg()))
+                                    .thenReturn(boundStatement);
 
-					ResultSetFuture future = mock(ResultSetFuture.class);
-					when(future.get()).thenThrow(new RuntimeException("Expected exception."));
+                            ResultSetFuture future = mock(ResultSetFuture.class);
+                            when(future.get())
+                                    .thenThrow(new RuntimeException("Expected exception."));
 
-					doAnswer(new Answer<Void>() {
-						@Override
-						public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-							synchronized (runnableFuture) {
-								runnableFuture.set((((Runnable) invocationOnMock.getArguments()[0])));
-								runnableFuture.notifyAll();
-							}
-							return null;
-						}
-					}).when(future).addListener(any(Runnable.class), any(Executor.class));
+                            doAnswer(
+                                            new Answer<Void>() {
+                                                @Override
+                                                public Void answer(
+                                                        InvocationOnMock invocationOnMock)
+                                                        throws Throwable {
+                                                    synchronized (runnableFuture) {
+                                                        runnableFuture.set(
+                                                                (((Runnable)
+                                                                        invocationOnMock
+                                                                                .getArguments()[
+                                                                                0])));
+                                                        runnableFuture.notifyAll();
+                                                    }
+                                                    return null;
+                                                }
+                                            })
+                                    .when(future)
+                                    .addListener(any(Runnable.class), any(Executor.class));
 
-					Session session = mock(Session.class);
-					when(session.prepare(anyString())).thenReturn(preparedStatement);
-					when(session.executeAsync(any(BoundStatement.class))).thenReturn(future);
+                            Session session = mock(Session.class);
+                            when(session.prepare(anyString())).thenReturn(preparedStatement);
+                            when(session.executeAsync(any(BoundStatement.class)))
+                                    .thenReturn(future);
 
-					Cluster cluster = mock(Cluster.class);
-					when(cluster.connect()).thenReturn(session);
-					return cluster;
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}
-		};
+                            Cluster cluster = mock(Cluster.class);
+                            when(cluster.connect()).thenReturn(session);
+                            return cluster;
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                };
 
-		// Our asynchronous executor thread
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				synchronized (runnableFuture) {
-					while (runnableFuture.get() == null) {
-						try {
-							runnableFuture.wait();
-						} catch (InterruptedException e) {
-							// ignore interrupts
-						}
-					}
-				}
-				runnableFuture.get().run();
-			}
-		}).start();
+        // Our asynchronous executor thread
+        new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                synchronized (runnableFuture) {
+                                    while (runnableFuture.get() == null) {
+                                        try {
+                                            runnableFuture.wait();
+                                        } catch (InterruptedException e) {
+                                            // ignore interrupts
+                                        }
+                                    }
+                                }
+                                runnableFuture.get().run();
+                            }
+                        })
+                .start();
 
-		CheckpointCommitter cc = mock(CheckpointCommitter.class);
-		final CassandraTupleWriteAheadSink<Tuple0> sink = new CassandraTupleWriteAheadSink<>(
-			"abc",
-			TupleTypeInfo.of(Tuple0.class).createSerializer(new ExecutionConfig()),
-			clusterBuilder,
-			cc
-		);
+        CheckpointCommitter cc = mock(CheckpointCommitter.class);
+        final CassandraTupleWriteAheadSink<Tuple0> sink =
+                new CassandraTupleWriteAheadSink<>(
+                        "abc",
+                        TupleTypeInfo.of(Tuple0.class).createSerializer(new ExecutionConfig()),
+                        clusterBuilder,
+                        cc);
 
-		OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness = new OneInputStreamOperatorTestHarness<>(sink);
-		harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
+        OneInputStreamOperatorTestHarness<Tuple0, Tuple0> harness =
+                new OneInputStreamOperatorTestHarness<>(sink);
+        harness.getEnvironment().getTaskConfiguration().setBoolean("checkpointing", true);
 
-		harness.setup();
-		sink.open();
+        harness.setup();
+        sink.open();
 
-		// we should leave the loop and return false since we've seen an exception
-		assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L));
+        // we should leave the loop and return false since we've seen an exception
+        assertFalse(sink.sendValues(Collections.singleton(new Tuple0()), 1L, 0L));
 
-		sink.close();
-	}
+        sink.close();
+    }
 }

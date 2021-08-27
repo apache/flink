@@ -29,76 +29,80 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link TriadicCensus}.
- */
+/** Tests for {@link TriadicCensus}. */
 public class TriadicCensusTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		Result expectedResult = new Result(3, 8, 7, 2);
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        Result expectedResult = new Result(3, 8, 7, 2);
 
-		Result triadCensus = new TriadicCensus<IntValue, NullValue, NullValue>()
-			.run(undirectedSimpleGraph)
-			.execute();
+        Result triadCensus =
+                new TriadicCensus<IntValue, NullValue, NullValue>()
+                        .run(undirectedSimpleGraph)
+                        .execute();
 
-		assertEquals(expectedResult, triadCensus);
-	}
+        assertEquals(expectedResult, triadCensus);
+    }
 
-	@Test
-	public void testWithCompleteGraph() throws Exception {
-		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2) / 3;
+    @Test
+    public void testWithCompleteGraph() throws Exception {
+        long expectedDegree = completeGraphVertexCount - 1;
+        long expectedCount =
+                completeGraphVertexCount
+                        * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2)
+                        / 3;
 
-		Result expectedResult = new Result(0, 0, 0, expectedCount);
+        Result expectedResult = new Result(0, 0, 0, expectedCount);
 
-		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(completeGraph)
-			.execute();
+        Result triadCensus =
+                new TriadicCensus<LongValue, NullValue, NullValue>().run(completeGraph).execute();
 
-		assertEquals(expectedResult, triadCensus);
-	}
+        assertEquals(expectedResult, triadCensus);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		Result expectedResult = new Result(0, 0, 0, 0);
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        Result expectedResult = new Result(0, 0, 0, 0);
 
-		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(emptyGraphWithVertices)
-			.execute();
+        Result triadCensus =
+                new TriadicCensus<LongValue, NullValue, NullValue>()
+                        .run(emptyGraphWithVertices)
+                        .execute();
 
-		assertEquals(expectedResult, triadCensus);
-	}
+        assertEquals(expectedResult, triadCensus);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		Result expectedResult = new Result(0, 0, 0, 0);
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        Result expectedResult = new Result(0, 0, 0, 0);
 
-		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(emptyGraphWithoutVertices)
-			.execute();
+        Result triadCensus =
+                new TriadicCensus<LongValue, NullValue, NullValue>()
+                        .run(emptyGraphWithoutVertices)
+                        .execute();
 
-		assertEquals(expectedResult, triadCensus);
-	}
+        assertEquals(expectedResult, triadCensus);
+    }
 
-	/*
-	 * This test result can be verified with the following Python script.
+    /*
+     * This test result can be verified with the following Python script.
 
-	import networkx as nx
+    import networkx as nx
 
-	graph=nx.read_edgelist('undirectedRMatGraph.csv', delimiter=',', create_using=nx.DiGraph())
-	census=nx.algorithms.triads.triadic_census(graph)
-	for key in ['003', '102', '201', '300']:
-		print('{}: {}'.format(key, census[key]))
-	 */
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		Result expectedResult = new Result(113_435_893, 7_616_063, 778_295, 75_049);
+    graph=nx.read_edgelist('undirectedRMatGraph.csv', delimiter=',', create_using=nx.DiGraph())
+    census=nx.algorithms.triads.triadic_census(graph)
+    for key in ['003', '102', '201', '300']:
+    	print('{}: {}'.format(key, census[key]))
+     */
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        Result expectedResult = new Result(113_435_893, 7_616_063, 778_295, 75_049);
 
-		Result triadCensus = new TriadicCensus<LongValue, NullValue, NullValue>()
-			.run(undirectedRMatGraph(10, 16))
-			.execute();
+        Result triadCensus =
+                new TriadicCensus<LongValue, NullValue, NullValue>()
+                        .run(undirectedRMatGraph(10, 16))
+                        .execute();
 
-		assertEquals(expectedResult, triadCensus);
-	}
+        assertEquals(expectedResult, triadCensus);
+    }
 }

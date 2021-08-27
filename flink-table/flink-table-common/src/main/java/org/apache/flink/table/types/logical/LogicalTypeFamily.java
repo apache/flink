@@ -23,40 +23,39 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * An enumeration of logical type families for clustering {@link LogicalTypeRoot}s into categories.
  *
- * <p>The enumeration is very close to the SQL standard in terms of naming and completeness. However,
- * it reflects just a subset of the evolving standard and contains some extensions (indicated
- * by {@code EXTENSION}).
+ * <p>The enumeration is very close to the SQL standard in terms of naming and completeness.
+ * However, it reflects just a subset of the evolving standard and contains some extensions
+ * (indicated by {@code EXTENSION}).
  */
 @PublicEvolving
 public enum LogicalTypeFamily {
+    PREDEFINED,
 
-	PREDEFINED,
+    CONSTRUCTED,
 
-	CONSTRUCTED,
+    USER_DEFINED,
 
-	USER_DEFINED,
+    CHARACTER_STRING,
 
-	CHARACTER_STRING,
+    BINARY_STRING,
 
-	BINARY_STRING,
+    NUMERIC,
 
-	NUMERIC,
+    INTEGER_NUMERIC,
 
-	INTEGER_NUMERIC,
+    EXACT_NUMERIC,
 
-	EXACT_NUMERIC,
+    APPROXIMATE_NUMERIC,
 
-	APPROXIMATE_NUMERIC,
+    DATETIME,
 
-	DATETIME,
+    TIME,
 
-	TIME,
+    TIMESTAMP,
 
-	TIMESTAMP,
+    INTERVAL,
 
-	INTERVAL,
+    COLLECTION,
 
-	COLLECTION,
-
-	EXTENSION
+    EXTENSION
 }

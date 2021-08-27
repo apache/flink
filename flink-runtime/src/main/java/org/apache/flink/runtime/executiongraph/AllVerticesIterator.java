@@ -21,51 +21,48 @@ package org.apache.flink.runtime.executiongraph;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-class AllVerticesIterator implements Iterator<ExecutionVertex> {
+class AllVerticesIterator<EV extends AccessExecutionVertex, EJV extends AccessExecutionJobVertex>
+        implements Iterator<EV> {
 
-	private final Iterator<ExecutionJobVertex> jobVertices;
-	
-	private ExecutionVertex[] currVertices;
-	
-	private int currPos;
-	
-	
-	public AllVerticesIterator(Iterator<ExecutionJobVertex> jobVertices) {
-		this.jobVertices = jobVertices;
-	}
-	
-	
-	@Override
-	public boolean hasNext() {
-		while (true) {
-			if (currVertices != null) {
-				if (currPos < currVertices.length) {
-					return true;
-				} else {
-					currVertices = null;
-				}
-			}
-			else if (jobVertices.hasNext()) {
-				currVertices = jobVertices.next().getTaskVertices();
-				currPos = 0;
-			}
-			else {
-				return false;
-			}
-		}
-	}
-	
-	@Override
-	public ExecutionVertex next() {
-		if (hasNext()) {
-			return currVertices[currPos++];
-		} else {
-			throw new NoSuchElementException();
-		}
-	}
-	
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    private final Iterator<EJV> jobVertices;
+
+    private EV[] currVertices;
+
+    private int currPos;
+
+    public AllVerticesIterator(Iterator<EJV> jobVertices) {
+        this.jobVertices = jobVertices;
+    }
+
+    @Override
+    public boolean hasNext() {
+        while (true) {
+            if (currVertices != null) {
+                if (currPos < currVertices.length) {
+                    return true;
+                } else {
+                    currVertices = null;
+                }
+            } else if (jobVertices.hasNext()) {
+                currVertices = (EV[]) jobVertices.next().getTaskVertices();
+                currPos = 0;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    @Override
+    public EV next() {
+        if (hasNext()) {
+            return currVertices[currPos++];
+        } else {
+            throw new NoSuchElementException();
+        }
+    }
+
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 }

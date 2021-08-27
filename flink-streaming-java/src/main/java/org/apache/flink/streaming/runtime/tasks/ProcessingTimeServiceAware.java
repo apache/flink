@@ -20,16 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface for {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory},
- * which enables stream operators to access {@link ProcessingTimeService}.
+ * Interface for {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory}, which
+ * enables stream operators to access {@link ProcessingTimeService}.
  *
- * <p>For an stream operator, if it needs to access the {@link ProcessingTimeService}, it
- * must be created through a operator factory that implements {@link ProcessingTimeServiceAware},
- * and the operator factory should set the {@link ProcessingTimeService} instance into the
- * stream operator.
+ * <p>For an stream operator, if it needs to access the {@link ProcessingTimeService}, it must be
+ * created through a operator factory that implements {@link ProcessingTimeServiceAware}, and the
+ * operator factory should set the {@link ProcessingTimeService} instance into the stream operator.
  */
 @PublicEvolving
 public interface ProcessingTimeServiceAware {
 
-	void setProcessingTimeService(ProcessingTimeService processingTimeService);
+    void setProcessingTimeService(ProcessingTimeService processingTimeService);
 }

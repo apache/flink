@@ -43,62 +43,66 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Test for operator union state input format.
- */
+/** Test for operator union state input format. */
 public class UnionStateInputFormatTest {
-	private static ListStateDescriptor<Integer> descriptor = new ListStateDescriptor<>("state", Types.INT);
+    private static ListStateDescriptor<Integer> descriptor =
+            new ListStateDescriptor<>("state", Types.INT);
 
-	@Test
-	public void testReadUnionOperatorState() throws Exception {
-		try (OneInputStreamOperatorTestHarness<Integer, Void> testHarness = getTestHarness()) {
-			testHarness.open();
+    @Test
+    public void testReadUnionOperatorState() throws Exception {
+        try (OneInputStreamOperatorTestHarness<Integer, Void> testHarness = getTestHarness()) {
+            testHarness.open();
 
-			testHarness.processElement(1, 0);
-			testHarness.processElement(2, 0);
-			testHarness.processElement(3, 0);
+            testHarness.processElement(1, 0);
+            testHarness.processElement(2, 0);
+            testHarness.processElement(3, 0);
 
-			OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
-			OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
-			state.putState(0, subtaskState);
+            OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
+            OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+            state.putState(0, subtaskState);
 
-			OperatorStateInputSplit split = new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
+            OperatorStateInputSplit split =
+                    new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
-			UnionStateInputFormat<Integer> format = new UnionStateInputFormat<>(state, descriptor);
+            UnionStateInputFormat<Integer> format = new UnionStateInputFormat<>(state, descriptor);
 
-			format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-			format.open(split);
+            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.open(split);
 
-			List<Integer> results = new ArrayList<>();
+            List<Integer> results = new ArrayList<>();
 
-			while (!format.reachedEnd()) {
-				results.add(format.nextRecord(0));
-			}
+            while (!format.reachedEnd()) {
+                results.add(format.nextRecord(0));
+            }
 
-			results.sort(Comparator.naturalOrder());
+            results.sort(Comparator.naturalOrder());
 
-			Assert.assertEquals("Failed to read correct list state from state backend", Arrays.asList(1, 2, 3), results);
-		}
-	}
+            Assert.assertEquals(
+                    "Failed to read correct list state from state backend",
+                    Arrays.asList(1, 2, 3),
+                    results);
+        }
+    }
 
-	private OneInputStreamOperatorTestHarness<Integer, Void> getTestHarness() throws Exception {
-		return new OneInputStreamOperatorTestHarness<>(new StreamFlatMap<>(new StatefulFunction()), IntSerializer.INSTANCE);
-	}
+    private OneInputStreamOperatorTestHarness<Integer, Void> getTestHarness() throws Exception {
+        return new OneInputStreamOperatorTestHarness<>(
+                new StreamFlatMap<>(new StatefulFunction()), IntSerializer.INSTANCE);
+    }
 
-	static class StatefulFunction implements FlatMapFunction<Integer, Void>, CheckpointedFunction {
-		ListState<Integer> state;
+    static class StatefulFunction implements FlatMapFunction<Integer, Void>, CheckpointedFunction {
+        ListState<Integer> state;
 
-		@Override
-		public void flatMap(Integer value, Collector<Void> out) throws Exception {
-			state.add(value);
-		}
+        @Override
+        public void flatMap(Integer value, Collector<Void> out) throws Exception {
+            state.add(value);
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) {}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) {}
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			state = context.getOperatorStateStore().getUnionListState(descriptor);
-		}
-	}
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            state = context.getOperatorStateStore().getUnionListState(descriptor);
+        }
+    }
 }

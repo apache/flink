@@ -26,71 +26,80 @@ import java.util.Collections;
 import java.util.Objects;
 
 /**
- * Represents the total resource requirements for a job, and the information required to connect to the corresponding
- * job master.
+ * Represents the total resource requirements for a job, and the information required to connect to
+ * the corresponding job master.
  */
 public class ResourceRequirements implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final String targetAddress;
+    private final String targetAddress;
 
-	private final Collection<ResourceRequirement> resourceRequirements;
+    private final Collection<ResourceRequirement> resourceRequirements;
 
-	private ResourceRequirements(JobID jobId, String targetAddress, Collection<ResourceRequirement> resourceRequirements) {
-		this.jobId = Preconditions.checkNotNull(jobId);
-		this.targetAddress = Preconditions.checkNotNull(targetAddress);
-		this.resourceRequirements = Preconditions.checkNotNull(resourceRequirements);
-	}
+    private ResourceRequirements(
+            JobID jobId,
+            String targetAddress,
+            Collection<ResourceRequirement> resourceRequirements) {
+        this.jobId = Preconditions.checkNotNull(jobId);
+        this.targetAddress = Preconditions.checkNotNull(targetAddress);
+        this.resourceRequirements = Preconditions.checkNotNull(resourceRequirements);
+    }
 
-	public JobID getJobId() {
-		return jobId;
-	}
+    public JobID getJobId() {
+        return jobId;
+    }
 
-	public String getTargetAddress() {
-		return targetAddress;
-	}
+    public String getTargetAddress() {
+        return targetAddress;
+    }
 
-	public Collection<ResourceRequirement> getResourceRequirements() {
-		return resourceRequirements;
-	}
+    public Collection<ResourceRequirement> getResourceRequirements() {
+        return resourceRequirements;
+    }
 
-	public static ResourceRequirements create(JobID jobId, String targetAddress, Collection<ResourceRequirement> resourceRequirements) {
-		return new ResourceRequirements(jobId, targetAddress, resourceRequirements);
-	}
+    public static ResourceRequirements create(
+            JobID jobId,
+            String targetAddress,
+            Collection<ResourceRequirement> resourceRequirements) {
+        return new ResourceRequirements(jobId, targetAddress, resourceRequirements);
+    }
 
-	public static ResourceRequirements empty(JobID jobId, String targetAddress) {
-		return new ResourceRequirements(jobId, targetAddress, Collections.emptyList());
-	}
+    public static ResourceRequirements empty(JobID jobId, String targetAddress) {
+        return new ResourceRequirements(jobId, targetAddress, Collections.emptyList());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ResourceRequirements that = (ResourceRequirements) o;
-		return Objects.equals(jobId, that.jobId) &&
-			Objects.equals(targetAddress, that.targetAddress) &&
-			Objects.equals(resourceRequirements, that.resourceRequirements);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ResourceRequirements that = (ResourceRequirements) o;
+        return Objects.equals(jobId, that.jobId)
+                && Objects.equals(targetAddress, that.targetAddress)
+                && Objects.equals(resourceRequirements, that.resourceRequirements);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(jobId, targetAddress, resourceRequirements);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(jobId, targetAddress, resourceRequirements);
+    }
 
-	@Override
-	public String toString() {
-		return "ResourceRequirements{" +
-			"jobId=" + jobId +
-			", targetAddress='" + targetAddress + '\'' +
-			", resourceRequirements=" + resourceRequirements +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "ResourceRequirements{"
+                + "jobId="
+                + jobId
+                + ", targetAddress='"
+                + targetAddress
+                + '\''
+                + ", resourceRequirements="
+                + resourceRequirements
+                + '}';
+    }
 }
-

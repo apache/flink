@@ -21,27 +21,25 @@ package org.apache.flink.test.util;
 
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
-/**
- * Source that emits an integers indefinitely.
- */
+/** Source that emits an integers indefinitely. */
 public class InfiniteIntegerSource implements ParallelSourceFunction<Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private volatile boolean running = true;
+    private volatile boolean running = true;
 
-	@Override
-	public void run(SourceContext<Integer> ctx) throws Exception {
-		int counter = 0;
-		while (running) {
-			synchronized (ctx.getCheckpointLock()) {
-				ctx.collect(counter++);
-			}
-		}
-	}
+    @Override
+    public void run(SourceContext<Integer> ctx) throws Exception {
+        int counter = 0;
+        while (running) {
+            synchronized (ctx.getCheckpointLock()) {
+                ctx.collect(counter++);
+            }
+        }
+    }
 
-	@Override
-	public void cancel() {
-		running = false;
-	}
+    @Override
+    public void cancel() {
+        running = false;
+    }
 }

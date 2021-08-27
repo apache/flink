@@ -33,162 +33,177 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * KvState related components of each {@link TaskExecutor} instance. This service can
- * create the kvState registration for a single task.
+ * KvState related components of each {@link TaskExecutor} instance. This service can create the
+ * kvState registration for a single task.
  */
 public class KvStateService {
-	private static final Logger LOG = LoggerFactory.getLogger(KvStateService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KvStateService.class);
 
-	private final Object lock = new Object();
+    private final Object lock = new Object();
 
-	/** Registry for {@link InternalKvState} instances. */
-	private final KvStateRegistry kvStateRegistry;
+    /** Registry for {@link InternalKvState} instances. */
+    private final KvStateRegistry kvStateRegistry;
 
-	/** Server for {@link InternalKvState} requests. */
-	private KvStateServer kvStateServer;
+    /** Server for {@link InternalKvState} requests. */
+    private KvStateServer kvStateServer;
 
-	/** Proxy for the queryable state client. */
-	private KvStateClientProxy kvStateClientProxy;
+    /** Proxy for the queryable state client. */
+    private KvStateClientProxy kvStateClientProxy;
 
-	private boolean isShutdown;
+    private boolean isShutdown;
 
-	public KvStateService(KvStateRegistry kvStateRegistry, KvStateServer kvStateServer, KvStateClientProxy kvStateClientProxy) {
-		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
-		this.kvStateServer = kvStateServer;
-		this.kvStateClientProxy = kvStateClientProxy;
-	}
+    public KvStateService(
+            KvStateRegistry kvStateRegistry,
+            KvStateServer kvStateServer,
+            KvStateClientProxy kvStateClientProxy) {
+        this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
+        this.kvStateServer = kvStateServer;
+        this.kvStateClientProxy = kvStateClientProxy;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Getter/Setter
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Getter/Setter
+    // --------------------------------------------------------------------------------------------
 
-	public KvStateRegistry getKvStateRegistry() {
-		return kvStateRegistry;
-	}
+    public KvStateRegistry getKvStateRegistry() {
+        return kvStateRegistry;
+    }
 
-	public KvStateServer getKvStateServer() {
-		return kvStateServer;
-	}
+    public KvStateServer getKvStateServer() {
+        return kvStateServer;
+    }
 
-	public KvStateClientProxy getKvStateClientProxy() {
-		return kvStateClientProxy;
-	}
+    public KvStateClientProxy getKvStateClientProxy() {
+        return kvStateClientProxy;
+    }
 
-	public TaskKvStateRegistry createKvStateTaskRegistry(JobID jobId, JobVertexID jobVertexId) {
-		return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
-	}
+    public TaskKvStateRegistry createKvStateTaskRegistry(JobID jobId, JobVertexID jobVertexId) {
+        return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Start and shut down methods
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Start and shut down methods
+    // --------------------------------------------------------------------------------------------
 
-	public void start() {
-		synchronized (lock) {
-			Preconditions.checkState(!isShutdown, "The KvStateService has already been shut down.");
+    public void start() {
+        synchronized (lock) {
+            Preconditions.checkState(!isShutdown, "The KvStateService has already been shut down.");
 
-			LOG.info("Starting the kvState service and its components.");
+            LOG.info("Starting the kvState service and its components.");
 
-			if (kvStateServer != null) {
-				try {
-					kvStateServer.start();
-				} catch (Throwable ie) {
-					kvStateServer.shutdown();
-					kvStateServer = null;
-					LOG.error("Failed to start the Queryable State Data Server.", ie);
-				}
-			}
+            if (kvStateServer != null) {
+                try {
+                    kvStateServer.start();
+                } catch (Throwable ie) {
+                    kvStateServer.shutdown();
+                    kvStateServer = null;
+                    LOG.error("Failed to start the Queryable State Data Server.", ie);
+                }
+            }
 
-			if (kvStateClientProxy != null) {
-				try {
-					kvStateClientProxy.start();
-				} catch (Throwable ie) {
-					kvStateClientProxy.shutdown();
-					kvStateClientProxy = null;
-					LOG.error("Failed to start the Queryable State Client Proxy.", ie);
-				}
-			}
-		}
-	}
+            if (kvStateClientProxy != null) {
+                try {
+                    kvStateClientProxy.start();
+                } catch (Throwable ie) {
+                    kvStateClientProxy.shutdown();
+                    kvStateClientProxy = null;
+                    LOG.error("Failed to start the Queryable State Client Proxy.", ie);
+                }
+            }
+        }
+    }
 
-	public void shutdown() {
-		synchronized (lock) {
-			if (isShutdown) {
-				return;
-			}
+    public void shutdown() {
+        synchronized (lock) {
+            if (isShutdown) {
+                return;
+            }
 
-			LOG.info("Shutting down the kvState service and its components.");
+            LOG.info("Shutting down the kvState service and its components.");
 
-			if (kvStateClientProxy != null) {
-				try {
-					LOG.debug("Shutting down Queryable State Client Proxy.");
-					kvStateClientProxy.shutdown();
-				} catch (Throwable t) {
-					LOG.warn("Cannot shut down Queryable State Client Proxy.", t);
-				}
-			}
+            if (kvStateClientProxy != null) {
+                try {
+                    LOG.debug("Shutting down Queryable State Client Proxy.");
+                    kvStateClientProxy.shutdown();
+                } catch (Throwable t) {
+                    LOG.warn("Cannot shut down Queryable State Client Proxy.", t);
+                }
+            }
 
-			if (kvStateServer != null) {
-				try {
-					LOG.debug("Shutting down Queryable State Data Server.");
-					kvStateServer.shutdown();
-				} catch (Throwable t) {
-					LOG.warn("Cannot shut down Queryable State Data Server.", t);
-				}
-			}
+            if (kvStateServer != null) {
+                try {
+                    LOG.debug("Shutting down Queryable State Data Server.");
+                    kvStateServer.shutdown();
+                } catch (Throwable t) {
+                    LOG.warn("Cannot shut down Queryable State Data Server.", t);
+                }
+            }
 
-			isShutdown = true;
-		}
-	}
+            isShutdown = true;
+        }
+    }
 
-	public boolean isShutdown() {
-		synchronized (lock) {
-			return isShutdown;
-		}
-	}
+    public boolean isShutdown() {
+        synchronized (lock) {
+            return isShutdown;
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Static factory methods for kvState service
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Static factory methods for kvState service
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates and returns the KvState service.
-	 *
-	 * @param taskManagerServicesConfiguration task manager configuration
-	 * @return service for kvState related components
-	 */
-	public static KvStateService fromConfiguration(TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
-		KvStateRegistry kvStateRegistry = new KvStateRegistry();
+    /**
+     * Creates and returns the KvState service.
+     *
+     * @param taskManagerServicesConfiguration task manager configuration
+     * @return service for kvState related components
+     */
+    public static KvStateService fromConfiguration(
+            TaskManagerServicesConfiguration taskManagerServicesConfiguration) {
+        KvStateRegistry kvStateRegistry = new KvStateRegistry();
 
-		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
+        QueryableStateConfiguration qsConfig =
+                taskManagerServicesConfiguration.getQueryableStateConfig();
 
-		KvStateClientProxy kvClientProxy = null;
-		KvStateServer kvStateServer = null;
+        KvStateClientProxy kvClientProxy = null;
+        KvStateServer kvStateServer = null;
 
-		if (qsConfig != null) {
-			int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
-			int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
-			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
-				taskManagerServicesConfiguration.getExternalAddress(),
-				qsConfig.getProxyPortRange(),
-				numProxyServerNetworkThreads,
-				numProxyServerQueryThreads,
-				new DisabledKvStateRequestStats());
+        if (qsConfig != null) {
+            int numProxyServerNetworkThreads =
+                    qsConfig.numProxyServerThreads() == 0
+                            ? taskManagerServicesConfiguration.getNumberOfSlots()
+                            : qsConfig.numProxyServerThreads();
+            int numProxyServerQueryThreads =
+                    qsConfig.numProxyQueryThreads() == 0
+                            ? taskManagerServicesConfiguration.getNumberOfSlots()
+                            : qsConfig.numProxyQueryThreads();
+            kvClientProxy =
+                    QueryableStateUtils.createKvStateClientProxy(
+                            taskManagerServicesConfiguration.getExternalAddress(),
+                            qsConfig.getProxyPortRange(),
+                            numProxyServerNetworkThreads,
+                            numProxyServerQueryThreads,
+                            new DisabledKvStateRequestStats());
 
-			int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
-			int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
-				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
-			kvStateServer = QueryableStateUtils.createKvStateServer(
-				taskManagerServicesConfiguration.getExternalAddress(),
-				qsConfig.getStateServerPortRange(),
-				numStateServerNetworkThreads,
-				numStateServerQueryThreads,
-				kvStateRegistry,
-				new DisabledKvStateRequestStats());
-		}
+            int numStateServerNetworkThreads =
+                    qsConfig.numStateServerThreads() == 0
+                            ? taskManagerServicesConfiguration.getNumberOfSlots()
+                            : qsConfig.numStateServerThreads();
+            int numStateServerQueryThreads =
+                    qsConfig.numStateQueryThreads() == 0
+                            ? taskManagerServicesConfiguration.getNumberOfSlots()
+                            : qsConfig.numStateQueryThreads();
+            kvStateServer =
+                    QueryableStateUtils.createKvStateServer(
+                            taskManagerServicesConfiguration.getExternalAddress(),
+                            qsConfig.getStateServerPortRange(),
+                            numStateServerNetworkThreads,
+                            numStateServerQueryThreads,
+                            kvStateRegistry,
+                            new DisabledKvStateRequestStats());
+        }
 
-		return new KvStateService(kvStateRegistry, kvStateServer, kvClientProxy);
-	}
+        return new KvStateService(kvStateRegistry, kvStateServer, kvClientProxy);
+    }
 }

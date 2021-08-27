@@ -20,28 +20,31 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 
-/**
- * Factory for {@link TestExecutionSlotAllocatorFactory}.
- */
+/** Factory for {@link TestExecutionSlotAllocatorFactory}. */
 public class TestExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
-	private final TestExecutionSlotAllocator testExecutionSlotAllocator;
+    private final TestExecutionSlotAllocator testExecutionSlotAllocator;
 
-	public TestExecutionSlotAllocatorFactory() {
-		this.testExecutionSlotAllocator = new TestExecutionSlotAllocator();
-	}
+    public TestExecutionSlotAllocatorFactory() {
+        this.testExecutionSlotAllocator = new TestExecutionSlotAllocator();
+    }
 
-	public TestExecutionSlotAllocatorFactory(TaskManagerGateway gateway) {
-		this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(gateway);
-	}
+    public TestExecutionSlotAllocatorFactory(TaskManagerGateway gateway) {
+        this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(gateway);
+    }
 
-	@Override
-	public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
-		return testExecutionSlotAllocator;
-	}
+    public TestExecutionSlotAllocatorFactory(TestingLogicalSlotBuilder logicalSlotBuilder) {
+        this.testExecutionSlotAllocator = new TestExecutionSlotAllocator(logicalSlotBuilder);
+    }
 
-	public TestExecutionSlotAllocator getTestExecutionSlotAllocator() {
-		return testExecutionSlotAllocator;
-	}
+    @Override
+    public ExecutionSlotAllocator createInstance(final ExecutionSlotAllocationContext context) {
+        return testExecutionSlotAllocator;
+    }
+
+    public TestExecutionSlotAllocator getTestExecutionSlotAllocator() {
+        return testExecutionSlotAllocator;
+    }
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,98 +25,96 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-/**
- * A serializer for long arrays.
- */
+import java.io.IOException;
+
+/** A serializer for long arrays. */
 @Internal
-public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<long[]>{
+public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<long[]> {
 
-	private static final long serialVersionUID = 1L;
-	
-	private static final long[] EMPTY = new long[0];
+    private static final long serialVersionUID = 1L;
 
-	public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
+    private static final long[] EMPTY = new long[0];
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
 
-	@Override
-	public long[] createInstance() {
-		return EMPTY;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public long[] copy(long[] from) {
-		long[] result = new long[from.length];
-		System.arraycopy(from, 0, result, 0, from.length);
-		return result;
-	}
-	
-	@Override
-	public long[] copy(long[] from, long[] reuse) {
-		return copy(from);
-	}
+    @Override
+    public long[] createInstance() {
+        return EMPTY;
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public long[] copy(long[] from) {
+        long[] result = new long[from.length];
+        System.arraycopy(from, 0, result, 0, from.length);
+        return result;
+    }
 
+    @Override
+    public long[] copy(long[] from, long[] reuse) {
+        return copy(from);
+    }
 
-	@Override
-	public void serialize(long[] record, DataOutputView target) throws IOException {
-		if (record == null) {
-			throw new IllegalArgumentException("The record must not be null.");
-		}
-		
-		final int len = record.length;
-		target.writeInt(len);
-		for (int i = 0; i < len; i++) {
-			target.writeLong(record[i]);
-		}
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public long[] deserialize(DataInputView source) throws IOException {
-		final int len = source.readInt();
-		long[] array = new long[len];
-		
-		for (int i = 0; i < len; i++) {
-			array[i] = source.readLong();
-		}
-		
-		return array;
-	}
-	
-	@Override
-	public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public void serialize(long[] record, DataOutputView target) throws IOException {
+        if (record == null) {
+            throw new IllegalArgumentException("The record must not be null.");
+        }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		final int len = source.readInt();
-		target.writeInt(len);
-		target.write(source, len * 8);
-	}
+        final int len = record.length;
+        target.writeInt(len);
+        for (int i = 0; i < len; i++) {
+            target.writeLong(record[i]);
+        }
+    }
 
-	@Override
-	public TypeSerializerSnapshot<long[]> snapshotConfiguration() {
-		return new LongPrimitiveArraySerializerSnapshot();
-	}
+    @Override
+    public long[] deserialize(DataInputView source) throws IOException {
+        final int len = source.readInt();
+        long[] array = new long[len];
 
-	// ------------------------------------------------------------------------
+        for (int i = 0; i < len; i++) {
+            array[i] = source.readLong();
+        }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class LongPrimitiveArraySerializerSnapshot extends SimpleTypeSerializerSnapshot<long[]> {
+        return array;
+    }
 
-		public LongPrimitiveArraySerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public long[] deserialize(long[] reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
+
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        final int len = source.readInt();
+        target.writeInt(len);
+        target.write(source, len * 8);
+    }
+
+    @Override
+    public TypeSerializerSnapshot<long[]> snapshotConfiguration() {
+        return new LongPrimitiveArraySerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class LongPrimitiveArraySerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<long[]> {
+
+        public LongPrimitiveArraySerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

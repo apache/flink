@@ -30,9 +30,31 @@ import { TaskManagerStatusComponent } from './status/task-manager-status.compone
 import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-thread-dump.component';
 import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
 import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
+import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzGridModule } from 'ng-zorro-antd/grid';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzProgressModule } from 'ng-zorro-antd/progress';
+import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @NgModule({
-  imports: [CommonModule, ShareModule, TaskManagerRoutingModule],
+  imports: [
+    CommonModule,
+    ShareModule,
+    TaskManagerRoutingModule,
+    NzTableModule,
+    NzCardModule,
+    NzBreadCrumbModule,
+    NzIconModule,
+    NzToolTipModule,
+    NzProgressModule,
+    NzGridModule,
+    NzDividerModule,
+    NzSkeletonModule
+  ],
   declarations: [
     TaskManagerListComponent,
     TaskManagerMetricsComponent,

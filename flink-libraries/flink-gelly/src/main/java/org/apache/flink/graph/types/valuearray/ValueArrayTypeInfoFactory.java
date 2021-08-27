@@ -27,18 +27,20 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * Used by {@link TypeExtractor} to create a {@link TypeInformation} for
- * implementations of {@link ValueArray}.
+ * Used by {@link TypeExtractor} to create a {@link TypeInformation} for implementations of {@link
+ * ValueArray}.
  *
  * @param <T> the {@link Value} type
  */
 public class ValueArrayTypeInfoFactory<T> extends TypeInfoFactory<ValueArray<T>> {
 
-	@Override
-	public TypeInformation<ValueArray<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		@SuppressWarnings("unchecked")
-		TypeInformation<ValueArray<T>> typeInfo = new ValueArrayTypeInfo(genericParameters.get("T"));
+    @Override
+    public TypeInformation<ValueArray<T>> createTypeInfo(
+            Type t, Map<String, TypeInformation<?>> genericParameters) {
+        @SuppressWarnings("unchecked")
+        TypeInformation<ValueArray<T>> typeInfo =
+                new ValueArrayTypeInfo(genericParameters.get("T"));
 
-		return typeInfo;
-	}
+        return typeInfo;
+    }
 }

@@ -27,6 +27,11 @@ echo "Merging cache"
 cp -RT "$FLINK_ARTIFACT_DIR" "."
 
 echo "Adjusting timestamps"
+# adjust timestamps of proto file to avoid re-generation
+find . -type f -name '*.proto' | xargs touch
+# wait a bit for better odds of different timestamps
+sleep 5
+
 # adjust timestamps to prevent recompilation
 find . -type f -name '*.java' | xargs touch
 find . -type f -name '*.scala' | xargs touch

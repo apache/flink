@@ -30,76 +30,75 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An executor decorator that allows only a certain number of concurrent executions.
- * The {@link #execute(Runnable)} method blocks once that number of executions is exceeded.
+ * An executor decorator that allows only a certain number of concurrent executions. The {@link
+ * #execute(Runnable)} method blocks once that number of executions is exceeded.
  */
 @Internal
 public final class BackPressuringExecutor implements Executor {
 
-	/** The executor for the actual execution. */
-	private final Executor delegate;
+    /** The executor for the actual execution. */
+    private final Executor delegate;
 
-	/** The semaphore to track permits and block until permits are available. */
-	private final Semaphore permits;
+    /** The semaphore to track permits and block until permits are available. */
+    private final Semaphore permits;
 
-	public BackPressuringExecutor(Executor delegate, int numConcurrentExecutions) {
-		checkArgument(numConcurrentExecutions > 0, "numConcurrentExecutions must be > 0");
-		this.delegate = checkNotNull(delegate, "delegate");
-		this.permits = new Semaphore(numConcurrentExecutions, true);
-	}
+    public BackPressuringExecutor(Executor delegate, int numConcurrentExecutions) {
+        checkArgument(numConcurrentExecutions > 0, "numConcurrentExecutions must be > 0");
+        this.delegate = checkNotNull(delegate, "delegate");
+        this.permits = new Semaphore(numConcurrentExecutions, true);
+    }
 
-	@Override
-	public void execute(Runnable command) {
-		// To not block interrupts here (faster cancellation) we acquire interruptibly.
-		// Unfortunately, we need to rethrow this as a RuntimeException (suboptimal), because
-		// the method signature does not permit anything else, and we want to maintain the
-		// Executor interface for transparent drop-in.
-		try {
-			permits.acquire();
-		}
-		catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new FlinkRuntimeException("interrupted:", e);
-		}
+    @Override
+    public void execute(Runnable command) {
+        // To not block interrupts here (faster cancellation) we acquire interruptibly.
+        // Unfortunately, we need to rethrow this as a RuntimeException (suboptimal), because
+        // the method signature does not permit anything else, and we want to maintain the
+        // Executor interface for transparent drop-in.
+        try {
+            permits.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FlinkRuntimeException("interrupted:", e);
+        }
 
-		final SemaphoreReleasingRunnable runnable = new SemaphoreReleasingRunnable(command, permits);
-		try {
-			delegate.execute(runnable);
-		} catch (Throwable e) {
-			runnable.release();
-			ExceptionUtils.rethrow(e, e.getMessage());
-		}
-	}
+        final SemaphoreReleasingRunnable runnable =
+                new SemaphoreReleasingRunnable(command, permits);
+        try {
+            delegate.execute(runnable);
+        } catch (Throwable e) {
+            runnable.release();
+            ExceptionUtils.rethrow(e, e.getMessage());
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static class SemaphoreReleasingRunnable implements Runnable {
+    private static class SemaphoreReleasingRunnable implements Runnable {
 
-		private final Runnable delegate;
+        private final Runnable delegate;
 
-		private final Semaphore toRelease;
+        private final Semaphore toRelease;
 
-		private final AtomicBoolean released = new AtomicBoolean();
+        private final AtomicBoolean released = new AtomicBoolean();
 
-		SemaphoreReleasingRunnable(Runnable delegate, Semaphore toRelease) {
-			this.delegate = delegate;
-			this.toRelease = toRelease;
-		}
+        SemaphoreReleasingRunnable(Runnable delegate, Semaphore toRelease) {
+            this.delegate = delegate;
+            this.toRelease = toRelease;
+        }
 
-		@Override
-		public void run() {
-			try {
-				delegate.run();
-			}
-			finally {
-				release();
-			}
-		}
+        @Override
+        public void run() {
+            try {
+                delegate.run();
+            } finally {
+                release();
+            }
+        }
 
-		void release() {
-			if (released.compareAndSet(false, true)) {
-				toRelease.release();
-			}
-		}
-	}
+        void release() {
+            if (released.compareAndSet(false, true)) {
+                toRelease.release();
+            }
+        }
+    }
 }

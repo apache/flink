@@ -25,63 +25,61 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * {@link CheckpointInProgressRequest} test.
- */
+/** {@link CheckpointInProgressRequest} test. */
 public class CheckpointInProgressRequestTest {
 
-	/**
-	 * Tests that a request can only be cancelled once. This is important for requests to write data to prevent double
-	 * recycling of their buffers.
-	 */
-	@Test
-	public void testNoCancelTwice() throws Exception {
-		AtomicInteger counter = new AtomicInteger();
-		CyclicBarrier barrier = new CyclicBarrier(10);
-		CheckpointInProgressRequest request = cancelCountingRequest(counter, barrier);
-		Thread[] threads = new Thread[barrier.getParties()];
-		for (int i = 0; i < barrier.getParties(); i++) {
-			threads[i] = new Thread(() -> {
-				try {
-					request.cancel(new RuntimeException("test"));
-				} catch (Exception e) {
-					fail(e.getMessage());
-				}
-				await(barrier);
-			});
-		}
-		for (int i = 0; i < barrier.getParties(); i++) {
-			threads[i].start();
-			threads[i].join();
-		}
+    /**
+     * Tests that a request can only be cancelled once. This is important for requests to write data
+     * to prevent double recycling of their buffers.
+     */
+    @Test
+    public void testNoCancelTwice() throws Exception {
+        AtomicInteger counter = new AtomicInteger();
+        CyclicBarrier barrier = new CyclicBarrier(10);
+        CheckpointInProgressRequest request = cancelCountingRequest(counter, barrier);
+        Thread[] threads = new Thread[barrier.getParties()];
+        for (int i = 0; i < barrier.getParties(); i++) {
+            threads[i] =
+                    new Thread(
+                            () -> {
+                                try {
+                                    request.cancel(new RuntimeException("test"));
+                                } catch (Exception e) {
+                                    fail(e.getMessage());
+                                }
+                                await(barrier);
+                            });
+        }
+        for (int i = 0; i < barrier.getParties(); i++) {
+            threads[i].start();
+            threads[i].join();
+        }
 
-		assertEquals(1, counter.get());
-	}
+        assertEquals(1, counter.get());
+    }
 
-	private CheckpointInProgressRequest cancelCountingRequest(AtomicInteger cancelCounter, CyclicBarrier cb) {
-		return new CheckpointInProgressRequest(
-				"test",
-				1L,
-				unused -> {
-				},
-				unused -> {
-					cancelCounter.incrementAndGet();
-					await(cb);
-				},
-				false
-		);
-	}
+    private CheckpointInProgressRequest cancelCountingRequest(
+            AtomicInteger cancelCounter, CyclicBarrier cb) {
+        return new CheckpointInProgressRequest(
+                "test",
+                1L,
+                unused -> {},
+                unused -> {
+                    cancelCounter.incrementAndGet();
+                    await(cb);
+                },
+                false);
+    }
 
-	private void await(CyclicBarrier cb) {
-		if (cb.getNumberWaiting() == 0) {
-			// skip waiting if waited inside cancel
-			return;
-		}
-		try {
-			cb.await();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
+    private void await(CyclicBarrier cb) {
+        if (cb.getNumberWaiting() == 0) {
+            // skip waiting if waited inside cancel
+            return;
+        }
+        try {
+            cb.await();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

@@ -24,19 +24,17 @@ import org.apache.flink.core.fs.FileSystemFactory;
 
 import java.net.URI;
 
-/**
- * A factory for the {@link LocalFileSystem}.
- */
+/** A factory for the {@link LocalFileSystem}. */
 @PublicEvolving
 public class LocalFileSystemFactory implements FileSystemFactory {
 
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
+    @Override
+    public String getScheme() {
+        return LocalFileSystem.getLocalFsURI().getScheme();
+    }
 
-	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
-	}
+    @Override
+    public FileSystem create(URI fsUri) {
+        return LocalFileSystem.getSharedInstance();
+    }
 }

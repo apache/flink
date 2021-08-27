@@ -18,138 +18,78 @@
 
 package org.apache.flink.table.client.gateway.local;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.net.ConnectionUtils;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.entries.DeploymentEntry;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.local.result.ChangelogCollectStreamResult;
+import org.apache.flink.table.client.gateway.local.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectBatchResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedCollectStreamResult;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Maintains dynamic results.
- */
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.ResultMode.CHANGELOG;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MAX_TABLE_RESULT_ROWS;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
+
+/** Maintains dynamic results. */
 public class ResultStore {
 
-	private final Configuration flinkConfig;
-	private final Map<String, DynamicResult<?>> results;
+    private final Map<String, DynamicResult> results;
 
-	public ResultStore(Configuration flinkConfig) {
-		this.flinkConfig = flinkConfig;
-		results = new HashMap<>();
-	}
+    public ResultStore() {
+        results = new HashMap<>();
+    }
 
-	/**
-	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
-	 */
-	public <T> DynamicResult<T> createResult(
-			Environment env,
-			TableSchema schema,
-			ExecutionConfig config) {
+    /**
+     * Creates a result. Might start threads or opens sockets so every created result must be
+     * closed.
+     */
+    public DynamicResult createResult(ReadableConfig config, TableResult tableResult) {
+        // validate
+        if (config.get(EXECUTION_RESULT_MODE).equals(CHANGELOG)
+                && config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.BATCH)) {
+            throw new SqlExecutionException(
+                    "Results of batch queries can only be served in table or tableau mode.");
+        }
 
-		if (env.getExecution().inStreamingMode()) {
-			// determine gateway address (and port if possible)
-			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
-			final int gatewayPort = getGatewayPort(env.getDeployment());
+        switch (config.get(EXECUTION_RESULT_MODE)) {
+            case CHANGELOG:
+            case TABLEAU:
+                return new ChangelogCollectResult(tableResult);
+            case TABLE:
+                Integer maxRows = config.get(EXECUTION_MAX_TABLE_RESULT_ROWS);
+                if (config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING)) {
+                    return new MaterializedCollectStreamResult(tableResult, maxRows);
+                } else {
+                    return new MaterializedCollectBatchResult(tableResult, maxRows);
+                }
+            default:
+                throw new SqlExecutionException(
+                        String.format(
+                                "Unknown value '%s' for option '%s'.",
+                                config.get(EXECUTION_RESULT_MODE), EXECUTION_RESULT_MODE.key()));
+        }
+    }
 
-			if (env.getExecution().isChangelogMode() || env.getExecution().isTableauMode()) {
-				return new ChangelogCollectStreamResult<>(
-						schema,
-						config,
-						gatewayAddress,
-						gatewayPort);
-			} else {
-				return new MaterializedCollectStreamResult<>(
-						schema,
-						config,
-						gatewayAddress,
-						gatewayPort,
-						env.getExecution().getMaxTableResultRows());
-			}
+    public void storeResult(String resultId, DynamicResult result) {
+        results.put(resultId, result);
+    }
 
-		} else {
-			// Batch Execution
-			if (env.getExecution().isTableMode() || env.getExecution().isTableauMode()) {
-				return new MaterializedCollectBatchResult<>(schema, config);
-			} else {
-				throw new SqlExecutionException(
-						"Results of batch queries can only be served in table or tableau mode.");
-			}
-		}
-	}
+    public DynamicResult getResult(String resultId) {
+        return results.get(resultId);
+    }
 
-	public void storeResult(String resultId, DynamicResult result) {
-		results.put(resultId, result);
-	}
+    public void removeResult(String resultId) {
+        results.remove(resultId);
+    }
 
-	@SuppressWarnings("unchecked")
-	public <T> DynamicResult<T> getResult(String resultId) {
-		return (DynamicResult<T>) results.get(resultId);
-	}
-
-	public void removeResult(String resultId) {
-		results.remove(resultId);
-	}
-
-	public List<String> getResults() {
-		return new ArrayList<>(results.keySet());
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private int getGatewayPort(DeploymentEntry deploy) {
-		// try to get address from deployment configuration
-		return deploy.getGatewayPort();
-	}
-
-	private InetAddress getGatewayAddress(DeploymentEntry deploy) {
-		// try to get address from deployment configuration
-		final String address = deploy.getGatewayAddress();
-
-		// use manually defined address
-		if (!address.isEmpty()) {
-			try {
-				return InetAddress.getByName(address);
-			} catch (UnknownHostException e) {
-				throw new SqlClientException("Invalid gateway address '" + address + "' for result retrieval.", e);
-			}
-		} else {
-			// TODO cache this
-			// try to get the address by communicating to JobManager
-			final String jobManagerAddress = flinkConfig.getString(JobManagerOptions.ADDRESS);
-			final int jobManagerPort = flinkConfig.getInteger(JobManagerOptions.PORT);
-			if (jobManagerAddress != null && !jobManagerAddress.isEmpty()) {
-				try {
-					return ConnectionUtils.findConnectingAddress(
-							new InetSocketAddress(jobManagerAddress, jobManagerPort),
-							deploy.getResponseTimeout(),
-							400);
-				} catch (Exception e) {
-					throw new SqlClientException("Could not determine address of the gateway for result retrieval " +
-							"by connecting to the job manager. Please specify the gateway address manually.", e);
-				}
-			} else {
-				try {
-					return InetAddress.getLocalHost();
-				} catch (UnknownHostException e) {
-					throw new SqlClientException("Could not determine address of the gateway for result retrieval. " +
-							"Please specify the gateway address manually.", e);
-				}
-			}
-		}
-	}
+    public List<String> getResults() {
+        return new ArrayList<>(results.keySet());
+    }
 }

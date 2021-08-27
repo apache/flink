@@ -33,14 +33,14 @@ import org.apache.flink.annotation.PublicEvolving;
 @FunctionalInterface
 public interface QuadFunction<S, T, U, V, R> {
 
-	/**
-	 * Applies this function to the given arguments.
-	 *
-	 * @param s the first function argument
-	 * @param t the second function argument
-	 * @param u the third function argument
-	 * @oaram v the fourth function argument
-	 * @return the function result
-	 */
-	R apply(S s, T t, U u, V v);
+    /**
+     * Applies this function to the given arguments.
+     *
+     * @param s the first function argument
+     * @param t the second function argument
+     * @param u the third function argument
+     * @oaram v the fourth function argument
+     * @return the function result
+     */
+    R apply(S s, T t, U u, V v);
 }

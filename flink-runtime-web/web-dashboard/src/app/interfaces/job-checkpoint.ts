@@ -75,6 +75,11 @@ export interface CheckPointMinMaxAvgStatisticsInterface {
   min: number;
   max: number;
   avg: number;
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  p999: number;
 }
 
 export interface CheckPointCompletedStatisticsInterface {
@@ -91,6 +96,7 @@ export interface CheckPointCompletedStatisticsInterface {
   tasks: CheckPointTaskStatisticsInterface;
   external_path: string;
   discarded: boolean;
+  checkpoint_type: string;
 }
 
 export interface CheckPointTaskStatisticsInterface {
@@ -114,6 +120,11 @@ export interface CheckPointConfigInterface {
     enabled: boolean;
     delete_on_cancellation: boolean;
   };
+  state_backend: string;
+  checkpoint_storage: string;
+  unaligned_checkpoints: boolean;
+  tolerable_failed_checkpoints: number;
+  aligned_checkpoint_timeout: number;
 }
 
 export interface CheckPointDetailInterface {
@@ -130,6 +141,7 @@ export interface CheckPointDetailInterface {
   failure_message?: string;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
+  checkpoint_type: string;
   tasks: Array<{
     [ taskId: string ]: {
       id: number;

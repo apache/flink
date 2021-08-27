@@ -36,138 +36,193 @@ import static org.apache.flink.formats.csv.RowCsvInputFormatTest.PATH;
 import static org.apache.flink.formats.csv.RowCsvInputFormatTest.createTempFile;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test split logic for {@link RowCsvInputFormat}.
- */
+/** Test split logic for {@link RowCsvInputFormat}. */
 public class RowCsvInputFormatSplitTest {
 
-	@Test
-	public void readAll() throws Exception {
-		test("11$\n1,222\n" + "22$2,333\n", 0, -1, '$', asList(Row.of("11\n1", "222"), Row.of("222", "333")));
-	}
+    @Test
+    public void readAll() throws Exception {
+        test(
+                "11$\n1,222\n" + "22$2,333\n",
+                0,
+                -1,
+                '$',
+                asList(Row.of("11\n1", "222"), Row.of("222", "333")));
+    }
 
-	@Test
-	public void readStartOffset() throws Exception {
-		test("11$\n1,222\n" + "22$2,333\n", 1, -1, '$', singletonList(Row.of("222", "333")));
-	}
+    @Test
+    public void readStartOffset() throws Exception {
+        test("11$\n1,222\n" + "22$2,333\n", 1, -1, '$', singletonList(Row.of("222", "333")));
+    }
 
-	@Test
-	public void readStartOffsetWithSeparator() throws Exception {
-		test("11$\n1,222\n" + "22$2,333\n", 3, -1, '$', singletonList(Row.of("222", "333")));
-	}
+    @Test
+    public void readStartOffsetWithSeparator() throws Exception {
+        test("11$\n1,222\n" + "22$2,333\n", 3, -1, '$', singletonList(Row.of("222", "333")));
+    }
 
-	@Test
-	public void readLengthWithSeparator() throws Exception {
-		test("11$\n1,222\n" + "22$\n2,333\n", 0, 13, '$', asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
-	}
+    @Test
+    public void readLengthWithSeparator() throws Exception {
+        test(
+                "11$\n1,222\n" + "22$\n2,333\n",
+                0,
+                13,
+                '$',
+                asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
+    }
 
-	@Test
-	public void readLengthWithMultiBytesEscapeChar() throws Exception {
-		test("11好\n1,222\n" + "22好\n2,333\n", 0, 13, '好', asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
-	}
+    @Test
+    public void readLengthWithMultiBytesEscapeChar() throws Exception {
+        test(
+                "11好\n1,222\n" + "22好\n2,333\n",
+                0,
+                13,
+                '好',
+                asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
+    }
 
-	@Test
-	public void readLengthWithMultiBytesEscapeChar2() throws Exception {
-		test("11好\n1,222\n" + "22好\n2,333\n", 0, 16, '好', asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
-	}
+    @Test
+    public void readLengthWithMultiBytesEscapeChar2() throws Exception {
+        test(
+                "11好\n1,222\n" + "22好\n2,333\n",
+                0,
+                16,
+                '好',
+                asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
+    }
 
-	@Test
-	public void readLengthWithMultiBytesEscapeChar3() throws Exception {
-		test("11好\n1,222\n" + "22好\n2,333\n", 0, 18, '好', asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
-	}
+    @Test
+    public void readLengthWithMultiBytesEscapeChar3() throws Exception {
+        test(
+                "11好\n1,222\n" + "22好\n2,333\n",
+                0,
+                18,
+                '好',
+                asList(Row.of("11\n1", "222"), Row.of("22\n2", "333")));
+    }
 
-	@Test
-	public void readStartOffsetAndLength() throws Exception {
-		test("11好\n1,222\n" + "22好\n2,333\n", 3, 18, '好', singletonList(Row.of("22\n2", "333")));
-	}
+    @Test
+    public void readStartOffsetAndLength() throws Exception {
+        test("11好\n1,222\n" + "22好\n2,333\n", 3, 18, '好', singletonList(Row.of("22\n2", "333")));
+    }
 
-	@Test
-	public void readMultiLineSeparator() throws Exception {
-		test("111,222\r\n" + "222,333\r\n", 3, 18, '好', singletonList(Row.of("222", "333")));
-	}
+    @Test
+    public void readMultiLineSeparator() throws Exception {
+        test("111,222\r\n" + "222,333\r\n", 3, 18, '好', singletonList(Row.of("222", "333")));
+    }
 
-	@Test
-	public void readRLineSeparator() throws Exception {
-		test("111,222\r" + "222,333\r", 3, 18, '好', singletonList(Row.of("222", "333")));
-	}
+    @Test
+    public void readRLineSeparator() throws Exception {
+        test("111,222\r" + "222,333\r", 3, 18, '好', singletonList(Row.of("222", "333")));
+    }
 
-	@Test
-	public void testQuotationMark() throws Exception {
-		test("\"111\",222\r" + "222,333\r", 0, 18, '$', asList(Row.of("111", "222"), Row.of("222", "333")));
-		test("\"111\",222\r" + "222,333\r", 3, 18, '$', singletonList(Row.of("222", "333")));
-		test("\"111\",222\r" + "222,333\r", 5, 18, '$', singletonList(Row.of("222", "333")));
-		test("\"111\",222\r" + "222,333\r", 6, 18, '$', singletonList(Row.of("222", "333")));
+    @Test
+    public void testQuotationMark() throws Exception {
+        test(
+                "\"111\",222\r" + "222,333\r",
+                0,
+                18,
+                '$',
+                asList(Row.of("111", "222"), Row.of("222", "333")));
+        test("\"111\",222\r" + "222,333\r", 3, 18, '$', singletonList(Row.of("222", "333")));
+        test("\"111\",222\r" + "222,333\r", 5, 18, '$', singletonList(Row.of("222", "333")));
+        test("\"111\",222\r" + "222,333\r", 6, 18, '$', singletonList(Row.of("222", "333")));
 
-		testOneField("\"111\"\r" + "222\r", 0, 18, '$', asList(Row.of("111"), Row.of("222")));
-		testOneField("\"111\"\r" + "222\r", 3, 18, '$', singletonList(Row.of("222")));
-		testOneField("\"111\"\r" + "222\r", 5, 18, '$', singletonList(Row.of("222")));
-	}
+        testOneField("\"111\"\r" + "222\r", 0, 18, '$', asList(Row.of("111"), Row.of("222")));
+        testOneField("\"111\"\r" + "222\r", 3, 18, '$', singletonList(Row.of("222")));
+        testOneField("\"111\"\r" + "222\r", 5, 18, '$', singletonList(Row.of("222")));
+    }
 
-	@Test
-	public void testSurroundEscapedDelimiter() throws Exception {
-		test("$11$1,222\r" + "222,333\r", 0, 18, '$', asList(Row.of("111", "222"), Row.of("222", "333")));
-		test("$11$1,222\r" + "222,333\r", 3, 18, '$', singletonList(Row.of("222", "333")));
-		test("$11$1,222\r" + "222,333\r", 5, 18, '$', singletonList(Row.of("222", "333")));
-		test("$11$1,222\r" + "222,333\r", 6, 18, '$', singletonList(Row.of("222", "333")));
+    @Test
+    public void testSurroundEscapedDelimiter() throws Exception {
+        test(
+                "$11$1,222\r" + "222,333\r",
+                0,
+                18,
+                '$',
+                asList(Row.of("111", "222"), Row.of("222", "333")));
+        test("$11$1,222\r" + "222,333\r", 3, 18, '$', singletonList(Row.of("222", "333")));
+        test("$11$1,222\r" + "222,333\r", 5, 18, '$', singletonList(Row.of("222", "333")));
+        test("$11$1,222\r" + "222,333\r", 6, 18, '$', singletonList(Row.of("222", "333")));
 
-		testOneField("123*'4**\r" + "123*'4**\n", 0, 18, '*', asList(Row.of("123'4*"), Row.of("123'4*")));
-		testOneField("123*'4**\r" + "123*'4**\n", 3, 18, '*', singletonList(Row.of("123'4*")));
-		testOneField("123*'4**\r" + "123*'4**\n", 4, 18, '*', singletonList(Row.of("123'4*")));
-		testOneField("123*'4**\r" + "123*'4**\n", 5, 18, '*', singletonList(Row.of("123'4*")));
+        testOneField(
+                "123*'4**\r" + "123*'4**\n",
+                0,
+                18,
+                '*',
+                asList(Row.of("123'4*"), Row.of("123'4*")));
+        testOneField("123*'4**\r" + "123*'4**\n", 3, 18, '*', singletonList(Row.of("123'4*")));
+        testOneField("123*'4**\r" + "123*'4**\n", 4, 18, '*', singletonList(Row.of("123'4*")));
+        testOneField("123*'4**\r" + "123*'4**\n", 5, 18, '*', singletonList(Row.of("123'4*")));
 
-		testOneField("'123''4**'\r" + "'123''4**'\n", 0, 18, '*', asList(Row.of("'123''4*'"), Row.of("'123''4*'")));
-		testOneField("'123''4**'\r" + "'123''4**'\n", 3, 18, '*', singletonList(Row.of("'123''4*'")));
-		testOneField("'123''4**'\r" + "'123''4**'\n", 4, 18, '*', singletonList(Row.of("'123''4*'")));
-		testOneField("'123''4**'\r" + "'123''4**'\n", 5, 18, '*', singletonList(Row.of("'123''4*'")));
-		testOneField("'123''4**'\r" + "'123''4**'\n", 6, 18, '*', singletonList(Row.of("'123''4*'")));
-	}
+        testOneField(
+                "'123''4**'\r" + "'123''4**'\n",
+                0,
+                18,
+                '*',
+                asList(Row.of("'123''4*'"), Row.of("'123''4*'")));
+        testOneField(
+                "'123''4**'\r" + "'123''4**'\n", 3, 18, '*', singletonList(Row.of("'123''4*'")));
+        testOneField(
+                "'123''4**'\r" + "'123''4**'\n", 4, 18, '*', singletonList(Row.of("'123''4*'")));
+        testOneField(
+                "'123''4**'\r" + "'123''4**'\n", 5, 18, '*', singletonList(Row.of("'123''4*'")));
+        testOneField(
+                "'123''4**'\r" + "'123''4**'\n", 6, 18, '*', singletonList(Row.of("'123''4*'")));
+    }
 
-	private void test(String content, long offset, long length, char escapeChar, List<Row> expected) throws Exception {
-		test(
-				content,
-				offset,
-				length,
-				escapeChar,
-				expected,
-				new TypeInformation[]{BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO});
-	}
+    private void test(String content, long offset, long length, char escapeChar, List<Row> expected)
+            throws Exception {
+        test(
+                content,
+                offset,
+                length,
+                escapeChar,
+                expected,
+                new TypeInformation[] {
+                    BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO
+                });
+    }
 
-	private void testOneField(String content, long offset, long length, char escapeChar, List<Row> expected) throws Exception {
-		test(
-				content,
-				offset,
-				length,
-				escapeChar,
-				expected,
-				new TypeInformation[]{BasicTypeInfo.STRING_TYPE_INFO});
-	}
+    private void testOneField(
+            String content, long offset, long length, char escapeChar, List<Row> expected)
+            throws Exception {
+        test(
+                content,
+                offset,
+                length,
+                escapeChar,
+                expected,
+                new TypeInformation[] {BasicTypeInfo.STRING_TYPE_INFO});
+    }
 
-	private void test(
-			String content,
-			long offset, long length,
-			char escapeChar,
-			List<Row> expected,
-			TypeInformation[] fieldTypes) throws Exception {
-		FileInputSplit split = createTempFile(content, offset, length);
+    private void test(
+            String content,
+            long offset,
+            long length,
+            char escapeChar,
+            List<Row> expected,
+            TypeInformation[] fieldTypes)
+            throws Exception {
+        FileInputSplit split = createTempFile(content, offset, length);
 
-		RowCsvInputFormat.Builder builder = RowCsvInputFormat.builder(new RowTypeInfo(fieldTypes), PATH)
-				.setEscapeCharacter(escapeChar);
+        RowCsvInputFormat.Builder builder =
+                RowCsvInputFormat.builder(new RowTypeInfo(fieldTypes), PATH)
+                        .setEscapeCharacter(escapeChar);
 
-		RowCsvInputFormat format = builder.build();
-		format.configure(new Configuration());
-		format.open(split);
+        RowCsvInputFormat format = builder.build();
+        format.configure(new Configuration());
+        format.open(split);
 
-		List<Row> rows = new ArrayList<>();
-		while (!format.reachedEnd()) {
-			Row result = new Row(3);
-			result = format.nextRecord(result);
-			if (result == null) {
-				break;
-			} else {
-				rows.add(result);
-			}
-		}
+        List<Row> rows = new ArrayList<>();
+        while (!format.reachedEnd()) {
+            Row result = new Row(3);
+            result = format.nextRecord(result);
+            if (result == null) {
+                break;
+            } else {
+                rows.add(result);
+            }
+        }
 
-		assertEquals(expected, rows);
-	}
+        assertEquals(expected, rows);
+    }
 }

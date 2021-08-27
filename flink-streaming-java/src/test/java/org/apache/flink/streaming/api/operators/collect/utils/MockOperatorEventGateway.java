@@ -22,23 +22,21 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 
 import java.util.LinkedList;
 
-/**
- * An {@link OperatorEventGateway} for testing purpose.
- */
+/** An {@link OperatorEventGateway} for testing purpose. */
 public class MockOperatorEventGateway implements OperatorEventGateway {
 
-	private final LinkedList<OperatorEvent> events;
+    private final LinkedList<OperatorEvent> events;
 
-	public MockOperatorEventGateway() {
-		events = new LinkedList<>();
-	}
+    public MockOperatorEventGateway() {
+        events = new LinkedList<>();
+    }
 
-	@Override
-	public void sendEventToCoordinator(OperatorEvent event) {
-		events.add(event);
-	}
+    @Override
+    public void sendEventToCoordinator(OperatorEvent event) {
+        events.add(event);
+    }
 
-	public OperatorEvent getNextEvent() {
-		return events.removeFirst();
-	}
+    public OperatorEvent getNextEvent() {
+        return events.removeFirst();
+    }
 }

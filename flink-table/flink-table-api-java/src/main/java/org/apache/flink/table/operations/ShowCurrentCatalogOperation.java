@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.operations;
 
-/**
- * Operation to describe a SHOW CURRENT CATALOG statement.
- */
-public class ShowCurrentCatalogOperation implements ShowOperation{
-	@Override
-	public String asSummaryString() {
-		return "SHOW CURRENT CATALOG";
-	}
+/** Operation to describe a SHOW CURRENT CATALOG statement. */
+public class ShowCurrentCatalogOperation implements ShowOperation {
+    @Override
+    public String asSummaryString() {
+        return "SHOW CURRENT CATALOG";
+    }
 }

@@ -28,33 +28,27 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.Optional;
 
-/**
- * Strategy that checks that the argument has a composite type.
- */
+/** Strategy that checks that the argument has a composite type. */
 @Internal
 public class CompositeArgumentTypeStrategy implements ArgumentTypeStrategy {
-	@Override
-	public Optional<DataType> inferArgumentType(
-			CallContext callContext,
-			int argumentPos,
-			boolean throwOnFailure) {
-		DataType dataType = callContext.getArgumentDataTypes().get(argumentPos);
-		if (!LogicalTypeChecks.isCompositeType(dataType.getLogicalType())) {
-			if (throwOnFailure) {
-				throw callContext.newValidationError(
-					"A composite type expected. Got: %s",
-					dataType);
-			}
-			return Optional.empty();
-		}
+    @Override
+    public Optional<DataType> inferArgumentType(
+            CallContext callContext, int argumentPos, boolean throwOnFailure) {
+        DataType dataType = callContext.getArgumentDataTypes().get(argumentPos);
+        if (!LogicalTypeChecks.isCompositeType(dataType.getLogicalType())) {
+            if (throwOnFailure) {
+                throw callContext.newValidationError(
+                        "A composite type expected. Got: %s", dataType);
+            }
+            return Optional.empty();
+        }
 
-		return Optional.of(dataType);
-	}
+        return Optional.of(dataType);
+    }
 
-	@Override
-	public Signature.Argument getExpectedArgument(
-		FunctionDefinition functionDefinition,
-		int argumentPos) {
-		return Signature.Argument.of("<COMPOSITE>");
-	}
+    @Override
+    public Signature.Argument getExpectedArgument(
+            FunctionDefinition functionDefinition, int argumentPos) {
+        return Signature.Argument.of("<COMPOSITE>");
+    }
 }

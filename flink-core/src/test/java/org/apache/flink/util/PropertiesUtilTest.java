@@ -25,28 +25,26 @@ import java.util.Properties;
 
 import static org.apache.flink.util.PropertiesUtil.flatten;
 
-/**
- * Tests for the {@link PropertiesUtil}.
- */
+/** Tests for the {@link PropertiesUtil}. */
 public class PropertiesUtilTest {
 
-	@Test
-	public void testFlatten() {
-		// default Properties is null
-		Properties prop1 = new Properties();
-		prop1.put("key1", "value1");
+    @Test
+    public void testFlatten() {
+        // default Properties is null
+        Properties prop1 = new Properties();
+        prop1.put("key1", "value1");
 
-		// default Properties is prop1
-		Properties prop2 = new Properties(prop1);
-		prop2.put("key2", "value2");
+        // default Properties is prop1
+        Properties prop2 = new Properties(prop1);
+        prop2.put("key2", "value2");
 
-		// default Properties is prop2
-		Properties prop3 = new Properties(prop2);
-		prop3.put("key3", "value3");
+        // default Properties is prop2
+        Properties prop3 = new Properties(prop2);
+        prop3.put("key3", "value3");
 
-		Properties flattened = flatten(prop3);
-		Assert.assertEquals(flattened.get("key1"), "value1");
-		Assert.assertEquals(flattened.get("key2"), "value2");
-		Assert.assertEquals(flattened.get("key3"), "value3");
-	}
+        Properties flattened = flatten(prop3);
+        Assert.assertEquals(flattened.get("key1"), "value1");
+        Assert.assertEquals(flattened.get("key2"), "value2");
+        Assert.assertEquals(flattened.get("key3"), "value3");
+    }
 }

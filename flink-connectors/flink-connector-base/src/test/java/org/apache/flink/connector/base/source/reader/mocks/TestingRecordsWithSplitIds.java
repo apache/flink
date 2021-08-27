@@ -24,24 +24,22 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import java.util.Arrays;
 import java.util.Collections;
 
-/**
- * A mock implementation of {@link RecordsWithSplitIds} that returns a given set of records.
- */
+/** A mock implementation of {@link RecordsWithSplitIds} that returns a given set of records. */
 public class TestingRecordsWithSplitIds<E> extends RecordsBySplits<E> {
 
-	private volatile boolean isRecycled;
+    private volatile boolean isRecycled;
 
-	@SafeVarargs
-	public TestingRecordsWithSplitIds(String splitId, E... records) {
-		super(Collections.singletonMap(splitId, Arrays.asList(records)), Collections.emptySet());
-	}
+    @SafeVarargs
+    public TestingRecordsWithSplitIds(String splitId, E... records) {
+        super(Collections.singletonMap(splitId, Arrays.asList(records)), Collections.emptySet());
+    }
 
-	@Override
-	public void recycle() {
-		isRecycled = true;
-	}
+    @Override
+    public void recycle() {
+        isRecycled = true;
+    }
 
-	public boolean isRecycled() {
-		return isRecycled;
-	}
+    public boolean isRecycled() {
+        return isRecycled;
+    }
 }

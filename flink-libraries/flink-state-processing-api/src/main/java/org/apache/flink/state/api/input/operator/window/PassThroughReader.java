@@ -29,12 +29,13 @@ import org.apache.flink.util.Collector;
  * @param <W> The window type.
  * @param <IN> The type stored in state.
  */
-public class PassThroughReader<KEY, W extends Window, IN> extends WindowReaderFunction<IN, IN, KEY, W> {
+public class PassThroughReader<KEY, W extends Window, IN>
+        extends WindowReaderFunction<IN, IN, KEY, W> {
 
-	@Override
-	public void readWindow(KEY key, Context<W> context, Iterable<IN> elements, Collector<IN> out) {
-		for (IN element : elements) {
-			out.collect(element);
-		}
-	}
+    @Override
+    public void readWindow(KEY key, Context<W> context, Iterable<IN> elements, Collector<IN> out) {
+        for (IN element : elements) {
+            out.collect(element);
+        }
+    }
 }

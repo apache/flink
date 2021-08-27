@@ -28,42 +28,45 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  *
  * @see ClusterDataSetDeleteStatusHeaders
  */
-public class ClusterDataSetDeleteTriggerHeaders extends AsynchronousOperationTriggerMessageHeaders<EmptyRequestBody, ClusterDataSetDeleteTriggerMessageParameters> {
+public class ClusterDataSetDeleteTriggerHeaders
+        extends AsynchronousOperationTriggerMessageHeaders<
+                EmptyRequestBody, ClusterDataSetDeleteTriggerMessageParameters> {
 
-	public static final ClusterDataSetDeleteTriggerHeaders INSTANCE = new ClusterDataSetDeleteTriggerHeaders();
+    public static final ClusterDataSetDeleteTriggerHeaders INSTANCE =
+            new ClusterDataSetDeleteTriggerHeaders();
 
-	private static final String URL = ClusterDataSetListHeaders.URL + "/:" + ClusterDataSetIdPathParameter.KEY;
+    private static final String URL =
+            ClusterDataSetListHeaders.URL + "/:" + ClusterDataSetIdPathParameter.KEY;
 
-	private ClusterDataSetDeleteTriggerHeaders() {
-	}
+    private ClusterDataSetDeleteTriggerHeaders() {}
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.ACCEPTED;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.ACCEPTED;
+    }
 
-	@Override
-	protected String getAsyncOperationDescription() {
-		return "Triggers the deletion of a cluster data set.";
-	}
+    @Override
+    protected String getAsyncOperationDescription() {
+        return "Triggers the deletion of a cluster data set.";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public ClusterDataSetDeleteTriggerMessageParameters getUnresolvedMessageParameters() {
-		return new ClusterDataSetDeleteTriggerMessageParameters();
-	}
+    @Override
+    public ClusterDataSetDeleteTriggerMessageParameters getUnresolvedMessageParameters() {
+        return new ClusterDataSetDeleteTriggerMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.DELETE;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.DELETE;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 }

@@ -27,40 +27,42 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import java.io.IOException;
 
 /**
- * A {@link CoordinationRequest} from the client indicating that it wants a new batch of query results.
+ * A {@link CoordinationRequest} from the client indicating that it wants a new batch of query
+ * results.
  *
- * <p>For an explanation of this communication protocol, see Java docs in {@link CollectSinkFunction}.
+ * <p>For an explanation of this communication protocol, see Java docs in {@link
+ * CollectSinkFunction}.
  */
 public class CollectCoordinationRequest implements CoordinationRequest {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
-	private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
+    private static final TypeSerializer<String> versionSerializer = StringSerializer.INSTANCE;
+    private static final TypeSerializer<Long> offsetSerializer = LongSerializer.INSTANCE;
 
-	private final String version;
-	private final long offset;
+    private final String version;
+    private final long offset;
 
-	public CollectCoordinationRequest(String version, long offset) {
-		this.version = version;
-		this.offset = offset;
-	}
+    public CollectCoordinationRequest(String version, long offset) {
+        this.version = version;
+        this.offset = offset;
+    }
 
-	public CollectCoordinationRequest(DataInputView inView) throws IOException {
-		this.version = versionSerializer.deserialize(inView);
-		this.offset = offsetSerializer.deserialize(inView);
-	}
+    public CollectCoordinationRequest(DataInputView inView) throws IOException {
+        this.version = versionSerializer.deserialize(inView);
+        this.offset = offsetSerializer.deserialize(inView);
+    }
 
-	public String getVersion() {
-		return version;
-	}
+    public String getVersion() {
+        return version;
+    }
 
-	public long getOffset() {
-		return offset;
-	}
+    public long getOffset() {
+        return offset;
+    }
 
-	public void serialize(DataOutputView outView) throws IOException {
-		versionSerializer.serialize(version, outView);
-		offsetSerializer.serialize(offset, outView);
-	}
+    public void serialize(DataOutputView outView) throws IOException {
+        versionSerializer.serialize(version, outView);
+        offsetSerializer.serialize(offset, outView);
+    }
 }

@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.operations;
 
-/**
- * Operation to describe SHOW CURRENT DATABASE operation.
- */
-public class ShowCurrentDatabaseOperation implements ShowOperation{
-	@Override
-	public String asSummaryString() {
-		return "SHOW CURRENT DATABASE";
-	}
+/** Operation to describe SHOW CURRENT DATABASE operation. */
+public class ShowCurrentDatabaseOperation implements ShowOperation {
+    @Override
+    public String asSummaryString() {
+        return "SHOW CURRENT DATABASE";
+    }
 }

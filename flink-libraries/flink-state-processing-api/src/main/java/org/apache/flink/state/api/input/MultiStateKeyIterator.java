@@ -35,76 +35,85 @@ import java.util.List;
 /**
  * An iterator for reading all keys in a state backend across multiple partitioned states.
  *
- * <p>To read unique keys across all partitioned states callers must invoke {@link MultiStateKeyIterator#remove}.
+ * <p>To read unique keys across all partitioned states callers must invoke {@link
+ * MultiStateKeyIterator#remove}.
  *
  * @param <K> Type of the key by which state is keyed.
  */
 @Internal
 public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
-	private final List<? extends StateDescriptor<?, ?>> descriptors;
+    private final List<? extends StateDescriptor<?, ?>> descriptors;
 
-	private final KeyedStateBackend<K> backend;
+    private final KeyedStateBackend<K> backend;
 
-	private final Iterator<K> internal;
+    private final Iterator<K> internal;
 
-	private final CloseableRegistry registry;
+    private final CloseableRegistry registry;
 
-	private K currentKey;
+    private K currentKey;
 
-	public MultiStateKeyIterator(List<? extends StateDescriptor<?, ?>> descriptors, KeyedStateBackend<K> backend) {
-		this.descriptors = Preconditions.checkNotNull(descriptors);
-		this.backend = Preconditions.checkNotNull(backend);
+    public MultiStateKeyIterator(
+            List<? extends StateDescriptor<?, ?>> descriptors, KeyedStateBackend<K> backend) {
+        this.descriptors = Preconditions.checkNotNull(descriptors);
+        this.backend = Preconditions.checkNotNull(backend);
 
-		this.registry = new CloseableRegistry();
-		this.internal = descriptors
-			.stream()
-			.map(descriptor -> backend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE))
-			.peek(stream -> {
-				try {
-					registry.registerCloseable(stream::close);
-				} catch (IOException e) {
-					throw new RuntimeException("Failed to read keys from configured StateBackend", e);
-				}
-			})
-			.flatMap(stream -> stream)
-			.iterator();
-	}
+        this.registry = new CloseableRegistry();
+        this.internal =
+                descriptors.stream()
+                        .map(
+                                descriptor ->
+                                        backend.getKeys(
+                                                descriptor.getName(), VoidNamespace.INSTANCE))
+                        .peek(
+                                stream -> {
+                                    try {
+                                        registry.registerCloseable(stream::close);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(
+                                                "Failed to read keys from configured StateBackend",
+                                                e);
+                                    }
+                                })
+                        .flatMap(stream -> stream)
+                        .iterator();
+    }
 
-	@Override
-	public boolean hasNext() {
-		return internal.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return internal.hasNext();
+    }
 
-	@Override
-	public K next() {
-		currentKey = internal.next();
-		return currentKey;
-	}
+    @Override
+    public K next() {
+        currentKey = internal.next();
+        return currentKey;
+    }
 
-	/** Removes the current key from <b>ALL</b> known states in the state backend. */
-	@Override
-	public void remove() {
-		if (currentKey == null) {
-			return;
-		}
+    /** Removes the current key from <b>ALL</b> known states in the state backend. */
+    @Override
+    public void remove() {
+        if (currentKey == null) {
+            return;
+        }
 
-		for (StateDescriptor<?, ?> descriptor : descriptors) {
-			try {
-				State state = backend.getPartitionedState(
-					VoidNamespace.INSTANCE,
-					VoidNamespaceSerializer.INSTANCE,
-					descriptor);
+        for (StateDescriptor<?, ?> descriptor : descriptors) {
+            try {
+                State state =
+                        backend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                descriptor);
 
-				state.clear();
-			} catch (Exception e) {
-				throw new RuntimeException("Failed to drop partitioned state from state backend", e);
-			}
-		}
-	}
+                state.clear();
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Failed to drop partitioned state from state backend", e);
+            }
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		registry.close();
-	}
+    @Override
+    public void close() throws Exception {
+        registry.close();
+    }
 }
-

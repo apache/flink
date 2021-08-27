@@ -17,66 +17,91 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.buffer.UnpooledBufferPool;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link PipelinedResultPartitionReleaseOnConsumptionTest}.
- */
+/** Tests for the {@link PipelinedResultPartitionReleaseOnConsumptionTest}. */
 public class PipelinedResultPartitionReleaseOnConsumptionTest extends TestLogger {
 
-	@Test
-	public void testConsumptionBasedPartitionRelease() {
-		final ResultPartitionManager manager = new ResultPartitionManager();
-		final ResultPartition partition = new ResultPartitionBuilder()
-			.setResultPartitionType(ResultPartitionType.PIPELINED)
-			.setNumberOfSubpartitions(2)
-			.setResultPartitionManager(manager)
-			.build();
+    @Test
+    public void testConsumptionBasedPartitionRelease() {
+        final ResultPartitionManager manager = new ResultPartitionManager();
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(ResultPartitionType.PIPELINED)
+                        .setNumberOfSubpartitions(2)
+                        .setResultPartitionManager(manager)
+                        .build();
 
-		manager.registerResultPartition(partition);
+        manager.registerResultPartition(partition);
 
-		partition.onConsumedSubpartition(0);
-		assertFalse(partition.isReleased());
+        partition.onConsumedSubpartition(0);
+        assertFalse(partition.isReleased());
 
-		partition.onConsumedSubpartition(1);
-		assertTrue(partition.isReleased());
-	}
+        partition.onConsumedSubpartition(1);
+        partition.close();
+        assertTrue(partition.isReleased());
+    }
 
-	@Test
-	public void testMultipleReleaseCallsAreIdempotent() {
-		final ResultPartitionManager manager = new ResultPartitionManager();
-		final ResultPartition partition = new ResultPartitionBuilder()
-			.setResultPartitionType(ResultPartitionType.PIPELINED)
-			.setNumberOfSubpartitions(2)
-			.setResultPartitionManager(manager)
-			.build();
-		manager.registerResultPartition(partition);
+    @Test
+    public void testConsumptionBeforePartitionClose() throws IOException {
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(ResultPartitionType.PIPELINED)
+                        .setNumberOfSubpartitions(1)
+                        .setBufferPoolFactory(UnpooledBufferPool::new)
+                        .build();
 
-		partition.onConsumedSubpartition(0);
-		partition.onConsumedSubpartition(0);
+        partition.setup();
+        partition.emitRecord(ByteBuffer.allocate(16), 0);
+        partition.onConsumedSubpartition(0);
+        assertFalse(partition.isReleased());
+        partition.emitRecord(ByteBuffer.allocate(16), 0);
+        partition.close();
+        assertTrue(partition.isReleased());
+    }
 
-		assertFalse(partition.isReleased());
-	}
+    @Test
+    public void testMultipleReleaseCallsAreIdempotent() {
+        final ResultPartitionManager manager = new ResultPartitionManager();
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(ResultPartitionType.PIPELINED)
+                        .setNumberOfSubpartitions(2)
+                        .setResultPartitionManager(manager)
+                        .build();
+        manager.registerResultPartition(partition);
 
-	@Test
-	public void testReleaseAfterIdempotentCalls() {
-		final ResultPartitionManager manager = new ResultPartitionManager();
-		final ResultPartition partition = new ResultPartitionBuilder()
-			.setResultPartitionType(ResultPartitionType.PIPELINED)
-			.setNumberOfSubpartitions(2)
-			.setResultPartitionManager(manager)
-			.build();
-		manager.registerResultPartition(partition);
+        partition.onConsumedSubpartition(0);
+        partition.onConsumedSubpartition(0);
 
-		partition.onConsumedSubpartition(0);
-		partition.onConsumedSubpartition(0);
-		partition.onConsumedSubpartition(1);
+        assertFalse(partition.isReleased());
+    }
 
-		assertTrue(partition.isReleased());
-	}
+    @Test
+    public void testReleaseAfterIdempotentCalls() {
+        final ResultPartitionManager manager = new ResultPartitionManager();
+        final ResultPartition partition =
+                new ResultPartitionBuilder()
+                        .setResultPartitionType(ResultPartitionType.PIPELINED)
+                        .setNumberOfSubpartitions(2)
+                        .setResultPartitionManager(manager)
+                        .build();
+        manager.registerResultPartition(partition);
+
+        partition.onConsumedSubpartition(0);
+        partition.onConsumedSubpartition(0);
+        partition.onConsumedSubpartition(1);
+        partition.close();
+
+        assertTrue(partition.isReleased());
+    }
 }

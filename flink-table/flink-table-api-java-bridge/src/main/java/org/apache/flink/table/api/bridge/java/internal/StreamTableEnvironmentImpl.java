@@ -20,7 +20,6 @@ package org.apache.flink.table.api.bridge.java.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -28,47 +27,63 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.SchemaTranslator;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
-import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.JavaDataStreamQueryOperation;
+import org.apache.flink.table.operations.JavaExternalQueryOperation;
+import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * The implementation for a Java {@link StreamTableEnvironment}. This enables conversions from/to
@@ -77,330 +92,529 @@ import java.util.Optional;
  * <p>It binds to a given {@link StreamExecutionEnvironment}.
  */
 @Internal
-public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl implements StreamTableEnvironment {
+public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
+        implements StreamTableEnvironment {
 
-	private final StreamExecutionEnvironment executionEnvironment;
+    private final StreamExecutionEnvironment executionEnvironment;
 
-	public StreamTableEnvironmentImpl(
-			CatalogManager catalogManager,
-			ModuleManager moduleManager,
-			FunctionCatalog functionCatalog,
-			TableConfig tableConfig,
-			StreamExecutionEnvironment executionEnvironment,
-			Planner planner,
-			Executor executor,
-			boolean isStreamingMode,
-			ClassLoader userClassLoader) {
-		super(
-			catalogManager,
-			moduleManager,
-			tableConfig,
-			executor,
-			functionCatalog,
-			planner,
-			isStreamingMode,
-			userClassLoader);
-		this.executionEnvironment = executionEnvironment;
-	}
+    public StreamTableEnvironmentImpl(
+            CatalogManager catalogManager,
+            ModuleManager moduleManager,
+            FunctionCatalog functionCatalog,
+            TableConfig tableConfig,
+            StreamExecutionEnvironment executionEnvironment,
+            Planner planner,
+            Executor executor,
+            boolean isStreamingMode,
+            ClassLoader userClassLoader) {
+        super(
+                catalogManager,
+                moduleManager,
+                tableConfig,
+                executor,
+                functionCatalog,
+                planner,
+                isStreamingMode,
+                userClassLoader);
+        this.executionEnvironment = executionEnvironment;
+    }
 
-	public static StreamTableEnvironment create(
-			StreamExecutionEnvironment executionEnvironment,
-			EnvironmentSettings settings,
-			TableConfig tableConfig) {
+    public static StreamTableEnvironment create(
+            StreamExecutionEnvironment executionEnvironment,
+            EnvironmentSettings settings,
+            TableConfig tableConfig) {
 
-		if (!settings.isStreamingMode()) {
-			throw new TableException(
-				"StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
-		}
+        // temporary solution until FLINK-15635 is fixed
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
-		// temporary solution until FLINK-15635 is fixed
-		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final ModuleManager moduleManager = new ModuleManager();
 
-		ModuleManager moduleManager = new ModuleManager();
+        final CatalogManager catalogManager =
+                CatalogManager.newBuilder()
+                        .classLoader(classLoader)
+                        .config(tableConfig.getConfiguration())
+                        .defaultCatalog(
+                                settings.getBuiltInCatalogName(),
+                                new GenericInMemoryCatalog(
+                                        settings.getBuiltInCatalogName(),
+                                        settings.getBuiltInDatabaseName()))
+                        .executionConfig(executionEnvironment.getConfig())
+                        .build();
 
-		CatalogManager catalogManager = CatalogManager.newBuilder()
-			.classLoader(classLoader)
-			.config(tableConfig.getConfiguration())
-			.defaultCatalog(
-				settings.getBuiltInCatalogName(),
-				new GenericInMemoryCatalog(
-					settings.getBuiltInCatalogName(),
-					settings.getBuiltInDatabaseName()))
-			.executionConfig(executionEnvironment.getConfig())
-			.build();
+        final FunctionCatalog functionCatalog =
+                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-		FunctionCatalog functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        final Executor executor =
+                lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
 
-		Map<String, String> executorProperties = settings.toExecutorProperties();
-		Executor executor = lookupExecutor(executorProperties, executionEnvironment);
+        final Planner planner =
+                PlannerFactoryUtil.createPlanner(
+                        settings.getPlanner(),
+                        executor,
+                        tableConfig,
+                        catalogManager,
+                        functionCatalog);
 
-		Map<String, String> plannerProperties = settings.toPlannerProperties();
-		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
+        return new StreamTableEnvironmentImpl(
+                catalogManager,
+                moduleManager,
+                functionCatalog,
+                tableConfig,
+                executionEnvironment,
+                planner,
+                executor,
+                settings.isStreamingMode(),
+                classLoader);
+    }
 
-		return new StreamTableEnvironmentImpl(
-			catalogManager,
-			moduleManager,
-			functionCatalog,
-			tableConfig,
-			executionEnvironment,
-			planner,
-			executor,
-			settings.isStreamingMode(),
-			classLoader
-		);
-	}
+    private static Executor lookupExecutor(
+            ClassLoader classLoader,
+            String executorIdentifier,
+            StreamExecutionEnvironment executionEnvironment) {
+        try {
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            classLoader, ExecutorFactory.class, executorIdentifier);
+            final Method createMethod =
+                    executorFactory
+                            .getClass()
+                            .getMethod("create", StreamExecutionEnvironment.class);
 
-	private static Executor lookupExecutor(
-			Map<String, String> executorProperties,
-			StreamExecutionEnvironment executionEnvironment) {
-		try {
-			ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-			Method createMethod = executorFactory.getClass()
-				.getMethod("create", Map.class, StreamExecutionEnvironment.class);
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
+        } catch (Exception e) {
+            throw new TableException(
+                    "Could not instantiate the executor. Make sure a planner module is on the classpath",
+                    e);
+        }
+    }
 
-			return (Executor) createMethod.invoke(
-				executorFactory,
-				executorProperties,
-				executionEnvironment);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the executor. Make sure a planner module is on the classpath",
-				e);
-		}
-	}
+    @Override
+    public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
+        TypeInformation<T> typeInfo =
+                UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction);
 
-	@Override
-	public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
-		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction);
+        functionCatalog.registerTempSystemTableFunction(name, tableFunction, typeInfo);
+    }
 
-		functionCatalog.registerTempSystemTableFunction(
-			name,
-			tableFunction,
-			typeInfo
-		);
-	}
+    @Override
+    public <T, ACC> void registerFunction(
+            String name, AggregateFunction<T, ACC> aggregateFunction) {
+        TypeInformation<T> typeInfo =
+                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
+        TypeInformation<ACC> accTypeInfo =
+                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
 
-	@Override
-	public <T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction) {
-		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
-		TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-			.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
+        functionCatalog.registerTempSystemAggregateFunction(
+                name, aggregateFunction, typeInfo, accTypeInfo);
+    }
 
-		functionCatalog.registerTempSystemAggregateFunction(
-			name,
-			aggregateFunction,
-			typeInfo,
-			accTypeInfo
-		);
-	}
+    @Override
+    public <T, ACC> void registerFunction(
+            String name, TableAggregateFunction<T, ACC> tableAggregateFunction) {
+        TypeInformation<T> typeInfo =
+                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(tableAggregateFunction);
+        TypeInformation<ACC> accTypeInfo =
+                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(
+                        tableAggregateFunction);
 
-	@Override
-	public <T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggregateFunction) {
-		TypeInformation<T> typeInfo = UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(
-			tableAggregateFunction);
-		TypeInformation<ACC> accTypeInfo = UserDefinedFunctionHelper
-			.getAccumulatorTypeOfAggregateFunction(tableAggregateFunction);
+        functionCatalog.registerTempSystemAggregateFunction(
+                name, tableAggregateFunction, typeInfo, accTypeInfo);
+    }
 
-		functionCatalog.registerTempSystemAggregateFunction(
-			name,
-			tableAggregateFunction,
-			typeInfo,
-			accTypeInfo
-		);
-	}
+    @Override
+    public <T> Table fromDataStream(DataStream<T> dataStream) {
+        return fromStreamInternal(dataStream, null, null, ChangelogMode.insertOnly());
+    }
 
-	@Override
-	public <T> Table fromDataStream(DataStream<T> dataStream) {
-		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
-			dataStream,
-			Optional.empty());
+    @Override
+    public <T> Table fromDataStream(DataStream<T> dataStream, Schema schema) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, ChangelogMode.insertOnly());
+    }
 
-		return createTable(queryOperation);
-	}
+    @Override
+    public Table fromChangelogStream(DataStream<Row> dataStream) {
+        return fromStreamInternal(dataStream, null, null, ChangelogMode.all());
+    }
 
-	@Override
-	public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
-		List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
-		return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
-	}
+    @Override
+    public Table fromChangelogStream(DataStream<Row> dataStream, Schema schema) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, ChangelogMode.all());
+    }
 
-	@Override
-	public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
-		JavaDataStreamQueryOperation<T> queryOperation = asQueryOperation(
-			dataStream,
-			Optional.of(Arrays.asList(fields)));
+    @Override
+    public Table fromChangelogStream(
+            DataStream<Row> dataStream, Schema schema, ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(schema, "Schema must not be null.");
+        return fromStreamInternal(dataStream, schema, null, changelogMode);
+    }
 
-		return createTable(queryOperation);
-	}
+    @Override
+    public <T> void createTemporaryView(String path, DataStream<T> dataStream) {
+        createTemporaryView(
+                path, fromStreamInternal(dataStream, null, path, ChangelogMode.insertOnly()));
+    }
 
-	@Override
-	public <T> void registerDataStream(String name, DataStream<T> dataStream) {
-		createTemporaryView(name, dataStream);
-	}
+    @Override
+    public <T> void createTemporaryView(String path, DataStream<T> dataStream, Schema schema) {
+        createTemporaryView(
+                path, fromStreamInternal(dataStream, schema, path, ChangelogMode.insertOnly()));
+    }
 
-	@Override
-	public <T> void createTemporaryView(String path, DataStream<T> dataStream) {
-		createTemporaryView(path, fromDataStream(dataStream));
-	}
+    private <T> Table fromStreamInternal(
+            DataStream<T> dataStream,
+            @Nullable Schema schema,
+            @Nullable String viewPath,
+            ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(dataStream, "Data stream must not be null.");
+        Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
 
-	@Override
-	public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
-		createTemporaryView(name, dataStream, fields);
-	}
+        if (dataStream.getExecutionEnvironment() != executionEnvironment) {
+            throw new ValidationException(
+                    "The DataStream's StreamExecutionEnvironment must be identical to the one that "
+                            + "has been passed to the StreamTableEnvironment during instantiation.");
+        }
 
-	@Override
-	public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
-		createTemporaryView(path, fromDataStream(dataStream, fields));
-	}
+        final CatalogManager catalogManager = getCatalogManager();
+        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
+        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
 
-	@Override
-	public <T> void createTemporaryView(
-			String path,
-			DataStream<T> dataStream,
-			Expression... fields) {
-		createTemporaryView(path, fromDataStream(dataStream, fields));
-	}
+        final UnresolvedIdentifier unresolvedIdentifier;
+        if (viewPath != null) {
+            unresolvedIdentifier = getParser().parseIdentifier(viewPath);
+        } else {
+            unresolvedIdentifier =
+                    UnresolvedIdentifier.of("Unregistered_DataStream_Source_" + dataStream.getId());
+        }
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-	@Override
-	protected QueryOperation qualifyQueryOperation(ObjectIdentifier identifier, QueryOperation queryOperation) {
-		if (queryOperation instanceof JavaDataStreamQueryOperation) {
-			JavaDataStreamQueryOperation<?> operation = (JavaDataStreamQueryOperation) queryOperation;
-			return new JavaDataStreamQueryOperation<>(
-				identifier,
-				operation.getDataStream(),
-				operation.getFieldIndices(),
-				operation.getTableSchema()
-			);
-		} else {
-			return queryOperation;
-		}
-	}
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
+                        catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
 
-	@Override
-	public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
-		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
-		return toAppendStream(table, typeInfo);
-	}
+        final ResolvedSchema resolvedSchema =
+                schemaTranslationResult.getSchema().resolve(schemaResolver);
 
-	@Override
-	public <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo) {
-		OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
-			table.getQueryOperation(),
-			TypeConversions.fromLegacyInfoToDataType(typeInfo),
-			OutputConversionModifyOperation.UpdateMode.APPEND);
-		return toDataStream(table, modifyOperation);
-	}
+        final QueryOperation scanOperation =
+                new JavaExternalQueryOperation<>(
+                        objectIdentifier,
+                        dataStream,
+                        schemaTranslationResult.getPhysicalDataType(),
+                        schemaTranslationResult.isTopLevelRecord(),
+                        changelogMode,
+                        resolvedSchema);
 
-	@Override
-	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz) {
-		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
-		return toRetractStream(table, typeInfo);
-	}
+        final List<String> projections = schemaTranslationResult.getProjections();
+        if (projections == null) {
+            return createTable(scanOperation);
+        }
 
-	@Override
-	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo) {
-		OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
-			table.getQueryOperation(),
-			wrapWithChangeFlag(typeInfo),
-			OutputConversionModifyOperation.UpdateMode.RETRACT);
-		return toDataStream(table, modifyOperation);
-	}
+        final QueryOperation projectOperation =
+                operationTreeBuilder.project(
+                        projections.stream()
+                                .map(ApiExpressionUtils::unresolvedRef)
+                                .collect(Collectors.toList()),
+                        scanOperation);
 
-	@Override
-	public StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-		return (StreamTableDescriptor) super.connect(connectorDescriptor);
-	}
+        return createTable(projectOperation);
+    }
 
-	/**
-	 * This is a temporary workaround for Python API. Python API should not use StreamExecutionEnvironment at all.
-	 */
-	@Internal
-	public StreamExecutionEnvironment execEnv() {
-		return executionEnvironment;
-	}
+    @Override
+    public DataStream<Row> toDataStream(Table table) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        // include all columns of the query (incl. metadata and computed columns)
+        final DataType sourceType = table.getResolvedSchema().toSourceRowDataType();
+        return toDataStream(table, sourceType);
+    }
 
-	/**
-	 * This method is used for sql client to submit job.
-	 */
-	public Pipeline getPipeline(String jobName) {
-		return execEnv.createPipeline(translateAndClearBuffer(), tableConfig, jobName);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> DataStream<T> toDataStream(Table table, Class<T> targetClass) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetClass, "Target class must not be null.");
+        if (targetClass == Row.class) {
+            // for convenience, we allow the Row class here as well
+            return (DataStream<T>) toDataStream(table);
+        }
 
-	private <T> DataStream<T> toDataStream(Table table, OutputConversionModifyOperation modifyOperation) {
-		List<Transformation<?>> transformations = planner.translate(Collections.singletonList(modifyOperation));
+        return toDataStream(table, DataTypes.of(targetClass));
+    }
 
-		Transformation<T> transformation = getTransformation(table, transformations);
+    @Override
+    public <T> DataStream<T> toDataStream(Table table, AbstractDataType<?> targetDataType) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
 
-		executionEnvironment.addOperator(transformation);
-		return new DataStream<>(executionEnvironment, transformation);
-	}
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(
+                        getCatalogManager().getDataTypeFactory(),
+                        table.getResolvedSchema(),
+                        targetDataType);
 
-	@Override
-	protected void validateTableSource(TableSource<?> tableSource) {
-		super.validateTableSource(tableSource);
-		validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
-	}
+        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly());
+    }
 
-	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
-		try {
-			return TypeExtractor.createTypeInfo(clazz);
-		} catch (Exception ex) {
-			throw new ValidationException(
-				String.format(
-					"Could not convert query: %s to a DataStream of class %s",
-					table.getQueryOperation().asSummaryString(),
-					clazz.getSimpleName()),
-				ex);
-		}
-	}
+    @Override
+    public DataStream<Row> toChangelogStream(Table table) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
 
-	@SuppressWarnings("unchecked")
-	private <T> Transformation<T> getTransformation(
-		Table table,
-		List<Transformation<?>> transformations) {
-		if (transformations.size() != 1) {
-			throw new TableException(String.format(
-				"Expected a single transformation for query: %s\n Got: %s",
-				table.getQueryOperation().asSummaryString(),
-				transformations));
-		}
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), null);
 
-		return (Transformation<T>) transformations.get(0);
-	}
+        return toStreamInternal(table, schemaTranslationResult, null);
+    }
 
-	private <T> DataType wrapWithChangeFlag(TypeInformation<T> outputType) {
-		TupleTypeInfo tupleTypeInfo = new TupleTypeInfo<Tuple2<Boolean, T>>(Types.BOOLEAN(), outputType);
-		return TypeConversions.fromLegacyInfoToDataType(tupleTypeInfo);
-	}
+    @Override
+    public DataStream<Row> toChangelogStream(Table table, Schema targetSchema) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
 
-	private <T> JavaDataStreamQueryOperation<T> asQueryOperation(
-			DataStream<T> dataStream,
-			Optional<List<Expression>> fields) {
-		TypeInformation<T> streamType = dataStream.getType();
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-		// get field names and types for all non-replaced fields
-		FieldInfoUtils.TypeInfoSchema typeInfoSchema = fields.map(f -> {
-			FieldInfoUtils.TypeInfoSchema fieldsInfo = FieldInfoUtils.getFieldsInfo(
-				streamType,
-				f.toArray(new Expression[0]));
+        return toStreamInternal(table, schemaTranslationResult, null);
+    }
 
-			// check if event-time is enabled
-			validateTimeCharacteristic(fieldsInfo.isRowtimeDefined());
-			return fieldsInfo;
-		}).orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
+    @Override
+    public DataStream<Row> toChangelogStream(
+            Table table, Schema targetSchema, ChangelogMode changelogMode) {
+        Preconditions.checkNotNull(table, "Table must not be null.");
+        Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
+        Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
 
-		return new JavaDataStreamQueryOperation<>(
-			dataStream,
-			typeInfoSchema.getIndices(),
-			typeInfoSchema.toTableSchema());
-	}
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-	private void validateTimeCharacteristic(boolean isRowtimeDefined) {
-		if (isRowtimeDefined && executionEnvironment.getStreamTimeCharacteristic() != TimeCharacteristic.EventTime) {
-			throw new ValidationException(String.format(
-				"A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
-				executionEnvironment.getStreamTimeCharacteristic()));
-		}
-	}
+        return toStreamInternal(table, schemaTranslationResult, changelogMode);
+    }
+
+    private <T> DataStream<T> toStreamInternal(
+            Table table,
+            SchemaTranslator.ProducingResult schemaTranslationResult,
+            @Nullable ChangelogMode changelogMode) {
+        final CatalogManager catalogManager = getCatalogManager();
+        final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
+        final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
+
+        final QueryOperation projectOperation =
+                schemaTranslationResult
+                        .getProjections()
+                        .map(
+                                projections ->
+                                        operationTreeBuilder.project(
+                                                projections.stream()
+                                                        .map(ApiExpressionUtils::unresolvedRef)
+                                                        .collect(Collectors.toList()),
+                                                table.getQueryOperation()))
+                        .orElseGet(table::getQueryOperation);
+
+        final ResolvedSchema resolvedSchema =
+                schemaResolver.resolve(schemaTranslationResult.getSchema());
+
+        final UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        "Unregistered_DataStream_Sink_" + ExternalModifyOperation.getUniqueId());
+        final ObjectIdentifier objectIdentifier =
+                catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        final ExternalModifyOperation modifyOperation =
+                new ExternalModifyOperation(
+                        objectIdentifier,
+                        projectOperation,
+                        resolvedSchema,
+                        changelogMode,
+                        schemaTranslationResult
+                                .getPhysicalDataType()
+                                .orElseGet(resolvedSchema::toPhysicalRowDataType));
+
+        return toStreamInternal(table, modifyOperation);
+    }
+
+    private <T> DataStream<T> toStreamInternal(Table table, ModifyOperation modifyOperation) {
+        final List<Transformation<?>> transformations =
+                planner.translate(Collections.singletonList(modifyOperation));
+
+        final Transformation<T> transformation = getTransformation(table, transformations);
+        executionEnvironment.addOperator(transformation);
+
+        // reconfigure whenever planner transformations are added
+        executionEnvironment.configure(tableConfig.getConfiguration());
+
+        return new DataStream<>(executionEnvironment, transformation);
+    }
+
+    @Override
+    public StreamStatementSet createStatementSet() {
+        return new StreamStatementSetImpl(this);
+    }
+
+    void attachAsDataStream(List<ModifyOperation> modifyOperations) {
+        final List<Transformation<?>> transformations = translate(modifyOperations);
+        transformations.forEach(executionEnvironment::addOperator);
+    }
+
+    @Override
+    public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
+        List<Expression> expressions = ExpressionParser.parseExpressionList(fields);
+        return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
+    }
+
+    @Override
+    public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
+        JavaDataStreamQueryOperation<T> queryOperation =
+                asQueryOperation(dataStream, Optional.of(Arrays.asList(fields)));
+
+        return createTable(queryOperation);
+    }
+
+    @Override
+    public <T> void registerDataStream(String name, DataStream<T> dataStream) {
+        createTemporaryView(name, dataStream);
+    }
+
+    @Override
+    public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
+        createTemporaryView(name, dataStream, fields);
+    }
+
+    @Override
+    public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
+        createTemporaryView(path, fromDataStream(dataStream, fields));
+    }
+
+    @Override
+    public <T> void createTemporaryView(
+            String path, DataStream<T> dataStream, Expression... fields) {
+        createTemporaryView(path, fromDataStream(dataStream, fields));
+    }
+
+    @Override
+    protected QueryOperation qualifyQueryOperation(
+            ObjectIdentifier identifier, QueryOperation queryOperation) {
+        if (queryOperation instanceof JavaDataStreamQueryOperation) {
+            JavaDataStreamQueryOperation<?> operation =
+                    (JavaDataStreamQueryOperation) queryOperation;
+            return new JavaDataStreamQueryOperation<>(
+                    identifier,
+                    operation.getDataStream(),
+                    operation.getFieldIndices(),
+                    operation.getResolvedSchema());
+        } else {
+            return queryOperation;
+        }
+    }
+
+    @Override
+    public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
+        TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
+        return toAppendStream(table, typeInfo);
+    }
+
+    @Override
+    public <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo) {
+        OutputConversionModifyOperation modifyOperation =
+                new OutputConversionModifyOperation(
+                        table.getQueryOperation(),
+                        TypeConversions.fromLegacyInfoToDataType(typeInfo),
+                        OutputConversionModifyOperation.UpdateMode.APPEND);
+        return toStreamInternal(table, modifyOperation);
+    }
+
+    @Override
+    public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz) {
+        TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
+        return toRetractStream(table, typeInfo);
+    }
+
+    @Override
+    public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(
+            Table table, TypeInformation<T> typeInfo) {
+        OutputConversionModifyOperation modifyOperation =
+                new OutputConversionModifyOperation(
+                        table.getQueryOperation(),
+                        wrapWithChangeFlag(typeInfo),
+                        OutputConversionModifyOperation.UpdateMode.RETRACT);
+        return toStreamInternal(table, modifyOperation);
+    }
+
+    /**
+     * This is a temporary workaround for Python API. Python API should not use
+     * StreamExecutionEnvironment at all.
+     */
+    @Internal
+    public StreamExecutionEnvironment execEnv() {
+        return executionEnvironment;
+    }
+
+    @Override
+    protected void validateTableSource(TableSource<?> tableSource) {
+        super.validateTableSource(tableSource);
+        validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
+    }
+
+    private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
+        try {
+            return TypeExtractor.createTypeInfo(clazz);
+        } catch (Exception ex) {
+            throw new ValidationException(
+                    String.format(
+                            "Could not convert query: %s to a DataStream of class %s",
+                            table.getQueryOperation().asSummaryString(), clazz.getSimpleName()),
+                    ex);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Transformation<T> getTransformation(
+            Table table, List<Transformation<?>> transformations) {
+        if (transformations.size() != 1) {
+            throw new TableException(
+                    String.format(
+                            "Expected a single transformation for query: %s\n Got: %s",
+                            table.getQueryOperation().asSummaryString(), transformations));
+        }
+
+        return (Transformation<T>) transformations.get(0);
+    }
+
+    private <T> DataType wrapWithChangeFlag(TypeInformation<T> outputType) {
+        TupleTypeInfo tupleTypeInfo =
+                new TupleTypeInfo<Tuple2<Boolean, T>>(Types.BOOLEAN(), outputType);
+        return TypeConversions.fromLegacyInfoToDataType(tupleTypeInfo);
+    }
+
+    private <T> JavaDataStreamQueryOperation<T> asQueryOperation(
+            DataStream<T> dataStream, Optional<List<Expression>> fields) {
+        TypeInformation<T> streamType = dataStream.getType();
+
+        // get field names and types for all non-replaced fields
+        FieldInfoUtils.TypeInfoSchema typeInfoSchema =
+                fields.map(
+                                f -> {
+                                    FieldInfoUtils.TypeInfoSchema fieldsInfo =
+                                            FieldInfoUtils.getFieldsInfo(
+                                                    streamType, f.toArray(new Expression[0]));
+
+                                    // check if event-time is enabled
+                                    validateTimeCharacteristic(fieldsInfo.isRowtimeDefined());
+                                    return fieldsInfo;
+                                })
+                        .orElseGet(() -> FieldInfoUtils.getFieldsInfo(streamType));
+
+        return new JavaDataStreamQueryOperation<>(
+                dataStream, typeInfoSchema.getIndices(), typeInfoSchema.toResolvedSchema());
+    }
+
+    private void validateTimeCharacteristic(boolean isRowtimeDefined) {
+        if (isRowtimeDefined
+                && executionEnvironment.getStreamTimeCharacteristic()
+                        != TimeCharacteristic.EventTime) {
+            throw new ValidationException(
+                    String.format(
+                            "A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
+                            executionEnvironment.getStreamTimeCharacteristic()));
+        }
+    }
 }

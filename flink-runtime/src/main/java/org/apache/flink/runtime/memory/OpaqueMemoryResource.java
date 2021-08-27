@@ -26,55 +26,52 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An opaque memory resource, meaning a memory resource not understood by Flink or the JVM.
- * An example for this is a native resource, like RocksDB's block cache memory pool.
+ * An opaque memory resource, meaning a memory resource not understood by Flink or the JVM. An
+ * example for this is a native resource, like RocksDB's block cache memory pool.
  *
  * <p>The resource must be closed after it is not used any more.
  */
 public final class OpaqueMemoryResource<T> implements AutoCloseable {
 
-	private final T resourceHandle;
+    private final T resourceHandle;
 
-	private final long size;
+    private final long size;
 
-	private final ThrowingRunnable<Exception> disposer;
+    private final ThrowingRunnable<Exception> disposer;
 
-	private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
-	public OpaqueMemoryResource(T resourceHandle, long size, ThrowingRunnable<Exception> disposer) {
-		checkArgument(size >= 0, "size must be >= 0");
-		this.resourceHandle = checkNotNull(resourceHandle, "resourceHandle");
-		this.disposer = checkNotNull(disposer, "disposer");
-		this.size = size;
-	}
+    public OpaqueMemoryResource(T resourceHandle, long size, ThrowingRunnable<Exception> disposer) {
+        checkArgument(size >= 0, "size must be >= 0");
+        this.resourceHandle = checkNotNull(resourceHandle, "resourceHandle");
+        this.disposer = checkNotNull(disposer, "disposer");
+        this.size = size;
+    }
 
-	/**
-	 * Gets the handle to the resource.
-	 */
-	public T getResourceHandle() {
-		return resourceHandle;
-	}
+    /** Gets the handle to the resource. */
+    public T getResourceHandle() {
+        return resourceHandle;
+    }
 
-	/**
-	 * Gets the size, in bytes.
-	 */
-	public long getSize() {
-		return size;
-	}
+    /** Gets the size, in bytes. */
+    public long getSize() {
+        return size;
+    }
 
-	/**
-	 * Releases this resource.
-	 * This method is idempotent.
-	 */
-	@Override
-	public void close() throws Exception {
-		if (closed.compareAndSet(false, true)) {
-			disposer.run();
-		}
-	}
+    /** Releases this resource. This method is idempotent. */
+    @Override
+    public void close() throws Exception {
+        if (closed.compareAndSet(false, true)) {
+            disposer.run();
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "OpaqueMemoryResource (" + size + " bytes) @ " + resourceHandle + (closed.get() ? " (disposed)" : "");
-	}
+    @Override
+    public String toString() {
+        return "OpaqueMemoryResource ("
+                + size
+                + " bytes) @ "
+                + resourceHandle
+                + (closed.get() ? " (disposed)" : "");
+    }
 }

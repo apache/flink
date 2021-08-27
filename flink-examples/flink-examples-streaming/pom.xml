@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -92,6 +92,13 @@ under the License.
             <artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-changelog</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Dependencies for MatrixVectorMul. We exclude native libraries
 		because it is not available in all the operating systems and architectures. Moreover,
@@ -206,28 +213,8 @@ under the License.
 
 							<includes>
 								<include>org/apache/flink/streaming/examples/iteration/*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- IncrementalLearning -->
-					<execution>
-						<id>IncrementalLearning</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>IncrementalLearning</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.ml.IncrementalLearningSkeleton</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/ml/*.class</include>			
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -251,6 +238,8 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/join/*.class</include>
 								<include>org/apache/flink/streaming/examples/utils/ThrottledIterator.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -273,6 +262,8 @@ under the License.
 
 							<includes>
 								<include>org/apache/flink/streaming/examples/async/*.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -297,6 +288,8 @@ under the License.
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -321,6 +314,8 @@ under the License.
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -344,6 +339,8 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/socket/SocketWindowWordCount.class</include>
 								<include>org/apache/flink/streaming/examples/socket/SocketWindowWordCount$*.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -367,6 +364,8 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
 								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -390,6 +389,8 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing.class</include>
 								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing$*.class</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -539,7 +540,6 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-IncrementalLearning.jar" tofile="${project.basedir}/target/IncrementalLearning.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />

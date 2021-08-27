@@ -1,0 +1,84 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>cluster.evenly-spread-out-slots</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>cluster.fine-grained-resource-management.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether the cluster uses fine-grained resource management.</td>
+        </tr>
+        <tr>
+            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Configure the minimum increase in parallelism for a job to scale up.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource-stabilization-timeout</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The resource stabilization timeout defines the time the JobManager will wait if fewer than the desired but sufficient resources are available. The timeout starts once sufficient resources for running the job are available. Once this timeout has passed, the job will start executing with the available resources.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to 0, so that jobs are starting immediately with the available resources.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-scheduler.resource-wait-timeout</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to a negative value to disable the resource timeout.</td>
+        </tr>
+        <tr>
+            <td><h5>scheduler-mode</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p></td>
+            <td>Determines the mode of the scheduler. Note that <code class="highlighter-rouge">scheduler-mode</code>=<code class="highlighter-rouge">REACTIVE</code> is only supported by standalone application deployments, not by active resource managers (YARN, Kubernetes) or session clusters.<br /><br />Possible values:<ul><li>"REACTIVE"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>slot.idle.timeout</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>Long</td>
+            <td>The timeout in milliseconds for a idle slot in Slot Pool.</td>
+        </tr>
+        <tr>
+            <td><h5>slot.request.timeout</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>Long</td>
+            <td>The timeout in milliseconds for requesting a slot from Slot Pool.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.max-total-resource.cpu</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Maximum cpu cores the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.max-total-resource.memory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Maximum memory size the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.number-of-slots.max</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>Defines the maximum number of slots that the Flink cluster allocates. This configuration option is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
+        </tr>
+    </tbody>
+</table>

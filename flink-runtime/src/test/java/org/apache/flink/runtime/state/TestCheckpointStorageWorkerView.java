@@ -22,31 +22,36 @@ import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import java.io.IOException;
 
 /**
- * Non-persistent {@link CheckpointStorageWorkerView} for tests. Uses {@link MemCheckpointStreamFactory}.
+ * Non-persistent {@link CheckpointStorageWorkerView} for tests. Uses {@link
+ * MemCheckpointStreamFactory}.
  */
 public class TestCheckpointStorageWorkerView implements CheckpointStorageWorkerView {
 
-	private final int maxStateSize;
-	private final MemCheckpointStreamFactory taskOwnedCheckpointStreamFactory;
-	private final CheckpointedStateScope taskOwnedStateScope;
+    private final int maxStateSize;
+    private final MemCheckpointStreamFactory taskOwnedCheckpointStreamFactory;
+    private final CheckpointedStateScope taskOwnedStateScope;
 
-	public TestCheckpointStorageWorkerView(int maxStateSize) {
-		this(maxStateSize, CheckpointedStateScope.EXCLUSIVE);
-	}
+    public TestCheckpointStorageWorkerView(int maxStateSize) {
+        this(maxStateSize, CheckpointedStateScope.EXCLUSIVE);
+    }
 
-	private TestCheckpointStorageWorkerView(int maxStateSize, CheckpointedStateScope taskOwnedStateScope) {
-		this.maxStateSize = maxStateSize;
-		this.taskOwnedCheckpointStreamFactory = new MemCheckpointStreamFactory(maxStateSize);
-		this.taskOwnedStateScope = taskOwnedStateScope;
-	}
+    private TestCheckpointStorageWorkerView(
+            int maxStateSize, CheckpointedStateScope taskOwnedStateScope) {
+        this.maxStateSize = maxStateSize;
+        this.taskOwnedCheckpointStreamFactory = new MemCheckpointStreamFactory(maxStateSize);
+        this.taskOwnedStateScope = taskOwnedStateScope;
+    }
 
-	@Override
-	public CheckpointStreamFactory resolveCheckpointStorageLocation(long checkpointId, CheckpointStorageLocationReference reference) {
-		return new MemCheckpointStreamFactory(maxStateSize);
-	}
+    @Override
+    public CheckpointStreamFactory resolveCheckpointStorageLocation(
+            long checkpointId, CheckpointStorageLocationReference reference) {
+        return new MemCheckpointStreamFactory(maxStateSize);
+    }
 
-	@Override
-	public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
-		return taskOwnedCheckpointStreamFactory.createCheckpointStateOutputStream(taskOwnedStateScope);
-	}
+    @Override
+    public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream()
+            throws IOException {
+        return taskOwnedCheckpointStreamFactory.createCheckpointStateOutputStream(
+                taskOwnedStateScope);
+    }
 }

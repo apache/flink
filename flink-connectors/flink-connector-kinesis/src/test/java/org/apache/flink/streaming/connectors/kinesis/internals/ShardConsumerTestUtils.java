@@ -18,9 +18,12 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -47,83 +50,159 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
-/**
- * Tests for the {@link ShardConsumer}.
- */
+/** Tests for the {@link ShardConsumer}. */
 public class ShardConsumerTestUtils {
 
-	public static <T> ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
-				final int expectedNumberOfMessages,
-				final RecordPublisherFactory recordPublisherFactory,
-				final SequenceNumber startingSequenceNumber,
-				final Properties consumerProperties) throws InterruptedException {
-		ShardConsumerMetricsReporter shardMetricsReporter = new ShardConsumerMetricsReporter(mock(MetricGroup.class));
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties)
+            throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
+    }
 
-		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final AbstractMetricGroup metricGroup)
+            throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
+                metricGroup);
+    }
 
-		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
-		subscribedShardsStateUnderTest.add(
-			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
-				fakeToBeConsumedShard, startingSequenceNumber));
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final SequenceNumber expectedLastProcessedSequenceNum,
+            final AbstractMetricGroup metricGroup)
+            throws InterruptedException {
+        ShardConsumerMetricsReporter shardMetricsReporter =
+                new ShardConsumerMetricsReporter(metricGroup);
 
-		TestSourceContext<String> sourceContext = new TestSourceContext<>();
+        StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
 
-		KinesisDeserializationSchemaWrapper<String> deserializationSchema = new KinesisDeserializationSchemaWrapper<>(
-			new SimpleStringSchema());
-		TestableKinesisDataFetcher<String> fetcher =
-			new TestableKinesisDataFetcher<>(
-				Collections.singletonList("fakeStream"),
-				sourceContext,
-				consumerProperties,
-				deserializationSchema,
-				10,
-				2,
-				new AtomicReference<>(),
-				subscribedShardsStateUnderTest,
-				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
-				Mockito.mock(KinesisProxyInterface.class),
-				Mockito.mock(KinesisProxyV2Interface.class));
+        LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
+        subscribedShardsStateUnderTest.add(
+                new KinesisStreamShardState(
+                        KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
+                        fakeToBeConsumedShard,
+                        startingSequenceNumber));
 
-		final StreamShardHandle shardHandle = subscribedShardsStateUnderTest.get(0).getStreamShardHandle();
-		final SequenceNumber lastProcessedSequenceNum = subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum();
-		final StartingPosition startingPosition = AWSUtil.getStartingPosition(lastProcessedSequenceNum, consumerProperties);
+        TestSourceContext<String> sourceContext = new TestSourceContext<>();
 
-		final RecordPublisher recordPublisher = recordPublisherFactory
-			.create(startingPosition, fetcher.getConsumerConfiguration(), mock(MetricGroup.class), shardHandle);
+        KinesisDeserializationSchemaWrapper<String> deserializationSchema =
+                new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema());
+        TestableKinesisDataFetcher<String> fetcher =
+                new TestableKinesisDataFetcher<>(
+                        Collections.singletonList("fakeStream"),
+                        sourceContext,
+                        consumerProperties,
+                        deserializationSchema,
+                        10,
+                        2,
+                        new AtomicReference<>(),
+                        subscribedShardsStateUnderTest,
+                        KinesisDataFetcher
+                                .createInitialSubscribedStreamsToLastDiscoveredShardsState(
+                                        Collections.singletonList("fakeStream")),
+                        Mockito.mock(KinesisProxyInterface.class),
+                        Mockito.mock(KinesisProxyV2Interface.class));
 
-		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
-		new ShardConsumer<>(
-			fetcher,
-			recordPublisher,
-			shardIndex,
-			shardHandle,
-			lastProcessedSequenceNum,
-			shardMetricsReporter,
-			deserializationSchema)
-			.run();
+        final StreamShardHandle shardHandle =
+                subscribedShardsStateUnderTest.get(0).getStreamShardHandle();
+        final SequenceNumber lastProcessedSequenceNum =
+                subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum();
+        final StartingPosition startingPosition =
+                AWSUtil.getStartingPosition(lastProcessedSequenceNum, consumerProperties);
 
-		assertEquals(expectedNumberOfMessages, sourceContext.getCollectedOutputs().size());
-		assertEquals(
-			SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
-			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
+        final RecordPublisher recordPublisher =
+                recordPublisherFactory.create(
+                        startingPosition,
+                        fetcher.getConsumerConfiguration(),
+                        metricGroup,
+                        shardHandle);
 
-		return shardMetricsReporter;
-	}
+        int shardIndex =
+                fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
+        new ShardConsumer<>(
+                        fetcher,
+                        recordPublisher,
+                        shardIndex,
+                        shardHandle,
+                        lastProcessedSequenceNum,
+                        shardMetricsReporter,
+                        deserializationSchema)
+                .run();
 
-	public static StreamShardHandle getMockStreamShard(String streamName, int shardId) {
-		return new StreamShardHandle(
-			streamName,
-			new Shard()
-				.withShardId(KinesisShardIdGenerator.generateFromShardOrder(shardId))
-				.withHashKeyRange(
-					new HashKeyRange()
-						.withStartingHashKey("0")
-						.withEndingHashKey(new BigInteger(StringUtils.repeat("FF", 16), 16).toString())));
-	}
+        assertEquals(expectedNumberOfMessages, sourceContext.getCollectedOutputs().size());
+        assertEquals(
+                expectedLastProcessedSequenceNum,
+                subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
 
-	public static SequenceNumber fakeSequenceNumber() {
-		return new SequenceNumber("fakeStartingState");
-	}
+        return shardMetricsReporter;
+    }
+
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final SequenceNumber expectedLastProcessedSequenceNum)
+            throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                expectedLastProcessedSequenceNum,
+                createFakeShardConsumerMetricGroup());
+    }
+
+    public static StreamShardHandle getMockStreamShard(String streamName, int shardId) {
+        return new StreamShardHandle(
+                streamName,
+                new Shard()
+                        .withShardId(KinesisShardIdGenerator.generateFromShardOrder(shardId))
+                        .withHashKeyRange(
+                                new HashKeyRange()
+                                        .withStartingHashKey("0")
+                                        .withEndingHashKey(
+                                                new BigInteger(StringUtils.repeat("FF", 16), 16)
+                                                        .toString())));
+    }
+
+    public static SequenceNumber fakeSequenceNumber() {
+        return new SequenceNumber("fakeStartingState");
+    }
+
+    public static AbstractMetricGroup createFakeShardConsumerMetricGroup(
+            OperatorMetricGroup metricGroup) {
+        return (AbstractMetricGroup)
+                metricGroup
+                        .addGroup(KinesisConsumerMetricConstants.STREAM_METRICS_GROUP, "fakeStream")
+                        .addGroup(
+                                KinesisConsumerMetricConstants.SHARD_METRICS_GROUP,
+                                "shardId-000000000000");
+    }
+
+    public static AbstractMetricGroup createFakeShardConsumerMetricGroup() {
+        return createFakeShardConsumerMetricGroup(
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
+    }
 }

@@ -37,167 +37,168 @@ import java.util.Arrays;
  */
 public class SubtaskState implements CompositeStateHandle {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SubtaskState.class);
 
-	private static final long serialVersionUID = -2394696997971923995L;
+    private static final long serialVersionUID = -2394696997971923995L;
 
-	/**
-	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
-	 */
-	private final ChainedStateHandle<OperatorStateHandle> managedOperatorState;
+    /** Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}. */
+    private final ChainedStateHandle<OperatorStateHandle> managedOperatorState;
 
-	/**
-	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
-	 */
-	private final ChainedStateHandle<OperatorStateHandle> rawOperatorState;
+    /**
+     * Snapshot written using {@link
+     * org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
+     */
+    private final ChainedStateHandle<OperatorStateHandle> rawOperatorState;
 
-	/**
-	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
-	 */
-	private final KeyedStateHandle managedKeyedState;
+    /** Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}. */
+    private final KeyedStateHandle managedKeyedState;
 
-	/**
-	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
-	 */
-	private final KeyedStateHandle rawKeyedState;
+    /**
+     * Snapshot written using {@link
+     * org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
+     */
+    private final KeyedStateHandle rawKeyedState;
 
-	/**
-	 * The state size. This is also part of the deserialized state handle.
-	 * We store it here in order to not deserialize the state handle when
-	 * gathering stats.
-	 */
-	private final long stateSize;
+    /**
+     * The state size. This is also part of the deserialized state handle. We store it here in order
+     * to not deserialize the state handle when gathering stats.
+     */
+    private final long stateSize;
 
-	public SubtaskState(
-			ChainedStateHandle<OperatorStateHandle> managedOperatorState,
-			ChainedStateHandle<OperatorStateHandle> rawOperatorState,
-			KeyedStateHandle managedKeyedState,
-			KeyedStateHandle rawKeyedState) {
+    public SubtaskState(
+            ChainedStateHandle<OperatorStateHandle> managedOperatorState,
+            ChainedStateHandle<OperatorStateHandle> rawOperatorState,
+            KeyedStateHandle managedKeyedState,
+            KeyedStateHandle rawKeyedState) {
 
-		this.managedOperatorState = managedOperatorState;
-		this.rawOperatorState = rawOperatorState;
-		this.managedKeyedState = managedKeyedState;
-		this.rawKeyedState = rawKeyedState;
+        this.managedOperatorState = managedOperatorState;
+        this.rawOperatorState = rawOperatorState;
+        this.managedKeyedState = managedKeyedState;
+        this.rawKeyedState = rawKeyedState;
 
-		try {
-			long calculateStateSize = getSizeNullSafe(managedOperatorState);
-			calculateStateSize += getSizeNullSafe(rawOperatorState);
-			calculateStateSize += getSizeNullSafe(managedKeyedState);
-			calculateStateSize += getSizeNullSafe(rawKeyedState);
-			stateSize = calculateStateSize;
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get state size.", e);
-		}
-	}
+        try {
+            long calculateStateSize = getSizeNullSafe(managedOperatorState);
+            calculateStateSize += getSizeNullSafe(rawOperatorState);
+            calculateStateSize += getSizeNullSafe(managedKeyedState);
+            calculateStateSize += getSizeNullSafe(rawKeyedState);
+            stateSize = calculateStateSize;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get state size.", e);
+        }
+    }
 
-	private static long getSizeNullSafe(StateObject stateObject) throws Exception {
-		return stateObject != null ? stateObject.getStateSize() : 0L;
-	}
+    private static long getSizeNullSafe(StateObject stateObject) throws Exception {
+        return stateObject != null ? stateObject.getStateSize() : 0L;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	public ChainedStateHandle<OperatorStateHandle> getManagedOperatorState() {
-		return managedOperatorState;
-	}
+    public ChainedStateHandle<OperatorStateHandle> getManagedOperatorState() {
+        return managedOperatorState;
+    }
 
-	public ChainedStateHandle<OperatorStateHandle> getRawOperatorState() {
-		return rawOperatorState;
-	}
+    public ChainedStateHandle<OperatorStateHandle> getRawOperatorState() {
+        return rawOperatorState;
+    }
 
-	public KeyedStateHandle getManagedKeyedState() {
-		return managedKeyedState;
-	}
+    public KeyedStateHandle getManagedKeyedState() {
+        return managedKeyedState;
+    }
 
-	public KeyedStateHandle getRawKeyedState() {
-		return rawKeyedState;
-	}
+    public KeyedStateHandle getRawKeyedState() {
+        return rawKeyedState;
+    }
 
-	@Override
-	public void discardState() {
-		try {
-			StateUtil.bestEffortDiscardAllStateObjects(
-				Arrays.asList(
-					managedOperatorState,
-					rawOperatorState,
-					managedKeyedState,
-					rawKeyedState));
-		} catch (Exception e) {
-			LOG.warn("Error while discarding operator states.", e);
-		}
-	}
+    @Override
+    public void discardState() {
+        try {
+            StateUtil.bestEffortDiscardAllStateObjects(
+                    Arrays.asList(
+                            managedOperatorState,
+                            rawOperatorState,
+                            managedKeyedState,
+                            rawKeyedState));
+        } catch (Exception e) {
+            LOG.warn("Error while discarding operator states.", e);
+        }
+    }
 
-	@Override
-	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
-		if (managedKeyedState != null) {
-			managedKeyedState.registerSharedStates(sharedStateRegistry);
-		}
+    @Override
+    public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+        if (managedKeyedState != null) {
+            managedKeyedState.registerSharedStates(sharedStateRegistry);
+        }
 
-		if (rawKeyedState != null) {
-			rawKeyedState.registerSharedStates(sharedStateRegistry);
-		}
-	}
+        if (rawKeyedState != null) {
+            rawKeyedState.registerSharedStates(sharedStateRegistry);
+        }
+    }
 
-	@Override
-	public long getStateSize() {
-		return stateSize;
-	}
+    @Override
+    public long getStateSize() {
+        return stateSize;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		SubtaskState that = (SubtaskState) o;
+        SubtaskState that = (SubtaskState) o;
 
-		if (stateSize != that.stateSize) {
-			return false;
-		}
+        if (stateSize != that.stateSize) {
+            return false;
+        }
 
-		if (managedOperatorState != null ?
-				!managedOperatorState.equals(that.managedOperatorState)
-				: that.managedOperatorState != null) {
-			return false;
-		}
-		if (rawOperatorState != null ?
-				!rawOperatorState.equals(that.rawOperatorState)
-				: that.rawOperatorState != null) {
-			return false;
-		}
-		if (managedKeyedState != null ?
-				!managedKeyedState.equals(that.managedKeyedState)
-				: that.managedKeyedState != null) {
-			return false;
-		}
-		return rawKeyedState != null ?
-				rawKeyedState.equals(that.rawKeyedState)
-				: that.rawKeyedState == null;
+        if (managedOperatorState != null
+                ? !managedOperatorState.equals(that.managedOperatorState)
+                : that.managedOperatorState != null) {
+            return false;
+        }
+        if (rawOperatorState != null
+                ? !rawOperatorState.equals(that.rawOperatorState)
+                : that.rawOperatorState != null) {
+            return false;
+        }
+        if (managedKeyedState != null
+                ? !managedKeyedState.equals(that.managedKeyedState)
+                : that.managedKeyedState != null) {
+            return false;
+        }
+        return rawKeyedState != null
+                ? rawKeyedState.equals(that.rawKeyedState)
+                : that.rawKeyedState == null;
+    }
 
-	}
+    @Override
+    public int hashCode() {
+        int result = (managedOperatorState != null ? managedOperatorState.hashCode() : 0);
+        result = 31 * result + (rawOperatorState != null ? rawOperatorState.hashCode() : 0);
+        result = 31 * result + (managedKeyedState != null ? managedKeyedState.hashCode() : 0);
+        result = 31 * result + (rawKeyedState != null ? rawKeyedState.hashCode() : 0);
+        result = 31 * result + (int) (stateSize ^ (stateSize >>> 32));
+        return result;
+    }
 
-	@Override
-	public int hashCode() {
-		int result = (managedOperatorState != null ? managedOperatorState.hashCode() : 0);
-		result = 31 * result + (rawOperatorState != null ? rawOperatorState.hashCode() : 0);
-		result = 31 * result + (managedKeyedState != null ? managedKeyedState.hashCode() : 0);
-		result = 31 * result + (rawKeyedState != null ? rawKeyedState.hashCode() : 0);
-		result = 31 * result + (int) (stateSize ^ (stateSize >>> 32));
-		return result;
-	}
-
-	@Override
-	public String toString() {
-		return "SubtaskState{" +
-				"operatorStateFromBackend=" + managedOperatorState +
-				", operatorStateFromStream=" + rawOperatorState +
-				", keyedStateFromBackend=" + managedKeyedState +
-				", keyedStateFromStream=" + rawKeyedState +
-				", stateSize=" + stateSize +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "SubtaskState{"
+                + "operatorStateFromBackend="
+                + managedOperatorState
+                + ", operatorStateFromStream="
+                + rawOperatorState
+                + ", keyedStateFromBackend="
+                + managedKeyedState
+                + ", keyedStateFromStream="
+                + rawKeyedState
+                + ", stateSize="
+                + stateSize
+                + '}';
+    }
 }

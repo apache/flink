@@ -42,53 +42,59 @@ import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for HiveOutputFormatFactory.
- */
+/** Tests for HiveOutputFormatFactory. */
 public class HiveOutputFormatFactoryTest {
 
-	private static final String TEST_URI_SCHEME = "testscheme";
-	private static final String TEST_URI_AUTHORITY = "test-uri-auth:8888";
+    private static final String TEST_URI_SCHEME = "testscheme";
+    private static final String TEST_URI_AUTHORITY = "test-uri-auth:8888";
 
-	@Test
-	public void testCreateOutputFormat() {
-		TableSchema schema = TableSchema.builder().field("x", DataTypes.INT()).build();
-		SerDeInfo serDeInfo = new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
-		HiveWriterFactory writerFactory = new HiveWriterFactory(
-				new JobConf(),
-				VerifyURIOutputFormat.class,
-				serDeInfo, schema,
-				new String[0],
-				new Properties(),
-				HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
-				false);
-		HiveOutputFormatFactory factory = new HiveOutputFormatFactory(writerFactory);
-		org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(TEST_URI_SCHEME, TEST_URI_AUTHORITY, "/foo/path");
-		factory.createOutputFormat(path);
-	}
+    @Test
+    public void testCreateOutputFormat() {
+        TableSchema schema = TableSchema.builder().field("x", DataTypes.INT()).build();
+        SerDeInfo serDeInfo =
+                new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
+        HiveWriterFactory writerFactory =
+                new HiveWriterFactory(
+                        new JobConf(),
+                        VerifyURIOutputFormat.class,
+                        serDeInfo,
+                        schema,
+                        new String[0],
+                        new Properties(),
+                        HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()),
+                        false);
+        HiveOutputFormatFactory factory = new HiveOutputFormatFactory(writerFactory);
+        org.apache.flink.core.fs.Path path =
+                new org.apache.flink.core.fs.Path(TEST_URI_SCHEME, TEST_URI_AUTHORITY, "/foo/path");
+        factory.createOutputFormat(path);
+    }
 
-	/**
-	 * A HiveOutputFormat that verifies scheme and authority of the output path uri.
-	 */
-	public static class VerifyURIOutputFormat implements HiveOutputFormat {
+    /** A HiveOutputFormat that verifies scheme and authority of the output path uri. */
+    public static class VerifyURIOutputFormat implements HiveOutputFormat {
 
-		@Override
-		public FileSinkOperator.RecordWriter getHiveRecordWriter(JobConf jc, Path finalOutPath, Class valueClass,
-				boolean isCompressed, Properties tableProperties, Progressable progress) throws IOException {
-			URI uri = finalOutPath.toUri();
-			assertEquals(TEST_URI_SCHEME, uri.getScheme());
-			assertEquals(TEST_URI_AUTHORITY, uri.getAuthority());
-			return null;
-		}
+        @Override
+        public FileSinkOperator.RecordWriter getHiveRecordWriter(
+                JobConf jc,
+                Path finalOutPath,
+                Class valueClass,
+                boolean isCompressed,
+                Properties tableProperties,
+                Progressable progress)
+                throws IOException {
+            URI uri = finalOutPath.toUri();
+            assertEquals(TEST_URI_SCHEME, uri.getScheme());
+            assertEquals(TEST_URI_AUTHORITY, uri.getAuthority());
+            return null;
+        }
 
-		@Override
-		public RecordWriter getRecordWriter(FileSystem fileSystem, JobConf jobConf, String s, Progressable progressable)
-				throws IOException {
-			return null;
-		}
+        @Override
+        public RecordWriter getRecordWriter(
+                FileSystem fileSystem, JobConf jobConf, String s, Progressable progressable)
+                throws IOException {
+            return null;
+        }
 
-		@Override
-		public void checkOutputSpecs(FileSystem fileSystem, JobConf jobConf) throws IOException {
-		}
-	}
+        @Override
+        public void checkOutputSpecs(FileSystem fileSystem, JobConf jobConf) throws IOException {}
+    }
 }

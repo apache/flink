@@ -27,76 +27,93 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.Collection;
 
-/**
- * Migration tests for primitive array type serializers' snapshots.
- */
+/** Migration tests for primitive array type serializers' snapshots. */
 @RunWith(Parameterized.class)
-public class PrimitiveArraySerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
-	public PrimitiveArraySerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-		super(testSpecification);
-	}
+public class PrimitiveArraySerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<Object, Object> {
+    public PrimitiveArraySerializerUpgradeTest(
+            TestSpecification<Object, Object> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-				"boolean-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveBooleanArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveBooleanArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"byte-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveByteArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveByteArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"char-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveCharArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveCharArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"double-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveDoubleArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveDoubleArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"float-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveFloatArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveFloatArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"int-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"long-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveLongArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveLongArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"short-primitive-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveShortArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveShortArrayVerifier.class));
-			testSpecifications.add(
-				new TestSpecification<>(
-				"string-array-serializer",
-				migrationVersion,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveStringArraySetup.class,
-				PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveStringArrayVerifier.class));
-		}
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "boolean-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveBooleanArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveBooleanArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "byte-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveByteArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveByteArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "char-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveCharArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveCharArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "double-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveDoubleArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveDoubleArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "float-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveFloatArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveFloatArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "int-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications.PrimitiveIntArraySetup
+                                    .class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveIntArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "long-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveLongArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveLongArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "short-primitive-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveShortArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveShortArrayVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "string-array-serializer",
+                            migrationVersion,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveStringArraySetup.class,
+                            PrimitiveArraySerializerUpgradeTestSpecifications
+                                    .PrimitiveStringArrayVerifier.class));
+        }
 
-		return testSpecifications;
-	}
+        return testSpecifications;
+    }
 }
-

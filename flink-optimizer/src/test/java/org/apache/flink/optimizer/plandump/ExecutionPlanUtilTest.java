@@ -37,26 +37,25 @@ import static org.hamcrest.core.StringContains.containsString;
  */
 public class ExecutionPlanUtilTest {
 
-	@Test
-	public void executionPlanCanBeRetrieved() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(8);
+    @Test
+    public void executionPlanCanBeRetrieved() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(8);
 
-		env
-				.readCsvFile("file:///will/never/be/executed")
-				.types(String.class, Double.class)
-				.name("sourceThatWillNotRun")
-				.map((in) -> in)
-				.returns(new TypeHint<Tuple2<String, Double>>() {})
-				.name("theMap")
-				.writeAsText("file:///will/not/be/executed")
-				.name("sinkThatWillNotRun");
+        env.readCsvFile("file:///will/never/be/executed")
+                .types(String.class, Double.class)
+                .name("sourceThatWillNotRun")
+                .map((in) -> in)
+                .returns(new TypeHint<Tuple2<String, Double>>() {})
+                .name("theMap")
+                .writeAsText("file:///will/not/be/executed")
+                .name("sinkThatWillNotRun");
 
-		Plan plan = env.createProgramPlan();
-		String executionPlanAsJSON = ExecutionPlanUtil.getExecutionPlanAsJSON(plan);
+        Plan plan = env.createProgramPlan();
+        String executionPlanAsJSON = ExecutionPlanUtil.getExecutionPlanAsJSON(plan);
 
-		assertThat(executionPlanAsJSON, containsString("sourceThatWillNotRun"));
-		assertThat(executionPlanAsJSON, containsString("sinkThatWillNotRun"));
-		assertThat(executionPlanAsJSON, containsString("theMap"));
-	}
+        assertThat(executionPlanAsJSON, containsString("sourceThatWillNotRun"));
+        assertThat(executionPlanAsJSON, containsString("sinkThatWillNotRun"));
+        assertThat(executionPlanAsJSON, containsString("theMap"));
+    }
 }

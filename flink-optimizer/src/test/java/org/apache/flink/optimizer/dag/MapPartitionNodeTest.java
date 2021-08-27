@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldSet;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -30,32 +31,30 @@ import static org.mockito.Mockito.when;
 
 public class MapPartitionNodeTest {
 
-	@Test
-	public void testGetSemanticProperties() {
+    @Test
+    public void testGetSemanticProperties() {
 
-		SingleInputSemanticProperties origProps = new SingleInputSemanticProperties();
-		origProps.addForwardedField(0, 1);
-		origProps.addForwardedField(2, 2);
-		origProps.addReadFields(new FieldSet(0, 2, 4, 7));
+        SingleInputSemanticProperties origProps = new SingleInputSemanticProperties();
+        origProps.addForwardedField(0, 1);
+        origProps.addForwardedField(2, 2);
+        origProps.addReadFields(new FieldSet(0, 2, 4, 7));
 
-		MapPartitionOperatorBase<?,?,?> op = mock(MapPartitionOperatorBase.class);
-		when(op.getSemanticProperties()).thenReturn(origProps);
-		when(op.getKeyColumns(0)).thenReturn(new int[]{});
+        MapPartitionOperatorBase<?, ?, ?> op = mock(MapPartitionOperatorBase.class);
+        when(op.getSemanticProperties()).thenReturn(origProps);
+        when(op.getKeyColumns(0)).thenReturn(new int[] {});
 
-		MapPartitionNode node = new MapPartitionNode(op);
+        MapPartitionNode node = new MapPartitionNode(op);
 
-		SemanticProperties filteredProps = node.getSemanticPropertiesForLocalPropertyFiltering();
+        SemanticProperties filteredProps = node.getSemanticPropertiesForLocalPropertyFiltering();
 
-		assertTrue(filteredProps.getForwardingTargetFields(0, 0).size() == 0);
-		assertTrue(filteredProps.getForwardingTargetFields(0, 2).size() == 0);
-		assertTrue(filteredProps.getForwardingSourceField(0, 1) < 0);
-		assertTrue(filteredProps.getForwardingSourceField(0, 2) < 0);
-		assertTrue(filteredProps.getReadFields(0).size() == 4);
-		assertTrue(filteredProps.getReadFields(0).contains(0));
-		assertTrue(filteredProps.getReadFields(0).contains(2));
-		assertTrue(filteredProps.getReadFields(0).contains(4));
-		assertTrue(filteredProps.getReadFields(0).contains(7));
-
-	}
-
+        assertTrue(filteredProps.getForwardingTargetFields(0, 0).size() == 0);
+        assertTrue(filteredProps.getForwardingTargetFields(0, 2).size() == 0);
+        assertTrue(filteredProps.getForwardingSourceField(0, 1) < 0);
+        assertTrue(filteredProps.getForwardingSourceField(0, 2) < 0);
+        assertTrue(filteredProps.getReadFields(0).size() == 4);
+        assertTrue(filteredProps.getReadFields(0).contains(0));
+        assertTrue(filteredProps.getReadFields(0).contains(2));
+        assertTrue(filteredProps.getReadFields(0).contains(4));
+        assertTrue(filteredProps.getReadFields(0).contains(7));
+    }
 }

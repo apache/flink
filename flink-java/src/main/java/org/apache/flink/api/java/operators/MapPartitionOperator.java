@@ -32,45 +32,55 @@ import org.apache.flink.api.java.DataSet;
  *
  * @param <IN> The type of the data set consumed by the operator.
  * @param <OUT> The type of the data set created by the operator.
- *
  * @see MapPartitionFunction
  */
 @Public
-public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapPartitionOperator<IN, OUT>> {
+public class MapPartitionOperator<IN, OUT>
+        extends SingleInputUdfOperator<IN, OUT, MapPartitionOperator<IN, OUT>> {
 
-	protected final MapPartitionFunction<IN, OUT> function;
+    protected final MapPartitionFunction<IN, OUT> function;
 
-	protected final String defaultName;
+    protected final String defaultName;
 
-	public MapPartitionOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function, String defaultName) {
-		super(input, resultType);
+    public MapPartitionOperator(
+            DataSet<IN> input,
+            TypeInformation<OUT> resultType,
+            MapPartitionFunction<IN, OUT> function,
+            String defaultName) {
+        super(input, resultType);
 
-		this.function = function;
-		this.defaultName = defaultName;
-	}
+        this.function = function;
+        this.defaultName = defaultName;
+    }
 
-	@Override
-	protected MapPartitionFunction<IN, OUT> getFunction() {
-		return function;
-	}
+    @Override
+    protected MapPartitionFunction<IN, OUT> getFunction() {
+        return function;
+    }
 
-	@Override
-	protected MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
+    @Override
+    protected MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> translateToDataFlow(
+            Operator<IN> input) {
 
-		String name = getName() != null ? getName() : "MapPartition at " + defaultName;
-		// create operator
-		MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> po = new MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
-		// set input
-		po.setInput(input);
-		// set parallelism
-		if (this.getParallelism() > 0) {
-			// use specified parallelism
-			po.setParallelism(this.getParallelism());
-		} else {
-			// if no parallelism has been specified, use parallelism of input operator to enable chaining
-			po.setParallelism(input.getParallelism());
-		}
+        String name = getName() != null ? getName() : "MapPartition at " + defaultName;
+        // create operator
+        MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> po =
+                new MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>>(
+                        function,
+                        new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()),
+                        name);
+        // set input
+        po.setInput(input);
+        // set parallelism
+        if (this.getParallelism() > 0) {
+            // use specified parallelism
+            po.setParallelism(this.getParallelism());
+        } else {
+            // if no parallelism has been specified, use parallelism of input operator to enable
+            // chaining
+            po.setParallelism(input.getParallelism());
+        }
 
-		return po;
-	}
+        return po;
+    }
 }

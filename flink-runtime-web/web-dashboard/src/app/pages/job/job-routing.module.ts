@@ -48,7 +48,7 @@ const routes: Routes = [
     children: [
       {
         path: 'overview',
-        loadChildren: './overview/job-overview.module#JobOverviewModule',
+        loadChildren: () => import('./overview/job-overview.module').then(m => m.JobOverviewModule),
         data: {
           path: 'overview'
         }

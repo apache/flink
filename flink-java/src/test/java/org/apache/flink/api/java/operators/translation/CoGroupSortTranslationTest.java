@@ -36,107 +36,112 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for translation of co-group sort.
- */
+/** Tests for translation of co-group sort. */
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupSortTranslationTest implements java.io.Serializable {
 
-	@Test
-	public void testGroupSortTuples() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testGroupSortTuples() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
-			DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+            DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+            DataSet<Tuple3<Long, Long, Long>> input2 =
+                    env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 
-			input1.coGroup(input2)
-				.where(1).equalTo(2)
-				.sortFirstGroup(0, Order.DESCENDING)
-				.sortSecondGroup(1, Order.ASCENDING).sortSecondGroup(0, Order.DESCENDING)
+            input1.coGroup(input2)
+                    .where(1)
+                    .equalTo(2)
+                    .sortFirstGroup(0, Order.DESCENDING)
+                    .sortSecondGroup(1, Order.ASCENDING)
+                    .sortSecondGroup(0, Order.DESCENDING)
+                    .with(
+                            new CoGroupFunction<
+                                    Tuple2<Long, Long>, Tuple3<Long, Long, Long>, Long>() {
+                                @Override
+                                public void coGroup(
+                                        Iterable<Tuple2<Long, Long>> first,
+                                        Iterable<Tuple3<Long, Long, Long>> second,
+                                        Collector<Long> out) {}
+                            })
+                    .output(new DiscardingOutputFormat<Long>());
 
-				.with(new CoGroupFunction<Tuple2<Long, Long>, Tuple3<Long, Long, Long>, Long>() {
-					@Override
-					public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<Tuple3<Long, Long, Long>> second,
-							Collector<Long> out) {}
-				})
+            Plan p = env.createProgramPlan();
 
-				.output(new DiscardingOutputFormat<Long>());
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            CoGroupOperatorBase<?, ?, ?, ?> coGroup =
+                    (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
 
-			Plan p = env.createProgramPlan();
+            assertNotNull(coGroup.getGroupOrderForInputOne());
+            assertNotNull(coGroup.getGroupOrderForInputTwo());
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-			CoGroupOperatorBase<?, ?, ?, ?> coGroup = (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
+            assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
+            assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
+            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
 
-			assertNotNull(coGroup.getGroupOrderForInputOne());
-			assertNotNull(coGroup.getGroupOrderForInputTwo());
+            assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
+            assertEquals(1, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
+            assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
+            assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
+            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-			assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
-			assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
-			assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
+    @Test
+    public void testSortTuplesAndPojos() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
-			assertEquals(1, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
-			assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
-			assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
-			assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+            DataSet<TestPoJo> input2 = env.fromElements(new TestPoJo());
 
-	@Test
-	public void testSortTuplesAndPojos() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            input1.coGroup(input2)
+                    .where(1)
+                    .equalTo("b")
+                    .sortFirstGroup(0, Order.DESCENDING)
+                    .sortSecondGroup("c", Order.ASCENDING)
+                    .sortSecondGroup("a", Order.DESCENDING)
+                    .with(
+                            new CoGroupFunction<Tuple2<Long, Long>, TestPoJo, Long>() {
+                                @Override
+                                public void coGroup(
+                                        Iterable<Tuple2<Long, Long>> first,
+                                        Iterable<TestPoJo> second,
+                                        Collector<Long> out) {}
+                            })
+                    .output(new DiscardingOutputFormat<Long>());
 
-			DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
-			DataSet<TestPoJo> input2 = env.fromElements(new TestPoJo());
+            Plan p = env.createProgramPlan();
 
-			input1.coGroup(input2)
-				.where(1).equalTo("b")
-				.sortFirstGroup(0, Order.DESCENDING)
-				.sortSecondGroup("c", Order.ASCENDING).sortSecondGroup("a", Order.DESCENDING)
+            GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
+            CoGroupOperatorBase<?, ?, ?, ?> coGroup =
+                    (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
 
-				.with(new CoGroupFunction<Tuple2<Long, Long>, TestPoJo, Long>() {
-					@Override
-					public void coGroup(Iterable<Tuple2<Long, Long>> first, Iterable<TestPoJo> second, Collector<Long> out) {}
-				})
+            assertNotNull(coGroup.getGroupOrderForInputOne());
+            assertNotNull(coGroup.getGroupOrderForInputTwo());
 
-				.output(new DiscardingOutputFormat<Long>());
+            assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
+            assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
+            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
 
-			Plan p = env.createProgramPlan();
+            assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
+            assertEquals(2, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
+            assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
+            assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
+            assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-			GenericDataSinkBase<?> sink = p.getDataSinks().iterator().next();
-			CoGroupOperatorBase<?, ?, ?, ?> coGroup = (CoGroupOperatorBase<?, ?, ?, ?>) sink.getInput();
-
-			assertNotNull(coGroup.getGroupOrderForInputOne());
-			assertNotNull(coGroup.getGroupOrderForInputTwo());
-
-			assertEquals(1, coGroup.getGroupOrderForInputOne().getNumberOfFields());
-			assertEquals(0, coGroup.getGroupOrderForInputOne().getFieldNumber(0).intValue());
-			assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputOne().getOrder(0));
-
-			assertEquals(2, coGroup.getGroupOrderForInputTwo().getNumberOfFields());
-			assertEquals(2, coGroup.getGroupOrderForInputTwo().getFieldNumber(0).intValue());
-			assertEquals(0, coGroup.getGroupOrderForInputTwo().getFieldNumber(1).intValue());
-			assertEquals(Order.ASCENDING, coGroup.getGroupOrderForInputTwo().getOrder(0));
-			assertEquals(Order.DESCENDING, coGroup.getGroupOrderForInputTwo().getOrder(1));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	/**
-	 * Sample test pojo.
-	 */
-	public static class TestPoJo {
-		public long a;
-		public long b;
-		public long c;
-	}
+    /** Sample test pojo. */
+    public static class TestPoJo {
+        public long a;
+        public long b;
+        public long c;
+    }
 }

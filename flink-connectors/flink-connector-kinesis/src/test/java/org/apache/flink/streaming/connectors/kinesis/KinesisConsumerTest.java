@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,43 +31,45 @@ import java.io.IOException;
 import java.util.Properties;
 
 /**
- * Tests for {@link FlinkKinesisConsumer}. In contrast to tests in {@link FlinkKinesisConsumerTest} it does not
- * use power mock, which makes it possible to use e.g. the {@link ExpectedException}.
+ * Tests for {@link FlinkKinesisConsumer}. In contrast to tests in {@link FlinkKinesisConsumerTest}
+ * it does not use power mock, which makes it possible to use e.g. the {@link ExpectedException}.
  */
-public class KinesisConsumerTest {
+public class KinesisConsumerTest extends TestLogger {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testKinesisConsumerThrowsExceptionIfSchemaImplementsCollector() {
-		DeserializationSchema<Object> schemaWithCollector = new DeserializationSchema<Object>() {
-			@Override
-			public Object deserialize(byte[] message) throws IOException {
-				return null;
-			}
+    @Test
+    public void testKinesisConsumerThrowsExceptionIfSchemaImplementsCollector() {
+        DeserializationSchema<Object> schemaWithCollector =
+                new DeserializationSchema<Object>() {
+                    @Override
+                    public Object deserialize(byte[] message) throws IOException {
+                        return null;
+                    }
 
-			@Override
-			public void deserialize(byte[] message, Collector<Object> out) throws IOException {
-				// we do not care about the implementation. we should just check if this method is declared
-			}
+                    @Override
+                    public void deserialize(byte[] message, Collector<Object> out)
+                            throws IOException {
+                        // we do not care about the implementation. we should just check if this
+                        // method is declared
+                    }
 
-			@Override
-			public boolean isEndOfStream(Object nextElement) {
-				return false;
-			}
+                    @Override
+                    public boolean isEndOfStream(Object nextElement) {
+                        return false;
+                    }
 
-			@Override
-			public TypeInformation<Object> getProducedType() {
-				return null;
-			}
-		};
+                    @Override
+                    public TypeInformation<Object> getProducedType() {
+                        return null;
+                    }
+                };
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(
-			"Kinesis consumer does not support DeserializationSchema that implements deserialization with a" +
-				" Collector. Unsupported DeserializationSchema: " +
-				"org.apache.flink.streaming.connectors.kinesis.KinesisConsumerTest");
-		new FlinkKinesisConsumer<>("fakeStream", schemaWithCollector, new Properties());
-	}
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(
+                "Kinesis consumer does not support DeserializationSchema that implements deserialization with a"
+                        + " Collector. Unsupported DeserializationSchema: "
+                        + "org.apache.flink.streaming.connectors.kinesis.KinesisConsumerTest");
+        new FlinkKinesisConsumer<>("fakeStream", schemaWithCollector, new Properties());
+    }
 }

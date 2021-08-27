@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.router.Router;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
@@ -43,82 +43,78 @@ import javax.annotation.Nonnull;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Tests for the {@link LeaderRetrievalHandler}.
- */
+/** Tests for the {@link LeaderRetrievalHandler}. */
 public class LeaderRetrievalHandlerTest extends TestLogger {
 
-	private static final String RESPONSE_MESSAGE = "foobar";
+    private static final String RESPONSE_MESSAGE = "foobar";
 
-	/**
-	 * Tests the behaviour of the LeaderRetrievalHandler under the following conditions.
-	 *
-	 * <p>1. No gateway resolved --> service unavailable
-	 * 2. leader gateway
-	 * @throws Exception
-	 */
-	@Test
-	public void testLeaderRetrievalGateway() throws Exception {
-		final String restPath = "/testing";
+    /**
+     * Tests the behaviour of the LeaderRetrievalHandler under the following conditions.
+     *
+     * <p>1. No gateway resolved --> service unavailable 2. leader gateway
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testLeaderRetrievalGateway() throws Exception {
+        final String restPath = "/testing";
 
-		final Configuration configuration = new Configuration();
-		final Router router = new Router();
-		final Time timeout = Time.seconds(10L);
-		final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
-		final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
-		final RestfulGateway gateway = new TestingRestfulGateway.Builder().build();
+        final Configuration configuration = new Configuration();
+        final Router router = new Router();
+        final Time timeout = Time.seconds(10L);
+        final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
+        final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
+        final RestfulGateway gateway = new TestingRestfulGateway.Builder().build();
 
-		final TestingHandler testingHandler = new TestingHandler(
-			gatewayRetriever,
-			timeout);
+        final TestingHandler testingHandler = new TestingHandler(gatewayRetriever, timeout);
 
-		router.addGet(restPath, testingHandler);
-		WebFrontendBootstrap bootstrap = new WebFrontendBootstrap(
-			router,
-			log,
-			null,
-			null,
-			"localhost",
-			0,
-			configuration);
+        router.addGet(restPath, testingHandler);
+        WebFrontendBootstrap bootstrap =
+                new WebFrontendBootstrap(router, log, null, null, "localhost", 0, configuration);
 
-		try (HttpTestClient httpClient = new HttpTestClient("localhost", bootstrap.getServerPort())) {
-			// 1. no leader gateway available --> Service unavailable
-			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
+        try (HttpTestClient httpClient =
+                new HttpTestClient("localhost", bootstrap.getServerPort())) {
+            // 1. no leader gateway available --> Service unavailable
+            httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
+            HttpTestClient.SimpleHttpResponse response =
+                    httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
-			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
+            Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
-			// 2. with leader
-			gatewayFuture.complete(gateway);
+            // 2. with leader
+            gatewayFuture.complete(gateway);
 
-			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
+            httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
+            response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
-			Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
-			Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());
+            Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
+            Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());
 
-		} finally {
-			bootstrap.shutdown();
-		}
-	}
+        } finally {
+            bootstrap.shutdown();
+        }
+    }
 
-	private static class TestingHandler extends LeaderRetrievalHandler<RestfulGateway> {
+    private static class TestingHandler extends LeaderRetrievalHandler<RestfulGateway> {
 
-		protected TestingHandler(
-				@Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
-				@Nonnull Time timeout) {
-			super(leaderRetriever, timeout, Collections.emptyMap());
-		}
+        protected TestingHandler(
+                @Nonnull GatewayRetriever<RestfulGateway> leaderRetriever, @Nonnull Time timeout) {
+            super(leaderRetriever, timeout, Collections.emptyMap());
+        }
 
-		@Override
-		protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, RestfulGateway gateway) throws Exception {
-			Assert.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
-			HttpResponse response = HandlerRedirectUtils.getResponse(HttpResponseStatus.OK, RESPONSE_MESSAGE);
-			KeepAliveWrite.flush(channelHandlerContext.channel(), routedRequest.getRequest(), response);
-		}
-	}
-
+        @Override
+        protected void respondAsLeader(
+                ChannelHandlerContext channelHandlerContext,
+                RoutedRequest routedRequest,
+                RestfulGateway gateway)
+                throws Exception {
+            Assert.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
+            HttpResponse response =
+                    HandlerRedirectUtils.getResponse(HttpResponseStatus.OK, RESPONSE_MESSAGE);
+            KeepAliveWrite.flush(
+                    channelHandlerContext.channel(), routedRequest.getRequest(), response);
+        }
+    }
 }

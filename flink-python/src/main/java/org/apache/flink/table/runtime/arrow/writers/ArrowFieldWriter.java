@@ -31,59 +31,43 @@ import org.apache.arrow.vector.ValueVector;
 @Internal
 public abstract class ArrowFieldWriter<IN> {
 
-	/**
-	 * Container which is used to store the written sequence of values of a column.
-	 */
-	private final ValueVector valueVector;
+    /** Container which is used to store the written sequence of values of a column. */
+    private final ValueVector valueVector;
 
-	/**
-	 * The current count of elements written.
-	 */
-	private int count = 0;
+    /** The current count of elements written. */
+    private int count = 0;
 
-	public ArrowFieldWriter(ValueVector valueVector) {
-		this.valueVector = Preconditions.checkNotNull(valueVector);
-	}
+    public ArrowFieldWriter(ValueVector valueVector) {
+        this.valueVector = Preconditions.checkNotNull(valueVector);
+    }
 
-	/**
-	 * Returns the underlying container which stores the sequence of values of a column.
-	 */
-	public ValueVector getValueVector() {
-		return valueVector;
-	}
+    /** Returns the underlying container which stores the sequence of values of a column. */
+    public ValueVector getValueVector() {
+        return valueVector;
+    }
 
-	/**
-	 * Returns the current count of elements written.
-	 */
-	public int getCount() {
-		return count;
-	}
+    /** Returns the current count of elements written. */
+    public int getCount() {
+        return count;
+    }
 
-	/**
-	 * Sets the field value as the field at the specified ordinal of the specified row.
-	 */
-	public abstract void doWrite(IN row, int ordinal);
+    /** Sets the field value as the field at the specified ordinal of the specified row. */
+    public abstract void doWrite(IN row, int ordinal);
 
-	/**
-	 * Writes the specified ordinal of the specified row.
-	 */
-	public void write(IN row, int ordinal) {
-		doWrite(row, ordinal);
-		count += 1;
-	}
+    /** Writes the specified ordinal of the specified row. */
+    public void write(IN row, int ordinal) {
+        doWrite(row, ordinal);
+        count += 1;
+    }
 
-	/**
-	 * Finishes the writing of the current row batch.
-	 */
-	public void finish() {
-		valueVector.setValueCount(count);
-	}
+    /** Finishes the writing of the current row batch. */
+    public void finish() {
+        valueVector.setValueCount(count);
+    }
 
-	/**
-	 * Resets the state of the writer to write the next batch of fields.
-	 */
-	public void reset() {
-		valueVector.reset();
-		count = 0;
-	}
+    /** Resets the state of the writer to write the next batch of fields. */
+    public void reset() {
+        valueVector.reset();
+        count = 0;
+    }
 }

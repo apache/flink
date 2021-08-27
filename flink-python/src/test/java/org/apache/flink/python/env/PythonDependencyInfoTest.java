@@ -38,101 +38,102 @@ import java.util.concurrent.Future;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests for {@link PythonDependencyInfo}.
- */
+/** Tests for {@link PythonDependencyInfo}. */
 public class PythonDependencyInfoTest {
 
-	private DistributedCache distributedCache;
+    private DistributedCache distributedCache;
 
-	public PythonDependencyInfoTest() {
-		Map<String, Future<Path>> distributeCachedFiles = new HashMap<>();
-		distributeCachedFiles.put(
-			"python_file_{SHA256_0}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file0")));
-		distributeCachedFiles.put(
-			"python_file_{SHA256_1}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file1")));
-		distributeCachedFiles.put(
-			"python_requirements_file_{SHA256}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file2")));
-		distributeCachedFiles.put(
-			"python_requirements_cache_{SHA256}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file3")));
-		distributeCachedFiles.put(
-			"python_archive_{SHA256_0}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file4")));
-		distributeCachedFiles.put(
-			"python_archive_{SHA256_1}",
-			CompletableFuture.completedFuture(new Path("/distributed_cache/file5")));
-		distributedCache = new DistributedCache(distributeCachedFiles);
-	}
+    public PythonDependencyInfoTest() {
+        Map<String, Future<Path>> distributeCachedFiles = new HashMap<>();
+        distributeCachedFiles.put(
+                "python_file_{SHA256_0}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file0")));
+        distributeCachedFiles.put(
+                "python_file_{SHA256_1}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file1")));
+        distributeCachedFiles.put(
+                "python_requirements_file_{SHA256}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file2")));
+        distributeCachedFiles.put(
+                "python_requirements_cache_{SHA256}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file3")));
+        distributeCachedFiles.put(
+                "python_archive_{SHA256_0}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file4")));
+        distributeCachedFiles.put(
+                "python_archive_{SHA256_1}",
+                CompletableFuture.completedFuture(new Path("/distributed_cache/file5")));
+        distributedCache = new DistributedCache(distributeCachedFiles);
+    }
 
-	@Test
-	public void testParsePythonFiles() {
-		// Skip this test on Windows as we can not control the Window Driver letters.
-		Assume.assumeFalse(OperatingSystem.isWindows());
+    @Test
+    public void testParsePythonFiles() {
+        // Skip this test on Windows as we can not control the Window Driver letters.
+        Assume.assumeFalse(OperatingSystem.isWindows());
 
-		Configuration config = new Configuration();
-		Map<String, String> pythonFiles = new HashMap<>();
-		pythonFiles.put("python_file_{SHA256_0}", "test_file1.py");
-		pythonFiles.put("python_file_{SHA256_1}", "test_file2.py");
-		config.set(PythonDependencyUtils.PYTHON_FILES, pythonFiles);
-		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
+        Configuration config = new Configuration();
+        Map<String, String> pythonFiles = new HashMap<>();
+        pythonFiles.put("python_file_{SHA256_0}", "test_file1.py");
+        pythonFiles.put("python_file_{SHA256_1}", "test_file2.py");
+        config.set(PythonDependencyUtils.PYTHON_FILES, pythonFiles);
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
 
-		Map<String, String> expected = new HashMap<>();
-		expected.put("/distributed_cache/file0", "test_file1.py");
-		expected.put("/distributed_cache/file1", "test_file2.py");
-		assertEquals(expected, dependencyInfo.getPythonFiles());
-	}
+        Map<String, String> expected = new HashMap<>();
+        expected.put("/distributed_cache/file0", "test_file1.py");
+        expected.put("/distributed_cache/file1", "test_file2.py");
+        assertEquals(expected, dependencyInfo.getPythonFiles());
+    }
 
-	@Test
-	public void testParsePythonRequirements() throws IOException {
-		// Skip this test on Windows as we can not control the Window Driver letters.
-		Assume.assumeFalse(OperatingSystem.isWindows());
+    @Test
+    public void testParsePythonRequirements() throws IOException {
+        // Skip this test on Windows as we can not control the Window Driver letters.
+        Assume.assumeFalse(OperatingSystem.isWindows());
 
-		Configuration config = new Configuration();
-		config.set(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE, new HashMap<>());
-		config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
-			.put(PythonDependencyUtils.FILE, "python_requirements_file_{SHA256}");
-		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
+        Configuration config = new Configuration();
+        config.set(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE, new HashMap<>());
+        config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                .put(PythonDependencyUtils.FILE, "python_requirements_file_{SHA256}");
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
 
-		assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
-		assertFalse(dependencyInfo.getRequirementsCacheDir().isPresent());
+        assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
+        assertFalse(dependencyInfo.getRequirementsCacheDir().isPresent());
 
-		config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
-			.put(PythonDependencyUtils.CACHE, "python_requirements_cache_{SHA256}");
-		dependencyInfo = PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
+        config.get(PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE)
+                .put(PythonDependencyUtils.CACHE, "python_requirements_cache_{SHA256}");
+        dependencyInfo = PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
 
-		assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
-		assertEquals("/distributed_cache/file3", dependencyInfo.getRequirementsCacheDir().get());
-	}
+        assertEquals("/distributed_cache/file2", dependencyInfo.getRequirementsFilePath().get());
+        assertEquals("/distributed_cache/file3", dependencyInfo.getRequirementsCacheDir().get());
+    }
 
-	@Test
-	public void testParsePythonArchives() {
-		// Skip this test on Windows as we can not control the Window Driver letters.
-		Assume.assumeFalse(OperatingSystem.isWindows());
+    @Test
+    public void testParsePythonArchives() {
+        // Skip this test on Windows as we can not control the Window Driver letters.
+        Assume.assumeFalse(OperatingSystem.isWindows());
 
-		Configuration config = new Configuration();
-		Map<String, String> pythonArchives = new HashMap<>();
-		pythonArchives.put("python_archive_{SHA256_0}", "py27.zip");
-		pythonArchives.put("python_archive_{SHA256_1}", "py37");
-		config.set(PythonDependencyUtils.PYTHON_ARCHIVES, pythonArchives);
-		PythonDependencyInfo dependencyInfo = PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
+        Configuration config = new Configuration();
+        Map<String, String> pythonArchives = new HashMap<>();
+        pythonArchives.put("python_archive_{SHA256_0}", "py27.zip");
+        pythonArchives.put("python_archive_{SHA256_1}", "py37");
+        config.set(PythonDependencyUtils.PYTHON_ARCHIVES, pythonArchives);
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
 
-		Map<String, String> expected = new HashMap<>();
-		expected.put("/distributed_cache/file4", "py27.zip");
-		expected.put("/distributed_cache/file5", "py37");
-		assertEquals(expected, dependencyInfo.getArchives());
-	}
+        Map<String, String> expected = new HashMap<>();
+        expected.put("/distributed_cache/file4", "py27.zip");
+        expected.put("/distributed_cache/file5", "py37");
+        assertEquals(expected, dependencyInfo.getArchives());
+    }
 
-	@Test
-	public void testParsePythonExec() {
-		Configuration config = new Configuration();
-		config.set(PythonOptions.PYTHON_EXECUTABLE, "/usr/bin/python3");
-		PythonDependencyInfo dependencyInfo =
-			PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
+    @Test
+    public void testParsePythonExec() {
+        Configuration config = new Configuration();
+        config.set(PythonOptions.PYTHON_EXECUTABLE, "/usr/bin/python3");
+        PythonDependencyInfo dependencyInfo =
+                PythonDependencyInfo.create(new PythonConfig(config), distributedCache);
 
-		assertEquals("/usr/bin/python3", dependencyInfo.getPythonExec());
-	}
+        assertEquals("/usr/bin/python3", dependencyInfo.getPythonExec());
+    }
 }

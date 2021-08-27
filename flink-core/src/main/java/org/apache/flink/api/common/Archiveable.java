@@ -23,5 +23,5 @@ import java.io.Serializable;
 
 @Internal
 public interface Archiveable<T extends Serializable> {
-	T archive();
+    T archive();
 }

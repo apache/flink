@@ -41,76 +41,96 @@ import static org.hamcrest.Matchers.is;
  */
 @RunWith(Parameterized.class)
 public class TwoPhaseCommitSinkStateSerializerUpgradeTest
-		extends TypeSerializerUpgradeTestBase<TwoPhaseCommitSinkFunction.State<Integer, String>, TwoPhaseCommitSinkFunction.State<Integer, String>> {
+        extends TypeSerializerUpgradeTestBase<
+                TwoPhaseCommitSinkFunction.State<Integer, String>,
+                TwoPhaseCommitSinkFunction.State<Integer, String>> {
 
-	public TwoPhaseCommitSinkStateSerializerUpgradeTest(
-			TestSpecification<TwoPhaseCommitSinkFunction.State<Integer, String>, TwoPhaseCommitSinkFunction.State<Integer, String>> testSpecification) {
-		super(testSpecification);
-	}
+    public TwoPhaseCommitSinkStateSerializerUpgradeTest(
+            TestSpecification<
+                            TwoPhaseCommitSinkFunction.State<Integer, String>,
+                            TwoPhaseCommitSinkFunction.State<Integer, String>>
+                    testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					"two-phase-commit-sink-state-serializer",
-					migrationVersion,
-					TwoPhaseCommitSinkStateSerializerSetup.class,
-					TwoPhaseCommitSinkStateSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "two-phase-commit-sink-state-serializer",
+                            migrationVersion,
+                            TwoPhaseCommitSinkStateSerializerSetup.class,
+                            TwoPhaseCommitSinkStateSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	public static TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>> intStringStateSerializerSupplier() {
-		return new TwoPhaseCommitSinkFunction.StateSerializer<>(IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-	}
+    public static TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>>
+            intStringStateSerializerSupplier() {
+        return new TwoPhaseCommitSinkFunction.StateSerializer<>(
+                IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "two-phase-commit-sink-state-serializer"
-	// ----------------------------------------------------------------------------------------------
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class TwoPhaseCommitSinkStateSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<TwoPhaseCommitSinkFunction.State<Integer, String>> {
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "two-phase-commit-sink-state-serializer"
+    // ----------------------------------------------------------------------------------------------
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class TwoPhaseCommitSinkStateSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<
+                    TwoPhaseCommitSinkFunction.State<Integer, String>> {
 
-		@Override
-		public TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>> createPriorSerializer() {
-			return intStringStateSerializerSupplier();
-		}
+        @Override
+        public TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>>
+                createPriorSerializer() {
+            return intStringStateSerializerSupplier();
+        }
 
-		@Override
-		public TwoPhaseCommitSinkFunction.State<Integer, String> createTestData() {
-			TwoPhaseCommitSinkFunction.TransactionHolder<Integer> pendingTransaction = new TwoPhaseCommitSinkFunction.TransactionHolder<>(12, 1523467890);
-			List<TwoPhaseCommitSinkFunction.TransactionHolder<Integer>> list = new ArrayList<>();
-			list.add(new TwoPhaseCommitSinkFunction.TransactionHolder<>(123, 1567234890));
-			Optional<String> optional = Optional.of("flink");
-			return new TwoPhaseCommitSinkFunction.State<>(pendingTransaction, list, optional);
-		}
-	}
+        @Override
+        public TwoPhaseCommitSinkFunction.State<Integer, String> createTestData() {
+            TwoPhaseCommitSinkFunction.TransactionHolder<Integer> pendingTransaction =
+                    new TwoPhaseCommitSinkFunction.TransactionHolder<>(12, 1523467890);
+            List<TwoPhaseCommitSinkFunction.TransactionHolder<Integer>> list = new ArrayList<>();
+            list.add(new TwoPhaseCommitSinkFunction.TransactionHolder<>(123, 1567234890));
+            Optional<String> optional = Optional.of("flink");
+            return new TwoPhaseCommitSinkFunction.State<>(pendingTransaction, list, optional);
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class TwoPhaseCommitSinkStateSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<TwoPhaseCommitSinkFunction.State<Integer, String>> {
-		@Override
-		public TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>> createUpgradedSerializer() {
-			return intStringStateSerializerSupplier();
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class TwoPhaseCommitSinkStateSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<
+                    TwoPhaseCommitSinkFunction.State<Integer, String>> {
+        @Override
+        public TypeSerializer<TwoPhaseCommitSinkFunction.State<Integer, String>>
+                createUpgradedSerializer() {
+            return intStringStateSerializerSupplier();
+        }
 
-		@Override
-		public Matcher<TwoPhaseCommitSinkFunction.State<Integer, String>> testDataMatcher() {
-			TwoPhaseCommitSinkFunction.TransactionHolder<Integer> pendingTransaction = new TwoPhaseCommitSinkFunction.TransactionHolder<>(12, 1523467890);
-			List<TwoPhaseCommitSinkFunction.TransactionHolder<Integer>> list = new ArrayList<>();
-			list.add(new TwoPhaseCommitSinkFunction.TransactionHolder<>(123, 1567234890));
-			Optional<String> optional = Optional.of("flink");
-			return is(new TwoPhaseCommitSinkFunction.State<>(pendingTransaction, list, optional));
-		}
+        @Override
+        public Matcher<TwoPhaseCommitSinkFunction.State<Integer, String>> testDataMatcher() {
+            TwoPhaseCommitSinkFunction.TransactionHolder<Integer> pendingTransaction =
+                    new TwoPhaseCommitSinkFunction.TransactionHolder<>(12, 1523467890);
+            List<TwoPhaseCommitSinkFunction.TransactionHolder<Integer>> list = new ArrayList<>();
+            list.add(new TwoPhaseCommitSinkFunction.TransactionHolder<>(123, 1567234890));
+            Optional<String> optional = Optional.of("flink");
+            return is(new TwoPhaseCommitSinkFunction.State<>(pendingTransaction, list, optional));
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<TwoPhaseCommitSinkFunction.State<Integer, String>>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
+        @Override
+        public Matcher<
+                        TypeSerializerSchemaCompatibility<
+                                TwoPhaseCommitSinkFunction.State<Integer, String>>>
+                schemaCompatibilityMatcher(MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

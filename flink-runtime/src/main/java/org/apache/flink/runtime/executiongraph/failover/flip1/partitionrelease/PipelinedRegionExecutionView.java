@@ -37,32 +37,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class PipelinedRegionExecutionView {
 
-	private final SchedulingPipelinedRegion pipelinedRegion;
+    private final SchedulingPipelinedRegion pipelinedRegion;
 
-	private final Set<ExecutionVertexID> unfinishedVertices;
+    private final Set<ExecutionVertexID> unfinishedVertices;
 
-	PipelinedRegionExecutionView(final SchedulingPipelinedRegion pipelinedRegion) {
-		this.pipelinedRegion = checkNotNull(pipelinedRegion);
-		this.unfinishedVertices = IterableUtils.toStream(pipelinedRegion.getVertices())
-			.map(SchedulingExecutionVertex::getId)
-			.collect(Collectors.toSet());
-	}
+    PipelinedRegionExecutionView(final SchedulingPipelinedRegion pipelinedRegion) {
+        this.pipelinedRegion = checkNotNull(pipelinedRegion);
+        this.unfinishedVertices =
+                IterableUtils.toStream(pipelinedRegion.getVertices())
+                        .map(SchedulingExecutionVertex::getId)
+                        .collect(Collectors.toSet());
+    }
 
-	public boolean isFinished() {
-		return unfinishedVertices.isEmpty();
-	}
+    public boolean isFinished() {
+        return unfinishedVertices.isEmpty();
+    }
 
-	public void vertexFinished(final ExecutionVertexID executionVertexId) {
-		assertVertexInRegion(executionVertexId);
-		unfinishedVertices.remove(executionVertexId);
-	}
+    public void vertexFinished(final ExecutionVertexID executionVertexId) {
+        assertVertexInRegion(executionVertexId);
+        unfinishedVertices.remove(executionVertexId);
+    }
 
-	public void vertexUnfinished(final ExecutionVertexID executionVertexId) {
-		assertVertexInRegion(executionVertexId);
-		unfinishedVertices.add(executionVertexId);
-	}
+    public void vertexUnfinished(final ExecutionVertexID executionVertexId) {
+        assertVertexInRegion(executionVertexId);
+        unfinishedVertices.add(executionVertexId);
+    }
 
-	private void assertVertexInRegion(final ExecutionVertexID executionVertexId) {
-		pipelinedRegion.getVertex(executionVertexId);
-	}
+    private void assertVertexInRegion(final ExecutionVertexID executionVertexId) {
+        pipelinedRegion.getVertex(executionVertexId);
+    }
 }

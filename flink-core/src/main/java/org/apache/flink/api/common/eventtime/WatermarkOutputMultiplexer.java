@@ -19,11 +19,10 @@
 package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.CombinedWatermarkStatus.PartialWatermark;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -40,227 +39,181 @@ import static org.apache.flink.util.Preconditions.checkState;
  * #onPeriodicEmit()} is called will the deferred updates be combined and forwarded to the
  * underlying output.
  *
- * <p>For registering a new multiplexed output, you must first call {@link #registerNewOutput(String)}
- * and then call {@link #getImmediateOutput(String)} or {@link #getDeferredOutput(String)} with the output
- * ID you get from that. You can get both an immediate and deferred output for a given output ID,
- * you can also call the getters multiple times.
+ * <p>For registering a new multiplexed output, you must first call {@link
+ * #registerNewOutput(String)} and then call {@link #getImmediateOutput(String)} or {@link
+ * #getDeferredOutput(String)} with the output ID you get from that. You can get both an immediate
+ * and deferred output for a given output ID, you can also call the getters multiple times.
  *
  * <p><b>WARNING:</b>This class is not thread safe.
  */
 @Internal
 public class WatermarkOutputMultiplexer {
 
-	/**
-	 * The {@link WatermarkOutput} that we use to emit our multiplexed watermark updates. We assume
-	 * that outside code holds a coordinating lock so we don't lock in this class when accessing
-	 * this {@link WatermarkOutput}.
-	 */
-	private final WatermarkOutput underlyingOutput;
+    /**
+     * The {@link WatermarkOutput} that we use to emit our multiplexed watermark updates. We assume
+     * that outside code holds a coordinating lock so we don't lock in this class when accessing
+     * this {@link WatermarkOutput}.
+     */
+    private final WatermarkOutput underlyingOutput;
 
-	/** The combined watermark over the per-output watermarks. */
-	private long combinedWatermark = Long.MIN_VALUE;
+    /**
+     * Map view, to allow finding them when requesting the {@link WatermarkOutput} for a given id.
+     */
+    private final Map<String, PartialWatermark> watermarkPerOutputId;
 
-	/**
-	 * Map view, to allow finding them when requesting the {@link WatermarkOutput} for a given id.
-	 */
-	private final Map<String, OutputState> watermarkPerOutputId;
+    private final CombinedWatermarkStatus combinedWatermarkStatus;
 
-	/**
-	 * List of all watermark outputs, for efficient access.
-	 */
-	private final List<OutputState> watermarkOutputs;
+    /**
+     * Creates a new {@link WatermarkOutputMultiplexer} that emits combined updates to the given
+     * {@link WatermarkOutput}.
+     */
+    public WatermarkOutputMultiplexer(WatermarkOutput underlyingOutput) {
+        this.underlyingOutput = underlyingOutput;
+        this.watermarkPerOutputId = new HashMap<>();
+        this.combinedWatermarkStatus = new CombinedWatermarkStatus();
+    }
 
-	/**
-	 * Creates a new {@link WatermarkOutputMultiplexer} that emits combined updates to the given
-	 * {@link WatermarkOutput}.
-	 */
-	public WatermarkOutputMultiplexer(WatermarkOutput underlyingOutput) {
-		this.underlyingOutput = underlyingOutput;
-		this.watermarkPerOutputId = new HashMap<>();
-		this.watermarkOutputs = new ArrayList<>();
-	}
+    /**
+     * Registers a new multiplexed output, which creates internal states for that output and returns
+     * an output ID that can be used to get a deferred or immediate {@link WatermarkOutput} for that
+     * output.
+     */
+    public void registerNewOutput(String id) {
+        final PartialWatermark outputState = new PartialWatermark();
 
-	/**
-	 * Registers a new multiplexed output, which creates internal states for that output and returns
-	 * an output ID that can be used to get a deferred or immediate {@link WatermarkOutput} for that
-	 * output.
-	 */
-	public void registerNewOutput(String id) {
-		final OutputState outputState = new OutputState();
+        final PartialWatermark previouslyRegistered =
+                watermarkPerOutputId.putIfAbsent(id, outputState);
+        checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
 
-		final OutputState previouslyRegistered = watermarkPerOutputId.putIfAbsent(id, outputState);
-		checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
+        combinedWatermarkStatus.add(outputState);
+    }
 
-		watermarkOutputs.add(outputState);
-	}
+    public boolean unregisterOutput(String id) {
+        final PartialWatermark output = watermarkPerOutputId.remove(id);
+        if (output != null) {
+            combinedWatermarkStatus.remove(output);
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	public boolean unregisterOutput(String id) {
-		final OutputState output = watermarkPerOutputId.remove(id);
-		if (output != null) {
-			watermarkOutputs.remove(output);
-			return true;
-		} else {
-			return false;
-		}
-	}
+    /**
+     * Returns an immediate {@link WatermarkOutput} for the given output ID.
+     *
+     * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
+     * outputs.
+     */
+    public WatermarkOutput getImmediateOutput(String outputId) {
+        final PartialWatermark outputState = watermarkPerOutputId.get(outputId);
+        Preconditions.checkArgument(
+                outputState != null, "no output registered under id %s", outputId);
+        return new ImmediateOutput(outputState);
+    }
 
-	/**
-	 * Returns an immediate {@link WatermarkOutput} for the given output ID.
-	 *
-	 * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
-	 * outputs.
-	 */
-	public WatermarkOutput getImmediateOutput(String outputId) {
-		final OutputState outputState = watermarkPerOutputId.get(outputId);
-		Preconditions.checkArgument(outputState != null, "no output registered under id %s", outputId);
-		return new ImmediateOutput(outputState);
-	}
+    /**
+     * Returns a deferred {@link WatermarkOutput} for the given output ID.
+     *
+     * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
+     * outputs.
+     */
+    public WatermarkOutput getDeferredOutput(String outputId) {
+        final PartialWatermark outputState = watermarkPerOutputId.get(outputId);
+        Preconditions.checkArgument(
+                outputState != null, "no output registered under id %s", outputId);
+        return new DeferredOutput(outputState);
+    }
 
-	/**
-	 * Returns a deferred {@link WatermarkOutput} for the given output ID.
-	 *
-	 * <p>>See {@link WatermarkOutputMultiplexer} for a description of immediate and deferred
-	 * outputs.
-	 */
-	public WatermarkOutput getDeferredOutput(String outputId) {
-		final OutputState outputState = watermarkPerOutputId.get(outputId);
-		Preconditions.checkArgument(outputState != null, "no output registered under id %s", outputId);
-		return new DeferredOutput(outputState);
-	}
+    /**
+     * Tells the {@link WatermarkOutputMultiplexer} to combine all outstanding deferred watermark
+     * updates and possibly emit a new update to the underlying {@link WatermarkOutput}.
+     */
+    public void onPeriodicEmit() {
+        updateCombinedWatermark();
+    }
 
-	/**
-	 * Tells the {@link WatermarkOutputMultiplexer} to combine all outstanding deferred watermark
-	 * updates and possibly emit a new update to the underlying {@link WatermarkOutput}.
-	 */
-	public void onPeriodicEmit() {
-		updateCombinedWatermark();
-	}
+    /**
+     * Checks whether we need to update the combined watermark. Should be called when a newly
+     * emitted per-output watermark is higher than the max so far or if we need to combined the
+     * deferred per-output updates.
+     */
+    private void updateCombinedWatermark() {
+        if (combinedWatermarkStatus.updateCombinedWatermark()) {
+            underlyingOutput.emitWatermark(
+                    new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
+        } else if (combinedWatermarkStatus.isIdle()) {
+            underlyingOutput.markIdle();
+        }
+    }
 
-	/**
-	 * Checks whether we need to update the combined watermark. Should be called when a newly
-	 * emitted per-output watermark is higher than the max so far or if we need to combined the
-	 * deferred per-output updates.
-	 */
-	private void updateCombinedWatermark() {
-		long minimumOverAllOutputs = Long.MAX_VALUE;
+    /**
+     * Updating the state of an immediate output can possible lead to a combined watermark update to
+     * the underlying {@link WatermarkOutput}.
+     */
+    private class ImmediateOutput implements WatermarkOutput {
 
-		boolean hasOutputs = false;
-		boolean allIdle = true;
-		for (OutputState outputState : watermarkOutputs) {
-			if (!outputState.isIdle()) {
-				minimumOverAllOutputs = Math.min(minimumOverAllOutputs, outputState.getWatermark());
-				allIdle = false;
-			}
-			hasOutputs = true;
-		}
+        private final PartialWatermark state;
 
-		// if we don't have any outputs minimumOverAllOutputs is not valid, it's still
-		// at its initial Long.MAX_VALUE state and we must not emit that
-		if (!hasOutputs) {
-			return;
-		}
+        public ImmediateOutput(PartialWatermark state) {
+            this.state = state;
+        }
 
-		if (allIdle) {
-			underlyingOutput.markIdle();
-		} else if (minimumOverAllOutputs > combinedWatermark) {
-			combinedWatermark = minimumOverAllOutputs;
-			underlyingOutput.emitWatermark(new Watermark(minimumOverAllOutputs));
-		}
-	}
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            long timestamp = watermark.getTimestamp();
+            boolean wasUpdated = state.setWatermark(timestamp);
 
-	/**
-	 * Per-output watermark state.
-	 */
-	private static class OutputState {
-		private long watermark = Long.MIN_VALUE;
-		private boolean idle = false;
+            // if it's higher than the max watermark so far we might have to update the
+            // combined watermark
+            if (wasUpdated && timestamp > combinedWatermarkStatus.getCombinedWatermark()) {
+                updateCombinedWatermark();
+            }
+        }
 
-		/**
-		 * Returns the current watermark timestamp. This will throw {@link IllegalStateException} if
-		 * the output is currently idle.
-		 */
-		public long getWatermark() {
-			checkState(!idle, "Output is idle.");
-			return watermark;
-		}
+        @Override
+        public void markIdle() {
+            state.setIdle(true);
 
-		/**
-		 * Returns true if the watermark was advanced, that is if the new watermark is larger than
-		 * the previous one.
-		 *
-		 * <p>Setting a watermark will clear the idleness flag.
-		 */
-		public boolean setWatermark(long watermark) {
-			this.idle = false;
-			final boolean updated = watermark > this.watermark;
-			this.watermark = Math.max(watermark, this.watermark);
-			return updated;
-		}
+            // this can always lead to an advancing watermark. We don't know if this output
+            // was holding back the watermark or not.
+            updateCombinedWatermark();
+        }
 
-		public boolean isIdle() {
-			return idle;
-		}
+        @Override
+        public void markActive() {
+            state.setIdle(false);
 
-		public void setIdle(boolean idle) {
-			this.idle = idle;
-		}
-	}
+            // stop potentially automatic advancing of the watermark
+            updateCombinedWatermark();
+        }
+    }
 
-	/**
-	 * Updating the state of an immediate output can possible lead to a combined watermark update to
-	 * the underlying {@link WatermarkOutput}.
-	 */
-	private class ImmediateOutput implements WatermarkOutput {
+    /**
+     * Updating the state of a deferred output will never lead to a combined watermark update. Only
+     * when {@link WatermarkOutputMultiplexer#onPeriodicEmit()} is called will the deferred updates
+     * be combined into a potential combined update of the underlying {@link WatermarkOutput}.
+     */
+    private static class DeferredOutput implements WatermarkOutput {
 
-		private final OutputState state;
+        private final PartialWatermark state;
 
-		public ImmediateOutput(OutputState state) {
-			this.state = state;
-		}
+        public DeferredOutput(PartialWatermark state) {
+            this.state = state;
+        }
 
-		@Override
-		public void emitWatermark(Watermark watermark) {
-			long timestamp = watermark.getTimestamp();
-			boolean wasUpdated = state.setWatermark(timestamp);
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            state.setWatermark(watermark.getTimestamp());
+        }
 
-			// if it's higher than the max watermark so far we might have to update the
-			// combined watermark
-			if (wasUpdated && timestamp > combinedWatermark) {
-				updateCombinedWatermark();
-			}
-		}
+        @Override
+        public void markIdle() {
+            state.setIdle(true);
+        }
 
-		@Override
-		public void markIdle() {
-			state.setIdle(true);
-
-			// this can always lead to an advancing watermark. We don't know if this output
-			// was holding back the watermark or not.
-			updateCombinedWatermark();
-		}
-	}
-
-	/**
-	 * Updating the state of a deferred output will never lead to a combined watermark update. Only
-	 * when {@link WatermarkOutputMultiplexer#onPeriodicEmit()} is called will the deferred updates
-	 * be combined into a potential combined update of the underlying {@link WatermarkOutput}.
-	 */
-	private static class DeferredOutput implements WatermarkOutput {
-
-		private final OutputState state;
-
-		public DeferredOutput(OutputState state) {
-			this.state = state;
-		}
-
-		@Override
-		public void emitWatermark(Watermark watermark) {
-			state.setWatermark(watermark.getTimestamp());
-		}
-
-		@Override
-		public void markIdle() {
-			state.setIdle(true);
-		}
-	}
+        @Override
+        public void markActive() {
+            state.setIdle(false);
+        }
+    }
 }

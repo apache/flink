@@ -22,12 +22,11 @@ import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
 import org.apache.flink.configuration.Configuration;
 
-/**
- * Factory for creating {@link GPUDriver}.
- */
+/** Factory for creating {@link GPUDriver}. */
 public class GPUDriverFactory implements ExternalResourceDriverFactory {
-	@Override
-	public ExternalResourceDriver createExternalResourceDriver(Configuration config) throws Exception {
-		return new GPUDriver(config);
-	}
+    @Override
+    public ExternalResourceDriver createExternalResourceDriver(Configuration config)
+            throws Exception {
+        return new GPUDriver(config);
+    }
 }

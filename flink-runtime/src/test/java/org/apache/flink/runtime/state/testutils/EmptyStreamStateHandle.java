@@ -25,55 +25,55 @@ import java.io.IOException;
 import java.util.Optional;
 
 /**
- * A simple dummy implementation of a stream state handle that can be passed in tests.
- * The handle cannot open an input stream.
+ * A simple dummy implementation of a stream state handle that can be passed in tests. The handle
+ * cannot open an input stream.
  */
 public class EmptyStreamStateHandle implements StreamStateHandle {
 
-	private static final long serialVersionUID = 0L;
+    private static final long serialVersionUID = 0L;
 
-	private boolean disposed;
+    private boolean disposed;
 
-	public boolean isDisposed() {
-		return disposed;
-	}
+    public boolean isDisposed() {
+        return disposed;
+    }
 
-	@Override
-	public FSDataInputStream openInputStream() throws IOException {
-		// returns an empty stream
-		return new FSDataInputStream() {
+    @Override
+    public FSDataInputStream openInputStream() throws IOException {
+        // returns an empty stream
+        return new FSDataInputStream() {
 
-			@Override
-			public void seek(long desired) throws IOException {
-				if (desired != 0) {
-					throw new IOException("out of bounds");
-				}
-			}
+            @Override
+            public void seek(long desired) throws IOException {
+                if (desired != 0) {
+                    throw new IOException("out of bounds");
+                }
+            }
 
-			@Override
-			public long getPos() {
-				return 0;
-			}
+            @Override
+            public long getPos() {
+                return 0;
+            }
 
-			@Override
-			public int read() throws IOException {
-				return -1;
-			}
-		};
-	}
+            @Override
+            public int read() throws IOException {
+                return -1;
+            }
+        };
+    }
 
-	@Override
-	public Optional<byte[]> asBytesIfInMemory() {
-		return Optional.empty();
-	}
+    @Override
+    public Optional<byte[]> asBytesIfInMemory() {
+        return Optional.empty();
+    }
 
-	@Override
-	public void discardState() throws Exception {
-		disposed = true;
-	}
+    @Override
+    public void discardState() throws Exception {
+        disposed = true;
+    }
 
-	@Override
-	public long getStateSize() {
-		return 0;
-	}
+    @Override
+    public long getStateSize() {
+        return 0;
+    }
 }
