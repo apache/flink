@@ -87,7 +87,7 @@ public class StopWithSavepointTerminationManager {
         return stopWithSavepointTerminationHandler.getSavepointPath();
     }
 
-    public static void checkStopWithSavepointPreconditions(
+    public static void checkSavepointActionPreconditions(
             CheckpointCoordinator checkpointCoordinator,
             @Nullable String targetDirectory,
             JobID jobId,
@@ -103,11 +103,14 @@ public class StopWithSavepointTerminationManager {
                     jobId);
 
             throw new IllegalStateException(
-                    "No savepoint directory configured. You can either specify a directory "
-                            + "while cancelling via -s :targetDirectory or configure a cluster-wide "
+                    "No savepoint directory configured. "
+                            + "You can either specify a directory via configure a cluster-wide "
                             + "default via key '"
                             + CheckpointingOptions.SAVEPOINT_DIRECTORY.key()
-                            + "'.");
+                            + "' or specify a directory in the command line, like "
+                            + "-s :targetDirectory for cancelling, "
+                            + "-p :targetDirectory for stopping "
+                            + "or :targetDirectory for purely taking savepoint.");
         }
     }
 }
