@@ -26,16 +26,13 @@ public interface BufferListener {
 
     /** Status of the notification result from the buffer listener. */
     enum NotificationResult {
-        BUFFER_NOT_USED(false, false),
-        BUFFER_USED_NO_NEED_MORE(true, false),
-        BUFFER_USED_NEED_MORE(true, true);
+        BUFFER_NOT_USED(false),
+        BUFFER_USED(true);
 
         private final boolean isBufferUsed;
-        private final boolean needsMoreBuffers;
 
-        NotificationResult(boolean isBufferUsed, boolean needsMoreBuffers) {
+        NotificationResult(boolean isBufferUsed) {
             this.isBufferUsed = isBufferUsed;
-            this.needsMoreBuffers = needsMoreBuffers;
         }
 
         /**
@@ -46,22 +43,14 @@ public interface BufferListener {
         boolean isBufferUsed() {
             return isBufferUsed;
         }
-
-        /**
-         * Whether the listener still needs more buffers to be notified.
-         *
-         * @return <tt>true</tt> if the listener is still waiting for more buffers.
-         */
-        boolean needsMoreBuffers() {
-            return needsMoreBuffers;
-        }
     }
 
     /**
      * Notification callback if a buffer is recycled and becomes available in buffer pool.
      *
-     * <p>Note: responsibility on recycling the given buffer is transferred to this implementation,
-     * including any errors that lead to exceptions being thrown!
+     * <p>Note: 1) Responsibility on recycling the given buffer is transferred to this
+     * implementation, including any errors that lead to exceptions being thrown! 2) The listener
+     * must register itself again if it needs still need more buffers.
      *
      * <p><strong>BEWARE:</strong> since this may be called from outside the thread that relies on
      * the listener's logic, any exception that occurs with this handler should be forwarded to the
