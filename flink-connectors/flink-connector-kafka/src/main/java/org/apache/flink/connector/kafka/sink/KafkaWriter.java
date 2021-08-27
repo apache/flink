@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -43,7 +44,9 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +87,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     private Metric byteOutMetric;
     private FlinkKafkaInternalProducer<byte[], byte[]> currentProducer;
-    private KafkaWriterState kafkaWriterState;
+    private final KafkaWriterState kafkaWriterState;
+    // producer pool only used for exactly once
+    private final Deque<FlinkKafkaInternalProducer<byte[], byte[]>> producerPool =
+            new ArrayDeque<>();
     private final Closer closer = Closer.create();
     @Nullable private volatile Exception producerAsyncException;
     private long lastCheckpointId;
@@ -147,11 +153,23 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         } catch (Exception e) {
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
         }
-        lastCheckpointId = sinkInitContext.getRestoredCheckpointId().orElse(0);
-        abortLingeringTransactions(
-                checkNotNull(recoveredStates, "recoveredStates"), lastCheckpointId + 1);
+
         this.kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
-        this.currentProducer = createProducer(lastCheckpointId + 1);
+        this.lastCheckpointId = sinkInitContext.getRestoredCheckpointId().orElse(-1);
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            abortLingeringTransactions(
+                    checkNotNull(recoveredStates, "recoveredStates"), lastCheckpointId + 1);
+            this.currentProducer = getTransactionalProducer(lastCheckpointId + 1);
+            this.currentProducer.beginTransaction();
+        } else if (deliveryGuarantee == DeliveryGuarantee.AT_LEAST_ONCE
+                || deliveryGuarantee == DeliveryGuarantee.NONE) {
+            this.currentProducer = new FlinkKafkaInternalProducer<>(this.kafkaProducerConfig, null);
+            closer.register(this.currentProducer);
+            initMetrics(this.currentProducer);
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupported Kafka writer semantic " + this.deliveryGuarantee);
+        }
         registerMetricSync();
     }
 
@@ -167,27 +185,48 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     @Override
     public List<KafkaCommittable> prepareCommit(boolean flush) {
         flushRecords(flush);
-        return precommit();
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            final List<KafkaCommittable> committables =
+                    Collections.singletonList(
+                            KafkaCommittable.of(currentProducer, producerPool::add));
+            LOG.info("Committing {} committables.", committables);
+            return committables;
+        }
+        return Collections.emptyList();
     }
 
     @Override
     public List<KafkaWriterState> snapshotState(long checkpointId) throws IOException {
-        currentProducer = createProducer(checkpointId + 1);
+        if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
+            currentProducer = getTransactionalProducer(checkpointId + 1);
+            currentProducer.beginTransaction();
+        }
         return ImmutableList.of(kafkaWriterState);
     }
 
     @Override
     public void close() throws Exception {
-
         if (currentProducer.isInTransaction()) {
             currentProducer.abortTransaction();
         }
         closed = true;
         closer.close();
+        producerPool.clear();
         checkState(currentProducer.isClosed());
+        currentProducer = null;
     }
 
-    private void abortLingeringTransactions(
+    @VisibleForTesting
+    Deque<FlinkKafkaInternalProducer<byte[], byte[]>> getProducerPool() {
+        return producerPool;
+    }
+
+    @VisibleForTesting
+    FlinkKafkaInternalProducer<byte[], byte[]> getCurrentProducer() {
+        return currentProducer;
+    }
+
+    void abortLingeringTransactions(
             List<KafkaWriterState> recoveredStates, long startCheckpointId) {
         List<String> prefixesToAbort = Lists.newArrayList(transactionalIdPrefix);
 
@@ -207,7 +246,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                         kafkaSinkContext.getParallelInstanceId(),
                         kafkaSinkContext.getNumberOfParallelInstances(),
                         this::getOrCreateTransactionalProducer,
-                        FlinkKafkaInternalProducer::close)) {
+                        producerPool::add)) {
             transactionAborter.abortLingeringTransactions(prefixesToAbort, startCheckpointId);
         }
     }
@@ -222,31 +261,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
             // prevent double throwing
             producerAsyncException = null;
             throw new RuntimeException("Failed to send data to Kafka: " + e.getMessage(), e);
-        }
-    }
-
-    private FlinkKafkaInternalProducer<byte[], byte[]> createProducer(long checkpointId) {
-        switch (deliveryGuarantee) {
-            case EXACTLY_ONCE:
-                final FlinkKafkaInternalProducer<byte[], byte[]> transactionalProducer =
-                        getTransactionalProducer(checkpointId);
-                initMetrics(transactionalProducer);
-                transactionalProducer.beginTransaction();
-                return transactionalProducer;
-            case AT_LEAST_ONCE:
-            case NONE:
-                if (currentProducer != null) {
-                    LOG.debug("Reusing existing KafkaProducer");
-                    return currentProducer;
-                }
-                final FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                        new FlinkKafkaInternalProducer<>(kafkaProducerConfig, null);
-                closer.register(producer);
-                initMetrics(producer);
-                return producer;
-            default:
-                throw new UnsupportedOperationException(
-                        "Unsupported Kafka writer semantic " + deliveryGuarantee);
         }
     }
 
@@ -273,24 +287,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         }
         // if the flushed requests has errors, we should propagate it also and fail the checkpoint
         checkErroneous();
-    }
-
-    private List<KafkaCommittable> precommit() {
-        final List<KafkaCommittable> committables;
-        switch (deliveryGuarantee) {
-            case EXACTLY_ONCE:
-                committables = Collections.singletonList(KafkaCommittable.of(currentProducer));
-                break;
-            case AT_LEAST_ONCE:
-            case NONE:
-                committables = Collections.emptyList();
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        "Unsupported Kafka writer semantic " + deliveryGuarantee);
-        }
-        LOG.info("Committing {} committables.", committables);
-        return committables;
     }
 
     /**
@@ -324,11 +320,15 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     private FlinkKafkaInternalProducer<byte[], byte[]> getOrCreateTransactionalProducer(
             String transactionalId) {
-        FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transactionalId);
-        closer.register(producer);
-        producer.initTransactions();
-        initMetrics(producer);
+        FlinkKafkaInternalProducer<byte[], byte[]> producer = producerPool.poll();
+        if (producer == null) {
+            producer = new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transactionalId);
+            closer.register(producer);
+            producer.initTransactions();
+            initMetrics(producer);
+        } else {
+            producer.initTransactionId(transactionalId);
+        }
         return producer;
     }
 
