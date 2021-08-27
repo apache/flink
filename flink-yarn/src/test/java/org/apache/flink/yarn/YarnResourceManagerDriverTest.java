@@ -81,6 +81,7 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_DIST_JAR;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
 import static org.apache.flink.yarn.YarnResourceManagerDriver.ERROR_MESSAGE_ON_SHUTDOWN_REQUEST;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -673,109 +674,93 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     }
 
     @Test
-    public void testGetContainerCompletedCauseForSuccess() throws Exception {
+    public void testGetContainerCompletedCauseForSuccess() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(),
                         ContainerState.COMPLETE,
                         "success exit code",
                         ContainerExitStatus.SUCCESS);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format("Container %s exited normally.", containerStatus.getContainerId()));
     }
 
     @Test
-    public void testGetContainerCompletedCauseForPreempted() throws Exception {
+    public void testGetContainerCompletedCauseForPreempted() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(),
                         ContainerState.COMPLETE,
                         "preempted exit code",
                         ContainerExitStatus.PREEMPTED);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format(
+                        "Container %s was preempted by yarn.", containerStatus.getContainerId()));
     }
 
     @Test
-    public void testGetContainerCompletedCauseForInvalid() throws Exception {
+    public void testGetContainerCompletedCauseForInvalid() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(),
                         ContainerState.COMPLETE,
                         "invalid exit code",
                         ContainerExitStatus.INVALID);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format("Container %s was invalid.", containerStatus.getContainerId()));
     }
 
     @Test
-    public void testGetContainerCompletedCauseForAborted() throws Exception {
+    public void testGetContainerCompletedCauseForAborted() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(),
                         ContainerState.COMPLETE,
                         "aborted exit code",
                         ContainerExitStatus.ABORTED);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format(
+                        "Container %s killed by YARN, either due to being released by the application or being 'lost' due to node failures etc.",
+                        containerStatus.getContainerId()));
     }
 
     @Test
-    public void testGetContainerCompletedCauseForDiskFailed() throws Exception {
+    public void testGetContainerCompletedCauseForDiskFailed() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(),
                         ContainerState.COMPLETE,
                         "disk failed exit code",
                         ContainerExitStatus.DISKS_FAILED);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format(
+                        "Container %s is failed because threshold number of the nodemanager-local-directories or"
+                                + " threshold number of the nodemanager-log-directories have become bad.",
+                        containerStatus.getContainerId()));
     }
 
     @Test
-    public void testGetContainerCompletedCauseForUnknown() throws Exception {
+    public void testGetContainerCompletedCauseForUnknown() {
         ContainerStatus containerStatus =
                 ContainerStatusPBImpl.newInstance(
                         testingContainer.getId(), ContainerState.COMPLETE, "unknown exit code", -1);
-        testingGetContainerOtherCause(containerStatus);
+        testingGetContainerCompletedCause(
+                containerStatus,
+                String.format(
+                        "Container %s marked as failed.\n Exit code:%s.",
+                        containerStatus.getContainerId(), containerStatus.getExitStatus()));
     }
 
-    public void testingGetContainerOtherCause(ContainerStatus containerStatus) throws Exception {
-        new Context() {
-            {
-                addContainerRequestFutures.add(new CompletableFuture<>());
-                addContainerRequestFutures.add(new CompletableFuture<>());
-
-                testingYarnAMRMClientAsyncBuilder.setAddContainerRequestConsumer(
-                        (ignored1, ignored2) ->
-                                addContainerRequestFutures
-                                        .get(
-                                                addContainerRequestFuturesNumCompleted
-                                                        .getAndIncrement())
-                                        .complete(null));
-                resourceEventHandlerBuilder.setOnWorkerTerminatedConsumer(
-                        (ignore1, ignore2) ->
-                                getDriver().requestResource(testingTaskExecutorProcessSpec));
-
-                runTest(
-                        () -> {
-                            runInMainThread(
-                                    () ->
-                                            getDriver()
-                                                    .requestResource(
-                                                            testingTaskExecutorProcessSpec));
-                            resourceManagerClientCallbackHandler.onContainersAllocated(
-                                    ImmutableList.of(testingContainer));
-
-                            resourceManagerClientCallbackHandler.onContainersCompleted(
-                                    Collections.singletonList(containerStatus));
-
-                            assertTrue(
-                                    YarnResourceManagerDriver.getContainerCompletedCause(
-                                                    containerStatus)
-                                            .contains(containerStatus.getDiagnostics()));
-
-                            resourceManagerClientCallbackHandler.onContainersCompleted(
-                                    ImmutableList.of(containerStatus));
-
-                            verifyFutureCompleted(addContainerRequestFutures.get(1));
-                        });
-            }
-        };
+    public void testingGetContainerCompletedCause(
+            ContainerStatus containerStatus, String expectedCompletedCause) {
+        final String containerCompletedCause =
+                YarnResourceManagerDriver.getContainerCompletedCause(containerStatus);
+        assertThat(containerCompletedCause, containsString(expectedCompletedCause));
+        assertThat(containerCompletedCause, containsString(containerStatus.getDiagnostics()));
     }
 }
