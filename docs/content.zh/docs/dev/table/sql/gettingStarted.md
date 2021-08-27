@@ -125,7 +125,7 @@ SELECT
 	dept_id,
 	COUNT(*) as emp_count 
 FROM employee_information 
-GROUP BY dep_id;
+GROUP BY dept_id;
  ``` 
 
 这样的查询被认为是 _有状态的_。Flink 的高级容错机制将维持内部状态和一致性，因此即使遇到硬件故障，查询也始终返回正确结果。
