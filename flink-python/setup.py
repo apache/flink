@@ -213,7 +213,7 @@ try:
         FLINK_DIST = os.path.join(FLINK_ROOT, "flink-dist")
         FLINK_BIN = os.path.join(FLINK_DIST, "src/main/flink-bin")
 
-        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/table/examples")
+        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/examples")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_ROOT, "LICENSE")
         README_FILE_PATH = os.path.join(FLINK_BIN, "README.txt")
