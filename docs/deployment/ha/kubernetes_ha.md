@@ -58,7 +58,7 @@ The `high-availability` option has to be set to `KubernetesHaServicesFactory`.
 - [high-availability.storageDir]({% link deployment/config.md %}#high-availability-storagedir) (required): 
 JobManager metadata is persisted in the file system `high-availability.storageDir` and only a pointer to this state is stored in Kubernetes.
 
-  <pre>high-availability.storageDir: s3:///flink/recovery</pre>
+  <pre>high-availability.storageDir: s3://flink/recovery</pre>
 
   The `storageDir` stores all metadata needed to recover a JobManager failure.
   
