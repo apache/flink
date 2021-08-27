@@ -29,7 +29,7 @@ import java.util.List;
  * Interface for strategies that decide when to release {@link ConsumedPartitionGroup
  * ConsumedPartitionGroups}.
  */
-public interface PartitionReleaseStrategy {
+public interface PartitionGroupReleaseStrategy {
 
     /**
      * Calling this method informs the strategy that a vertex finished.
@@ -47,8 +47,8 @@ public interface PartitionReleaseStrategy {
      */
     void vertexUnfinished(ExecutionVertexID executionVertexID);
 
-    /** Factory for {@link PartitionReleaseStrategy}. */
+    /** Factory for {@link PartitionGroupReleaseStrategy}. */
     interface Factory {
-        PartitionReleaseStrategy createInstance(SchedulingTopology schedulingStrategy);
+        PartitionGroupReleaseStrategy createInstance(SchedulingTopology schedulingStrategy);
     }
 }

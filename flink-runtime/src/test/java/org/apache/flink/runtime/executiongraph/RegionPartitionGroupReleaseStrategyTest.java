@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -40,8 +40,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
-/** Tests for {@link RegionPartitionReleaseStrategy}. */
-public class RegionPartitionReleaseStrategyTest extends TestLogger {
+/** Tests for {@link RegionPartitionGroupReleaseStrategy}. */
+public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
 
     private TestingSchedulingTopology testingSchedulingTopology;
 
@@ -62,11 +62,11 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
         final ExecutionVertexID onlyConsumerVertexId = consumers.get(0).getId();
         final IntermediateResultPartitionID onlyResultPartitionId = resultPartitions.get(0).getId();
 
-        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
-                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionGroupReleaseStrategy regionPartitionGroupReleaseStrategy =
+                new RegionPartitionGroupReleaseStrategy(testingSchedulingTopology);
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
-                getReleasablePartitions(regionPartitionReleaseStrategy, onlyConsumerVertexId);
+                getReleasablePartitions(regionPartitionGroupReleaseStrategy, onlyConsumerVertexId);
         assertThat(partitionsToRelease, contains(onlyResultPartitionId));
     }
 
@@ -92,12 +92,12 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
         final IntermediateResultPartitionID onlySourceResultPartitionId =
                 sourceResultPartitions.get(0).getId();
 
-        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
-                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionGroupReleaseStrategy regionPartitionGroupReleaseStrategy =
+                new RegionPartitionGroupReleaseStrategy(testingSchedulingTopology);
 
-        regionPartitionReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
+        regionPartitionGroupReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
         final List<IntermediateResultPartitionID> partitionsToRelease =
-                getReleasablePartitions(regionPartitionReleaseStrategy, onlySinkVertexId);
+                getReleasablePartitions(regionPartitionGroupReleaseStrategy, onlySinkVertexId);
         assertThat(partitionsToRelease, contains(onlySourceResultPartitionId));
     }
 
@@ -111,11 +111,11 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
 
         final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
 
-        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
-                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionGroupReleaseStrategy regionPartitionGroupReleaseStrategy =
+                new RegionPartitionGroupReleaseStrategy(testingSchedulingTopology);
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
-                getReleasablePartitions(regionPartitionReleaseStrategy, consumerVertex1);
+                getReleasablePartitions(regionPartitionGroupReleaseStrategy, consumerVertex1);
         assertThat(partitionsToRelease, is(empty()));
     }
 
@@ -130,23 +130,23 @@ public class RegionPartitionReleaseStrategyTest extends TestLogger {
         final ExecutionVertexID consumerVertex1 = consumers.get(0).getId();
         final ExecutionVertexID consumerVertex2 = consumers.get(1).getId();
 
-        final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy =
-                new RegionPartitionReleaseStrategy(testingSchedulingTopology);
+        final RegionPartitionGroupReleaseStrategy regionPartitionGroupReleaseStrategy =
+                new RegionPartitionGroupReleaseStrategy(testingSchedulingTopology);
 
-        regionPartitionReleaseStrategy.vertexFinished(consumerVertex1);
-        regionPartitionReleaseStrategy.vertexFinished(consumerVertex2);
-        regionPartitionReleaseStrategy.vertexUnfinished(consumerVertex2);
+        regionPartitionGroupReleaseStrategy.vertexFinished(consumerVertex1);
+        regionPartitionGroupReleaseStrategy.vertexFinished(consumerVertex2);
+        regionPartitionGroupReleaseStrategy.vertexUnfinished(consumerVertex2);
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
-                getReleasablePartitions(regionPartitionReleaseStrategy, consumerVertex1);
+                getReleasablePartitions(regionPartitionGroupReleaseStrategy, consumerVertex1);
         assertThat(partitionsToRelease, is(empty()));
     }
 
     private static List<IntermediateResultPartitionID> getReleasablePartitions(
-            final RegionPartitionReleaseStrategy regionPartitionReleaseStrategy,
+            final RegionPartitionGroupReleaseStrategy regionPartitionGroupReleaseStrategy,
             final ExecutionVertexID finishedVertex) {
 
-        return regionPartitionReleaseStrategy.vertexFinished(finishedVertex).stream()
+        return regionPartitionGroupReleaseStrategy.vertexFinished(finishedVertex).stream()
                 .flatMap(IterableUtils::toStream)
                 .collect(Collectors.toList());
     }

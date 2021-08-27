@@ -30,7 +30,7 @@ import java.util.List;
  * Does not release intermediate result partitions during job execution. Relies on partitions being
  * released at the end of the job.
  */
-public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStrategy {
+public class NotReleasingPartitionGroupReleaseStrategy implements PartitionGroupReleaseStrategy {
 
     @Override
     public List<ConsumedPartitionGroup> vertexFinished(final ExecutionVertexID finishedVertex) {
@@ -40,13 +40,13 @@ public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStr
     @Override
     public void vertexUnfinished(final ExecutionVertexID executionVertexID) {}
 
-    /** Factory for {@link NotReleasingPartitionReleaseStrategy}. */
-    public static class Factory implements PartitionReleaseStrategy.Factory {
+    /** Factory for {@link NotReleasingPartitionGroupReleaseStrategy}. */
+    public static class Factory implements PartitionGroupReleaseStrategy.Factory {
 
         @Override
-        public PartitionReleaseStrategy createInstance(
+        public PartitionGroupReleaseStrategy createInstance(
                 final SchedulingTopology schedulingStrategy) {
-            return new NotReleasingPartitionReleaseStrategy();
+            return new NotReleasingPartitionGroupReleaseStrategy();
         }
     }
 }
