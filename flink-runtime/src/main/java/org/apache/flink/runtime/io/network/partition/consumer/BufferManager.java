@@ -300,14 +300,10 @@ public class BufferManager implements BufferListener, BufferRecycler {
      * buffer pool. Otherwise, the buffer will be added into the <tt>bufferQueue</tt>.
      *
      * @param buffer Buffer that becomes available in buffer pool.
-     * @return NotificationResult indicates whether this channel accepts the buffer and is waiting
-     *     for more floating buffers.
+     * @return true if the buffer is accepted by this listener.
      */
     @Override
-    public BufferListener.NotificationResult notifyBufferAvailable(Buffer buffer) {
-        BufferListener.NotificationResult notificationResult =
-                BufferListener.NotificationResult.BUFFER_NOT_USED;
-
+    public boolean notifyBufferAvailable(Buffer buffer) {
         // Assuming two remote channels with respective buffer managers as listeners inside
         // LocalBufferPool.
         // While canceler thread calling ch1#releaseAllResources, it might trigger
@@ -319,10 +315,11 @@ public class BufferManager implements BufferListener, BufferRecycler {
         // bufferQueue lock to cause deadlock. So we check the isReleased state out of synchronized
         // to resolve it.
         if (inputChannel.isReleased()) {
-            return notificationResult;
+            return false;
         }
 
         int numBuffers = 0;
+        boolean isBufferUsed = false;
         try {
             synchronized (bufferQueue) {
                 checkState(
@@ -339,11 +336,11 @@ public class BufferManager implements BufferListener, BufferRecycler {
                 // lock on bufferQueue to release buffers
                 if (inputChannel.isReleased()
                         || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
-                    return notificationResult;
+                    return false;
                 }
 
                 bufferQueue.addFloatingBuffer(buffer);
-                notificationResult = NotificationResult.BUFFER_USED;
+                isBufferUsed = true;
                 numBuffers += 1 + tryRequestBuffers();
                 bufferQueue.notifyAll();
             }
@@ -353,7 +350,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
             inputChannel.setError(t);
         }
 
-        return notificationResult;
+        return isBufferUsed;
     }
 
     @Override
