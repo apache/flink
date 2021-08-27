@@ -41,6 +41,8 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -125,7 +127,8 @@ public class QsStateProducer {
                         new LabelSurrogate(LabelSurrogate.Type.values()[r % types], "bar");
 
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(new Email(emailId, timestamp, foo, label));
+                    final Email email = new Email(emailId, timestamp, foo, label);
+                    ctx.collect(email);
                 }
 
                 Thread.sleep(30L);
@@ -139,12 +142,14 @@ public class QsStateProducer {
     }
 
     private static class TestFlatMap extends RichFlatMapFunction<Email, Object>
-            implements CheckpointedFunction, CheckpointListener {
+            implements CheckpointListener, CheckpointedFunction {
 
         private static final long serialVersionUID = 7821128115999005941L;
 
         private transient MapState<EmailId, EmailInformation> state;
         private transient int count;
+        private transient Map<Long, Integer> countsAtCheckpoint;
+        private transient long lastCompletedCheckpoint;
 
         @Override
         public void open(Configuration parameters) {
@@ -157,6 +162,9 @@ public class QsStateProducer {
             stateDescriptor.setQueryable(QsConstants.QUERY_NAME);
             state = getRuntimeContext().getMapState(stateDescriptor);
             count = -1;
+            countsAtCheckpoint = new HashMap<>();
+            count = -1;
+            lastCompletedCheckpoint = -1;
         }
 
         @Override
@@ -166,14 +174,22 @@ public class QsStateProducer {
         }
 
         @Override
-        public void snapshotState(FunctionSnapshotContext context) {}
+        public void notifyCheckpointComplete(long checkpointId) {
+            if (checkpointId > lastCompletedCheckpoint) {
+                lastCompletedCheckpoint = checkpointId;
+                final int countAtCheckpoint = countsAtCheckpoint.remove(lastCompletedCheckpoint);
+
+                System.out.println(
+                        "Count on snapshot: " + countAtCheckpoint); // we look for it in the test
+            }
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) {
+            countsAtCheckpoint.put(context.getCheckpointId(), count);
+        }
 
         @Override
         public void initializeState(FunctionInitializationContext context) {}
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            System.out.println("Count on snapshot: " + count); // we look for it in the test
-        }
     }
 }
