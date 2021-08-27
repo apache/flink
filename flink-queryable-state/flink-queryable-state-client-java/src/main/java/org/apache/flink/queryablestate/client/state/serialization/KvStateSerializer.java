@@ -23,9 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -35,7 +32,6 @@ import java.util.Map;
 
 /** Serialization and deserialization the different state types and namespaces. */
 public final class KvStateSerializer {
-    private static final Logger LOG = LoggerFactory.getLogger(KvStateSerializer.class);
 
     // The magic number is as a flag between key and namespace.
     private static final int MAGIC_NUMBER = 42;
@@ -229,7 +225,6 @@ public final class KvStateSerializer {
             // Serialize
             DataOutputSerializer dos = new DataOutputSerializer(32);
 
-            int size = 0;
             for (Map.Entry<UK, UV> entry : entries) {
                 keySerializer.serialize(entry.getKey(), dos);
 
@@ -239,11 +234,7 @@ public final class KvStateSerializer {
                     dos.writeBoolean(false);
                     valueSerializer.serialize(entry.getValue(), dos);
                 }
-
-                size++;
             }
-
-            LOG.debug("Serialized map has {} entries.", size);
 
             return dos.getCopyOfBuffer();
         } else {
