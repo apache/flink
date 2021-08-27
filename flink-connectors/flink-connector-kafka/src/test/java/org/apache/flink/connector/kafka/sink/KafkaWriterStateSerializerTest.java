@@ -35,7 +35,7 @@ public class KafkaWriterStateSerializerTest extends TestLogger {
 
     @Test
     public void testStateSerDe() throws IOException {
-        final KafkaWriterState state = new KafkaWriterState("idPrefix", 1, 2);
+        final KafkaWriterState state = new KafkaWriterState("idPrefix");
         final byte[] serialized = SERIALIZER.serialize(state);
         assertEquals(state, SERIALIZER.deserialize(1, serialized));
     }
