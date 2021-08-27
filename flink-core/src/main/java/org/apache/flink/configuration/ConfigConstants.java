@@ -1134,6 +1134,9 @@ public final class ConfigConstants {
     /** The set of variables that should be excluded. */
     public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
 
+    /** The map of additional variables that should be included. */
+    public static final String METRICS_REPORTER_ADDITIONAL_VARIABLES = "scope.variables.additional";
+
     /** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
     @Deprecated public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
 

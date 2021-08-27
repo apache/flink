@@ -414,6 +414,6 @@ public class PrometheusReporterTest extends TestLogger {
     }
 
     private static ReporterScopedSettings createReporterScopedSettings() {
-        return new ReporterScopedSettings(0, ',', Collections.emptySet());
+        return new ReporterScopedSettings(0, ',', Collections.emptySet(), Collections.emptyMap());
     }
 }

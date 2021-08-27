@@ -170,7 +170,8 @@ public class MetricRegistryImpl implements MetricRegistry {
                                     new ReporterScopedSettings(
                                             reporters.size(),
                                             delimiterForReporter.charAt(0),
-                                            reporterSetup.getExcludedVariables())));
+                                            reporterSetup.getExcludedVariables(),
+                                            reporterSetup.tryGetAdditionalVariables())));
                 } catch (Throwable t) {
                     LOG.error(
                             "Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.",

@@ -30,6 +30,7 @@ import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 
@@ -113,6 +114,34 @@ public final class ReporterSetup {
                 excludedVariables.add(ScopeFormat.asVariable(exclusion));
             }
             return Collections.unmodifiableSet(excludedVariables);
+        }
+    }
+
+    public Map<String, String> tryGetAdditionalVariables() {
+        String additionalVariablesMap =
+                configuration.getString(
+                        ConfigConstants.METRICS_REPORTER_ADDITIONAL_VARIABLES, null);
+        if (additionalVariablesMap == null) {
+            return Collections.emptyMap();
+        } else {
+            try {
+                final Map<String, String> additionalVariables = new HashMap<>();
+                for (String variableEntry : additionalVariablesMap.split(",")) {
+                    String[] tagEntry = variableEntry.split(":");
+                    Preconditions.checkArgument(
+                            tagEntry.length == 2,
+                            String.format(
+                                    "The additional variables configuration (%s) is formatted incorrectly!",
+                                    variableEntry));
+                    additionalVariables.put(ScopeFormat.asVariable(tagEntry[0]), tagEntry[1]);
+                }
+                return Collections.unmodifiableMap(additionalVariables);
+            } catch (IllegalArgumentException e) {
+                LOG.warn(
+                        "Failed to apply the additional variables configuration, skipping and continuing with reporter setup",
+                        e);
+                return Collections.emptyMap();
+            }
         }
     }
 

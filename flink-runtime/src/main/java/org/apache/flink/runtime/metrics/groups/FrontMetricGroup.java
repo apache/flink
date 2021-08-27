@@ -72,8 +72,15 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
 
     @Override
     public Map<String, String> getAllVariables() {
-        return parentMetricGroup.getAllVariables(
-                this.settings.getReporterIndex(), this.settings.getExcludedVariables());
+        Map<String, String> allVariables =
+                parentMetricGroup.getAllVariables(
+                        this.settings.getReporterIndex(), this.settings.getExcludedVariables());
+
+        for (Map.Entry<String, String> entry : this.settings.getAdditionalVariables().entrySet()) {
+            allVariables.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+
+        return allVariables;
     }
 
     /** @deprecated work against the LogicalScopeProvider interface instead. */
