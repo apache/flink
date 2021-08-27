@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.VoidNamespace;
@@ -59,6 +60,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
+import org.hamcrest.core.CombinableMatcher;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -84,9 +86,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.CoreMatchers.either;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link Client}. */
@@ -727,18 +731,16 @@ public class ClientTest extends TestLogger {
             }
             Assert.assertTrue(client.isEventGroupShutdown());
 
+            final CombinableMatcher<Throwable> exceptionMatcher =
+                    either(FlinkMatchers.containsCause(ClosedChannelException.class))
+                            .or(FlinkMatchers.containsCause(IllegalStateException.class));
+
             for (Future<Void> future : taskFutures) {
                 try {
                     future.get();
                     fail("Did not throw expected Exception after shut down");
                 } catch (ExecutionException t) {
-                    if (t.getCause().getCause() instanceof ClosedChannelException
-                            || t.getCause().getCause() instanceof IllegalStateException) {
-                        // Expected
-                    } else {
-                        t.printStackTrace();
-                        fail("Failed with unexpected Exception type: " + t.getClass().getName());
-                    }
+                    assertThat(t, exceptionMatcher);
                 }
             }
 
