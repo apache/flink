@@ -28,8 +28,9 @@ import org.apache.flink.table.data.RowData;
  * DynamicTableSink}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
- * consist of a single entity expressed via {@link OutputFormatProvider} or {@link
- * SinkFunctionProvider}, or {@link SinkProvider}.
+ * consist of a single entity expressed via {@link SinkProvider}, {@link SinkFunctionProvider}, or
+ * {@link OutputFormatProvider}. When using a {@link DataStream} an implementer needs to pay
+ * attention to how changes are shuffled to not mess up the changelog per parallel subtask.
  */
 @PublicEvolving
 public interface DataStreamSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
