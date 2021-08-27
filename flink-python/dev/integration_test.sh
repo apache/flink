@@ -20,7 +20,7 @@
 function test_module() {
     module="$FLINK_PYTHON_DIR/pyflink/$1"
     echo "test module $module"
-    pytest --durations=20 ${module}
+    pytest --durations=20 ${module} $2
     if [[ $? -ne 0 ]]; then
         echo "test module $module failed"
         exit 1
@@ -37,7 +37,8 @@ FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 test_module "common"
 
 # test datastream module
-test_module "datastream"
+test_module "datastream" "--ignore $FLINK_PYTHON_DIR/pyflink/datastream/tests/test_stream_execution_environment.py"
+pytest "$FLINK_PYTHON_DIR/pyflink/datastream/tests/test_stream_execution_environment.py"
 
 # test fn_execution module
 test_module "fn_execution"

@@ -191,17 +191,10 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
                                                         DataTypes.BIGINT()))
 
         def check_pyflink_gateway_disabled(i):
-            try:
-                from pyflink.java_gateway import get_gateway
-                get_gateway()
-            except Exception as e:
-                assert str(e).startswith("It's launching the PythonGatewayServer during Python UDF"
-                                         " execution which is unexpected.")
-            else:
-                raise Exception("The gateway server is not disabled!")
+            from pyflink.java_gateway import get_gateway
+            get_gateway()
             return i
 
-        self.t_env._remote_mode = True
         self.t_env.create_temporary_system_function(
             "check_pyflink_gateway_disabled",
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),

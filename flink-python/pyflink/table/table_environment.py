@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray, get_field
+    to_j_explain_detail_arr, to_jarray, get_field, get_field_value
 
 __all__ = [
     'StreamTableEnvironment',
@@ -1765,8 +1765,9 @@ class TableEnvironment(object):
                 from pyflink.fn_execution.beam.beam_worker_pool_service import \
                     BeamFnLoopbackWorkerPoolServicer
 
-                self.get_config().get_configuration().set_string(
-                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
+                j_env = jvm.System.getenv()
+                get_field_value(j_env, "m").put(
+                    'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
