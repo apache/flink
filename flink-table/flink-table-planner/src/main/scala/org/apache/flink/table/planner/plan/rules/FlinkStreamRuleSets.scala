@@ -495,6 +495,9 @@ object FlinkStreamRuleSets {
     SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
     SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN)
+    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN,
+    // optimize ChangelogNormalize
+    PushFilterPastChangelogNormalizeRule.INSTANCE
+  )
 
 }
