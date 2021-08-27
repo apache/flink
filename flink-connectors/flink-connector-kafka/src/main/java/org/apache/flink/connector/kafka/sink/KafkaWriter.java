@@ -29,12 +29,12 @@ import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetric
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.slf4j.Logger;
@@ -43,8 +43,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -52,8 +50,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -91,6 +87,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private KafkaWriterState kafkaWriterState;
     private final Closer closer = Closer.create();
     @Nullable private volatile Exception producerAsyncException;
+    private long lastCheckpointId;
 
     private boolean closed = false;
     private long lastSync = System.currentTimeMillis();
@@ -150,9 +147,11 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         } catch (Exception e) {
             throw new FlinkRuntimeException("Cannot initialize schema.", e);
         }
-        this.kafkaWriterState =
-                recoverAndInitializeState(checkNotNull(recoveredStates, "recoveredStates"));
-        this.currentProducer = createProducer();
+        lastCheckpointId = sinkInitContext.getRestoredCheckpointId().orElse(0);
+        abortLingeringTransactions(
+                checkNotNull(recoveredStates, "recoveredStates"), lastCheckpointId + 1);
+        this.kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
+        this.currentProducer = createProducer(lastCheckpointId + 1);
         registerMetricSync();
     }
 
@@ -168,80 +167,49 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     @Override
     public List<KafkaCommittable> prepareCommit(boolean flush) {
         flushRecords(flush);
-        List<KafkaCommittable> committables = precommit();
-        currentProducer = createProducer();
-        return committables;
+        return precommit();
     }
 
     @Override
     public List<KafkaWriterState> snapshotState(long checkpointId) throws IOException {
+        currentProducer = createProducer(checkpointId + 1);
         return ImmutableList.of(kafkaWriterState);
     }
 
     @Override
     public void close() throws Exception {
+
         if (currentProducer.isInTransaction()) {
             currentProducer.abortTransaction();
         }
-        currentProducer.flush();
         closed = true;
         closer.close();
+        checkState(currentProducer.isClosed());
     }
 
-    private KafkaWriterState recoverAndInitializeState(List<KafkaWriterState> recoveredStates) {
-        final int subtaskId = kafkaSinkContext.getParallelInstanceId();
-        if (recoveredStates.isEmpty()) {
-            final KafkaWriterState state =
-                    new KafkaWriterState(transactionalIdPrefix, subtaskId, 0);
-            abortTransactions(getTransactionsToAbort(state, new ArrayList<>()));
-            return state;
-        }
-        final Map<Integer, KafkaWriterState> taskOffsetMapping =
-                recoveredStates.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        KafkaWriterState::getSubtaskId, Function.identity()));
-        checkState(
-                taskOffsetMapping.containsKey(subtaskId),
-                "Internal error: It is expected that state from previous executions is distributed to the same subtask id.");
-        final KafkaWriterState lastState = taskOffsetMapping.get(subtaskId);
-        taskOffsetMapping.remove(subtaskId);
-        abortTransactions(
-                getTransactionsToAbort(lastState, new ArrayList<>(taskOffsetMapping.values())));
-        if (!lastState.getTransactionalIdPrefix().equals(transactionalIdPrefix)) {
-            LOG.warn(
-                    "Transactional id prefix from previous execution {} has changed to {}.",
-                    lastState.getTransactionalIdPrefix(),
-                    transactionalIdPrefix);
-            return new KafkaWriterState(transactionalIdPrefix, subtaskId, 0);
-        }
-        return new KafkaWriterState(
-                transactionalIdPrefix, subtaskId, lastState.getTransactionalIdOffset());
-    }
+    private void abortLingeringTransactions(
+            List<KafkaWriterState> recoveredStates, long startCheckpointId) {
+        List<String> prefixesToAbort = Lists.newArrayList(transactionalIdPrefix);
 
-    private void abortTransactions(List<String> transactionsToAbort) {
-        transactionsToAbort.forEach(
-                transaction -> {
-                    // don't mess with the original configuration or any other
-                    // properties of the
-                    // original object
-                    // -> create an internal kafka producer on our own and do not rely
-                    // on
-                    //    initTransactionalProducer().
-                    LOG.info("Aborting Kafka transaction {}.", transaction);
-                    FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer = null;
-                    try {
-                        kafkaProducer =
-                                new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transaction);
-                        // it suffices to call initTransactions - this will abort any
-                        // lingering transactions
-                        kafkaProducer.initTransactions();
-                    } finally {
-                        if (kafkaProducer != null) {
-                            kafkaProducer.close(Duration.ofSeconds(0));
-                        }
-                    }
-                });
+        if (!recoveredStates.isEmpty()) {
+            KafkaWriterState lastState = recoveredStates.get(0);
+            if (!lastState.getTransactionalIdPrefix().equals(transactionalIdPrefix)) {
+                prefixesToAbort.add(lastState.getTransactionalIdPrefix());
+                LOG.warn(
+                        "Transactional id prefix from previous execution {} has changed to {}.",
+                        lastState.getTransactionalIdPrefix(),
+                        transactionalIdPrefix);
+            }
+        }
+
+        try (TransactionAborter transactionAborter =
+                new TransactionAborter(
+                        kafkaSinkContext.getParallelInstanceId(),
+                        kafkaSinkContext.getNumberOfParallelInstances(),
+                        this::getOrCreateTransactionalProducer,
+                        FlinkKafkaInternalProducer::close)) {
+            transactionAborter.abortLingeringTransactions(prefixesToAbort, startCheckpointId);
+        }
     }
 
     private void acknowledgeMessage() {
@@ -257,14 +225,13 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         }
     }
 
-    private FlinkKafkaInternalProducer<byte[], byte[]> createProducer() {
+    private FlinkKafkaInternalProducer<byte[], byte[]> createProducer(long checkpointId) {
         switch (deliveryGuarantee) {
             case EXACTLY_ONCE:
                 final FlinkKafkaInternalProducer<byte[], byte[]> transactionalProducer =
-                        createTransactionalProducer();
+                        getTransactionalProducer(checkpointId);
                 initMetrics(transactionalProducer);
                 transactionalProducer.beginTransaction();
-                closer.register(transactionalProducer);
                 return transactionalProducer;
             case AT_LEAST_ONCE:
             case NONE:
@@ -274,8 +241,8 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 }
                 final FlinkKafkaInternalProducer<byte[], byte[]> producer =
                         new FlinkKafkaInternalProducer<>(kafkaProducerConfig, null);
-                initMetrics(producer);
                 closer.register(producer);
+                initMetrics(producer);
                 return producer;
             default:
                 throw new UnsupportedOperationException(
@@ -330,23 +297,38 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
      * For each checkpoint we create new {@link FlinkKafkaInternalProducer} so that new transactions
      * will not clash with transactions created during previous checkpoints ({@code
      * producer.initTransactions()} assures that we obtain new producerId and epoch counters).
+     *
+     * <p>Ensures that all transaction ids in between lastCheckpointId and checkpointId are
+     * initialized.
      */
-    private FlinkKafkaInternalProducer<byte[], byte[]> createTransactionalProducer() {
-        final long transactionalIdOffset = kafkaWriterState.getTransactionalIdOffset() + 1;
-        String transactionalId =
-                TransactionalIdFactory.buildTransactionalId(
-                        transactionalIdPrefix,
-                        kafkaSinkContext.getParallelInstanceId(),
-                        transactionalIdOffset);
-        final FlinkKafkaInternalProducer<byte[], byte[]> producer =
+    private FlinkKafkaInternalProducer<byte[], byte[]> getTransactionalProducer(long checkpointId) {
+        checkState(
+                checkpointId > lastCheckpointId,
+                "Expected %s > %s",
+                checkpointId,
+                lastCheckpointId);
+        FlinkKafkaInternalProducer<byte[], byte[]> producer = null;
+        // in case checkpoints have been aborted, Flink would create non-consecutive transaction ids
+        // this loop ensures that all gaps are filled with initialized (empty) transactions
+        for (long id = lastCheckpointId + 1; id <= checkpointId; id++) {
+            String transactionalId =
+                    TransactionalIdFactory.buildTransactionalId(
+                            transactionalIdPrefix, kafkaSinkContext.getParallelInstanceId(), id);
+            producer = getOrCreateTransactionalProducer(transactionalId);
+        }
+        this.lastCheckpointId = checkpointId;
+        assert producer != null;
+        LOG.info("Created new transactional producer {}", producer.getTransactionalId());
+        return producer;
+    }
+
+    private FlinkKafkaInternalProducer<byte[], byte[]> getOrCreateTransactionalProducer(
+            String transactionalId) {
+        FlinkKafkaInternalProducer<byte[], byte[]> producer =
                 new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transactionalId);
+        closer.register(producer);
         producer.initTransactions();
-        kafkaWriterState =
-                new KafkaWriterState(
-                        transactionalIdPrefix,
-                        kafkaSinkContext.getParallelInstanceId(),
-                        transactionalIdOffset);
-        LOG.info("Created new transactional producer {}", transactionalId);
+        initMetrics(producer);
         return producer;
     }
 
@@ -376,26 +358,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 kafkaMetricGroup.gauge(name, wrapper);
             }
         };
-    }
-
-    private List<String> getTransactionsToAbort(
-            KafkaWriterState main, List<KafkaWriterState> others) {
-        try (final KafkaTransactionLog log =
-                new KafkaTransactionLog(
-                        kafkaProducerConfig,
-                        main,
-                        others,
-                        kafkaSinkContext.getNumberOfParallelInstances())) {
-            return log.getTransactionsToAbort();
-        } catch (KafkaException e) {
-            LOG.warn(
-                    "Cannot abort transactions before startup e.g. the job has no access to the "
-                            + "__transaction_state topic. Lingering transactions may hold new "
-                            + "data back from downstream consumers. Please abort these "
-                            + "transactions manually.",
-                    e);
-            return Collections.emptyList();
-        }
     }
 
     private static long computeSendTime(Producer<?, ?> producer) {

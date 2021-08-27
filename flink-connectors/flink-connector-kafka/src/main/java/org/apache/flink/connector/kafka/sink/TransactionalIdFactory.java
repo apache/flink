@@ -17,17 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 class TransactionalIdFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionalIdFactory.class);
     private static final String TRANSACTIONAL_ID_DELIMITER = "-";
 
     /**
@@ -47,37 +37,5 @@ class TransactionalIdFactory {
                 + subtaskId
                 + TRANSACTIONAL_ID_DELIMITER
                 + checkpointOffset;
-    }
-
-    /**
-     * Tries to parse the {@link KafkaWriterState} which was used to create the transactionalId.
-     *
-     * @param transactionalId read from the transaction topic
-     * @return returns {@link KafkaWriterState} if the transaction was create by the Kafka Sink.
-     */
-    public static Optional<KafkaWriterState> parseKafkaWriterState(String transactionalId) {
-        final List<String> splits = new ArrayList<>();
-        Splitter.on(TRANSACTIONAL_ID_DELIMITER).split(transactionalId).forEach(splits::add);
-        final int splitSize = splits.size();
-        if (splitSize < 3) {
-            LOG.debug("Transaction {} was not created by the Flink Kafka sink", transactionalId);
-            return Optional.empty();
-        }
-        try {
-            final long checkpointOffset = Long.parseLong(splits.get(splitSize - 1));
-            final int subtaskId = Integer.parseInt(splits.get(splitSize - 2));
-            return Optional.of(
-                    new KafkaWriterState(
-                            String.join(
-                                    TRANSACTIONAL_ID_DELIMITER, splits.subList(0, splitSize - 2)),
-                            subtaskId,
-                            checkpointOffset));
-        } catch (NumberFormatException e) {
-            LOG.debug(
-                    "Transaction {} was not created by the Flink Kafka sink: {}",
-                    transactionalId,
-                    e);
-            return Optional.empty();
-        }
     }
 }

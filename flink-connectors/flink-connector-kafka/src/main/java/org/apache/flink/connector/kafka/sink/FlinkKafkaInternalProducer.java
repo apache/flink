@@ -33,6 +33,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -49,6 +50,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     @Nullable private String transactionalId;
     private volatile boolean inTransaction;
+    private volatile boolean closed;
 
     public FlinkKafkaInternalProducer(Properties properties, @Nullable String transactionalId) {
         super(withTransactionalId(properties, transactionalId));
@@ -98,7 +100,25 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     @Override
     public void close() {
+        closed = true;
+        flush();
         super.close(Duration.ZERO);
+    }
+
+    @Override
+    public void close(Duration timeout) {
+        closed = true;
+        super.close(timeout);
+    }
+
+    @Override
+    public void close(long timeout, TimeUnit unit) {
+        closed = true;
+        super.close(timeout, unit);
+    }
+
+    public boolean isClosed() {
+        return closed;
     }
 
     @Nullable
