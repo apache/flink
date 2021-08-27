@@ -48,19 +48,26 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
+            Configuration config,
             int parallelism,
             Collection<Path> jarFiles,
             Collection<URL> classPaths) {
         super(
                 new MiniClusterPipelineExecutorServiceLoader(miniCluster),
-                MiniClusterPipelineExecutorServiceLoader.createConfiguration(jarFiles, classPaths),
+                MiniClusterPipelineExecutorServiceLoader.updateConfigurationForMiniCluster(
+                        config, jarFiles, classPaths),
                 null);
 
         setParallelism(parallelism);
     }
 
     public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
-        this(miniCluster, parallelism, Collections.emptyList(), Collections.emptyList());
+        this(
+                miniCluster,
+                new Configuration(),
+                parallelism,
+                Collections.emptyList(),
+                Collections.emptyList());
     }
 
     /**
@@ -83,7 +90,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 conf -> {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
-                                    miniCluster, parallelism, jarFiles, classpaths);
+                                    miniCluster, conf, parallelism, jarFiles, classpaths);
 
                     randomizeConfiguration(miniCluster, conf);
 
