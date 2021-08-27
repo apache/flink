@@ -65,7 +65,7 @@ import static org.junit.Assert.assertNull;
 /**
  * Tests for removing cached {@link ShuffleDescriptor}s when the related partitions are no longer
  * valid. Currently, there are two scenarios as illustrated in {@link
- * IntermediateResult#notifyPartitionChanged}.
+ * IntermediateResult#clearCachedInformationForPartitionGroup}.
  */
 public class RemoveCachedShuffleDescriptorTest extends TestLogger {
 

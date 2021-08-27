@@ -95,7 +95,7 @@ public class IntermediateResultPartition {
         }
         hasDataProduced = false;
         for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
-            totalResult.notifyPartitionChanged(consumedPartitionGroup);
+            totalResult.clearCachedInformationForPartitionGroup(consumedPartitionGroup);
         }
     }
 

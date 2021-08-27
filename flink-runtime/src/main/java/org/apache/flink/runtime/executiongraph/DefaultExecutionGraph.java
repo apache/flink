@@ -1288,7 +1288,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         checkNotNull(
                                 intermediateResults.get(
                                         releasablePartitionGroup.getIntermediateDataSetID()));
-                totalResult.notifyPartitionChanged(releasablePartitionGroup);
+                totalResult.clearCachedInformationForPartitionGroup(releasablePartitionGroup);
             }
 
             final List<ResultPartitionID> releasablePartitionIds =

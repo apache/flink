@@ -172,7 +172,8 @@ public class IntermediateResult {
         this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
     }
 
-    public void notifyPartitionChanged(ConsumedPartitionGroup consumedPartitionGroup) {
+    public void clearCachedInformationForPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
         // When a ConsumedPartitionGroup changes, the cache of ShuffleDescriptors for this
         // partition group is no longer valid and needs to be removed.
         //
