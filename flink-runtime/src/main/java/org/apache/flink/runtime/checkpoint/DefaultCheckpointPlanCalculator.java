@@ -91,9 +91,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                     try {
                         if (context.hasFinishedTasks() && !allowCheckpointsAfterTasksFinished) {
                             throw new CheckpointException(
-                                    String.format(
-                                            "some tasks of job %s has been finished, abort the checkpoint",
-                                            jobId),
+                                    "Some tasks of the job have already finished and checkpointing with finished tasks is not enabled.",
                                     CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
                         }
 

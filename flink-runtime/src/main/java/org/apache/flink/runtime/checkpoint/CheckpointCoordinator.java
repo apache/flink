@@ -894,7 +894,7 @@ public class CheckpointCoordinator {
                 }
             } else {
                 LOG.info(
-                        "Failed to trigger checkpoint for job {} since {}",
+                        "Failed to trigger checkpoint for job {} because {}",
                         job,
                         throwable.getMessage());
             }
