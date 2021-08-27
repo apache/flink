@@ -61,8 +61,7 @@ public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecuto
      * MiniClusterPipelineExecutorServiceLoader}.
      */
     public static Configuration createConfiguration(
-            Collection<Path> jarFiles, Collection<URL> classPaths) {
-        Configuration config = new Configuration();
+            Configuration config, Collection<Path> jarFiles, Collection<URL> classPaths) {
         ConfigUtils.encodeCollectionToConfig(
                 config,
                 PipelineOptions.JARS,
