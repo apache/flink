@@ -52,21 +52,28 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
     The worker pool uses child thread for parallelism
     """
 
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = object.__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        self._worker_server = None
         self._parse_param_lock = threading.Lock()
+        self._worker_address = None
 
     def start(self):
-        worker_server = grpc.server(
-            thread_pool_executor.shared_unbounded_instance())
-        worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
-        beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
-        worker_server.start()
-        _LOGGER.info('Listening for workers at %s', worker_address)
+        if not self._worker_address:
+            worker_server = grpc.server(
+                thread_pool_executor.shared_unbounded_instance())
+            worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
+            beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
+            worker_server.start()
 
-        self._worker_server = worker_server
-        atexit.register(functools.partial(worker_server.stop, 1))
-        return worker_address
+            self._worker_address = worker_address
+            atexit.register(functools.partial(worker_server.stop, 1))
+        return self._worker_address
 
     def StartWorker(self,
                     start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
@@ -88,6 +95,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
     def _start_sdk_worker_main(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest):
         params = start_worker_request.params
+        base_dir = None
         self._parse_param_lock.acquire()
         if 'PYTHONPATH' in params:
             python_path_list = params['PYTHONPATH'].split(':')
@@ -95,6 +103,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             for path in python_path_list:
                 sys.path.insert(0, path)
         if '_PYTHON_WORKING_DIR' in params:
+            base_dir = os.getcwd()
             os.chdir(params['_PYTHON_WORKING_DIR'])
         os.environ.update(params)
         self._parse_param_lock.release()
@@ -146,5 +155,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             _LOGGER.exception('Python sdk harness failed: ')
             raise
         finally:
+            if base_dir:
+                os.chdir(base_dir)
             if fn_log_handler:
                 fn_log_handler.close()

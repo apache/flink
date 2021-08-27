@@ -49,10 +49,15 @@ from pyflink.util.java_utils import get_j_env_configuration
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
-        self.env = StreamExecutionEnvironment.get_execution_environment()
-        self.env.set_parallelism(2)
+        self.env = self.create_new_env()
         self.env._remote_mode = True
         self.test_sink = DataStreamTestSinkFunction()
+
+    @staticmethod
+    def create_new_env():
+        env = StreamExecutionEnvironment.get_execution_environment()
+        env.set_parallelism(2)
+        return env
 
     def test_get_config(self):
         execution_config = self.env.get_config()
@@ -338,6 +343,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file(self):
         import uuid
+        env = self.create_new_env()
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -348,11 +354,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep1 import add_two
             return add_two(value)
 
-        get_j_env_configuration(self.env._j_stream_execution_environment).\
+        get_j_env_configuration(env._j_stream_execution_environment).\
             setString("taskmanager.numberOfTaskSlots", "10")
-        self.env.add_python_file(python_file_path)
-        self.env._remote_mode = False
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        env.add_python_file(python_file_path)
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds = ds.map(plus_two_map, Types.LONG()) \
                .slot_sharing_group("data_stream") \
                .map(lambda i: i, Types.LONG()) \
@@ -367,9 +372,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             return add_three(value)
 
         t_env = StreamTableEnvironment.create(
-            stream_execution_environment=self.env,
+            stream_execution_environment=env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
-        self.env.add_python_file(python_file_path)
+        env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
         from pyflink.table.expressions import col
@@ -380,7 +385,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
              .add_sink(self.test_sink)
-        self.env.execute("test add_python_file")
+        env.execute("test add_python_file")
         result = self.test_sink.get_results(True)
         expected = ['6', '7', '8', '9', '10']
         result.sort()
@@ -389,6 +394,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file_2(self):
         import uuid
+        env = self.create_new_env()
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -399,11 +405,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep1 import add_two
             return add_two(value)
 
-        get_j_env_configuration(self.env._j_stream_execution_environment).\
+        get_j_env_configuration(env._j_stream_execution_environment).\
             setString("taskmanager.numberOfTaskSlots", "10")
-        self.env._remote_mode = False
-        self.env.add_python_file(python_file_path)
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        env.add_python_file(python_file_path)
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds = ds.map(plus_two_map, Types.LONG()) \
                .slot_sharing_group("data_stream") \
                .map(lambda i: i, Types.LONG()) \
@@ -418,9 +423,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             return add_three(value)
 
         t_env = StreamTableEnvironment.create(
-            stream_execution_environment=self.env,
+            stream_execution_environment=env,
             environment_settings=EnvironmentSettings.in_streaming_mode())
-        self.env.add_python_file(python_file_path)
+        env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
         from pyflink.table.expressions import col
@@ -442,9 +447,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.set_python_requirements(requirements_txt_path)
 
         def check_requirements(i):
-            import cloudpickle
-            assert os.path.abspath(cloudpickle.__file__).startswith(
-                os.environ['_PYTHON_REQUIREMENTS_INSTALL_DIR'])
+            import cloudpickle  # noqa # pylint: disable=unused-import
             return i
 
         ds = self.env.from_collection([1, 2, 3, 4, 5])
@@ -459,6 +462,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_requirements_with_cached_directory(self):
         import uuid
         tmp_dir = self.tempdir
+        env = self.create_new_env()
         requirements_txt_path = os.path.join(tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
             f.write("python-package1==0.0.0")
@@ -485,16 +489,15 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                 "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
                 "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
                 "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="))
-        self.env.set_python_requirements(requirements_txt_path, requirements_dir_path)
+        env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):
             from python_package1 import plus
             return plus(i, 1)
 
-        self.env._remote_mode = False
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_one).add_sink(self.test_sink)
-        self.env.execute("test set requirements with cachd dir")
+        env.execute("test set requirements with cachd dir")
         result = self.test_sink.get_results(True)
         expected = ['2', '3', '4', '5', '6']
         result.sort()
@@ -505,22 +508,22 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         import shutil
         tmp_dir = self.tempdir
+        env = self.create_new_env()
         archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
         os.mkdir(archive_dir_path)
         with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
             f.write("2")
         archive_file_path = \
             shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
-        self.env.add_python_archive(archive_file_path, "data")
+        env.add_python_archive(archive_file_path, "data")
 
         def add_from_file(i):
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
-        self.env._remote_mode = False
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(add_from_file).add_sink(self.test_sink)
-        self.env.execute("test set python archive")
+        env.execute("test set python archive")
         result = self.test_sink.get_results(True)
         expected = ['3', '4', '5', '6', '7']
         result.sort()
@@ -532,19 +535,19 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import sys
         python_exec = sys.executable
         tmp_dir = self.tempdir
+        env = self.create_new_env()
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")
         os.symlink(python_exec, python_exec_link_path)
-        self.env.set_python_executable(python_exec_link_path)
+        env.set_python_executable(python_exec_link_path)
 
         def check_python_exec(i):
             import os
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        self.env._remote_mode = False
-        ds = self.env.from_collection([1, 2, 3, 4, 5])
+        ds = env.from_collection([1, 2, 3, 4, 5])
         ds.map(check_python_exec).add_sink(self.test_sink)
-        self.env.execute("test set python executable")
+        env.execute("test set python executable")
         result = self.test_sink.get_results(True)
         expected = ['1', '2', '3', '4', '5']
         result.sort()
@@ -596,11 +599,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_generate_stream_graph_with_dependencies(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        env = self.create_new_env()
+        env._remote_mode = True
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_two(a):\n    return a + 2")
-        self.env.add_python_file(python_file_path)
+        env.add_python_file(python_file_path)
 
         def plus_two_map(value):
             from test_stream_dependency_manage_lib import add_two
@@ -610,10 +615,10 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             with open("data/data.txt", 'r') as f:
                 return i[0], i[1] + int(f.read())
 
-        from_collection_source = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1),
-                                                           ('e', 2)],
-                                                          type_info=Types.ROW([Types.STRING(),
-                                                                               Types.INT()]))
+        from_collection_source = env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1),
+                                                      ('e', 2)],
+                                                     type_info=Types.ROW([Types.STRING(),
+                                                                          Types.INT()]))
         from_collection_source.name("From Collection")
         keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
@@ -630,9 +635,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             f.write("3")
         archive_file_path = \
             shutil.make_archive(os.path.dirname(archive_dir_path), 'zip', archive_dir_path)
-        self.env.add_python_archive(archive_file_path, "data")
+        env.add_python_archive(archive_file_path, "data")
 
-        nodes = eval(self.env.get_execution_plan())['nodes']
+        nodes = eval(env.get_execution_plan())['nodes']
 
         # The StreamGraph should be as bellow:
         # Source: From Collection -> _stream_key_by_map_operator ->
@@ -657,7 +662,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         env_config_with_dependencies = dict(get_gateway().jvm.org.apache.flink.python.util
                                             .PythonConfigUtil.getEnvConfigWithDependencies(
-            self.env._j_stream_execution_environment).toMap())
+            env._j_stream_execution_environment).toMap())
 
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
