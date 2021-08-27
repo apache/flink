@@ -20,8 +20,8 @@
     <option name="links">
       <list>
         <IssueNavigationLink>
-		  <option name="issueRegexp" value="[A-Z]+\-\d+" />
-		  <option name="linkRegexp" value="https://issues.apache.org/jira/browse/$0" />
+          <option name="issueRegexp" value="[A-Z]+\-\d+" />
+          <option name="linkRegexp" value="https://issues.apache.org/jira/browse/$0" />
         </IssueNavigationLink>
           <IssueNavigationLink>
           <option name="issueRegexp" value="#(\d+)" />
