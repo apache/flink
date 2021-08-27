@@ -36,7 +36,6 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.AfterAll;
@@ -185,28 +184,24 @@ public class KafkaWriterITCase extends TestLogger {
      */
     @Test
     void testAbortOnClose() throws Exception {
+        Properties properties = getKafkaClientConfiguration();
         try (final KafkaWriter<Integer> writer =
-                createWriterWithConfiguration(
-                        getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
+                createWriterWithConfiguration(properties, DeliveryGuarantee.EXACTLY_ONCE)) {
             writer.write(1, SINK_WRITER_CONTEXT);
-            assertThat(drainAllRecordsFromTopic(topic, getKafkaClientConfiguration()), hasSize(0));
+            assertThat(drainAllRecordsFromTopic(topic, properties), hasSize(0));
         }
 
         try (final KafkaWriter<Integer> writer =
-                createWriterWithConfiguration(
-                        getKafkaClientConfiguration(), DeliveryGuarantee.EXACTLY_ONCE)) {
+                createWriterWithConfiguration(properties, DeliveryGuarantee.EXACTLY_ONCE)) {
             writer.write(2, SINK_WRITER_CONTEXT);
             List<KafkaCommittable> committables = writer.prepareCommit(false);
             writer.snapshotState(1L);
 
             // manually commit here, which would only succeed if the first transaction was aborted
             assertThat(committables, hasSize(1));
-            Properties properties = getKafkaClientConfiguration();
-            properties.setProperty(
-                    ProducerConfig.TRANSACTIONAL_ID_CONFIG,
-                    committables.get(0).getTransactionalId());
+            String transactionalId = committables.get(0).getTransactionalId();
             try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                    new FlinkKafkaInternalProducer<>(properties)) {
+                    new FlinkKafkaInternalProducer<>(properties, transactionalId)) {
                 producer.resumeTransaction(
                         committables.get(0).getProducerId(), committables.get(0).getEpoch());
                 producer.commitTransaction();
