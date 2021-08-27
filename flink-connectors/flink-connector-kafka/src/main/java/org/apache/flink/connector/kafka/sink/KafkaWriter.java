@@ -33,7 +33,6 @@ import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Metric;
@@ -229,13 +228,11 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     // -> create an internal kafka producer on our own and do not rely
                     // on
                     //    initTransactionalProducer().
-                    final Properties myConfig = new Properties();
-                    myConfig.putAll(kafkaProducerConfig);
-                    myConfig.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transaction);
                     LOG.info("Aborting Kafka transaction {}.", transaction);
                     FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer = null;
                     try {
-                        kafkaProducer = new FlinkKafkaInternalProducer<>(myConfig);
+                        kafkaProducer =
+                                new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transaction);
                         // it suffices to call initTransactions - this will abort any
                         // lingering transactions
                         kafkaProducer.initTransactions();
@@ -276,7 +273,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     return currentProducer;
                 }
                 final FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                        new FlinkKafkaInternalProducer<>(kafkaProducerConfig);
+                        new FlinkKafkaInternalProducer<>(kafkaProducerConfig, null);
                 initMetrics(producer);
                 closer.register(producer);
                 return producer;
@@ -336,36 +333,21 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
      */
     private FlinkKafkaInternalProducer<byte[], byte[]> createTransactionalProducer() {
         final long transactionalIdOffset = kafkaWriterState.getTransactionalIdOffset() + 1;
-        final Properties copiedProducerConfig = new Properties();
-        copiedProducerConfig.putAll(kafkaProducerConfig);
-        initTransactionalProducerConfig(
-                copiedProducerConfig,
-                transactionalIdOffset,
-                transactionalIdPrefix,
-                kafkaSinkContext.getParallelInstanceId());
+        String transactionalId =
+                TransactionalIdFactory.buildTransactionalId(
+                        transactionalIdPrefix,
+                        kafkaSinkContext.getParallelInstanceId(),
+                        transactionalIdOffset);
         final FlinkKafkaInternalProducer<byte[], byte[]> producer =
-                new FlinkKafkaInternalProducer<>(copiedProducerConfig);
+                new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transactionalId);
         producer.initTransactions();
         kafkaWriterState =
                 new KafkaWriterState(
                         transactionalIdPrefix,
                         kafkaSinkContext.getParallelInstanceId(),
                         transactionalIdOffset);
-        LOG.info(
-                "Created new transactional producer {}",
-                copiedProducerConfig.get(ProducerConfig.TRANSACTIONAL_ID_CONFIG));
+        LOG.info("Created new transactional producer {}", transactionalId);
         return producer;
-    }
-
-    private static void initTransactionalProducerConfig(
-            Properties producerConfig,
-            long transactionalIdOffset,
-            String transactionalIdPrefix,
-            int subtaskId) {
-        producerConfig.put(
-                ProducerConfig.TRANSACTIONAL_ID_CONFIG,
-                TransactionalIdFactory.buildTransactionalId(
-                        transactionalIdPrefix, subtaskId, transactionalIdOffset));
     }
 
     private void initMetrics(FlinkKafkaInternalProducer<byte[], byte[]> producer) {

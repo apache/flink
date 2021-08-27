@@ -17,8 +17,6 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.kafka.clients.producer.ProducerConfig;
-
 import javax.annotation.Nullable;
 
 import java.util.Objects;
@@ -50,8 +48,7 @@ class KafkaCommittable {
         return new KafkaCommittable(
                 producer.getProducerId(),
                 producer.getEpoch(),
-                producer.getKafkaProducerConfig()
-                        .getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG),
+                producer.getTransactionalId(),
                 producer);
     }
 
