@@ -33,17 +33,17 @@ Usually, Window join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/qu
 
 Currently, Window join requires the join on condition contains window starts equality of input tables and window ends equality of input tables.
 
-The following shows the syntax of the Window join statement:
+Window join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
+
+## INNER/LEFT/RIGHT/FULL OUTER 
+
+The following shows the syntax of the INNER/LEFT/RIGHT/FULL OUTER Window join statement.
 
 ```sql
 SELECT ...
 FROM L [LEFT|RIGHT|FULL OUTER] JOIN R -- L and R are relations applied windowing TVF
 ON L.window_start = R.window_start AND L.window_end = R.window_end AND ...
 ```
-
-Window join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
-
-## INNER/LEFT/RIGHT/FULL OUTER 
 
 The syntax of INNER/LEFT/RIGHT/FULL OUTER WINDOW JOIN are very similar with each other, we only give an example for FULL OUTER JOIN here.
 When performing a window join, all elements with a common key and a common tumbling window are joined together. We only give an example for a Window join which works on a Tumble Window TVF.
@@ -86,7 +86,7 @@ Flink SQL> SELECT * FROM RightTable;
 | 2020-04-15 12:05 |  4    |  R4  |
 +------------------+-------+------+
 
-Flink SQL> SELECT L.Id as L, R.Id as R, L.window_start, L.window_end
+Flink SQL> SELECT L.Num as L_Num, L.Id as L_Id, R.Num as R_Num, R.Id as R_Id, L.window_start, L.window_end
            FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) L
@@ -94,15 +94,15 @@ Flink SQL> SELECT L.Id as L, R.Id as R, L.window_start, L.window_end
                SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) R
            ON L.Num = R.Num AND L.window_start = R.window_start AND L.window_end = R.window_end;
-+--------+--------+---------------------+---------------------+
-|    L   |   R    |     window_start    |     window_end      |
-+--------+--------+---------------------+---------------------+
-|  L1    |  null  |   2020-04-15 12:00  |  2020-04-15 12:05   |
-|  null  |  R2    |   2020-04-15 12:00  |  2020-04-15 12:05   |
-|  L3    |  R3    |   2020-04-15 12:00  |  2020-04-15 12:05   |
-|  L2    |  null  |   2020-04-15 12:05  |  2020-04-15 12:10   |
-|  null  |  R4    |   2020-04-15 12:05  |  2020-04-15 12:10   |
-+--------+--------+---------------------+---------------------+
++--------+--------+--------+--------+---------------------+---------------------+
+|  L_Num |  L_Id  |  R_Num |  R_Id  |     window_start    |     window_end      |
++--------+--------+--------+--------+---------------------+---------------------+
+|  1     |  L1    |  null  |  null  |   2020-04-15 12:00  |  2020-04-15 12:05   |
+|  null  |  null  |  2     |  R2    |   2020-04-15 12:00  |  2020-04-15 12:05   |
+|  3     |  L3    |  3     |  R3    |   2020-04-15 12:00  |  2020-04-15 12:05   |
+|  2     |  L2    |  null  |  null  |   2020-04-15 12:05  |  2020-04-15 12:10   |
+|  null  |  null  |  4     |  R4    |   2020-04-15 12:05  |  2020-04-15 12:10   |
++--------+--------+--------+--------+---------------------+---------------------+
 ```
 
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
