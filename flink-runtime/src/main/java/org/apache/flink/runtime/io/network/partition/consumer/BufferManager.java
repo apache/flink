@@ -171,18 +171,25 @@ public class BufferManager implements BufferListener, BufferRecycler {
             }
 
             numRequiredBuffers = numRequired;
+            numRequestedBuffers = tryRequestBuffers();
+        }
+        return numRequestedBuffers;
+    }
 
-            while (bufferQueue.getAvailableBufferSize() < numRequiredBuffers
-                    && !isWaitingForFloatingBuffers) {
-                BufferPool bufferPool = inputChannel.inputGate.getBufferPool();
-                Buffer buffer = bufferPool.requestBuffer();
-                if (buffer != null) {
-                    bufferQueue.addFloatingBuffer(buffer);
-                    numRequestedBuffers++;
-                } else if (bufferPool.addBufferListener(this)) {
-                    isWaitingForFloatingBuffers = true;
-                    break;
-                }
+    private int tryRequestBuffers() {
+        assert Thread.holdsLock(bufferQueue);
+
+        int numRequestedBuffers = 0;
+        while (bufferQueue.getAvailableBufferSize() < numRequiredBuffers
+                && !isWaitingForFloatingBuffers) {
+            BufferPool bufferPool = inputChannel.inputGate.getBufferPool();
+            Buffer buffer = bufferPool.requestBuffer();
+            if (buffer != null) {
+                bufferQueue.addFloatingBuffer(buffer);
+                numRequestedBuffers++;
+            } else if (bufferPool.addBufferListener(this)) {
+                isWaitingForFloatingBuffers = true;
+                break;
             }
         }
         return numRequestedBuffers;
@@ -315,11 +322,13 @@ public class BufferManager implements BufferListener, BufferRecycler {
             return notificationResult;
         }
 
+        int numBuffers = 0;
         try {
             synchronized (bufferQueue) {
                 checkState(
                         isWaitingForFloatingBuffers,
                         "This channel should be waiting for floating buffers.");
+                isWaitingForFloatingBuffers = false;
 
                 // Important: make sure that we never add a buffer after releaseAllResources()
                 // released all buffers. Following scenarios exist:
@@ -330,22 +339,16 @@ public class BufferManager implements BufferListener, BufferRecycler {
                 // lock on bufferQueue to release buffers
                 if (inputChannel.isReleased()
                         || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
-                    isWaitingForFloatingBuffers = false;
                     return notificationResult;
                 }
 
                 bufferQueue.addFloatingBuffer(buffer);
+                notificationResult = NotificationResult.BUFFER_USED;
+                numBuffers += 1 + tryRequestBuffers();
                 bufferQueue.notifyAll();
-
-                if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
-                    isWaitingForFloatingBuffers = false;
-                    notificationResult = BufferListener.NotificationResult.BUFFER_USED_NO_NEED_MORE;
-                } else {
-                    notificationResult = BufferListener.NotificationResult.BUFFER_USED_NEED_MORE;
-                }
             }
 
-            inputChannel.notifyBufferAvailable(1);
+            inputChannel.notifyBufferAvailable(numBuffers);
         } catch (Throwable t) {
             inputChannel.setError(t);
         }
