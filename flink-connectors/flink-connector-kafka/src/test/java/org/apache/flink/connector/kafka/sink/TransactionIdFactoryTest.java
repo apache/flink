@@ -21,11 +21,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Optional;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TransactionalIdFactory}. */
 public class TransactionIdFactoryTest extends TestLogger {
@@ -34,41 +30,5 @@ public class TransactionIdFactoryTest extends TestLogger {
     public void testBuildTransactionalId() {
         final String expected = "prefix-0-2";
         assertEquals(expected, TransactionalIdFactory.buildTransactionalId("prefix", 0, 2L));
-    }
-
-    @Test
-    public void testParseStateFromIdWithNotEnoughDelimiters() {
-        final String transactionalId = "prefix-0";
-        assertFalse(TransactionalIdFactory.parseKafkaWriterState(transactionalId).isPresent());
-    }
-
-    @Test
-    public void testParseStateFromId() {
-        final String transactionalId = "prefix-0-2";
-        final Optional<KafkaWriterState> stateOpt =
-                TransactionalIdFactory.parseKafkaWriterState(transactionalId);
-        assertTrue(stateOpt.isPresent());
-        assertEquals(new KafkaWriterState("prefix", 0, 2L), stateOpt.get());
-    }
-
-    @Test
-    public void testParseStateFromIdWithPrefixContainingDelimiter() {
-        final String transactionalId = "prefix1-prefix2-0-2";
-        final Optional<KafkaWriterState> stateOpt =
-                TransactionalIdFactory.parseKafkaWriterState(transactionalId);
-        assertTrue(stateOpt.isPresent());
-        assertEquals(new KafkaWriterState("prefix1-prefix-2", 0, 2L), stateOpt.get());
-    }
-
-    @Test
-    public void testParseStateFromIdWithInvalidSubtaskId() {
-        final String transactionalId = "prefix-invalid-2";
-        assertFalse(TransactionalIdFactory.parseKafkaWriterState(transactionalId).isPresent());
-    }
-
-    @Test
-    public void testParseStateFromIdWithInvalidCheckpointOffset() {
-        final String transactionalId = "prefix-0-invalid";
-        assertFalse(TransactionalIdFactory.parseKafkaWriterState(transactionalId).isPresent());
     }
 }
