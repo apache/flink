@@ -28,17 +28,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 
-/** Tests for {@link PartitionReleaseStrategyFactoryLoader}. */
-public class PartitionReleaseStrategyFactoryLoaderTest {
+/** Tests for {@link PartitionGroupReleaseStrategyFactoryLoader}. */
+public class PartitionGroupReleaseStrategyFactoryLoaderTest {
 
     @Test
     public void featureEnabledByDefault() {
         final Configuration emptyConfiguration = new Configuration();
-        final PartitionReleaseStrategy.Factory factory =
-                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+        final PartitionGroupReleaseStrategy.Factory factory =
+                PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         emptyConfiguration);
 
-        assertThat(factory, is(instanceOf(RegionPartitionReleaseStrategy.Factory.class)));
+        assertThat(factory, is(instanceOf(RegionPartitionGroupReleaseStrategy.Factory.class)));
     }
 
     @Test
@@ -47,10 +47,11 @@ public class PartitionReleaseStrategyFactoryLoaderTest {
         emptyConfiguration.setBoolean(
                 JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION, false);
 
-        final PartitionReleaseStrategy.Factory factory =
-                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+        final PartitionGroupReleaseStrategy.Factory factory =
+                PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         emptyConfiguration);
 
-        assertThat(factory, is(instanceOf(NotReleasingPartitionReleaseStrategy.Factory.class)));
+        assertThat(
+                factory, is(instanceOf(NotReleasingPartitionGroupReleaseStrategy.Factory.class)));
     }
 }

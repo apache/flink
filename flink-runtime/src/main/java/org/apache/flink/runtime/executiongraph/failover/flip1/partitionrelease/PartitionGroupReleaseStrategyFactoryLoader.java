@@ -22,19 +22,19 @@ package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 
-/** Instantiates a {@link RegionPartitionReleaseStrategy}. */
-public final class PartitionReleaseStrategyFactoryLoader {
+/** Instantiates a {@link RegionPartitionGroupReleaseStrategy}. */
+public final class PartitionGroupReleaseStrategyFactoryLoader {
 
-    public static PartitionReleaseStrategy.Factory loadPartitionReleaseStrategyFactory(
+    public static PartitionGroupReleaseStrategy.Factory loadPartitionGroupReleaseStrategyFactory(
             final Configuration configuration) {
         final boolean partitionReleaseDuringJobExecution =
                 configuration.getBoolean(JobManagerOptions.PARTITION_RELEASE_DURING_JOB_EXECUTION);
         if (partitionReleaseDuringJobExecution) {
-            return new RegionPartitionReleaseStrategy.Factory();
+            return new RegionPartitionGroupReleaseStrategy.Factory();
         } else {
-            return new NotReleasingPartitionReleaseStrategy.Factory();
+            return new NotReleasingPartitionGroupReleaseStrategy.Factory();
         }
     }
 
-    private PartitionReleaseStrategyFactoryLoader() {}
+    private PartitionGroupReleaseStrategyFactoryLoader() {}
 }
