@@ -52,21 +52,28 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
     The worker pool uses child thread for parallelism
     """
 
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = object.__new__(cls)
+        return cls._instance
+
     def __init__(self):
-        self._worker_server = None
         self._parse_param_lock = threading.Lock()
+        self._worker_address = None
 
     def start(self):
-        worker_server = grpc.server(
-            thread_pool_executor.shared_unbounded_instance())
-        worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
-        beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
-        worker_server.start()
-        _LOGGER.info('Listening for workers at %s', worker_address)
+        if not self._worker_address:
+            worker_server = grpc.server(
+                thread_pool_executor.shared_unbounded_instance())
+            worker_address = 'localhost:%s' % worker_server.add_insecure_port('[::]:0')
+            beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(self, worker_server)
+            worker_server.start()
 
-        self._worker_server = worker_server
-        atexit.register(functools.partial(worker_server.stop, 1))
-        return worker_address
+            self._worker_address = worker_address
+            atexit.register(functools.partial(worker_server.stop, 1))
+        return self._worker_address
 
     def StartWorker(self,
                     start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
