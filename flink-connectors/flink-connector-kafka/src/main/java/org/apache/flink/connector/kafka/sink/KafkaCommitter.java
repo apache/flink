@@ -19,7 +19,6 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
 
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.slf4j.Logger;
@@ -79,15 +78,8 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
     private FlinkKafkaInternalProducer<?, ?> createProducer(KafkaCommittable committable) {
         FlinkKafkaInternalProducer<?, ?> producer =
                 new FlinkKafkaInternalProducer<>(
-                        createKafkaProducerConfig(committable.getTransactionalId()));
+                        kafkaProducerConfig, committable.getTransactionalId());
         producer.resumeTransaction(committable.getProducerId(), committable.getEpoch());
         return producer;
-    }
-
-    private Properties createKafkaProducerConfig(String transactionalId) {
-        final Properties copy = new Properties();
-        copy.putAll(kafkaProducerConfig);
-        copy.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
-        return copy;
     }
 }
