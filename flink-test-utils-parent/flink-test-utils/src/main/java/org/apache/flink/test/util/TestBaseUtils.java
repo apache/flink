@@ -32,7 +32,6 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -67,8 +66,6 @@ public class TestBaseUtils extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(TestBaseUtils.class);
 
     protected static final int MINIMUM_HEAP_SIZE_MB = 192;
-
-    protected static final long DEFAULT_AKKA_ASK_TIMEOUT = 1000;
 
     public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
@@ -137,20 +134,6 @@ public class TestBaseUtils extends TestLogger {
                                     new FileInputStream(files[i]), StandardCharsets.UTF_8));
         }
         return readers;
-    }
-
-    public static BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
-        return getResultInputStream(resultPath, new String[] {});
-    }
-
-    public static BufferedInputStream[] getResultInputStream(
-            String resultPath, String[] excludePrefixes) throws IOException {
-        File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
-        BufferedInputStream[] inStreams = new BufferedInputStream[files.length];
-        for (int i = 0; i < files.length; i++) {
-            inStreams[i] = new BufferedInputStream(new FileInputStream(files[i]));
-        }
-        return inStreams;
     }
 
     public static void readAllResultLines(List<String> target, String resultPath)
@@ -368,11 +351,6 @@ public class TestBaseUtils extends TestLogger {
         compareResult(result, expected, false, false);
     }
 
-    public static <T> void compareOrderedResultAsText(
-            List<T> result, String expected, boolean asTuples) {
-        compareResult(result, expected, asTuples, false);
-    }
-
     private static <T> void compareResult(
             List<T> result, String expected, boolean asTuples, boolean sort) {
         String[] expectedStrings = expected.split("\n");
@@ -477,10 +455,6 @@ public class TestBaseUtils extends TestLogger {
         }
         path += (forClass.getName() + "-" + folder);
         return path;
-    }
-
-    public static String constructTestURI(Class<?> forClass, String folder) {
-        return new File(constructTestPath(forClass, folder)).toURI().toString();
     }
 
     // ---------------------------------------------------------------------------------------------
