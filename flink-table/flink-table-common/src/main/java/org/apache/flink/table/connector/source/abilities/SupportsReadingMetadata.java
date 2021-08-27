@@ -20,7 +20,7 @@ package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -120,10 +120,10 @@ public interface SupportsReadingMetadata {
      * <p>Implementations of this method must be idempotent. The planner might call this method
      * multiple times.
      *
-     * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
-     * describing the final output data type when creating {@link TypeInformation}. If the source
-     * implements {@link SupportsProjectionPushDown}, the projection is already considered in the
-     * given output data type.
+     * <p>Note: Use the passed data type instead of {@link ResolvedSchema#toPhysicalRowDataType()}
+     * for describing the final output data type when creating {@link TypeInformation}. If the
+     * source implements {@link SupportsProjectionPushDown}, the projection is already considered in
+     * the given output data type.
      *
      * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
      *     by the iteration order of returned map
