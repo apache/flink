@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFacto
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.util.CloseableIterator;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestTemplate;
@@ -173,6 +174,7 @@ public abstract class SourceTestSuiteBase<T> {
      */
     @TestTemplate
     @DisplayName("Test source with at least one idle parallelism")
+    @Disabled
     public void testIdleReader(TestEnvironment testEnv, ExternalContext<T> externalContext)
             throws Exception {
 
