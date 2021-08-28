@@ -41,7 +41,7 @@ pygmentsUseClasses = true
   VersionTitle = "1.15-SNAPSHOT"
 
   # The branch for this version of Apache Flink
-  Branch = "master"
+  Branch = "release-1.14"
 
   # The github repository for Apache Flink
   Repo = "//github.com/apache/flink"
