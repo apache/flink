@@ -616,9 +616,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                 return i[0], i[1] + int(f.read())
 
         from_collection_source = env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1),
-                                                           ('e', 2)],
-                                                          type_info=Types.ROW([Types.STRING(),
-                                                                               Types.INT()]))
+                                                      ('e', 2)],
+                                                     type_info=Types.ROW([Types.STRING(),
+                                                                          Types.INT()]))
         from_collection_source.name("From Collection")
         keyed_stream = from_collection_source.key_by(lambda x: x[1], key_type=Types.INT())
 
