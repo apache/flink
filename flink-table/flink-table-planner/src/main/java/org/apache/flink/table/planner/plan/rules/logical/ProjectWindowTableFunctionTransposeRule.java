@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.utils.WindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -86,6 +87,13 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                 ImmutableBitSet.range(0, scanInputFieldCount)
                         .intersect(projectFields)
                         .set(windowingStrategy.getTimeAttributeIndex());
+        if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
+            SessionWindowSpec sessionWindowSpec = (SessionWindowSpec) windowingStrategy.getWindow();
+            int[] partitionKeyIndices = sessionWindowSpec.getPartitionKeyIndices();
+            for (int partitionKeyIndex : partitionKeyIndices) {
+                toPushFields = toPushFields.set(partitionKeyIndex);
+            }
+        }
         if (toPushFields.cardinality() == scanInputFieldCount) {
             return;
         }

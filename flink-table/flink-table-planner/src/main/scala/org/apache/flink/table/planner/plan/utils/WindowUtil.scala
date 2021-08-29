@@ -100,26 +100,31 @@ object WindowUtil {
 
   /**
    * Builds a new RexProgram on the input of window-tvf to exclude window columns,
-   * but include time attribute.
+   * but include time attribute, session window partition keys.
    *
    * The return tuple consists of 4 elements:
    * (1) the new RexProgram
    * (2) the field index shifting
    * (3) the new index of time attribute on the new RexProgram
    * (4) whether the time attribute is new added
+   * (5) the new indices of session window partition keys on the new RexProgram
+   * (6) whether the session window partition keys are new added
    */
   def buildNewProgramWithoutWindowColumns(
       rexBuilder: RexBuilder,
       oldProgram: RexProgram,
       inputRowType: RelDataType,
       inputTimeAttributeIndex: Int,
-      windowColumns: Array[Int]): (RexProgram, Array[Int], Int, Boolean) = {
+      windowColumns: Array[Int],
+      sessionWindowPartitionKeyIndices: Array[Int] = Array[Int]()
+    ): (RexProgram, Array[Int], Int, Boolean, Array[Int], Boolean) = {
     val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
     // mapping from original field index to new field index
     var containsTimeAttribute = false
     var newTimeAttributeIndex = -1
     val calcFieldShifting = ArrayBuffer[Int]()
-
+    var containsSessionWindowPartitionKeyIndices = false
+    var newSessionWindowPartitionKeyIndices = ArrayBuffer[Int]()
     oldProgram.getNamedProjects.foreach { namedProject =>
       val expr = oldProgram.expandLocalRef(namedProject.left)
       val name = namedProject.right
@@ -142,6 +147,9 @@ object WindowUtil {
             case ref: RexInputRef if ref.getIndex == inputTimeAttributeIndex =>
               containsTimeAttribute = true
               newTimeAttributeIndex = fieldIndex
+            case ref: RexInputRef if sessionWindowPartitionKeyIndices.contains(ref.getIndex) =>
+              containsSessionWindowPartitionKeyIndices = true
+              newSessionWindowPartitionKeyIndices += fieldIndex
             case _ => // nothing
           }
       }
@@ -161,7 +169,13 @@ object WindowUtil {
     }
 
     val program = programBuilder.getProgram()
-    (program, calcFieldShifting.toArray, newTimeAttributeIndex, !containsTimeAttribute)
+    (
+      program,
+      calcFieldShifting.toArray,
+      newTimeAttributeIndex,
+      !containsTimeAttribute,
+      newSessionWindowPartitionKeyIndices.toArray,
+      !containsSessionWindowPartitionKeyIndices)
   }
 
   /**
@@ -220,8 +234,19 @@ object WindowUtil {
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
 
       case FlinkSqlOperatorTable.SESSION =>
-        val gap = getOperandAsLong(windowCall.operands(2))
-        new SessionWindowSpec(Duration.ofMillis(gap))
+        val (partitionKeys, gapOpIdx) = if (windowCall.operands.size() == 4) {
+          val partitionKeysOp = windowCall.operands(2).asInstanceOf[RexCall]
+          val partitionKeyIndices = partitionKeysOp.getOperands.map {
+            case inputRef: RexInputRef => inputRef.getIndex
+            case _ =>
+              throw new TableException(s"Partition key of Session window must be input field!")
+          }
+          (partitionKeyIndices, 3)
+        } else {
+          (Seq(), 2)
+        }
+        val gap = getOperandAsLong(windowCall.operands(gapOpIdx))
+        new SessionWindowSpec(Duration.ofMillis(gap), partitionKeys.toArray)
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)

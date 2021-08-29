@@ -425,8 +425,9 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   }
 
   @Test
-  def testSession_OnRowtime(): Unit = {
-    // Session window does not two-phase optimization
+  def testContainInvalidGroupKeySessionWindow(): Unit = {
+    // Window aggregate group key could only contain window_start, window_end and partition keys
+    // of session window
     val sql =
       """
         |SELECT
@@ -442,7 +443,65 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |  SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
         |GROUP BY a, window_start, window_end
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage(
+      "Group keys of Window Aggregate should contain and only contain window_start," +
+        "window_end and partition keys of session window.\n" +
+        s"Session partition keys are [].\n" +
+        s"Window Aggregate group keys are [a, window_start, window_end]."
+    )
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testMissRequiredGroupKeySessionWindow(): Unit = {
+    // Window aggregate group key could only contain window_start, window_end and partition keys
+    // of session window
+    val sql =
+    """
+      |SELECT
+      |   window_start,
+      |   window_end,
+      |   count(*),
+      |   sum(d),
+      |   max(d) filter (where b > 1000),
+      |   weightedAvg(b, e) AS wAvg,
+      |   count(distinct c) AS uv
+      |FROM TABLE(
+      |  SESSION(TABLE MyTable, DESCRIPTOR(rowtime), DESCRIPTOR(b, a), INTERVAL '5' MINUTE))
+      |GROUP BY b, window_start, window_end
+      """.stripMargin
+
+    thrown.expectMessage(
+      "Group keys of Window Aggregate should contain and only contain window_start," +
+        "window_end and partition keys of session window.\n" +
+        s"Session partition keys are [b, a].\n" +
+        s"Window Aggregate group keys are [b, window_start, window_end]."
+    )
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testSession_OnRowtime(): Unit = {
+    // Session window does not two-phase optimization
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable, DESCRIPTOR(rowtime), DESCRIPTOR(a), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -460,7 +519,11 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |   weightedAvg(b, e) AS wAvg,
         |   count(distinct c) AS uv
         |FROM TABLE(
-        |  SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+        |  SESSION(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(proctime),
+        |    DESCRIPTOR(a),
+        |    INTERVAL '5' MINUTE))
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)
@@ -482,7 +545,11 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |   max(d) filter (where b > 1000),
         |   count(distinct c) AS uv
         |FROM TABLE(
-        |  SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+        |  SESSION(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(proctime),
+        |    DESCRIPTOR(a),
+        |    INTERVAL '5' MINUTE))
         |GROUP BY a, window_start, window_end
       """.stripMargin
     util.verifyRelPlan(sql)

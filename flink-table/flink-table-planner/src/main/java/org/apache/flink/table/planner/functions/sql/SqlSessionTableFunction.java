@@ -19,9 +19,14 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 /**
  * SqlSessionTableFunction implements an operator for session.
@@ -43,7 +48,7 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
     /** Operand type checker for SESSION. */
     private static class OperandMetadataImpl extends AbstractOperandMetadata {
         OperandMetadataImpl() {
-            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, PARAM_SESSION_GAP), 3);
+            super(ImmutableList.of(PARAM_DATA, PARAM_TIMECOL, PARAM_KEY, PARAM_SESSION_GAP), 3);
         }
 
         @Override
@@ -51,8 +56,23 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
             if (!checkTableAndDescriptorOperands(callBinding, 1)) {
                 return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
             }
-            if (!checkIntervalOperands(callBinding, 2)) {
+
+            final SqlValidator validator = callBinding.getValidator();
+            final SqlNode operand2 = callBinding.operand(2);
+            final RelDataType type2 = validator.getValidatedNodeType(operand2);
+            if (operand2.getKind() == SqlKind.DESCRIPTOR) {
+                final SqlNode operand0 = callBinding.operand(0);
+                final RelDataType type = validator.getValidatedNodeType(operand0);
+                validateColumnNames(
+                        validator, type.getFieldNames(), ((SqlCall) operand2).getOperandList());
+            } else if (!SqlTypeUtil.isInterval(type2)) {
                 return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+            }
+            if (callBinding.getOperandCount() > 3) {
+                final RelDataType type3 = validator.getValidatedNodeType(callBinding.operand(3));
+                if (!SqlTypeUtil.isInterval(type3)) {
+                    return throwValidationSignatureErrorOrReturnFalse(callBinding, throwOnFailure);
+                }
             }
             // check time attribute
             return throwExceptionOrReturnFalse(
@@ -61,7 +81,9 @@ public class SqlSessionTableFunction extends SqlWindowTableFunction {
 
         @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
-            return opName + "(TABLE table_name, DESCRIPTOR(timecol), datetime interval)";
+            return opName
+                    + "(TABLE table_name, DESCRIPTOR(timecol), "
+                    + "DESCRIPTOR(key) optional, datetime interval)";
         }
     }
 }

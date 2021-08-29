@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy
+import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, TimeAttributeWindowingStrategy}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalCalc, StreamPhysicalExchange, StreamPhysicalWindowAggregate, StreamPhysicalWindowTableFunction}
@@ -80,13 +81,21 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     //  1. transpose Calc and WindowTVF, build the new Calc node
     // -------------------------------------------------------------------------
     val windowColumns = fmq.getRelWindowProperties(windowTVF).getWindowColumns
-    val (newProgram, aggInputFieldsShift, timeAttributeIndex, _) =
+    val (isSessionWindow, sessionPartitionKeys) =
+      windowTVF.windowing.getWindow match {
+        case sessionWindowSpec: SessionWindowSpec =>
+          (true, sessionWindowSpec.getPartitionKeyIndices)
+        case _ =>
+          (false, Array[Int]())
+      }
+    val (newProgram, aggInputFieldsShift, timeAttributeIndex, _, newSessionPartitionKeys, _) =
       buildNewProgramWithoutWindowColumns(
         cluster.getRexBuilder,
         calc.getProgram,
         inputRowType,
         windowTVF.windowing.getTimeAttributeIndex,
-        windowColumns.toArray)
+        windowColumns.toArray,
+        sessionPartitionKeys)
     val newCalc = new StreamPhysicalCalc(
       cluster,
       calc.getTraitSet,
@@ -99,6 +108,14 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     // -------------------------------------------------------------------------
     val newGrouping = windowAgg.grouping
       .map(aggInputFieldsShift(_))
+    if (isSessionWindow) {
+      validateSessionWindow(
+        windowAgg,
+        windowTVF,
+        sessionPartitionKeys,
+        newSessionPartitionKeys,
+        newGrouping)
+    }
     val requiredDistribution = if (newGrouping.length != 0) {
       FlinkRelDistribution.hash(newGrouping, requireStrict = true)
     } else {
@@ -112,8 +129,14 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
     // -----------------------------------------------------------------------------
     //  3. Adjust aggregate arguments index and construct new window aggregate node
     // -----------------------------------------------------------------------------
+    val newWindowSpec = if (isSessionWindow) {
+      val gap = windowTVF.windowing.getWindow.asInstanceOf[SessionWindowSpec].getGap
+      new SessionWindowSpec(gap, newSessionPartitionKeys)
+    } else {
+      windowTVF.windowing.getWindow
+    }
     val newWindowing = new TimeAttributeWindowingStrategy(
-      windowTVF.windowing.getWindow,
+      newWindowSpec,
       windowTVF.windowing.getTimeAttributeType,
       timeAttributeIndex)
     val providedTraitSet = windowAgg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
@@ -141,6 +164,27 @@ class PullUpWindowTableFunctionIntoWindowAggregateRule
       windowAgg.namedWindowProperties)
 
     call.transformTo(newWindowAgg)
+  }
+
+  private def validateSessionWindow(
+      windowAgg: StreamPhysicalWindowAggregate,
+      windowTVF: StreamPhysicalWindowTableFunction,
+      sessionPartitionKeys: Array[Int],
+      newSessionPartitionKeys: Array[Int],
+      newGrouping: Array[Int]): Unit = {
+    if (sessionPartitionKeys.length != newSessionPartitionKeys.length ||
+      !newSessionPartitionKeys.sorted.sameElements(newGrouping.sorted)) {
+      val aggInputFieldNames = windowAgg.getInput.getRowType.getFieldNames
+      val groupKeyNames = windowAgg.grouping.map(aggInputFieldNames)
+      val windowTVFFieldNames = windowTVF.getRowType.getFieldNames
+      val partitionKeyNames = sessionPartitionKeys.map(windowTVFFieldNames.get)
+      throw new TableException(
+        "Group keys of Window Aggregate should contain and only contain window_start," +
+          "window_end and partition keys of session window.\n" +
+          s"Session partition keys are [${partitionKeyNames.mkString(", ")}].\n" +
+          s"Window Aggregate group keys are [${groupKeyNames.mkString(", ")}, " +
+          s"window_start, window_end].")
+    }
   }
 }
 

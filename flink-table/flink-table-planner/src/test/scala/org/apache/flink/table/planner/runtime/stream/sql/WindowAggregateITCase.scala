@@ -934,7 +934,11 @@ class WindowAggregateITCase(
         |  SUM(`int`),
         |  COUNT(DISTINCT name)
         |FROM TABLE(
-        |  SESSION(TABLE T, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
+        |  SESSION(
+        |    TABLE T,
+        |    DESCRIPTOR(rowtime),
+        |    DESCRIPTOR(`string`),
+        |    INTERVAL '0.005' SECOND))
         |GROUP BY `string`, window_start, window_end, window_time
       """.stripMargin
 
@@ -972,7 +976,11 @@ class WindowAggregateITCase(
         |   COUNT(DISTINCT b),
         |   window_end
         |FROM TABLE(
-        |  SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
+        |  SESSION(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(rowtime),
+        |    DESCRIPTOR(c),
+        |    INTERVAL '0.005' SECOND))
         |GROUP BY c, window_start, window_end
       """.stripMargin
     val sink = new TestingAppendSink

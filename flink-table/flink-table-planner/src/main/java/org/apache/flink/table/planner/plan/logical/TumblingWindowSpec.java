@@ -54,7 +54,7 @@ public class TumblingWindowSpec implements WindowSpec {
     }
 
     @Override
-    public String toSummaryString(String windowing) {
+    public String toSummaryString(String windowing, String[] inputFieldNames) {
         if (offset == null) {
             return String.format("TUMBLE(%s, size=[%s])", windowing, formatWithHighestUnit(size));
         } else {

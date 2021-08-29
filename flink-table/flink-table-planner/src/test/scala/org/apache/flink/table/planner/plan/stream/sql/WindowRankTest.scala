@@ -427,7 +427,12 @@ class WindowRankTest extends TableTestBase {
         |    max(d) filter (where b > 1000) as max_d,
         |    weightedAvg(b, e) AS wAvg,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable,
+        |      DESCRIPTOR(rowtime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |  )
         |)
@@ -455,7 +460,12 @@ class WindowRankTest extends TableTestBase {
         |    max(d) filter (where b > 1000) as max_d,
         |    weightedAvg(b, e) AS wAvg,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable,
+        |      DESCRIPTOR(proctime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |  )
         |)

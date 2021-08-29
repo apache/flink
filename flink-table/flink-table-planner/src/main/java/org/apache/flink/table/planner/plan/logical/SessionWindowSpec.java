@@ -23,7 +23,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
@@ -32,22 +34,43 @@ import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 @JsonTypeName("SessionWindow")
 public class SessionWindowSpec implements WindowSpec {
     public static final String FIELD_NAME_GAP = "gap";
+    public static final String FIELD_NAME_PARTITION_KEYS = "partition_key_indices";
 
     @JsonProperty(FIELD_NAME_GAP)
     private final Duration gap;
 
+    @JsonProperty(FIELD_NAME_PARTITION_KEYS)
+    private final int[] partitionKeyIndices;
+
     @JsonCreator
-    public SessionWindowSpec(@JsonProperty(FIELD_NAME_GAP) Duration gap) {
+    public SessionWindowSpec(
+            @JsonProperty(FIELD_NAME_GAP) Duration gap,
+            @JsonProperty(FIELD_NAME_PARTITION_KEYS) int[] partitionKeys) {
         this.gap = checkNotNull(gap);
+        this.partitionKeyIndices = partitionKeys;
     }
 
     @Override
-    public String toSummaryString(String windowing) {
-        return String.format("SESSION(%s, gap=[%s])", windowing, formatWithHighestUnit(gap));
+    public String toSummaryString(String windowing, String[] inputFieldNames) {
+        if (partitionKeyIndices.length == 0) {
+            return String.format("SESSION(%s, gap=[%s])", windowing, formatWithHighestUnit(gap));
+        } else {
+            String[] partitionKeyNames =
+                    IntStream.of(partitionKeyIndices)
+                            .mapToObj(idx -> inputFieldNames[idx])
+                            .toArray(String[]::new);
+            return String.format(
+                    "SESSION(%s, gap=[%s], partition keys=%s)",
+                    windowing, formatWithHighestUnit(gap), Arrays.toString(partitionKeyNames));
+        }
     }
 
     public Duration getGap() {
         return gap;
+    }
+
+    public int[] getPartitionKeyIndices() {
+        return partitionKeyIndices;
     }
 
     @Override
@@ -59,16 +82,22 @@ public class SessionWindowSpec implements WindowSpec {
             return false;
         }
         SessionWindowSpec that = (SessionWindowSpec) o;
-        return gap.equals(that.gap);
+        return gap.equals(that.gap) && Arrays.equals(partitionKeyIndices, that.partitionKeyIndices);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(SessionWindowSpec.class, gap);
+        return Objects.hash(SessionWindowSpec.class, gap, partitionKeyIndices);
     }
 
     @Override
     public String toString() {
-        return String.format("SESSION(gap=[%s])", formatWithHighestUnit(gap));
+        if (partitionKeyIndices.length == 0) {
+            return String.format("SESSION(gap=[%s])", formatWithHighestUnit(gap));
+        } else {
+            return String.format(
+                    "SESSION(gap=[%s], partitionKeys=[%s])",
+                    formatWithHighestUnit(gap), Arrays.toString(partitionKeyIndices));
+        }
     }
 }

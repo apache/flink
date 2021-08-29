@@ -957,7 +957,12 @@ class WindowJoinTest extends TableTestBase {
         |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable,
+        |      DESCRIPTOR(rowtime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |) L
         |JOIN (
@@ -968,7 +973,12 @@ class WindowJoinTest extends TableTestBase {
         |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable2,
+        |      DESCRIPTOR(rowtime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
@@ -989,7 +999,12 @@ class WindowJoinTest extends TableTestBase {
         |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable,
+        |      DESCRIPTOR(proctime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |) L
         |JOIN (
@@ -1000,7 +1015,12 @@ class WindowJoinTest extends TableTestBase {
         |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
-        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  FROM TABLE(
+        |    SESSION(
+        |      TABLE MyTable2,
+        |      DESCRIPTOR(proctime),
+        |      DESCRIPTOR(a),
+        |      INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a

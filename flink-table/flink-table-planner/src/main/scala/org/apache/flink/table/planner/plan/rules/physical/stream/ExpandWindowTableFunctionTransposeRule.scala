@@ -129,7 +129,7 @@ class ExpandWindowTableFunctionTransposeRule
     //  1. transpose Calc and WindowTVF, build the new Calc node (the top node)
     // -------------------------------------------------------------------------
     val windowColumns = fmq.getRelWindowProperties(windowTVF).getWindowColumns
-    val (newProgram, fieldShifting, newTimeField, timeFieldAdded) =
+    val (newProgram, fieldShifting, newTimeField, timeFieldAdded, _, _) =
       buildNewProgramWithoutWindowColumns(
         cluster.getRexBuilder,
         calc.getProgram,

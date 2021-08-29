@@ -182,6 +182,29 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
+    public void testEventTimeSessionWindow() throws Exception {
+        createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
+        String jsonPlan =
+                tableEnv.getJsonPlan(
+                        "insert into MySink select\n"
+                                + "  name,\n"
+                                + "  COUNT(*)\n"
+                                + "FROM TABLE(\n"
+                                + "  SESSION(\n"
+                                + "     TABLE MyTable,\n"
+                                + "     DESCRIPTOR(rowtime),\n"
+                                + "     DESCRIPTOR(name),\n"
+                                + "     INTERVAL '5' SECOND))"
+                                + "GROUP BY name, window_start, window_end");
+        tableEnv.executeJsonPlan(jsonPlan).await();
+
+        List<String> result = TestValuesTableFactory.getResults("MySink");
+        assertResult(
+                Arrays.asList("+I[a, 6]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),
+                result);
+    }
+
+    @Test
     public void testDistinctSplitEnabled() throws Exception {
         tableEnv.getConfig()
                 .getConfiguration()
