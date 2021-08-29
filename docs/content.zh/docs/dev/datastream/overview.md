@@ -182,7 +182,7 @@ final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().
 示例程序
 ---------------
 
-如下是一个完整、可运行的程序示例，它是基于流窗口的单词统计应用程序，计算 5 秒窗口内来自 Web 套接字的单词数。你可以复制并粘贴代码以在本地运行。
+如下是一个完整的、可运行的程序示例，它是基于流窗口的单词统计应用程序，计算 5 秒窗口内来自 Web 套接字的单词数。你可以复制并粘贴代码以在本地运行。
 
 {{< tabs "7ef5e21b-c24f-404f-af39-e21231b15e0d" >}}
 {{< tab "Java" >}}
