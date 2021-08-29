@@ -161,7 +161,7 @@ print()
 
 一旦指定了完整的程序，需要调用 `StreamExecutionEnvironment` 的 `execute()` 方法来**触发程序执行**。根据 `ExecutionEnvironment` 的类型，执行会在你的本地机器上触发，或将你的程序提交到某个集群上执行。
 
-`execute()` 方法将等待作业完成，然后返回一个 `JobExecutionResult` ，其中包含执行时间和累加器结果。
+`execute()` 方法将等待作业完成，然后返回一个 `JobExecutionResult`，其中包含执行时间和累加器结果。
 
 如果不想等待作业完成，可以通过调用 `StreamExecutionEnvironment` 的 `executeAsync()` 方法来触发作业异步执行。它会返回一个 `JobClient` ，你可以通过它与刚刚提交的作业进行通信。如下是使用 `executeAsync()` 实现 `execute()` 语义的示例。
 
