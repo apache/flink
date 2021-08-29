@@ -281,7 +281,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 - `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径 `path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出（watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
     *实现：*
 
