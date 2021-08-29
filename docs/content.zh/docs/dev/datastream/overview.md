@@ -316,8 +316,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
-
+Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你仍然可以通过实现 `SourceFunction` 接口编写自定义的非并行 source，也可以通过实现 `ParallelSourceFunction` 接口或者继承 `RichParallelSourceFunction` 类编写自定义的并行 sources。
 通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
 基于文件：
@@ -326,7 +325,7 @@ Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutio
 
 - `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径`path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出 （watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径 `path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出（watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
 
     *实现：*
 
@@ -336,7 +335,7 @@ Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutio
 
     1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 “精确一次” 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
 基于套接字：
 
