@@ -171,9 +171,9 @@ final JobClient jobClient = env.executeAsync();
 final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
 ```
 
-关于程序执行的最后一部分对于理解何时以及如何执行 Flink 算子是至关重要的。所有 Flink 程序都是惰性执行的：当程序的 main 方法被执行时，数据加载和转换不会直接发生。相反，每个算子都被创建并添加到 dataflow 形成的有向图。当执行被执行环境的 `execute()` 方法显示地触发时，这些算子才会真正执行。程序是在本地执行还是在集群上执行取决于执行环境的类型。
+关于程序执行的最后一部分对于理解何时以及如何执行 Flink 算子是至关重要的。所有 Flink 程序都是延迟执行的：当程序的 main 方法被执行时，数据加载和转换不会直接发生。相反，每个算子都被创建并添加到 dataflow 形成的有向图。当执行被执行环境的 `execute()` 方法显示地触发时，这些算子才会真正执行。程序是在本地执行还是在集群上执行取决于执行环境的类型。
 
-惰性计算让你构建复杂的程序，Flink 将其作为一个整体规划的单元来执行。
+延迟计算允许你构建复杂的程序，Flink 会将其作为一个整体的计划单元来执行。
 
 {{< top >}}
 
