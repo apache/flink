@@ -938,7 +938,7 @@ public class DataStream<T> {
     }
 
     /**
-     * Writes a DataStream to the standard output stream (stderr).
+     * Writes a DataStream to the standard error stream (stderr).
      *
      * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
      *
@@ -971,7 +971,7 @@ public class DataStream<T> {
     }
 
     /**
-     * Writes a DataStream to the standard output stream (stderr).
+     * Writes a DataStream to the standard error stream (stderr).
      *
      * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
      *
