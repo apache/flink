@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -132,7 +133,8 @@ class LocalBufferPool implements BufferPool {
      * @param networkBufferPool global network buffer pool to get buffers from
      * @param numberOfRequiredMemorySegments minimum number of network buffers
      */
-    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
+    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments)
+            throws IOException {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
@@ -152,7 +154,8 @@ class LocalBufferPool implements BufferPool {
     LocalBufferPool(
             NetworkBufferPool networkBufferPool,
             int numberOfRequiredMemorySegments,
-            int maxNumberOfMemorySegments) {
+            int maxNumberOfMemorySegments)
+            throws Exception {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
@@ -176,7 +179,8 @@ class LocalBufferPool implements BufferPool {
             int numberOfRequiredMemorySegments,
             int maxNumberOfMemorySegments,
             int numberOfSubpartitions,
-            int maxBuffersPerChannel) {
+            int maxBuffersPerChannel)
+            throws IOException {
         checkArgument(
                 numberOfRequiredMemorySegments > 0,
                 "Required number of memory segments (%s) should be larger than 0.",
@@ -215,9 +219,13 @@ class LocalBufferPool implements BufferPool {
         // Lock is only taken, because #checkAvailability asserts it. It's a small penalty for
         // thread safety.
         synchronized (this.availableMemorySegments) {
-            if (checkAvailability()) {
-                availabilityHelper.resetAvailable();
-            }
+            // Make sure that this buffer pool always has one buffer on initialization. For input
+            // side, it guarantees that the buffer listeners can get floating buffers properly and
+            // no deadlock will occur (see FLINK-24035 for more information). For output side, it
+            // means all result partitions will be available and ready for output on initialization.
+            availableMemorySegments.add(networkBufferPool.requestMemorySegmentBlocking());
+            ++numberOfRequestedMemorySegments;
+            availabilityHelper.resetAvailable();
 
             checkConsistentAvailability();
         }
