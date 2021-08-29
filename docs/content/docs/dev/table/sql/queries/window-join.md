@@ -1,6 +1,6 @@
 ---
 title: "Window JOIN"
-weight: 15
+weight: 10
 type: docs
 ---
 <!--
