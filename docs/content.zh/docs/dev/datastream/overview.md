@@ -271,7 +271,7 @@ Data Sources
 {{< tabs "8104e62c-db79-40b0-8519-0063e9be791f" >}}
 {{< tab "Java" >}}
 
-Source 是你程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你总是可以编写自定义的 source，可以为非并行 source 实现 `SourceFunction` 接口，也可以为并行 source 实现 `ParallelSourceFunction` 接口或继承 `RichParallelSourceFunction`。
+Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你仍然可以通过实现 `SourceFunction` 接口编写自定义的非并行 source，也可以通过实现 `ParallelSourceFunction` 接口或者继承 `RichParallelSourceFunction` 类编写自定义的并行 sources。
 
 通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
 
