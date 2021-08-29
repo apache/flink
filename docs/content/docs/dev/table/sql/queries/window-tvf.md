@@ -295,7 +295,7 @@ The `SESSION` function specifies session gap which defines how long the period o
 
 The `SESSION` functions assign windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `SESSION` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
-`SESSION` takes three required parameters.
+`SESSION` takes three required parameters and one optional parameter.
 
 ```sql
 SESSION(TABLE data, DESCRIPTOR(timecol), gap)
@@ -303,6 +303,7 @@ SESSION(TABLE data, DESCRIPTOR(timecol), gap)
 
 - `data`: is a table parameter that can be any relation with an time attribute column.
 - `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to session windows.
+- `KEY`: is an optional parameter. If does not specify `key`, Session window is applied for all input records, otherwise, Session window is applied per key.
 - `gap`: is a duration specifying how long the period of inactivity is. When this period expires, the current session closes and subsequent elements are assigned to a new session window.
 
 Here is an example invocation on the Bid table:
