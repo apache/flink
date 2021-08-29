@@ -28,14 +28,18 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.FieldSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
-
-import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -52,7 +56,33 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public abstract class FieldAccessor<T, F> implements Serializable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(FieldAccessor.class);
+
     private static final long serialVersionUID = 1L;
+
+    private static final MethodHandle productElement = tryLoadProductElement();
+
+    private static MethodHandle tryLoadProductElement() {
+        try {
+            final MethodHandles.Lookup lookup = MethodHandles.lookup();
+            final Class<?> productClass = Class.forName("scala.Product");
+            final MethodType methodType = MethodType.methodType(Object.class, int.class);
+            return lookup.findVirtual(productClass, "productElement", methodType);
+        } catch (Exception e) {
+            LOG.warn("Cannot load productElement method of scala.Product.", e);
+        }
+        return null;
+    }
+
+    private static Object productElement(Object product, int pos) {
+        try {
+            assert productElement != null;
+            return productElement.invoke(product, pos);
+        } catch (Throwable e) {
+            LOG.warn("Cannot load productElement method of scala.Product.", e);
+            throw new RuntimeException(e);
+        }
+    }
 
     protected TypeInformation fieldType;
 
@@ -69,6 +99,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
      * Gets the value of the field (specified in the constructor) of the given record.
      *
      * @param record The record on which the field will be accessed
+     *
      * @return The value of the field.
      */
     public abstract F get(T record);
@@ -81,8 +112,9 @@ public abstract class FieldAccessor<T, F> implements Serializable {
      *
      * @param record The record to modify
      * @param fieldValue The new value of the field
+     *
      * @return A record that has the given field value. (this might be a new instance or the
-     *     original)
+     *         original)
      */
     public abstract T set(T record, F fieldValue);
 
@@ -256,8 +288,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @Override
         public F get(T pojo) {
             try {
-                @SuppressWarnings("unchecked")
-                final R inner = (R) field.get(pojo);
+                @SuppressWarnings("unchecked") final R inner = (R) field.get(pojo);
                 return innerAccessor.get(inner);
             } catch (IllegalAccessException iaex) {
                 // The Field class is transient and when deserializing its value we also make it
@@ -274,8 +305,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @Override
         public T set(T pojo, F valueToSet) {
             try {
-                @SuppressWarnings("unchecked")
-                final R inner = (R) field.get(pojo);
+                @SuppressWarnings("unchecked") final R inner = (R) field.get(pojo);
                 field.set(pojo, innerAccessor.set(inner, valueToSet));
                 return pojo;
             } catch (IllegalAccessException iaex) {
@@ -337,15 +367,13 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @SuppressWarnings("unchecked")
         @Override
         public F get(T record) {
-            Product prod = (Product) record;
-            return (F) prod.productElement(pos);
+            return (F) productElement(record, pos);
         }
 
         @Override
         public T set(T record, F fieldValue) {
-            Product prod = (Product) record;
             for (int i = 0; i < length; i++) {
-                fields[i] = prod.productElement(i);
+                fields[i] = productElement(record, i);
             }
             fields[pos] = fieldValue;
             return serializer.createInstance(fields);
@@ -390,15 +418,14 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @SuppressWarnings("unchecked")
         @Override
         public F get(T record) {
-            return innerAccessor.get((R) ((Product) record).productElement(pos));
+            return innerAccessor.get((R) productElement(record, pos));
         }
 
         @SuppressWarnings("unchecked")
         @Override
         public T set(T record, F fieldValue) {
-            Product prod = (Product) record;
             for (int i = 0; i < length; i++) {
-                fields[i] = prod.productElement(i);
+                fields[i] = productElement(record, i);
             }
             fields[pos] = innerAccessor.set((R) fields[pos], fieldValue);
             return serializer.createInstance(fields);
