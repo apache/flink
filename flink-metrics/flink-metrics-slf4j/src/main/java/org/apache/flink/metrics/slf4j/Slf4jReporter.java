@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ConcurrentModificationException;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /** {@link MetricReporter} that exports {@link Metric Metrics} via SLF4J {@link Logger}. */
 @InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.slf4j.Slf4jReporterFactory")
@@ -76,11 +77,11 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
     public void report() {
         try {
             tryReport();
-        } catch (ConcurrentModificationException ignored) {
+        } catch (ConcurrentModificationException | NoSuchElementException ignored) {
             // at tryReport() we don't synchronize while iterating over the various maps which might
             // cause a
-            // ConcurrentModificationException to be thrown, if concurrently a metric is being added
-            // or removed.
+            // ConcurrentModificationException or NoSuchElementException to be thrown,
+            // if concurrently a metric is being added or removed.
         }
     }
 
