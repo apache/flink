@@ -33,6 +33,8 @@ import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -75,7 +77,7 @@ public class LocalBufferPoolTest extends TestLogger {
     @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Before
-    public void setupLocalBufferPool() {
+    public void setupLocalBufferPool() throws Exception {
         networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
         localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
@@ -98,6 +100,35 @@ public class LocalBufferPoolTest extends TestLogger {
     @AfterClass
     public static void shutdownExecutor() {
         executor.shutdownNow();
+    }
+
+    @Test
+    public void testLocalBufferPoolInitialization() throws Exception {
+        NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
+
+        BufferPool localBufferPool = networkBufferPool.createBufferPool(1, 2);
+        assertTrue(localBufferPool.isAvailable());
+        assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
+
+        // request all buffers
+        ArrayList<Buffer> buffers = new ArrayList<>(2);
+        buffers.add(localBufferPool.requestBuffer());
+        buffers.add(localBufferPool.requestBuffer());
+        assertEquals(2, buffers.size());
+
+        try {
+            networkBufferPool.createBufferPool(1, 10);
+        } catch (IOException exception) {
+            // this is expected
+            return;
+        } finally {
+            buffers.forEach(Buffer::recycleBuffer);
+            localBufferPool.lazyDestroy();
+            networkBufferPool.destroy();
+        }
+
+        fail("Should throw IOException");
     }
 
     @Test
@@ -368,7 +399,7 @@ public class LocalBufferPoolTest extends TestLogger {
     }
 
     @Test
-    public void testBoundedBuffer() {
+    public void testBoundedBuffer() throws Exception {
         localBufferPool.lazyDestroy();
 
         localBufferPool = new LocalBufferPool(networkBufferPool, 1, 2);
@@ -427,7 +458,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
     /** Moves around availability of a {@link LocalBufferPool} with varying capacity. */
     @Test
-    public void testMaxBuffersPerChannelAndAvailability() throws InterruptedException {
+    public void testMaxBuffersPerChannelAndAvailability() throws Exception {
         localBufferPool.lazyDestroy();
         localBufferPool = new LocalBufferPool(networkBufferPool, 1, Integer.MAX_VALUE, 3, 2);
         localBufferPool.setNumBuffers(10);
