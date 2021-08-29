@@ -446,10 +446,7 @@ $ ./bin/flink run-application \
         <tr>
             <td><code class="highlighter-rouge">-pyclientexec,--pyClientExecutable</code></td>
             <td>
-                The path of the Python interpreter used to launch the Python process when submitting
-                the Python jobs via \"flink run\" or compiling the Java/Scala jobs containing
-                Python UDFs.
-                (e.g., --pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
+                用于指定 Python 解释器的路径。当通过 <code class="highligher-rouge">flink run</code> 提交 Python 作业或编译包含 Python UDF 的 Java/Scala 作业时，使用该路径上的 Python 解释器启动 Python 进程。(示例，--pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
             </td>
         </tr>
         <tr>
