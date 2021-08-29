@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.mailbox;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 

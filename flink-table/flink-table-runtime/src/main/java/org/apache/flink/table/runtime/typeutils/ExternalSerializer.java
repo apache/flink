@@ -93,6 +93,14 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
                 dataType, InternalSerializers.create(dataType.getLogicalType()), isInternalInput);
     }
 
+    public DataType getDataType() {
+        return dataType;
+    }
+
+    public boolean isInternalInput() {
+        return isInternalInput;
+    }
+
     @Override
     public boolean isImmutableType() {
         return internalSerializer.isImmutableType();

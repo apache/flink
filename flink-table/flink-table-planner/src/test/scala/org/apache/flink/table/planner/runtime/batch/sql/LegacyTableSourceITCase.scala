@@ -170,7 +170,7 @@ class LegacyTableSourceITCase extends BatchTestBase {
       TestLegacyFilterableTableSource.defaultSchema,
       "FilterableTable",
       isBounded = true,
-      filterableFields = List("amount", "name"))
+      filterableFields = Set("amount", "name"))
     checkResult(
       "SELECT id, name FROM FilterableTable " +
         "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'",
@@ -336,8 +336,6 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableHint(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     val ddl =
       s"""
          |CREATE TABLE MyTable1 (

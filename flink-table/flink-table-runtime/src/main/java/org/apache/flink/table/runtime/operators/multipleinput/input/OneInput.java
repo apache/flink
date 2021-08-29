@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 
 /** {@link Input} for {@link OneInputStreamOperator}. */
@@ -51,7 +51,7 @@ public class OneInput extends InputBase {
     }
 
     @Override
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
-        operator.processStreamStatus(streamStatus);
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        operator.processWatermarkStatus(watermarkStatus);
     }
 }

@@ -170,9 +170,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
                         numCheckpointsToRetain,
                         zooKeeperStateHandleStoreMock,
                         zooKeeperCheckpointStoreUtil,
+                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                zooKeeperStateHandleStoreMock, zooKeeperCheckpointStoreUtil),
                         Executors.directExecutor());
-
-        zooKeeperCompletedCheckpointStore.recover();
 
         CompletedCheckpoint latestCompletedCheckpoint =
                 zooKeeperCompletedCheckpointStore.getLatestCheckpoint(false);
@@ -306,9 +306,9 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
                         numCheckpointsToRetain,
                         zooKeeperStateHandleStoreMock,
                         zooKeeperCheckpointStoreUtil,
+                        DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                                zooKeeperStateHandleStoreMock, zooKeeperCheckpointStoreUtil),
                         Executors.directExecutor());
-
-        zooKeeperCompletedCheckpointStore.recover();
 
         CompletedCheckpoint latestCompletedCheckpoint =
                 zooKeeperCompletedCheckpointStore.getLatestCheckpoint(true);

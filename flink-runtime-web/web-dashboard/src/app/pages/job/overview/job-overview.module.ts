@@ -32,9 +32,34 @@ import { JobOverviewListComponent } from './list/job-overview-list.component';
 import { JobOverviewDrawerSubtasksComponent } from './subtasks/job-overview-drawer-subtasks.component';
 import { JobOverviewDrawerTaskmanagersComponent } from './taskmanagers/job-overview-drawer-taskmanagers.component';
 import { JobOverviewDrawerWatermarksComponent } from './watermarks/job-overview-drawer-watermarks.component';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ShareModule, JobOverviewRoutingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ShareModule,
+    JobOverviewRoutingModule,
+    NzTableModule,
+    NzToolTipModule,
+    NzRadioModule,
+    NzSpinModule,
+    NzIconModule,
+    NzFormModule,
+    NzSelectModule,
+    NzDividerModule,
+    NzTabsModule,
+    NzDropDownModule
+  ],
   declarations: [
     JobOverviewComponent,
     JobOverviewDrawerComponent,

@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -58,8 +57,8 @@ public class ModuleManager {
     public ModuleManager() {
         this.loadedModules = new LinkedHashMap<>();
         this.usedModules = new ArrayList<>();
-        loadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
-        usedModules.add(MODULE_TYPE_CORE);
+        loadedModules.put(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
+        usedModules.add(CoreModuleFactory.IDENTIFIER);
     }
 
     /**

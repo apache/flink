@@ -27,8 +27,8 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.flink.shaded.guava18.com.google.common.escape.Escaper;
-import org.apache.flink.shaded.guava18.com.google.common.escape.Escapers;
+import org.apache.flink.shaded.guava30.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava30.com.google.common.escape.Escapers;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -287,7 +287,7 @@ public class BootstrapTools {
             Configuration configuration, @Nullable String defaultDirs) {
         if (configuration.contains(CoreOptions.TMP_DIRS)) {
             LOG.info(
-                    "Overriding Fink's temporary file directories with those "
+                    "Overriding Flink's temporary file directories with those "
                             + "specified in the Flink config: {}",
                     configuration.getValue(CoreOptions.TMP_DIRS));
         } else if (defaultDirs != null) {

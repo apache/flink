@@ -28,8 +28,6 @@ import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResu
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalculatorContext;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -46,6 +44,7 @@ import org.apache.flink.util.concurrent.Executors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -64,10 +63,9 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -114,6 +112,8 @@ public class PendingCheckpointTest {
     }
 
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
+    @Rule public final ExpectedException expectedException = ExpectedException.none();
 
     /** Tests that pending checkpoints can be subsumed iff they are forced. */
     @Test
@@ -549,112 +549,33 @@ public class PendingCheckpointTest {
     }
 
     @Test
-    public void testFinalizeCheckpointWithFullyFinishedOperators() throws Exception {
-        JobVertexID finishedJobVertexID = new JobVertexID();
-        JobVertexID runningJobVertexID = new JobVertexID();
-        OperatorID finishedOperatorID = new OperatorID();
-        OperatorID runningOperatorID = new OperatorID();
-
-        ExecutionGraph executionGraph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(
-                                finishedJobVertexID,
-                                1,
-                                256,
-                                Collections.singletonList(
-                                        OperatorIDPair.generatedIDOnly(finishedOperatorID)),
-                                true)
-                        .addJobVertex(
-                                runningJobVertexID,
-                                1,
-                                256,
-                                Collections.singletonList(
-                                        OperatorIDPair.generatedIDOnly(runningOperatorID)),
-                                true)
-                        .build();
-        executionGraph
-                .getJobVertex(finishedJobVertexID)
-                .getTaskVertices()[0]
-                .getCurrentExecutionAttempt()
-                .markFinished();
-        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
-        assertThat(pendingCheckpoint.getCheckpointPlan().getFullyFinishedJobVertex().size(), is(1));
+    public void testReportTaskFinishedOnRestore() throws IOException {
+        RecordCheckpointPlan recordCheckpointPlan =
+                new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
+        PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
+        checkpoint.acknowledgeTask(
+                ACK_TASKS.get(0).getAttemptId(),
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
+                new CheckpointMetrics(),
+                null);
         assertThat(
-                pendingCheckpoint
-                        .getCheckpointPlan()
-                        .getFullyFinishedJobVertex()
-                        .get(0)
-                        .getJobVertexId(),
-                is(finishedJobVertexID));
-
-        // Report the state for the running operator
-        ExecutionAttemptID runningTaskId =
-                executionGraph
-                        .getJobVertex(runningJobVertexID)
-                        .getTaskVertices()[0]
-                        .getCurrentExecutionAttempt()
-                        .getAttemptId();
-        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
-        taskStateSnapshot.putSubtaskStateByOperatorID(
-                runningOperatorID, new OperatorSubtaskState());
-        TaskAcknowledgeResult result =
-                pendingCheckpoint.acknowledgeTask(
-                        runningTaskId, taskStateSnapshot, new CheckpointMetrics(), null);
-        assertThat(result, is(TaskAcknowledgeResult.SUCCESS));
-
-        CompletedCheckpoint completedCheckpoint =
-                pendingCheckpoint.finalizeCheckpoint(
-                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
-        assertThat(completedCheckpoint.getOperatorStates().size(), is(2));
-        OperatorState finishedOperatorState =
-                completedCheckpoint.getOperatorStates().get(finishedOperatorID);
-        assertThat(finishedOperatorState.isFullyFinished(), is(true));
+                recordCheckpointPlan.getReportedFinishedOnRestoreTasks(),
+                contains(ACK_TASKS.get(0).getVertex()));
     }
 
     @Test
-    public void testReportFinishSnapshots() throws Exception {
-        JobVertexID jobVertexId = new JobVertexID();
-        OperatorID operatorId1 = new OperatorID();
-        OperatorID operatorId2 = new OperatorID();
-
-        ExecutionGraph executionGraph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(
-                                jobVertexId,
-                                2,
-                                2,
-                                Arrays.asList(
-                                        OperatorIDPair.generatedIDOnly(operatorId1),
-                                        OperatorIDPair.generatedIDOnly(operatorId2)),
-                                true)
-                        .build();
-        List<ExecutionAttemptID> runningTaskIds =
-                Arrays.stream(executionGraph.getJobVertex(jobVertexId).getTaskVertices())
-                        .map(task -> task.getCurrentExecutionAttempt().getAttemptId())
-                        .collect(Collectors.toList());
-        assertEquals(2, runningTaskIds.size());
-
-        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
-
-        for (ExecutionAttemptID attemptId : runningTaskIds) {
-            TaskAcknowledgeResult result =
-                    pendingCheckpoint.acknowledgeTask(
-                            attemptId, TaskStateSnapshot.FINISHED, new CheckpointMetrics(), null);
-            assertEquals(TaskAcknowledgeResult.SUCCESS, result);
-        }
-
-        // Here we should collect the snapshots of all the tasks
-        assertTrue(pendingCheckpoint.isFullyAcknowledged());
-        CompletedCheckpoint completedCheckpoint =
-                pendingCheckpoint.finalizeCheckpoint(
-                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
-
-        // Check that the operators are fully finished.
+    public void testReportTaskFinishedOperators() throws IOException {
+        RecordCheckpointPlan recordCheckpointPlan =
+                new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
+        PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
+        checkpoint.acknowledgeTask(
+                ACK_TASKS.get(0).getAttemptId(),
+                new TaskStateSnapshot(10, true),
+                new CheckpointMetrics(),
+                null);
         assertThat(
-                completedCheckpoint.getOperatorStates().keySet(),
-                containsInAnyOrder(operatorId1, operatorId2));
-        assertTrue(completedCheckpoint.getOperatorStates().get(operatorId1).isFullyFinished());
-        assertTrue(completedCheckpoint.getOperatorStates().get(operatorId2).isFullyFinished());
+                recordCheckpointPlan.getReportedOperatorsFinishedTasks(),
+                contains(ACK_TASKS.get(0).getVertex()));
     }
 
     // ------------------------------------------------------------------------
@@ -679,6 +600,17 @@ public class PendingCheckpointTest {
             throws IOException {
         return createPendingCheckpoint(
                 props, Collections.emptyList(), masterStateIdentifiers, Executors.directExecutor());
+    }
+
+    private PendingCheckpoint createPendingCheckpoint(CheckpointPlan checkpointPlan)
+            throws IOException {
+        return createPendingCheckpoint(
+                CheckpointProperties.forCheckpoint(
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                checkpointPlan,
+                Executors.directExecutor());
     }
 
     private PendingCheckpoint createPendingCheckpointWithCoordinators(OperatorInfo... coordinators)
@@ -718,6 +650,30 @@ public class PendingCheckpointTest {
             Executor executor)
             throws IOException {
 
+        final List<Execution> ackTasks = new ArrayList<>(ACK_TASKS);
+        final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
+        return createPendingCheckpoint(
+                props,
+                operatorCoordinators,
+                masterStateIdentifiers,
+                new DefaultCheckpointPlan(
+                        Collections.emptyList(),
+                        ackTasks,
+                        tasksToCommit,
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        true),
+                executor);
+    }
+
+    private PendingCheckpoint createPendingCheckpoint(
+            CheckpointProperties props,
+            Collection<OperatorID> operatorCoordinators,
+            Collection<String> masterStateIdentifiers,
+            CheckpointPlan checkpointPlan,
+            Executor executor)
+            throws IOException {
+
         final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
         final FsCheckpointStorageLocation location =
                 new FsCheckpointStorageLocation(
@@ -728,57 +684,15 @@ public class PendingCheckpointTest {
                         CheckpointStorageLocationReference.getDefault(),
                         1024,
                         4096);
-
-        final List<Execution> ackTasks = new ArrayList<>(ACK_TASKS);
-        final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
 
         return new PendingCheckpoint(
                 new JobID(),
                 0,
                 1,
-                new CheckpointPlan(
-                        Collections.emptyList(),
-                        ackTasks,
-                        tasksToCommit,
-                        Collections.emptyList(),
-                        Collections.emptyList()),
+                checkpointPlan,
                 operatorCoordinators,
                 masterStateIdentifiers,
                 props,
-                location,
-                new CompletableFuture<>());
-    }
-
-    private PendingCheckpoint createPendingCheckpoint(ExecutionGraph executionGraph)
-            throws Exception {
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
-                new DefaultCheckpointPlanCalculator(
-                        new JobID(),
-                        new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
-                        executionGraph.getVerticesTopologically());
-        checkpointPlanCalculator.setAllowCheckpointsAfterTasksFinished(true);
-        CheckpointPlan checkpointPlan = checkpointPlanCalculator.calculateCheckpointPlan().get();
-
-        final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
-        final FsCheckpointStorageLocation location =
-                new FsCheckpointStorageLocation(
-                        LocalFileSystem.getSharedInstance(),
-                        checkpointDir,
-                        checkpointDir,
-                        checkpointDir,
-                        CheckpointStorageLocationReference.getDefault(),
-                        1024,
-                        4096);
-
-        return new PendingCheckpoint(
-                executionGraph.getJobID(),
-                0,
-                1,
-                checkpointPlan,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                CheckpointProperties.forCheckpoint(
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                 location,
                 new CompletableFuture<>());
     }
@@ -861,6 +775,43 @@ public class PendingCheckpointTest {
         @Override
         public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
             return new StringSerializer();
+        }
+    }
+
+    private static class RecordCheckpointPlan extends DefaultCheckpointPlan {
+
+        private List<ExecutionVertex> reportedFinishedOnRestoreTasks = new ArrayList<>();
+
+        private List<ExecutionVertex> reportedOperatorsFinishedTasks = new ArrayList<>();
+
+        public RecordCheckpointPlan(List<Execution> tasksToWaitFor) {
+            super(
+                    Collections.emptyList(),
+                    tasksToWaitFor,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    true);
+        }
+
+        @Override
+        public void reportTaskFinishedOnRestore(ExecutionVertex task) {
+            super.reportTaskFinishedOnRestore(task);
+            reportedFinishedOnRestoreTasks.add(task);
+        }
+
+        @Override
+        public void reportTaskHasFinishedOperators(ExecutionVertex task) {
+            super.reportTaskHasFinishedOperators(task);
+            reportedOperatorsFinishedTasks.add(task);
+        }
+
+        public List<ExecutionVertex> getReportedFinishedOnRestoreTasks() {
+            return reportedFinishedOnRestoreTasks;
+        }
+
+        public List<ExecutionVertex> getReportedOperatorsFinishedTasks() {
+            return reportedOperatorsFinishedTasks;
         }
     }
 }

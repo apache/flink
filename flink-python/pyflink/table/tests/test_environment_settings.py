@@ -19,29 +19,10 @@ from pyflink.java_gateway import get_gateway
 
 from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, get_private_field
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class EnvironmentSettingsTests(PyFlinkTestCase):
-
-    def test_planner_selection(self):
-
-        builder = EnvironmentSettings.new_instance()
-
-        # test the default behaviour to make sure it is consistent with the python doc
-        environment_settings = builder.build()
-
-        self.check_blink_planner(environment_settings)
-
-        # test use_blink_planner
-        environment_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
-
-        self.check_blink_planner(environment_settings)
-
-        # test use_any_planner
-        environment_settings = builder.use_any_planner().build()
-
-        self.check_any_planner(environment_settings)
 
     def test_mode_selection(self):
 
@@ -114,29 +95,3 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         actual_setting = EnvironmentSettings.from_configuration(config)
         self.assertFalse(actual_setting.is_streaming_mode(), "Use batch mode.")
-
-    def check_blink_planner(self, settings: EnvironmentSettings):
-        gateway = get_gateway()
-        CLASS_NAME = gateway.jvm.EnvironmentSettings.CLASS_NAME
-
-        builder = EnvironmentSettings.new_instance()
-        BLINK_PLANNER_FACTORY = get_private_field(builder._j_builder, "BLINK_PLANNER_FACTORY")
-        BLINK_EXECUTOR_FACTORY = get_private_field(builder._j_builder, "BLINK_EXECUTOR_FACTORY")
-
-        self.assertEqual(
-            settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
-            BLINK_PLANNER_FACTORY)
-
-        self.assertEqual(
-            settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            BLINK_EXECUTOR_FACTORY)
-
-    def check_any_planner(self, settings: EnvironmentSettings):
-        gateway = get_gateway()
-        CLASS_NAME = gateway.jvm.EnvironmentSettings.CLASS_NAME
-
-        self.assertTrue(
-            CLASS_NAME not in settings._j_environment_settings.toPlannerProperties())
-
-        self.assertTrue(
-            CLASS_NAME not in settings._j_environment_settings.toExecutorProperties())

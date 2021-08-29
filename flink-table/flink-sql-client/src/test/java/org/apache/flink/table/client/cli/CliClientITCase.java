@@ -21,14 +21,13 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
-import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.apache.flink.shaded.guava18.com.google.common.io.PatternFilenameFilter;
+import org.apache.flink.shaded.guava30.com.google.common.io.PatternFilenameFilter;
 
 import org.apache.calcite.util.Util;
 import org.apache.commons.io.IOUtils;
@@ -143,7 +142,6 @@ public class CliClientITCase extends AbstractTestBase {
         final String sqlContent = String.join("\n", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
-                        new Environment(),
                         Collections.emptyList(),
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));

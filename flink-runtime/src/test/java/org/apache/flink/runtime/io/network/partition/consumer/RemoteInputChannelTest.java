@@ -60,7 +60,7 @@ import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -1845,6 +1845,36 @@ public class RemoteInputChannelTest {
                                             1,
                                             0);
                                 }));
+    }
+
+    @Test
+    public void testBuffersInUseCount() throws Exception {
+        // Setup
+        RemoteInputChannel remoteInputChannel = buildInputGateAndGetChannel();
+
+        final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
+
+        // Receiving the buffer with backlog.
+        remoteInputChannel.onBuffer(buffer.retainBuffer(), 0, 1);
+        // 1 buffer + 1 backlog.
+        assertEquals(2, remoteInputChannel.getBuffersInUseCount());
+
+        remoteInputChannel.onBuffer(buffer.retainBuffer(), 1, 3);
+        // 2 buffer + 3 backlog.
+        assertEquals(5, remoteInputChannel.getBuffersInUseCount());
+
+        // 1 buffer + 3 backlog.
+        remoteInputChannel.getNextBuffer();
+        assertEquals(4, remoteInputChannel.getBuffersInUseCount());
+
+        // 0 buffer + 3 backlog.
+        remoteInputChannel.getNextBuffer();
+        assertEquals(3, remoteInputChannel.getBuffersInUseCount());
+
+        // 0 buffer + 3 backlog. Nothing changes from previous case because receivedBuffers was
+        // already empty.
+        remoteInputChannel.getNextBuffer();
+        assertEquals(3, remoteInputChannel.getBuffersInUseCount());
     }
 
     /**

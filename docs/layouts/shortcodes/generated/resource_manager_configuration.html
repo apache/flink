@@ -51,6 +51,18 @@
             <td>The timeout for an idle task manager to be released.</td>
         </tr>
         <tr>
+            <td><h5>slotmanager.max-total-resource.cpu</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Maximum cpu cores the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.max-total-resource.memory</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Maximum memory size the Flink cluster allocates for slots. Resources for JobManager and TaskManager framework are excluded. If not configured, it will be derived from 'slotmanager.number-of-slots.max'.</td>
+        </tr>
+        <tr>
             <td><h5>slotmanager.number-of-slots.max</h5></td>
             <td style="word-wrap: break-word;">2147483647</td>
             <td>Integer</td>

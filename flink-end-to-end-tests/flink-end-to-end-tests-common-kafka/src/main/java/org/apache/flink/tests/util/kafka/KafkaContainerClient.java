@@ -106,7 +106,7 @@ public class KafkaContainerClient {
                         "Waiting for messages. Received {}/{}.",
                         messages.size(),
                         expectedNumMessages);
-                ConsumerRecords<Bytes, T> records = consumer.poll(Duration.ofMillis(100));
+                ConsumerRecords<Bytes, T> records = consumer.poll(Duration.ofMillis(1000));
                 for (ConsumerRecord<Bytes, T> record : records) {
                     messages.add(record.value());
                 }

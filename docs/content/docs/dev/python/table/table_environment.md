@@ -262,18 +262,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.sql_update" name="link">}}
       </td>
     </tr>
-    <tr>
-      <td>
-        <strong>connect(connector_descriptor)</strong>
-      </td>
-      <td>
-        Creates a temporary table from a descriptor. 
-        Currently the recommended way is using <strong>execute_sql</strong> to register temporary tables.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.connect" name="link">}}
-      </td>
-    </tr>
   </tbody>
 </table>
 
@@ -578,7 +566,7 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
       <td>
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{< ref "docs/deployment/config" >}}">Configuration</a> and
-        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuation</a>. <br> <br>
+        <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
         The following code is an example showing how to set the configuration options through this API:
 ```python
 # set the parallelism to 8

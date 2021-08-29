@@ -261,11 +261,15 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         final List<Transformation<?>> registeredTransformations = new ArrayList<>();
         Collections.addAll(registeredTransformations, transformations);
 
-        StreamGraphGenerator streamGraphGenerator =
-                new StreamGraphGenerator(
-                        registeredTransformations, new ExecutionConfig(), new CheckpointConfig());
-        streamGraphGenerator.setRuntimeExecutionMode(initMode);
-        return streamGraphGenerator.generate();
+        final Configuration configuration = new Configuration();
+        configuration.set(ExecutionOptions.RUNTIME_MODE, initMode);
+
+        return new StreamGraphGenerator(
+                        registeredTransformations,
+                        new ExecutionConfig(),
+                        new CheckpointConfig(),
+                        configuration)
+                .generate();
     }
 
     private SourceTransformation<Integer, ?, ?> getSourceTransformation(

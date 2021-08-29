@@ -25,9 +25,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
@@ -56,7 +56,7 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private transient long lastRecordTime;
 
-    private transient StreamStatus currentStatus = StreamStatus.ACTIVE;
+    private transient WatermarkStatus currentStatus = WatermarkStatus.ACTIVE;
 
     /**
      * Create a watermark assigner operator.
@@ -100,9 +100,9 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
-        if (idleTimeout > 0 && currentStatus.equals(StreamStatus.IDLE)) {
+        if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.IDLE)) {
             // mark the channel active
-            emitStreamStatus(StreamStatus.ACTIVE);
+            emitWatermarkStatus(WatermarkStatus.ACTIVE);
             lastRecordTime = getProcessingTimeService().getCurrentProcessingTime();
         }
         RowData row = element.getValue();
@@ -138,11 +138,11 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     public void onProcessingTime(long timestamp) throws Exception {
         advanceWatermark();
 
-        if (idleTimeout > 0 && currentStatus.equals(StreamStatus.ACTIVE)) {
+        if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.ACTIVE)) {
             final long currentTime = getProcessingTimeService().getCurrentProcessingTime();
             if (currentTime - lastRecordTime > idleTimeout) {
                 // mark the channel as idle to ignore watermarks from this channel
-                emitStreamStatus(StreamStatus.IDLE);
+                emitWatermarkStatus(WatermarkStatus.IDLE);
             }
         }
 
@@ -160,9 +160,9 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         // if we receive a Long.MAX_VALUE watermark we forward it since it is used
         // to signal the end of input and to not block watermark progress downstream
         if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
-            if (idleTimeout > 0 && currentStatus.equals(StreamStatus.IDLE)) {
+            if (idleTimeout > 0 && currentStatus.equals(WatermarkStatus.IDLE)) {
                 // mark the channel active
-                emitStreamStatus(StreamStatus.ACTIVE);
+                emitWatermarkStatus(WatermarkStatus.ACTIVE);
             }
             currentWatermark = Long.MAX_VALUE;
             output.emitWatermark(mark);
@@ -170,13 +170,13 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     }
 
     @Override
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
-        emitStreamStatus(streamStatus);
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        emitWatermarkStatus(watermarkStatus);
     }
 
-    private void emitStreamStatus(StreamStatus streamStatus) {
-        this.currentStatus = streamStatus;
-        output.emitStreamStatus(streamStatus);
+    private void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        this.currentStatus = watermarkStatus;
+        output.emitWatermarkStatus(watermarkStatus);
     }
 
     @Override

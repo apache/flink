@@ -26,6 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil
 
@@ -222,6 +223,8 @@ object BatchTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val fields = fieldNames.map((f: Array[String]) => f.map(ExpressionParser.parseExpression))
+    // for tests we know that this stream is definitely bounded
+    ExecNodeUtil.makeLegacySourceTransformationsBounded(boundedStream.getTransformation)
     TableTestUtil.createTemporaryView(
       tEnv,
       name,

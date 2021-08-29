@@ -127,7 +127,7 @@ public final class RocksDBMemoryConfiguration implements Serializable {
     /**
      * Gets whether the state backend is configured to use a fixed amount of memory shared between
      * all RocksDB instances (in all tasks and operators) of a slot. See {@link
-     * RocksDBOptions#USE_MANAGED_MEMORY} for details.
+     * RocksDBOptions#FIX_PER_SLOT_MEMORY_SIZE} for details.
      */
     public boolean isUsingFixedMemoryPerSlot() {
         return fixedMemoryPerSlot != null;

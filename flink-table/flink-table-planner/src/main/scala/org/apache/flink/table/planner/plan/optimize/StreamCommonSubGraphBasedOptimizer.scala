@@ -162,6 +162,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     programs.optimize(relNode, new StreamOptimizeContext() {
 
+      override def isBatchMode: Boolean = false
+
       override def getTableConfig: TableConfig = config
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog

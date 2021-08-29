@@ -26,7 +26,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.After;
@@ -74,12 +74,11 @@ public class KubernetesSharedInformerITCase extends TestLogger {
         client.deleteConfigMapsByLabels(labels).get();
     }
 
-    @Test(timeout = 60000)
+    @Test(timeout = 120000)
     public void testWatch() throws Exception {
 
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
-            watcher.run();
             for (int i = 0; i < 10; i++) {
                 List<TestingCallbackHandler> callbackHandlers = new ArrayList<>();
                 List<Watch> watchers = new ArrayList<>();
@@ -119,9 +118,8 @@ public class KubernetesSharedInformerITCase extends TestLogger {
     public void testWatchWithBlockHandler() throws Exception {
         try (KubernetesConfigMapSharedWatcher watcher =
                 client.createConfigMapSharedWatcher(labels)) {
-            watcher.run();
 
-            final String configMapName = getConfigMapName(0);
+            final String configMapName = getConfigMapName(System.currentTimeMillis());
             final long block = 500;
             final long maxUpdateVal = 30;
             final TestingBlockCallbackHandler handler =
@@ -132,7 +130,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
                 updateConfigMap(configMapName, ImmutableMap.of("val", String.valueOf(i)));
             }
             try {
-                handler.expectedFuture.get(60, TimeUnit.SECONDS);
+                handler.expectedFuture.get(120, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 fail("expected value: " + maxUpdateVal + ", actual: " + handler.val);
             }
@@ -197,7 +195,7 @@ public class KubernetesSharedInformerITCase extends TestLogger {
         }
     }
 
-    private String getConfigMapName(int id) {
+    private String getConfigMapName(long id) {
         return "shared-informer-test-cluster-" + id;
     }
 
@@ -274,15 +272,15 @@ public class KubernetesSharedInformerITCase extends TestLogger {
 
         @Override
         public void onAdded(List<KubernetesConfigMap> resources) {
-            onAddOrUpdated(resources);
+            onAddedOrModified(resources);
         }
 
         @Override
         public void onModified(List<KubernetesConfigMap> resources) {
-            onAddOrUpdated(resources);
+            onAddedOrModified(resources);
         }
 
-        private void onAddOrUpdated(List<KubernetesConfigMap> resources) {
+        private void onAddedOrModified(List<KubernetesConfigMap> resources) {
             final KubernetesConfigMap kubernetesConfigMap = resources.get(0);
             final String valData = kubernetesConfigMap.getData().get("val");
             if (valData == null) {

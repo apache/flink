@@ -23,7 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -60,8 +59,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
+import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -75,6 +76,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -85,7 +87,9 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.RunnableWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,6 +116,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_SAMPLES;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -122,7 +127,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * to consume input data, produce its results (intermediate result partitions) and communicate with
  * the JobManager.
  *
- * <p>The Flink operators (implemented as subclasses of {@link AbstractInvokable} have only data
+ * <p>The Flink operators (implemented as subclasses of {@link TaskInvokable} have only data
  * readers, writers, and certain event callbacks. The task connects those to the network stack and
  * actor messages, and tracks the state of the execution and handles exceptions.
  *
@@ -134,11 +139,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Each Task is run by one dedicated thread.
  */
 public class Task
-        implements Runnable,
-                TaskSlotPayload,
-                TaskActions,
-                PartitionProducerStateProvider,
-                CheckpointListener {
+        implements Runnable, TaskSlotPayload, TaskActions, PartitionProducerStateProvider {
 
     /** The class logger. */
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -274,7 +275,7 @@ public class Task
      * The invokable of this task, if initialized. All accesses must copy the reference and check
      * for null, as this field is cleared as part of the disposal logic.
      */
-    @Nullable private volatile AbstractInvokable invokable;
+    @Nullable private volatile TaskInvokable invokable;
 
     /** The current execution state of the task. */
     private volatile ExecutionState executionState = ExecutionState.CREATED;
@@ -293,6 +294,9 @@ public class Task
      * load user code.
      */
     private UserCodeClassLoader userCodeClassLoader;
+
+    /** The only one throughput meter per subtask. */
+    private ThroughputCalculator throughputCalculator;
 
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
@@ -417,11 +421,16 @@ public class Task
                         .toArray(new IndexedInputGate[0]);
 
         this.inputGates = new IndexedInputGate[gates.length];
+        this.throughputCalculator =
+                new ThroughputCalculator(
+                        SystemClock.getInstance(), taskConfiguration.get(BUFFER_DEBLOAT_SAMPLES));
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
                     new InputGateWithMetrics(
-                            gate, metrics.getIOMetricGroup().getNumBytesInCounter());
+                            gate,
+                            metrics.getIOMetricGroup().getNumBytesInCounter(),
+                            throughputCalculator);
         }
 
         if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
@@ -501,7 +510,7 @@ public class Task
 
     @Nullable
     @VisibleForTesting
-    AbstractInvokable getInvokable() {
+    TaskInvokable getInvokable() {
         return invokable;
     }
 
@@ -609,7 +618,7 @@ public class Task
         // all resource acquisitions and registrations from here on
         // need to be undone in the end
         Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
-        AbstractInvokable invokable = null;
+        TaskInvokable invokable = null;
 
         try {
             // ----------------------------
@@ -714,7 +723,8 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider);
+                            externalResourceInfoProvider,
+                            throughputCalculator);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable
@@ -753,33 +763,7 @@ public class Task
             // make sure the user code classloader is accessible thread-locally
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-            try {
-                // Restore invokable data to the last valid state
-                invokable.restore();
-            } finally {
-                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-            }
-
-            if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
-                throw new CancelTaskException();
-            }
-
-            // notify everyone that we switched to running
-            taskManagerActions.updateTaskExecutionState(
-                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
-
-            // Monitor user codes from exiting JVM covering user function invocation. This can be
-            // done in a finer-grained way like enclosing user callback functions individually,
-            // but as exit triggered by framework is not performed and expected in this invoke
-            // function anyhow, we can monitor exiting JVM for entire scope.
-            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
-            try {
-                // run the invokable
-                invokable.invoke();
-            } finally {
-                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
-            }
+            restoreAndInvoke(invokable);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
@@ -938,6 +922,45 @@ public class Task
         }
     }
 
+    private void restoreAndInvoke(TaskInvokable finalInvokable) throws Exception {
+        try {
+            runWithSystemExitMonitoring(finalInvokable::restore);
+
+            if (!transitionState(ExecutionState.INITIALIZING, ExecutionState.RUNNING)) {
+                throw new CancelTaskException();
+            }
+
+            // notify everyone that we switched to running
+            taskManagerActions.updateTaskExecutionState(
+                    new TaskExecutionState(executionId, ExecutionState.RUNNING));
+
+            runWithSystemExitMonitoring(finalInvokable::invoke);
+        } catch (Throwable throwable) {
+            try {
+                runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable));
+            } catch (Throwable cleanUpThrowable) {
+                throwable.addSuppressed(cleanUpThrowable);
+            }
+            throw throwable;
+        }
+        runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(null));
+    }
+
+    /**
+     * Monitor user codes from exiting JVM covering user function invocation. This can be done in a
+     * finer-grained way like enclosing user callback functions individually, but as exit triggered
+     * by framework is not performed and expected in this invoke function anyhow, we can monitor
+     * exiting JVM for entire scope.
+     */
+    private void runWithSystemExitMonitoring(RunnableWithException action) throws Exception {
+        FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+        try {
+            action.run();
+        } finally {
+            FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+        }
+    }
+
     @VisibleForTesting
     public static void setupPartitionsAndGates(
             ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
@@ -965,12 +988,15 @@ public class Task
 
         for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
             taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
-            if (isCanceledOrFailed()) {
-                partitionWriter.fail(getFailureCause());
-            }
         }
 
-        closeNetworkResources();
+        // close network resources
+        if (isCanceledOrFailed()) {
+            failAllResultPartitions();
+        }
+        closeAllResultPartitions();
+        closeAllInputGates();
+
         try {
             taskStateManager.close();
         } catch (Exception e) {
@@ -978,11 +1004,13 @@ public class Task
         }
     }
 
-    /**
-     * There are two scenarios to close the network resources. One is from {@link TaskCanceler} to
-     * early release partitions and gates. Another is from task thread during task exiting.
-     */
-    private void closeNetworkResources() {
+    private void failAllResultPartitions() {
+        for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+            partitionWriter.fail(getFailureCause());
+        }
+    }
+
+    private void closeAllResultPartitions() {
         for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
             try {
                 partitionWriter.close();
@@ -992,14 +1020,14 @@ public class Task
                         "Failed to release result partition for task {}.", taskNameWithSubtask, t);
             }
         }
+    }
 
-        AbstractInvokable invokable = this.invokable;
+    private void closeAllInputGates() {
+        TaskInvokable invokable = this.invokable;
         if (invokable == null || !invokable.isUsingNonBlockingInput()) {
-            // Cleanup resources instead of invokable if it is null,
-            // or prevent it from being blocked on input,
-            // or interrupt if it is already blocked.
-            // Not needed for StreamTask (which does NOT use blocking input); for which this could
-            // cause race conditions
+            // Cleanup resources instead of invokable if it is null, or prevent it from being
+            // blocked on input, or interrupt if it is already blocked. Not needed for StreamTask
+            // (which does NOT use blocking input); for which this could cause race conditions
             for (InputGate inputGate : inputGates) {
                 try {
                     inputGate.close();
@@ -1155,7 +1183,7 @@ public class Task
                     // we need to cancel the invokable
 
                     // copy reference to guard against concurrent null-ing out the reference
-                    final AbstractInvokable invokable = this.invokable;
+                    final TaskInvokable invokable = this.invokable;
 
                     if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
                         this.failureCause = cause;
@@ -1175,7 +1203,6 @@ public class Task
                         Runnable canceler =
                                 new TaskCanceler(
                                         LOG,
-                                        this::closeNetworkResources,
                                         taskCancellationTimeout > 0
                                                 ? taskCancellationTimeout
                                                 : TaskManagerOptions.TASK_CANCELLATION_TIMEOUT
@@ -1291,14 +1318,27 @@ public class Task
             final long checkpointTimestamp,
             final CheckpointOptions checkpointOptions) {
 
-        final AbstractInvokable invokable = this.invokable;
+        final TaskInvokable invokable = this.invokable;
         final CheckpointMetaData checkpointMetaData =
                 new CheckpointMetaData(
                         checkpointID, checkpointTimestamp, System.currentTimeMillis());
 
-        if (executionState == ExecutionState.RUNNING && invokable != null) {
+        if (executionState == ExecutionState.RUNNING) {
+            checkState(invokable instanceof CheckpointableTask, "invokable is not checkpointable");
             try {
-                invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
+                ((CheckpointableTask) invokable)
+                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions)
+                        .handle(
+                                (triggerResult, exception) -> {
+                                    if (exception != null || !triggerResult) {
+                                        declineCheckpoint(
+                                                checkpointID,
+                                                CheckpointFailureReason.TASK_FAILURE,
+                                                exception);
+                                        return false;
+                                    }
+                                    return true;
+                                });
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
@@ -1307,6 +1347,8 @@ public class Task
                         checkpointID,
                         taskNameWithSubtask,
                         executionId);
+                declineCheckpoint(
+                        checkpointID, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_CLOSING);
             } catch (Throwable t) {
                 if (getExecutionState() == ExecutionState.RUNNING) {
                     failExternally(
@@ -1333,23 +1375,36 @@ public class Task
                     executionId);
 
             // send back a message that we did not do the checkpoint
-            checkpointResponder.declineCheckpoint(
-                    jobId,
-                    executionId,
-                    checkpointID,
-                    new CheckpointException(
-                            "Task name with subtask : " + taskNameWithSubtask,
-                            CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
+            declineCheckpoint(
+                    checkpointID, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY);
         }
     }
 
-    @Override
-    public void notifyCheckpointComplete(final long checkpointID) {
-        final AbstractInvokable invokable = this.invokable;
+    private void declineCheckpoint(long checkpointID, CheckpointFailureReason failureReason) {
+        declineCheckpoint(checkpointID, failureReason, null);
+    }
 
-        if (executionState == ExecutionState.RUNNING && invokable != null) {
+    private void declineCheckpoint(
+            long checkpointID,
+            CheckpointFailureReason failureReason,
+            @Nullable Throwable failureCause) {
+        checkpointResponder.declineCheckpoint(
+                jobId,
+                executionId,
+                checkpointID,
+                new CheckpointException(
+                        "Task name with subtask : " + taskNameWithSubtask,
+                        failureReason,
+                        failureCause));
+    }
+
+    public void notifyCheckpointComplete(final long checkpointID) {
+        final TaskInvokable invokable = this.invokable;
+
+        if (executionState == ExecutionState.RUNNING) {
+            checkState(invokable instanceof CheckpointableTask, "invokable is not checkpointable");
             try {
-                invokable.notifyCheckpointCompleteAsync(checkpointID);
+                ((CheckpointableTask) invokable).notifyCheckpointCompleteAsync(checkpointID);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
@@ -1371,13 +1426,15 @@ public class Task
         }
     }
 
-    @Override
-    public void notifyCheckpointAborted(final long checkpointID) {
-        final AbstractInvokable invokable = this.invokable;
+    public void notifyCheckpointAborted(
+            final long checkpointID, final long latestCompletedCheckpointId) {
+        final TaskInvokable invokable = this.invokable;
 
-        if (executionState == ExecutionState.RUNNING && invokable != null) {
+        if (executionState == ExecutionState.RUNNING) {
+            checkState(invokable instanceof CheckpointableTask, "invokable is not checkpointable");
             try {
-                invokable.notifyCheckpointAbortAsync(checkpointID);
+                ((CheckpointableTask) invokable)
+                        .notifyCheckpointAbortAsync(checkpointID, latestCompletedCheckpointId);
             } catch (RejectedExecutionException ex) {
                 // This may happen if the mailbox is closed. It means that the task is shutting
                 // down, so we just ignore it.
@@ -1411,7 +1468,7 @@ public class Task
      */
     public void deliverOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> evt)
             throws FlinkException {
-        final AbstractInvokable invokable = this.invokable;
+        final TaskInvokable invokable = this.invokable;
         final ExecutionState currentState = this.executionState;
 
         if (invokable == null
@@ -1420,16 +1477,18 @@ public class Task
             throw new TaskNotRunningException("Task is not running, but in state " + currentState);
         }
 
-        try {
-            invokable.dispatchOperatorEvent(operator, evt);
-        } catch (Throwable t) {
-            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+        if (invokable instanceof CoordinatedTask) {
+            try {
+                ((CoordinatedTask) invokable).dispatchOperatorEvent(operator, evt);
+            } catch (Throwable t) {
+                ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
 
-            if (getExecutionState() == ExecutionState.RUNNING
-                    || getExecutionState() == ExecutionState.INITIALIZING) {
-                FlinkException e = new FlinkException("Error while handling operator event", t);
-                failExternally(e);
-                throw e;
+                if (getExecutionState() == ExecutionState.RUNNING
+                        || getExecutionState() == ExecutionState.INITIALIZING) {
+                    FlinkException e = new FlinkException("Error while handling operator event", t);
+                    failExternally(e);
+                    throw e;
+                }
             }
         }
     }
@@ -1438,7 +1497,7 @@ public class Task
     //  Utilities
     // ------------------------------------------------------------------------
 
-    private void cancelInvokable(AbstractInvokable invokable) {
+    private void cancelInvokable(TaskInvokable invokable) {
         // in case of an exception during execution, we still call "cancel()" on the task
         if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
             try {
@@ -1500,18 +1559,18 @@ public class Task
      * @throws Throwable Forwards all exceptions that happen during initialization of the task. Also
      *     throws an exception if the task class misses the necessary constructor.
      */
-    private static AbstractInvokable loadAndInstantiateInvokable(
+    private static TaskInvokable loadAndInstantiateInvokable(
             ClassLoader classLoader, String className, Environment environment) throws Throwable {
 
-        final Class<? extends AbstractInvokable> invokableClass;
+        final Class<? extends TaskInvokable> invokableClass;
         try {
             invokableClass =
-                    Class.forName(className, true, classLoader).asSubclass(AbstractInvokable.class);
+                    Class.forName(className, true, classLoader).asSubclass(TaskInvokable.class);
         } catch (Throwable t) {
             throw new Exception("Could not load the task's invokable class.", t);
         }
 
-        Constructor<? extends AbstractInvokable> statelessCtor;
+        Constructor<? extends TaskInvokable> statelessCtor;
 
         try {
             statelessCtor = invokableClass.getConstructor(Environment.class);
@@ -1555,26 +1614,23 @@ public class Task
      * This runner calls cancel() on the invokable, closes input-/output resources, and initially
      * interrupts the task thread.
      */
-    private static class TaskCanceler implements Runnable {
+    private class TaskCanceler implements Runnable {
 
         private final Logger logger;
-        private final Runnable networkResourcesCloser;
         /** Time to wait after cancellation and interruption before releasing network resources. */
         private final long taskCancellationTimeout;
 
-        private final AbstractInvokable invokable;
+        private final TaskInvokable invokable;
         private final Thread executer;
         private final String taskName;
 
         TaskCanceler(
                 Logger logger,
-                Runnable networkResourcesCloser,
                 long taskCancellationTimeout,
-                AbstractInvokable invokable,
+                TaskInvokable invokable,
                 Thread executer,
                 String taskName) {
             this.logger = logger;
-            this.networkResourcesCloser = networkResourcesCloser;
             this.taskCancellationTimeout = taskCancellationTimeout;
             this.invokable = invokable;
             this.executer = executer;
@@ -1607,7 +1663,12 @@ public class Task
                 // in order to unblock async Threads, which produce/consume the
                 // intermediate streams outside of the main Task Thread (like
                 // the Kafka consumer).
-                networkResourcesCloser.run();
+                // Notes: 1) This does not mean to release all network resources,
+                // the task thread itself will release them; 2) We can not close
+                // ResultPartitions here because of possible race conditions with
+                // Task thread so we just call the fail here.
+                failAllResultPartitions();
+                closeAllInputGates();
 
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalError(t);
@@ -1623,7 +1684,7 @@ public class Task
         private final Logger log;
 
         /** The invokable task. */
-        private final AbstractInvokable task;
+        private final TaskInvokable task;
 
         /** The executing task thread that we wait for to terminate. */
         private final Thread executerThread;
@@ -1636,7 +1697,7 @@ public class Task
 
         TaskInterrupter(
                 Logger log,
-                AbstractInvokable task,
+                TaskInvokable task,
                 Thread executerThread,
                 String taskName,
                 long interruptIntervalMillis) {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.api.{PlannerType, SqlDialect, TableConfig, TableEnvironment, TableException}
@@ -27,7 +28,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation.{Executor, Parser, Planner}
 import org.apache.flink.table.descriptors.{ConnectorDescriptorValidator, DescriptorProperties}
-import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.factories.{FactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations._
 import org.apache.flink.table.planner.JMap
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
+import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserContext
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
@@ -55,7 +57,6 @@ import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.tools.FrameworkConfig
 
@@ -93,17 +94,20 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
+  private val plannerConfiguration: ReadableConfig = new PlannerConfiguration(
+    config.getConfiguration,
+    executor.getConfiguration)
+
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
+      !isStreamingMode,
       config,
       functionCatalog,
       catalogManager,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
-
-  private val sqlExprToRexConverterFactory = plannerContext.getSqlExprToRexConverterFactory
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
   private[flink] def getRelBuilder: FlinkRelBuilder = {
@@ -133,15 +137,31 @@ abstract class PlannerBase(
 
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
+  /**
+   * Gives access to both API specific table configuration and executor configuration.
+   *
+   * This configuration should be the main source of truth in the planner module.
+   */
+  def getConfiguration: ReadableConfig = plannerConfiguration
+
+  /**
+   * @deprecated Do not use this method anymore. Use [[getConfiguration]] to access options.
+   *             Create transformations without it. A [[StreamExecutionEnvironment]] is a mixture
+   *             of executor and stream graph generator/builder. In the long term, we would like
+   *             to avoid the need for it in the planner module.
+   */
+  @deprecated
   private[flink] def getExecEnv: StreamExecutionEnvironment = {
-    executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
+    executor.asInstanceOf[DefaultExecutor].getExecutionEnvironment
   }
 
   def createNewParser: Parser = {
-    val parserProps = Map(TableConfigOptions.TABLE_SQL_DIALECT.key() ->
-      getTableConfig.getSqlDialect.name().toLowerCase)
-    ComponentFactoryService.find(classOf[ParserFactory], parserProps)
-      .create(catalogManager, plannerContext)
+    val factoryIdentifier = getTableConfig.getSqlDialect.name().toLowerCase
+    val parserFactory = FactoryUtil.discoverFactory(Thread.currentThread.getContextClassLoader,
+      classOf[ParserFactory], factoryIdentifier)
+
+    val context = new DefaultParserContext(catalogManager, plannerContext)
+    parserFactory.create(context)
   }
 
   override def getParser: Parser = {

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -30,14 +29,30 @@ import java.util.concurrent.Executor;
 /** {@link EmbeddedHaServices} extension to expose leadership granting and revoking. */
 public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
         implements HaLeadershipControl {
-    private final CheckpointRecoveryFactory testingCheckpointRecoveryFactory;
+
+    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
 
     public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
+        this(
+                executor,
+                new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
+                        (maxCheckpoints, previous) -> {
+                            if (previous != null) {
+                                if (!previous.getShutdownStatus().isPresent()) {
+                                    throw new IllegalStateException(
+                                            "Completed checkpoint store from previous run has not yet shutdown.");
+                                }
+                                return new EmbeddedCompletedCheckpointStore(
+                                        maxCheckpoints, previous.getAllCheckpoints());
+                            }
+                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                        }));
+    }
+
+    public EmbeddedHaServicesWithLeadershipControl(
+            Executor executor, CheckpointRecoveryFactory checkpointRecoveryFactory) {
         super(executor);
-        this.testingCheckpointRecoveryFactory =
-                new PerJobCheckpointRecoveryFactory(
-                        n -> new EmbeddedCompletedCheckpointStore(),
-                        StandaloneCheckpointIDCounter::new);
+        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
     }
 
     @Override
@@ -82,7 +97,7 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
     public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
         synchronized (lock) {
             checkNotShutdown();
-            return testingCheckpointRecoveryFactory;
+            return checkpointRecoveryFactory;
         }
     }
 }

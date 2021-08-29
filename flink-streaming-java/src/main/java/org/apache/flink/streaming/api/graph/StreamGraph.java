@@ -38,7 +38,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -105,6 +105,8 @@ public class StreamGraph implements Pipeline {
     private TimeCharacteristic timeCharacteristic;
 
     private GlobalStreamExchangeMode globalExchangeMode;
+
+    private boolean enableCheckpointsAfterTasksFinish;
 
     /** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
     private boolean allVerticesInSameSlotSharingGroupByDefault = true;
@@ -280,6 +282,14 @@ public class StreamGraph implements Pipeline {
         return allVerticesInSameSlotSharingGroupByDefault;
     }
 
+    public boolean isEnableCheckpointsAfterTasksFinish() {
+        return enableCheckpointsAfterTasksFinish;
+    }
+
+    public void setEnableCheckpointsAfterTasksFinish(boolean enableCheckpointsAfterTasksFinish) {
+        this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
+    }
+
     // Checkpointing
 
     public boolean isChainingEnabled() {
@@ -360,7 +370,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<IN> inTypeInfo,
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
-        Class<? extends AbstractInvokable> invokableClass =
+        Class<? extends TaskInvokable> invokableClass =
                 operatorFactory.isStreamSource()
                         ? SourceStreamTask.class
                         : OneInputStreamTask.class;
@@ -383,7 +393,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<IN> inTypeInfo,
             TypeInformation<OUT> outTypeInfo,
             String operatorName,
-            Class<? extends AbstractInvokable> invokableClass) {
+            Class<? extends TaskInvokable> invokableClass) {
 
         addNode(
                 vertexID,
@@ -418,7 +428,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
 
-        Class<? extends AbstractInvokable> vertexClass = TwoInputStreamTask.class;
+        Class<? extends TaskInvokable> vertexClass = TwoInputStreamTask.class;
 
         addNode(
                 vertexID,
@@ -455,7 +465,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
 
-        Class<? extends AbstractInvokable> vertexClass = MultipleInputStreamTask.class;
+        Class<? extends TaskInvokable> vertexClass = MultipleInputStreamTask.class;
 
         addNode(
                 vertexID,
@@ -481,7 +491,7 @@ public class StreamGraph implements Pipeline {
             Integer vertexID,
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
-            Class<? extends AbstractInvokable> vertexClass,
+            Class<? extends TaskInvokable> vertexClass,
             StreamOperatorFactory<?> operatorFactory,
             String operatorName) {
 

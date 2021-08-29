@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -37,6 +38,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -48,6 +50,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,6 +65,7 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
+import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
@@ -199,6 +203,16 @@ public final class FactoryUtil {
     }
 
     /**
+     * Creates a utility that helps validating options for a {@link ModuleFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static ModuleFactoryHelper createModuleFactoryHelper(
+            ModuleFactory factory, ModuleFactory.Context context) {
+        return new ModuleFactoryHelper(factory, context);
+    }
+
+    /**
      * Creates a utility that helps in discovering formats and validating all options for a {@link
      * DynamicTableFactory}.
      *
@@ -270,13 +284,70 @@ public final class FactoryUtil {
                 final DefaultCatalogContext context =
                         new DefaultCatalogContext(
                                 catalogName, factoryOptions, configuration, classLoader);
-
                 return factory.createCatalog(context);
             } catch (Throwable t) {
                 throw new ValidationException(
                         String.format(
                                 "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
                                 catalogName,
+                                options.entrySet().stream()
+                                        .map(
+                                                optionEntry ->
+                                                        stringifyOption(
+                                                                optionEntry.getKey(),
+                                                                optionEntry.getValue()))
+                                        .sorted()
+                                        .collect(Collectors.joining("\n"))),
+                        t);
+            }
+        }
+    }
+
+    /**
+     * Discovers a matching module factory and creates an instance of it.
+     *
+     * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
+     * ModuleFactory}. If none is found, it falls back to the new stack using {@link Factory}
+     * instead.
+     */
+    public static Module createModule(
+            String moduleName,
+            Map<String, String> options,
+            ReadableConfig configuration,
+            ClassLoader classLoader) {
+        if (options.containsKey(MODULE_TYPE.key())) {
+            throw new ValidationException(
+                    String.format(
+                            "Option '%s' = '%s' is not supported since module name "
+                                    + "is used to find module",
+                            MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
+        }
+
+        try {
+            final Map<String, String> optionsWithType = new HashMap<>(options);
+            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+
+            final ModuleFactory legacyFactory =
+                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
+            return legacyFactory.createModule(optionsWithType);
+        } catch (NoMatchingTableFactoryException e) {
+            final DefaultModuleContext discoveryContext =
+                    new DefaultModuleContext(options, configuration, classLoader);
+            try {
+                final ModuleFactory factory =
+                        discoverFactory(
+                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                                ModuleFactory.class,
+                                moduleName);
+
+                final DefaultModuleContext context =
+                        new DefaultModuleContext(options, configuration, classLoader);
+                return factory.createModule(context);
+            } catch (Throwable t) {
+                throw new ValidationException(
+                        String.format(
+                                "Unable to create module '%s'.%n%nModule options are:%n%s",
+                                moduleName,
                                 options.entrySet().stream()
                                         .map(
                                                 optionEntry ->
@@ -692,6 +763,17 @@ public final class FactoryUtil {
     }
 
     /**
+     * Helper utility for validating all options for a {@link ModuleFactory}.
+     *
+     * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
+     */
+    public static class ModuleFactoryHelper extends FactoryHelper<ModuleFactory> {
+        public ModuleFactoryHelper(ModuleFactory moduleFactory, ModuleFactory.Context context) {
+            super(moduleFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
      * Helper utility for discovering formats and validating all options for a {@link
      * DynamicTableFactory}.
      *
@@ -834,6 +916,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link DynamicTableFactory.Context}. */
+    @Internal
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
 
         private final ObjectIdentifier objectIdentifier;
@@ -882,6 +965,7 @@ public final class FactoryUtil {
     }
 
     /** Default implementation of {@link CatalogFactory.Context}. */
+    @Internal
     public static class DefaultCatalogContext implements CatalogFactory.Context {
         private final String name;
         private final Map<String, String> options;
@@ -902,6 +986,38 @@ public final class FactoryUtil {
         @Override
         public String getName() {
             return name;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
+    /** Default implementation of {@link ModuleFactory.Context}. */
+    @Internal
+    public static class DefaultModuleContext implements ModuleFactory.Context {
+        private final Map<String, String> options;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+
+        public DefaultModuleContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
         }
 
         @Override

@@ -67,6 +67,12 @@ public class LinkedListSerializerTest extends SerializerTestBase<LinkedList<Long
             list4.add(rnd.nextLong());
         }
 
-        return (LinkedList<Long>[]) new LinkedList[] {list1, list2, list3, list4};
+        // list with null values
+        final LinkedList<Long> list5 = new LinkedList<>();
+        for (int i = 0; i < rnd.nextInt(200); i++) {
+            list5.add(rnd.nextBoolean() ? null : rnd.nextLong());
+        }
+
+        return (LinkedList<Long>[]) new LinkedList[] {list1, list2, list3, list4, list5};
     }
 }

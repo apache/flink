@@ -52,6 +52,11 @@ public class SourceAbilityContext implements FlinkContext {
     }
 
     @Override
+    public boolean isBatchMode() {
+        return context.isBatchMode();
+    }
+
+    @Override
     public TableConfig getTableConfig() {
         return context.getTableConfig();
     }

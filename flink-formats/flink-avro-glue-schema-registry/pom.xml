@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-formats</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -34,10 +34,9 @@ under the License.
 
 	<properties>
 		<glue.schema.registry.version>1.0.1</glue.schema.registry.version>
-		<aws.sdkv2.version>2.15.32</aws.sdkv2.version>
+		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
 		<reactivestreams.version>1.0.2</reactivestreams.version>
-		<lz4.version>1.6.0</lz4.version>
-		<netty.version>4.1.53.Final</netty.version>
+		<netty.version>4.1.63.Final</netty.version>
 	</properties>
 
 	<!-- ============================= -->
@@ -89,12 +88,6 @@ under the License.
 				<groupId>org.reactivestreams</groupId>
 				<artifactId>reactive-streams</artifactId>
 				<version>${reactivestreams.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.lz4</groupId>
-				<artifactId>lz4-java</artifactId>
-				<version>${lz4.version}</version>
 			</dependency>
 
 			<dependency>

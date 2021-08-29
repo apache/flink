@@ -54,7 +54,14 @@ public class PrometheusPushGatewayReporterOptions {
             ConfigOptions.key("deleteOnShutdown")
                     .defaultValue(true)
                     .withDescription(
-                            "Specifies whether to delete metrics from the PushGateway on shutdown.");
+                            Description.builder()
+                                    .text(
+                                            "Specifies whether to delete metrics from the PushGateway on shutdown."
+                                                    + " Flink will try its best to delete the metrics but this is not guaranteed. See %s for more details.",
+                                            LinkElement.link(
+                                                    "https://issues.apache.org/jira/browse/FLINK-13787",
+                                                    "here"))
+                                    .build());
 
     public static final ConfigOption<Boolean> FILTER_LABEL_VALUE_CHARACTER =
             ConfigOptions.key("filterLabelValueCharacters")

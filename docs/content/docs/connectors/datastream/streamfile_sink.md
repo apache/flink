@@ -243,7 +243,7 @@ Avro writer factories and their associated documentation can be found in the
 
 To use the Avro writers in your application you need to add the following dependency:
 
-{{< artifact flink-avro withScalaVersion >}}
+{{< artifact flink-avro >}}
 
 A StreamingFileSink that writes data to Avro files can be created like this:
 

@@ -25,18 +25,18 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="Command-Line Interface"> </a>
+<a name="Command-Line Interface"></a>
 # 命令行界面
 
 Flink提供了命令行界面（CLI）`bin/flink` 来运行 JAR 格式的程序，同时控制其执行。该 CLI 作为 Flink 安装配置的一部分，在单节点或分布式安装的方式中都可以使用。命令行程序与运行中的 JobManager 建立连接来通信，JobManager 的连接信息可以通过`conf/flink-conf.yaml`指定。
 
-<a name="job-lifecycle-management"> </a>
+<a name="job-lifecycle-management"></a>
 
 ## 作业生命周期管理
 
 本节所列命令可以工作的前提条件是要有一个正在运行的 Flink 环境，其部署方式可以有多种，例如 [Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})，[YARN]({{< ref "docs/deployment/resource-providers/yarn" >}}) 或任何其它可用的方式。欢迎[在本地启动一个Flink集群]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}#starting-a-standalone-cluster-session-mode) ，然后在本机体验这些命令。
 
-<a name="submitting-a-job"> </a>
+<a name="submitting-a-job"></a>
 
 ### 提交作业
 
@@ -76,7 +76,7 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 
 当向现有集群提交 session 模式的作业时，仅支持[执行相关配置参数]({{< ref "docs/deployment/config#execution" >}}) 。
 
-<a name="job-monitoring"> </a>
+<a name="job-monitoring"></a>
 
 ### 作业监控
 
@@ -95,7 +95,7 @@ No scheduled jobs.
 已提交但尚未启动的作业会展示在 "Scheduled Jobs" 下。
 
 
-<a name="creating-a-savepoint"> </a>
+<a name="creating-a-savepoint"></a>
 
 ### 创建 Savepoint
 
@@ -116,7 +116,7 @@ savepoint 的保存目录是可选参数，如果 [state.savepoints.dir]({{< ref
 
 savepoint 对应的存储路径可在稍后用于[重新启动 Flink 作业](#starting-a-job-from-a-savepoint)。
 
-<a name="disposing-a-savepoint"> </a>
+<a name="disposing-a-savepoint"></a>
 
 #### 废弃 Savepoint
 
@@ -144,11 +144,11 @@ $ ./bin/flink savepoint \
 
 通过 `savepoint` 操作触发 savepoint 废弃，不仅会将数据从存储中删除，还会使 Flink 清理与 savepoint 相关的元数据。
 
-<a name="terminating-a-savepoint"> </a>
+<a name="terminating-a-savepoint"></a>
 
 ### 终止作业
 
-<a name="stopping-a-job-gracefully-creating-a-final-savepoint"> </a>
+<a name="stopping-a-job-gracefully-creating-a-final-savepoint"></a>
 
 #### 优雅地终止作业并创建最终 Savepoint
 
@@ -156,7 +156,7 @@ $ ./bin/flink savepoint \
 
 ```bash
 $ ./bin/flink stop \
-      --savepointPath /tmp-flink-savepoints \
+      --savepointPath /tmp/flink-savepoints \
       $JOB_ID
 ```
 ```
@@ -174,7 +174,7 @@ Savepoint completed. Path: file:/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0
 如果想永久终止作业，可以使用 `--drain` 标记。如果想在稍后的时间点恢复作业，那么不要使用  `--drain` ，因为这可能导致作业恢复时出现不正确的结果。
 {{< /hint >}}
 
-<a name="cancelling-a-job-ungracefully"> </a>
+<a name="cancelling-a-job-ungracefully"></a>
 
 #### 非优雅地取消作业
 
@@ -193,7 +193,7 @@ Cancelled job cca7bc1061d61cf15238e92312c2fc20.
 `--withSavepoint` 标志会将创建 savepoint 作为作业取消过程的一部分。此功能已弃用。请改用  [stop](#stopping-a-job-gracefully-creating-a-final-savepoint) 操作。
 {{< /hint >}}
 
-<a name="starting-a-job-from-a-savepoint"> </a>
+<a name="starting-a-job-from-a-savepoint"></a>
 
 ### 从 Savepoint 启动作业
 
@@ -234,7 +234,7 @@ $ ./bin/flink run \
 
 {{< top >}}
 
-<a name="cli-actions"> </a>
+<a name="cli-actions"></a>
 
 ## CLI 操作
 
@@ -298,11 +298,11 @@ $ ./bin/flink run \
 
 {{< top >}}
 
-<a name="advanced-cli"> </a>
+<a name="advanced-cli"></a>
 
 ## 高级的 CLI
 
-<a name="rest-api"> </a>
+<a name="rest-api"></a>
 
 ### REST API
 
@@ -310,7 +310,7 @@ Flink 集群也可以使用 [REST API]({{< ref "docs/ops/rest_api" >}}) 进行�
 
 因此，可以使用 `curl`  之类的工具来进一步发挥 Flink 的作用。
 
-<a name="selecting-deployment-targets"> </a>
+<a name="selecting-deployment-targets"></a>
 
 ### 选择部署方式
 
@@ -335,7 +335,7 @@ Flink 兼容多种集群管理框架，例如 [Kubernetes]({{< ref "docs/deploym
 
 关于命令和相关选项的更多细节，请参考文档中关于Resource Provider的指南。
 
-<a name="submitting-pyFlink-jobs"> </a>
+<a name="submitting-pyFlink-jobs"></a>
 
 ### 提交 PyFlink 作业
 
@@ -440,7 +440,16 @@ $ ./bin/flink run-application \
         <tr>
             <td><code class="highlighter-rouge">-pyarch,--pyArchives</code></td>
             <td>
-              用于为作业配置 python 归档文件。归档文件会被提取到 python UDF worker 的工作目录。当前仅支持 zip 格式的文件。对于每个归档文件，都可以指定一个目标目录。如果指定了目标目录，那么归档文件会被提取到相应名字的目标目录。否则，归档文件将被提取到与归档文件同名的目录中。通过此选项上传的文件可以通过相对路径访问。'#' 字符用作归档文件路径和目标目录名称之间分隔符。 逗号 (',') 用作分隔符来指定多个归档文件。此选项可以将 Python UDF 中使用的数据文件上传到虚拟环境（例如，--pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable py37.zip/py37/bin/python）。可以在 Python UDF 中直接访问数据文件，例如：f = open('data/data.txt', 'r')。
+              用于为作业配置 python 归档文件。归档文件会被提取到 python UDF worker 的工作目录。对于每个归档文件，都可以指定一个目标目录。如果指定了目标目录，那么归档文件会被提取到相应名字的目标目录。否则，归档文件将被提取到与归档文件同名的目录中。通过此选项上传的文件可以通过相对路径访问。'#' 字符用作归档文件路径和目标目录名称之间分隔符。 逗号 (',') 用作分隔符来指定多个归档文件。此选项可以将 Python UDF 中使用的数据文件上传到虚拟环境（例如，--pyArchives file:///tmp/py37.zip,file:///tmp/data.zip#data --pyExecutable py37.zip/py37/bin/python）。可以在 Python UDF 中直接访问数据文件，例如：f = open('data/data.txt', 'r')。
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">-pyclientexec,--pyClientExecutable</code></td>
+            <td>
+                The path of the Python interpreter used to launch the Python process when submitting
+                the Python jobs via \"flink run\" or compiling the Java/Scala jobs containing
+                Python UDFs.
+                (e.g., --pyArchives file:///tmp/py37.zip --pyClientExecutable py37.zip/py37/python)
             </td>
         </tr>
         <tr>

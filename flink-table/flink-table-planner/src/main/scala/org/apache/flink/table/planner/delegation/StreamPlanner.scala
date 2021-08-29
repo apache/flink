@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
@@ -33,7 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
+import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
@@ -64,14 +65,16 @@ class StreamPlanner(
   override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration()
     val planner = createDummyPlanner()
-
-    execGraph.getRootNodes.map {
+    val transformations = execGraph.getRootNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
+    cleanupInternalConfigurations()
+    transformations
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
@@ -103,7 +106,9 @@ class StreamPlanner(
 
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
-    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
+
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -145,7 +150,7 @@ class StreamPlanner(
 
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
-    val executor = new StreamExecutor(dummyExecEnv)
+    val executor = new DefaultExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 
@@ -155,7 +160,8 @@ class StreamPlanner(
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 
-    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
     sb.append("== Optimized Execution Plan ==")
@@ -174,8 +180,8 @@ class StreamPlanner(
 
   override def validateAndOverrideConfiguration(): Unit = {
     super.validateAndOverrideConfiguration()
-    if (!config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
-      .equals(RuntimeExecutionMode.STREAMING)) {
+    val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
+    if (runtimeMode != RuntimeExecutionMode.STREAMING) {
       throw new IllegalArgumentException(
         "Mismatch between configured runtime mode and actual runtime mode. " +
           "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +

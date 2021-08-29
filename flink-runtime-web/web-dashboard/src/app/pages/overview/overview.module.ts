@@ -22,9 +22,12 @@ import { ShareModule } from 'share/share.module';
 import { OverviewRoutingModule } from './overview-routing.module';
 import { OverviewComponent } from './overview.component';
 import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
+import { NzDividerModule } from 'ng-zorro-antd/divider';
+import { NzCardModule } from 'ng-zorro-antd/card';
+import { NzGridModule } from 'ng-zorro-antd/grid';
 
 @NgModule({
-  imports: [CommonModule, ShareModule, OverviewRoutingModule],
+  imports: [CommonModule, ShareModule, OverviewRoutingModule, NzDividerModule, NzCardModule, NzGridModule],
   declarations: [OverviewComponent, OverviewStatisticComponent]
 })
 export class OverviewModule {}

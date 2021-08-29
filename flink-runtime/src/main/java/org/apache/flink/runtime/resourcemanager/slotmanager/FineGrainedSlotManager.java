@@ -109,7 +109,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> taskManagerTimeoutsCheck;
 
-    @Nullable private ScheduledFuture<?> lastResourceRequirementsCheck;
+    @Nullable private CompletableFuture<Void> requirementsCheckFuture;
 
     /** True iff the component has been started. */
     private boolean started;
@@ -146,7 +146,7 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceActions = null;
         mainThreadExecutor = null;
         taskManagerTimeoutsCheck = null;
-        lastResourceRequirementsCheck = null;
+        requirementsCheckFuture = null;
 
         started = false;
     }
@@ -224,11 +224,6 @@ public class FineGrainedSlotManager implements SlotManager {
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
             taskManagerTimeoutsCheck = null;
-        }
-
-        if (lastResourceRequirementsCheck != null && !lastResourceRequirementsCheck.isDone()) {
-            lastResourceRequirementsCheck.cancel(false);
-            lastResourceRequirementsCheck = null;
         }
 
         slotStatusSyncer.close();
@@ -489,13 +484,18 @@ public class FineGrainedSlotManager implements SlotManager {
      * are performed with a slight delay.
      */
     private void checkResourceRequirementsWithDelay() {
-        if (lastResourceRequirementsCheck == null || lastResourceRequirementsCheck.isDone()) {
-            LOG.info("Scheduling the resource requirement check.");
-            lastResourceRequirementsCheck =
-                    scheduledExecutor.schedule(
-                            () -> mainThreadExecutor.execute(this::checkResourceRequirements),
-                            requirementsCheckDelay.toMilliseconds(),
-                            TimeUnit.MILLISECONDS);
+        if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
+            requirementsCheckFuture = new CompletableFuture<>();
+            scheduledExecutor.schedule(
+                    () ->
+                            mainThreadExecutor.execute(
+                                    () -> {
+                                        checkResourceRequirements();
+                                        Preconditions.checkNotNull(requirementsCheckFuture)
+                                                .complete(null);
+                                    }),
+                    requirementsCheckDelay.toMilliseconds(),
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -503,13 +503,16 @@ public class FineGrainedSlotManager implements SlotManager {
      * DO NOT call this method directly. Use {@link #checkResourceRequirementsWithDelay()} instead.
      */
     private void checkResourceRequirements() {
-        LOG.info("Matching resource requirements against available resources.");
+        if (!started) {
+            return;
+        }
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
             return;
         }
 
+        LOG.info("Matching resource requirements against available resources.");
         missingResources =
                 missingResources.entrySet().stream()
                         .collect(
@@ -521,11 +524,9 @@ public class FineGrainedSlotManager implements SlotManager {
                         missingResources, taskManagerTracker);
 
         // Allocate slots according to the result
-        LOG.info("Allocating slots for the resource requirements.");
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
 
         // Allocate task managers according to the result
-        LOG.info("Allocating task managers for the resource requirements.");
         final Set<PendingTaskManagerId> failAllocations =
                 allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
 
@@ -704,9 +705,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
     private void releaseIdleTaskExecutor(InstanceID timedOutTaskManagerId) {
         final FlinkException cause = new FlinkException("TaskManager exceeded the idle timeout.");
-        LOG.info(
-                "Release TaskManager {} because it exceeded the idle timeout.",
-                timedOutTaskManagerId);
         resourceActions.releaseResource(timedOutTaskManagerId, cause);
     }
 

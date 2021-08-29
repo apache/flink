@@ -151,7 +151,7 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
 class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
     """
     The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
-    Apache Kafka 0.10.x. The consumer can run in multiple parallel instances, each of which will
+    Apache Kafka. The consumer can run in multiple parallel instances, each of which will
     pull data from one or more Kafka partitions.
 
     The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
@@ -276,8 +276,8 @@ class Semantic(Enum):
 
 class FlinkKafkaProducer(FlinkKafkaProducerBase):
     """
-    Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.11.x. By
-    default producer will use AT_LEAST_ONCE sematic. Before using EXACTLY_ONCE please refer to
+    Flink Sink to produce data into a Kafka topic. By
+    default producer will use AT_LEAST_ONCE semantic. Before using EXACTLY_ONCE please refer to
     Flink's Kafka connector documentation.
     """
 

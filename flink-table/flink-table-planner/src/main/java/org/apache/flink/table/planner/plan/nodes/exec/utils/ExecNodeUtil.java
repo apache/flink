@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
@@ -35,19 +37,16 @@ import java.util.stream.Collectors;
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
     /**
-     * Set memoryBytes to {@link
-     * Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
+     * Sets {Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}
+     * using the given bytes for {@link ManagedMemoryUseCase#OPERATOR}.
      */
     public static <T> void setManagedMemoryWeight(
             Transformation<T> transformation, long memoryBytes) {
-        // Using Bytes can easily overflow
-        // Using KibiBytes to cast to int
-        // Careful about zero
         if (memoryBytes > 0) {
-            int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
-            Optional<Integer> previousWeight =
+            final int weightInMebibyte = Math.max(1, (int) (memoryBytes >> 20));
+            final Optional<Integer> previousWeight =
                     transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                            ManagedMemoryUseCase.OPERATOR, memoryKibiBytes);
+                            ManagedMemoryUseCase.OPERATOR, weightInMebibyte);
             if (previousWeight.isPresent()) {
                 throw new TableException(
                         "Managed memory weight has been set, this should not happen.");
@@ -106,5 +105,16 @@ public class ExecNodeUtil {
         sb.append("members=[\\n").append(members).append("]");
         sb.append(")");
         return sb.toString();
+    }
+
+    /**
+     * The planner might have more information than expressed in legacy source transformations. This
+     * enforces planner information about boundedness to the affected transformations.
+     */
+    public static void makeLegacySourceTransformationsBounded(Transformation<?> transformation) {
+        if (transformation instanceof LegacySourceTransformation) {
+            ((LegacySourceTransformation<?>) transformation).setBoundedness(Boundedness.BOUNDED);
+        }
+        transformation.getInputs().forEach(ExecNodeUtil::makeLegacySourceTransformationsBounded);
     }
 }

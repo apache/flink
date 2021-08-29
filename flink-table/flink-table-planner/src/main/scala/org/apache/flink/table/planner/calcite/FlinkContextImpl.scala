@@ -22,11 +22,14 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 
 class FlinkContextImpl(
+    inBatchMode: Boolean,
     tableConfig: TableConfig,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
     toRexFactory: SqlExprToRexConverterFactory)
   extends FlinkContext {
+
+  override def isBatchMode: Boolean = inBatchMode
 
   override def getTableConfig: TableConfig = tableConfig
 

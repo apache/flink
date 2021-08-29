@@ -19,10 +19,11 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.util.Preconditions.checkState
 
-import org.apache.calcite.rel.core.JoinInfo
+import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
@@ -223,6 +224,7 @@ object TemporalJoinUtil {
       makeLeftJoinKeyCall(rexBuilder, leftJoinKeyExpression),
       makeRightJoinKeyCall(rexBuilder, rightJoinKeyExpression))
   }
+
   def makeProcTimeTemporalTableJoinConCall(
       rexBuilder: RexBuilder,
       leftTimeAttribute: RexNode,
@@ -247,7 +249,7 @@ object TemporalJoinUtil {
     rexCall.getOperator == INITIAL_TEMPORAL_JOIN_CONDITION && rexCall.operands.length == 3
   }
 
-  def containsTemporalJoinCondition(condition: RexNode): Boolean = {
+  private def containsTemporalJoinCondition(condition: RexNode): Boolean = {
     var hasTemporalJoinCondition: Boolean = false
     condition.accept(new RexVisitorImpl[Void](true) {
       override def visitCall(call: RexCall): Void = {
@@ -412,5 +414,32 @@ object TemporalJoinUtil {
       "Failed to find input reference in [%s]",
       textualRepresentation)
     inputReferenceVisitor.getFields.head
+  }
+
+  /**
+   * Check whether input join node satisfy preconditions to convert into temporal join.
+   *
+   * @param join input join to analyze.
+   * @return True if input join node satisfy preconditions to convert into temporal join,
+   *         else false.
+   */
+  def satisfyTemporalJoin(join: FlinkLogicalJoin): Boolean = {
+    if (!containsTemporalJoinCondition(join.getCondition)) {
+      return false
+    }
+    val joinInfo = JoinInfo.of(join.getLeft, join.getRight, join.getCondition)
+    if (isTemporalFunctionJoin(join.getCluster.getRexBuilder, joinInfo)) {
+      // Temporal table function join currently only support INNER JOIN
+      join.getJoinType match {
+        case JoinRelType.INNER => true
+        case _ => false
+      }
+    } else {
+      // Temporal table join currently only support INNER JOIN and LEFT JOIN
+      join.getJoinType match {
+        case JoinRelType.INNER | JoinRelType.LEFT => true
+        case _ => false
+      }
+    }
   }
 }

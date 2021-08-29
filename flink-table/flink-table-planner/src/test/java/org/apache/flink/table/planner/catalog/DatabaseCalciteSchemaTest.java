@@ -23,10 +23,8 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.utils.CatalogManagerMocks;
-import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.schema.Table;
 import org.junit.Test;
@@ -34,33 +32,49 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
+import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link DatabaseCalciteSchema}. */
 public class DatabaseCalciteSchemaTest {
 
-    private static final String catalogName = "cat";
-    private static final String databaseName = "db";
-    private static final String tableName = "tab";
+    private static final String TABLE_NAME = "tab";
 
     @Test
-    public void testGetTableWithPrimaryKey() {
-        GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
-        CatalogManager catalogManager =
-                CatalogManagerMocks.preparedCatalogManager()
-                        .defaultCatalog(catalogName, catalog)
-                        .build();
-        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+    public void testPermanentTableWithPrimaryKey() {
+        final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
 
-        DatabaseCalciteSchema calciteSchema =
-                new DatabaseCalciteSchema(databaseName, catalogName, catalogManager, true);
+        final DatabaseCalciteSchema calciteSchema =
+                new DatabaseCalciteSchema(DEFAULT_CATALOG, DEFAULT_DATABASE, catalogManager, true);
 
         catalogManager.createTable(
-                createTable(), ObjectIdentifier.of(catalogName, databaseName, tableName), false);
+                createTable(),
+                ObjectIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, TABLE_NAME),
+                false);
 
-        Table table = calciteSchema.getTable(tableName);
+        final Table table = calciteSchema.getTable(TABLE_NAME);
+        assertThat(table, instanceOf(CatalogSchemaTable.class));
+        assertThat(
+                ((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next(),
+                containsInAnyOrder("a", "b"));
+    }
+
+    @Test
+    public void testTemporaryTableWithPrimaryKey() {
+        final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+
+        final DatabaseCalciteSchema calciteSchema =
+                new DatabaseCalciteSchema("other_catalog", "other_database", catalogManager, true);
+
+        catalogManager.createTemporaryTable(
+                createTable(),
+                ObjectIdentifier.of("other_catalog", "other_database", TABLE_NAME),
+                false);
+
+        final Table table = calciteSchema.getTable(TABLE_NAME);
         assertThat(table, instanceOf(CatalogSchemaTable.class));
         assertThat(
                 ((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next(),
@@ -68,7 +82,7 @@ public class DatabaseCalciteSchemaTest {
     }
 
     private CatalogBaseTable createTable() {
-        Schema schema =
+        final Schema schema =
                 Schema.newBuilder()
                         .column("a", DataTypes.INT().notNull())
                         .column("b", DataTypes.STRING().notNull())

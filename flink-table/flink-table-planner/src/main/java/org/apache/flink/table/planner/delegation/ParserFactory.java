@@ -19,18 +19,48 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.factories.ComponentFactory;
+import org.apache.flink.table.factories.Factory;
 
 /**
  * Factory that creates {@link Parser}.
  *
- * <p>This factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory
- * is called with a set of normalized properties that describe the desired configuration. Those
- * properties may include table configurations like SQL dialect.
+ * <p>The {@link #factoryIdentifier()} is identified by matching it against {@link
+ * TableConfigOptions#TABLE_SQL_DIALECT}.
  */
 @Internal
-public interface ParserFactory extends ComponentFactory {
-    Parser create(CatalogManager catalogManager, PlannerContext plannerContext);
+public interface ParserFactory extends Factory {
+
+    /** Creates a new parser. */
+    Parser create(Context context);
+
+    /** Context provided when a parser is created. */
+    interface Context {
+        CatalogManager getCatalogManager();
+
+        PlannerContext getPlannerContext();
+    }
+
+    /** Default implementation for {@link Context}. */
+    class DefaultParserContext implements Context {
+        private final CatalogManager catalogManager;
+        private final PlannerContext plannerContext;
+
+        public DefaultParserContext(CatalogManager catalogManager, PlannerContext plannerContext) {
+            this.catalogManager = catalogManager;
+            this.plannerContext = plannerContext;
+        }
+
+        @Override
+        public CatalogManager getCatalogManager() {
+            return catalogManager;
+        }
+
+        @Override
+        public PlannerContext getPlannerContext() {
+            return plannerContext;
+        }
+    }
 }

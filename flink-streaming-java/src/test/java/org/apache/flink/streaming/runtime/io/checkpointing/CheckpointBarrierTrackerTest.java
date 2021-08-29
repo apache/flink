@@ -600,7 +600,6 @@ public class CheckpointBarrierTrackerTest {
 
         CheckpointBarrierTracker checkpointBarrierTracker =
                 (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
@@ -624,10 +623,6 @@ public class CheckpointBarrierTrackerTest {
 
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
-
-        CheckpointBarrierTracker checkpointBarrierTracker =
-                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
 
         for (int i = 0; i <= 2; ++i) {
             assertEquals(sequence[i], inputGate.pollNext().get());
@@ -656,10 +651,6 @@ public class CheckpointBarrierTrackerTest {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
 
-        CheckpointBarrierTracker checkpointBarrierTracker =
-                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
-
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
         }
@@ -676,10 +667,6 @@ public class CheckpointBarrierTrackerTest {
 
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
         inputGate = createCheckpointedInputGate(2, sequence, validator);
-
-        CheckpointBarrierTracker checkpointBarrierTracker =
-                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
@@ -704,7 +691,6 @@ public class CheckpointBarrierTrackerTest {
 
         CheckpointBarrierTracker checkpointBarrierTracker =
                 (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
@@ -731,10 +717,6 @@ public class CheckpointBarrierTrackerTest {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
 
-        CheckpointBarrierTracker checkpointBarrierTracker =
-                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
-        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
-
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
         }
@@ -751,7 +733,6 @@ public class CheckpointBarrierTrackerTest {
 
         ValidatingCheckpointHandler checkpointHandler = new ValidatingCheckpointHandler();
         inputGate = createCheckpointedInputGate(2, sequence, checkpointHandler);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
@@ -854,7 +835,7 @@ public class CheckpointBarrierTrackerTest {
         return new CheckpointedInputGate(
                 inputGate,
                 new CheckpointBarrierTracker(
-                        inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock),
+                        inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock, true),
                 new SyncMailboxExecutor());
     }
 

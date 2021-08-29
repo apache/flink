@@ -27,9 +27,6 @@ import java.util.concurrent.ExecutorService;
 /** The interface for the Kubernetes shared watcher. */
 public interface KubernetesSharedWatcher<T> extends AutoCloseable {
 
-    /** Run the shared watcher. */
-    void run();
-
     /** Close the shared watcher without Exception. */
     @Override
     void close();

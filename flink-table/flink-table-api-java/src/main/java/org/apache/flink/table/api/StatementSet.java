@@ -147,9 +147,9 @@ public interface StatementSet {
     String explain(ExplainDetail... extraDetails);
 
     /**
-     * Executes all statements as a batch.
+     * Executes all statements as one job.
      *
-     * <p>The added statements will be cleared when executing this method.
+     * <p>The added statements will be cleared after calling this method.
      *
      * <p>By default, all DML operations are executed asynchronously. Use {@link
      * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set

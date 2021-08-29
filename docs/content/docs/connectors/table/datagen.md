@@ -58,7 +58,7 @@ CREATE TABLE Orders (
 )
 ```
 
-Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables.
+Often, the data generator connector is used in conjunction with the ``LIKE`` clause to mock out physical tables.
 
 ```sql
 CREATE TABLE Orders (

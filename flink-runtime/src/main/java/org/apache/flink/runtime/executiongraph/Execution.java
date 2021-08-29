@@ -54,6 +54,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -460,7 +461,8 @@ public class Execution
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
-                            .registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+                            .registerPartitionWithProducer(
+                                    vertex.getJobId(), partitionDescriptor, producerDescriptor);
 
             CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration =
                     shuffleDescriptorFuture.thenApply(
@@ -796,16 +798,22 @@ public class Execution
      * Notify the task of this execution about a aborted checkpoint.
      *
      * @param abortCheckpointId of the subsumed checkpoint
+     * @param latestCompletedCheckpointId of the latest completed checkpoint
      * @param timestamp of the subsumed checkpoint
      */
-    public void notifyCheckpointAborted(long abortCheckpointId, long timestamp) {
+    public void notifyCheckpointAborted(
+            long abortCheckpointId, long latestCompletedCheckpointId, long timestamp) {
         final LogicalSlot slot = assignedResource;
 
         if (slot != null) {
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             taskManagerGateway.notifyCheckpointAborted(
-                    attemptId, getVertex().getJobId(), abortCheckpointId, timestamp);
+                    attemptId,
+                    getVertex().getJobId(),
+                    abortCheckpointId,
+                    latestCompletedCheckpointId,
+                    timestamp);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is "
@@ -1423,17 +1431,15 @@ public class Execution
                         getAttemptId(),
                         currentState,
                         targetState);
-            } else {
-                if (LOG.isInfoEnabled()) {
-                    LOG.info(
-                            "{} ({}) switched from {} to {} on {}.",
-                            getVertex().getTaskNameWithSubtaskIndex(),
-                            getAttemptId(),
-                            currentState,
-                            targetState,
-                            getLocationInformation(),
-                            error);
-                }
+            } else if (LOG.isInfoEnabled()) {
+                LOG.info(
+                        "{} ({}) switched from {} to {} on {}.",
+                        getVertex().getTaskNameWithSubtaskIndex(),
+                        getAttemptId(),
+                        currentState,
+                        targetState,
+                        getLocationInformation(),
+                        ExceptionUtils.stripCompletionException(error));
             }
 
             if (targetState == INITIALIZING || targetState == RUNNING) {

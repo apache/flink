@@ -114,20 +114,36 @@ public class AlignedCheckpointsTest {
     }
 
     private CheckpointedInputGate createCheckpointedInputGate(
-            int numberOfChannels, BufferOrEvent[] sequence, AbstractInvokable toNotify)
-            throws IOException {
+            int numberOfChannels,
+            BufferOrEvent[] sequence,
+            AbstractInvokable toNotify,
+            boolean enableCheckpointsAfterTasksFinish) {
+        mockInputGate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
+        return createCheckpointedInputGate(
+                mockInputGate, toNotify, enableCheckpointsAfterTasksFinish);
+    }
+
+    private CheckpointedInputGate createCheckpointedInputGate(
+            int numberOfChannels, BufferOrEvent[] sequence, AbstractInvokable toNotify) {
         mockInputGate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
         return createCheckpointedInputGate(mockInputGate, toNotify);
     }
 
     private CheckpointedInputGate createCheckpointedInputGate(
-            int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
+            int numberOfChannels, BufferOrEvent[] sequence) {
         return createCheckpointedInputGate(
                 numberOfChannels, sequence, new DummyCheckpointInvokable());
     }
 
     private CheckpointedInputGate createCheckpointedInputGate(
             IndexedInputGate gate, AbstractInvokable toNotify) {
+        return createCheckpointedInputGate(gate, toNotify, true);
+    }
+
+    private CheckpointedInputGate createCheckpointedInputGate(
+            IndexedInputGate gate,
+            AbstractInvokable toNotify,
+            boolean enableCheckpointsAfterTasksFinish) {
         return new CheckpointedInputGate(
                 gate,
                 SingleCheckpointBarrierHandler.aligned(
@@ -136,6 +152,7 @@ public class AlignedCheckpointsTest {
                         SystemClock.getInstance(),
                         gate.getNumberOfInputChannels(),
                         (callable, duration) -> () -> {},
+                        enableCheckpointsAfterTasksFinish,
                         gate),
                 new SyncMailboxExecutor());
     }
@@ -384,7 +401,7 @@ public class AlignedCheckpointsTest {
             /* 24 */ createEndOfPartition(1)
         };
         ValidatingCheckpointHandler handler = new ValidatingCheckpointHandler();
-        inputGate = createCheckpointedInputGate(3, sequence, handler);
+        inputGate = createCheckpointedInputGate(3, sequence, handler, false);
 
         handler.setNextExpectedCheckpointId(1L);
 
@@ -1043,7 +1060,6 @@ public class AlignedCheckpointsTest {
 
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1L);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent bufferOrEvent : sequence) {
             check(bufferOrEvent, inputGate.pollNext().get(), PAGE_SIZE);
@@ -1065,7 +1081,6 @@ public class AlignedCheckpointsTest {
 
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1L);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         for (int i = 0; i <= 2; ++i) {
             check(sequence[i], inputGate.pollNext().get(), PAGE_SIZE);
@@ -1093,7 +1108,6 @@ public class AlignedCheckpointsTest {
 
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1L);
         inputGate = createCheckpointedInputGate(3, sequence, validator);
-        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
         for (BufferOrEvent bufferOrEvent : sequence) {
             check(bufferOrEvent, inputGate.pollNext().get(), PAGE_SIZE);

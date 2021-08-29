@@ -89,6 +89,7 @@ function checkAllowedPackages {
       grep -v "org/apache/calcite" |\
       grep -v "com/esri/core" |\
       grep -v "com/ibm/icu" |\
+      grep -v "scala/util/parsing" |\
       grep -v "org/apache/flink" > $CONTENTS_FILE
   if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted classes in the ${JAR} jar."

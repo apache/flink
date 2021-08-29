@@ -115,7 +115,9 @@ public class ContextEnvironment extends ExecutionEnvironment {
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();
-            System.out.println(jobExecutionResult);
+            if (!suppressSysout) {
+                System.out.println(jobExecutionResult);
+            }
         } else {
             jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
         }

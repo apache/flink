@@ -53,6 +53,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
     private final String taskName;
     private final Consumer<AsyncCheckpointRunnable> unregisterConsumer;
     private final boolean isFinishedOnRestore;
+    private final boolean isOperatorsFinished;
     private final Supplier<Boolean> isTaskRunning;
     private final Environment taskEnvironment;
     private final CompletableFuture<Void> finishedFuture = new CompletableFuture<>();
@@ -85,6 +86,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             Environment taskEnvironment,
             AsyncExceptionHandler asyncExceptionHandler,
             boolean isFinishedOnRestore,
+            boolean isOperatorsFinished,
             Supplier<Boolean> isTaskRunning) {
 
         this.operatorSnapshotsInProgress = checkNotNull(operatorSnapshotsInProgress);
@@ -96,6 +98,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         this.taskEnvironment = checkNotNull(taskEnvironment);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
         this.isFinishedOnRestore = isFinishedOnRestore;
+        this.isOperatorsFinished = isOperatorsFinished;
         this.isTaskRunning = isTaskRunning;
     }
 
@@ -115,7 +118,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             SnapshotsFinalizeResult snapshotsFinalizeResult =
                     isFinishedOnRestore
                             ? new SnapshotsFinalizeResult(
-                                    TaskStateSnapshot.FINISHED, TaskStateSnapshot.FINISHED, 0L)
+                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
+                                    TaskStateSnapshot.FINISHED_ON_RESTORE,
+                                    0L)
                             : finalizeNonFinishedSnapshots();
 
             final long asyncEndNanos = System.nanoTime();
@@ -157,9 +162,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
     private SnapshotsFinalizeResult finalizeNonFinishedSnapshots() throws Exception {
         TaskStateSnapshot jobManagerTaskOperatorSubtaskStates =
-                new TaskStateSnapshot(operatorSnapshotsInProgress.size());
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isOperatorsFinished);
         TaskStateSnapshot localTaskOperatorSubtaskStates =
-                new TaskStateSnapshot(operatorSnapshotsInProgress.size());
+                new TaskStateSnapshot(operatorSnapshotsInProgress.size(), isOperatorsFinished);
 
         long bytesPersistedDuringAlignment = 0;
         for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry :

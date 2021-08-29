@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io.recovery;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpa
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.AbstractStreamTaskNetworkInput;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.RecoverableStreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
@@ -41,9 +41,9 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,13 +173,13 @@ public final class RescalingStreamTaskNetworkInput<T>
         return deserialier;
     }
 
-    protected InputStatus processEvent(BufferOrEvent bufferOrEvent) {
+    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
         // Event received
         final AbstractEvent event = bufferOrEvent.getEvent();
         if (event instanceof SubtaskConnectionDescriptor) {
             getActiveSerializer(bufferOrEvent.getChannelInfo())
                     .select((SubtaskConnectionDescriptor) event);
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         }
         return super.processEvent(bufferOrEvent);
     }

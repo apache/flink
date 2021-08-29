@@ -33,6 +33,7 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /** Tests for {@link Elasticsearch6DynamicSink} parameters. */
-public class Elasticsearch6DynamicSinkTest {
+public class Elasticsearch6DynamicSinkTest extends TestLogger {
 
     private static final String FIELD_KEY = "key";
     private static final String FIELD_FRUIT_NAME = "fruit_name";

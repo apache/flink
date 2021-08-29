@@ -219,7 +219,7 @@ There are two distribution channels for the Flink Docker images:
 
 We recommend using the official images on Docker Hub, as they are reviewed by Docker. The images on `apache/flink` are provided in case of delays in the review process by Docker.
 
-Launching an image named `flink:latest` will pull the latest image from Docker Hub. In order to use the images hosted in `apache/flink`, replace `flink` by `apache/flink`. Any of the image tags (starting from Flink 1.11.3) are avaialble on `apache/flink` as well.
+Launching an image named `flink:latest` will pull the latest image from Docker Hub. In order to use the images hosted in `apache/flink`, replace `flink` by `apache/flink`. Any of the image tags (starting from Flink 1.11.3) are available on `apache/flink` as well.
 
 ### Image tags
 

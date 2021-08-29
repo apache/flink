@@ -142,7 +142,7 @@ public class KafkaSource<OUT>
                         new KafkaPartitionSplitReader<>(
                                 props,
                                 deserializationSchema,
-                                readerContext.getIndexOfSubtask(),
+                                readerContext,
                                 kafkaSourceReaderMetrics);
         KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
 

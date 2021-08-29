@@ -61,6 +61,10 @@ import static org.junit.Assert.assertNotNull;
  * <p>The verification is done in 2 Steps: Step 1: Migrate the job to the newer version by
  * submitting the same job used for the old version savepoint, and create a new savepoint. Step 2:
  * Modify the job topology, and restore from the savepoint created in step 1.
+ *
+ * <p>The savepoint _metadata file for the current branch is stored in the savepointPath in {@link
+ * AbstractOperatorRestoreTestBase#migrateJob}, please create the corresponding test resource
+ * directory and copy the _metadata file by hand.
  */
 public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 

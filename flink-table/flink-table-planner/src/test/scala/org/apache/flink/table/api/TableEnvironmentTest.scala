@@ -641,12 +641,12 @@ class TableEnvironmentTest {
     val statement =
       """
         |LOAD MODULE dummy WITH (
-        |'type' = 'dummy'
+        |  'type' = 'dummy'
         |)
       """.stripMargin
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Property 'type' = 'dummy' is not supported since module name is used to find module")
+      "Option 'type' = 'dummy' is not supported since module name is used to find module")
     tableEnv.executeSql(statement)
   }
 
@@ -666,12 +666,12 @@ class TableEnvironmentTest {
     val statement2 =
       """
         |LOAD MODULE dummy WITH (
-        |'dummy-version' = '2'
+        |  'dummy-version' = '2'
         |)
       """.stripMargin
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Could not execute LOAD MODULE: (moduleName: [dummy], properties: [{dummy-version=2}])." +
+      "Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
         " A module with name 'dummy' already exists")
     tableEnv.executeSql(statement2)
   }
@@ -690,15 +690,15 @@ class TableEnvironmentTest {
       fail("Expected an exception")
     } catch {
       case t: Throwable =>
-        assertThat(t, containsMessage("Could not execute LOAD MODULE: (moduleName: [Dummy], " +
-          "properties: [{dummy-version=1}]). Could not find a suitable table factory for " +
-          "'org.apache.flink.table.factories.ModuleFactory' in\nthe classpath."))
+        assertThat(t, containsMessage(
+          "Could not execute LOAD MODULE `Dummy` WITH ('dummy-version' = '1')."
+          + " Unable to create module 'Dummy'."))
     }
 
     val statement2 =
       """
         |LOAD MODULE dummy WITH (
-        |'dummy-version' = '2'
+        |  'dummy-version' = '2'
         |)
       """.stripMargin
     val result = tableEnv.executeSql(statement2)
@@ -786,6 +786,12 @@ class TableEnvironmentTest {
     // check result after unloading module
     tableEnv.executeSql("UNLOAD MODULE dummy")
     validateShowModules(("core", false))
+  }
+
+  @Test
+  def testLegacyModule(): Unit = {
+    tableEnv.executeSql("LOAD MODULE LegacyModule")
+    validateShowModules(("core", true), ("LegacyModule", true))
   }
 
   @Test

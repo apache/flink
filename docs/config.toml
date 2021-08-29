@@ -24,8 +24,8 @@ pygmentsUseClasses = true
 [params]
   # Flag whether this is a stable version or not.
   # Used for the quickstart page.
-  IsStable = false 
-  
+  IsStable = false
+
   # Flag to indicate whether an outdated warning should be shown.
   ShowOutDatedWarning = false
 
@@ -34,11 +34,11 @@ pygmentsUseClasses = true
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "1.14-SNAPSHOT"
+  Version = "1.15-SNAPSHOT"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
-  VersionTitle = "1.14-SNAPSHOT"
+  VersionTitle = "1.15-SNAPSHOT"
 
   # The branch for this version of Apache Flink
   Branch = "master"
@@ -48,13 +48,17 @@ pygmentsUseClasses = true
 
   GithubRepo = "https://github.com/apache/flink.git"
 
-  # Flink training exercises 
+  # Flink training exercises
   TrainingExercises = "//github.com/apache/flink-training"
 
   # This suffix is appended to the Scala-dependent Maven artifact names
   ScalaVersion = "_2.11"
 
   ProjectHomepage = "//flink.apache.org"
+
+  DownloadPage = "//flink.apache.org/downloads.html"
+
+  ZhDownloadPage = "//flink.apache.org/zh/downloads.html"
 
   JavaDocs = "//ci.apache.org/projects/flink/flink-docs-master/api/java/"
 

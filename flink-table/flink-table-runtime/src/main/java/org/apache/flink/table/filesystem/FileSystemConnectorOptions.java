@@ -20,8 +20,10 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
@@ -109,24 +111,14 @@ public class FileSystemConnectorOptions {
                     .noDefaultValue()
                     .withDescription("Time interval for consecutively monitoring partition/file.");
 
-    public static final ConfigOption<String> STREAMING_SOURCE_PARTITION_ORDER =
+    public static final ConfigOption<PartitionOrder> STREAMING_SOURCE_PARTITION_ORDER =
             key("streaming-source.partition-order")
-                    .stringType()
-                    .defaultValue("partition-name")
+                    .enumType(PartitionOrder.class)
+                    .defaultValue(PartitionOrder.PARTITION_NAME)
                     .withDeprecatedKeys("streaming-source.consume-order")
                     .withDescription(
                             Description.builder()
-                                    .text(
-                                            "The partition order of the streaming source, supported values are")
-                                    .list(
-                                            text(
-                                                    "create-time (compares partition/file creation time, which is not the partition creation time in the Hive metastore, "
-                                                            + "but the folder/file modification time in the filesystem; e.g., adding a new file into "
-                                                            + "the folder may affect how the data is consumed)"),
-                                            text(
-                                                    "partition-time (compares the time extracted from the partition name)"),
-                                            text(
-                                                    "partition-name (compares partition names lexicographically)"))
+                                    .text("The partition order of the streaming source.")
                                     .text(
                                             "This is a synonym for the deprecated 'streaming-source.consume-order' option.")
                                     .build());
@@ -191,23 +183,11 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The cache TTL (e.g. 10min) for the build table in lookup join.");
 
-    public static final ConfigOption<String> SINK_PARTITION_COMMIT_TRIGGER =
+    public static final ConfigOption<PartitionCommitTriggerType> SINK_PARTITION_COMMIT_TRIGGER =
             key("sink.partition-commit.trigger")
-                    .stringType()
-                    .defaultValue("process-time")
-                    .withDescription(
-                            Description.builder()
-                                    .text("Trigger type for partition commit, supported values are")
-                                    .list(
-                                            text(
-                                                    "process-time (based on the time of the machine, requires "
-                                                            + "neither partition time extraction nor watermark generation; "
-                                                            + "commits partition once the current system time passes partition creation system time plus delay)"),
-                                            text(
-                                                    "partition-time (based on the time extracted from partition values, "
-                                                            + "requires watermark generation; commits partition once "
-                                                            + "the watermark passes the time extracted from partition values plus delay)"))
-                                    .build());
+                    .enumType(PartitionCommitTriggerType.class)
+                    .defaultValue(PartitionCommitTriggerType.PROCESS_TIME)
+                    .withDescription("Trigger type for partition commit.");
 
     public static final ConfigOption<Duration> SINK_PARTITION_COMMIT_DELAY =
             key("sink.partition-commit.delay")
@@ -282,6 +262,73 @@ public class FileSystemConnectorOptions {
                             "The compaction target file size, the default value is the rolling file size.");
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
+
+    // --------------------------------------------------------------------------------------------
+    // Enums
+    // --------------------------------------------------------------------------------------------
+
+    /** Partition order used for {@link #STREAMING_SOURCE_PARTITION_ORDER}. */
+    public enum PartitionOrder implements DescribedEnum {
+        CREATE_TIME(
+                "create-time",
+                text(
+                        "Compares partition / file creation time, which is not the partition creation time in the Hive metastore, "
+                                + "but the folder / file modification time in the filesystem; e.g., adding a new file into "
+                                + "the folder may affect how the data is consumed.")),
+        PARTITION_TIME(
+                "partition-time", text("Compares the time extracted from the partition name.")),
+        PARTITION_NAME("partition-name", text("Compares partition names lexicographically."));
+
+        private final String value;
+        private final InlineElement description;
+
+        PartitionOrder(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Trigger types for partition commit, see {@link #SINK_PARTITION_COMMIT_TRIGGER}. */
+    public enum PartitionCommitTriggerType implements DescribedEnum {
+        PROCESS_TIME(
+                "process-time",
+                text(
+                        "Based on the time of the machine, requires neither partition time extraction nor watermark generation. "
+                                + "Commits partition once the current system time passes partition creation system time plus delay.")),
+        PARTITION_TIME(
+                "partition-time",
+                text(
+                        "Based on the  time extracted from partition values, requires watermark generation. "
+                                + "Commits partition once the watermark passes the time extracted from partition values plus delay."));
+
+        private final String value;
+        private final InlineElement description;
+
+        PartitionCommitTriggerType(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
 
     private FileSystemConnectorOptions() {}
 }

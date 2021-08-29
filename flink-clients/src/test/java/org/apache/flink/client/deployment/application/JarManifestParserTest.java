@@ -23,8 +23,8 @@ import org.apache.flink.client.testjar.TestJob;
 import org.apache.flink.client.testjar.TestJobInfo;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
 import org.junit.Test;

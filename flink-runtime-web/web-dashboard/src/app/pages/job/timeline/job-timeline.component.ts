@@ -50,8 +50,8 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   jobDetail: JobDetailCorrectInterface;
   selectedName: string;
   isShowSubTaskTimeLine = false;
-  @ViewChild('mainTimeLine') mainTimeLine: ElementRef;
-  @ViewChild('subTaskTimeLine') subTaskTimeLine: ElementRef;
+  @ViewChild('mainTimeLine', { static: true }) mainTimeLine: ElementRef;
+  @ViewChild('subTaskTimeLine', { static: true }) subTaskTimeLine: ElementRef;
 
   updateSubTaskChart(vertexId: string) {
     this.listOfSubTaskTimeLine = [];

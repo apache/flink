@@ -18,69 +18,39 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
+import java.util.Collection;
 import java.util.List;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The plan of one checkpoint, indicating which tasks to trigger, waiting for acknowledge or commit
  * for one specific checkpoint.
  */
-class CheckpointPlan {
+public interface CheckpointPlan extends FinishedTaskStateProvider {
 
-    /** Tasks who need to be sent a message when a checkpoint is started. */
-    private final List<Execution> tasksToTrigger;
+    /** Returns the tasks who need to be sent a message when a checkpoint is started. */
+    List<Execution> getTasksToTrigger();
 
-    /** Tasks who need to acknowledge a checkpoint before it succeeds. */
-    private final List<Execution> tasksToWaitFor;
+    /** Returns tasks who need to acknowledge a checkpoint before it succeeds. */
+    List<Execution> getTasksToWaitFor();
 
     /**
-     * Tasks that are still running when taking the checkpoint, these need to be sent a message when
-     * the checkpoint is confirmed.
+     * Returns tasks that are still running when taking the checkpoint, these need to be sent a
+     * message when the checkpoint is confirmed.
      */
-    private final List<ExecutionVertex> tasksToCommitTo;
+    List<ExecutionVertex> getTasksToCommitTo();
 
-    /** Tasks that have already been finished when taking the checkpoint. */
-    private final List<Execution> finishedTasks;
+    /** Returns tasks that have already been finished when taking the checkpoint. */
+    List<Execution> getFinishedTasks();
 
-    /** The job vertices whose tasks are all finished when taking the checkpoint. */
-    private final List<ExecutionJobVertex> fullyFinishedJobVertex;
+    /** Returns the job vertices whose tasks are all finished when taking the checkpoint. */
+    @VisibleForTesting
+    Collection<ExecutionJobVertex> getFullyFinishedJobVertex();
 
-    CheckpointPlan(
-            List<Execution> tasksToTrigger,
-            List<Execution> tasksToWaitFor,
-            List<ExecutionVertex> tasksToCommitTo,
-            List<Execution> finishedTasks,
-            List<ExecutionJobVertex> fullyFinishedJobVertex) {
-
-        this.tasksToTrigger = checkNotNull(tasksToTrigger);
-        this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
-        this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
-        this.finishedTasks = checkNotNull(finishedTasks);
-        this.fullyFinishedJobVertex = checkNotNull(fullyFinishedJobVertex);
-    }
-
-    List<Execution> getTasksToTrigger() {
-        return tasksToTrigger;
-    }
-
-    List<Execution> getTasksToWaitFor() {
-        return tasksToWaitFor;
-    }
-
-    List<ExecutionVertex> getTasksToCommitTo() {
-        return tasksToCommitTo;
-    }
-
-    public List<Execution> getFinishedTasks() {
-        return finishedTasks;
-    }
-
-    public List<ExecutionJobVertex> getFullyFinishedJobVertex() {
-        return fullyFinishedJobVertex;
-    }
+    /** Returns whether we support checkpoints after some tasks finished. */
+    boolean mayHaveFinishedTasks();
 }

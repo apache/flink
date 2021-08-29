@@ -48,7 +48,7 @@ under the License.
 java -version
 ```
 
-[下载](https://flink.apache.org/downloads.html) release {{< version >}} 并解压。
+[下载]({{< downloads >}}) release {{< version >}} 并解压。
 
 ```bash
 $ tar -xzf flink-{{< version >}}-bin-scala{{< scala_version >}}.tgz

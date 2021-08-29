@@ -149,7 +149,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
     private DataStreamSink<?> consume(
             DataStream<RowData> dataStream, boolean isBounded, DataStructureConverter converter) {
-        checkAcidTable(catalogTable, identifier.toObjectPath());
+        checkAcidTable(catalogTable.getOptions(), identifier.toObjectPath());
 
         try (HiveMetastoreClientWrapper client =
                 HiveMetastoreClientFactory.create(HiveConfUtils.create(jobConf), hiveVersion)) {

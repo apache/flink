@@ -20,10 +20,13 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{MatchSpec, PartitionSpec}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.isRowtimeIndicatorType
 
 import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 
 import _root_.scala.collection.JavaConversions._
 
@@ -71,4 +74,37 @@ object MatchUtil {
     )
   }
 
+  def isMatchTimeIndicator(rex: RexNode): Boolean = {
+    rex match {
+      case call: RexCall =>
+        call.getOperator match {
+          case FlinkSqlOperatorTable.MATCH_PROCTIME | FlinkSqlOperatorTable.MATCH_ROWTIME => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  def isFinalOnRowTimeIndicator(rex: RexNode): Boolean = {
+    rex match {
+      case call: RexCall =>
+        call.getOperator match {
+          case SqlStdOperatorTable.FINAL =>
+            call.getOperands.size == 1 && isRowtimeIndicatorType(call.getOperands.head.getType)
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  def isMatchRowTimeIndicator(rex: RexNode): Boolean = {
+    rex match {
+      case call: RexCall =>
+        call.getOperator match {
+          case FlinkSqlOperatorTable.MATCH_ROWTIME => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
 }

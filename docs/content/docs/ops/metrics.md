@@ -243,7 +243,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink does not provide a default implementation for `Histogram`, but offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard histograms.
+Flink does not provide a default implementation for `Histogram`, but offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard histograms.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>
@@ -916,8 +916,8 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8">Task</th>
-      <td rowspan="2">Shuffle.Netty.Input.Buffers</td>
+      <th rowspan="18">Task</th>
+      <td rowspan="4">Shuffle.Netty.Input.Buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
       <td>Gauge</td>
@@ -971,7 +971,6 @@ Metrics related to data exchange between task executors using netty network comm
       <td>Gauge</td>
     </tr>
     <tr>
-      <th rowspan="8"><strong>Task</strong></th>
       <td rowspan="8">Shuffle.Netty.Input</td>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
@@ -1194,7 +1193,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="14"><strong>Task</strong></th>
+      <th rowspan="16"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1267,12 +1266,23 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     <tr>
       <td>backPressuredTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is back pressured per second.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>busyTimeMsPerSecond</td>
       <td>The time (in milliseconds) this task is busy (neither idle nor back pressured) per second. Can be NaN, if the value could not be calculated.</td>
-      <td>Meter</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Task (only if buffer debloating is enabled and in non-source tasks)</strong></td>
+      <td>estimatedTimeToConsumerBuffersMs</td>
+      <td>The estimated time (in milliseconds) by the buffer debloater to consume all of the buffered data in the network exchange preceding this task. This value is calculated by approximated amount of the in-flight data and calculated throughput.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>debloatedBufferSize</td>
+      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the amount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="6"><strong>Task/Operator</strong></th>

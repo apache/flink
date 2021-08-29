@@ -25,8 +25,8 @@ import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -97,7 +97,7 @@ public class CoreOptions {
     public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
             ConfigOptions.key("classloader.parent-first-patterns.default")
                     .defaultValue(
-                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.xml;javax.xml;org.apache.xerces;org.w3c;"
+                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.xml;javax.xml;org.apache.xerces;org.w3c;org.rocksdb.;"
                                     + PARENT_FIRST_LOGGING_PATTERNS)
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(

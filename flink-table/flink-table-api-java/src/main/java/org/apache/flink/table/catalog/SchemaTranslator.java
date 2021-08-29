@@ -66,7 +66,8 @@ public final class SchemaTranslator {
      *
      * <ul>
      *   <li>1. Derive physical columns from the input schema.
-     *   <li>2. Derive physical columns from the input schema but enrich with metadata column.
+     *   <li>2. Derive physical columns from the input schema but enrich with metadata column and
+     *       primary key.
      *   <li>3. Entirely use declared schema.
      * </ul>
      */
@@ -85,7 +86,7 @@ public final class SchemaTranslator {
         final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
 
         // the declared schema does not contain physical information,
-        // thus, it only replaces physical columns with metadata rowtime
+        // thus, it only replaces physical columns with metadata rowtime or adds a primary key
         if (declaredColumns.stream().noneMatch(SchemaTranslator::isPhysical)) {
             // go through data type to erase time attributes
             final DataType sourceDataType = inputSchema.toSourceRowDataType();
@@ -93,7 +94,7 @@ public final class SchemaTranslator {
                     patchDataTypeWithoutMetadataRowtime(sourceDataType, declaredColumns);
             final Schema.Builder builder = Schema.newBuilder();
             builder.fromRowDataType(physicalDataType);
-            builder.fromColumns(declaredColumns);
+            builder.fromSchema(declaredSchema);
             return new ProducingResult(null, builder.build(), null);
         }
 

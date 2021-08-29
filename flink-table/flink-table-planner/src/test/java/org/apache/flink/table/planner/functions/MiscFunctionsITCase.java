@@ -45,9 +45,9 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "TYPEOF(f0)",
                                 "INT NOT NULL",
                                 DataTypes.STRING())
-                        .testTableApiError(
+                        .testTableApiValidationError(
                                 call("TYPEOF", $("f0"), $("f2")), "Invalid input arguments.")
-                        .testSqlError(
+                        .testSqlValidationError(
                                 "TYPEOF(f0, f2)",
                                 "SQL validation failed. Invalid function call:\nTYPEOF(INT NOT NULL, BOOLEAN NOT NULL)")
                         .testTableApiResult(
@@ -74,7 +74,7 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "IFNULL(f1, f0)",
                                 new BigDecimal("123.45"),
                                 DataTypes.DECIMAL(12, 2).notNull())
-                        .testSqlError(
+                        .testSqlValidationError(
                                 "IFNULL(SUBSTR(''), f0)",
                                 "Invalid number of arguments to function 'SUBSTR'.")
                         .testResult(
@@ -100,7 +100,7 @@ public class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 callSql("UPPER(f2)").plus(callSql("LOWER(f2)")).substring(2, 20),
                                 "ELLO WORLDhello worl",
                                 DataTypes.STRING().notNull())
-                        .testTableApiError(
+                        .testTableApiValidationError(
                                 callSql("UPPER(f1)"), "Invalid SQL expression: UPPER(f1)"));
     }
 

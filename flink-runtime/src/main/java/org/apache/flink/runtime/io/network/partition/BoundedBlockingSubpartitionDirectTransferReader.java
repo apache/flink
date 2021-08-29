@@ -62,7 +62,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
             int numDataBuffers,
             int numDataAndEventBuffers)
             throws IOException {
-        checkArgument(numDataAndEventBuffers - numDataBuffers == 1, "Too many event buffers.");
+        int numEvents = numDataAndEventBuffers - numDataBuffers;
+        checkArgument(
+                numEvents == 1
+                        || numEvents
+                                == 2 /* EndOfData might not be generated e.g. in DataSet API */,
+                "Too many event buffers.");
         this.parent = checkNotNull(parent);
 
         checkNotNull(filePath);
@@ -149,6 +154,16 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
+    public int getNumberOfQueuedBuffers() {
+        return parent.getNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
+    }
+
+    @Override
     public void notifyDataAvailable() {
         throw new UnsupportedOperationException("Method should never be called.");
     }
@@ -159,8 +174,9 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
-        throw new UnsupportedOperationException("Method should never be called.");
+    public void acknowledgeAllDataProcessed() {
+        // in case of bounded partitions there is no upstream to acknowledge, we simply ignore
+        // the ack, as there are no checkpoints
     }
 
     @Override

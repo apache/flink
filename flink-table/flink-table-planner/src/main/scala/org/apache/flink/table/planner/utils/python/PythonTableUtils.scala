@@ -33,7 +33,7 @@ import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, Ro
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.sources.InputFormatTableSource
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -216,18 +216,19 @@ object PythonTableUtils {
       (obj: Any) => nullSafeConvert(obj) {
         case c if c.getClass.isArray =>
           val r = c.asInstanceOf[Array[_]]
-          if (r.length != rowType.getFieldTypes.length) {
+          if (r.length - 1 != rowType.getFieldTypes.length) {
             throw new IllegalStateException(
               s"Input row doesn't have expected number of values required by the schema. " +
-                s"${rowType.getFieldTypes.length} fields are required while ${r.length} " +
+                s"${rowType.getFieldTypes.length} fields are required while ${r.length - 1} " +
                 s"values are provided."
               )
           }
 
-          val row = new Row(r.length)
-          var i = 0
+          val row = new Row(r.length - 1)
+          row.setKind(RowKind.fromByteValue(r(0).asInstanceOf[Integer].byteValue()))
+          var i = 1
           while (i < r.length) {
-            row.setField(i, fieldsFromJava(i)(r(i)))
+            row.setField(i - 1, fieldsFromJava(i - 1)(r(i)))
             i += 1
           }
           row

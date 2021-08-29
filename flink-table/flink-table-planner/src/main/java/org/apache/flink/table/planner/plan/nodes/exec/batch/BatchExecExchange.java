@@ -141,8 +141,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         }
 
         final StreamExchangeMode exchangeMode =
-                getBatchStreamExchangeMode(
-                        planner.getTableConfig().getConfiguration(), requiredExchangeMode);
+                getBatchStreamExchangeMode(planner.getConfiguration(), requiredExchangeMode);
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner, exchangeMode);
         transformation.setParallelism(parallelism);

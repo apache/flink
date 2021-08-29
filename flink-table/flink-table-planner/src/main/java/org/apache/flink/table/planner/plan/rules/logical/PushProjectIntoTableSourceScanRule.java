@@ -155,8 +155,8 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
 
         DynamicTableSource newSource = oldSource.copy();
         SourceAbilityContext context = SourceAbilityContext.from(scan);
-        for (SourceAbilitySpec pushDownSpec : sourceAbilitySpecs) {
-            pushDownSpec.apply(newSource, context);
+        for (SourceAbilitySpec abilitySpec : sourceAbilitySpecs) {
+            abilitySpec.apply(newSource, context);
         }
 
         RelDataType newRowType = flinkTypeFactory.buildRelNodeRowType(newProducedType);
@@ -166,9 +166,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
                 oldTableSourceTable.copy(
                         newSource,
                         newRowType,
-                        new String[] {
-                            ("project=[" + String.join(", ", newRowType.getFieldNames()) + "]")
-                        },
+                        getExtraDigests(newRowType, sourceAbilitySpecs),
                         sourceAbilitySpecs.toArray(new SourceAbilitySpec[0]));
         LogicalTableScan newScan =
                 new LogicalTableScan(
@@ -192,6 +190,24 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
         } else {
             call.transformTo(newProject);
         }
+    }
+
+    private static String[] getExtraDigests(
+            RelDataType rowType, List<SourceAbilitySpec> abilitySpecs) {
+        final List<String> digests = new ArrayList<>();
+        digests.add(String.format("project=[%s]", String.join(", ", rowType.getFieldNames())));
+
+        for (SourceAbilitySpec abilitySpec : abilitySpecs) {
+            if (abilitySpec instanceof ReadingMetadataSpec) {
+                final ReadingMetadataSpec metadataSpec = (ReadingMetadataSpec) abilitySpec;
+                digests.add(
+                        String.format(
+                                "metadata=[%s]",
+                                String.join(", ", metadataSpec.getMetadataKeys())));
+            }
+        }
+
+        return digests.toArray(new String[0]);
     }
 
     /** Returns true if the primary key is required and should be retained. */
@@ -251,9 +267,7 @@ public class PushProjectIntoTableSourceScanRule extends RelOptRule {
                                 .getLogicalType();
 
         sourceAbilitySpecs.add(new ProjectPushDownSpec(projectedPhysicalFields, newProducedType));
-        if (!usedMetadataNames.isEmpty()) {
-            sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
-        }
+        sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
         return newProducedType;
     }
 }

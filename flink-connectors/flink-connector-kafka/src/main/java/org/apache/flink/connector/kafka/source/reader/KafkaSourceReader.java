@@ -130,6 +130,7 @@ public class KafkaSourceReader<T>
                                 LOG.debug(
                                         "Successfully committed offsets for checkpoint {}",
                                         checkpointId);
+                                kafkaSourceReaderMetrics.recordSucceededCommit();
                                 // If the finished topic partition has been committed, we remove it
                                 // from the offsets of the finished splits map.
                                 Map<TopicPartition, OffsetAndMetadata> committedPartitions =

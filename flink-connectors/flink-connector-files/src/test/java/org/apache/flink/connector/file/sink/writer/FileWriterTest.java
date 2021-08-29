@@ -192,7 +192,7 @@ public class FileWriterTest {
     }
 
     @Test
-    public void testOnProcessingTime() throws IOException {
+    public void testOnProcessingTime() throws IOException, InterruptedException {
         File outDir = TEMP_FOLDER.newFolder();
         Path path = new Path(outDir.toURI());
 
@@ -327,7 +327,7 @@ public class FileWriterTest {
             if (time <= now) {
                 try {
                     processingTimeCallback.onProcessingTime(now);
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                     ExceptionUtils.rethrow(e);
                 }
             } else {
@@ -335,7 +335,7 @@ public class FileWriterTest {
             }
         }
 
-        public void advanceTo(long time) throws IOException {
+        public void advanceTo(long time) throws IOException, InterruptedException {
             if (time > now) {
                 now = time;
 

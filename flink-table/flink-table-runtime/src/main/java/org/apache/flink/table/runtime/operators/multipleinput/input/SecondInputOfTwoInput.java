@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 
 /** {@link Input} for the second input of {@link TwoInputStreamOperator}. */
@@ -51,7 +51,7 @@ public class SecondInputOfTwoInput extends InputBase {
     }
 
     @Override
-    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
-        operator.processStreamStatus2(streamStatus);
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+        operator.processWatermarkStatus2(watermarkStatus);
     }
 }

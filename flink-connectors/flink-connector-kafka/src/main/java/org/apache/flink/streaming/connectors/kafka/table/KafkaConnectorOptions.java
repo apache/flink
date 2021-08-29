@@ -21,7 +21,10 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
@@ -142,21 +145,11 @@ public class KafkaConnectorOptions {
     // Scan specific options
     // --------------------------------------------------------------------------------------------
 
-    public static final ConfigOption<String> SCAN_STARTUP_MODE =
+    public static final ConfigOption<ScanStartupMode> SCAN_STARTUP_MODE =
             ConfigOptions.key("scan.startup.mode")
-                    .stringType()
-                    .defaultValue("group-offsets")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional startup mode for Kafka consumer, valid enumerations are")
-                                    .list(
-                                            text("'earliest-offset'"),
-                                            text("'latest-offset'"),
-                                            text("'group-offsets'"),
-                                            text("'timestamp'"),
-                                            text("'specific-offsets'"))
-                                    .build());
+                    .enumType(ScanStartupMode.class)
+                    .defaultValue(ScanStartupMode.GROUP_OFFSETS)
+                    .withDescription("Startup mode for Kafka consumer.");
 
     public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
             ConfigOptions.key("scan.startup.specific-offsets")
@@ -202,17 +195,6 @@ public class KafkaConnectorOptions {
                                                     "custom class name (use custom FlinkKafkaPartitioner subclass)"))
                                     .build());
 
-    public static final ConfigOption<String> SINK_SEMANTIC =
-            ConfigOptions.key("sink.semantic")
-                    .stringType()
-                    .defaultValue("at-least-once")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional semantic when committing. Valid enumerations are")
-                                    .list(text("at-least-once"), text("exactly-once"), text("none"))
-                                    .build());
-
     // Disable this feature by default
     public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
             ConfigOptions.key("sink.buffer-flush.max-rows")
@@ -252,6 +234,21 @@ public class KafkaConnectorOptions {
                                                     + "must be set to be greater than zero to enable sink buffer flushing.")
                                     .build());
 
+    public static final ConfigOption<DeliveryGuarantee> DELIVERY_GUARANTEE =
+            ConfigOptions.key("sink.delivery-guarantee")
+                    .enumType(DeliveryGuarantee.class)
+                    .defaultValue(DeliveryGuarantee.AT_LEAST_ONCE)
+                    .withDescription("Optional delivery guarantee when committing.");
+
+    public static final ConfigOption<String> TRANSACTIONAL_ID_PREFIX =
+            ConfigOptions.key("sink.transactional-id-prefix")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "If the delivery guarantee is configured as "
+                                    + DeliveryGuarantee.EXACTLY_ONCE
+                                    + " this value is used a prefix for the identifier of all opened Kafka transactions.");
+
     // --------------------------------------------------------------------------------------------
     // Enums
     // --------------------------------------------------------------------------------------------
@@ -260,6 +257,38 @@ public class KafkaConnectorOptions {
     public enum ValueFieldsStrategy {
         ALL,
         EXCEPT_KEY
+    }
+
+    /** Startup mode for the Kafka consumer, see {@link #SCAN_STARTUP_MODE}. */
+    public enum ScanStartupMode implements DescribedEnum {
+        EARLIEST_OFFSET("earliest-offset", text("Start from the earliest offset possible.")),
+        LATEST_OFFSET("latest-offset", text("Start from the latest offset.")),
+        GROUP_OFFSETS(
+                "group-offsets",
+                text(
+                        "Start from committed offsets in ZooKeeper / Kafka brokers of a specific consumer group.")),
+        TIMESTAMP("timestamp", text("Start from user-supplied timestamp for each partition.")),
+        SPECIFIC_OFFSETS(
+                "specific-offsets",
+                text("Start from user-supplied specific offsets for each partition."));
+
+        private final String value;
+        private final InlineElement description;
+
+        ScanStartupMode(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 
     private KafkaConnectorOptions() {}

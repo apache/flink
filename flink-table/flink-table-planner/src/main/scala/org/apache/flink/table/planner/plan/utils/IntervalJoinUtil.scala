@@ -19,12 +19,16 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
@@ -48,24 +52,6 @@ object IntervalJoinUtil {
       pred: RexCall)
 
   protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
-
-  /**
-    * Checks if an expression accesses a time attribute.
-    *
-    * @param expr      The expression to check.
-    * @param inputType The input type of the expression.
-    * @return True, if the expression accesses a time attribute. False otherwise.
-    */
-  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
-    expr match {
-      case ref: RexInputRef =>
-        val accessedType = inputType.getFieldList.get(ref.getIndex).getType
-        FlinkTypeFactory.isTimeIndicatorType(accessedType)
-      case c: RexCall =>
-        c.operands.exists(accessesTimeAttribute(_, inputType))
-      case _ => false
-    }
-  }
 
   /**
     * Extracts the window bounds from a join predicate.
@@ -393,11 +379,31 @@ object IntervalJoinUtil {
       config: TableConfig): (Option[Long], Option[Long]) = {
 
     /**
+     * Checks if the given call is a materialization call for either proctime or rowtime.
+     */
+    def isMaterializationCall(call: RexCall): Boolean = {
+      val isProctimeCall: Boolean = {
+        call.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE &&
+          call.getOperands.size() == 1 &&
+          FlinkTypeFactory.isProctimeIndicatorType(call.getOperands.get(0).getType)
+      }
+
+      val isRowtimeCall: Boolean = {
+        call.getOperator == SqlStdOperatorTable.CAST &&
+          call.getOperands.size() == 1 &&
+          FlinkTypeFactory.isRowtimeIndicatorType(call.getOperands.get(0).getType) &&
+          call.getType.getSqlTypeName == SqlTypeName.TIMESTAMP
+      }
+
+      isProctimeCall || isRowtimeCall
+    }
+
+    /**
       * Replace the time attribute by zero literal.
       */
     def replaceTimeFieldWithLiteral(expr: RexNode): RexNode = {
       expr match {
-        case c: RexCall if RelTimeIndicatorConverter.isMaterializationCall(c) =>
+        case c: RexCall if isMaterializationCall(c) =>
           // replace with timestamp
           rexBuilder.makeZeroLiteral(expr.getType)
         case c: RexCall =>
@@ -436,4 +442,35 @@ object IntervalJoinUtil {
     (literals.head, literals(1))
   }
 
+  /**
+   * Check whether input join node satisfy preconditions to convert into interval join.
+   *
+   * @param join input join to analyze.
+   * @return True if input join node satisfy preconditions to convert into interval join,
+   *         else false.
+   */
+  def satisfyIntervalJoin(join: FlinkLogicalJoin): Boolean = {
+    // TODO support SEMI/ANTI joinSplitAggregateRuleTest
+    if (!join.getJoinType.projectsRight) {
+      return false
+    }
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val (windowBounds, _) = extractWindowBoundsFromPredicate(
+      join.getCondition,
+      join.getLeft.getRowType.getFieldCount,
+      join.getRowType,
+      join.getCluster.getRexBuilder,
+      tableConfig)
+    windowBounds.nonEmpty
+  }
+
+  def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    extractWindowBoundsFromPredicate(
+      join.getCondition,
+      join.getLeft.getRowType.getFieldCount,
+      join.getRowType,
+      join.getCluster.getRexBuilder,
+      tableConfig)
+  }
 }

@@ -88,7 +88,7 @@ public final class SchedulerUtils {
                     CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
         }
 
-        return recoveryFactory.createCheckpointStore(
+        return recoveryFactory.createRecoveredCompletedCheckpointStore(
                 jobId, maxNumberOfCheckpointsToRetain, classLoader);
     }
 

@@ -340,13 +340,12 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @Test
   def testFlatMap(): Unit = {
-    val func2 = new TableFunc2
     val ds = testData(env).toTable(tEnv, 'a, 'b, 'c)
       // test non alias
-      .flatMap(func2('c))
+      .flatMap(call(classOf[TableFunc2], 'c))
       .select('f0, 'f1)
       // test the output field name of flatMap is the same as the field name of the input table
-      .flatMap(func2(concat('f0, "#")))
+      .flatMap(call(classOf[TableFunc2], concat('f0, "#")))
       .as ("f0", "f1")
       .select('f0, 'f1)
 
@@ -377,7 +376,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
     val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
-    val result = in.select(rf('a) as 'd).joinLateral(tf('d) as 'e)
+    val result = in.select(rf('a) as 'd).joinLateral(call(tf, 'd) as 'e)
 
     val sink = new TestingAppendSink
 

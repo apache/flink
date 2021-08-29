@@ -281,6 +281,9 @@ final class TestValuesRuntimeFunctions {
 
             @Override
             public void markIdle() {}
+
+            @Override
+            public void markActive() {}
         }
     }
 

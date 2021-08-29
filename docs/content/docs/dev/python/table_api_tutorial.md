@@ -71,31 +71,36 @@ The table config allows setting Table API specific configurations.
 ```python
 settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
-```
 
-The table environment created, you can declare source and sink tables.
-
-```python
 # write all the data to one file
 t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
-
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
 ```
+
+You can now create source and sink tables:
+
+```python
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
+```
+
 You can also use the TableEnvironment.sql_update() method to register a source/sink table defined in DDL:
+
 ```python
 my_source_ddl = """
     create table mySource (
@@ -118,14 +123,14 @@ my_sink_ddl = """
     )
 """
 
-t_env.sql_update(my_source_ddl)
-t_env.sql_update(my_sink_ddl)
+t_env.execute_sql(my_source_ddl)
+t_env.execute_sql(my_sink_ddl)
 ```
 This registers a table named `mySource` and a table named `mySink` in the execution environment.
 The table `mySource` has only one column, word, and it consumes strings read from file `/tmp/input`.
 The table `mySink` has two columns, word and count, and writes data to the file `/tmp/output`, with `\t` as the field delimiter.
 
-You can now create a job which reads input from table `mySource`, preforms some transformations, and writes the results to table `mySink`.
+You can now create a job which reads input from table `mySource`, performs some transformations, and writes the results to table `mySink`.
 
 Finally you must execute the actual Flink Python Table API job.
 All operations, such as creating sources, transformations and sinks are lazy.
@@ -144,7 +149,7 @@ The complete code so far:
 
 ```python
 from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
-from pyflink.table.descriptors import Schema, OldCsv, FileSystem
+from pyflink.table.descriptors import Schema, FileSystem
 from pyflink.table.expressions import lit
 
 settings = EnvironmentSettings.in_batch_mode()
@@ -152,22 +157,25 @@ t_env = TableEnvironment.create(settings)
 
 # write all the data to one file
 t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-t_env.connect(FileSystem().path('/tmp/input')) \
-    .with_format(OldCsv()
-                 .field('word', DataTypes.STRING())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())) \
-    .create_temporary_table('mySource')
 
-t_env.connect(FileSystem().path('/tmp/output')) \
-    .with_format(OldCsv()
-                 .field_delimiter('\t')
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .with_schema(Schema()
-                 .field('word', DataTypes.STRING())
-                 .field('count', DataTypes.BIGINT())) \
-    .create_temporary_table('mySink')
+t_env.create_temporary_table('mySource', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .build())
+    .option('path', '/tmp/input')
+    .format('csv')
+    .build())
+
+t_env.create_temporary_table('mySink', TableDescriptor.for_connector('filesystem')
+    .schema(Schema.new_builder()
+        .column('word', DataTypes.STRING())
+        .column('count', DataTypes.BIGINT())
+        .build())
+    .option('path', '/tmp/output')
+    .format(FormatDescriptor.for_format('csv')
+        .option('field-delimiter', '\t')
+        .build())
+    .build())
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
@@ -176,13 +184,14 @@ tab.group_by(tab.word) \
 ```
 
 ## Executing a Flink Python Table API Program
-Firstly, you need to prepare input data in the "/tmp/input" file. You can choose the following command line to prepare the input data:
+Firstly, you need to prepare input data in the "/tmp/input" directory. You can choose the following command line to prepare the input data:
 
 ```bash
-$ echo -e  "flink\npyflink\nflink" > /tmp/input
+$ mkdir /tmp/input
+$ echo -e  "flink\npyflink\nflink" > /tmp/input/input.csv
 ```
 
-Next, you can run this example on the command line (Note: if the result file "/tmp/output" has already existed, you need to remove the file before running the example):
+Next, you can run this example on the command line (Note: if the output directory "/tmp/output" has already existed, you need to remove the file before running the example):
 
 ```bash
 $ python WordCount.py
@@ -196,7 +205,7 @@ for more details.
 Finally, you can see the execution result on the command line:
 
 ```bash
-$ cat /tmp/output
+$ cat /tmp/output/*
 flink	2
 pyflink	1
 ```

@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;

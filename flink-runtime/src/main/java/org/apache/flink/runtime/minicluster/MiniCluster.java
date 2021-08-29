@@ -47,6 +47,7 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -74,6 +75,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -218,7 +220,9 @@ public class MiniCluster implements AutoCloseableAsync {
                                         .getNumTaskManagers()); // common + JM + RM + TMs
         this.dispatcherResourceManagerComponents = new ArrayList<>(1);
 
-        this.rpcTimeout = miniClusterConfiguration.getRpcTimeout();
+        // There shouldn't be any lost messages between the MiniCluster and the Flink components
+        // since they all run in the same process.
+        this.rpcTimeout = RpcUtils.INF_TIMEOUT;
         this.terminationFuture = CompletableFuture.completedFuture(null);
         running = false;
 
@@ -501,7 +505,7 @@ public class MiniCluster implements AutoCloseableAsync {
                 return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
                         configuration, executor);
             default:
-                throw new IllegalConfigurationException("Unkown HA Services " + haServices);
+                throw new IllegalConfigurationException("Unknown HA Services " + haServices);
         }
     }
 
@@ -656,6 +660,11 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getNumTaskManagers() == 1;
     }
 
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return miniClusterConfiguration.getConfiguration();
+    }
+
     @GuardedBy("lock")
     private Collection<? extends CompletableFuture<Void>> terminateTaskManagers() {
         final Collection<CompletableFuture<Void>> terminationFutures =
@@ -688,6 +697,14 @@ public class MiniCluster implements AutoCloseableAsync {
     // ------------------------------------------------------------------------
     //  Accessing jobs
     // ------------------------------------------------------------------------
+
+    public CompletableFuture<ArchivedExecutionGraph> getArchivedExecutionGraph(JobID jobId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway
+                                .requestExecutionGraphInfo(jobId, rpcTimeout)
+                                .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph));
+    }
 
     public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
         return runDispatcherCommand(

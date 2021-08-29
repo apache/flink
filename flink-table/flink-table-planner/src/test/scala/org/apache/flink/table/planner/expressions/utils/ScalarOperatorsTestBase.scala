@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(21)
+    val testData = new Row(23)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -52,6 +52,8 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(18, "hello world".getBytes())
     testData.setField(19, "hello flink".getBytes())
     testData.setField(20, "who".getBytes())
+    testData.setField(21, localTime("12:34:56"))
+    testData.setField(22, localDateTime("1996-11-10 12:34:56"))
     testData
   }
 
@@ -80,7 +82,9 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
         DataTypes.FIELD("f17", DataTypes.DECIMAL(19, 1)),
         DataTypes.FIELD("f18", DataTypes.BINARY(200)),
         DataTypes.FIELD("f19", DataTypes.VARBINARY(200)),
-        DataTypes.FIELD("f20", DataTypes.VARBINARY(200))
+        DataTypes.FIELD("f20", DataTypes.VARBINARY(200)),
+        DataTypes.FIELD("f21", DataTypes.TIME()),
+        DataTypes.FIELD("f22", DataTypes.TIMESTAMP())
     )
   }
 

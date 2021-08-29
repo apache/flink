@@ -26,12 +26,12 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.{TableEnvironment, TableSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.StreamTableSourceFactory
-import org.apache.flink.table.planner.runtime.utils.TestData.{data3, type3}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
@@ -90,13 +90,9 @@ object TestLegacyLimitableTableSource {
       data: Seq[Row],
       schema: TableSchema,
       tableName: String): Unit = {
-    val desc = new CustomConnectorDescriptor("TestLimitableTableSource", 1, false)
-    if (data != null && data.nonEmpty) {
-      desc.property("data", EncodingUtils.encodeObjectToString(data.toList))
-    }
-    tEnv.connect(desc)
-      .withSchema(new Schema().schema(schema))
-      .createTemporaryTable(tableName)
+    val source = new TestLegacyLimitableTableSource(data,
+      schema.toRowType.asInstanceOf[RowTypeInfo], -1L, false)
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
   }
 }
 

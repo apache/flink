@@ -15,23 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# validation test
-set 'execution.parallelism' = '10a';
-[ERROR] Could not execute SQL statement. Reason:
-java.lang.NumberFormatException: For input string: "10a"
-!error
-
-# test set the removed key
-SET 'execution.max-idle-state-retention' = '1000';
-[WARNING] The specified key is not supported anymore.
-!warning
-
-# test set the deprecated key
-SET 'execution.planner' = 'blink';
-[WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
-[INFO] Session property has been set.
-!warning
-
 # test set a configuration
 SET 'table.sql-dialect' = 'hive';
 [INFO] Session property has been set.
@@ -63,9 +46,7 @@ set;
 'pipeline.classpaths' = ''
 'pipeline.jars' = ''
 'rest.port' = '$VAR_REST_PORT'
-'table.planner' = 'blink'
 'table.sql-dialect' = 'hive'
-[DEPRECATED] 'execution.planner' = 'blink'
 !ok
 
 # reset the configuration
@@ -104,42 +85,6 @@ Was expecting one of:
     "," ...
 
 !error
-
-# test reset remove key
-reset 'execution.max-idle-state-retention';
-[WARNING] The specified key is not supported anymore.
-!warning
-
-# test reset the deprecated key
-set 'execution.max-table-result-rows' = '200';
-[WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
-[INFO] Session property has been set.
-!warning
-
-reset 'sql-client.execution.max-table-result.rows';
-[INFO] Session property has been reset.
-!info
-
-set;
-'execution.attached' = 'true'
-'execution.savepoint.ignore-unclaimed-state' = 'false'
-'execution.shutdown-on-attached-exit' = 'false'
-'execution.target' = 'remote'
-'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
-'pipeline.classpaths' = ''
-'pipeline.jars' = ''
-'rest.port' = '$VAR_REST_PORT'
-!ok
-
-set 'parallelism.default' = '3';
-[INFO] Session property has been set.
-!info
-
-# test reset deprecated key
-reset 'execution.parallelism';
-[WARNING] The specified key 'execution.parallelism' is deprecated. Please use 'parallelism.default' instead.
-[INFO] Session property has been reset.
-!warning
 
 set;
 'execution.attached' = 'true'

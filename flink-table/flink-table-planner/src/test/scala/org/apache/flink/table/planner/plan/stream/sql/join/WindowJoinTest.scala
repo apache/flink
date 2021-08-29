@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -137,7 +138,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_TumbleOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -151,7 +152,10 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -239,7 +243,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_HopOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_HopOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -255,7 +259,10 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -343,7 +350,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_CumulateOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_CumulateOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -359,7 +366,52 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testUnsupportedWindowTVF_SessionOnRowtime(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+
+    thrown.expectMessage("Session Window TableFunction is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testUnsupportedWindowTVF_SessionOnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   // ----------------------------------------------------------------------------------------
@@ -378,6 +430,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -389,6 +442,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -411,6 +465,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -422,6 +477,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -444,6 +500,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -456,6 +513,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -484,6 +542,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -494,6 +553,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -514,6 +574,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -524,6 +585,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -544,6 +606,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -555,6 +618,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -576,6 +640,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -587,6 +652,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -608,6 +674,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -620,6 +687,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -642,6 +710,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -654,6 +723,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -867,6 +937,70 @@ class WindowJoinTest extends TableTestBase {
         |  FROM TABLE(
         |    CUMULATE(
         |      TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testOnSessionWindowAggregate(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testOnSessionWindowAggregateOnProctime(): Unit = {
+    val sql =
+      """
+        |SELECT L.*, R.*
+        |FROM (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(SESSION(TABLE MyTable, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
+        |  GROUP BY a, window_start, window_end, window_time
+        |) L
+        |JOIN (
+        |  SELECT
+        |    a,
+        |    window_start,
+        |    window_end,
+        |    window_time,
+        |    count(*) as cnt,
+        |    count(distinct c) AS uv
+        |  FROM TABLE(SESSION(TABLE MyTable2, DESCRIPTOR(proctime), INTERVAL '15' MINUTE))
         |  GROUP BY a, window_start, window_end, window_time
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a

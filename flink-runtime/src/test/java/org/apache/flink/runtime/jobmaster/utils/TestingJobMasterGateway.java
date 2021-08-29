@@ -517,4 +517,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             Time timeout) {
         return deliverCoordinationRequestFunction.apply(operatorId, serializedRequest);
     }
+
+    @Override
+    public CompletableFuture<?> stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> partitionIds) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

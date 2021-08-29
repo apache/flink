@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 
 import java.util.concurrent.CompletableFuture;
@@ -30,14 +30,21 @@ import java.util.concurrent.CompletableFuture;
  */
 public class StreamTaskFinishedOnRestoreSourceInput<T> extends StreamTaskSourceInput<T> {
 
+    private boolean emittedEndOfData = false;
+
     public StreamTaskFinishedOnRestoreSourceInput(
             SourceOperator<T, ?> operator, int inputGateIndex, int inputIndex) {
         super(operator, inputGateIndex, inputIndex);
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<T> output) throws Exception {
-        return InputStatus.END_OF_INPUT;
+    public DataInputStatus emitNext(DataOutput<T> output) throws Exception {
+        if (emittedEndOfData) {
+            return DataInputStatus.END_OF_INPUT;
+        } else {
+            emittedEndOfData = true;
+            return DataInputStatus.END_OF_DATA;
+        }
     }
 
     @Override

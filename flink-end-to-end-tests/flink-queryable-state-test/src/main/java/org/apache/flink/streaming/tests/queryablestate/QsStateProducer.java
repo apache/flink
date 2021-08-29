@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.tests.queryablestate;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -26,17 +27,17 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -138,15 +139,17 @@ public class QsStateProducer {
     }
 
     private static class TestFlatMap extends RichFlatMapFunction<Email, Object>
-            implements CheckpointedFunction {
+            implements CheckpointListener {
 
         private static final long serialVersionUID = 7821128115999005941L;
+
+        private static final Logger LOG = LoggerFactory.getLogger(TestFlatMap.class);
 
         private transient MapState<EmailId, EmailInformation> state;
         private transient int count;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(Configuration parameters) throws Exception {
             MapStateDescriptor<EmailId, EmailInformation> stateDescriptor =
                     new MapStateDescriptor<>(
                             QsConstants.STATE_NAME,
@@ -155,21 +158,24 @@ public class QsStateProducer {
 
             stateDescriptor.setQueryable(QsConstants.QUERY_NAME);
             state = getRuntimeContext().getMapState(stateDescriptor);
-            count = -1;
+            updateCount();
+
+            LOG.info("Open {} with a count of {}.", getClass().getSimpleName(), count);
+        }
+
+        private void updateCount() throws Exception {
+            count = Iterables.size(state.keys());
         }
 
         @Override
         public void flatMap(Email value, Collector<Object> out) throws Exception {
             state.put(value.getEmailId(), new EmailInformation(value));
-            count = Iterables.size(state.keys());
+            updateCount();
         }
 
         @Override
-        public void snapshotState(FunctionSnapshotContext context) {
+        public void notifyCheckpointComplete(long checkpointId) {
             System.out.println("Count on snapshot: " + count); // we look for it in the test
         }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) {}
     }
 }

@@ -93,10 +93,7 @@ export class MonacoEditorComponent implements AfterViewInit, OnDestroy {
       document.body.appendChild(script);
     }
     merge(fromEvent(window, 'resize'), this.monacoEditorService.layout$)
-      .pipe(
-        takeUntil(this.destroy$),
-        debounceTime(200)
-      )
+      .pipe(takeUntil(this.destroy$), debounceTime(200))
       .subscribe(() => {
         this.layout();
       });

@@ -36,8 +36,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,11 +191,11 @@ public class JdbcRowDataLookupFunction extends TableFunction<RowData> {
                         connectionProvider.closeConnection();
                         establishConnectionAndStatement();
                     }
-                } catch (SQLException | ClassNotFoundException excpetion) {
+                } catch (SQLException | ClassNotFoundException exception) {
                     LOG.error(
                             "JDBC connection is not valid, and reestablish connection failed",
-                            excpetion);
-                    throw new RuntimeException("Reestablish JDBC connection failed", excpetion);
+                            exception);
+                    throw new RuntimeException("Reestablish JDBC connection failed", exception);
                 }
 
                 try {

@@ -19,18 +19,15 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -38,22 +35,18 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
-import static org.apache.flink.configuration.JobManagerOptions.SchedulerType.Adaptive;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test that failure on recovery leads to job restart if configured, so that transient recovery
@@ -63,7 +56,9 @@ public class CheckpointStoreITCase extends TestLogger {
 
     private static final Configuration CONFIGURATION =
             new Configuration()
-                    .set(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
+                    .set(
+                            HighAvailabilityOptions.HA_MODE,
+                            BlockingHighAvailabilityServiceFactory.class.getName());
 
     @ClassRule
     public static final MiniClusterWithClientResource CLUSTER =
@@ -73,33 +68,41 @@ public class CheckpointStoreITCase extends TestLogger {
                             .build());
 
     @Before
-    public void init() {
-        FailingStore.reset();
+    public void setUp() {
+        BlockingHighAvailabilityServiceFactory.reset();
         FailingMapper.reset();
     }
 
     @Test
-    public void testRestartOnRecoveryFailure() throws Exception {
-        assumeFalse(
-                // TODO: remove after FLINK-22483
-                "Adaptive scheduler doesn't retry after failures on recovery",
-                ClusterOptions.getSchedulerType(CONFIGURATION) == Adaptive);
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public void testJobClientRemainsResponsiveDuringCompletedCheckpointStoreRecovery()
+            throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(10);
         env.setRestartStrategy(fixedDelayRestart(2 /* failure on processing + on recovery */, 0));
-        env.addSource(emitUntil(() -> FailingStore.recovered && FailingMapper.failedAndProcessed))
+        env.addSource(emitUntil(() -> FailingMapper.failedAndProcessed))
                 .map(new FailingMapper())
                 .addSink(new DiscardingSink<>());
-        env.execute();
+        final JobClient jobClient = env.executeAsync();
 
-        checkState(FailingStore.recovered && FailingMapper.failedAndProcessed);
+        BlockingHighAvailabilityServiceFactory.fetchRemoteCheckpointsStart.await();
+        for (int i = 0; i < 10; i++) {
+            final JobStatus jobStatus = jobClient.getJobStatus().get();
+            assertEquals(JobStatus.INITIALIZING, jobStatus);
+        }
+        BlockingHighAvailabilityServiceFactory.fetchRemoteCheckpointsFinished.countDown();
+
+        // Await for job to finish.
+        jobClient.getJobExecutionResult().get();
+
+        checkState(FailingMapper.failedAndProcessed);
     }
 
     private static class FailingMapper implements MapFunction<Integer, Integer> {
+
         private static volatile boolean failed = false;
         private static volatile boolean failedAndProcessed = false;
 
-        public static void reset() {
+        static void reset() {
             failed = false;
             failedAndProcessed = false;
         }
@@ -116,78 +119,43 @@ public class CheckpointStoreITCase extends TestLogger {
         }
     }
 
-    /** TestingHAFactory. */
-    public static class TestingHAFactory implements HighAvailabilityServicesFactory {
+    /**
+     * Testing implementation of {@link HighAvailabilityServicesFactory} that lets us inject custom
+     * {@link HighAvailabilityServices}.
+     */
+    public static class BlockingHighAvailabilityServiceFactory
+            implements HighAvailabilityServicesFactory {
+
+        private static volatile CountDownLatch fetchRemoteCheckpointsStart = new CountDownLatch(1);
+        private static volatile CountDownLatch fetchRemoteCheckpointsFinished =
+                new CountDownLatch(1);
+
+        static void reset() {
+            fetchRemoteCheckpointsStart = new CountDownLatch(1);
+            fetchRemoteCheckpointsFinished = new CountDownLatch(1);
+        }
 
         @Override
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) {
-            return new EmbeddedHaServices(Executors.directExecutor()) {
-
-                @Override
-                public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-                    return new TestingCheckpointRecoveryFactory(
-                            new FailingStore(),
-                            new TestingCheckpointIDCounter(new CompletableFuture<>()));
-                }
-            };
-        }
-    }
-
-    private static class FailingStore implements CompletedCheckpointStore {
-        private static volatile boolean started = false;
-        private static volatile boolean failed = false;
-        private static volatile boolean recovered = false;
-
-        public static void reset() {
-            started = failed = recovered = false;
-        }
-
-        @Override
-        public void recover() throws Exception {
-            if (!started) {
-                started = true;
-            } else if (!failed) {
-                failed = true;
-                throw new RuntimeException();
-            } else if (!recovered) {
-                recovered = true;
-            }
-        }
-
-        @Override
-        public void addCheckpoint(
-                CompletedCheckpoint checkpoint,
-                CheckpointsCleaner checkpointsCleaner,
-                Runnable postCleanup) {}
-
-        @Override
-        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
-                throws Exception {}
-
-        @Override
-        public List<CompletedCheckpoint> getAllCheckpoints() {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public int getNumberOfRetainedCheckpoints() {
-            return 0;
-        }
-
-        @Override
-        public int getMaxNumberOfRetainedCheckpoints() {
-            return 1;
-        }
-
-        @Override
-        public boolean requiresExternalizedCheckpoints() {
-            return false;
+            final CheckpointRecoveryFactory checkpointRecoveryFactory =
+                    PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                            maxCheckpoints -> {
+                                fetchRemoteCheckpointsStart.countDown();
+                                try {
+                                    fetchRemoteCheckpointsFinished.await();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                                return new StandaloneCompletedCheckpointStore(maxCheckpoints);
+                            });
+            return new EmbeddedHaServicesWithLeadershipControl(executor, checkpointRecoveryFactory);
         }
     }
 
     private SourceFunction<Integer> emitUntil(SerializableSupplier<Boolean> until) {
         return new SourceFunction<Integer>() {
+
             private volatile boolean running = true;
 
             @Override

@@ -109,7 +109,7 @@ jobs:
             </settings>
             EOF
 
-            export CUSTOM_OPTIONS="-Dgpg.skip -Drat.skip -Dcheckstyle.skip -Dmaven.wagon.http.pool=false --settings $(pwd)/deploy-settings.xml"
+            export CUSTOM_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} -Dgpg.skip -Drat.skip -Dcheckstyle.skip --settings $(pwd)/deploy-settings.xml"
             export MVN_RUN_VERBOSE=true
             ./releasing/deploy_staging_jars.sh
         env:

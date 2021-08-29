@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.PartitionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -131,8 +132,8 @@ public abstract class InputChannel {
     public abstract void resumeConsumption() throws IOException;
 
     /**
-     * When received {@link org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent} from one
-     * channel, it need to acknowledge after this event get processed.
+     * When received {@link EndOfData} from one channel, it need to acknowledge after this event get
+     * processed.
      */
     public abstract void acknowledgeAllRecordsProcessed() throws IOException;
 
@@ -210,6 +211,10 @@ public abstract class InputChannel {
 
     /** Releases all resources of the channel. */
     abstract void releaseAllResources() throws IOException;
+
+    abstract void announceBufferSize(int newBufferSize);
+
+    abstract int getBuffersInUseCount();
 
     // ------------------------------------------------------------------------
     // Error notification

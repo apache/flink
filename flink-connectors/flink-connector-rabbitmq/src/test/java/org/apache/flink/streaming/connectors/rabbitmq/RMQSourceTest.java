@@ -336,7 +336,8 @@ public class RMQSourceTest {
             Thread.sleep(5);
         }
 
-        // see addId in RMQTestSource.addId for the assert
+        // verify if RMQTestSource#addId was never called
+        assertEquals(0, ((RMQTestSource) source).addIdCalls);
     }
 
     /** Tests error reporting in case of invalid correlation ids. */
@@ -350,6 +351,53 @@ public class RMQSourceTest {
 
         assertNotNull(exception);
         assertTrue(exception instanceof NullPointerException);
+    }
+
+    /** Tests whether redelivered messages are acknowledged properly. */
+    @Test
+    public void testRedeliveredSessionIDsAck() throws Exception {
+        source.autoAck = false;
+
+        StreamSource<String, RMQSource<String>> src = new StreamSource<>(source);
+        AbstractStreamOperatorTestHarness<String> testHarness =
+                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+        testHarness.open();
+        sourceThread.start();
+
+        while (DummySourceContext.numElementsCollected < 10) {
+            // wait until messages have been processed
+            Thread.sleep(5);
+        }
+
+        // mock message redelivery by resetting the message ID
+        long numMsgRedelivered;
+        synchronized (DummySourceContext.lock) {
+            numMsgRedelivered = DummySourceContext.numElementsCollected;
+            messageId = 0;
+        }
+        while (DummySourceContext.numElementsCollected < numMsgRedelivered + 10) {
+            // wait until some messages will be redelivered
+            Thread.sleep(5);
+        }
+
+        // ack the messages by snapshotting the state
+        final Random random = new Random(System.currentTimeMillis());
+        long lastMessageId;
+        long snapshotId = random.nextLong();
+        synchronized (DummySourceContext.lock) {
+            testHarness.snapshot(snapshotId, System.currentTimeMillis());
+            source.notifyCheckpointComplete(snapshotId);
+            lastMessageId = messageId;
+        }
+
+        // check if all the messages are being acknowledged
+        long totalNumberOfAcks = numMsgRedelivered + lastMessageId;
+        assertEquals(lastMessageId, DummySourceContext.numElementsCollected);
+        assertEquals(totalNumberOfAcks, ((RMQTestSource) source).addIdCalls);
+        Mockito.verify(source.channel, Mockito.times((int) lastMessageId))
+                .basicAck(Mockito.anyLong(), Mockito.eq(false));
+        Mockito.verify(source.channel, Mockito.times((int) numMsgRedelivered))
+                .basicReject(Mockito.anyLong(), Mockito.eq(false));
     }
 
     /** Tests whether constructor params are passed correctly. */
@@ -659,6 +707,7 @@ public class RMQSourceTest {
         private Delivery mockedDelivery;
         public Envelope mockedAMQPEnvelope;
         public AMQP.BasicProperties mockedAMQPProperties;
+        public int addIdCalls = 0;
 
         public RMQTestSource() {
             super();
@@ -758,6 +807,7 @@ public class RMQSourceTest {
 
         @Override
         protected boolean addId(String uid) {
+            addIdCalls++;
             assertEquals(false, autoAck);
             return super.addId(uid);
         }

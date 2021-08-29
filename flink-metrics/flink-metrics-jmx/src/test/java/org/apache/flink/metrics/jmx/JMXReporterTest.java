@@ -138,15 +138,11 @@ public class JMXReporterTest extends TestLogger {
         rep1.notifyOfRemovedMetric(g2, "rep2", null);
     }
 
-    /**
-     * Verifies that we can connect to multiple JMXReporters running on the same machine.
-     *
-     * @throws Exception
-     */
+    /** Verifies that we can connect to multiple JMXReporters running on the same machine. */
     @Test
     public void testJMXAvailability() throws Exception {
-        final MetricReporter rep1 = new JMXReporter("9040-9055");
-        final MetricReporter rep2 = new JMXReporter("9040-9055");
+        final JMXReporter rep1 = new JMXReporter("9040-9055");
+        final JMXReporter rep2 = new JMXReporter("9040-9055");
 
         Gauge<Integer> g1 = () -> 1;
         Gauge<Integer> g2 = () -> 2;
@@ -166,9 +162,9 @@ public class JMXReporterTest extends TestLogger {
         JMXServiceURL url1 =
                 new JMXServiceURL(
                         "service:jmx:rmi://localhost:"
-                                + ((JMXReporter) rep1).getPort().get()
+                                + rep1.getPort().get()
                                 + "/jndi/rmi://localhost:"
-                                + ((JMXReporter) rep1).getPort().get()
+                                + rep1.getPort().get()
                                 + "/jmxrmi");
         JMXConnector jmxCon1 = JMXConnectorFactory.connect(url1);
         MBeanServerConnection mCon1 = jmxCon1.getMBeanServerConnection();
@@ -181,9 +177,9 @@ public class JMXReporterTest extends TestLogger {
         JMXServiceURL url2 =
                 new JMXServiceURL(
                         "service:jmx:rmi://localhost:"
-                                + ((JMXReporter) rep2).getPort().get()
+                                + rep2.getPort().get()
                                 + "/jndi/rmi://localhost:"
-                                + ((JMXReporter) rep2).getPort().get()
+                                + rep2.getPort().get()
                                 + "/jmxrmi");
         JMXConnector jmxCon2 = JMXConnectorFactory.connect(url2);
         MBeanServerConnection mCon2 = jmxCon2.getMBeanServerConnection();

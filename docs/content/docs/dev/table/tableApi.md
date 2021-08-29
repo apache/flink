@@ -1199,7 +1199,7 @@ Both tables must have identical field types.
 Table left = tableEnv.from("orders1");
 Table right = tableEnv.from("orders2");
 
-left.unionAl(right);
+left.unionAll(right);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1207,14 +1207,14 @@ left.unionAl(right);
 val left = tableEnv.from("orders1")
 val right = tableEnv.from("orders2")
 
-left.unionAl(right)
+left.unionAll(right)
 ```
 {{< /tab >}}
 {{< tab >}}
 left = tableEnv.from_path("orders1")
 right = tableEnv.from_path("orders2")
 
-left.unionAl(right)
+left.unionAll(right)
 {{< /tab >}}
 {{< /tabs >}}
 

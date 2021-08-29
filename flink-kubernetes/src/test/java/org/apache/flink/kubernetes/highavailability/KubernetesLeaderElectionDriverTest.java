@@ -33,10 +33,10 @@ import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_H
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link KubernetesLeaderElectionDriver}. */
 public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestBase {
