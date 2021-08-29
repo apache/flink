@@ -365,10 +365,10 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
 <a name="datastream-transformations"></a>
 
-DataStream 转换
+DataStream Transformations
 --------------------------
 
-有关可用 Stream 转换的概述，请参阅[算子]({{< ref "docs/dev/datastream/operators/overview" >}})。
+有关可用 stream 转换（transformation）的概述，请参阅[算子]({{< ref "docs/dev/datastream/operators/overview" >}})。
 
 {{< top >}}
 
@@ -384,17 +384,16 @@ Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系
 
 - `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
 
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
 
 - `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
   可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
   
-- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
-  自定义 object 到 byte 的转换。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持自定义 object 到 byte 的转换。
   
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
 
-- `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
+- `addSink` - 调用自定义 sink function。Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -403,17 +402,16 @@ Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系
 
 - `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
 
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。 行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
+- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
 
 - `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
   可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
   
-- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持
-  自定义 object 到 byte 的转换。
+- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持自定义 object 到 byte 的转换。
   
 - `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
 
-- `addSink` - 调用自定义 sink function。 Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
+- `addSink` - 调用自定义 sink function。Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -432,7 +430,7 @@ Iterations
 {{< tabs "c4cc97af-7ce1-4333-a010-3072b34d5540" >}}
 {{< tab "Java" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个使用过滤器的示例。首先，我们定义一个 IterativeStream
 
 ```java
 IterativeStream<Integer> iteration = input.iterate();
@@ -484,7 +482,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或 `过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
+Iterative streaming 程序实现了 setp function 并将其嵌入到 `IterativeStream` 。由于 DataStream 程序可能永远不会完成，因此没有最大迭代次数。相反，你需要指定流的哪一部分反馈给迭代，哪一部分使用[旁路输出]({{< ref "docs/dev/datastream/side_output" >}})或`过滤器`转发到下游。这里，我们展示了一个迭代示例，其中主体（重复计算的部分）是一个简单的映射转换，使用过滤器将反馈的元素和向下游转发的元素进行分离。
 
 ```scala
 val iteratedStream = someDataStream.iterate(
@@ -648,7 +646,7 @@ val myLongs = env.fromCollection(longIt)
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 目前，集合 data source 要求数据类型和迭代器实现 `Serializable`。此外， 集合 data sources 不能并行执行（parallelism = 1）。
+**注意：** 目前，集合 data source 要求数据类型和迭代器实现 `Serializable`。此外，集合 data sources 不能并行执行（parallelism = 1）。
 
 <a name="iterator-data-sink"></a>
 
