@@ -50,6 +50,7 @@ WHERE rownum <= N [AND conditions]
 ## Example
 
 ### Window Top-N follows after Window Aggregation
+
 The following example shows how to calculate Top 3 suppliers who have the highest sales for every tumbling 10 minutes window.
 
 ```sql
@@ -104,6 +105,7 @@ Flink SQL> SELECT *
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
 
 ### Window Top-N follows after Windowing TVF
+
 The following example shows how to calculate Top 3 items which have the highest price for every tumbling 10 minutes window.
 
 ```sql
