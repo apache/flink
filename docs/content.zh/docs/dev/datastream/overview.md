@@ -291,7 +291,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 
     1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 "精确一次" 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
 
-    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。 这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
+    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
 
 基于套接字：
 
