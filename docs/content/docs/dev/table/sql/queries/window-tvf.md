@@ -285,16 +285,16 @@ Here is an example invocation on the Bid table:
 +------------------+------------------+-------+
 ```
 
-### Window offset
+## Window Offset
 `Offset` is an optional parameter which could be used to change the window assignment. It could be positive duration and negative duration. Default values for window offset is 0. The same record maybe assigned to the different window if set different offset value.                                                                              
 For example, which window would be assigned to for a record with timestamp `2021-06-30 00:00:04` for a Tumble window with 10 MINUTE as size?
-If `offset` value is `-16 MINUTE`,  the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-If `offset` value is `-6 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-If `offset` is `-4 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
-If `offset` is `0`, the record assigns to window [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`).
-If `offset` is `4 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
-If `offset` is `6 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
-If `offset` is `16 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
+- If `offset` value is `-16 MINUTE`,  the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
+- If `offset` value is `-6 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
+- If `offset` is `-4 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
+- If `offset` is `0`, the record assigns to window [`2021-06-30 00:00:00`, `2021-06-30 00:10:00`).
+- If `offset` is `4 MINUTE`, the record assigns to window [`2021-06-29 23:54:00`, `2021-06-30 00:04:00`).
+- If `offset` is `6 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
+- If `offset` is `16 MINUTE`, the record assigns to window [`2021-06-29 23:56:00`, `2021-06-30 00:06:00`).
 We could find that, some windows offset parameters may have same effect on the assignment of windows. In the above case, `-16 MINUTE`, `-6 MINUTE` and `4 MINUTE` have same effect for a Tumble window with 10 MINUTE as size.
 
 *Note: The effect of window offset is just for updating window assignment, it has no effect on Watermark.* 
