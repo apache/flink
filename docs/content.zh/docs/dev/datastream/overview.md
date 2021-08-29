@@ -163,7 +163,7 @@ print()
 
 `execute()` 方法将等待作业完成，然后返回一个 `JobExecutionResult`，其中包含执行时间和累加器结果。
 
-如果不想等待作业完成，可以通过调用 `StreamExecutionEnvironment` 的 `executeAsync()` 方法来触发作业异步执行。它会返回一个 `JobClient` ，你可以通过它与刚刚提交的作业进行通信。如下是使用 `executeAsync()` 实现 `execute()` 语义的示例。
+如果不想等待作业完成，可以通过调用 `StreamExecutionEnvironment` 的 `executeAsync()` 方法来触发作业异步执行。它会返回一个 `JobClient`，你可以通过它与刚刚提交的作业进行通信。如下是使用 `executeAsync()` 实现 `execute()` 语义的示例。
 
 ```java
 final JobClient jobClient = env.executeAsync();
