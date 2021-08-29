@@ -113,19 +113,26 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
-    public Collection<AllocatedSlot> removeSlots(ResourceID owner) {
+    public AllocatedSlotsAndReservationStatus removeSlots(ResourceID owner) {
         final Set<AllocationID> slotsOfTaskExecutor = slotsPerTaskExecutor.remove(owner);
 
         if (slotsOfTaskExecutor != null) {
-            final Collection<AllocatedSlot> removedSlots = new ArrayList<>();
+            final Map<AllocatedSlot, ReservationStatus> removedSlots = new HashMap<>();
 
             for (AllocationID allocationId : slotsOfTaskExecutor) {
-                removedSlots.add(Preconditions.checkNotNull(removeSlotInternal(allocationId)));
+                final ReservationStatus reservationStatus =
+                        containsFreeSlot(allocationId)
+                                ? ReservationStatus.FREE
+                                : ReservationStatus.RESERVED;
+
+                removedSlots.put(
+                        Preconditions.checkNotNull(removeSlotInternal(allocationId)),
+                        reservationStatus);
             }
 
-            return removedSlots;
+            return new DefaultAllocatedSlotsAndReservationStatus(removedSlots);
         } else {
-            return Collections.emptyList();
+            return new DefaultAllocatedSlotsAndReservationStatus(Collections.emptyMap());
         }
     }
 
@@ -233,5 +240,31 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
             return new DefaultFreeSlotInfo(
                     Preconditions.checkNotNull(slotInfoWithUtilization), idleSince);
         }
+    }
+
+    private static final class DefaultAllocatedSlotsAndReservationStatus
+            implements AllocatedSlotsAndReservationStatus {
+
+        private final Map<AllocatedSlot, ReservationStatus> slotsAndReservationStatus;
+
+        private DefaultAllocatedSlotsAndReservationStatus(
+                Map<AllocatedSlot, ReservationStatus> slotsAndReservationStatus) {
+            this.slotsAndReservationStatus = slotsAndReservationStatus;
+        }
+
+        @Override
+        public boolean wasFree(AllocatedSlot allocatedSlot) {
+            return slotsAndReservationStatus.get(allocatedSlot) == ReservationStatus.FREE;
+        }
+
+        @Override
+        public Collection<AllocatedSlot> getAllocatedSlots() {
+            return slotsAndReservationStatus.keySet();
+        }
+    }
+
+    private enum ReservationStatus {
+        FREE,
+        RESERVED
     }
 }
