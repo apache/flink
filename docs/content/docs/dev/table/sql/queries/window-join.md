@@ -22,22 +22,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Window JOIN
+# Window Join
 {{< label Streaming >}}
 
-A window join adds the dimension of time into the join criteria themselves. In doing so, the window join joins the elements of two streams that share a common key and lie in the same window. The semantic of window join is same to the [DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#Window Join)
+A window join adds the dimension of time into the join criteria themselves. In doing so, the window join joins the elements of two streams that share a common key and lie in the same window. The semantic of window join is same to the [DataStream window join]({{< ref "docs/dev/datastream/operators/joining" >}}#window-join)
 
 For streaming queries, unlike other joins on continuous tables, window join does not emit intermediate results but only emits final results at the end of the window. Moreover, window join purge all intermediate state when no longer needed.
 
-Usually, Window join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Besides, Window join could follow after other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}).
+Usually, Window Join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Besides, Window Join could follow after other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}).
 
-Currently, Window join requires the join on condition contains window starts equality of input tables and window ends equality of input tables.
+Currently, Window Join requires the join on condition contains window starts equality of input tables and window ends equality of input tables.
 
-Window join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
+Window Join supports INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN.
 
 ## INNER/LEFT/RIGHT/FULL OUTER 
 
-The following shows the syntax of the INNER/LEFT/RIGHT/FULL OUTER Window join statement.
+The following shows the syntax of the INNER/LEFT/RIGHT/FULL OUTER Window Join statement.
 
 ```sql
 SELECT ...
@@ -46,7 +46,7 @@ ON L.window_start = R.window_start AND L.window_end = R.window_end AND ...
 ```
 
 The syntax of INNER/LEFT/RIGHT/FULL OUTER WINDOW JOIN are very similar with each other, we only give an example for FULL OUTER JOIN here.
-When performing a window join, all elements with a common key and a common tumbling window are joined together. We only give an example for a Window join which works on a Tumble Window TVF.
+When performing a window join, all elements with a common key and a common tumbling window are joined together. We only give an example for a Window Join which works on a Tumble Window TVF.
 By scoping the region of time for the join into fixed five-minute intervals, we chopped our datasets into two distinct windows of time: [12:00, 12:05) and [12:05, 12:10). The L2 and R2 rows could not join together because they fell into separate windows.
 
 ```sql
@@ -54,8 +54,8 @@ Flink SQL> desc LeftTable;
 +-------------+------------------------+------+-----+--------+---------------------------------+
 |        name |                   type | null | key | extras |                       watermark |
 +-------------+------------------------+------+-----+--------+---------------------------------+
-|     `Time`  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
-|     Num     | Int                    | true |     |        |                                 |
+|     Time  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
+|     Num     | INT                    | true |     |        |                                 |
 |     Id      | STRING                 | true |     |        |                                 |
 +-------------+------------------------+------+-----+--------+---------------------------------+
 
@@ -72,8 +72,8 @@ Flink SQL> desc RightTable;
 +-------------+------------------------+------+-----+--------+---------------------------------+
 |        name |                   type | null | key | extras |                       watermark |
 +-------------+------------------------+------+-----+--------+---------------------------------+
-|     `Time`  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
-|     Num     | Int                    | true |     |        |                                 |
+|     Time  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
+|     Num     | INT                    | true |     |        |                                 |
 |     Id      | STRING                 | true |     |        |                                 |
 +-------------+------------------------+------+-----+--------+---------------------------------+
 
@@ -143,7 +143,7 @@ Flink SQL> SELECT *
 
 
 ## ANTI
-Anti Window Joins are the obverse of the Inner Window join: they contain all of the unjoined rows within each common window.
+Anti Window Joins are the obverse of the Inner Window Join: they contain all of the unjoined rows within each common window.
 
 ```sql
 Flink SQL> SELECT *
@@ -162,10 +162,10 @@ Flink SQL> SELECT *
 
 Flink SQL> SELECT *
            FROM (
-               SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
+               SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(`Time`), INTERVAL '5' MINUTES))
            ) L WHERE NOT EXISTS (
              SELECT * FROM (
-               SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
+               SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(`Time`), INTERVAL '5' MINUTES))
              ) R WHERE L.Num = R.Num AND L.window_start = R.window_start AND L.window_end = R.window_end);
 +------------------+-------+------+------------------+------------------+-------------------------+
 |    `Time`        | Num   | Id   |     window_start |       window_end |            window_time  |
@@ -186,7 +186,7 @@ Currently, The window join requires the join on condition contains window starts
 ### Limitation on windowing TVFs of inputs
 Currently, the windowing TVFs must be the same of left and right inputs. This can be extended in the future, for example, tumbling windows join sliding windows with the same window size.
 
-### Limitation on Window join which follows after Windowing TVFs directly
-Currently, if Window join follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows.
+### Limitation on Window Join which follows after Windowing TVFs directly
+Currently, if Window Join follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows.
 
 {{< top >}}
