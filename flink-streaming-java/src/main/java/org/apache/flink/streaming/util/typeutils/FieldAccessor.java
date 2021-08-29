@@ -99,7 +99,6 @@ public abstract class FieldAccessor<T, F> implements Serializable {
      * Gets the value of the field (specified in the constructor) of the given record.
      *
      * @param record The record on which the field will be accessed
-     *
      * @return The value of the field.
      */
     public abstract F get(T record);
@@ -112,9 +111,8 @@ public abstract class FieldAccessor<T, F> implements Serializable {
      *
      * @param record The record to modify
      * @param fieldValue The new value of the field
-     *
      * @return A record that has the given field value. (this might be a new instance or the
-     *         original)
+     *     original)
      */
     public abstract T set(T record, F fieldValue);
 
@@ -288,7 +286,8 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @Override
         public F get(T pojo) {
             try {
-                @SuppressWarnings("unchecked") final R inner = (R) field.get(pojo);
+                @SuppressWarnings("unchecked")
+                final R inner = (R) field.get(pojo);
                 return innerAccessor.get(inner);
             } catch (IllegalAccessException iaex) {
                 // The Field class is transient and when deserializing its value we also make it
@@ -305,7 +304,8 @@ public abstract class FieldAccessor<T, F> implements Serializable {
         @Override
         public T set(T pojo, F valueToSet) {
             try {
-                @SuppressWarnings("unchecked") final R inner = (R) field.get(pojo);
+                @SuppressWarnings("unchecked")
+                final R inner = (R) field.get(pojo);
                 field.set(pojo, innerAccessor.set(inner, valueToSet));
                 return pojo;
             } catch (IllegalAccessException iaex) {
