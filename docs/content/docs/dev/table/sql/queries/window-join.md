@@ -54,14 +54,14 @@ Flink SQL> desc LeftTable;
 +-------------+------------------------+------+-----+--------+---------------------------------+
 |        name |                   type | null | key | extras |                       watermark |
 +-------------+------------------------+------+-----+--------+---------------------------------+
-|     Time  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
-|     Num     | INT                    | true |     |        |                                 |
-|     Id      | STRING                 | true |     |        |                                 |
+| row_time    | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
+| num         | INT                    | true |     |        |                                 |
+| id          | STRING                 | true |     |        |                                 |
 +-------------+------------------------+------+-----+--------+---------------------------------+
 
 Flink SQL> SELECT * FROM LeftTable;
 +------------------+-------+------+
-|    `Time`        | Num   | Id   |
+|    row_time      | num   | id   |
 +------------------+-------+------+
 | 2020-04-15 12:02 |  1    |  L1  |
 | 2020-04-15 12:06 |  2    |  L2  |
@@ -72,28 +72,28 @@ Flink SQL> desc RightTable;
 +-------------+------------------------+------+-----+--------+---------------------------------+
 |        name |                   type | null | key | extras |                       watermark |
 +-------------+------------------------+------+-----+--------+---------------------------------+
-|     Time  | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
-|     Num     | INT                    | true |     |        |                                 |
-|     Id      | STRING                 | true |     |        |                                 |
+| row_time    | TIMESTAMP(3) *ROWTIME* | true |     |        |    `Time` - INTERVAL '1' SECOND |
+| num         | INT                    | true |     |        |                                 |
+| id          | STRING                 | true |     |        |                                 |
 +-------------+------------------------+------+-----+--------+---------------------------------+
 
 Flink SQL> SELECT * FROM RightTable;
 +------------------+-------+------+
-|    `Time`        | Num   | Id   |
+|    row_time      | num   | id   |
 +------------------+-------+------+
 | 2020-04-15 12:01 |  2    |  R2  |
 | 2020-04-15 12:04 |  3    |  R3  |
 | 2020-04-15 12:05 |  4    |  R4  |
 +------------------+-------+------+
 
-Flink SQL> SELECT L.Num as L_Num, L.Id as L_Id, R.Num as R_Num, R.Id as R_Id, L.window_start, L.window_end
+Flink SQL> SELECT L.num as L_Num, L.id as L_Id, R.num as R_Num, R.id as R_Id, L.window_start, L.window_end
            FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) L
            FULL JOIN (
                SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) R
-           ON L.Num = R.Num AND L.window_start = R.window_start AND L.window_end = R.window_end;
+           ON L.num = R.num AND L.window_start = R.window_start AND L.window_end = R.window_end;
 +--------+--------+--------+--------+---------------------+---------------------+
 |  L_Num |  L_Id  |  R_Num |  R_Id  |     window_start    |     window_end      |
 +--------+--------+--------+--------+---------------------+---------------------+
@@ -115,12 +115,12 @@ Semi Window Joins returns a row from one left record if there is at least one ma
 Flink SQL> SELECT *
            FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
-           ) L WHERE L.Num IN (
-             SELECT Num FROM (   
+           ) L WHERE L.num IN (
+             SELECT num FROM (   
                SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
              ) R WHERE L.window_start = R.window_start AND L.window_end = R.window_end);
 +------------------+-------+------+------------------+------------------+-------------------------+
-|    `Time`        | Num   | Id   |     window_start |       window_end |            window_time  |
+|   row_time       | num   | id   |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
 | 2020-04-15 12:03 |  3    |  L3  | 2020-04-15 12:00 | 2020-04-15 12:05 | 2020-04-15 12:04:59.999 |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -131,9 +131,9 @@ Flink SQL> SELECT *
            ) L WHERE EXISTS (
              SELECT * FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
-             ) R WHERE L.Num = R.Num AND L.window_start = R.window_start AND L.window_end = R.window_end);
+             ) R WHERE L.num = R.num AND L.window_start = R.window_start AND L.window_end = R.window_end);
 +------------------+-------+------+------------------+------------------+-------------------------+
-|    `Time`        | Num   | Id   |     window_start |       window_end |            window_time  |
+|   row_time       | num   | id   |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
 | 2020-04-15 12:03 |  3    |  L3  | 2020-04-15 12:00 | 2020-04-15 12:05 | 2020-04-15 12:04:59.999 |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -149,12 +149,12 @@ Anti Window Joins are the obverse of the Inner Window Join: they contain all of 
 Flink SQL> SELECT *
            FROM (
                SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
-           ) L WHERE L.Num NOT IN (
-             SELECT Num FROM (   
+           ) L WHERE L.num NOT IN (
+             SELECT num FROM (   
                SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
              ) R WHERE L.window_start = R.window_start AND L.window_end = R.window_end);
 +------------------+-------+------+------------------+------------------+-------------------------+
-|    `Time`        | Num   | Id   |     window_start |       window_end |            window_time  |
+|   row_time       | num   | id   |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
 | 2020-04-15 12:02 |  1    |  L1  | 2020-04-15 12:00 | 2020-04-15 12:05 | 2020-04-15 12:04:59.999 |
 | 2020-04-15 12:06 |  2    |  L2  | 2020-04-15 12:05 | 2020-04-15 12:10 | 2020-04-15 12:09:59.999 |
@@ -162,13 +162,13 @@ Flink SQL> SELECT *
 
 Flink SQL> SELECT *
            FROM (
-               SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(`Time`), INTERVAL '5' MINUTES))
+               SELECT * FROM TABLE(TUMBLE(TABLE LeftTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
            ) L WHERE NOT EXISTS (
              SELECT * FROM (
-               SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(`Time`), INTERVAL '5' MINUTES))
-             ) R WHERE L.Num = R.Num AND L.window_start = R.window_start AND L.window_end = R.window_end);
+               SELECT * FROM TABLE(TUMBLE(TABLE RightTable, DESCRIPTOR(row_time), INTERVAL '5' MINUTES))
+             ) R WHERE L.num = R.num AND L.window_start = R.window_start AND L.window_end = R.window_end);
 +------------------+-------+------+------------------+------------------+-------------------------+
-|    `Time`        | Num   | Id   |     window_start |       window_end |            window_time  |
+|   row_time       | num   | id   |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
 | 2020-04-15 12:02 |  1    |  L1  | 2020-04-15 12:00 | 2020-04-15 12:05 | 2020-04-15 12:04:59.999 |
 | 2020-04-15 12:06 |  2    |  L2  | 2020-04-15 12:05 | 2020-04-15 12:10 | 2020-04-15 12:09:59.999 |
