@@ -1354,9 +1354,6 @@ public final class TestValuesTableFactory
                                         dataStream.addSink(
                                                 new AppendingSinkFunction(
                                                         tableName, converter, rowtimeIndex));
-                    case "DataStreamWithParallelism":
-                        return new TestValuesRuntimeFunctions
-                                .InternalDataStreamSinkProviderWithParallelism(1);
                     default:
                         throw new IllegalArgumentException(
                                 "Unsupported runtime sink class: " + runtimeSink);
