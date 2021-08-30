@@ -21,18 +21,15 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import java.util.Optional;
-
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
 
 /** Tests for the {@link DefaultScalaProductFieldAccessorFactory}. */
 public class DefaultScalaProductFieldAccessorFactoryTest extends TestLogger {
     @Test
     public void testLoad() {
-        final Optional<ScalaProductFieldAccessorFactory> load =
-                ScalaProductFieldAccessorFactory.load(log);
+        final ScalaProductFieldAccessorFactory factory = ScalaProductFieldAccessorFactory.load(log);
 
-        assertThat(load.isPresent(), is(true));
+        assertThat(factory, notNullValue());
     }
 }

@@ -33,8 +33,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,8 +45,9 @@ public class FieldAccessorFactory implements Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(FieldAccessorFactory.class);
 
-    private static final Optional<ScalaProductFieldAccessorFactory>
-            scalaProductFieldAccessorFactory = ScalaProductFieldAccessorFactory.load(LOG);
+    @Nullable
+    private static final ScalaProductFieldAccessorFactory scalaProductFieldAccessorFactory =
+            ScalaProductFieldAccessorFactory.load(LOG);
 
     /**
      * Creates a {@link FieldAccessor} for the given field position, which can be used to get and
@@ -87,14 +89,12 @@ public class FieldAccessorFactory implements Serializable {
             @SuppressWarnings("unchecked")
             TypeInformation<F> fieldTypeInfo = (TypeInformation<F>) tupleTypeInfo.getTypeAt(pos);
 
-            if (scalaProductFieldAccessorFactory.isPresent()) {
-                return scalaProductFieldAccessorFactory
-                        .get()
-                        .createRecursiveProductFieldAccessor(
-                                pos,
-                                typeInfo,
-                                new FieldAccessor.SimpleFieldAccessor<>(fieldTypeInfo),
-                                config);
+            if (scalaProductFieldAccessorFactory != null) {
+                return scalaProductFieldAccessorFactory.createRecursiveProductFieldAccessor(
+                        pos,
+                        typeInfo,
+                        new FieldAccessor.SimpleFieldAccessor<>(fieldTypeInfo),
+                        config);
             } else {
                 throw new IllegalStateException(
                         "Scala products are used but Scala API is not on the classpath.");
@@ -195,10 +195,9 @@ public class FieldAccessorFactory implements Serializable {
             }
 
             if (decomp.tail == null) {
-                if (scalaProductFieldAccessorFactory.isPresent()) {
-                    return scalaProductFieldAccessorFactory
-                            .get()
-                            .createSimpleProductFieldAccessor(fieldPos, typeInfo, config);
+                if (scalaProductFieldAccessorFactory != null) {
+                    return scalaProductFieldAccessorFactory.createSimpleProductFieldAccessor(
+                            fieldPos, typeInfo, config);
                 } else {
                     throw new IllegalStateException(
                             "Scala products are used but Scala API is not on the classpath.");
@@ -208,11 +207,9 @@ public class FieldAccessorFactory implements Serializable {
                 FieldAccessor<Object, F> innerAccessor =
                         getAccessor(tupleTypeInfo.getTypeAt(fieldPos), decomp.tail, config);
 
-                if (scalaProductFieldAccessorFactory.isPresent()) {
-                    return scalaProductFieldAccessorFactory
-                            .get()
-                            .createRecursiveProductFieldAccessor(
-                                    fieldPos, typeInfo, innerAccessor, config);
+                if (scalaProductFieldAccessorFactory != null) {
+                    return scalaProductFieldAccessorFactory.createRecursiveProductFieldAccessor(
+                            fieldPos, typeInfo, innerAccessor, config);
                 } else {
                     throw new IllegalStateException(
                             "Scala products are used but Scala API is not on the classpath.");

@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import org.slf4j.Logger;
 
-import java.util.Optional;
-
 /** Interface to interact with optional Scala field accessors. */
 public interface ScalaProductFieldAccessorFactory {
 
@@ -44,17 +42,17 @@ public interface ScalaProductFieldAccessorFactory {
      * @param log Logger to be used in case the loading fails
      * @return Loaded implementation, if it is accessible.
      */
-    static Optional<ScalaProductFieldAccessorFactory> load(Logger log) {
+    static ScalaProductFieldAccessorFactory load(Logger log) {
         try {
             final Object factory =
                     Class.forName(
                                     "org.apache.flink.streaming.util.typeutils.DefaultScalaProductFieldAccessorFactory")
                             .getDeclaredConstructor()
                             .newInstance();
-            return Optional.of((ScalaProductFieldAccessorFactory) factory);
+            return (ScalaProductFieldAccessorFactory) factory;
         } catch (Exception e) {
             log.debug("Unable to load Scala API extension.", e);
-            return Optional.empty();
+            return null;
         }
     }
 }
