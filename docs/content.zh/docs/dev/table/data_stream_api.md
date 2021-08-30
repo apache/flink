@@ -1629,8 +1629,8 @@ tableEnv
 // +----+--------------------------------+-------------+
 // | +I |                            Bob |           5 |
 // | +I |                          Alice |          12 |
-// | -D |                          Alice |          12 |
-// | +I |                          Alice |         100 |
+// | -U |                          Alice |          12 |
+// | +U |                          Alice |         100 |
 // +----+--------------------------------+-------------+
 ```
 {{< /tab >}}
@@ -1704,8 +1704,8 @@ tableEnv
 // +----+--------------------------------+-------------+
 // | +I |                            Bob |           5 |
 // | +I |                          Alice |          12 |
-// | -D |                          Alice |          12 |
-// | +I |                          Alice |         100 |
+// | -U |                          Alice |          12 |
+// | +U |                          Alice |         100 |
 // +----+--------------------------------+-------------+
 ```
 {{< /tab >}}
@@ -1775,8 +1775,8 @@ t_env.execute_sql("SELECT f0 AS name, SUM(f1) AS score FROM InputTable GROUP BY 
 # +----+--------------------------------+-------------+
 # | +I |                            Bob |           5 |
 # | +I |                          Alice |          12 |
-# | -D |                          Alice |          12 |
-# | +I |                          Alice |         100 |
+# | -U |                          Alice |          12 |
+# | +U |                          Alice |         100 |
 # +----+--------------------------------+-------------+
 ```
 {{< /tab >}}
@@ -1786,7 +1786,8 @@ The default `ChangelogMode` shown in example 1 should be sufficient for most use
 all kinds of changes.
 
 However, example 2 shows how to limit the kinds of incoming changes for efficiency by reducing the
-number of update messages by 50%.
+number of update messages by 50% using upsert mode. The number of result messages can be reduced by
+defining a primary key and upsert changelog mode for `toChangelogStream`.
 
 ### Examples for `toChangelogStream`
 
