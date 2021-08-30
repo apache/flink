@@ -53,14 +53,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * KafkaSource<String> source = KafkaSource
  *     .<String>builder()
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
- *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .build();
  * }</pre>
  *
- * <p>The bootstrap servers, group id, topics/partitions to consume, and the record deserializer are
- * required fields that must be set.
+ * <p>The bootstrap servers, topics/partitions to consume, and the record deserializer are required
+ * fields that must be set.
  *
  * <p>To specify the starting offsets of the KafkaSource, one can call {@link
  * #setStartingOffsets(OffsetsInitializer)}.
@@ -75,7 +74,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * KafkaSource<String> source = KafkaSource
  *     .<String>builder()
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
- *     .setGroupId("myGroup")
  *     .setTopics(Arrays.asList(TOPIC1, TOPIC2))
  *     .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
  *     .setUnbounded(OffsetsInitializer.latest())
@@ -87,9 +85,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KafkaSourceBuilder<OUT> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceBuilder.class);
-    private static final String[] REQUIRED_CONFIGS = {
-        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, ConsumerConfig.GROUP_ID_CONFIG
-    };
+    private static final String[] REQUIRED_CONFIGS = {ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG};
     // The subscriber specifies the partitions to subscribe to.
     private KafkaSubscriber subscriber;
     // Users can specify the starting / stopping offset initializer.
