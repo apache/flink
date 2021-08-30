@@ -496,6 +496,9 @@ class TupleTypeInfo(TypeInformation):
 
     def __init__(self, field_types: List[TypeInformation]):
         self._field_types = field_types
+        self._need_conversion = [f.need_conversion() if isinstance(f, TypeInformation) else None
+                                 for f in self._field_types]
+        self._need_serialize_any_field = any(self._need_conversion)
         super(TupleTypeInfo, self).__init__()
 
     def get_field_types(self) -> List[TypeInformation]:
@@ -515,6 +518,39 @@ class TupleTypeInfo(TypeInformation):
             self._j_typeinfo = get_gateway().jvm \
                 .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
         return self._j_typeinfo
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, obj):
+        if obj is None:
+            return
+        from pyflink.common import Row
+        if self._need_serialize_any_field:
+            # Only calling to_internal_type function for fields that need conversion
+            if isinstance(obj, (list, tuple, Row)):
+                return tuple(
+                    f.to_internal_type(v) if c else v
+                    for f, v, c in zip(self._field_types, obj, self._need_conversion))
+            else:
+                raise ValueError("Unexpected tuple %r with TupleTypeInfo" % obj)
+        else:
+            if isinstance(obj, (list, tuple, Row)):
+                return tuple(obj)
+            else:
+                raise ValueError("Unexpected tuple %r with TupleTypeInfo" % obj)
+
+    def from_internal_type(self, obj):
+        if obj is None or isinstance(obj, (tuple, list)):
+            # it's already converted by pickler
+            return obj
+        if self._need_serialize_any_field:
+            # Only calling from_internal_type function for fields that need conversion
+            values = [f.from_internal_type(v) if c else v
+                      for f, v, c in zip(self._field_types, obj, self._need_conversion)]
+        else:
+            values = obj
+        return tuple(values)
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TupleTypeInfo):
