@@ -402,15 +402,15 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToChangelogStreamUpsert() throws Exception {
+    public void testFromChangelogStreamUpsert() {
         final List<Either<Row, Row>> inputOrOutput =
                 Arrays.asList(
                         input(RowKind.INSERT, "bob", 0),
                         output(RowKind.INSERT, "bob", 0),
                         // --
                         input(RowKind.UPDATE_AFTER, "bob", 1),
-                        output(RowKind.DELETE, "bob", 0),
-                        output(RowKind.INSERT, "bob", 1),
+                        output(RowKind.UPDATE_BEFORE, "bob", 0),
+                        output(RowKind.UPDATE_AFTER, "bob", 1),
                         // --
                         input(RowKind.INSERT, "alice", 1),
                         output(RowKind.INSERT, "alice", 1),
@@ -418,12 +418,12 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         input(RowKind.INSERT, "alice", 1), // no impact
                         // --
                         input(RowKind.UPDATE_AFTER, "alice", 2),
-                        output(RowKind.DELETE, "alice", 1),
-                        output(RowKind.INSERT, "alice", 2),
+                        output(RowKind.UPDATE_BEFORE, "alice", 1),
+                        output(RowKind.UPDATE_AFTER, "alice", 2),
                         // --
                         input(RowKind.UPDATE_AFTER, "alice", 100),
-                        output(RowKind.DELETE, "alice", 2),
-                        output(RowKind.INSERT, "alice", 100));
+                        output(RowKind.UPDATE_BEFORE, "alice", 2),
+                        output(RowKind.UPDATE_AFTER, "alice", 100));
 
         final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
         tableEnv.createTemporaryView(
@@ -436,6 +436,38 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
 
         testResult(result.execute(), getOutput(inputOrOutput));
+    }
+
+    @Test
+    public void testFromAndToChangelogStreamUpsert() throws Exception {
+        final List<Either<Row, Row>> inputOrOutput =
+                Arrays.asList(
+                        input(RowKind.INSERT, "bob", 0),
+                        output(RowKind.INSERT, "bob", 0),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "bob", 1),
+                        output(RowKind.UPDATE_AFTER, "bob", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1),
+                        output(RowKind.INSERT, "alice", 1),
+                        // --
+                        input(RowKind.INSERT, "alice", 1), // no impact
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 2),
+                        output(RowKind.UPDATE_AFTER, "alice", 2),
+                        // --
+                        input(RowKind.UPDATE_AFTER, "alice", 100),
+                        output(RowKind.UPDATE_AFTER, "alice", 100));
+
+        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        tableEnv.createTemporaryView(
+                "t",
+                tableEnv.fromChangelogStream(
+                        changelogStream,
+                        Schema.newBuilder().primaryKey("f0").build(),
+                        ChangelogMode.upsert()));
+
+        final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
 
         testResult(
                 tableEnv.toChangelogStream(
