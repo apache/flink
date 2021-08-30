@@ -62,6 +62,7 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -1248,6 +1249,49 @@ public class StreamTaskTest extends TestLogger {
                 CheckpointOptions.forCheckpointWithDefaultLocation(),
                 new CheckpointMetricsBuilder());
         assertEquals(1, harness.getCheckpointResponder().getDeclineReports().size());
+    }
+
+    @Test
+    public void testAbortPreviousCheckpointBeforeCompleteTerminateSavepoint() throws Throwable {
+        // given: Marker that the task is finished.
+        AtomicBoolean finishTask = new AtomicBoolean();
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                (env) ->
+                                        new OneInputStreamTask<Integer, Integer>(env) {
+                                            @Override
+                                            protected void finishTask() throws Exception {
+                                                super.finishTask();
+                                                finishTask.set(true);
+                                            }
+                                        },
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new TestBoundedOneInputStreamOperator())
+                        .build();
+
+        // when: Receiving the abort notification of the previous checkpoint before the complete
+        // notification of the savepoint terminate.
+        MailboxExecutor executor =
+                harness.streamTask.getMailboxExecutorFactory().createExecutor(MAX_PRIORITY);
+        executor.execute(
+                () ->
+                        harness.streamTask.triggerCheckpointOnBarrier(
+                                new CheckpointMetaData(2, 0),
+                                new CheckpointOptions(
+                                        CheckpointType.SAVEPOINT_TERMINATE,
+                                        CheckpointStorageLocationReference.getDefault()),
+                                new CheckpointMetricsBuilder()),
+                "test");
+        harness.streamTask.notifyCheckpointAbortAsync(1);
+        harness.streamTask.notifyCheckpointCompleteAsync(2);
+
+        harness.processAll();
+
+        // then: The task should be finished.
+        assertEquals(true, finishTask.get());
     }
 
     @Test

@@ -430,7 +430,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             activeSyncSavepointId = null;
             operatorChain.setIgnoreEndOfInput(false);
         }
-        syncSavepointId = null;
+
+        if (syncSavepointId != null && syncSavepointId <= id) {
+            syncSavepointId = null;
+        }
     }
 
     private void setSynchronousSavepointId(long checkpointId, boolean ignoreEndOfInput) {
