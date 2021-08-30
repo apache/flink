@@ -1,5 +1,6 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -24,7 +25,21 @@ public class DynamicElasticsearchSink<
                 SinkT extends ElasticsearchSinkBase<ElementT, ? extends AutoCloseable>>
         extends RichSinkFunction<ElementT> implements CheckpointedFunction {
 
+    /**
+     * The {@link ElasticsearchSinkRouter} that will defined how to identify a unique {@link RouteT}
+     * route from an incoming {@link ElementT} and ensure that all elements for that route are sent
+     * to the corresponding {@link SinkT} defined.
+     */
     private final ElasticsearchSinkRouter<ElementT, RouteT, SinkT> sinkRouter;
+
+    /**
+     * A key-value cache of all of the previously seen route-sink combinations to reduce the
+     * overhead of creating a new sink each time for routes that have already been established.
+     *
+     * NOTE: Since individual sink instances will be stored in memory, it is important that any
+     * usage of this should properly allocate adequate memory if use-cases might result in the
+     * creation of a large number of separate sinks.
+     */
     protected final Map<RouteT, SinkT> sinkRoutes = new HashMap<>();
 
     private transient Configuration configuration;
@@ -77,6 +92,13 @@ public class DynamicElasticsearchSink<
     public void finish() throws Exception {
         for (SinkT sink : sinkRoutes.values()){
             sink.finish();
+        }
+    }
+
+    @Override
+    public void writeWatermark(Watermark watermark) throws Exception {
+        for (SinkT sink : sinkRoutes.values()){
+            sink.writeWatermark(watermark);
         }
     }
 }
