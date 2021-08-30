@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -129,7 +130,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                     validationLogic,
             Problem problem)
             throws Exception {
-        CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        CuratorFramework client =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
         LeaderElectionDriverFactory leaderElectionDriverFactory =
                 new ZooKeeperLeaderElectionDriverFactory(client, PATH);
         DefaultLeaderElectionService leaderElectionService =

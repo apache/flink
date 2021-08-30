@@ -22,12 +22,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
+
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+/** Tests for {@link ZooKeeperUtils}. */
 public class ZooKeeperUtilsTest extends TestLogger {
 
     @Test
@@ -39,13 +44,6 @@ public class ZooKeeperUtilsTest extends TestLogger {
         runZookeeperPathGenerationTest("//a//", "/b/", "/a/b");
         runZookeeperPathGenerationTest("", "", "/");
         runZookeeperPathGenerationTest("root", "////", "/root");
-    }
-
-    private void runZookeeperPathGenerationTest(
-            String root, String namespace, String expectedValue) {
-        final String result = ZooKeeperUtils.generateZookeeperPath(root, namespace);
-
-        assertThat(result, is(expectedValue));
     }
 
     @Test
@@ -89,6 +87,30 @@ public class ZooKeeperUtilsTest extends TestLogger {
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
             assertEquals(expected, actual);
         }
+    }
+
+    @Test
+    public void testStartCuratorFrameworkFailed() throws Exception {
+        TestingFatalErrorHandler handler = new TestingFatalErrorHandler();
+        String errorMsg = "unexpected exception";
+        final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
+                CuratorFrameworkFactory.builder()
+                        .connectString("localhost:2181")
+                        .retryPolicy(new ExponentialBackoffRetry(1, 1))
+                        .zookeeperFactory(
+                                (s, i, watcher, b) -> {
+                                    throw new RuntimeException(errorMsg);
+                                })
+                        .namespace("flink");
+        ZooKeeperUtils.startCuratorFramework(curatorFrameworkBuilder, handler);
+        Assert.assertEquals(errorMsg, handler.getErrorFuture().get().getMessage());
+    }
+
+    private void runZookeeperPathGenerationTest(
+            String root, String namespace, String expectedValue) {
+        final String result = ZooKeeperUtils.generateZookeeperPath(root, namespace);
+
+        assertThat(result, is(expectedValue));
     }
 
     private Configuration setQuorum(Configuration conf, String quorum) {
