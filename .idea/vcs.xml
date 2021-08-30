@@ -20,8 +20,12 @@
     <option name="links">
       <list>
         <IssueNavigationLink>
-          <option name="issueRegexp" value="[A-Z]+\-\d+" />
+          <option name="issueRegexp" value="FLINK\-\d+" />
           <option name="linkRegexp" value="https://issues.apache.org/jira/browse/$0" />
+        </IssueNavigationLink>
+        <IssueNavigationLink>
+          <option name="issueRegexp" value="FLIP\-\d+" />
+          <option name="linkRegexp" value="https://cwiki.apache.org/confluence/display/FLINK/$0" />
         </IssueNavigationLink>
           <IssueNavigationLink>
           <option name="issueRegexp" value="#(\d+)" />
