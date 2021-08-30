@@ -682,7 +682,7 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 接下来？
 -----------------
 
-* [算法]({{< ref "docs/dev/datastream/operators/overview" >}})：可用算子的使用指南。
+* [算子]({{< ref "docs/dev/datastream/operators/overview" >}})：可用算子的使用指南。
 * [Event Time]({{< ref "docs/concepts/time" >}})：Flink 中时间概念的介绍。
 * [状态 & 容错]({{< ref "docs/dev/datastream/fault-tolerance/state" >}})：如何开发有状态应用程序的讲解。
 * [连接器]({{< ref "docs/connectors/datastream/overview" >}})：所有可用输入和输出连接器的描述。
