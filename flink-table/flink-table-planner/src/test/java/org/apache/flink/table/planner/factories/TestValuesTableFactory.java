@@ -28,6 +28,7 @@ import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
@@ -1359,14 +1360,21 @@ public final class TestValuesTableFactory
                             }
                         };
                     case "DataStream":
-                        return (DataStreamSinkProvider)
-                                dataStream ->
-                                        dataStream.addSink(
-                                                new AppendingSinkFunction(
-                                                        tableName, converter, rowtimeIndex));
-                    case "DataStreamWithParallelism":
-                        return new TestValuesRuntimeFunctions
-                                .InternalDataStreamSinkProviderWithParallelism(1);
+                        return new DataStreamSinkProvider() {
+                            @Override
+                            public DataStreamSink<?> consumeDataStream(
+                                    DataStream<RowData> dataStream) {
+                                return dataStream.addSink(
+                                        new AppendingSinkFunction(
+                                                tableName, converter, rowtimeIndex));
+                            }
+
+                            @Override
+                            public Optional<Integer> getParallelism() {
+                                return parallelismOption;
+                            }
+                        };
+
                     default:
                         throw new IllegalArgumentException(
                                 "Unsupported runtime sink class: " + runtimeSink);

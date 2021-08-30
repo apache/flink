@@ -21,7 +21,10 @@ package org.apache.flink.table.connector.sink;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.data.RowData;
+
+import java.util.Optional;
 
 /**
  * Provider that consumes a Java {@link DataStream} as a runtime implementation for {@link
@@ -33,11 +36,24 @@ import org.apache.flink.table.data.RowData;
  * attention to how changes are shuffled to not mess up the changelog per parallel subtask.
  */
 @PublicEvolving
-public interface DataStreamSinkProvider extends DynamicTableSink.SinkRuntimeProvider {
+public interface DataStreamSinkProvider
+        extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
     /**
      * Consumes the given Java {@link DataStream} and returns the sink transformation {@link
      * DataStreamSink}.
      */
     DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream);
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Note: If a custom parallelism is returned and {@link #consumeDataStream(DataStream)}
+     * applies multiple transformations, make sure to set the same custom parallelism to each
+     * operator to not mess up the changelog.
+     */
+    @Override
+    default Optional<Integer> getParallelism() {
+        return Optional.empty();
+    }
 }
