@@ -90,13 +90,18 @@ public final class DynamicSourceUtils {
         final DynamicTableSource tableSource =
                 new ExternalDynamicSource<>(
                         identifier, dataStream, physicalDataType, isTopLevelRecord, changelogMode);
+        final FlinkStatistic statistic =
+                FlinkStatistic.builder()
+                        // this is a temporary solution, FLINK-15123 will resolve this
+                        .uniqueKeys(catalogTable.getResolvedSchema().getPrimaryKey().orElse(null))
+                        .build();
         return convertSourceToRel(
                 isBatchMode,
                 config,
                 relBuilder,
                 identifier,
                 catalogTable,
-                FlinkStatistic.UNKNOWN(),
+                statistic,
                 Collections.emptyList(),
                 tableSource);
     }
