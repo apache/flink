@@ -53,7 +53,7 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
                                         .column("f1", INT().notNull())
                                         .primaryKey("f1")
                                         .build())
-                        .source(new NoFilterPushDownUpsertSource())
+                        .unboundedScanSource(ChangelogMode.upsert())
                         .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
@@ -71,7 +71,7 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
                                         .column("f2", STRING())
                                         .primaryKey("f1")
                                         .build())
-                        .source(new NoFilterPushDownUpsertSource())
+                        .unboundedScanSource(ChangelogMode.upsert())
                         .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
@@ -92,19 +92,10 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
                                         .column("f2", BIGINT().notNull())
                                         .primaryKey("f1", "f2")
                                         .build())
-                        .source(new NoFilterPushDownUpsertSource())
+                        .unboundedScanSource(ChangelogMode.upsert())
                         .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
         util.verifyRelPlan("SELECT f0, f1 FROM T WHERE (f1 < 1 OR f2 > 10) AND f0 IS NOT NULL");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    private static class NoFilterPushDownUpsertSource extends TableFactoryHarness.ScanSourceBase {
-        @Override
-        public ChangelogMode getChangelogMode() {
-            return ChangelogMode.upsert();
-        }
     }
 }
