@@ -62,11 +62,12 @@ class DataStreamTests(object):
         self.assertEqual(expected, actual)
 
     def test_basic_operations(self):
-        ds = self.env.from_collection([('ab', decimal.Decimal(1)),
-                                       ('bdc', decimal.Decimal(2)),
-                                       ('cfgs', decimal.Decimal(3)),
-                                       ('deeefg', decimal.Decimal(4))],
-                                      type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
+        ds = self.env.from_collection(
+            [('ab', Row('a', decimal.Decimal(1))),
+             ('bdc', Row('b', decimal.Decimal(2))),
+             ('cfgs', Row('c', decimal.Decimal(3))),
+             ('deeefg', Row('d', decimal.Decimal(4)))],
+            type_info=Types.TUPLE([Types.STRING(), Types.ROW([Types.STRING(), Types.BIG_DEC()])]))
 
         class MyMapFunction(MapFunction):
             def map(self, value):
@@ -81,7 +82,7 @@ class DataStreamTests(object):
             def filter(self, value):
                 return value[1] > 2
 
-        (ds.map(lambda i: (i[0], len(i[0]), i[1]),
+        (ds.map(lambda i: (i[0], len(i[0]), i[1][1]),
                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
            .flat_map(MyFlatMapFunction(),
                      output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
