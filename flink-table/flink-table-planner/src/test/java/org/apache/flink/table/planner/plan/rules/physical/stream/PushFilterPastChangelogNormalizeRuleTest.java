@@ -46,13 +46,15 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
     @Test
     public void testWithSinglePrimaryKeyFilter() {
         final TableDescriptor sourceDescriptor =
-                TableFactoryHarness.forSource(
-                        Schema.newBuilder()
-                                .column("f0", STRING())
-                                .column("f1", INT().notNull())
-                                .primaryKey("f1")
-                                .build(),
-                        new NoFilterPushDownUpsertSource());
+                TableFactoryHarness.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", STRING())
+                                        .column("f1", INT().notNull())
+                                        .primaryKey("f1")
+                                        .build())
+                        .source(new NoFilterPushDownUpsertSource())
+                        .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
         util.verifyRelPlan("SELECT * FROM T WHERE f1 < 1");
@@ -61,14 +63,16 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
     @Test
     public void testWithMultipleFilters() {
         final TableDescriptor sourceDescriptor =
-                TableFactoryHarness.forSource(
-                        Schema.newBuilder()
-                                .column("f0", STRING())
-                                .column("f1", INT().notNull())
-                                .column("f2", STRING())
-                                .primaryKey("f1")
-                                .build(),
-                        new NoFilterPushDownUpsertSource());
+                TableFactoryHarness.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", STRING())
+                                        .column("f1", INT().notNull())
+                                        .column("f2", STRING())
+                                        .primaryKey("f1")
+                                        .build())
+                        .source(new NoFilterPushDownUpsertSource())
+                        .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
 
@@ -80,14 +84,16 @@ public class PushFilterPastChangelogNormalizeRuleTest extends TableTestBase {
     @Test
     public void testWithMultiplePrimaryKeyColumns() {
         final TableDescriptor sourceDescriptor =
-                TableFactoryHarness.forSource(
-                        Schema.newBuilder()
-                                .column("f0", STRING())
-                                .column("f1", INT().notNull())
-                                .column("f2", BIGINT().notNull())
-                                .primaryKey("f1", "f2")
-                                .build(),
-                        new NoFilterPushDownUpsertSource());
+                TableFactoryHarness.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", STRING())
+                                        .column("f1", INT().notNull())
+                                        .column("f2", BIGINT().notNull())
+                                        .primaryKey("f1", "f2")
+                                        .build())
+                        .source(new NoFilterPushDownUpsertSource())
+                        .build();
 
         util.tableEnv().createTable("T", sourceDescriptor);
         util.verifyRelPlan("SELECT f0, f1 FROM T WHERE (f1 < 1 OR f2 > 10) AND f0 IS NOT NULL");
