@@ -56,8 +56,8 @@ import static org.apache.flink.table.planner.plan.utils.RexNodeExtractor.extract
  * keeps state for every unique key it encounters, thus pushing filters on the primary key in front
  * of it helps reduce the size of its state.
  *
- * <p>Note that pushing primary key filters is safe to do, but pushing any other filters would lead
- * to incorrect results.
+ * <p>Note that pushing primary key filters is safe to do, but pushing any other filters can lead to
+ * incorrect results.
  */
 @Internal
 public class PushFilterPastChangelogNormalizeRule
@@ -95,7 +95,7 @@ public class PushFilterPastChangelogNormalizeRule
 
         // Construct a new ChangelogNormalize which has primary key filters pushed into it
         final StreamPhysicalChangelogNormalize newChangelogNormalize =
-                pushFiltersThroughChangeNormalize(call, primaryKeyPredicates);
+                pushFiltersThroughChangelogNormalize(call, primaryKeyPredicates);
 
         // Retain only filters which haven't been pushed
         transformWithRemainingPredicates(call, newChangelogNormalize, otherPredicates);
@@ -121,7 +121,7 @@ public class PushFilterPastChangelogNormalizeRule
     }
 
     /** Pushes {@param primaryKeyPredicates} into the {@link StreamPhysicalChangelogNormalize}. */
-    private StreamPhysicalChangelogNormalize pushFiltersThroughChangeNormalize(
+    private StreamPhysicalChangelogNormalize pushFiltersThroughChangelogNormalize(
             RelOptRuleCall call, List<RexNode> primaryKeyPredicates) {
         final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(1);
 
