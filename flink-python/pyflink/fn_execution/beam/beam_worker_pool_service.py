@@ -95,6 +95,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
     def _start_sdk_worker_main(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest):
         params = start_worker_request.params
+        base_dir = None
         self._parse_param_lock.acquire()
         if 'PYTHONPATH' in params:
             python_path_list = params['PYTHONPATH'].split(':')
@@ -102,6 +103,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             for path in python_path_list:
                 sys.path.insert(0, path)
         if '_PYTHON_WORKING_DIR' in params:
+            base_dir = os.getcwd()
             os.chdir(params['_PYTHON_WORKING_DIR'])
         os.environ.update(params)
         self._parse_param_lock.release()
@@ -153,5 +155,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             _LOGGER.exception('Python sdk harness failed: ')
             raise
         finally:
+            if base_dir:
+                os.chdir(base_dir)
             if fn_log_handler:
                 fn_log_handler.close()
