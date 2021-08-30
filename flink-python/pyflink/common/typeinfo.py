@@ -399,12 +399,36 @@ class TupleTypeInfo(WrapperTypeInfo):
             if isinstance(field_type, WrapperTypeInfo):
                 j_types_array[i] = field_type.get_java_type_info()
 
+        self._need_conversion = [f.need_conversion() if isinstance(f, WrapperTypeInfo) else None
+                                 for f in types]
+        self._need_serialize_any_field = any(self._need_conversion)
+
         j_typeinfo = get_gateway().jvm \
             .org.apache.flink.api.java.typeutils.TupleTypeInfo(j_types_array)
         super(TupleTypeInfo, self).__init__(j_typeinfo=j_typeinfo)
 
     def get_field_types(self) -> List[TypeInformation]:
         return self.types
+
+    def need_conversion(self):
+        return True
+
+    def to_internal_type(self, obj):
+        if obj is None:
+            return
+
+        if self._need_serialize_any_field:
+            # Only calling to_internal_type function for fields that need conversion
+            if isinstance(obj, (tuple, list)):
+                return tuple(f.to_internal_type(v) if c else v
+                             for f, v, c in zip(self.types, obj, self._need_conversion))
+            else:
+                raise ValueError("Unexpected tuple %r with TupleTypeInfo" % obj)
+        else:
+            if isinstance(obj, (tuple, list)):
+                return tuple(obj)
+            else:
+                raise ValueError("Unexpected tuple %r with TupleTypeInfo" % obj)
 
     def __eq__(self, other) -> bool:
         return self._j_typeinfo.equals(other._j_typeinfo)

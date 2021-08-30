@@ -88,12 +88,14 @@ class DataStreamTests(PyFlinkTestCase):
 
     def test_map_function_without_data_types(self):
         self.env.set_parallelism(1)
-        ds = self.env.from_collection([('ab', decimal.Decimal(1)),
-                                       ('bdc', decimal.Decimal(2)),
-                                       ('cfgs', decimal.Decimal(3)),
-                                       ('deeefg', decimal.Decimal(4))],
-                                      type_info=Types.ROW([Types.STRING(), Types.BIG_DEC()]))
-        ds.map(MyMapFunction()).add_sink(self.test_sink)
+        ds = self.env.from_collection(
+            [('ab', ('a', decimal.Decimal(1))),
+             ('bdc', ('b', decimal.Decimal(2))),
+             ('cfgs', ('c', decimal.Decimal(3))),
+             ('deeefg', ('d', decimal.Decimal(4)))],
+            type_info=Types.TUPLE([Types.STRING(), Types.TUPLE([Types.STRING(), Types.BIG_DEC()])]))
+        ds.map(lambda i: (i[0], i[1][1])) \
+          .map(MyMapFunction()).add_sink(self.test_sink)
         self.env.execute('map_function_test')
         results = self.test_sink.get_results(True)
         expected = ["<Row('ab', 2, Decimal('1'))>", "<Row('bdc', 3, Decimal('2'))>",
