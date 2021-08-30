@@ -11,21 +11,21 @@ import java.util.Map;
 
 /**
  * Creates a dynamic wrapper for the Elasticsearch API that supports routing {@link ElementT}
- * elements to corresponding {@link SinkT} instances based on the logic defined within a
- * {@link ElasticsearchSinkRouter}.
+ * elements to corresponding {@link SinkT} instances based on the logic defined within a {@link
+ * ElasticsearchSinkRouter}.
  *
  * @param <ElementT> The type of element being routed
  * @param <RouteT> The type of deterministic identifier used to associate an element to a sink
  * @param <SinkT> The sink that the element will be written to
  */
 public class DynamicElasticsearchSink<
-        ElementT,
-        RouteT,
-        SinkT extends ElasticsearchSinkBase<ElementT, ? extends AutoCloseable>>
+                ElementT,
+                RouteT,
+                SinkT extends ElasticsearchSinkBase<ElementT, ? extends AutoCloseable>>
         extends RichSinkFunction<ElementT> implements CheckpointedFunction {
 
     private final ElasticsearchSinkRouter<ElementT, RouteT, SinkT> sinkRouter;
-    private final Map<RouteT, SinkT> sinkRoutes = new HashMap<>();
+    protected final Map<RouteT, SinkT> sinkRoutes = new HashMap<>();
 
     private transient Configuration configuration;
 
@@ -70,6 +70,13 @@ public class DynamicElasticsearchSink<
     public void close() throws Exception {
         for (SinkT sink : sinkRoutes.values()) {
             sink.close();
+        }
+    }
+
+    @Override
+    public void finish() throws Exception {
+        for (SinkT sink : sinkRoutes.values()){
+            sink.finish();
         }
     }
 }
