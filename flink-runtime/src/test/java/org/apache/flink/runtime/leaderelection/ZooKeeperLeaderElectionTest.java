@@ -25,6 +25,7 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -110,7 +111,8 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
         configuration.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-        client = ZooKeeperUtils.startCuratorFramework(configuration);
+        client =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
     }
 
     @After
@@ -355,7 +357,9 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             electionEventHandler.waitForLeader(timeout);
             assertThat(electionEventHandler.getConfirmedLeaderInformation(), is(TEST_LEADER));
 
-            anotherClient = ZooKeeperUtils.startCuratorFramework(configuration);
+            anotherClient =
+                    ZooKeeperUtils.startCuratorFramework(
+                            configuration, NoOpFatalErrorHandler.INSTANCE);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -428,7 +432,10 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         final Exception testException = new Exception(exMsg);
 
         try {
-            client = spy(ZooKeeperUtils.startCuratorFramework(configuration));
+            client =
+                    spy(
+                            ZooKeeperUtils.startCuratorFramework(
+                                    configuration, NoOpFatalErrorHandler.INSTANCE));
 
             doAnswer(invocation -> mockCreateBuilder).when(client).create();
 
@@ -478,8 +485,12 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
         NodeCache cache = null;
 
         try {
-            client = ZooKeeperUtils.startCuratorFramework(configuration);
-            client2 = ZooKeeperUtils.startCuratorFramework(configuration);
+            client =
+                    ZooKeeperUtils.startCuratorFramework(
+                            configuration, NoOpFatalErrorHandler.INSTANCE);
+            client2 =
+                    ZooKeeperUtils.startCuratorFramework(
+                            configuration, NoOpFatalErrorHandler.INSTANCE);
 
             leaderElectionDriver = createAndInitLeaderElectionDriver(client, electionEventHandler);
             leaderRetrievalDriver =

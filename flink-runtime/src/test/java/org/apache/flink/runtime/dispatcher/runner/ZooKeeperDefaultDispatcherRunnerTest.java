@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -142,7 +143,8 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
         final TestingLeaderElectionService dispatcherLeaderElectionService =
                 new TestingLeaderElectionService();
 
-        final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+        final CuratorFramework client =
+                ZooKeeperUtils.startCuratorFramework(configuration, NoOpFatalErrorHandler.INSTANCE);
         try (final TestingHighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServicesBuilder()
                         .setRunningJobsRegistry(
