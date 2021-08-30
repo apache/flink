@@ -28,16 +28,20 @@ import org.apache.flink.util.FlinkException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 
 /**
- * A testing job with configurable number of calls to {@link ExecutionEnvironment#executeAsync()}.
+ * A testing job whith blocks processing until it gets manually {@link #unblock(String) unblocked}.
  */
-public class MultiExecuteJob {
+public class BlockingJob {
 
-    public static PackagedProgram getProgram(int noOfJobs, boolean attached) throws FlinkException {
+    private static final ConcurrentMap<String, CountDownLatch> BLOCKING = new ConcurrentHashMap<>();
+
+    public static PackagedProgram getProgram(String blockId) throws FlinkException {
         try {
             return PackagedProgram.newBuilder()
                     .setUserClassPaths(
@@ -45,35 +49,30 @@ public class MultiExecuteJob {
                                     new File(CliFrontendTestUtils.getTestJarPath())
                                             .toURI()
                                             .toURL()))
-                    .setEntryPointClassName(MultiExecuteJob.class.getName())
-                    .setArguments(String.valueOf(noOfJobs), Boolean.toString(attached))
+                    .setEntryPointClassName(BlockingJob.class.getName())
+                    .setArguments(blockId)
                     .build();
         } catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
             throw new FlinkException("Could not load the provided entrypoint class.", e);
         }
     }
 
+    public static void unblock(String blockId) {
+        BLOCKING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1)).countDown();
+    }
+
     public static void main(String[] args) throws Exception {
-        int noOfExecutes = Integer.parseInt(args[0]);
-        boolean attached = args.length > 1 && Boolean.parseBoolean(args[1]);
-
+        final String blockId = args[0];
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        for (int i = 0; i < noOfExecutes; i++) {
-            final List<Integer> input = new ArrayList<>();
-            input.add(1);
-            input.add(2);
-            input.add(3);
-
-            env.fromCollection(input)
-                    .map(element -> element + 1)
-                    .output(new DiscardingOutputFormat<>());
-
-            if (attached) {
-                env.execute();
-            } else {
-                env.executeAsync();
-            }
-        }
+        env.fromCollection(Arrays.asList(1, 2, 3))
+                .map(element -> element + 1)
+                .map(
+                        element -> {
+                            BLOCKING.computeIfAbsent(blockId, ignored -> new CountDownLatch(1))
+                                    .await();
+                            return element;
+                        })
+                .output(new DiscardingOutputFormat<>());
+        env.execute();
     }
 }

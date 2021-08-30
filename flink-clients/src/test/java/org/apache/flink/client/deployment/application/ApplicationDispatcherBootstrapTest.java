@@ -20,10 +20,9 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.client.testjar.MultiExecuteJob;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -52,12 +51,8 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.junit.After;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
@@ -65,24 +60,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
 public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
-    private static final String MULTI_EXECUTE_JOB_CLASS_NAME =
-            "org.apache.flink.client.testjar.MultiExecuteJob";
     private static final int TIMEOUT_SECONDS = 10;
 
-    final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
-    final ScheduledExecutor scheduledExecutor = new ScheduledExecutorServiceAdapter(executor);
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(4);
+    private final ScheduledExecutor scheduledExecutor =
+            new ScheduledExecutorServiceAdapter(executor);
 
     @After
     public void cleanup() {
@@ -309,7 +304,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setRequestJobStatusFunction(
                                 jobId -> CompletableFuture.completedFuture(JobStatus.CANCELED))
                         .setClusterShutdownFunction(
-                                (status) -> {
+                                status -> {
                                     clusterShutdownStatus.complete(status);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
@@ -363,15 +358,19 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
     @Test
     public void testApplicationIsStoppedWhenStoppingBootstrap() throws Exception {
+        final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 new TestingDispatcherGateway.Builder()
                         .setSubmitFunction(
                                 jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
                         .setRequestJobStatusFunction(
-                                jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING));
+                                jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
+                        .setClusterShutdownFunction(
+                                status -> {
+                                    shutdownCalled.set(true);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                });
 
-        // we're "listening" on this to be completed to verify that the error handler is called.
-        // In production, this will shut down the cluster with an exception.
         final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
         final ApplicationDispatcherBootstrap bootstrap =
                 createApplicationDispatcherBootstrap(
@@ -386,48 +385,23 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
 
         bootstrap.stop();
 
-        // we call the error handler
-        assertException(errorHandlerFuture, CancellationException.class);
+        // we didn't call the error handler
+        assertFalse(errorHandlerFuture.isDone());
 
-        // we return a future that is completed exceptionally
-        assertException(shutdownFuture, CancellationException.class);
+        // shutdown future gets completed normally
+        shutdownFuture.get();
+
+        // verify that we didn't shut down the cluster
+        assertFalse(shutdownCalled.get());
 
         // verify that the application task is being cancelled
         assertThat(applicationExecutionFuture.isCancelled(), is(true));
+        assertThat(applicationExecutionFuture.isDone(), is(true));
     }
 
     @Test
-    public void testErrorHandlerIsCalledWhenStoppingBootstrap() throws Exception {
-        final TestingDispatcherGateway.Builder dispatcherBuilder =
-                new TestingDispatcherGateway.Builder()
-                        .setSubmitFunction(
-                                jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-                        .setRequestJobStatusFunction(
-                                jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING));
-
-        // we're "listening" on this to be completed to verify that the error handler is called.
-        // In production, this will shut down the cluster with an exception.
-        final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
-        final ApplicationDispatcherBootstrap bootstrap =
-                createApplicationDispatcherBootstrap(
-                        2,
-                        dispatcherBuilder.build(),
-                        scheduledExecutor,
-                        errorHandlerFuture::completeExceptionally);
-
-        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
-
-        bootstrap.stop();
-
-        // we call the error handler
-        assertException(errorHandlerFuture, CancellationException.class);
-
-        // we return a future that is completed exceptionally
-        assertException(shutdownFuture, CancellationException.class);
-    }
-
-    @Test
-    public void testErrorHandlerIsCalledWhenSubmissionFails() throws Exception {
+    public void testClusterIsShutdownCalledWhenSubmissionThrowsAnException() throws Exception {
+        final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 new TestingDispatcherGateway.Builder()
                         .setSubmitFunction(
@@ -436,9 +410,60 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                 })
                         .setClusterShutdownFunction(
                                 status -> {
-                                    fail("We should not call shutdownCluster()");
+                                    shutdownCalled.set(true);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
+
+        final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
+        final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
+        final ApplicationDispatcherBootstrap bootstrap =
+                createApplicationDispatcherBootstrap(
+                        3,
+                        dispatcherGateway,
+                        scheduledExecutor,
+                        errorHandlerFuture::completeExceptionally);
+
+        final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
+
+        // bootstrap shutdown future completes exceptionally
+        assertException(shutdownFuture, FlinkRuntimeException.class);
+
+        // and exception gets propagated to error handler
+        assertException(errorHandlerFuture, FlinkRuntimeException.class);
+
+        // and cluster shutdown didn't get called
+        assertFalse(shutdownCalled.get());
+    }
+
+    @Test
+    public void testErrorHandlerIsCalledWhenShutdownCompletesExceptionally() throws Exception {
+        testErrorHandlerIsCalled(
+                () ->
+                        FutureUtils.completedExceptionally(
+                                new FlinkRuntimeException("Test exception.")));
+    }
+
+    @Test
+    public void testErrorHandlerIsCalledWhenShutdownThrowsAnException() throws Exception {
+        testErrorHandlerIsCalled(
+                () -> {
+                    throw new FlinkRuntimeException("Test exception.");
+                });
+    }
+
+    private void testErrorHandlerIsCalled(Supplier<CompletableFuture<Acknowledge>> shutdownFunction)
+            throws Exception {
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+                        .setRequestJobStatusFunction(
+                                jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        CompletableFuture.completedFuture(
+                                                createSuccessfulJobResult(jobId)))
+                        .setClusterShutdownFunction(status -> shutdownFunction.get());
 
         // we're "listening" on this to be completed to verify that the error handler is called.
         // In production, this will shut down the cluster with an exception.
@@ -454,10 +479,10 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         final CompletableFuture<Acknowledge> shutdownFuture = bootstrap.getClusterShutdownFuture();
 
         // we call the error handler
-        assertException(errorHandlerFuture, ApplicationExecutionException.class);
+        assertException(errorHandlerFuture, FlinkRuntimeException.class);
 
         // we return a future that is completed exceptionally
-        assertException(shutdownFuture, ApplicationExecutionException.class);
+        assertException(shutdownFuture, FlinkRuntimeException.class);
     }
 
     @Test
@@ -481,16 +506,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                 })
                         .build();
 
-        final PackagedProgram program =
-                PackagedProgram.newBuilder()
-                        .setUserClassPaths(
-                                Collections.singletonList(
-                                        new File(CliFrontendTestUtils.getTestJarPath())
-                                                .toURI()
-                                                .toURL()))
-                        .setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
-                        .setArguments(String.valueOf(2), String.valueOf(true))
-                        .build();
+        final PackagedProgram program = getProgram(2);
 
         final Configuration configuration = getConfiguration();
         configuration.set(DeploymentOptions.ATTACHED, true);
@@ -529,7 +545,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                         CompletableFuture.completedFuture(
                                                 createSuccessfulJobResult(jobId)))
                         .setClusterShutdownFunction(
-                                (status) -> {
+                                status -> {
                                     externalShutdownFuture.complete(status);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
@@ -567,7 +583,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                         CompletableFuture.completedFuture(
                                                 createFailedJobResult(jobId)))
                         .setClusterShutdownFunction(
-                                (status) -> {
+                                status -> {
                                     externalShutdownFuture.complete(status);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
@@ -605,7 +621,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                         CompletableFuture.completedFuture(
                                                 createCancelledJobResult(jobId)))
                         .setClusterShutdownFunction(
-                                (status) -> {
+                                status -> {
                                     externalShutdownFuture.complete(status);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
@@ -626,9 +642,10 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     @Test
-    public void testClusterDoesNotShutdownWhenApplicationStatusUnknown() throws Exception {
-        // we're "listening" on this to be completed to verify that the cluster
-        // is being shut down from the ApplicationDispatcherBootstrap
+    public void testErrorHandlerIsCalledWhenApplicationStatusIsUnknown() throws Exception {
+        // we're "listening" on this to be completed to verify that the cluster is being shut down
+        // from the ApplicationDispatcherBootstrap
+        final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 new TestingDispatcherGateway.Builder()
                         .setSubmitFunction(
@@ -641,20 +658,27 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                                 createUnknownJobResult(jobId)))
                         .setClusterShutdownFunction(
                                 status -> {
-                                    fail("We should not call shutdownCluster()");
+                                    shutdownCalled.set(true);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 });
 
         final TestingDispatcherGateway dispatcherGateway = dispatcherBuilder.build();
+        final CompletableFuture<Void> errorHandlerFuture = new CompletableFuture<>();
         final ApplicationDispatcherBootstrap bootstrap =
-                createApplicationDispatcherBootstrap(3, dispatcherGateway, scheduledExecutor);
+                createApplicationDispatcherBootstrap(
+                        3,
+                        dispatcherGateway,
+                        scheduledExecutor,
+                        errorHandlerFuture::completeExceptionally);
 
-        final CompletableFuture<Acknowledge> applicationFuture =
-                bootstrap.getClusterShutdownFuture();
+        // check that bootstrap shutdown completes exceptionally
+        assertException(bootstrap.getClusterShutdownFuture(), UnsuccessfulExecutionException.class);
 
-        final UnsuccessfulExecutionException exception =
-                assertException(applicationFuture, UnsuccessfulExecutionException.class);
-        assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
+        // and exception gets propagated to error handler
+        assertException(bootstrap.getClusterShutdownFuture(), UnsuccessfulExecutionException.class);
+
+        // and cluster didn't shut down
+        assertFalse(shutdownCalled.get());
     }
 
     @Test
@@ -849,19 +873,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     private PackagedProgram getProgram(int noOfJobs) throws FlinkException {
-        try {
-            return PackagedProgram.newBuilder()
-                    .setUserClassPaths(
-                            Collections.singletonList(
-                                    new File(CliFrontendTestUtils.getTestJarPath())
-                                            .toURI()
-                                            .toURL()))
-                    .setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
-                    .setArguments(String.valueOf(noOfJobs), Boolean.toString(true))
-                    .build();
-        } catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
-            throw new FlinkException("Could not load the provided entrypoint class.", e);
-        }
+        return MultiExecuteJob.getProgram(noOfJobs, true);
     }
 
     private static JobResult createUnknownJobResult(final JobID jobId) {

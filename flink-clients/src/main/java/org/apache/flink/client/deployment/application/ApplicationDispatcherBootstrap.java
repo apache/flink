@@ -41,7 +41,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -55,6 +54,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
@@ -147,35 +147,41 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
      */
     private CompletableFuture<Acknowledge> runApplicationAndShutdownClusterAsync(
             final DispatcherGateway dispatcherGateway) {
-        return applicationCompletionFuture
-                .handle(
-                        (ignored, t) -> {
-                            if (t == null) {
-                                LOG.info("Application completed SUCCESSFULLY");
-                                return dispatcherGateway.shutDownCluster(
-                                        ApplicationStatus.SUCCEEDED);
-                            }
+        final CompletableFuture<Acknowledge> shutdownFuture =
+                applicationCompletionFuture
+                        .handle(
+                                (ignored, t) -> {
+                                    if (t == null) {
+                                        LOG.info("Application completed SUCCESSFULLY");
+                                        return dispatcherGateway.shutDownCluster(
+                                                ApplicationStatus.SUCCEEDED);
+                                    }
+                                    final Optional<UnsuccessfulExecutionException> maybeException =
+                                            ExceptionUtils.findThrowable(
+                                                    t, UnsuccessfulExecutionException.class);
+                                    if (maybeException.isPresent()) {
+                                        final ApplicationStatus applicationStatus =
+                                                maybeException.get().getStatus();
+                                        if (applicationStatus == ApplicationStatus.CANCELED
+                                                || applicationStatus == ApplicationStatus.FAILED) {
+                                            LOG.info("Application {}: ", applicationStatus, t);
+                                            return dispatcherGateway.shutDownCluster(
+                                                    applicationStatus);
+                                        }
+                                    }
 
-                            final Optional<UnsuccessfulExecutionException> maybeException =
-                                    ExceptionUtils.findThrowable(
-                                            t, UnsuccessfulExecutionException.class);
-                            if (maybeException.isPresent()) {
-                                final ApplicationStatus applicationStatus =
-                                        maybeException.get().getStatus();
-                                if (applicationStatus == ApplicationStatus.CANCELED
-                                        || applicationStatus == ApplicationStatus.FAILED) {
-                                    LOG.info("Application {}: ", applicationStatus, t);
-                                    return dispatcherGateway.shutDownCluster(applicationStatus);
-                                }
-                            }
+                                    if (t instanceof CancellationException) {
+                                        LOG.warn(
+                                                "Application is cancelled because the executing dispatcher lost leadership.");
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    }
 
-                            LOG.warn("Application failed unexpectedly: ", t);
-                            this.errorHandler.onFatalError(
-                                    new FlinkException("Application failed unexpectedly.", t));
-
-                            return FutureUtils.<Acknowledge>completedExceptionally(t);
-                        })
-                .thenCompose(Function.identity());
+                                    LOG.warn("Application failed unexpectedly: ", t);
+                                    return FutureUtils.<Acknowledge>completedExceptionally(t);
+                                })
+                        .thenCompose(Function.identity());
+        FutureUtils.handleUncaughtException(shutdownFuture, (t, e) -> errorHandler.onFatalError(e));
+        return shutdownFuture;
     }
 
     private CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
@@ -331,7 +337,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     /**
      * If the given {@link JobResult} indicates success, this passes through the {@link JobResult}.
      * Otherwise, this returns a future that is finished exceptionally (potentially with an
-     * exception from the {@link JobResult}.
+     * exception from the {@link JobResult}).
      */
     private CompletableFuture<JobResult> unwrapJobResultException(
             final CompletableFuture<JobResult> jobResult) {
