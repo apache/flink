@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -63,8 +64,7 @@ import static org.apache.flink.table.planner.plan.utils.RexNodeExtractor.extract
 public class PushFilterPastChangelogNormalizeRule
         extends RelRule<PushFilterPastChangelogNormalizeRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            Config.EMPTY.as(Config.class).onFilterWithChangelogNormalize().toRule();
+    public static final RelOptRule INSTANCE = Config.EMPTY.as(Config.class).onMatch().toRule();
 
     public PushFilterPastChangelogNormalizeRule(Config config) {
         super(config);
@@ -124,6 +124,7 @@ public class PushFilterPastChangelogNormalizeRule
     private StreamPhysicalChangelogNormalize pushFiltersThroughChangelogNormalize(
             RelOptRuleCall call, List<RexNode> primaryKeyPredicates) {
         final StreamPhysicalChangelogNormalize changelogNormalize = call.rel(1);
+        final StreamPhysicalExchange exchange = call.rel(2);
 
         if (primaryKeyPredicates.isEmpty()) {
             // There are no filters which can be pushed, so just return the existing node.
@@ -132,12 +133,17 @@ public class PushFilterPastChangelogNormalizeRule
 
         final StreamPhysicalCalc pushedFiltersCalc =
                 projectIdentityWithConditions(
-                        call.builder(), changelogNormalize.getInput(), primaryKeyPredicates);
+                        call.builder(), exchange.getInput(), primaryKeyPredicates);
+
+        final StreamPhysicalExchange newExchange =
+                (StreamPhysicalExchange)
+                        exchange.copy(
+                                exchange.getTraitSet(),
+                                Collections.singletonList(pushedFiltersCalc));
 
         return (StreamPhysicalChangelogNormalize)
                 changelogNormalize.copy(
-                        changelogNormalize.getTraitSet(),
-                        Collections.singletonList(pushedFiltersCalc));
+                        changelogNormalize.getTraitSet(), Collections.singletonList(newExchange));
     }
 
     /**
@@ -220,12 +226,16 @@ public class PushFilterPastChangelogNormalizeRule
             return new PushFilterPastChangelogNormalizeRule(this);
         }
 
-        default Config onFilterWithChangelogNormalize() {
+        default Config onMatch() {
+            final RelRule.OperandTransform exchangeTransform =
+                    operandBuilder ->
+                            operandBuilder.operand(StreamPhysicalExchange.class).anyInputs();
+
             final RelRule.OperandTransform changelogNormalizeTransform =
                     operandBuilder ->
                             operandBuilder
                                     .operand(StreamPhysicalChangelogNormalize.class)
-                                    .anyInputs();
+                                    .oneInput(exchangeTransform);
 
             final RelRule.OperandTransform calcTransform =
                     operandBuilder ->

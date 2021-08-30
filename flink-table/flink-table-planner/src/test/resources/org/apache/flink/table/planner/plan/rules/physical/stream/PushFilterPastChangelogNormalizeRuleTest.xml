@@ -32,8 +32,8 @@ LogicalAggregate(group=[{0}], sum=[SUM($0)])
       <![CDATA[
 Calc(select=[f1, f1 AS sum], where=[OR(>(f1, 3), IS NULL(f2))])
 +- ChangelogNormalize(key=[f1])
-   +- Calc(select=[f0, f1, f2], where=[<(f1, 10)])
-      +- Exchange(distribution=[hash[f1]])
+   +- Exchange(distribution=[hash[f1]])
+      +- Calc(select=[f0, f1, f2], where=[<(f1, 10)])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
 ]]>
     </Resource>
@@ -53,8 +53,8 @@ LogicalProject(f0=[$0], f1=[$1])
       <![CDATA[
 Calc(select=[f0, f1], where=[IS NOT NULL(f0)])
 +- ChangelogNormalize(key=[f1, f2])
-   +- Calc(select=[f0, f1, f2], where=[OR(<(f1, 1), >(f2, 10))])
-      +- Exchange(distribution=[hash[f1, f2]])
+   +- Exchange(distribution=[hash[f1, f2]])
+      +- Calc(select=[f0, f1, f2], where=[OR(<(f1, 1), >(f2, 10))])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
 ]]>
     </Resource>
@@ -73,8 +73,8 @@ LogicalProject(f0=[$0], f1=[$1])
     <Resource name="optimized rel plan">
       <![CDATA[
 ChangelogNormalize(key=[f1])
-+- Calc(select=[f0, f1], where=[<(f1, 1)])
-   +- Exchange(distribution=[hash[f1]])
++- Exchange(distribution=[hash[f1]])
+   +- Calc(select=[f0, f1], where=[<(f1, 1)])
       +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1])
 ]]>
     </Resource>
