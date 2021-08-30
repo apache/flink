@@ -1073,39 +1073,6 @@ class WindowAggregateITCase(
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 
-  //  不支持
-  @Test
-  def testCascadeEventTimeSessionWindowWithOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  cnt,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*)
-        |  FROM
-        |  (
-        |    SELECT
-        |    `name`,
-        |    window_start,
-        |    window_end,
-        |    COUNT(DISTINCT `string`) AS cnt
-        |    FROM TABLE(
-        |      SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '2' SECOND))
-        |    GROUP BY `name`, window_start, window_end
-        |) GROUP BY cnt, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "0,2020-10-09T08:00,2020-10-10T08:00,1",
-      "3,2020-10-09T08:00,2020-10-10T08:00,2")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
-  }
-
   @Test
   def testEventTimeSessionWindow_GroupingSets(): Unit = {
     val sql =
