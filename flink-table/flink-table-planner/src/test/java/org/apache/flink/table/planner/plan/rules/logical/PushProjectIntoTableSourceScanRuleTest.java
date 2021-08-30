@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
@@ -267,10 +268,12 @@ public class PushProjectIntoTableSourceScanRuleTest
     @Test
     public void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
-        final NoPushDownSource source = new NoPushDownSource(true, appliedKeys);
-
-        util().tableEnv()
-                .createTable("T1", TableFactoryHarness.forSource(NoPushDownSource.SCHEMA, source));
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(true, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T1", sourceDescriptor);
 
         util().verifyRelPlan("SELECT m1, metadata FROM T1");
         assertThat(appliedKeys.get(), contains("m1", "m2"));
@@ -279,10 +282,12 @@ public class PushProjectIntoTableSourceScanRuleTest
     @Test
     public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
-        final NoPushDownSource source = new NoPushDownSource(false, appliedKeys);
-
-        util().tableEnv()
-                .createTable("T2", TableFactoryHarness.forSource(NoPushDownSource.SCHEMA, source));
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(false, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T2", sourceDescriptor);
 
         util().verifyRelPlan("SELECT m1, metadata FROM T2");
         assertThat(appliedKeys.get(), contains("m1", "m2", "m3"));
@@ -291,10 +296,12 @@ public class PushProjectIntoTableSourceScanRuleTest
     @Test
     public void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
-        final NoPushDownSource source = new NoPushDownSource(true, appliedKeys);
-
-        util().tableEnv()
-                .createTable("T3", TableFactoryHarness.forSource(NoPushDownSource.SCHEMA, source));
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(true, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T3", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T3");
         assertThat(appliedKeys.get(), hasSize(0));
@@ -303,10 +310,12 @@ public class PushProjectIntoTableSourceScanRuleTest
     @Test
     public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
-        final NoPushDownSource source = new NoPushDownSource(false, appliedKeys);
-
-        util().tableEnv()
-                .createTable("T4", TableFactoryHarness.forSource(NoPushDownSource.SCHEMA, source));
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(false, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T4", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T4");
         assertThat(appliedKeys.get(), contains("m1", "m2", "m3"));
