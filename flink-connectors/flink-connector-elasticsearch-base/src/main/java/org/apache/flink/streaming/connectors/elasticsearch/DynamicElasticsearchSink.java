@@ -36,7 +36,7 @@ public class DynamicElasticsearchSink<
      * A key-value cache of all of the previously seen route-sink combinations to reduce the
      * overhead of creating a new sink each time for routes that have already been established.
      *
-     * NOTE: Since individual sink instances will be stored in memory, it is important that any
+     * <p>NOTE: Since individual sink instances will be stored in memory, it is important that any
      * usage of this should properly allocate adequate memory if use-cases might result in the
      * creation of a large number of separate sinks.
      */
@@ -90,14 +90,14 @@ public class DynamicElasticsearchSink<
 
     @Override
     public void finish() throws Exception {
-        for (SinkT sink : sinkRoutes.values()){
+        for (SinkT sink : sinkRoutes.values()) {
             sink.finish();
         }
     }
 
     @Override
     public void writeWatermark(Watermark watermark) throws Exception {
-        for (SinkT sink : sinkRoutes.values()){
+        for (SinkT sink : sinkRoutes.values()) {
             sink.writeWatermark(watermark);
         }
     }

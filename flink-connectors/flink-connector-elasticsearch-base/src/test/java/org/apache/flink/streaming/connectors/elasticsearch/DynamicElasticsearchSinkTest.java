@@ -21,14 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class DynamicElasticsearchSinkTest {
 
     /**
-     * Tests that multiple elements that resolve to different routes via the router are each
-     * queued to be sent by their respective underlying sink
+     * Tests that multiple elements that resolve to different routes via the router are each queued
+     * to be sent by their respective underlying sink
      */
     @Test
     public void testItemsWithDifferentRoutesAreRoutedToRespectiveSinks() throws Exception {
-        final DummyDynamicElasticsearchSink sink = new DummyDynamicElasticsearchSink(
-                new DummyElasticsearchSinkRouter()
-        );
+        final DummyDynamicElasticsearchSink sink =
+                new DummyDynamicElasticsearchSink(new DummyElasticsearchSinkRouter());
 
         final OneInputStreamOperatorTestHarness<Tuple2<String, String>, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -47,9 +46,8 @@ public class DynamicElasticsearchSinkTest {
      */
     @Test
     public void testItemsWithSameRouteReuseSameSink() throws Exception {
-        final DummyDynamicElasticsearchSink sink = new DummyDynamicElasticsearchSink(
-                new DummyElasticsearchSinkRouter()
-        );
+        final DummyDynamicElasticsearchSink sink =
+                new DummyDynamicElasticsearchSink(new DummyElasticsearchSinkRouter());
 
         final OneInputStreamOperatorTestHarness<Tuple2<String, String>, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -67,9 +65,8 @@ public class DynamicElasticsearchSinkTest {
      */
     @Test
     public void testItemsWithUniqueRoutesCreateSeparateSinks() throws Exception {
-        final DummyDynamicElasticsearchSink sink = new DummyDynamicElasticsearchSink(
-            new DummyElasticsearchSinkRouter()
-        );
+        final DummyDynamicElasticsearchSink sink =
+                new DummyDynamicElasticsearchSink(new DummyElasticsearchSinkRouter());
 
         final OneInputStreamOperatorTestHarness<Tuple2<String, String>, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink));
@@ -83,9 +80,17 @@ public class DynamicElasticsearchSinkTest {
         assertEquals(2, sink.sinkRoutes.size());
     }
 
-    private static class DummyDynamicElasticsearchSink extends DynamicElasticsearchSink<Tuple2<String, String>, String, DummyElasticsearchSink<Tuple2<String, String>>> {
+    private static class DummyDynamicElasticsearchSink
+            extends DynamicElasticsearchSink<
+                    Tuple2<String, String>,
+                    String,
+                    DummyElasticsearchSink<Tuple2<String, String>>> {
         public DummyDynamicElasticsearchSink(
-                ElasticsearchSinkRouter<Tuple2<String, String>, String, DummyElasticsearchSink<Tuple2<String, String>>> sinkRouter) {
+                ElasticsearchSinkRouter<
+                                Tuple2<String, String>,
+                                String,
+                                DummyElasticsearchSink<Tuple2<String, String>>>
+                        sinkRouter) {
             super(sinkRouter);
         }
 
@@ -100,7 +105,11 @@ public class DynamicElasticsearchSinkTest {
         }
     }
 
-    private static class DummyElasticsearchSinkRouter implements ElasticsearchSinkRouter<Tuple2<String, String>, String, DummyElasticsearchSink<Tuple2<String, String>>> {
+    private static class DummyElasticsearchSinkRouter
+            implements ElasticsearchSinkRouter<
+                    Tuple2<String, String>,
+                    String,
+                    DummyElasticsearchSink<Tuple2<String, String>>> {
 
         @Override
         public String getRoute(Tuple2<String, String> element) {
@@ -109,23 +118,18 @@ public class DynamicElasticsearchSinkTest {
 
         @Override
         public DummyElasticsearchSink<Tuple2<String, String>> createSink(
-                String cacheKey,
-                Tuple2<String, String> element) {
+                String cacheKey, Tuple2<String, String> element) {
 
             return new DummyElasticsearchSink<>(
-                    new HashMap<>(),
-                    new DummySinkFunction(),
-                    new NoOpFailureHandler()
-            );
+                    new HashMap<>(), new DummySinkFunction(), new NoOpFailureHandler());
         }
     }
 
-    private static class DummySinkFunction implements ElasticsearchSinkFunction<Tuple2<String, String>> {
+    private static class DummySinkFunction
+            implements ElasticsearchSinkFunction<Tuple2<String, String>> {
         @Override
         public void process(
-                Tuple2<String, String> element,
-                RuntimeContext ctx,
-                RequestIndexer indexer) {
+                Tuple2<String, String> element, RuntimeContext ctx, RequestIndexer indexer) {
 
             Map<java.lang.String, Object> json = new HashMap<>();
             json.put("data", element);
