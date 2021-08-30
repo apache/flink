@@ -873,9 +873,6 @@ class StreamExecutionEnvironment(object):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
         if not self._remote_mode and is_local_deployment(j_configuration):
-            from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                BeamFnLoopbackWorkerPoolServicer
-
             jvm = gateway.jvm
             env_config = JPythonConfigUtil.getEnvironmentConfig(
                 self._j_stream_execution_environment)
@@ -886,6 +883,8 @@ class StreamExecutionEnvironment(object):
                                 "parallelism of the job is greater than 1. The Python user-defined "
                                 "functions will be executed in an independent Python process.")
             else:
+                from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                    BeamFnLoopbackWorkerPoolServicer
                 j_env = jvm.System.getenv()
                 get_field_value(j_env, "m").put(
                     'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
