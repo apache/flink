@@ -68,7 +68,6 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source");
 ```
 The following properties are **required** for building a KafkaSource:
 - Bootstrap servers, configured by ```setBootstrapServers(String)```
-- Consumer group ID, configured by ```setGroupId(String)```
 - Topics / partitions to subscribe, see the following
   <a href="#topic-partition-subscription">Topic-partition subscription</a> for more details.
 - Deserializer to parse Kafka messages, see the following
