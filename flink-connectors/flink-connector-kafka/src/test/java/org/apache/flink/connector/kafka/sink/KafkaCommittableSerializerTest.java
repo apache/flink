@@ -17,6 +17,8 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,7 +29,7 @@ import static org.junit.Assert.assertEquals;
  * Tests for serializing and deserialzing {@link KafkaCommittable} with {@link
  * KafkaCommittableSerializer}.
  */
-public class KafkaCommittableSerializerTest {
+public class KafkaCommittableSerializerTest extends TestLogger {
 
     private static final KafkaCommittableSerializer SERIALIZER = new KafkaCommittableSerializer();
 

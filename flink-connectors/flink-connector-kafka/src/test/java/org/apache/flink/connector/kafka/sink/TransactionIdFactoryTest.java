@@ -17,6 +17,8 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Optional;
@@ -26,7 +28,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link TransactionalIdFactory}. */
-public class TransactionIdFactoryTest {
+public class TransactionIdFactoryTest extends TestLogger {
 
     @Test
     public void testBuildTransactionalId() {
