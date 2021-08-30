@@ -370,14 +370,14 @@ The following commands show different PyFlink job submission use-cases:
 
 - Run a PyFlink job:
 ```bash
-$ ./bin/flink run --python examples/python/table/batch/word_count.py
+$ ./bin/flink run --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink job with additional source and resource files. Files specified in `--pyFiles` will be
 added to the `PYTHONPATH` and, therefore, available in the Python code.
 ```bash
 $ ./bin/flink run \
-      --python examples/python/table/batch/word_count.py \
+      --python examples/python/table/word_count.py \
       --pyFiles file:///user.txt,hdfs:///$namenode_address/username.txt
 ```
 
@@ -385,29 +385,29 @@ $ ./bin/flink run \
 to the cluster.
 ```bash
 $ ./bin/flink run \
-      --python examples/python/table/batch/word_count.py \
+      --python examples/python/table/word_count.py \
       --jarfile <jarFile>
 ```
 
 - Run a PyFlink job with pyFiles and the main entry module specified in `--pyModule`:
 ```bash
 $ ./bin/flink run \
-      --pyModule batch.word_count \
-      --pyFiles examples/python/table/batch
+      --pyModule table.word_count \
+      --pyFiles examples/python/table
 ```
 
 - Submit a PyFlink job on a specific JobManager running on host `<jobmanagerHost>` (adapt the command accordingly):
 ```bash
 $ ./bin/flink run \
       --jobmanager <jobmanagerHost>:8081 \
-      --python examples/python/table/batch/word_count.py
+      --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink job using a [YARN cluster in Per-Job Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#per-job-cluster-mode):
 ```bash
 $ ./bin/flink run \
       --target yarn-per-job
-      --python examples/python/table/batch/word_count.py
+      --python examples/python/table/word_count.py
 ```
 
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
@@ -421,7 +421,7 @@ $ ./bin/flink run-application \
       -Dtaskmanager.numberOfTaskSlots=4 \
       -Dkubernetes.container.image=<PyFlinkImageName> \
       --pyModule word_count \
-      --pyFiles /opt/flink/examples/python/table/batch/word_count.py
+      --pyFiles /opt/flink/examples/python/table/word_count.py
 ```
 
 To learn more available options, please refer to [Kubernetes]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}})

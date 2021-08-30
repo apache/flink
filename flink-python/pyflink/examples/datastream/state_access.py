@@ -64,7 +64,7 @@ def state_access_demo():
             ('Bob', 16.1),
             ('Alice', 20.1)
         ],
-        type_info=Types.ROW([Types.STRING(), Types.FLOAT()]))
+        type_info=Types.TUPLE([Types.STRING(), Types.FLOAT()]))
 
     # apply the process function onto a keyed stream
     ds.key_by(lambda value: value[0]) \

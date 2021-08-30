@@ -76,7 +76,7 @@ def event_timer_timer_demo():
             (7000, 'Bob', 16.1),
             (10000, 'Alice', 20.1)
         ],
-        type_info=Types.ROW([Types.LONG(), Types.STRING(), Types.FLOAT()]))
+        type_info=Types.TUPLE([Types.LONG(), Types.STRING(), Types.FLOAT()]))
 
     ds = ds.assign_timestamps_and_watermarks(
         WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(2))
