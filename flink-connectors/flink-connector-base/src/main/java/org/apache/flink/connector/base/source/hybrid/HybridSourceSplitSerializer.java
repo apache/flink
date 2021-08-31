@@ -18,29 +18,18 @@
 
 package org.apache.flink.connector.base.source.hybrid;
 
-import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /** Serializes splits by delegating to the source-indexed underlying split serializer. */
 public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<HybridSourceSplit> {
 
-    final Map<Integer, SimpleVersionedSerializer<SourceSplit>> cachedSerializers;
-    final Map<Integer, Source> switchedSources;
-
-    public HybridSourceSplitSerializer(Map<Integer, Source> switchedSources) {
-        this.cachedSerializers = new HashMap<>();
-        this.switchedSources = switchedSources;
-    }
+    public HybridSourceSplitSerializer() {}
 
     @Override
     public int getVersion() {
@@ -52,11 +41,10 @@ public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<Hy
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 DataOutputStream out = new DataOutputStream(baos)) {
             out.writeInt(split.sourceIndex());
-            out.writeInt(serializerOf(split.sourceIndex()).getVersion());
-            byte[] serializedSplit =
-                    serializerOf(split.sourceIndex()).serialize(split.getWrappedSplit());
-            out.writeInt(serializedSplit.length);
-            out.write(serializedSplit);
+            out.writeUTF(split.splitId());
+            out.writeInt(split.wrappedSplitSerializerVersion());
+            out.writeInt(split.wrappedSplitBytes().length);
+            out.write(split.wrappedSplitBytes());
             out.flush();
             return baos.toByteArray();
         }
@@ -74,25 +62,12 @@ public class HybridSourceSplitSerializer implements SimpleVersionedSerializer<Hy
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
             int sourceIndex = in.readInt();
+            String splitId = in.readUTF();
             int nestedVersion = in.readInt();
             int length = in.readInt();
             byte[] splitBytes = new byte[length];
             in.readFully(splitBytes);
-            SourceSplit split = serializerOf(sourceIndex).deserialize(nestedVersion, splitBytes);
-            return new HybridSourceSplit(sourceIndex, split);
+            return new HybridSourceSplit(sourceIndex, splitBytes, nestedVersion, splitId);
         }
-    }
-
-    private SimpleVersionedSerializer<SourceSplit> serializerOf(int sourceIndex) {
-        return cachedSerializers.computeIfAbsent(
-                sourceIndex,
-                (k -> {
-                    Source source =
-                            Preconditions.checkNotNull(
-                                    switchedSources.get(k),
-                                    "Source for index=%s not available",
-                                    sourceIndex);
-                    return source.getSplitSerializer();
-                }));
     }
 }

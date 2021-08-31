@@ -18,17 +18,13 @@
 
 package org.apache.flink.connector.base.source.hybrid;
 
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /** The {@link SimpleVersionedSerializer Serializer} for the enumerator state. */
 public class HybridSourceEnumeratorStateSerializer
@@ -36,13 +32,7 @@ public class HybridSourceEnumeratorStateSerializer
 
     private static final int CURRENT_VERSION = 0;
 
-    private final Map<Integer, SimpleVersionedSerializer<Object>> cachedSerializers;
-    private final Map<Integer, Source> switchedSources;
-
-    public HybridSourceEnumeratorStateSerializer(Map<Integer, Source> switchedSources) {
-        this.switchedSources = switchedSources;
-        this.cachedSerializers = new HashMap<>();
-    }
+    public HybridSourceEnumeratorStateSerializer() {}
 
     @Override
     public int getVersion() {
@@ -54,12 +44,9 @@ public class HybridSourceEnumeratorStateSerializer
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 DataOutputStream out = new DataOutputStream(baos)) {
             out.writeInt(enumState.getCurrentSourceIndex());
-            SimpleVersionedSerializer<Object> serializer =
-                    serializerOf(enumState.getCurrentSourceIndex());
-            out.writeInt(serializer.getVersion());
-            byte[] enumStateBytes = serializer.serialize(enumState.getWrappedState());
-            out.writeInt(enumStateBytes.length);
-            out.write(enumStateBytes);
+            out.writeInt(enumState.getWrappedStateSerializerVersion());
+            out.writeInt(enumState.getWrappedState().length);
+            out.write(enumState.getWrappedState());
             out.flush();
             return baos.toByteArray();
         }
@@ -86,21 +73,7 @@ public class HybridSourceEnumeratorStateSerializer
             int length = in.readInt();
             byte[] nestedBytes = new byte[length];
             in.readFully(nestedBytes);
-            Object nested = serializerOf(sourceIndex).deserialize(nestedVersion, nestedBytes);
-            return new HybridSourceEnumeratorState(sourceIndex, nested);
+            return new HybridSourceEnumeratorState(sourceIndex, nestedBytes, nestedVersion);
         }
-    }
-
-    private SimpleVersionedSerializer<Object> serializerOf(int sourceIndex) {
-        return cachedSerializers.computeIfAbsent(
-                sourceIndex,
-                (k -> {
-                    Source source =
-                            Preconditions.checkNotNull(
-                                    switchedSources.get(k),
-                                    "Source for index=%s not available",
-                                    sourceIndex);
-                    return source.getEnumeratorCheckpointSerializer();
-                }));
     }
 }
