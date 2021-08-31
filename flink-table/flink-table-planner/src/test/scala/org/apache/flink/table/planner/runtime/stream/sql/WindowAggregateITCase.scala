@@ -1008,40 +1008,7 @@ class WindowAggregateITCase(
   }
 
   @Test
-  def testEventTimeSessionWindow2(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '2' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "a,2020-10-10T00:00:01,2020-10-10T00:00:06,4,11.10,5.0,1.0,2,Hi|Comment#1",
-      "a,2020-10-10T00:00:08,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2",
-      "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2,6.66,6.0,3.0,2,Hello|Hi",
-      "b,2020-10-10T00:00:16,2020-10-10T00:00:18,1,4.44,4.0,4.0,1,Hi",
-      "b,2020-10-10T00:00:34,2020-10-10T00:00:36,1,3.33,3.0,3.0,1,Comment#3",
-      "null,2020-10-10T00:00:32,2020-10-10T00:00:34,1,7.77,7.0,7.0,0,null")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
-  }
-
-  @Test
-  def testEventTimeSessionWindowWithOffset(): Unit = {
+  def testEventTimeSessionWindowBaseData(): Unit = {
     val sql =
       """
         |SELECT
@@ -1171,7 +1138,7 @@ class WindowAggregateITCase(
         |  window_time,
         |  COUNT(*)
         |FROM TABLE(
-        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |   SESSION(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '2' SECOND))
         |GROUP BY `name`, window_start, window_end, window_time
       """.stripMargin
 
@@ -1181,19 +1148,21 @@ class WindowAggregateITCase(
 
     val expected = if (useTimestampLtz) {
       Seq(
-        "a,2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-09T16:00:12.999Z,6",
-        "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2020-10-09T16:00:11.999Z,2",
-        "b,2020-10-10T00:00:16,2020-10-10T00:00:21,2020-10-09T16:00:20.999Z,1",
-        "b,2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-09T16:00:38.999Z,1",
-        "null,2020-10-10T00:00:32,2020-10-10T00:00:37,2020-10-09T16:00:36.999Z,1"
+        "a,2020-10-10T00:00:01,2020-10-10T00:00:06,2020-10-09T16:00:05.999Z,4",
+        "a,2020-10-10T00:00:08,2020-10-10T00:00:10,2020-10-09T16:00:09.999Z,1",
+        "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2020-10-09T16:00:08.999Z,2",
+        "b,2020-10-10T00:00:16,2020-10-10T00:00:18,2020-10-09T16:00:17.999Z,1",
+        "b,2020-10-10T00:00:34,2020-10-10T00:00:36,2020-10-09T16:00:35.999Z,1",
+        "null,2020-10-10T00:00:32,2020-10-10T00:00:34,2020-10-09T16:00:33.999Z,1"
       )
     } else {
       Seq(
-        "a,2020-10-10T00:00:01,2020-10-10T00:00:13,2020-10-10T00:00:12.999,6",
-        "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2020-10-10T00:00:11.999,2",
-        "b,2020-10-10T00:00:16,2020-10-10T00:00:21,2020-10-10T00:00:20.999,1",
-        "b,2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999,1",
-        "null,2020-10-10T00:00:32,2020-10-10T00:00:37,2020-10-10T00:00:36.999,1")
+        "a,2020-10-10T00:00:01,2020-10-10T00:00:06,2020-10-10T00:00:05.999,4",
+        "a,2020-10-10T00:00:08,2020-10-10T00:00:10,2020-10-10T00:00:09.999,1",
+        "b,2020-10-10T00:00:06,2020-10-10T00:00:09,2020-10-10T00:00:08.999,2",
+        "b,2020-10-10T00:00:16,2020-10-10T00:00:18,2020-10-10T00:00:17.999,1",
+        "b,2020-10-10T00:00:34,2020-10-10T00:00:36,2020-10-10T00:00:35.999,1",
+        "null,2020-10-10T00:00:32,2020-10-10T00:00:34,2020-10-10T00:00:33.999,1")
     }
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
