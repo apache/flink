@@ -67,9 +67,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterState> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriter.class);
-    private static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
     private static final String KAFKA_PRODUCER_METRIC_NAME = "KafkaProducer";
     private static final long METRIC_UPDATE_INTERVAL_MILLIS = 500;
+
+    private static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
+    private static final String KEY_REGISTER_METRICS = "register.producer.metrics";
 
     private final DeliveryGuarantee deliveryGuarantee;
     private final Properties kafkaProducerConfig;
@@ -83,6 +85,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final SinkWriterMetricGroup metricGroup;
     private final Counter numBytesOutCounter;
     private final Sink.ProcessingTimeService timeService;
+    private final boolean disabledMetrics;
 
     private transient Metric byteOutMetric;
     private transient FlinkKafkaInternalProducer<byte[], byte[]> currentProducer;
@@ -126,6 +129,13 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     }
                     acknowledgeMessage();
                 };
+        this.disabledMetrics =
+                kafkaProducerConfig.containsKey(KEY_DISABLE_METRICS)
+                                && Boolean.parseBoolean(
+                                        kafkaProducerConfig.get(KEY_DISABLE_METRICS).toString())
+                        || kafkaProducerConfig.containsKey(KEY_REGISTER_METRICS)
+                                && !Boolean.parseBoolean(
+                                        kafkaProducerConfig.get(KEY_REGISTER_METRICS).toString());
         checkNotNull(sinkInitContext, "sinkInitContext");
         this.timeService = sinkInitContext.getProcessingTimeService();
         this.metricGroup = sinkInitContext.metricGroup();
@@ -365,9 +375,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 MetricUtil.getKafkaMetric(
                         producer.metrics(), "producer-metrics", "outgoing-byte-total");
         metricGroup.setCurrentSendTimeGauge(() -> computeSendTime(producer));
-        if (producer.getKafkaProducerConfig().containsKey(KEY_DISABLE_METRICS)
-                && Boolean.parseBoolean(
-                        producer.getKafkaProducerConfig().get(KEY_DISABLE_METRICS).toString())) {
+        if (disabledMetrics) {
             return;
         }
         final MetricGroup kafkaMetricGroup = metricGroup.addGroup(KAFKA_PRODUCER_METRIC_NAME);
