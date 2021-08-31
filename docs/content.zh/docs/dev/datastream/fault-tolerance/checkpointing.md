@@ -152,9 +152,6 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 
 # 开启在 job 中止后仍然保留的 externalized checkpoints
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
-
-# 允许在有更近 savepoint 时回退到 checkpoint
-env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 ```
 {{< /tab >}}
 {{< /tabs >}}

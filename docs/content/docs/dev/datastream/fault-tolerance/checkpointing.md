@@ -173,9 +173,6 @@ env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 # enable externalized checkpoints which are retained after job cancellation
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
-# allow job recovery fallback to checkpoint when there is a more recent savepoint
-env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
-
 # enables the experimental unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
 ```

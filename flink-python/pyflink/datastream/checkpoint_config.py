@@ -255,28 +255,6 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
 
-    def is_prefer_checkpoint_for_recovery(self) -> bool:
-        """
-        Returns whether a job recovery should fallback to checkpoint when there is a more recent
-        savepoint.
-
-        :return: ``True`` if a job recovery should fallback to checkpoint, false otherwise.
-        """
-        return self._j_checkpoint_config.isPreferCheckpointForRecovery()
-
-    def set_prefer_checkpoint_for_recovery(
-            self,
-            prefer_checkpoint_for_recovery: bool) -> 'CheckpointConfig':
-        """
-        Sets whether a job recovery should fallback to checkpoint when there is a more recent
-        savepoint.
-
-        :param prefer_checkpoint_for_recovery: ``True`` if a job recovery should fallback to
-                                               checkpoint, false otherwise.
-        """
-        self._j_checkpoint_config.setPreferCheckpointForRecovery(prefer_checkpoint_for_recovery)
-        return self
-
     def get_externalized_checkpoint_cleanup(self) -> Optional['ExternalizedCheckpointCleanup']:
         """
         Returns the cleanup behaviour for externalized checkpoints.
