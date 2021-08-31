@@ -141,7 +141,7 @@ class InternalTimerServiceImpl(InternalTimerService[N]):
             hold_timestamp=None,
             paneinfo=None)
         self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
-        self._output_stream.maybe_flush()
+        self._timer_coder_impl._key_coder_impl._value_coder._output_stream.maybe_flush()
 
 
 class TimerServiceImpl(TimerService):
