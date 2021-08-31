@@ -45,7 +45,6 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     .<String>builder
  *     .setBootstrapServers(MY_BOOTSTRAP_SERVERS)
  *     .setRecordSerializer(MY_RECORD_SERIALIZER)
- *     .setKafkaProducerConfig(MY_PRODUCER_CONFIG)
  *     .build();
  * }</pre>
  *
@@ -185,7 +184,9 @@ public class KafkaSinkBuilder<IN> {
      * @return {@link KafkaSink}
      */
     public KafkaSink<IN> build() {
-        checkNotNull(kafkaProducerConfig, "kafkaProducerConfig");
+        if (kafkaProducerConfig == null) {
+            setKafkaProducerConfig(new Properties());
+        }
         checkNotNull(bootstrapServers);
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             checkState(
