@@ -90,11 +90,10 @@ cdef class NetworkOutputProcessor(OutputProcessor):
     cpdef process_outputs(self, WindowedValue windowed_value, results):
         output_stream = self._consumer.output_stream
         self._value_coder_impl.encode_to_stream(results, output_stream, True)
-        output_stream.maybe_flush()
+        self._value_coder_impl._output_stream.maybe_flush()
 
     cpdef close(self):
-        if self._value_coder_impl._output_stream:
-            self._value_coder_impl._output_stream.close()
+        self._value_coder_impl._output_stream.close()
 
 cdef class IntermediateOutputProcessor(OutputProcessor):
 
