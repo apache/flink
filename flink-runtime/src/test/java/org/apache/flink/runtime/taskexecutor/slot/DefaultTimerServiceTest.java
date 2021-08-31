@@ -18,55 +18,41 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
-import org.apache.flink.mock.Whitebox;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /** Tests for the {@link DefaultTimerService}. */
 public class DefaultTimerServiceTest extends TestLogger {
-    /**
-     * Test all timeouts registered can be unregistered.
-     *
-     * @throws Exception
-     */
+    /** Tests that all registered timeouts can be unregistered. */
     @Test
-    @SuppressWarnings("unchecked")
     public void testUnregisterAllTimeouts() throws Exception {
-        // Prepare all instances.
-        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
-        ScheduledFuture scheduledFuture = mock(ScheduledFuture.class);
-        when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                .thenReturn(scheduledFuture);
+        final ManuallyTriggeredScheduledExecutorService scheduledExecutorService =
+                new ManuallyTriggeredScheduledExecutorService();
         DefaultTimerService<AllocationID> timerService =
                 new DefaultTimerService<>(scheduledExecutorService, 100L);
-        TimeoutListener<AllocationID> listener = mock(TimeoutListener.class);
+        timerService.start((ignoredA, ignoredB) -> {});
 
-        timerService.start(listener);
-
-        // Invoke register and unregister.
         timerService.registerTimeout(new AllocationID(), 10, TimeUnit.SECONDS);
         timerService.registerTimeout(new AllocationID(), 10, TimeUnit.SECONDS);
 
         timerService.unregisterAllTimeouts();
 
-        // Verify.
-        Map<?, ?> timeouts = (Map<?, ?>) Whitebox.getInternalState(timerService, "timeouts");
+        Map<?, ?> timeouts = timerService.getTimeouts();
         assertTrue(timeouts.isEmpty());
-        verify(scheduledFuture, times(2)).cancel(true);
+
+        for (ScheduledFuture<?> scheduledTask : scheduledExecutorService.getAllScheduledTasks()) {
+            assertThat(scheduledTask.isCancelled(), is(true));
+        }
     }
 }
