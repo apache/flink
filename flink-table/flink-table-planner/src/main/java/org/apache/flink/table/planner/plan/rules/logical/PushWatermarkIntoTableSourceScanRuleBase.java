@@ -35,9 +35,11 @@ import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceWatermarkSpec;
 import org.apache.flink.table.planner.plan.abilities.source.WatermarkPushDownSpec;
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -47,6 +49,7 @@ import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition;
 
@@ -82,7 +85,16 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             FlinkLogicalTableSourceScan scan,
             TableConfig tableConfig,
             boolean useWatermarkAssignerRowType) {
-        String digest = String.format("watermark=[%s]", watermarkExpr);
+
+        List<String> fieldNames = watermarkAssigner.getInput().getRowType().getFieldNames();
+        String digest =
+                String.format(
+                        "watermark=[%s]",
+                        watermarkAssigner.getExpressionString(
+                                watermarkExpr,
+                                JavaScalaConversionUtil.toScala(fieldNames).toList(),
+                                JavaScalaConversionUtil.toScala(Optional.empty()),
+                                ExpressionFormat.Prefix()));
 
         final TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
         final DynamicTableSource newDynamicTableSource = tableSourceTable.tableSource().copy();
