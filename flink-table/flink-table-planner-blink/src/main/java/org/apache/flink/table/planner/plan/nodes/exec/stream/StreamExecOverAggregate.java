@@ -51,11 +51,8 @@ import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPreceding
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampKind;
-import org.apache.flink.table.types.logical.TimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -74,6 +71,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -149,11 +148,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         final LogicalType orderKeyType = inputRowType.getFields().get(orderKey).getType();
         // check time field && identify window rowtime attribute
         final int rowTimeIdx;
-        if (orderKeyType instanceof TimestampType
-                && ((TimestampType) orderKeyType).getKind() == TimestampKind.ROWTIME) {
+        if (isRowtimeAttribute(orderKeyType)) {
             rowTimeIdx = orderKey;
-        } else if (orderKeyType instanceof LocalZonedTimestampType
-                && ((LocalZonedTimestampType) orderKeyType).getKind() == TimestampKind.PROCTIME) {
+        } else if (isProctimeAttribute(orderKeyType)) {
             rowTimeIdx = -1;
         } else {
             throw new TableException(

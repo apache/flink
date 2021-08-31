@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
@@ -30,6 +32,10 @@ import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.time.{Instant, LocalDateTime}
+
+import scala.collection.Seq
 
 @RunWith(classOf[Parameterized])
 class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -122,25 +128,89 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   }
 
   @Test
-  def testEventTimeAndOtherFieldOrderBy(): Unit = {
-    val data = List(
-      (3L, 2L, "Hello world", 3),
-      (2L, 2L, "Hello", 2),
-      (6L, 3L, "Luke Skywalker", 6),
-      (5L, 3L, "I am fine.", 5),
-      (7L, 4L, "Comment#1", 7),
-      (9L, 4L, "Comment#3", 9),
-      (10L, 4L, "Comment#4", 10),
-      (8L, 4L, "Comment#2", 8),
-      (1L, 1L, "Hi", 2),
-      (1L, 1L, "Hi", 1),
-      (4L, 3L, "Helloworld, how are you?", 4))
+  def testTimestampEventTimeAndOtherFieldOrderBy(): Unit = {
+    val rows = Seq(
+      row(LocalDateTime.parse("1970-01-01T00:00:03"), 2L, "Hello world", 3),
+      row(LocalDateTime.parse("1970-01-01T00:00:02"), 2L, "Hello", 2),
+      row(LocalDateTime.parse("1970-01-01T00:00:06"), 3L, "Luke Skywalker", 6),
+      row(LocalDateTime.parse("1970-01-01T00:00:05"), 3L, "I am fine.", 5),
+      row(LocalDateTime.parse("1970-01-01T00:00:07"), 4L, "Comment#1", 7),
+      row(LocalDateTime.parse("1970-01-01T00:00:09"), 4L, "Comment#3", 9),
+      row(LocalDateTime.parse("1970-01-01T00:00:10"), 4L, "Comment#4", 10),
+      row(LocalDateTime.parse("1970-01-01T00:00:08"), 4L, "Comment#2", 8),
+      row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 2),
+      row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 1),
+      row(LocalDateTime.parse("1970-01-01T00:00:04"), 3L, "Helloworld, how are you?", 4))
 
-    val t = failingDataSource(data)
-      .assignTimestampsAndWatermarks(
-        new TimestampAndWatermarkWithOffset[(Long, Long, String, Int)](10L))
-      .toTable(tEnv, 'rowtime.rowtime, 'key, 'str, 'int)
-    tEnv.registerTable("T", t)
+    val tableId = TestValuesTableFactory.registerData(rows)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         |  rowtime TIMESTAMP(3),
+         |  key BIGINT,
+         |  str STRING,
+         |  `int` INT,
+         |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$tableId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
+
+    val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
+
+    val sink = new TestingRetractSink
+    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq(
+      "1,Hi,1",
+      "1,Hi,2",
+      "2,Hello,2",
+      "2,Hello world,3",
+      "3,Helloworld, how are you?,4",
+      "3,I am fine.,5",
+      "3,Luke Skywalker,6",
+      "4,Comment#1,7",
+      "4,Comment#2,8",
+      "4,Comment#3,9",
+      "4,Comment#4,10")
+
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testTimestampLtzEventTimeAndOtherFieldOrderBy(): Unit = {
+    val rows = Seq(
+      row(Instant.ofEpochSecond(3L), 2L, "Hello world", 3),
+      row(Instant.ofEpochSecond(2L), 2L, "Hello", 2),
+      row(Instant.ofEpochSecond(6L), 3L, "Luke Skywalker", 6),
+      row(Instant.ofEpochSecond(5L), 3L, "I am fine.", 5),
+      row(Instant.ofEpochSecond(7L), 4L, "Comment#1", 7),
+      row(Instant.ofEpochSecond(9L), 4L, "Comment#3", 9),
+      row(Instant.ofEpochSecond(10L), 4L, "Comment#4", 10),
+      row(Instant.ofEpochSecond(8L), 4L, "Comment#2", 8),
+      row(Instant.ofEpochSecond(1L), 1L, "Hi", 2),
+      row(Instant.ofEpochSecond(1L), 1L, "Hi", 1),
+      row(Instant.ofEpochSecond(4L), 3L, "Helloworld, how are you?", 4))
+
+    val tableId = TestValuesTableFactory.registerData(rows)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T (
+         |  rowtime TIMESTAMP_LTZ(3),
+         |  key BIGINT,
+         |  str STRING,
+         |  `int` INT,
+         |  WATERMARK FOR rowtime AS rowtime - interval '10' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$tableId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
 
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
 
