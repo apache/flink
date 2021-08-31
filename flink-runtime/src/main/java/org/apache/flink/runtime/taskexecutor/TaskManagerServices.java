@@ -36,6 +36,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
+import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -377,7 +378,8 @@ public class TaskManagerServices {
             final int pageSize,
             final Executor memoryVerificationExecutor) {
         final TimerService<AllocationID> timerService =
-                new TimerService<>(new ScheduledThreadPoolExecutor(1), timerServiceShutdownTimeout);
+                new DefaultTimerService<>(
+                        new ScheduledThreadPoolExecutor(1), timerServiceShutdownTimeout);
         return new TaskSlotTableImpl<>(
                 numberOfSlots,
                 TaskExecutorResourceUtils.generateTotalAvailableResourceProfile(
