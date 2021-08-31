@@ -26,6 +26,7 @@ from libc.string cimport memcpy
 import datetime
 import decimal
 import cloudpickle
+from collections import Generator
 
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.datastream.window import TimeWindow, CountWindow
@@ -73,15 +74,20 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         self._end_message[0] = 0x00
 
     cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
-        cdef is_row_or_tuple = False
         if iter_value:
-            if isinstance(iter_value, (tuple, Row)):
-                iter_value = [iter_value]
-                is_row_or_tuple = True
-            for value in iter_value:
-                if self._field_count == 1 and not is_row_or_tuple:
+            if isinstance(iter_value, (list, range, Generator)):
+                for value in iter_value:
+                    if not isinstance(value, (tuple, Row)):
+                        # single field value
+                        value = (value,)
+                    self._encode_one_row(value, output_stream)
+            else:
+                value = iter_value
+                if not isinstance(value, (tuple, Row)):
+                    # single field value
                     value = (value,)
                 self._encode_one_row(value, output_stream)
+
         # write 0x00 as end message
         output_stream.write(self._end_message, 1)
 

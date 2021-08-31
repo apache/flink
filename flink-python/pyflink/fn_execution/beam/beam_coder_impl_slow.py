@@ -20,6 +20,7 @@ import datetime
 import decimal
 import cloudpickle
 import struct
+from collections import Generator
 from typing import Any, Tuple
 from typing import List
 
@@ -215,15 +216,18 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
         self._field_count = flatten_row_coder._field_count
 
     def encode_to_stream(self, iter_value, out_stream, nested):
-        is_row_or_tuple = False
         if iter_value:
-            if isinstance(iter_value, (tuple, Row)):
-                iter_value = [iter_value]
-                is_row_or_tuple = True
-            for value in iter_value:
-                if self._field_count == 1 and not is_row_or_tuple:
+            def encode_one_row_to_stream(value):
+                if not isinstance(value, (tuple, Row)):
+                    # single field value
                     value = (value,)
                 self._flatten_row_coder.encode_to_stream(value, out_stream, nested)
+
+            if isinstance(iter_value, (list, range, Generator)):
+                for v in iter_value:
+                    encode_one_row_to_stream(v)
+            else:
+                encode_one_row_to_stream(iter_value)
         out_stream.write_var_int64(1)
         out_stream.write_byte(0x00)
 

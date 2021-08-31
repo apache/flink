@@ -124,7 +124,7 @@ class MultiEmit(TableFunction, unittest.TestCase):
 def identity(x):
     if x is not None:
         from pyflink.common import Row
-        return Row(x)
+        yield Row(x)
 
 
 # test specify the input_types
