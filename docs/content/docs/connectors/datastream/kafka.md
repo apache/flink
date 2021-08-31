@@ -437,32 +437,7 @@ Kafka sink exposes the following metrics in the respective [scope]({{< ref "docs
   </thead>
   <tbody>
     <tr>
-        <th rowspan="2">Task</th>
-        <td>numBytesOut</td>
-        <td>n/a</td>
-        <td>The total number of output bytes since the sink started.</td>
-        <td>Counter</td>
-    </tr>
-    <tr>
-        <td>numBytesOutPerSecond</td>
-        <td>n/a</td>
-        <td>The output bytes per second.</td>
-        <td>Meter</td>
-    </tr>
-    <tr>
-        <th rowspan="3">Operator</th>
-        <td>numRecordsOut</td>
-        <td>n/a</td>
-        <td>The total number of output records since the sink started.</td>
-        <td>Counter</td>
-    </tr>
-    <tr>
-        <td>numRecordsOutPerSecond</td>
-        <td>n/a</td>
-        <td>The output records per seconds.</td>
-        <td>Meter</td>
-    </tr>
-    <tr>
+        <th rowspan="1">Operator</th>
         <td>currentSendTime</td>
         <td>n/a</td>
         <td>The time it takes to send the last record. This metric is an instantaneous value recorded for the last processed record.</td>
