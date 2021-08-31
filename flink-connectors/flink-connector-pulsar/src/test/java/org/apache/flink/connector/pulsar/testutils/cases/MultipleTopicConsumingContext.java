@@ -98,8 +98,8 @@ public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Collection<String> generateTestData(long seed) {
-        return generateStringTestData(seed);
+    public Collection<String> generateTestData(int splitIndex, long seed) {
+        return generateStringTestData(splitIndex, seed);
     }
 
     @Override

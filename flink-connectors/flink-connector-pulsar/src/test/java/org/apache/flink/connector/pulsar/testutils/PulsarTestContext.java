@@ -43,7 +43,7 @@ public abstract class PulsarTestContext<T> implements ExternalContext<T> {
 
     // Helper methods for generating data.
 
-    protected List<String> generateStringTestData(long seed) {
+    protected List<String> generateStringTestData(int splitIndex, long seed) {
         Random random = new Random(seed);
         int recordNum =
                 random.nextInt(NUM_RECORDS_UPPER_BOUND - NUM_RECORDS_LOWER_BOUND)
@@ -52,7 +52,7 @@ public abstract class PulsarTestContext<T> implements ExternalContext<T> {
 
         for (int i = 0; i < recordNum; i++) {
             int stringLength = random.nextInt(50) + 1;
-            records.add(randomAlphanumeric(stringLength));
+            records.add(splitIndex + "-" + randomAlphanumeric(stringLength));
         }
 
         return records;
