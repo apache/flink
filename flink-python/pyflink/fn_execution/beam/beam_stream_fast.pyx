@@ -84,7 +84,6 @@ cdef class BeamSizeBasedOutputStream(LengthPrefixOutputStream):
             memcpy(self._output_data + self._output_pos, data, length)
         self._output_pos += length
         self._output_stream.pos = self._output_pos
-        self._maybe_flush()
 
     cpdef void flush(self):
         self._output_stream.flush()
@@ -96,7 +95,7 @@ cdef class BeamSizeBasedOutputStream(LengthPrefixOutputStream):
         self._output_pos = output_stream.pos
         self._output_buffer_size = output_stream.buffer_size
 
-    cdef bint _maybe_flush(self):
+    cpdef bint maybe_flush(self):
         if self._output_pos > 10_000_000:
             self.flush()
             return True
@@ -117,9 +116,9 @@ cdef class BeamTimeBasedOutputStream(BeamSizeBasedOutputStream):
             self._periodic_flusher.cancel()
             self._periodic_flusher = None
 
-    cdef bint _maybe_flush(self):
+    cpdef bint maybe_flush(self):
         if self._flush_event:
             self.flush()
             self._flush_event = False
-        elif BeamSizeBasedOutputStream._maybe_flush(self):
+        elif BeamSizeBasedOutputStream.maybe_flush(self):
             self._flush_event = False

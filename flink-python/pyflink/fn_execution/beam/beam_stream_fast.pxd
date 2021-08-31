@@ -36,7 +36,7 @@ cdef class BeamSizeBasedOutputStream(LengthPrefixOutputStream):
     cdef BOutputStream _output_stream
 
     cdef void reset_output_stream(self, BOutputStream output_stream)
-    cdef bint _maybe_flush(self)
+    cpdef bint maybe_flush(self)
 
 cdef class BeamTimeBasedOutputStream(BeamSizeBasedOutputStream):
     cdef bint _flush_event
