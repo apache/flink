@@ -156,8 +156,9 @@ public class NetworkBufferPool
         }
     }
 
-    public MemorySegment requestMemorySegmentBlocking() throws IOException {
-        return internalRequestMemorySegments(1).get(0);
+    public List<MemorySegment> requestMemorySegmentsBlocking(int numberOfSegmentsToRequest)
+            throws IOException {
+        return internalRequestMemorySegments(numberOfSegmentsToRequest);
     }
 
     public void recycle(MemorySegment segment) {

@@ -257,10 +257,11 @@ public class SingleInputGate extends IndexedInputGate {
         checkState(
                 this.bufferPool == null,
                 "Bug in input gate setup logic: Already registered buffer pool.");
-        setupChannels();
 
         BufferPool bufferPool = bufferPoolFactory.get();
         setBufferPool(bufferPool);
+
+        setupChannels();
     }
 
     @Override
@@ -457,6 +458,15 @@ public class SingleInputGate extends IndexedInputGate {
     /** Assign the exclusive buffers to all remote input channels directly for credit-based mode. */
     @VisibleForTesting
     public void setupChannels() throws IOException {
+        // Allocate enough exclusive and floating buffers to guarantee that job can make progress.
+        // Note: An exception will be thrown if there is no buffer available in the given timeout.
+
+        // First allocate a single floating buffer to avoid potential deadlock when the exclusive
+        // buffer is 0. See FLINK-24035 for more information.
+        bufferPool.reserveSegments(1);
+
+        // Next allocate the exclusive buffers per channel when the number of exclusive buffer is
+        // larger than 0.
         synchronized (requestLock) {
             for (InputChannel inputChannel : inputChannels.values()) {
                 inputChannel.setup();
