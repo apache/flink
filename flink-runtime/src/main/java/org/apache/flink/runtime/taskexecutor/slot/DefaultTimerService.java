@@ -132,7 +132,8 @@ public class DefaultTimerService<K> implements TimerService<K> {
     // Static utility classes
     // ---------------------------------------------------------------------
 
-    private static final class Timeout<K> implements Runnable {
+    @VisibleForTesting
+    static final class Timeout<K> implements Runnable {
 
         private final TimeoutListener<K> timeoutListener;
         private final K key;
