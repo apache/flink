@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
@@ -226,7 +227,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      */
     @Override
     public List<Collection<RequestEntryT>> snapshotState() {
-        return List.of(bufferedRequestEntries);
+        return Arrays.asList(bufferedRequestEntries);
     }
 
     @Override
