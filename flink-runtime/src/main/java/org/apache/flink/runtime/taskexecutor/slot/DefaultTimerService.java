@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -120,6 +121,11 @@ public class DefaultTimerService<K> implements TimerService<K> {
         } else {
             return false;
         }
+    }
+
+    @VisibleForTesting
+    Map<K, Timeout<K>> getTimeouts() {
+        return timeouts;
     }
 
     // ---------------------------------------------------------------------
