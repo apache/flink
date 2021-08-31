@@ -224,7 +224,7 @@ class KafkaConnectorOptionsUtil {
         final StartupMode startupMode =
                 tableOptions
                         .getOptional(SCAN_STARTUP_MODE)
-                        .map(StartupMode::fromOption)
+                        .map(KafkaConnectorOptionsUtil::fromOption)
                         .orElse(StartupMode.GROUP_OFFSETS);
         if (startupMode == StartupMode.SPECIFIC_OFFSETS) {
             // It will be refactored after support specific offset for multiple topics in
@@ -255,6 +255,29 @@ class KafkaConnectorOptionsUtil {
                             new KafkaTopicPartition(topic, partition);
                     specificOffsets.put(topicPartition, offset);
                 });
+    }
+
+    /**
+     * Returns the {@link StartupMode} of Kafka Consumer by passed-in table-specific {@link
+     * ScanStartupMode}.
+     */
+    private static StartupMode fromOption(ScanStartupMode scanStartupMode) {
+        switch (scanStartupMode) {
+            case EARLIEST_OFFSET:
+                return StartupMode.EARLIEST;
+            case LATEST_OFFSET:
+                return StartupMode.LATEST;
+            case GROUP_OFFSETS:
+                return StartupMode.GROUP_OFFSETS;
+            case SPECIFIC_OFFSETS:
+                return StartupMode.SPECIFIC_OFFSETS;
+            case TIMESTAMP:
+                return StartupMode.TIMESTAMP;
+
+            default:
+                throw new TableException(
+                        "Unsupported startup mode. Validator should have checked that.");
+        }
     }
 
     public static Properties getKafkaProperties(Map<String, String> tableOptions) {
