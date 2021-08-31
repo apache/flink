@@ -859,19 +859,17 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         final RowKind kind = row.getKind();
                         row.setKind(RowKind.INSERT);
                         switch (kind) {
-                            case UPDATE_BEFORE:
-                                materializedResult.remove(row);
-                                break;
-                            case INSERT: // temporary solution for FLINK-24054
                             case UPDATE_AFTER:
                                 final Object primaryKeyValue = row.getField(primaryKeyPos);
                                 assert primaryKeyValue != null;
                                 materializedResult.removeIf(
                                         r -> primaryKeyValue.equals(r.getField(primaryKeyPos)));
+                                // fall through
+                            case INSERT:
                                 materializedResult.add(row);
                                 break;
+                            case UPDATE_BEFORE:
                             case DELETE:
-                                row.setKind(RowKind.INSERT);
                                 materializedResult.remove(row);
                                 break;
                         }
