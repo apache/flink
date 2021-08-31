@@ -54,6 +54,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
@@ -101,32 +102,37 @@ public class LocalBufferPoolTest extends TestLogger {
     }
 
     @Test
-    public void testLocalBufferPoolInitialization() throws Exception {
+    public void testReserveSegments() throws Exception {
         NetworkBufferPool networkBufferPool =
                 new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
-
-        BufferPool localBufferPool = networkBufferPool.createBufferPool(1, 2);
-        assertTrue(localBufferPool.isAvailable());
-        assertEquals(1, localBufferPool.getNumberOfAvailableMemorySegments());
-
-        // request all buffers
-        ArrayList<Buffer> buffers = new ArrayList<>(2);
-        buffers.add(localBufferPool.requestBuffer());
-        buffers.add(localBufferPool.requestBuffer());
-        assertEquals(2, buffers.size());
-
         try {
-            networkBufferPool.createBufferPool(1, 10);
-        } catch (IOException exception) {
-            // this is expected
-            return;
-        } finally {
+            BufferPool bufferPool1 = networkBufferPool.createBufferPool(1, 2);
+            assertThrows(IllegalArgumentException.class, () -> bufferPool1.reserveSegments(2));
+
+            // request all buffers
+            ArrayList<Buffer> buffers = new ArrayList<>(2);
+            buffers.add(bufferPool1.requestBuffer());
+            buffers.add(bufferPool1.requestBuffer());
+            assertEquals(2, buffers.size());
+
+            BufferPool bufferPool2 = networkBufferPool.createBufferPool(1, 10);
+            assertThrows(IOException.class, () -> bufferPool2.reserveSegments(1));
+            assertFalse(bufferPool2.isAvailable());
+
             buffers.forEach(Buffer::recycleBuffer);
-            localBufferPool.lazyDestroy();
+            bufferPool1.lazyDestroy();
+            bufferPool2.lazyDestroy();
+
+            BufferPool bufferPool3 = networkBufferPool.createBufferPool(2, 10);
+            assertEquals(1, bufferPool3.getNumberOfAvailableMemorySegments());
+            bufferPool3.reserveSegments(2);
+            assertEquals(2, bufferPool3.getNumberOfAvailableMemorySegments());
+
+            bufferPool3.lazyDestroy();
+            assertThrows(IllegalStateException.class, () -> bufferPool3.reserveSegments(1));
+        } finally {
             networkBufferPool.destroy();
         }
-
-        fail("Should throw IOException");
     }
 
     @Test
