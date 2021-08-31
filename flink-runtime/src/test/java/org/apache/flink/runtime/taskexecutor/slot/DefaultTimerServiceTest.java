@@ -25,6 +25,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -54,5 +55,50 @@ public class DefaultTimerServiceTest extends TestLogger {
         for (ScheduledFuture<?> scheduledTask : scheduledExecutorService.getAllScheduledTasks()) {
             assertThat(scheduledTask.isCancelled(), is(true));
         }
+    }
+
+    @Test
+    public void testIsValidInitiallyReturnsFalse() {
+        final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
+
+        assertThat(timerService.isValid(new AllocationID(), UUID.randomUUID()), is(false));
+    }
+
+    @Test
+    public void testIsValidReturnsTrueForActiveTimeout() throws Exception {
+        final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
+
+        final AllocationID allocationId = new AllocationID();
+        timerService.registerTimeout(allocationId, 10, TimeUnit.SECONDS);
+
+        final DefaultTimerService.Timeout<AllocationID> timeout =
+                timerService.getTimeouts().get(allocationId);
+        final UUID ticket = timeout.getTicket();
+
+        assertThat(timerService.isValid(allocationId, ticket), is(true));
+    }
+
+    @Test
+    public void testIsValidReturnsFalseIfEitherKeyOrTicketDoesNotMatch() {
+        final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
+
+        final AllocationID allocationId = new AllocationID();
+        timerService.registerTimeout(allocationId, 10, TimeUnit.SECONDS);
+
+        final DefaultTimerService.Timeout<AllocationID> timeout =
+                timerService.getTimeouts().get(allocationId);
+        final UUID ticket = timeout.getTicket();
+
+        assertThat(timerService.isValid(new AllocationID(), ticket), is(false));
+        assertThat(timerService.isValid(allocationId, UUID.randomUUID()), is(false));
+    }
+
+    private static DefaultTimerService<AllocationID> createAndStartTimerService() {
+        final ManuallyTriggeredScheduledExecutorService scheduledExecutorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        DefaultTimerService<AllocationID> timerService =
+                new DefaultTimerService<>(scheduledExecutorService, 100L);
+        timerService.start((ignoredA, ignoredB) -> {});
+        return timerService;
     }
 }
