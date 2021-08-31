@@ -78,14 +78,6 @@ public class ExecutionCheckpointingOptions {
                                                     + "sure that a minimum amount of time passes where no checkpoint is in progress at all.")
                                     .build());
 
-    public static final ConfigOption<Boolean> PREFER_CHECKPOINT_FOR_RECOVERY =
-            ConfigOptions.key("execution.checkpointing.prefer-checkpoint-for-recovery")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "If enabled, a job recovery should fallback to checkpoint when there is a more recent "
-                                    + "savepoint.");
-
     public static final ConfigOption<Integer> TOLERABLE_FAILURE_NUMBER =
             ConfigOptions.key("execution.checkpointing.tolerable-failed-checkpoints")
                     .intType()

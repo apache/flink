@@ -118,9 +118,6 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @Deprecated private boolean failOnCheckpointingErrors = true;
 
-    /** Determines if a job will fallback to checkpoint when there is a more recent savepoint. * */
-    private boolean preferCheckpointForRecovery = false;
-
     /**
      * Determines the threshold that we tolerance declined checkpoint failure number. The default
      * value is -1 meaning undetermined and not set via {@link
@@ -147,7 +144,6 @@ public class CheckpointConfig implements java.io.Serializable {
         this.checkpointTimeout = checkpointConfig.checkpointTimeout;
         this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
         this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
-        this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
         this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
         this.unalignedCheckpointsEnabled = checkpointConfig.isUnalignedCheckpointsEnabled();
         this.alignedCheckpointTimeout = checkpointConfig.alignedCheckpointTimeout;
@@ -464,37 +460,6 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Returns whether a job recovery should fallback to checkpoint when there is a more recent
-     * savepoint.
-     *
-     * @return <code>true</code> if a job recovery should fallback to checkpoint.
-     * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
-     *     and duplicate output. This option will soon be removed. See <a
-     *     href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a> for more
-     *     information.
-     */
-    @PublicEvolving
-    @Deprecated
-    public boolean isPreferCheckpointForRecovery() {
-        return preferCheckpointForRecovery;
-    }
-
-    /**
-     * Sets whether a job recovery should fallback to checkpoint when there is a more recent
-     * savepoint.
-     *
-     * @deprecated Don't activate prefer checkpoints for recovery because it can lead to data loss
-     *     and duplicate output. This option will soon be removed. See <a
-     *     href="https://issues.apache.org/jira/browse/FLINK-20427">FLINK-20427</a> for more
-     *     information.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void setPreferCheckpointForRecovery(boolean preferCheckpointForRecovery) {
-        this.preferCheckpointForRecovery = preferCheckpointForRecovery;
-    }
-
-    /**
      * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
      *
      * <p>Unaligned checkpoints contain data stored in buffers as part of the checkpoint state,
@@ -800,9 +765,6 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS)
                 .ifPresent(m -> this.setMinPauseBetweenCheckpoints(m.toMillis()));
-        configuration
-                .getOptional(ExecutionCheckpointingOptions.PREFER_CHECKPOINT_FOR_RECOVERY)
-                .ifPresent(this::setPreferCheckpointForRecovery);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.TOLERABLE_FAILURE_NUMBER)
                 .ifPresent(this::setTolerableCheckpointFailureNumber);

@@ -32,8 +32,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -119,61 +117,5 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
             store.addCheckpoint(checkpointToAdd, new CheckpointsCleaner(), () -> {});
         }
         discardAttempted.await();
-    }
-
-    @Test
-    public void testPreferCheckpointWithoutSavepoint() throws Exception {
-        StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
-        JobID jobId = new JobID();
-        store.addCheckpoint(checkpoint(jobId, 1L), new CheckpointsCleaner(), () -> {});
-        store.addCheckpoint(checkpoint(jobId, 2L), new CheckpointsCleaner(), () -> {});
-        store.addCheckpoint(checkpoint(jobId, 3L), new CheckpointsCleaner(), () -> {});
-
-        CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
-
-        assertThat(latestCheckpoint.getCheckpointID(), equalTo(3L));
-    }
-
-    @Test
-    public void testPreferCheckpointWithSavepoint() throws Exception {
-        StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
-        JobID jobId = new JobID();
-        store.addCheckpoint(checkpoint(jobId, 1L), new CheckpointsCleaner(), () -> {});
-        store.addCheckpoint(savepoint(jobId, 2L), new CheckpointsCleaner(), () -> {});
-        store.addCheckpoint(savepoint(jobId, 3L), new CheckpointsCleaner(), () -> {});
-
-        CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
-
-        assertThat(latestCheckpoint.getCheckpointID(), equalTo(1L));
-    }
-
-    @Test
-    public void testPreferCheckpointWithOnlySavepoint() throws Exception {
-        StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(5);
-        JobID jobId = new JobID();
-        store.addCheckpoint(savepoint(jobId, 1L), new CheckpointsCleaner(), () -> {});
-        store.addCheckpoint(savepoint(jobId, 2L), new CheckpointsCleaner(), () -> {});
-
-        CompletedCheckpoint latestCheckpoint = store.getLatestCheckpoint(true);
-
-        assertThat(latestCheckpoint.getCheckpointID(), equalTo(2L));
-    }
-
-    private static CompletedCheckpoint checkpoint(JobID jobId, long checkpointId) {
-        return new TestCompletedCheckpoint(
-                jobId,
-                checkpointId,
-                checkpointId,
-                Collections.emptyMap(),
-                CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE));
-    }
-
-    private static CompletedCheckpoint savepoint(JobID jobId, long checkpointId) {
-        return new TestCompletedCheckpoint(
-                jobId,
-                checkpointId,
-                checkpointId,
-                Collections.emptyMap(),
-                CheckpointProperties.forSavepoint(true));
     }
 }

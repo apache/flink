@@ -231,7 +231,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         assertEquals(0, cc.getNumberOfPendingCheckpoints());
 
         assertEquals(1, cc.getNumberOfRetainedSuccessfulCheckpoints());
-        final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint(false);
+        final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint();
 
         final Collection<MasterState> masterStates = chk.getMasterHookStates();
         assertEquals(2, masterStates.size());
@@ -472,7 +472,6 @@ public class CheckpointCoordinatorMasterHooksTest {
                         1,
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                         true,
-                        false,
                         false,
                         0,
                         0);
