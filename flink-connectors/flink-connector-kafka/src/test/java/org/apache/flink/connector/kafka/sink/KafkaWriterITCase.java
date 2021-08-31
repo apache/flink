@@ -123,13 +123,8 @@ public class KafkaWriterITCase {
     @ParameterizedTest
     @EnumSource(DeliveryGuarantee.class)
     public void testNotRegisterMetrics(DeliveryGuarantee guarantee) throws Exception {
-        final Properties config = getKafkaClientConfiguration();
-        config.put("flink.disable-metrics", "true");
-        try (final KafkaWriter<Integer> ignored =
-                createWriterWithConfiguration(config, guarantee)) {
-            Assertions.assertFalse(
-                    metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME).isPresent());
-        }
+        assertKafkaMetricNotPresent(guarantee, "flink.disable-metrics", "true");
+        assertKafkaMetricNotPresent(guarantee, "register.producer.metrics", "false");
     }
 
     @Test
@@ -177,6 +172,17 @@ public class KafkaWriterITCase {
                                 }
                             });
             MatcherAssert.assertThat(currentSendTime.get().getValue(), greaterThan(0L));
+        }
+    }
+
+    private void assertKafkaMetricNotPresent(
+            DeliveryGuarantee guarantee, String configKey, String configValue) throws Exception {
+        final Properties config = getKafkaClientConfiguration();
+        config.put(configKey, configValue);
+        try (final KafkaWriter<Integer> ignored =
+                createWriterWithConfiguration(config, guarantee)) {
+            Assertions.assertFalse(
+                    metricListener.getGauge(KAFKA_METRIC_WITH_GROUP_NAME).isPresent());
         }
     }
 
