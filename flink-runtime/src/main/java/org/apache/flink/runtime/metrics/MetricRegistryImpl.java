@@ -171,7 +171,7 @@ public class MetricRegistryImpl implements MetricRegistry {
                                             reporters.size(),
                                             delimiterForReporter.charAt(0),
                                             reporterSetup.getExcludedVariables(),
-                                            reporterSetup.tryGetAdditionalVariables())));
+                                            reporterSetup.getAdditionalVariables())));
                 } catch (Throwable t) {
                     LOG.error(
                             "Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.",

@@ -23,6 +23,8 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.MetricGroup;
 
+import org.apache.commons.collections.map.CompositeMap;
+
 import java.util.Map;
 
 /**
@@ -76,11 +78,11 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
                 parentMetricGroup.getAllVariables(
                         this.settings.getReporterIndex(), this.settings.getExcludedVariables());
 
-        for (Map.Entry<String, String> entry : this.settings.getAdditionalVariables().entrySet()) {
-            allVariables.putIfAbsent(entry.getKey(), entry.getValue());
+        if (this.settings.getAdditionalVariables().isEmpty()) {
+            return allVariables;
         }
 
-        return allVariables;
+        return new CompositeMap(allVariables, this.settings.getAdditionalVariables());
     }
 
     /** @deprecated work against the LogicalScopeProvider interface instead. */

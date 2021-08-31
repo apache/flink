@@ -458,11 +458,11 @@ public class ReporterSetupTest extends TestLogger {
         final ReporterSetup reporterSetup = reporterSetups.get(0);
 
         assertThat(
-                reporterSetup.tryGetAdditionalVariables(),
+                reporterSetup.getAdditionalVariables(),
                 hasEntry(ScopeFormat.asVariable(tag1), tagValue1));
 
         assertThat(
-                reporterSetup.tryGetAdditionalVariables(),
+                reporterSetup.getAdditionalVariables(),
                 hasEntry(ScopeFormat.asVariable(tag2), tagValue2));
     }
 
