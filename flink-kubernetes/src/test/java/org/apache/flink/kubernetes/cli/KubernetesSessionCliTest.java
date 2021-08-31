@@ -62,6 +62,20 @@ public class KubernetesSessionCliTest {
     }
 
     @Test
+    public void testKubernetesSessionStopConfiguration() throws CliArgsException {
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(new Configuration(), tmp.getRoot().getAbsolutePath());
+
+        final String[] args = {"stop", "-Dkubernetes.cluster-id=test-clusterId"};
+        final Configuration configuration = cli.getStopEffectiveConfiguration(args);
+
+        assertEquals(
+                KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+
+        assertEquals("test-clusterId", configuration.get(KubernetesConfigOptions.CLUSTER_ID));
+    }
+
+    @Test
     public void testDynamicProperties() throws Exception {
 
         final KubernetesSessionCli cli =

@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -56,6 +57,8 @@ public class KubernetesSessionCli {
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesSessionCli.class);
 
     private static final long CLIENT_POLLING_INTERVAL_MS = 3000L;
+
+    private static final String ACTION_STOP = "stop";
 
     private static final String KUBERNETES_CLUSTER_HELP =
             "Available commands:\n"
@@ -87,6 +90,38 @@ public class KubernetesSessionCli {
         effectiveConfiguration.addAll(cli.toConfiguration(commandLine));
         effectiveConfiguration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
         return effectiveConfiguration;
+    }
+
+    Configuration getStopEffectiveConfiguration(String[] args) throws CliArgsException {
+        final String[] params = Arrays.copyOfRange(args, 1, args.length);
+        return getEffectiveConfiguration(params);
+    }
+
+    private int stop(String[] args) throws FlinkException, CliArgsException {
+        final Configuration configuration = getStopEffectiveConfiguration(args);
+        final ClusterClientFactory<String> kubernetesClusterClientFactory =
+                clusterClientServiceLoader.getClusterClientFactory(configuration);
+
+        final ClusterDescriptor<String> kubernetesClusterDescriptor =
+                kubernetesClusterClientFactory.createClusterDescriptor(configuration);
+        try {
+            String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
+            final FlinkKubeClient kubeClient =
+                    FlinkKubeClientFactory.getInstance().fromConfiguration(configuration, "client");
+            if (clusterId == null || !kubeClient.getRestService(clusterId).isPresent()) {
+                LOG.warn("Could`t get kubernetes cluster by clusterID:{}.", clusterId);
+                return -1;
+            }
+            kubernetesClusterDescriptor.killCluster(clusterId);
+            kubeClient.close();
+        } finally {
+            try {
+                kubernetesClusterDescriptor.close();
+            } catch (Exception e) {
+                LOG.info("Could not properly close the kubernetes cluster descriptor.", e);
+            }
+        }
+        return 0;
     }
 
     private int run(String[] args) throws FlinkException, CliArgsException {
@@ -194,8 +229,13 @@ public class KubernetesSessionCli {
         int retCode;
 
         try {
+            boolean isStop = args[0].equalsIgnoreCase(ACTION_STOP) ? true : false;
             final KubernetesSessionCli cli = new KubernetesSessionCli(configuration, configDir);
-            retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+            if (isStop) {
+                retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.stop(args));
+            } else {
+                retCode = SecurityUtils.getInstalledContext().runSecured(() -> cli.run(args));
+            }
         } catch (CliArgsException e) {
             retCode = AbstractCustomCommandLine.handleCliArgsException(e, LOG);
         } catch (Exception e) {
