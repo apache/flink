@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class ZooKeeperUtilsTest extends TestLogger {
@@ -43,5 +46,53 @@ public class ZooKeeperUtilsTest extends TestLogger {
         final String result = ZooKeeperUtils.generateZookeeperPath(root, namespace);
 
         assertThat(result, is(expectedValue));
+    }
+
+    @Test
+    public void testZooKeeperEnsembleConnectStringConfiguration() throws Exception {
+        // ZooKeeper does not like whitespace in the quorum connect String.
+        String actual, expected;
+        Configuration conf = new Configuration();
+
+        {
+            expected = "localhost:2891";
+
+            setQuorum(conf, expected);
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+
+            setQuorum(conf, " localhost:2891 "); // with leading and trailing whitespace
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+
+            setQuorum(conf, "localhost :2891"); // whitespace after port
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+        }
+
+        {
+            expected = "localhost:2891,localhost:2891";
+
+            setQuorum(conf, "localhost:2891,localhost:2891");
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+
+            setQuorum(conf, "localhost:2891, localhost:2891");
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+
+            setQuorum(conf, "localhost :2891, localhost:2891");
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+
+            setQuorum(conf, " localhost:2891, localhost:2891 ");
+            actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
+            assertEquals(expected, actual);
+        }
+    }
+
+    private Configuration setQuorum(Configuration conf, String quorum) {
+        conf.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, quorum);
+        return conf;
     }
 }
