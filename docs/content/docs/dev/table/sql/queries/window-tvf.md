@@ -44,7 +44,7 @@ Windowing TVFs is a replacement of legacy [Grouped Window Functions]({{< ref "do
 See more how to apply further computations based on windowing TVF:
 - [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
 - [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})
-- Window Join (will be supported soon)
+- [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
 
 ## Window Functions
 
