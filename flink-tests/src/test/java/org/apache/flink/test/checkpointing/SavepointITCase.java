@@ -206,6 +206,7 @@ public class SavepointITCase extends TestLogger {
             client.submitJob(jobGraph).get();
 
             BoundedPassThroughOperator.getProgressLatch().await();
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobId, false);
 
             client.stopWithSavepoint(jobId, drain, null).get();
 
@@ -608,6 +609,7 @@ public class SavepointITCase extends TestLogger {
                 client.submitJob(jobGraph).get();
 
                 BoundedPassThroughOperator.getProgressLatch().await();
+                waitForAllTaskRunning(cluster.getMiniCluster(), jobId, false);
 
                 client.stopWithSavepoint(jobId, false, null).get();
 
@@ -873,12 +875,13 @@ public class SavepointITCase extends TestLogger {
         cluster.before();
         try {
             ClusterClient<?> client = cluster.getClusterClient();
-            client.submitJob(jobGraph).get();
+            JobID jobID = client.submitJob(jobGraph).get();
 
             // we need to wait for both pipelines to be in state RUNNING because that's the only
             // state which allows creating a savepoint
             failingPipelineLatch.await();
             succeedingPipelineLatch.await();
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobID, false);
 
             try {
                 client.stopWithSavepoint(jobGraph.getJobID(), false, savepointDir.getAbsolutePath())
