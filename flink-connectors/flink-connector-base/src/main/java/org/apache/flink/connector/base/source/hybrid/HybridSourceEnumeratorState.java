@@ -21,18 +21,25 @@ package org.apache.flink.connector.base.source.hybrid;
 /** The state of hybrid source enumerator. */
 public class HybridSourceEnumeratorState {
     private final int currentSourceIndex;
-    private final Object wrappedState;
+    private byte[] wrappedStateBytes;
+    private final int wrappedStateSerializerVersion;
 
-    HybridSourceEnumeratorState(int currentSourceIndex, Object wrappedState) {
+    HybridSourceEnumeratorState(
+            int currentSourceIndex, byte[] wrappedStateBytes, int serializerVersion) {
         this.currentSourceIndex = currentSourceIndex;
-        this.wrappedState = wrappedState;
+        this.wrappedStateBytes = wrappedStateBytes;
+        this.wrappedStateSerializerVersion = serializerVersion;
     }
 
     public int getCurrentSourceIndex() {
         return this.currentSourceIndex;
     }
 
-    public Object getWrappedState() {
-        return wrappedState;
+    public byte[] getWrappedState() {
+        return wrappedStateBytes;
+    }
+
+    public int getWrappedStateSerializerVersion() {
+        return wrappedStateSerializerVersion;
     }
 }
