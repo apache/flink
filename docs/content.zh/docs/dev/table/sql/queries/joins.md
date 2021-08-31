@@ -150,10 +150,12 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL
-    WATERMARK FOR update_time AS update_time
+    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
+    WATERMARK FOR update_time AS update_time,
+    PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
-   'connector' = 'upsert-kafka',
+    'connector' = 'kafka',
+    'value.format' = 'debezium-json',
    /* ... */
 );
 
@@ -164,13 +166,13 @@ SELECT
      conversion_rate,
      order_time,
 FROM orders
-LEFT JOIN currency_rates FOR SYSTEM TIME AS OF orders.order_time
-ON orders.currency = currency_rates.currency
+LEFT JOIN currency_rates FOR SYSTEM_TIME AS OF orders.order_time
+ON orders.currency = currency_rates.currency;
 
-order_id price currency conversion_rate  order_time
-====== ==== ======  ============  ========
-o_001    11.11  EUR        1.14                    12:00:00
-o_002    12.51  EUR        1.10                    12:06:00
+order_id  price  currency  conversion_rate  order_time
+========  =====  ========  ===============  =========
+o_001     11.11  EUR       1.14             12:00:00
+o_002     12.51  EUR       1.10             12:06:00
 
 ```
 
