@@ -273,7 +273,6 @@ public class KafkaSinkITCase extends TestLogger {
         final DataStream<Long> stream = source.map(mapper);
         final KafkaSinkBuilder<Long> builder =
                 new KafkaSinkBuilder<Long>()
-                        .setKafkaProducerConfig(getKafkaClientConfiguration())
                         .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(new RecordSerializer(topic));
@@ -297,7 +296,6 @@ public class KafkaSinkITCase extends TestLogger {
 
         stream.sinkTo(
                 new KafkaSinkBuilder<Long>()
-                        .setKafkaProducerConfig(getKafkaClientConfiguration())
                         .setDeliverGuarantee(guarantee)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setRecordSerializer(new RecordSerializer(topic))
@@ -322,7 +320,6 @@ public class KafkaSinkITCase extends TestLogger {
                                 emittedRecordsCount, emittedRecordsWithCheckpoint));
         source.sinkTo(
                 new KafkaSinkBuilder<Long>()
-                        .setKafkaProducerConfig(getKafkaClientConfiguration())
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setDeliverGuarantee(deliveryGuarantee)
                         .setRecordSerializer(new RecordSerializer(topic))
