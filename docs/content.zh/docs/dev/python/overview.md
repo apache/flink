@@ -45,6 +45,8 @@ PyFlink 是 Apache Flink 的 Python API，你可以使用它构建可扩展的�
 * [PyFlink DataStream API 介绍]({{< ref "docs/dev/python/datastream_tutorial" >}})
 * [PyFlink Table API 介绍]({{< ref "docs/dev/python/table_api_tutorial" >}})
 
+如果你想了解更多关于 PyFlink 的示例，可以参考 {{< gh_link file="flink-python/pyflink/examples" name="PyFlink 示例" >}}
+
 <--->
 
 ### 深入 PyFlink
