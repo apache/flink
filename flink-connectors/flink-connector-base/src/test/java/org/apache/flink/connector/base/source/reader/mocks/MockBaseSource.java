@@ -117,7 +117,8 @@ public class MockBaseSource implements Source<Integer, MockSourceSplit, List<Moc
 
             @Override
             public byte[] serialize(List<MockSourceSplit> obj) throws IOException {
-                return InstantiationUtil.serializeObject(obj.toArray());
+                return InstantiationUtil.serializeObject(
+                        obj.toArray(new MockSourceSplit[obj.size()]));
             }
 
             @Override
