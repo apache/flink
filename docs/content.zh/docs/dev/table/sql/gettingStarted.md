@@ -105,7 +105,7 @@ CREATE TABLE employee_information (
 例如，我们可以过滤出只在部门 `1` 中工作的员工。
 
 ```sql
-SELECT * from employee_information WHERE DeptId = 1;
+SELECT * from employee_information WHERE dept_id = 1;
 ``` 
 
 ---------------
