@@ -29,7 +29,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -37,9 +37,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class TimerServiceTest extends TestLogger {
+/** Tests for the {@link DefaultTimerService}. */
+public class DefaultTimerServiceTest extends TestLogger {
     /**
-     * Test all timeouts registered can be unregistered
+     * Test all timeouts registered can be unregistered.
      *
      * @throws Exception
      */
@@ -51,8 +52,8 @@ public class TimerServiceTest extends TestLogger {
         ScheduledFuture scheduledFuture = mock(ScheduledFuture.class);
         when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
                 .thenReturn(scheduledFuture);
-        TimerService<AllocationID> timerService =
-                new TimerService<>(scheduledExecutorService, 100L);
+        DefaultTimerService<AllocationID> timerService =
+                new DefaultTimerService<>(scheduledExecutorService, 100L);
         TimeoutListener<AllocationID> listener = mock(TimeoutListener.class);
 
         timerService.start(listener);

@@ -76,6 +76,6 @@ public enum TaskSlotUtils {
     }
 
     public static TimerService<AllocationID> createDefaultTimerService(long shutdownTimeout) {
-        return new TimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
+        return new DefaultTimerService<>(TestingUtils.defaultExecutor(), shutdownTimeout);
     }
 }
