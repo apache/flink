@@ -219,13 +219,9 @@ class LocalBufferPool implements BufferPool {
         // Lock is only taken, because #checkAvailability asserts it. It's a small penalty for
         // thread safety.
         synchronized (this.availableMemorySegments) {
-            // Make sure that this buffer pool always has one buffer on initialization. For input
-            // side, it guarantees that the buffer listeners can get floating buffers properly and
-            // no deadlock will occur (see FLINK-24035 for more information). For output side, it
-            // means all result partitions will be available and ready for output on initialization.
-            availableMemorySegments.add(networkBufferPool.requestMemorySegmentBlocking());
-            ++numberOfRequestedMemorySegments;
-            availabilityHelper.resetAvailable();
+            if (checkAvailability()) {
+                availabilityHelper.resetAvailable();
+            }
 
             checkConsistentAvailability();
         }
@@ -234,6 +230,26 @@ class LocalBufferPool implements BufferPool {
     // ------------------------------------------------------------------------
     // Properties
     // ------------------------------------------------------------------------
+
+    @Override
+    public void reserveSegments(int numberOfSegmentsToReserve) throws IOException {
+        checkArgument(
+                numberOfSegmentsToReserve <= numberOfRequiredMemorySegments,
+                "Can not reserve more segments than number of required segments.");
+
+        CompletableFuture<?> toNotify = null;
+        synchronized (availableMemorySegments) {
+            checkState(!isDestroyed, "Buffer pool has been destroyed.");
+
+            if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
+                availableMemorySegments.addAll(
+                        networkBufferPool.requestMemorySegmentsBlocking(
+                                numberOfSegmentsToReserve - numberOfRequestedMemorySegments));
+                toNotify = availabilityHelper.getUnavailableToResetAvailable();
+            }
+        }
+        mayNotifyAvailable(toNotify);
+    }
 
     @Override
     public boolean isDestroyed() {

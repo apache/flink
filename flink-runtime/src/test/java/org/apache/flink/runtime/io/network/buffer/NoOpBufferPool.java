@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 public class NoOpBufferPool implements BufferPool {
 
     @Override
+    public void reserveSegments(int numberOfSegmentsToReserve) {}
+
+    @Override
     public void lazyDestroy() {}
 
     @Override
