@@ -125,7 +125,11 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public CompletableFuture<Void> createTaskManagerPod(KubernetesPod kubernetesPod) {
+    public CompletableFuture<Void> createTaskManagerPod(
+            KubernetesTaskManagerSpecification kubernetesTMSpec) {
+        final KubernetesPod kubernetesPod = kubernetesTMSpec.getKubernetesPod();
+        final List<HasMetadata> accompanyingResources = kubernetesTMSpec.getAccompanyingResources();
+
         return CompletableFuture.runAsync(
                 () -> {
                     final Deployment masterDeployment =
@@ -148,6 +152,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                     setOwnerReference(
                             masterDeployment,
                             Collections.singletonList(kubernetesPod.getInternalResource()));
+                    setOwnerReference(masterDeployment, accompanyingResources);
+
+                    this.internalClient
+                            .resourceList(accompanyingResources)
+                            .inNamespace(this.namespace)
+                            .createOrReplace();
 
                     LOG.debug(
                             "Start to create pod with spec {}{}",

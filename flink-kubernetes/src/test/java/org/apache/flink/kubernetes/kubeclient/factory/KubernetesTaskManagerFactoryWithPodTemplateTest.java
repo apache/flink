@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 
 import io.fabric8.kubernetes.api.model.Pod;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /** General tests for the {@link KubernetesTaskManagerFactory} with pod template. */
@@ -30,11 +31,12 @@ public class KubernetesTaskManagerFactoryWithPodTemplateTest
         extends KubernetesFactoryWithPodTemplateTestBase {
 
     @Override
-    protected Pod getResultPod(FlinkPod podTemplate) {
-        return KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+    protected Pod getResultPod(FlinkPod podTemplate) throws IOException {
+        return KubernetesTaskManagerFactory.buildKubernetesTaskManagerSpecification(
                         podTemplate,
                         KubernetesTestUtils.createTaskManagerParameters(
                                 flinkConfig, "taskmanager-" + UUID.randomUUID().toString()))
+                .getKubernetesPod()
                 .getInternalResource();
     }
 }

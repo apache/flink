@@ -123,8 +123,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public CompletableFuture<Void> createTaskManagerPod(KubernetesPod kubernetesPod) {
-        return createTaskManagerPodFunction.apply(kubernetesPod);
+    public CompletableFuture<Void> createTaskManagerPod(
+            KubernetesTaskManagerSpecification kubernetesTMSpec) {
+        return createTaskManagerPodFunction.apply(kubernetesTMSpec.getKubernetesPod());
     }
 
     @Override

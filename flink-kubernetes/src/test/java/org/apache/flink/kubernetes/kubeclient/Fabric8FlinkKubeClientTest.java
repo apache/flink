@@ -51,6 +51,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -185,7 +186,9 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                                 .editOrNewSpec()
                                 .endSpec()
                                 .build());
-        this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
+        final KubernetesTaskManagerSpecification taskManagerSpecification =
+                new KubernetesTaskManagerSpecification(kubernetesPod, Collections.EMPTY_LIST);
+        this.flinkKubeClient.createTaskManagerPod(taskManagerSpecification).get();
 
         final Pod resultTaskManagerPod =
                 this.kubeClient.pods().inNamespace(NAMESPACE).withName(TASKMANAGER_POD_NAME).get();
@@ -335,7 +338,9 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                                 .editOrNewSpec()
                                 .endSpec()
                                 .build());
-        this.flinkKubeClient.createTaskManagerPod(kubernetesPod).get();
+        final KubernetesTaskManagerSpecification taskManagerSpecification =
+                new KubernetesTaskManagerSpecification(kubernetesPod, Collections.EMPTY_LIST);
+        this.flinkKubeClient.createTaskManagerPod(taskManagerSpecification).get();
 
         assertEquals(
                 1,

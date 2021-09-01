@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.decorators.CmdTaskManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
@@ -31,15 +32,23 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerPa
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.util.Preconditions;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Utility class for constructing the TaskManager Pod on the JobManager. */
 public class KubernetesTaskManagerFactory {
 
-    public static KubernetesPod buildTaskManagerKubernetesPod(
-            FlinkPod podTemplate, KubernetesTaskManagerParameters kubernetesTaskManagerParameters) {
+    public static KubernetesTaskManagerSpecification buildKubernetesTaskManagerSpecification(
+            FlinkPod podTemplate, KubernetesTaskManagerParameters kubernetesTaskManagerParameters)
+            throws IOException {
         FlinkPod flinkPod = Preconditions.checkNotNull(podTemplate).copy();
+
+        List<HasMetadata> accompanyingResources = new ArrayList<>();
 
         final KubernetesStepDecorator[] stepDecorators =
                 new KubernetesStepDecorator[] {
@@ -54,6 +63,7 @@ public class KubernetesTaskManagerFactory {
 
         for (KubernetesStepDecorator stepDecorator : stepDecorators) {
             flinkPod = stepDecorator.decorateFlinkPod(flinkPod);
+            accompanyingResources.addAll(stepDecorator.buildAccompanyingKubernetesResources());
         }
 
         final Pod resolvedPod =
@@ -63,6 +73,7 @@ public class KubernetesTaskManagerFactory {
                         .endSpec()
                         .build();
 
-        return new KubernetesPod(resolvedPod);
+        return new KubernetesTaskManagerSpecification(
+                new KubernetesPod(resolvedPod), accompanyingResources);
     }
 }
