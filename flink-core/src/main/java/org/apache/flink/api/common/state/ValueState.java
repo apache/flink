@@ -56,8 +56,8 @@ public interface ValueState<T> extends State {
     /**
      * Updates the operator state accessible by {@link #value()} to the given value. The next time
      * {@link #value()} is called (for the same state partition) the returned state will represent
-     * the updated value. When a partitioned state is updated with {@code null}, the state for the current
-     * key will be removed and the default value is returned on the next access.
+     * the updated value. When a partitioned state is updated with {@code null}, the state for the
+     * current key will be removed and the default value is returned on the next access.
      *
      * @param value The new value for the state.
      * @throws IOException Thrown if the system cannot access the state.
