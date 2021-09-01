@@ -169,7 +169,7 @@ memory segments. The default timeout is 30 seconds, and is configurable via `tas
 It is possible that for some previously working deployments this default timeout value is too low
 and might have to be increased.
 
-Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://ci.apache.org/projects/flink/flink-docs-master/ops/metrics.html)
+Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://nightlies.apache.org/flink/flink-docs-master/ops/metrics.html)
 for which metrics are affected. In 1.9.0, these metrics will still be available under their previous scopes, but this
 may no longer be the case in future versions.
 
@@ -183,7 +183,7 @@ Related issues:
 Due to a bug in the `AsyncWaitOperator`, in 1.9.0 the default chaining behaviour of the operator is now changed so
 that it is never chained after another operator. This should not be problematic for migrating from older version
 snapshots as long as an uid was assigned to the operator. If an uid was not assigned to the operator, please see
-the instructions [here](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
+the instructions [here](https://nightlies.apache.org/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
 for a possible workaround.
 
 Related issues:
