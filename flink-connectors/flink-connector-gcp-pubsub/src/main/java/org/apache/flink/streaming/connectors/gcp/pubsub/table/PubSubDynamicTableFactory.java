@@ -3,6 +3,7 @@ package org.apache.flink.streaming.connectors.gcp.pubsub.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -19,16 +20,30 @@ import java.util.Set;
 @Internal
 public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
 
+    private static final ConfigOption<String> PROJECT_NAME =
+            ConfigOptions.key("projectName")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Name of the PubSub project backing this table.");
+
+    private static final ConfigOption<String> SUBSCRIPTION =
+            ConfigOptions.key("subscription")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Name of the PubSub subscription backing this table.");
+
+    private static final String IDENTIFIER = "pubsub";
+
     @Override
     public String factoryIdentifier() {
-        return PubSubConnectorOptions.IDENTIFIER;
+        return IDENTIFIER;
     }
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(PubSubConnectorOptions.PROJECT_NAME);
-        options.add(PubSubConnectorOptions.SUBSCRIPTION);
+        options.add(PROJECT_NAME);
+        options.add(SUBSCRIPTION);
         options.add(FactoryUtil.FORMAT);
         return options;
     }
@@ -51,8 +66,8 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         helper.validate();
 
         final ReadableConfig options = helper.getOptions();
-        final String project = options.get(PubSubConnectorOptions.PROJECT_NAME);
-        final String subscription = options.get(PubSubConnectorOptions.SUBSCRIPTION);
+        final String project = options.get(PROJECT_NAME);
+        final String subscription = options.get(SUBSCRIPTION);
 
         final DataType producedDataType =
                 context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
