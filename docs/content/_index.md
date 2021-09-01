@@ -63,7 +63,7 @@ The reference documentation covers all the details. Some starting points:
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
-* [Stateful Functions](https://ci.apache.org/projects/flink/flink-statefun-docs-stable/)
+* [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
 <--->
 

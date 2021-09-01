@@ -35,5 +35,5 @@ REMOVE JAR         		Removes the specified jar file from the submitted jobs' cla
 SHOW JARS          		Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands.
 
 Hint: Make sure that a statement ends with ";" for finalizing (multi-line) statements.
-You can also type any Flink SQL statement, please visit https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.
+You can also type any Flink SQL statement, please visit https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.
 !ok
