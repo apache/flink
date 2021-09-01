@@ -36,6 +36,7 @@ import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -59,6 +60,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Test the election of a new JobManager leader. */
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
@@ -116,7 +118,9 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         try (TestingMiniCluster miniCluster =
                         TestingMiniCluster.newBuilder(miniClusterConfiguration).build();
                 final CuratorFramework curatorFramework =
-                        ZooKeeperUtils.startCuratorFramework(configuration)) {
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration,
+                                exception -> fail("Fatal error in curator framework."))) {
 
             // We need to watch for resource manager leader changes to avoid race conditions.
             final DefaultLeaderRetrievalService resourceManagerLeaderRetrieval =

@@ -172,7 +172,9 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
 
                                     if (t instanceof CancellationException) {
                                         LOG.warn(
-                                                "Application is cancelled because the executing dispatcher lost leadership.");
+                                                "Application has been cancelled because the {} is being stopped.",
+                                                ApplicationDispatcherBootstrap.class
+                                                        .getSimpleName());
                                         return CompletableFuture.completedFuture(Acknowledge.get());
                                     }
 

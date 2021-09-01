@@ -400,7 +400,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     @Test
-    public void testClusterIsShutdownCalledWhenSubmissionThrowsAnException() throws Exception {
+    public void testErrorHandlerIsCalledWhenSubmissionThrowsAnException() throws Exception {
         final AtomicBoolean shutdownCalled = new AtomicBoolean(false);
         final TestingDispatcherGateway.Builder dispatcherBuilder =
                 new TestingDispatcherGateway.Builder()

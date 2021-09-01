@@ -42,6 +42,7 @@ import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -51,7 +52,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapITCase {
+public class ApplicationDispatcherBootstrapITCase extends TestLogger {
 
     private static final Duration TIMEOUT = Duration.ofMinutes(10);
 

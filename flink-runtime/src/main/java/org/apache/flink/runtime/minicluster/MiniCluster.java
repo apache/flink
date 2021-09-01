@@ -451,20 +451,10 @@ public class MiniCluster implements AutoCloseableAsync {
             final CompletableFuture<ApplicationStatus> shutDownFuture =
                     dispatcherResourceManagerComponent.getShutDownFuture();
             FutureUtils.assertNoException(
-                    shutDownFuture
-                            .handle(
-                                    (applicationStatus, exception) -> {
-                                        if (exception != null) {
-                                            return dispatcherResourceManagerComponent
-                                                    .stopApplication(
-                                                            ApplicationStatus.UNKNOWN,
-                                                            ExceptionUtils.stringifyException(
-                                                                    exception));
-                                        }
-                                        return dispatcherResourceManagerComponent.stopApplication(
-                                                applicationStatus, null);
-                                    })
-                            .thenCompose(Function.identity()));
+                    shutDownFuture.thenCompose(
+                            applicationStatus ->
+                                    dispatcherResourceManagerComponent.stopApplication(
+                                            applicationStatus, null)));
             shutDownFutures.add(shutDownFuture);
         }
         FutureUtils.completeAll(shutDownFutures).whenComplete((ignored, exception) -> closeAsync());
