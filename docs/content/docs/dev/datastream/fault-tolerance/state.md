@@ -426,8 +426,6 @@ will lead to compatibility failure and `StateMigrationException`.
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
-- State TTL is still not supported in PyFlink DataStream API.
-
 #### Cleanup of Expired State
 
 By default, expired values are explicitly removed on read, such as `ValueState#value`, and periodically garbage collected
