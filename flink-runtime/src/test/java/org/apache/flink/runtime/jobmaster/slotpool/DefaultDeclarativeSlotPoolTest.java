@@ -285,7 +285,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                     slotPool.reserveFreeSlot(
                                     slotToReserve.getAllocationId(),
                                     slotToReserve.getResourceProfile())
-                            .tryAssignPayload(new TestPhysicalSlotPayload());
+                            .tryAssignPayload(new TestingPhysicalSlotPayload());
 
                     final ResourceCounter fulfilledRequirements =
                             slotPool.releaseSlots(
@@ -309,7 +309,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                     slotPool.reserveFreeSlot(
                                     slotToReserve.getAllocationId(),
                                     slotToReserve.getResourceProfile())
-                            .tryAssignPayload(new TestPhysicalSlotPayload());
+                            .tryAssignPayload(new TestingPhysicalSlotPayload());
 
                     final ResourceCounter fulfilledRequirementsOfFreeSlot =
                             slotPool.releaseSlot(
@@ -819,17 +819,6 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
             freedSlots.drainTo(result);
 
             return result;
-        }
-    }
-
-    private static class TestPhysicalSlotPayload implements PhysicalSlot.Payload {
-
-        @Override
-        public void release(Throwable cause) {}
-
-        @Override
-        public boolean willOccupySlotIndefinitely() {
-            return false;
         }
     }
 }
