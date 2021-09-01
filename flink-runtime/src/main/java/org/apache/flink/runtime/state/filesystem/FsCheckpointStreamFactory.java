@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -142,9 +143,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                         : sharedStateDirectory;
         int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
-        final boolean absolutePath = entropyInjecting || scope == CheckpointedStateScope.SHARED;
         return new FsCheckpointStateOutputStream(
-                target, filesystem, bufferSize, fileStateThreshold, !absolutePath);
+                checkpointDirectory, target, filesystem, bufferSize, fileStateThreshold);
     }
 
     // ------------------------------------------------------------------------
@@ -175,9 +175,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         private final int localStateThreshold;
 
+        private final Path checkpointDirectory;
+
         private final Path basePath;
 
         private final FileSystem fs;
+
+        private final boolean entropyInjecting;
 
         private Path statePath;
 
@@ -185,29 +189,23 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         private volatile boolean closed;
 
-        private final boolean allowRelativePaths;
-
         public FsCheckpointStateOutputStream(
-                Path basePath, FileSystem fs, int bufferSize, int localStateThreshold) {
-            this(basePath, fs, bufferSize, localStateThreshold, false);
-        }
-
-        public FsCheckpointStateOutputStream(
+                Path checkpointDirectory,
                 Path basePath,
                 FileSystem fs,
                 int bufferSize,
-                int localStateThreshold,
-                boolean allowRelativePaths) {
+                int localStateThreshold) {
 
             if (bufferSize < localStateThreshold) {
                 throw new IllegalArgumentException();
             }
 
+            this.checkpointDirectory = checkpointDirectory;
             this.basePath = basePath;
             this.fs = fs;
             this.writeBuffer = new byte[bufferSize];
             this.localStateThreshold = localStateThreshold;
-            this.allowRelativePaths = allowRelativePaths;
+            this.entropyInjecting = EntropyInjector.isEntropyInjecting(fs);
         }
 
         @Override
@@ -353,10 +351,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
                             outStream.close();
 
-                            return allowRelativePaths
-                                    ? new RelativeFileStateHandle(
-                                            statePath, relativeStatePath, size)
-                                    : new FileStateHandle(statePath, size);
+                            return entropyInjecting
+                                    ? new FileStateHandle(statePath, size)
+                                    : new RelativeFileStateHandle(
+                                            statePath, relativeStatePath, size);
                         } catch (Exception exception) {
                             try {
                                 if (statePath != null) {
@@ -389,8 +387,14 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         private Path createStatePath() {
             final String fileName = UUID.randomUUID().toString();
-            relativeStatePath = fileName;
-            return new Path(basePath, fileName);
+            Path filePath = new Path(basePath, fileName);
+            if (!entropyInjecting) {
+                relativeStatePath =
+                        Paths.get(checkpointDirectory.getPath())
+                                .relativize(Paths.get(filePath.getPath()))
+                                .toString();
+            }
+            return filePath;
         }
 
         private void createStream() throws IOException {

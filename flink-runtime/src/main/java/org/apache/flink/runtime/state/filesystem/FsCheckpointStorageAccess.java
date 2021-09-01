@@ -176,7 +176,11 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         // change into shared state,
         // so we use CheckpointedStateScope.SHARED here.
         return new FsCheckpointStateOutputStream(
-                taskOwnedStateDirectory, fileSystem, writeBufferSize, fileSizeThreshold);
+                checkpointsDirectory,
+                taskOwnedStateDirectory,
+                fileSystem,
+                writeBufferSize,
+                fileSizeThreshold);
     }
 
     @Override
