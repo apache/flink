@@ -258,6 +258,17 @@ public class IgnoreInFlightDataITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            Iterator<Integer> integerIterator = valueState.get().iterator();
+
+            if (!integerIterator.hasNext()
+                    || integerIterator.next() < PARALLELISM
+                    || (context.getCheckpointId() > 1
+                            && lastCheckpointValue.get().get() < PARALLELISM)) {
+                // Try to restart task.
+                throw new RuntimeException(
+                        "Not enough data to guarantee the in-flight data were generated before the first checkpoint");
+            }
+
             if (context.getCheckpointId() > 2) {
                 // It is possible if checkpoint was triggered too fast after restart.
                 return; // Just ignore it.
