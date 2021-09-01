@@ -70,8 +70,6 @@ Checkpoint 其他的属性包括：
   - *在 checkpoint 出错时使 task 失败或者继续进行 task*：他决定了在 task checkpoint 的过程中发生错误时，是否使 task 也失败，使失败是默认的行为。
      或者禁用它时，这个任务将会简单的把 checkpoint 错误信息报告给 checkpoint coordinator 并继续运行。
      
-  - *优先从 checkpoint 恢复（prefer checkpoint for recovery）*：该属性确定 job 是否在最新的 checkpoint 回退，即使有更近的 savepoint 可用，这可以潜在地减少恢复时间（checkpoint 恢复比 savepoint 恢复更快）。
-
 {{< tabs "5ef78d6e-3c62-43e9-b0a8-a987df37a8da" >}}
 {{< tab "Java" >}}
 ```java
