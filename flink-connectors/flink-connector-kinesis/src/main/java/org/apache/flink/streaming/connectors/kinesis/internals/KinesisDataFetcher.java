@@ -247,7 +247,7 @@ public class KinesisDataFetcher<T> {
      * The most recent watermark, calculated from the per shard watermarks. The initial value will
      * never be emitted and also apply after recovery. The fist watermark that will be emitted is
      * derived from actually consumed records. In case of recovery and replay, the watermark will
-     * rewind, consistent wth the shard consumer sequence.
+     * rewind, consistent with the shard consumer sequence.
      */
     private long lastWatermark = Long.MIN_VALUE;
 

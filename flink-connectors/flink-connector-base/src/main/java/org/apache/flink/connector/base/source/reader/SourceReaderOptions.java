@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 
-/** The options tht can be set for the {@link SourceReaderBase}. */
+/** The options that can be set for the {@link SourceReaderBase}. */
 public class SourceReaderOptions {
 
     public static final ConfigOption<Long> SOURCE_READER_CLOSE_TIMEOUT =

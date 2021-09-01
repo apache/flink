@@ -1535,7 +1535,7 @@ public abstract class DataSet<T> {
      * <ul>
      *   <li>A directory is created and multiple files are written underneath. (Default behavior)
      *       <br>
-     *       This sink creates a directory called "path1", and files "1", "2" ... are writen
+     *       This sink creates a directory called "path1", and files "1", "2" ... are written
      *       underneath depending on <a
      *       href="https://flink.apache.org/faq.html#what-is-the-parallelism-how-do-i-set-it">parallelism</a>
      *       <pre>{@code .

@@ -33,7 +33,7 @@ import java.util.Set;
 import static org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriberUtils.getTopicMetadata;
 
 /**
- * A subscriber to a fixed list of topics. The subscribed topics must hav existed in the Kafka
+ * A subscriber to a fixed list of topics. The subscribed topics must have existed in the Kafka
  * cluster, otherwise an exception will be thrown.
  */
 class TopicListSubscriber implements KafkaSubscriber {
