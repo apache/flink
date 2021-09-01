@@ -144,8 +144,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * local file system does not have any fault tolerance guarantees, no further requirements exist.
  *
  * <p>The above implies specifically that data may still be in the OS cache when considered
- * persistent from the local file system's perspective. Crashes that cause the OS cache to loose
- * data are considered fatal to the local machine and are not covered by the local file system's
+ * persistent from the local file system's perspective. Crashes that cause the OS cache to lose data
+ * are considered fatal to the local machine and are not covered by the local file system's
  * guarantees as defined by Flink.
  *
  * <p>That means that computed results, checkpoints, and savepoints that are written only to the

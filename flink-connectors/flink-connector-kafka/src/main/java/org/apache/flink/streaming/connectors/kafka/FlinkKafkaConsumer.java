@@ -58,7 +58,7 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
  *
  * <p>The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
  * during a failure, and that the computation processes elements "exactly once". (Note: These
- * guarantees naturally assume that Kafka itself does not loose any data.)
+ * guarantees naturally assume that Kafka itself does not lose any data.)
  *
  * <p>Please note that Flink snapshots the offsets internally as part of its distributed
  * checkpoints. The offsets committed to Kafka are only to bring the outside view of progress in
