@@ -956,7 +956,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def print(): DataStreamSink[T] = stream.print()
 
   /**
-   * Writes a DataStream to the standard output stream (stderr).
+   * Writes a DataStream to the standard error stream (stderr).
    *
    * For each element of the DataStream the result of
    * [[AnyRef.toString()]] is written.
@@ -978,7 +978,7 @@ class DataStream[T](stream: JavaStream[T]) {
   def print(sinkIdentifier: String): DataStreamSink[T] = stream.print(sinkIdentifier)
 
   /**
-    * Writes a DataStream to the standard output stream (stderr).
+    * Writes a DataStream to the standard error stream (stderr).
     *
     * For each element of the DataStream the result of
     * [[AnyRef.toString()]] is written.
