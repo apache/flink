@@ -390,8 +390,6 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
 
-- State TTL 当前在 PyFlink DataStream API 中还不支持。
-
 #### 过期数据的清理
 
 默认情况下，过期数据会在读取的时候被删除，例如 `ValueState#value`，同时会有后台线程定期清理（如果 StateBackend 支持的话）。可以通过 `StateTtlConfig` 配置关闭后台清理：
