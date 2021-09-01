@@ -129,7 +129,9 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 KubernetesUtils.getResourceRequirements(
                         requirementsInPodTemplate,
                         kubernetesJobManagerParameters.getJobManagerMemoryMB(),
+                        kubernetesJobManagerParameters.getJobManagerMemoryLimitFactor(),
                         kubernetesJobManagerParameters.getJobManagerCPU(),
+                        kubernetesJobManagerParameters.getJobManagerCPULimitFactor(),
                         Collections.emptyMap(),
                         Collections.emptyMap());
         mainContainerBuilder
