@@ -24,7 +24,7 @@ pygmentsUseClasses = true
 [params]
   # Flag whether this is a stable version or not.
   # Used for the quickstart page.
-  IsStable = true
+  IsStable = false
 
   # Flag to indicate whether an outdated warning should be shown.
   ShowOutDatedWarning = false
@@ -41,7 +41,7 @@ pygmentsUseClasses = true
   VersionTitle = "1.15-SNAPSHOT"
 
   # The branch for this version of Apache Flink
-  Branch = "release-1.14"
+  Branch = "master"
 
   # The github repository for Apache Flink
   Repo = "//github.com/apache/flink"
