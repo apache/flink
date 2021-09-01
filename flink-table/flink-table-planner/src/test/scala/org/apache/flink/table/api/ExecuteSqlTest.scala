@@ -32,15 +32,16 @@ import org.junit.{Assert, Before, Rule, Test}
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util
 
+/**
+ * Test SQL statements which executed by [[TableEnvironment#executeSql()]]
+ */
 @RunWith(classOf[Parameterized])
-class ExecuteSqlTest(tableEnvName: String, isStreaming: Boolean) extends TestLogger {
+class ExecuteSqlTest(isStreaming: Boolean) extends TestLogger {
 
   private val _tempFolder = new TemporaryFolder()
 
   @Rule
   def tempFolder: TemporaryFolder = _tempFolder
-
-  var tEnv: TableEnvironment = _
 
   private val settings = if (isStreaming) {
     EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -48,21 +49,10 @@ class ExecuteSqlTest(tableEnvName: String, isStreaming: Boolean) extends TestLog
     EnvironmentSettings.newInstance().inBatchMode().build()
   }
 
-  @Before
-  def setup(): Unit = {
-    tableEnvName match {
-      case "TableEnvironment" =>
-        tEnv = TableEnvironmentImpl.create(settings)
-      case "StreamTableEnvironment" =>
-        tEnv = StreamTableEnvironment.create(
-          StreamExecutionEnvironment.getExecutionEnvironment, settings)
-      case _ => throw new UnsupportedOperationException("unsupported tableEnvName: " + tableEnvName)
-    }
-  }
+  var tEnv: TableEnvironment = TableEnvironment.create(settings)
 
   @Test
-  def testShowColumnsSyntaxOfSQL(): Unit = {
-
+  def testShowColumns(): Unit = {
     initTableAndView()
     // Tests `SHOW COLUMNS FROM TABLE`.
     showAllColumnsFromTable()
@@ -73,7 +63,6 @@ class ExecuteSqlTest(tableEnvName: String, isStreaming: Boolean) extends TestLog
     showAllColumnsFromView()
     showColumnsWithLikeClauseFromView()
     showColumnsWithNotLikeClauseFromView()
-
   }
 
   private def initTableAndView(): Unit = {
@@ -221,12 +210,8 @@ class ExecuteSqlTest(tableEnvName: String, isStreaming: Boolean) extends TestLog
 }
 
 object ExecuteSqlTest {
-  @Parameterized.Parameters(name = "{0}:isStream={1}")
-  def parameters(): util.Collection[Array[_]] = {
-    util.Arrays.asList(
-      Array("TableEnvironment", true),
-      Array("TableEnvironment", false),
-      Array("StreamTableEnvironment", true)
-    )
+  @Parameterized.Parameters(name = "isStream={0}")
+  def parameters(): util.Collection[JBoolean] = {
+    util.Arrays.asList(true, false)
   }
 }
