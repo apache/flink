@@ -90,7 +90,7 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT> extends Seriali
 
     /**
      * Creates the serializer for the {@link SplitEnumerator} checkpoint. The serializer is used for
-     * the result of the {@link SplitEnumerator#snapshotState} method.
+     * the result of the {@link SplitEnumerator#snapshotState(long)} method.
      *
      * @return The serializer for the SplitEnumerator checkpoint.
      */
