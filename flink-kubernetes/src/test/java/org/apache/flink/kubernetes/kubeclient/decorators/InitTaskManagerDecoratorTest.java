@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -139,13 +140,28 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertEquals(Double.toString(TASK_MANAGER_CPU), requests.get("cpu").getAmount());
-        assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), requests.get("memory").getAmount());
+        assertEquals(
+                Double.toString(
+                        KubernetesUtils.getRequestCpu(
+                                TASK_MANAGER_CPU,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.CPU_REQUEST_PERCENT))),
+                requests.get("cpu").getAmount());
+        assertEquals(
+                String.valueOf(
+                        KubernetesUtils.getRequestMem(
+                                TOTAL_PROCESS_MEMORY,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.MEM_REQUEST_PERCENT))),
+                requests.get("memory").getAmount());
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
         assertEquals(Double.toString(TASK_MANAGER_CPU), limits.get("cpu").getAmount());
         assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), limits.get("memory").getAmount());
     }
+
+    @Test
+    public void testMainContainerResourceRequirementsByRequestPercent() {}
 
     @Test
     public void testExternalResourceInResourceRequirements() {

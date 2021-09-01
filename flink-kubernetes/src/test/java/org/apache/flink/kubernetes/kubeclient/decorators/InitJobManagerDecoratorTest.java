@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -81,6 +82,8 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
         this.flinkConfig.setString(
                 KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+        this.flinkConfig.set(KubernetesConfigOptions.MEM_REQUEST_PERCENT, 0.9);
+        this.flinkConfig.set(KubernetesConfigOptions.CPU_REQUEST_PERCENT, 0.8);
     }
 
     @Override
@@ -117,8 +120,20 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         final ResourceRequirements resourceRequirements = this.resultMainContainer.getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-        assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
+        assertEquals(
+                Double.toString(
+                        KubernetesUtils.getRequestCpu(
+                                JOB_MANAGER_CPU,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.CPU_REQUEST_PERCENT))),
+                requests.get("cpu").getAmount());
+        assertEquals(
+                String.valueOf(
+                        KubernetesUtils.getRequestMem(
+                                JOB_MANAGER_MEMORY,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.MEM_REQUEST_PERCENT))),
+                requests.get("memory").getAmount());
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
         assertEquals(Double.toString(JOB_MANAGER_CPU), limits.get("cpu").getAmount());

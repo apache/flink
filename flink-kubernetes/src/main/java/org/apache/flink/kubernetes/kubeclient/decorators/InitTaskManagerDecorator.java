@@ -109,13 +109,25 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 container.getResources() == null
                         ? new ResourceRequirements()
                         : container.getResources();
+
         final ResourceRequirements resourceRequirements =
                 KubernetesUtils.getResourceRequirements(
                         requirementsInPodTemplate,
+                        KubernetesUtils.getRequestMem(
+                                kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+                                kubernetesTaskManagerParameters
+                                        .getFlinkConfiguration()
+                                        .getDouble(KubernetesConfigOptions.MEM_REQUEST_PERCENT)),
                         kubernetesTaskManagerParameters.getTaskManagerMemoryMB(),
+                        KubernetesUtils.getRequestCpu(
+                                kubernetesTaskManagerParameters.getTaskManagerCPU(),
+                                kubernetesTaskManagerParameters
+                                        .getFlinkConfiguration()
+                                        .getDouble(KubernetesConfigOptions.CPU_REQUEST_PERCENT)),
                         kubernetesTaskManagerParameters.getTaskManagerCPU(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResources(),
                         kubernetesTaskManagerParameters.getTaskManagerExternalResourceConfigKeys());
+
         final String image =
                 KubernetesUtils.resolveUserDefinedValue(
                         flinkConfig,

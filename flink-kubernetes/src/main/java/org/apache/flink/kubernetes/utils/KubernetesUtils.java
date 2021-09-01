@@ -61,6 +61,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -85,6 +86,7 @@ public class KubernetesUtils {
     private static final Logger LOG = LoggerFactory.getLogger(KubernetesUtils.class);
 
     private static final YAMLMapper yamlMapper = new YAMLMapper();
+    private static final DecimalFormat REQUEST_PERCENT_DF = new DecimalFormat("#.#");
 
     /**
      * Check whether the port config option is a fixed port. If not, the fallback port will be set
@@ -309,27 +311,34 @@ public class KubernetesUtils {
      * Get resource requirements from memory and cpu.
      *
      * @param resourceRequirements resource requirements in pod template
-     * @param mem Memory in mb.
-     * @param cpu cpu.
+     * @param requestMem request memory in mb
+     * @param limitMem limit memory in mb
+     * @param requestCpu request cpu
+     * @param limitCpu limit cpu
      * @param externalResources external resources
-     * @param externalResourceConfigKeys config keys of external resources
+     * @param externalResourceConfigKeys config keys of external resource
      * @return KubernetesResource requirements.
      */
     public static ResourceRequirements getResourceRequirements(
             ResourceRequirements resourceRequirements,
-            int mem,
-            double cpu,
+            int requestMem,
+            int limitMem,
+            double requestCpu,
+            double limitCpu,
             Map<String, ExternalResource> externalResources,
             Map<String, String> externalResourceConfigKeys) {
-        final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
-        final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
+
+        final Quantity requestCpuQuantity = new Quantity(String.valueOf(requestCpu));
+        final Quantity limitCpuQuantity = new Quantity(String.valueOf(limitCpu));
+        final Quantity requestMemQuantity = new Quantity(requestMem + Constants.RESOURCE_UNIT_MB);
+        final Quantity limitMemQuantity = new Quantity(limitMem + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
                 new ResourceRequirementsBuilder(resourceRequirements)
-                        .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-                        .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
-                        .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantity)
-                        .addToLimits(Constants.RESOURCE_NAME_CPU, cpuQuantity);
+                        .addToRequests(Constants.RESOURCE_NAME_MEMORY, requestMemQuantity)
+                        .addToRequests(Constants.RESOURCE_NAME_CPU, requestCpuQuantity)
+                        .addToLimits(Constants.RESOURCE_NAME_MEMORY, limitMemQuantity)
+                        .addToLimits(Constants.RESOURCE_NAME_CPU, limitCpuQuantity);
 
         // Add the external resources to resource requirement.
         for (Map.Entry<String, ExternalResource> externalResource : externalResources.entrySet()) {
@@ -347,8 +356,33 @@ public class KubernetesUtils {
                         configKey);
             }
         }
-
         return resourceRequirementsBuilder.build();
+    }
+
+    /**
+     * Get resource requirements from memory and cpu.
+     *
+     * @param resourceRequirements resource requirements in pod template
+     * @param mem Memory in mb.
+     * @param cpu cpu.
+     * @param externalResources external resources
+     * @param externalResourceConfigKeys config keys of external resources
+     * @return KubernetesResource requirements.
+     */
+    public static ResourceRequirements getResourceRequirements(
+            ResourceRequirements resourceRequirements,
+            int mem,
+            double cpu,
+            Map<String, ExternalResource> externalResources,
+            Map<String, String> externalResourceConfigKeys) {
+        return getResourceRequirements(
+                resourceRequirements,
+                mem,
+                mem,
+                cpu,
+                cpu,
+                externalResources,
+                externalResourceConfigKeys);
     }
 
     public static List<String> getStartCommandWithBashWrapper(String command) {
@@ -473,6 +507,37 @@ public class KubernetesUtils {
                     "Failed to get the pretty print yaml, fallback to {}", kubernetesResource, ex);
             return kubernetesResource.toString();
         }
+    }
+
+    static Double getPercent(Double configPercent) {
+        if (configPercent < 0.0) {
+            return 0.0;
+        } else if (configPercent > 1.0) {
+            return 1.0;
+        }
+        return configPercent;
+    }
+
+    /**
+     * get requestMemory from config.
+     *
+     * @param limitMemory limitMemory
+     * @param configPercent memoryRequestConfig
+     * @return
+     */
+    public static int getRequestMem(int limitMemory, Double configPercent) {
+        return new Double(limitMemory * getPercent(configPercent)).intValue();
+    }
+
+    /**
+     * get requestCpu from config.
+     *
+     * @param limitCpu limitCpu
+     * @param configPercent cpuRequestConfig
+     * @return
+     */
+    public static Double getRequestCpu(Double limitCpu, Double configPercent) {
+        return new Double(REQUEST_PERCENT_DF.format(limitCpu * getPercent(configPercent)));
     }
 
     /** Cluster components. */

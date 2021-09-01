@@ -149,6 +149,27 @@ public class KubernetesConfigOptions {
                             "The number of cpu used by task manager. By default, the cpu is set "
                                     + "to the number of slots per TaskManager");
 
+    public static final ConfigOption<Double> MEM_REQUEST_PERCENT =
+            key("kubernetes.mem.request.percent")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "For kubernetes Memory resource requests, you can set the request value to a certain ratio of limits value"
+                                    + " to start more jobs and increase the resource utilization of the cluster. "
+                                    + "And this value is greater than or equal to 0.0 and less than or equal to 1.0 ."
+                                    + "This applies to both TaskManager and JobManager  and JobManager");
+
+    public static final ConfigOption<Double> CPU_REQUEST_PERCENT =
+            key("kubernetes.cpu.request.percent")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "For kubernetes CPU resource requests, you can set the request value to a certain ratio of limits value"
+                                    + " to start more jobs and increase the resource utilization of the cluster. "
+                                    + "And this value is greater than or equal to 0.0 and less than or equal to 1.0 ."
+                                    + "This applies to both TaskManager and JobManager  and JobManager."
+                                    + "The value is reserved for one decimal place");
+
     public static final ConfigOption<ImagePullPolicy> CONTAINER_IMAGE_PULL_POLICY =
             key("kubernetes.container.image.pull-policy")
                     .enumType(ImagePullPolicy.class)

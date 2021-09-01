@@ -186,7 +186,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
         assertEquals(1, resultPodSpec.getContainers().size());
         assertEquals(SERVICE_ACCOUNT_NAME, resultPodSpec.getServiceAccountName());
-        assertEquals(3, resultPodSpec.getVolumes().size());
+        assertEquals(4, resultPodSpec.getVolumes().size());
 
         final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
         assertEquals(Constants.MAIN_CONTAINER_NAME, resultedMainContainer.getName());
@@ -194,7 +194,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         assertEquals(
                 CONTAINER_IMAGE_PULL_POLICY.name(), resultedMainContainer.getImagePullPolicy());
 
-        assertEquals(3, resultedMainContainer.getEnv().size());
+        assertEquals(4, resultedMainContainer.getEnv().size());
         assertTrue(
                 resultedMainContainer.getEnv().stream()
                         .anyMatch(envVar -> envVar.getName().equals("key1")));
@@ -202,8 +202,20 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
         assertEquals(3, resultedMainContainer.getPorts().size());
 
         final Map<String, Quantity> requests = resultedMainContainer.getResources().getRequests();
-        assertEquals(Double.toString(JOB_MANAGER_CPU), requests.get("cpu").getAmount());
-        assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
+        assertEquals(
+                Double.toString(
+                        KubernetesUtils.getRequestCpu(
+                                JOB_MANAGER_CPU,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.CPU_REQUEST_PERCENT))),
+                requests.get("cpu").getAmount());
+        assertEquals(
+                String.valueOf(
+                        KubernetesUtils.getRequestMem(
+                                JOB_MANAGER_MEMORY,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.MEM_REQUEST_PERCENT))),
+                requests.get("memory").getAmount());
 
         assertEquals(1, resultedMainContainer.getCommand().size());
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].

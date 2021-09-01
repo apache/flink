@@ -58,7 +58,6 @@ public class KubernetesTestBase extends TestLogger {
     protected static final KubernetesConfigOptions.ImagePullPolicy CONTAINER_IMAGE_PULL_POLICY =
             KubernetesConfigOptions.ImagePullPolicy.IfNotPresent;
     protected static final int JOB_MANAGER_MEMORY = 768;
-
     @Rule public MixedKubernetesServer server = new MixedKubernetesServer(true, true);
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -84,6 +83,8 @@ public class KubernetesTestBase extends TestLogger {
         flinkConfig.set(
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
         flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, flinkConfDir.toString());
+        flinkConfig.set(KubernetesConfigOptions.CPU_REQUEST_PERCENT, 0.6);
+        flinkConfig.set(KubernetesConfigOptions.MEM_REQUEST_PERCENT, 0.8);
     }
 
     protected void onSetup() throws Exception {}

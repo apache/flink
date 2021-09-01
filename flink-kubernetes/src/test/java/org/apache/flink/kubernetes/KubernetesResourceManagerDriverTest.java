@@ -29,6 +29,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.active.ResourceManagerDriver;
@@ -298,6 +299,7 @@ public class KubernetesResourceManagerDriverTest
             flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
             flinkConfig.setString(
                     TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
+            flinkConfig.set(KubernetesConfigOptions.MEM_REQUEST_PERCENT, 0.8);
 
             flinkKubeClient = flinkKubeClientBuilder.build();
         }
@@ -357,9 +359,13 @@ public class KubernetesResourceManagerDriverTest
                             .getAmount(),
                     is(
                             String.valueOf(
-                                    taskExecutorProcessSpec
-                                            .getTotalProcessMemorySize()
-                                            .getMebiBytes())));
+                                    KubernetesUtils.getRequestMem(
+                                            taskExecutorProcessSpec
+                                                    .getTotalProcessMemorySize()
+                                                    .getMebiBytes(),
+                                            flinkConfig.getDouble(
+                                                    KubernetesConfigOptions
+                                                            .MEM_REQUEST_PERCENT)))));
             assertThat(
                     resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
                     is(

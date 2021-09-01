@@ -203,8 +203,22 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
                 this.resultPod.getMainContainer().getResources();
 
         final Map<String, Quantity> requests = resourceRequirements.getRequests();
-        assertThat(requests.get("cpu").getAmount(), is(String.valueOf(RESOURCE_CPU)));
-        assertThat(requests.get("memory").getAmount(), is(String.valueOf(RESOURCE_MEMORY)));
+        assertThat(
+                requests.get("cpu").getAmount(),
+                is(
+                        Double.toString(
+                                KubernetesUtils.getRequestCpu(
+                                        RESOURCE_CPU,
+                                        flinkConfig.getDouble(
+                                                KubernetesConfigOptions.CPU_REQUEST_PERCENT)))));
+        assertThat(
+                requests.get("memory").getAmount(),
+                is(
+                        String.valueOf(
+                                KubernetesUtils.getRequestMem(
+                                        RESOURCE_MEMORY,
+                                        flinkConfig.getDouble(
+                                                KubernetesConfigOptions.MEM_REQUEST_PERCENT)))));
         assertThat(requests.get("ephemeral-storage").getAmount(), is("256"));
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();

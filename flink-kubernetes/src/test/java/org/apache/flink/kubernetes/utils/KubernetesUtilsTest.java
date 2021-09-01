@@ -226,4 +226,26 @@ public class KubernetesUtilsTest extends KubernetesTestBase {
                 Integer.valueOf(fallbackPort));
         assertEquals(expectedPort, cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE));
     }
+
+    @Test
+    public void testRequestMemory() {
+        final int limitMemory = 2048;
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, 1.0), 2048);
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, 0.8), 1638);
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, 0.811111), 1661);
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, 1.1), 2048);
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, 0.0), 0);
+        assertEquals(KubernetesUtils.getRequestMem(limitMemory, -1.0), 0);
+    }
+
+    @Test
+    public void testRequestCpu() {
+        final Double limitCpu = 1.0;
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, 1.0)), "1.0");
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, 0.8)), "0.8");
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, 0.811111)), "0.8");
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, 1.1)), "1.0");
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, 0.0)), "0.0");
+        assertEquals(Double.toString(KubernetesUtils.getRequestCpu(limitCpu, -1.0)), "0.0");
+    }
 }

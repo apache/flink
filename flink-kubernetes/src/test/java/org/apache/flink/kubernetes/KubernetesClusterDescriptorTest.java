@@ -34,6 +34,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.Container;
@@ -246,7 +247,11 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                 jmDeployment.getSpec().getTemplate().getSpec().getContainers().get(0);
 
         assertEquals(
-                String.valueOf(clusterSpecification.getMasterMemoryMB()),
+                String.valueOf(
+                        KubernetesUtils.getRequestMem(
+                                JOB_MANAGER_MEMORY,
+                                flinkConfig.getDouble(
+                                        KubernetesConfigOptions.MEM_REQUEST_PERCENT))),
                 jmContainer
                         .getResources()
                         .getRequests()
