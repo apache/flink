@@ -49,8 +49,7 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
     @Test
     public void testSliceAssignment() {
         SliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1))
-                        .withOffset(Duration.ofHours(-2));
+                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
 
         assertEquals(
                 utcMills("1970-01-01T01:00:00"),
@@ -67,7 +66,7 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
     public void testSliceAssignmentWithOffset() {
         SliceAssigner assigner =
                 SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1))
-                        .withOffset(Duration.ofHours(3));
+                        .withOffset(Duration.ofMillis(100));
 
         assertEquals(
                 utcMills("1970-01-01T01:00:00.1"),
@@ -204,8 +203,7 @@ public class HoppingSliceAssignerTest extends SliceAssignerTestBase {
     @Test
     public void testNextTriggerWindow() {
         SliceAssigners.HoppingSliceAssigner assigner =
-                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1))
-                        .withOffset(Duration.ofHours(3));
+                SliceAssigners.hopping(0, shiftTimeZone, Duration.ofHours(5), Duration.ofHours(1));
 
         assertEquals(
                 Optional.of(utcMills("1970-01-01T01:00:00")),
