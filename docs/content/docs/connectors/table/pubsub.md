@@ -27,7 +27,6 @@ under the License.
 # Google Cloud PubSub SQL Connector
 
 {{< label "Scan Source: Unbounded" >}}
-{{< label "Sink: Streaming Append Mode" >}}
 
 This connector allows reading from Google Cloud PubSub.
 
