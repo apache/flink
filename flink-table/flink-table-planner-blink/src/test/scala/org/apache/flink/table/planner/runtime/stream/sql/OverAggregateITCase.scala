@@ -1008,16 +1008,16 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   @Test
   def testTimestampRowTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
     val rows = Seq(
-      row(LocalDateTime.parse("1970-01-01T00:00:01"), 1, null),
-      row(LocalDateTime.parse("1970-01-01T00:00:02"), 1, null),
-      row(LocalDateTime.parse("1970-01-01T00:00:03"), 2, null),
-      row(LocalDateTime.parse("1970-01-01T00:00:04"), 1, "Hello"),
-      row(LocalDateTime.parse("1970-01-01T00:00:05"), 1, "Hello"),
-      row(LocalDateTime.parse("1970-01-01T00:00:06"), 2, "Hello"),
-      row(LocalDateTime.parse("1970-01-01T00:00:07"), 1, "Hello World"),
-      row(LocalDateTime.parse("1970-01-01T00:00:08"), 2, "Hello World"),
-      row(LocalDateTime.parse("1970-01-01T00:00:09"), 2, "Hello World"),
-      row(LocalDateTime.parse("1970-01-01T00:00:10"), 1, null))
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:01"), 1, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:02"), 1, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:03"), 2, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:04"), 1, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:05"), 1, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:06"), 2, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:07"), 1, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:08"), 2, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:09"), 2, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:10"), 1, null))
 
     val tableId = TestValuesTableFactory.registerData(rows)
 
@@ -1064,16 +1064,16 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   @Test
   def testTimestampLtzRowTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
     val rows = Seq(
-      row(Instant.ofEpochSecond(1L), 1, null),
-      row(Instant.ofEpochSecond(2L), 1, null),
-      row(Instant.ofEpochSecond(3L), 2, null),
-      row(Instant.ofEpochSecond(4L), 1, "Hello"),
-      row(Instant.ofEpochSecond(5L), 1, "Hello"),
-      row(Instant.ofEpochSecond(6L), 2, "Hello"),
-      row(Instant.ofEpochSecond(7L), 1, "Hello World"),
-      row(Instant.ofEpochSecond(8L), 2, "Hello World"),
-      row(Instant.ofEpochSecond(9L), 2, "Hello World"),
-      row(Instant.ofEpochSecond(10L), 1, null))
+      rowOf(Instant.ofEpochSecond(1L), 1, null),
+      rowOf(Instant.ofEpochSecond(2L), 1, null),
+      rowOf(Instant.ofEpochSecond(3L), 2, null),
+      rowOf(Instant.ofEpochSecond(4L), 1, "Hello"),
+      rowOf(Instant.ofEpochSecond(5L), 1, "Hello"),
+      rowOf(Instant.ofEpochSecond(6L), 2, "Hello"),
+      rowOf(Instant.ofEpochSecond(7L), 1, "Hello World"),
+      rowOf(Instant.ofEpochSecond(8L), 2, "Hello World"),
+      rowOf(Instant.ofEpochSecond(9L), 2, "Hello World"),
+      rowOf(Instant.ofEpochSecond(10L), 1, null))
 
     val tableId = TestValuesTableFactory.registerData(rows)
 

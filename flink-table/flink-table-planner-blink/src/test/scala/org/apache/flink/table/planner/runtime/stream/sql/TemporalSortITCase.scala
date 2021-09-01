@@ -130,17 +130,17 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   @Test
   def testTimestampEventTimeAndOtherFieldOrderBy(): Unit = {
     val rows = Seq(
-      row(LocalDateTime.parse("1970-01-01T00:00:03"), 2L, "Hello world", 3),
-      row(LocalDateTime.parse("1970-01-01T00:00:02"), 2L, "Hello", 2),
-      row(LocalDateTime.parse("1970-01-01T00:00:06"), 3L, "Luke Skywalker", 6),
-      row(LocalDateTime.parse("1970-01-01T00:00:05"), 3L, "I am fine.", 5),
-      row(LocalDateTime.parse("1970-01-01T00:00:07"), 4L, "Comment#1", 7),
-      row(LocalDateTime.parse("1970-01-01T00:00:09"), 4L, "Comment#3", 9),
-      row(LocalDateTime.parse("1970-01-01T00:00:10"), 4L, "Comment#4", 10),
-      row(LocalDateTime.parse("1970-01-01T00:00:08"), 4L, "Comment#2", 8),
-      row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 2),
-      row(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 1),
-      row(LocalDateTime.parse("1970-01-01T00:00:04"), 3L, "Helloworld, how are you?", 4))
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:03"), 2L, "Hello world", 3),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:02"), 2L, "Hello", 2),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:06"), 3L, "Luke Skywalker", 6),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:05"), 3L, "I am fine.", 5),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:07"), 4L, "Comment#1", 7),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:09"), 4L, "Comment#3", 9),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:10"), 4L, "Comment#4", 10),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:08"), 4L, "Comment#2", 8),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 2),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:01"), 1L, "Hi", 1),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:04"), 3L, "Helloworld, how are you?", 4))
 
     val tableId = TestValuesTableFactory.registerData(rows)
     tEnv.executeSql(
@@ -184,17 +184,17 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
   @Test
   def testTimestampLtzEventTimeAndOtherFieldOrderBy(): Unit = {
     val rows = Seq(
-      row(Instant.ofEpochSecond(3L), 2L, "Hello world", 3),
-      row(Instant.ofEpochSecond(2L), 2L, "Hello", 2),
-      row(Instant.ofEpochSecond(6L), 3L, "Luke Skywalker", 6),
-      row(Instant.ofEpochSecond(5L), 3L, "I am fine.", 5),
-      row(Instant.ofEpochSecond(7L), 4L, "Comment#1", 7),
-      row(Instant.ofEpochSecond(9L), 4L, "Comment#3", 9),
-      row(Instant.ofEpochSecond(10L), 4L, "Comment#4", 10),
-      row(Instant.ofEpochSecond(8L), 4L, "Comment#2", 8),
-      row(Instant.ofEpochSecond(1L), 1L, "Hi", 2),
-      row(Instant.ofEpochSecond(1L), 1L, "Hi", 1),
-      row(Instant.ofEpochSecond(4L), 3L, "Helloworld, how are you?", 4))
+      rowOf(Instant.ofEpochSecond(3L), 2L, "Hello world", 3),
+      rowOf(Instant.ofEpochSecond(2L), 2L, "Hello", 2),
+      rowOf(Instant.ofEpochSecond(6L), 3L, "Luke Skywalker", 6),
+      rowOf(Instant.ofEpochSecond(5L), 3L, "I am fine.", 5),
+      rowOf(Instant.ofEpochSecond(7L), 4L, "Comment#1", 7),
+      rowOf(Instant.ofEpochSecond(9L), 4L, "Comment#3", 9),
+      rowOf(Instant.ofEpochSecond(10L), 4L, "Comment#4", 10),
+      rowOf(Instant.ofEpochSecond(8L), 4L, "Comment#2", 8),
+      rowOf(Instant.ofEpochSecond(1L), 1L, "Hi", 2),
+      rowOf(Instant.ofEpochSecond(1L), 1L, "Hi", 1),
+      rowOf(Instant.ofEpochSecond(4L), 3L, "Helloworld, how are you?", 4))
 
     val tableId = TestValuesTableFactory.registerData(rows)
     tEnv.executeSql(
