@@ -105,9 +105,13 @@ public class FrontMetricGroupTest {
         final FrontMetricGroup<?> frontMetricGroup =
                 new FrontMetricGroup<>(
                         new ReporterScopedSettings(
-                                0, '.', Collections.emptySet(), ImmutableMap.of("foo", "bar")),
+                                0,
+                                '.',
+                                Collections.emptySet(),
+                                ImmutableMap.of(ScopeFormat.asVariable("foo"), "bar")),
                         new ProcessMetricGroup(TestingMetricRegistry.builder().build(), "host"));
 
-        assertThat(frontMetricGroup.getAllVariables(), hasEntry("foo", "bar"));
+        assertThat(
+                frontMetricGroup.getAllVariables(), hasEntry(ScopeFormat.asVariable("foo"), "bar"));
     }
 }
