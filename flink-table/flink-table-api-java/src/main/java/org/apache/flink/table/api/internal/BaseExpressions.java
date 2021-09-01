@@ -1308,6 +1308,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * lit("\"abc\"").isJson() // true
      * lit("abc").isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // false
      *
      * lit("1").isJson(JsonType.SCALAR) // true
      * lit("1").isJson(JsonType.ARRAY) // false

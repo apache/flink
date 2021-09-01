@@ -723,6 +723,7 @@ json:
       '"abc"' IS JSON
       -- FALSE
       'abc' IS JSON
+      NULL IS JSON
 
       -- TRUE
       '1' IS JSON SCALAR

@@ -247,6 +247,14 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").isJson(),
                                 String.format("Invalid function call:%nIS_JSON(INT)")),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData((String) null)
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").isJson(),
+                                "f0 IS JSON",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("a")
                         .andDataTypes(DataTypes.STRING())
                         .testResult(

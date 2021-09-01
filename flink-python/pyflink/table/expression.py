@@ -1435,6 +1435,7 @@ class Expression(Generic[T]):
 
             >>> lit('"abc"').is_json() # True
             >>> lit('abc').is_json() # False
+            >>> null_of(DataTypes.STRING()).is_json() # False
 
             >>> lit('1').is_json(JsonType.SCALAR) # True
             >>> lit('1').is_json(JsonType.ARRAY) # False
