@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
-import org.apache.flink.table.runtime.functions.{SqlLikeChainChecker, SqlLikeUtils}
+import org.apache.flink.table.runtime.functions.SqlLikeChainChecker
 import org.apache.flink.table.types.logical.{BooleanType, LogicalType}
 
 import org.apache.calcite.runtime.SqlFunctions

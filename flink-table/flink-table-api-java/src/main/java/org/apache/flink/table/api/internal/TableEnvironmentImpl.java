@@ -76,6 +76,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.SqlLikeUtils;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.module.Module;
@@ -92,6 +93,7 @@ import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
+import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
@@ -1212,6 +1214,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return buildShowResult("function name", functionNames);
         } else if (operation instanceof ShowViewsOperation) {
             return buildShowResult("view name", listViews());
+        } else if (operation instanceof ShowColumnsOperation) {
+            ShowColumnsOperation showColumnsOperation = (ShowColumnsOperation) operation;
+            Optional<CatalogManager.TableLookupResult> result =
+                    catalogManager.getTable(showColumnsOperation.getTableIdentifier());
+            if (result.isPresent()) {
+                return buildShowColumnsResult(
+                        result.get().getResolvedSchema(), showColumnsOperation);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Tables or views with the identifier '%s' doesn't exist.",
+                                showColumnsOperation.getTableIdentifier().asSummaryString()));
+            }
         } else if (operation instanceof ShowPartitionsOperation) {
             String exMsg = getDDLOpExecuteErrorMsg(operation.asSummaryString());
             try {
@@ -1426,6 +1441,44 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return sb.toString();
     }
 
+    private TableResult buildDescribeResult(ResolvedSchema schema) {
+        Object[][] rows = buildTableColumns(schema);
+        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+    }
+
+    private DataType[] generateTableColumnsDataTypes() {
+        return new DataType[] {
+            DataTypes.STRING(),
+            DataTypes.STRING(),
+            DataTypes.BOOLEAN(),
+            DataTypes.STRING(),
+            DataTypes.STRING(),
+            DataTypes.STRING()
+        };
+    }
+
+    private String[] generateTableColumnsNames() {
+        return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+    }
+
+    private TableResult buildShowColumnsResult(
+            ResolvedSchema schema, ShowColumnsOperation showColumnsOp) {
+        Object[][] rows = buildTableColumns(schema);
+        if (showColumnsOp.isUseLike()) {
+            rows =
+                    Arrays.stream(rows)
+                            .filter(
+                                    row ->
+                                            showColumnsOp.isNotLike()
+                                                    != SqlLikeUtils.like(
+                                                            row[0].toString(),
+                                                            showColumnsOp.getLikePattern(),
+                                                            "\\"))
+                            .toArray(Object[][]::new);
+        }
+        return buildResult(generateTableColumnsNames(), generateTableColumnsDataTypes(), rows);
+    }
+
     private String getColumnString(Column column) {
         final StringBuilder sb = new StringBuilder();
         sb.append(EncodingUtils.escapeIdentifier(column.getName()));
@@ -1464,7 +1517,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 rows);
     }
 
-    private TableResult buildDescribeResult(ResolvedSchema schema) {
+    private Object[][] buildTableColumns(ResolvedSchema schema) {
         Map<String, String> fieldToWatermark =
                 schema.getWatermarkSpecs().stream()
                         .collect(
@@ -1486,34 +1539,20 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                                             String.join(", ", columns))));
                         });
 
-        Object[][] rows =
-                schema.getColumns().stream()
-                        .map(
-                                (c) -> {
-                                    final LogicalType logicalType =
-                                            c.getDataType().getLogicalType();
-                                    return new Object[] {
-                                        c.getName(),
-                                        logicalType.copy(true).asSummaryString(),
-                                        logicalType.isNullable(),
-                                        fieldToPrimaryKey.getOrDefault(c.getName(), null),
-                                        c.explainExtras().orElse(null),
-                                        fieldToWatermark.getOrDefault(c.getName(), null)
-                                    };
-                                })
-                        .toArray(Object[][]::new);
-
-        return buildResult(
-                new String[] {"name", "type", "null", "key", "extras", "watermark"},
-                new DataType[] {
-                    DataTypes.STRING(),
-                    DataTypes.STRING(),
-                    DataTypes.BOOLEAN(),
-                    DataTypes.STRING(),
-                    DataTypes.STRING(),
-                    DataTypes.STRING()
-                },
-                rows);
+        return schema.getColumns().stream()
+                .map(
+                        (c) -> {
+                            final LogicalType logicalType = c.getDataType().getLogicalType();
+                            return new Object[] {
+                                c.getName(),
+                                logicalType.copy(true).asSummaryString(),
+                                logicalType.isNullable(),
+                                fieldToPrimaryKey.getOrDefault(c.getName(), null),
+                                c.explainExtras().orElse(null),
+                                fieldToWatermark.getOrDefault(c.getName(), null)
+                            };
+                        })
+                .toArray(Object[][]::new);
     }
 
     private TableResult buildResult(String[] headers, DataType[] types, Object[][] rows) {

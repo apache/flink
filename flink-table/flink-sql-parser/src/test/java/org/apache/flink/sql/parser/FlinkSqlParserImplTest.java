@@ -151,11 +151,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeDatabase() {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
-        sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("describe database catalog1.db1").ok("DESCRIBE DATABASE `CATALOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
 
         sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
-        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database catalog1.db1").ok("DESCRIBE DATABASE `CATALOG1`.`DB1`");
         sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
@@ -200,12 +200,47 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
-        sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
 
         sql("desc tbl").ok("DESCRIBE `TBL`");
-        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+    }
+
+    @Test
+    public void testShowColumns() {
+        sql("show columns from tbl").ok("SHOW COLUMNS FROM `TBL`");
+        sql("show columns in tbl").ok("SHOW COLUMNS IN `TBL`");
+
+        sql("show columns from db1.tbl").ok("SHOW COLUMNS FROM `DB1`.`TBL`");
+        sql("show columns in db1.tbl").ok("SHOW COLUMNS IN `DB1`.`TBL`");
+
+        sql("show columns from catalog1.db1.tbl").ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL`");
+        sql("show columns in catalog1.db1.tbl").ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL`");
+
+        sql("show columns from tbl like '%'").ok("SHOW COLUMNS FROM `TBL` LIKE '%'");
+        sql("show columns in tbl like '%'").ok("SHOW COLUMNS IN `TBL` LIKE '%'");
+
+        sql("show columns from db1.tbl like '%'").ok("SHOW COLUMNS FROM `DB1`.`TBL` LIKE '%'");
+        sql("show columns in db1.tbl like '%'").ok("SHOW COLUMNS IN `DB1`.`TBL` LIKE '%'");
+
+        sql("show columns from catalog1.db1.tbl like '%'")
+                .ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL` LIKE '%'");
+        sql("show columns in catalog1.db1.tbl like '%'")
+                .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` LIKE '%'");
+
+        sql("show columns from tbl not like '%'").ok("SHOW COLUMNS FROM `TBL` NOT LIKE '%'");
+        sql("show columns in tbl not like '%'").ok("SHOW COLUMNS IN `TBL` NOT LIKE '%'");
+
+        sql("show columns from db1.tbl not like '%'")
+                .ok("SHOW COLUMNS FROM `DB1`.`TBL` NOT LIKE '%'");
+        sql("show columns in db1.tbl not like '%'").ok("SHOW COLUMNS IN `DB1`.`TBL` NOT LIKE '%'");
+
+        sql("show columns from catalog1.db1.tbl not like '%'")
+                .ok("SHOW COLUMNS FROM `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
+        sql("show columns in catalog1.db1.tbl not like '%'")
+                .ok("SHOW COLUMNS IN `CATALOG1`.`DB1`.`TBL` NOT LIKE '%'");
     }
 
     /**

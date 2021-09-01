@@ -133,6 +133,7 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlShowJars]
         || sqlNode.isInstanceOf[SqlShowModules]
         || sqlNode.isInstanceOf[SqlShowViews]
+        || sqlNode.isInstanceOf[SqlShowColumns]
         || sqlNode.isInstanceOf[SqlShowPartitions]
         || sqlNode.isInstanceOf[SqlRichDescribeTable]
         || sqlNode.isInstanceOf[SqlUnloadModule]
