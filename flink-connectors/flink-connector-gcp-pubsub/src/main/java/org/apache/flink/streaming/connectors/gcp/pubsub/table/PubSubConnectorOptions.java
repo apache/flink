@@ -9,7 +9,7 @@ import org.apache.flink.configuration.ConfigOptions;
  * SQL dialect and the Flink Table API.
  */
 @PublicEvolving
-public class PubSubConnectorConfigOptions {
+public class PubSubConnectorOptions {
 
     public static final ConfigOption<String> PROJECT_NAME =
             ConfigOptions.key("projectName")
