@@ -109,6 +109,14 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
         self.assertFalse(self.checkpoint_config.is_fail_on_checkpointing_errors())
 
+    def test_get_set_tolerable_checkpoint_failure_number(self):
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 0)
+
+        self.checkpoint_config.set_tolerable_checkpoint_failure_number(2)
+
+        self.assertEqual(self.checkpoint_config.get_tolerable_checkpoint_failure_number(), 2)
+
     def test_get_set_externalized_checkpoints_cleanup(self):
 
         self.assertFalse(self.checkpoint_config.is_externalized_checkpoints_enabled())
