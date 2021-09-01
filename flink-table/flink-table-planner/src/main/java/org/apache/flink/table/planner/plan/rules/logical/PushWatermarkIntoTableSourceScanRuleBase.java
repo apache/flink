@@ -86,7 +86,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
             TableConfig tableConfig,
             boolean useWatermarkAssignerRowType) {
 
-        List<String> fieldNames = watermarkAssigner.getInput().getRowType().getFieldNames();
+        List<String> fieldNames = scan.getRowType().getFieldNames();
         String digest =
                 String.format(
                         "watermark=[%s]",

@@ -112,7 +112,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], metadata=[$3], computed=[$4])
       <![CDATA[
 FlinkLogicalCalc(select=[a, b, c, metadata, computed])
 +- FlinkLogicalCalc(select=[a, b, Reinterpret(c) AS c, CAST(metadata_2) AS metadata, +(CAST(metadata_2), b) AS computed])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata), +(CAST(metadata), b))))]]], fields=[a, b, c, metadata_2])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[-(c, CAST(+(CAST(metadata_2), +(CAST(metadata_2), b))))]]], fields=[a, b, c, metadata_2])
 ]]>
     </Resource>
   </TestCase>
