@@ -343,7 +343,7 @@ when the record is emitted downstream.
 `FlinkKafkaConsumer` is deprecated and will be removed with Flink 1.15, please use `KafkaSource` instead.
 {{< /hint >}}
 
-For older references you can look at the Flink 1.13 <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction">documentation</a>.
+For older references you can look at the Flink 1.13 <a href="https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction">documentation</a>.
  
 ## Kafka Sink
 
@@ -452,7 +452,7 @@ Kafka sink exposes the following metrics in the respective [scope]({{< ref "docs
 `FlinkKafkaProducer` is deprecated and will be removed with Flink 1.15, please use `KafkaSink` instead.
 {{< /hint >}}
 
-For older references you can look at the Flink 1.13 <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-producer">documentation</a>.
+For older references you can look at the Flink 1.13 <a href="https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-producer">documentation</a>.
 
 ## Kafka Connector Metrics
 

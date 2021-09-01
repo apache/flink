@@ -142,7 +142,7 @@ public final class CliStrings {
                     // About Documentation Link.
                     .style(AttributedStyle.DEFAULT)
                     .append(
-                            "\nYou can also type any Flink SQL statement, please visit https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
+                            "\nYou can also type any Flink SQL statement, please visit https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
                     .toAttributedString();
 
     public static final String MESSAGE_WELCOME;
