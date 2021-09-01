@@ -27,8 +27,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * A interface of a split enumerator responsible for the followings: 1. discover the splits for the
- * {@link SourceReader} to read. 2. assign the splits to the source reader.
+ * The interface for a split enumerator responsible for discovering the source splits, and assigning
+ * them to the {@link SourceReader}.
  */
 @Public
 public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT>
@@ -52,10 +52,10 @@ public interface SplitEnumerator<SplitT extends SourceSplit, CheckpointT>
     void handleSplitRequest(int subtaskId, @Nullable String requesterHostname);
 
     /**
-     * Add a split back to the split enumerator. It will only happen when a {@link SourceReader}
+     * Add splits back to the split enumerator. This will only happen when a {@link SourceReader}
      * fails and there are splits assigned to it after the last successful checkpoint.
      *
-     * @param splits The split to add back to the enumerator for reassignment.
+     * @param splits The splits to add back to the enumerator for reassignment.
      * @param subtaskId The id of the subtask to which the returned splits belong.
      */
     void addSplitsBack(List<SplitT> splits, int subtaskId);

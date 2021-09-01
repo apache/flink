@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * The @builder class for {@link KafkaSource} to make it easier for the users to construct a {@link
+ * The builder class for {@link KafkaSource} to make it easier for the users to construct a {@link
  * KafkaSource}.
  *
  * <p>The following example shows the minimum setup to create a KafkaSource that reads the String
@@ -68,10 +68,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * #setStartingOffsets(OffsetsInitializer)}.
  *
  * <p>By default the KafkaSource runs in an {@link Boundedness#CONTINUOUS_UNBOUNDED} mode and never
- * stops until the Flink job is canceled or fails. To let the KafkaSource run in {@link
- * Boundedness#CONTINUOUS_UNBOUNDED} but stops at some given offsets, one can call {@link
+ * stops until the Flink job is canceled or fails. To let the KafkaSource run as {@link
+ * Boundedness#CONTINUOUS_UNBOUNDED} yet stop at some given offsets, one can call {@link
  * #setUnbounded(OffsetsInitializer)}. For example the following KafkaSource stops after it consumes
- * up to the latest partition offsets at the point when the Flink started.
+ * up to the latest partition offsets at the point when the Flink job started.
  *
  * <pre>{@code
  * KafkaSource<String> source = KafkaSource
@@ -197,7 +197,7 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * Specify from which offsets the KafkaSource should start consume from by providing an {@link
+     * Specify from which offsets the KafkaSource should start consuming from by providing an {@link
      * OffsetsInitializer}.
      *
      * <p>The following {@link OffsetsInitializer}s are commonly used and provided out of the box.
@@ -235,16 +235,16 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * By default the KafkaSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
-     * and thus never stops until the Flink job fails or is canceled. To let the KafkaSource run as
-     * a streaming source but still stops at some point, one can set an {@link OffsetsInitializer}
-     * to specify the stopping offsets for each partition. When all the partitions have reached
-     * their stopping offsets, the KafkaSource will then exit.
+     * By default the KafkaSource is set to run as {@link Boundedness#CONTINUOUS_UNBOUNDED} and thus
+     * never stops until the Flink job fails or is canceled. To let the KafkaSource run as a
+     * streaming source but still stop at some point, one can set an {@link OffsetsInitializer} to
+     * specify the stopping offsets for each partition. When all the partitions have reached their
+     * stopping offsets, the KafkaSource will then exit.
      *
-     * <p>This method is different from {@link #setBounded(OffsetsInitializer)} that after setting
-     * the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will still return
-     * {@link Boundedness#CONTINUOUS_UNBOUNDED} even though it will stop at the stopping offsets
-     * specified by the stopping offsets {@link OffsetsInitializer}.
+     * <p>This method is different from {@link #setBounded(OffsetsInitializer)} in that after
+     * setting the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will
+     * still return {@link Boundedness#CONTINUOUS_UNBOUNDED} even though it will stop at the
+     * stopping offsets specified by the stopping offsets {@link OffsetsInitializer}.
      *
      * <p>The following {@link OffsetsInitializer} are commonly used and provided out of the box.
      * Users can also implement their own {@link OffsetsInitializer} for custom behaviors.
@@ -276,15 +276,15 @@ public class KafkaSourceBuilder<OUT> {
     }
 
     /**
-     * By default the KafkaSource is set to run in {@link Boundedness#CONTINUOUS_UNBOUNDED} manner
-     * and thus never stops until the Flink job fails or is canceled. To let the KafkaSource run in
-     * {@link Boundedness#BOUNDED} manner and stops at some point, one can set an {@link
-     * OffsetsInitializer} to specify the stopping offsets for each partition. When all the
-     * partitions have reached their stopping offsets, the KafkaSource will then exit.
+     * By default the KafkaSource is set to run as {@link Boundedness#CONTINUOUS_UNBOUNDED} and thus
+     * never stops until the Flink job fails or is canceled. To let the KafkaSource run as {@link
+     * Boundedness#BOUNDED} and stop at some point, one can set an {@link OffsetsInitializer} to
+     * specify the stopping offsets for each partition. When all the partitions have reached their
+     * stopping offsets, the KafkaSource will then exit.
      *
-     * <p>This method is different from {@link #setUnbounded(OffsetsInitializer)} that after setting
-     * the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will return
-     * {@link Boundedness#BOUNDED} instead of {@link Boundedness#CONTINUOUS_UNBOUNDED}.
+     * <p>This method is different from {@link #setUnbounded(OffsetsInitializer)} in that after
+     * setting the stopping offsets with this method, {@link KafkaSource#getBoundedness()} will
+     * return {@link Boundedness#BOUNDED} instead of {@link Boundedness#CONTINUOUS_UNBOUNDED}.
      *
      * <p>The following {@link OffsetsInitializer} are commonly used and provided out of the box.
      * Users can also implement their own {@link OffsetsInitializer} for custom behaviors.

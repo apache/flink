@@ -346,7 +346,7 @@ public class HBaseTableSchema implements Serializable {
 
     // ------------------------------------------------------------------------------------
 
-    /** An class contains information about rowKey, such as rowKeyName, rowKeyType, rowKeyIndex. */
+    /** A class containing information about rowKey, such as rowKeyName, rowKeyType, rowKeyIndex. */
     private static class RowKeyInfo implements Serializable {
         private static final long serialVersionUID = 1L;
         final String rowKeyName;
