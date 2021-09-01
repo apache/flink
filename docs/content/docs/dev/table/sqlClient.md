@@ -700,7 +700,7 @@ table.planner=blink
 [DEPRECATED] execution.type=batch
 ```
 
-If you want to see more information about environment files, please refer to [previous docs version](https://ci.apache.org/projects/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
+If you want to see more information about environment files, please refer to [previous docs version](https://nightlies.apache.org/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
 
 {{< top >}}
 

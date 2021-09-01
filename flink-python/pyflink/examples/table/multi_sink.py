@@ -64,7 +64,7 @@ def multi_sink():
 
     # execute the statement set
     # remove .wait if submitting to a remote cluster, refer to
-    # https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/python/faq/#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
+    # https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/faq/#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster
     # for more details
     statement_set.execute().wait()
 

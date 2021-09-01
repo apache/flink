@@ -29,7 +29,7 @@ under the License.
 
 在 *1.10* 和 *1.11* 版本中，Flink 分别对 [TaskManager]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) 和 [JobManager]({{< ref "docs/deployment/memory/mem_setup_jobmanager" >}}) 的内存配置方法做出了较大的改变。
 部分配置参数被移除了，或是语义上发生了变化。
-本篇升级指南将介绍如何将 [*Flink 1.9 及以前版本*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html)的 TaskManager 内存配置升级到 *Flink 1.10 及以后版本*，
+本篇升级指南将介绍如何将 [*Flink 1.9 及以前版本*](https://nightlies.apache.org/flink/flink-docs-release-1.9/ops/mem_setup.html)的 TaskManager 内存配置升级到 *Flink 1.10 及以后版本*，
 以及如何将 *Flink 1.10 及以前版本*的 JobManager 内存配置升级到 *Flink 1.11 及以后版本*。
 
 * toc

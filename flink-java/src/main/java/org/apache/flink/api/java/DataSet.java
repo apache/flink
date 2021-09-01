@@ -1557,7 +1557,7 @@ public abstract class DataSet<T> {
      * ...
      * dataset.writeAsText("file:///path1"); }</pre>
      *   <li>A directory is always created when <a
-     *       href="https://ci.apache.org/projects/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
+     *       href="https://nightlies.apache.org/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
      *       is set to true in flink-conf.yaml file, even when parallelism is set to 1.
      *       <pre>{@code .
      * └── path1/
