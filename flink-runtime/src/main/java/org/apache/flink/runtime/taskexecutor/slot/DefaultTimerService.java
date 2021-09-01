@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,8 +35,6 @@ import java.util.concurrent.TimeUnit;
  * @param <K> Type of the key
  */
 public class DefaultTimerService<K> implements TimerService<K> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultTimerService.class);
 
     /** Executor service for the scheduled timeouts. */
     private final ScheduledExecutorService scheduledExecutorService;
@@ -80,22 +76,8 @@ public class DefaultTimerService<K> implements TimerService<K> {
 
         timeoutListener = null;
 
-        scheduledExecutorService.shutdown();
-
-        try {
-            if (!scheduledExecutorService.awaitTermination(
-                    shutdownTimeout, TimeUnit.MILLISECONDS)) {
-                LOG.debug(
-                        "The scheduled executor service did not properly terminate. Shutting "
-                                + "it down now.");
-                scheduledExecutorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            LOG.debug(
-                    "Could not properly await the termination of the scheduled executor service.",
-                    e);
-            scheduledExecutorService.shutdownNow();
-        }
+        ExecutorUtils.gracefulShutdown(
+                shutdownTimeout, TimeUnit.MILLISECONDS, scheduledExecutorService);
     }
 
     @Override
