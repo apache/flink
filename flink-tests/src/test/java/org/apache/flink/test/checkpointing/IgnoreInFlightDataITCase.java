@@ -75,6 +75,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
     private SharedReference<AtomicLong> resultBeforeFail;
     private SharedReference<AtomicLong> result;
     private SharedReference<AtomicInteger> lastCheckpointValue;
+    private int checkpointInterval = 5;
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
@@ -116,7 +117,9 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         setupSharedObjects();
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.enableCheckpointing(10);
+        // Increase interval twice on each attempt in order to give more time for the Source to send
+        // all required data before the first checkpoint.
+        env.enableCheckpointing(checkpointInterval *= 2);
         env.disableOperatorChaining();
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
@@ -276,14 +279,6 @@ public class IgnoreInFlightDataITCase extends TestLogger {
 
             if (context.getCheckpointId() == 2) {
                 throw new ExpectedTestException("The planned fail on the second checkpoint");
-            }
-
-            Iterator<Integer> integerIterator = valueState.get().iterator();
-
-            if (!integerIterator.hasNext() || integerIterator.next() < PARALLELISM) {
-                // Try to restart task.
-                throw new RuntimeException(
-                        "Not enough data to guarantee the in-flight data were generated before the first checkpoint");
             }
 
             lastCheckpointValue.get().set(valueState.get().iterator().next());
