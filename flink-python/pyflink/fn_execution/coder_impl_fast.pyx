@@ -19,9 +19,8 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
-from types import GeneratorType
-from typing import Iterable
 
+from collections import Generator
 from libc.stdlib cimport free, malloc, realloc
 from libc.string cimport memcpy
 
@@ -82,7 +81,7 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
                     value = (value,)
                 self._encode_one_row(value, output_stream)
 
-            if isinstance(iter_value, (list, range, GeneratorType)):
+            if isinstance(iter_value, (list, range, Generator)):
                 for v in iter_value:
                     encode_one_row_to_stream(v)
             else:

@@ -18,11 +18,10 @@
 
 import datetime
 import decimal
-from types import GeneratorType
-
 import cloudpickle
 import struct
-from typing import Any, Tuple, Iterable
+from collections import Generator
+from typing import Any, Tuple
 from typing import List
 
 import pyarrow as pa
@@ -224,7 +223,7 @@ class TableFunctionRowCoderImpl(StreamCoderImpl):
                     value = (value,)
                 self._flatten_row_coder.encode_to_stream(value, out_stream, nested)
 
-            if isinstance(iter_value, (list, range, GeneratorType)):
+            if isinstance(iter_value, (list, range, Generator)):
                 for v in iter_value:
                     encode_one_row_to_stream(v)
             else:
