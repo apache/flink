@@ -1846,9 +1846,6 @@ class StreamTableEnvironment(TableEnvironment):
 
         gateway = get_gateway()
         if environment_settings is not None:
-            if not environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for StreamTableEnvironment must be "
-                                 "set to streaming mode.")
             if stream_execution_environment is None:
                 j_tenv = gateway.jvm.TableEnvironment.create(
                     environment_settings._j_environment_settings)
