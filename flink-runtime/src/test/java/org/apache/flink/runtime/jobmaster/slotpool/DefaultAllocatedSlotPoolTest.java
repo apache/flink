@@ -121,8 +121,8 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
                 allocatedSlotsAndReservationStatus = slotPool.removeSlots(owner);
 
         assertThat(allocatedSlotsAndReservationStatus.getAllocatedSlots(), hasItems(slot1, slot2));
-        assertThat(allocatedSlotsAndReservationStatus.wasFree(slot1), is(false));
-        assertThat(allocatedSlotsAndReservationStatus.wasFree(slot2), is(true));
+        assertThat(allocatedSlotsAndReservationStatus.wasFree(slot1.getAllocationId()), is(false));
+        assertThat(allocatedSlotsAndReservationStatus.wasFree(slot2.getAllocationId()), is(true));
     }
 
     @Test

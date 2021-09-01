@@ -134,7 +134,7 @@ public interface AllocatedSlotPool {
 
     /** A collection of {@link AllocatedSlot AllocatedSlots} and their reservation status. */
     interface AllocatedSlotsAndReservationStatus {
-        boolean wasFree(AllocatedSlot allocatedSlot);
+        boolean wasFree(AllocationID allocatedSlot);
 
         Collection<AllocatedSlot> getAllocatedSlots();
     }

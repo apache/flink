@@ -374,7 +374,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
         final Collection<AllocatedSlot> slotsToFree = new ArrayList<>();
         for (AllocatedSlot removedSlot : removedSlots.getAllocatedSlots()) {
-            if (!removedSlots.wasFree(removedSlot)) {
+            if (!removedSlots.wasFree(removedSlot.getAllocationId())) {
                 slotsToFree.add(removedSlot);
             }
         }
