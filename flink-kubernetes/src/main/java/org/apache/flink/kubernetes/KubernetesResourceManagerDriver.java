@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -155,43 +156,49 @@ public class KubernetesResourceManagerDriver
             TaskExecutorProcessSpec taskExecutorProcessSpec) {
         final KubernetesTaskManagerParameters parameters =
                 createKubernetesTaskManagerParameters(taskExecutorProcessSpec);
-        final KubernetesPod taskManagerPod =
-                KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
-                        taskManagerPodTemplate, parameters);
-        final String podName = taskManagerPod.getName();
         final CompletableFuture<KubernetesWorkerNode> requestResourceFuture =
                 new CompletableFuture<>();
 
-        requestResourceFutures.put(podName, requestResourceFuture);
+        try {
+            final KubernetesTaskManagerSpecification taskManagerSpec =
+                    KubernetesTaskManagerFactory.buildTaskManagerKubernetesPod(
+                            taskManagerPodTemplate, parameters);
+            final KubernetesPod taskManagerPod = taskManagerSpec.getKubernetesPod();
+            final String podName = taskManagerPod.getName();
 
-        log.info(
-                "Creating new TaskManager pod with name {} and resource <{},{}>.",
-                podName,
-                parameters.getTaskManagerMemoryMB(),
-                parameters.getTaskManagerCPU());
+            requestResourceFutures.put(podName, requestResourceFuture);
 
-        final CompletableFuture<Void> createPodFuture =
-                flinkKubeClient.createTaskManagerPod(taskManagerPod);
+            log.info(
+                    "Creating new TaskManager pod with name {} and resource <{},{}>.",
+                    podName,
+                    parameters.getTaskManagerMemoryMB(),
+                    parameters.getTaskManagerCPU());
 
-        FutureUtils.assertNoException(
-                createPodFuture.handleAsync(
-                        (ignore, exception) -> {
-                            if (exception != null) {
-                                log.warn(
-                                        "Could not create pod {}, exception: {}",
-                                        podName,
-                                        exception);
-                                CompletableFuture<KubernetesWorkerNode> future =
-                                        requestResourceFutures.remove(taskManagerPod.getName());
-                                if (future != null) {
-                                    future.completeExceptionally(exception);
+            final CompletableFuture<Void> createPodFuture =
+                    flinkKubeClient.createTaskManagerPod(taskManagerSpec);
+
+            FutureUtils.assertNoException(
+                    createPodFuture.handleAsync(
+                            (ignore, exception) -> {
+                                if (exception != null) {
+                                    log.warn(
+                                            "Could not create pod {}, exception: {}",
+                                            podName,
+                                            exception);
+                                    CompletableFuture<KubernetesWorkerNode> future =
+                                            requestResourceFutures.remove(taskManagerPod.getName());
+                                    if (future != null) {
+                                        future.completeExceptionally(exception);
+                                    }
+                                } else {
+                                    log.info("Pod {} is created.", podName);
                                 }
-                            } else {
-                                log.info("Pod {} is created.", podName);
-                            }
-                            return null;
-                        },
-                        getMainThreadExecutor()));
+                                return null;
+                            },
+                            getMainThreadExecutor()));
+        } catch (Exception e) {
+            requestResourceFuture.completeExceptionally(e);
+        }
 
         return requestResourceFuture;
     }
