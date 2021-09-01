@@ -399,8 +399,8 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Get the tolerable checkpoint failure number which used by the checkpoint failure manager to
-     * determine when we need to fail the job.
+     * Get the defined number of consecutive checkpoint failures that will be tolerated, before the
+     * whole job is failed over.
      *
      * <p>If the {@link #tolerableCheckpointFailureNumber} has not been configured, this method
      * would return 0 which means the checkpoint failure manager would not tolerate any declined
@@ -414,8 +414,9 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Set the tolerable checkpoint failure number, the default value is 0 that means we do not
-     * tolerance any checkpoint failure.
+     * This defines how many consecutive checkpoint failures will be tolerated, before the whole job
+     * is failed over. The default value is `0`, which means no checkpoint failures will be
+     * tolerated, and the job will fail on first reported checkpoint failure.
      */
     public void setTolerableCheckpointFailureNumber(int tolerableCheckpointFailureNumber) {
         if (tolerableCheckpointFailureNumber < 0) {
