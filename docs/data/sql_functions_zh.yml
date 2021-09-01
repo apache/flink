@@ -127,7 +127,7 @@ logical:
       如果 boolean1 和 boolean2 都为 `TRUE` 返回 `TRUE`。支持三值逻辑。
       例如 `true && Null(BOOLEAN)` 返回 `UNKNOWN`。
   - sql: NOT boolean
-    table: BOOLEAN.not() or '!BOOLEAN' (Scala only)
+    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
     description: |
       如果布尔值为 `FALSE` 返回 `TRUE`；如果布尔值为 `TRUE` 返回 `FALSE`；如果布尔值为 `UNKNOWN`
       返回 `UNKNOWN`。
