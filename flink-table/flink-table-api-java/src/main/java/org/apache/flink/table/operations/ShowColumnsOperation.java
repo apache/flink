@@ -23,11 +23,11 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 /** Show columns from [[catalog.]database.]table. */
 public class ShowColumnsOperation implements ShowOperation {
 
-    private ObjectIdentifier tableIdentifier;
-    private boolean useLike;
-    private boolean notLike;
-    private String likePattern;
-    private String preposition;
+    private final ObjectIdentifier tableIdentifier;
+    private final boolean useLike;
+    private final boolean notLike;
+    private final String likePattern;
+    private final String preposition;
 
     public ShowColumnsOperation(
             ObjectIdentifier tableIdentifier,
@@ -50,36 +50,16 @@ public class ShowColumnsOperation implements ShowOperation {
         return preposition;
     }
 
-    public void setPreposition(String preposition) {
-        this.preposition = preposition;
-    }
-
     public boolean isUseLike() {
         return useLike;
-    }
-
-    public void setUseLike(boolean useLike) {
-        this.useLike = useLike;
     }
 
     public boolean isNotLike() {
         return notLike;
     }
 
-    public void setNotLike(boolean notLike) {
-        this.notLike = notLike;
-    }
-
-    public void setLikePattern(String likePattern) {
-        this.likePattern = likePattern;
-    }
-
     public ObjectIdentifier getTableIdentifier() {
         return tableIdentifier;
-    }
-
-    public void setTableIdentifier(ObjectIdentifier tableIdentifier) {
-        this.tableIdentifier = tableIdentifier;
     }
 
     @Override
