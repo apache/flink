@@ -16,8 +16,8 @@
 # limitations under the License.
 ################################################################################
 import datetime
+from collections import Generator
 from functools import partial
-from types import GeneratorType
 
 from typing import Any, Tuple, Dict, List
 
@@ -47,7 +47,7 @@ def normalize_table_function_result(it):
     if it is None:
         return []
 
-    if isinstance(it, (list, range, GeneratorType)):
+    if isinstance(it, (list, range, Generator)):
         def func():
             for item in it:
                 yield normalize_one_row(item)
