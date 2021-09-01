@@ -44,24 +44,19 @@ public class PubSubDynamicTableFactory implements DynamicTableSourceFactory {
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(this, context);
 
-        // discover a suitable decoding format
         final DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
                 helper.discoverDecodingFormat(
                         DeserializationFormatFactory.class, FactoryUtil.FORMAT);
 
-        // validate all options
         helper.validate();
 
-        // get the validated options
         final ReadableConfig options = helper.getOptions();
         final String project = options.get(PubSubConnectorConfigOptions.PROJECT_NAME);
         final String topic = options.get(PubSubConnectorConfigOptions.SUBSCRIPTION);
 
-        // derive the produced data type (excluding computed columns) from the catalog table
         final DataType producedDataType =
                 context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
-        // create and return dynamic table source
         return new PubsubDynamicSource(project, topic, decodingFormat, producedDataType);
     }
 }

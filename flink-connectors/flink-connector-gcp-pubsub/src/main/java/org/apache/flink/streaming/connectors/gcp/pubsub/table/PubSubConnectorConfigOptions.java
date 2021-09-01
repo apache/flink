@@ -4,10 +4,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
-/**
- * Options for PubSub tables supported by the {@code CREATE TABLE ... WITH ...} clause of the Flink
- * SQL dialect and the Flink Table API.
- */
+/** Options for the PubSub connector. */
 @PublicEvolving
 public class PubSubConnectorConfigOptions {
 
@@ -24,4 +21,6 @@ public class PubSubConnectorConfigOptions {
                     .withDescription("Name of the PubSub subscription backing this table.");
 
     public static final String IDENTIFIER = "pubsub";
+
+    private PubSubConnectorConfigOptions() {}
 }
