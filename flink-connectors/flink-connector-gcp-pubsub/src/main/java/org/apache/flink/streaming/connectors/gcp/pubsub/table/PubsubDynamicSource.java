@@ -50,8 +50,6 @@ public class PubsubDynamicSource implements ScanTableSource {
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-        // create runtime classes that are shipped to the cluster
-
         final DeserializationSchema<RowData> deserializer =
                 decodingFormat.createRuntimeDecoder(runtimeProviderContext, producedDataType);
 
@@ -64,7 +62,7 @@ public class PubsubDynamicSource implements ScanTableSource {
                             .build();
             return SourceFunctionProvider.of(source, false);
         } catch (IOException e) {
-            throw new RuntimeException("failed to create source", e);
+            throw new RuntimeException("Failed to create PubSub source.", e);
         }
     }
 

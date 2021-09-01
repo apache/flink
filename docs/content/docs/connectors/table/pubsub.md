@@ -29,7 +29,7 @@ under the License.
 {{< label "Scan Source: Unbounded" >}}
 {{< label "Sink: Streaming Append Mode" >}}
 
-This connector provides a Source that can read from Google Cloud PubSub.
+This connector allows reading from Google Cloud PubSub.
 
 Dependencies
 ------------
@@ -57,38 +57,6 @@ CREATE TABLE PubSubTable (
 )
 ```
 
-Available Metadata
-------------------
-
-The following connector metadata can be accessed as metadata columns in a table definition.
-
-The `R/W` column defines whether a metadata field is readable (`R`) and/or writable (`W`).
-Read-only columns must be declared `VIRTUAL` to exclude them during an `INSERT INTO` operation.
-
-<table class="table table-bordered">
-    <thead>
-    <tr>
-      <th class="text-left" style="width: 25%">Key</th>
-      <th class="text-center" style="width: 30%">Data Type</th>
-      <th class="text-center" style="width: 40%">Description</th>
-      <th class="text-center" style="width: 5%">R/W</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-      <td><code>projectName</code></td>
-      <td><code>STRING NOT NULL</code></td>
-      <td>Name of the project in GCP contains the PubSub subscription.</td>
-      <td><code>R</code></td>
-    </tr>
-    <tr>
-      <td><code>subscription</code></td>
-      <td><code>STRING NOT NULL</code></td>
-      <td>Name of the GCP PubSub subscription.</td>
-      <td><code>R</code></td>
-    </tr>
-    </tbody>
-</table>
 
 
 Connector Options
@@ -117,14 +85,14 @@ Connector Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Project name in GCP where the PubSub subscription/topic is defined.</td>
+      <td>Name of the GCP project that contains the subscription.</td>
     </tr>
     <tr>
       <td><h5>subscription</h5></td>
       <td>required by source</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>PubSub subscriptiob name to read data from when the table is used as source.</td>
+      <td>Name of the PubSub subscription to read from.</td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
@@ -139,7 +107,3 @@ Connector Options
  
     </tbody>
 </table>
-
-Features
-----------------
- N/A
