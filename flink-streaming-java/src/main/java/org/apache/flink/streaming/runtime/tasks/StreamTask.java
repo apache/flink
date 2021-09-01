@@ -451,7 +451,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             operatorChain.setIgnoreEndOfInput(false);
         }
 
-        if (syncSavepointId != null && syncSavepointId == id) {
+        if (syncSavepointId != null && syncSavepointId <= id) {
             syncSavepointId = null;
         }
     }
