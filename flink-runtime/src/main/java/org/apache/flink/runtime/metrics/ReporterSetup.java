@@ -48,6 +48,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -305,7 +306,13 @@ public final class ReporterSetup {
                 Optional<MetricReporter> metricReporterOptional =
                         loadReporter(reporterName, reporterConfig, reporterFactories);
 
-                Map<String, String> additionalVariables = reporterConfig.get(ADDITIONAL_VARIABLES);
+                // massage user variables keys into scope format for parity to variable exclusion
+                Map<String, String> additionalVariables =
+                        reporterConfig.get(ADDITIONAL_VARIABLES).entrySet().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                e -> ScopeFormat.asVariable(e.getKey()),
+                                                Entry::getValue));
 
                 metricReporterOptional.ifPresent(
                         reporter -> {
