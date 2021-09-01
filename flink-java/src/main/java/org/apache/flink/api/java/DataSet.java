@@ -307,7 +307,7 @@ public abstract class DataSet<T> {
      * <p>Additional fields can be added to the projection by calling {@link
      * ProjectOperator#project(int[])}.
      *
-     * <p><b>Note: With the current implementation, the Project transformation looses type
+     * <p><b>Note: With the current implementation, the Project transformation loses type
      * information.</b>
      *
      * @param fieldIndexes The field indexes of the input tuple that are retained. The order of

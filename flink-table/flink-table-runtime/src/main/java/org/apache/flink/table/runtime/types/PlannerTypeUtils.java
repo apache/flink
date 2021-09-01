@@ -125,13 +125,13 @@ public class PlannerTypeUtils {
     }
 
     /**
-     * Now in the conversion to the TypeInformation from DataType, type may loose some information
+     * Now in the conversion to the TypeInformation from DataType, type may lose some information
      * about nullable and precision. So we add this method to do a soft check.
      *
      * <p>The difference of {@link #isInteroperable} is ignore precisions.
      */
     public static boolean isAssignable(LogicalType t1, LogicalType t2) {
-        // Soft check for CharType, it is converted to String TypeInformation and loose char
+        // Soft check for CharType, it is converted to String TypeInformation and lose char
         // information.
         if (t1.getTypeRoot().getFamilies().contains(CHARACTER_STRING)
                 && t2.getTypeRoot().getFamilies().contains(CHARACTER_STRING)) {

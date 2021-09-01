@@ -156,7 +156,7 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
 
     The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
     during a failure, and taht the computation processes elements 'exactly once. (These guarantees
-    naturally assume that Kafka itself does not loose any data.)
+    naturally assume that Kafka itself does not lose any data.)
 
     Please note that Flink snapshots the offsets internally as part of its distributed checkpoints.
     The offsets committed to Kafka / Zookeeper are only to bring the outside view of progress in
