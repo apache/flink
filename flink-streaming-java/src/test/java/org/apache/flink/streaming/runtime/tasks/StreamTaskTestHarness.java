@@ -94,8 +94,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task thread
  * to finish.
  *
- * <p>This class id deprecated because of it's threading model. Please use {@link
- * StreamTaskMailboxTestHarness}
+ * @deprecated Please use {@link StreamTaskMailboxTestHarness} and {@link
+ *     StreamTaskMailboxTestHarnessBuilder}. Do not add new code using this test harness.
  */
 @Deprecated
 public class StreamTaskTestHarness<OUT> {
