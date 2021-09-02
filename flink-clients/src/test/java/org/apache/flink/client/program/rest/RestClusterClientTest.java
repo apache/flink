@@ -30,6 +30,7 @@ import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -110,6 +111,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -120,6 +122,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -127,15 +130,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -190,9 +195,13 @@ public class RestClusterClientTest extends TestLogger {
         }
     }
 
-    private RestClusterClient<StandaloneClusterId> createRestClusterClient(final int port)
+    private RestClusterClient<StandaloneClusterId> createRestClusterClient(int port)
             throws Exception {
-        final Configuration clientConfig = new Configuration(restConfig);
+        return createRestClusterClient(port, new Configuration(restConfig));
+    }
+
+    private RestClusterClient<StandaloneClusterId> createRestClusterClient(
+            int port, Configuration clientConfig) throws Exception {
         clientConfig.setInteger(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
@@ -591,6 +600,37 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     @Test
+    public void testJobSubmissionRespectsConfiguredRetryPolicy() throws Exception {
+        final int maxRetryAttempts = 3;
+        final AtomicInteger failedRequest = new AtomicInteger(0);
+        failHttpRequest =
+                (messageHeaders, messageParameters, requestBody) -> {
+                    failedRequest.incrementAndGet();
+                    // Fail all job submissions.
+                    return true;
+                };
+
+        final Configuration clientConfig = new Configuration(restConfig);
+        clientConfig.set(RestOptions.RETRY_MAX_ATTEMPTS, maxRetryAttempts);
+        clientConfig.set(RestOptions.RETRY_DELAY, 10L);
+        try (TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            final InetSocketAddress serverAddress =
+                    Objects.requireNonNull(restServerEndpoint.getServerAddress());
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(serverAddress.getPort(), clientConfig)) {
+                final ExecutionException exception =
+                        assertThrows(
+                                ExecutionException.class,
+                                () -> restClusterClient.submitJob(jobGraph).get());
+                assertThat(
+                        exception, FlinkMatchers.containsCause(FutureUtils.RetryException.class));
+                assertEquals(maxRetryAttempts + 1, failedRequest.get());
+            }
+        }
+    }
+
+    @Test
     public void testSubmitJobAndWaitForExecutionResult() throws Exception {
         final TestJobExecutionResultHandler testJobExecutionResultHandler =
                 new TestJobExecutionResultHandler(
@@ -630,12 +670,22 @@ public class RestClusterClientTest extends TestLogger {
                                                         new RuntimeException("expected")))
                                         .build()));
 
-        // fail first HTTP polling attempt, which should not be a problem because of the retries
-        final AtomicBoolean firstPollFailed = new AtomicBoolean();
+        // Fail the first JobExecutionResult HTTP polling attempt, which should not be a problem
+        // because of the retries.
+        final AtomicBoolean firstExecutionResultPollFailed = new AtomicBoolean(false);
+        // Fail the first JobSubmit HTTP request, which should not be a problem because of the
+        // retries.
+        final AtomicBoolean firstSubmitRequestFailed = new AtomicBoolean(false);
         failHttpRequest =
-                (messageHeaders, messageParameters, requestBody) ->
-                        messageHeaders instanceof JobExecutionResultHeaders
-                                && !firstPollFailed.getAndSet(true);
+                (messageHeaders, messageParameters, requestBody) -> {
+                    if (messageHeaders instanceof JobExecutionResultHeaders) {
+                        return !firstExecutionResultPollFailed.getAndSet(true);
+                    }
+                    if (messageHeaders instanceof JobSubmitHeaders) {
+                        return !firstSubmitRequestFailed.getAndSet(true);
+                    }
+                    return false;
+                };
 
         try (TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(
@@ -649,6 +699,8 @@ public class RestClusterClientTest extends TestLogger {
                                 .thenCompose(restClusterClient::requestJobResult)
                                 .get()
                                 .toJobExecutionResult(ClassLoader.getSystemClassLoader());
+                assertTrue(firstExecutionResultPollFailed.get());
+                assertTrue(firstSubmitRequestFailed.get());
                 assertThat(jobExecutionResult.getJobID(), equalTo(jobId));
                 assertThat(jobExecutionResult.getNetRuntime(), equalTo(Long.MAX_VALUE));
                 assertThat(

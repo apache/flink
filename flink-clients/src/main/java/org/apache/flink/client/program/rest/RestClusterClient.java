@@ -126,6 +126,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -160,7 +161,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     /** ExecutorService to run operations that can be retried on exceptions. */
-    private ScheduledExecutorService retryExecutorService;
+    private final ScheduledExecutorService retryExecutorService;
 
     private final Predicate<Throwable> unknownJobStateRetryable =
             exception ->
@@ -372,16 +373,37 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
         final CompletableFuture<JobSubmitResponseBody> submissionFuture =
                 requestFuture.thenCompose(
-                        requestAndFileUploads ->
-                                sendRetriableRequest(
-                                        JobSubmitHeaders.getInstance(),
-                                        EmptyMessageParameters.getInstance(),
-                                        requestAndFileUploads.f0,
-                                        requestAndFileUploads.f1,
-                                        isConnectionProblemOrServiceUnavailable()));
+                        requestAndFileUploads -> {
+                            LOG.info(
+                                    "Submitting job '{}' ({}).",
+                                    jobGraph.getName(),
+                                    jobGraph.getJobID());
+                            return sendRetriableRequest(
+                                    JobSubmitHeaders.getInstance(),
+                                    EmptyMessageParameters.getInstance(),
+                                    requestAndFileUploads.f0,
+                                    requestAndFileUploads.f1,
+                                    isConnectionProblemOrServiceUnavailable(),
+                                    (receiver, error) -> {
+                                        if (error != null) {
+                                            LOG.warn(
+                                                    "Attempt to submit job '{}' ({}) to '{}' has failed.",
+                                                    jobGraph.getName(),
+                                                    jobGraph.getJobID(),
+                                                    receiver,
+                                                    error);
+                                        } else {
+                                            LOG.info(
+                                                    "Successfully submitted job '{}' ({}) to '{}'.",
+                                                    jobGraph.getName(),
+                                                    jobGraph.getJobID(),
+                                                    receiver);
+                                        }
+                                    });
+                        });
 
         submissionFuture
-                .thenCombine(jobGraphFileFuture, (ignored, jobGraphFile) -> jobGraphFile)
+                .thenCompose(ignored -> jobGraphFileFuture)
                 .thenAccept(
                         jobGraphFile -> {
                             try {
@@ -794,7 +816,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 messageParameters,
                 request,
                 Collections.emptyList(),
-                retryPredicate);
+                retryPredicate,
+                (receiver, error) -> {
+                    // no-op
+                });
     }
 
     private <
@@ -807,20 +832,29 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                     U messageParameters,
                     R request,
                     Collection<FileUpload> filesToUpload,
-                    Predicate<Throwable> retryPredicate) {
+                    Predicate<Throwable> retryPredicate,
+                    BiConsumer<String, Throwable> consumer) {
         return retry(
                 () ->
                         getWebMonitorBaseUrl()
                                 .thenCompose(
                                         webMonitorBaseUrl -> {
                                             try {
-                                                return restClient.sendRequest(
-                                                        webMonitorBaseUrl.getHost(),
-                                                        webMonitorBaseUrl.getPort(),
-                                                        messageHeaders,
-                                                        messageParameters,
-                                                        request,
-                                                        filesToUpload);
+                                                final CompletableFuture<P> future =
+                                                        restClient.sendRequest(
+                                                                webMonitorBaseUrl.getHost(),
+                                                                webMonitorBaseUrl.getPort(),
+                                                                messageHeaders,
+                                                                messageParameters,
+                                                                request,
+                                                                filesToUpload);
+                                                future.whenComplete(
+                                                        (result, error) ->
+                                                                consumer.accept(
+                                                                        webMonitorBaseUrl
+                                                                                .toString(),
+                                                                        error));
+                                                return future;
                                             } catch (IOException e) {
                                                 throw new CompletionException(e);
                                             }
