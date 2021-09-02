@@ -77,9 +77,9 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
         if iter_value:
             if isinstance(iter_value, (list, range, Generator)):
                 for v in iter_value:
-                    self._encode_one_row_to_stream(v)
+                    self._encode_one_row_to_stream(v, output_stream)
             else:
-                self._encode_one_row_to_stream(iter_value)
+                self._encode_one_row_to_stream(iter_value, output_stream)
 
         # write 0x00 as end message
         output_stream.write(self._end_message, 1)
