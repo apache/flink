@@ -43,7 +43,7 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.junit.Assert.assertEquals;
 
 /** Test for {@link SinkUpsertMaterializer}. */
@@ -76,25 +76,25 @@ public class SinkUpsertMaterializerTest {
         testHarness.setStateTtlProcessingTime(1);
 
         testHarness.processElement(insertRecord(1, "a1"));
-        shouldEmit(testHarness, row(RowKind.INSERT, 1, "a1"));
+        shouldEmit(testHarness, rowOfKind(RowKind.INSERT, 1, "a1"));
 
         testHarness.processElement(insertRecord(1, "a2"));
-        shouldEmit(testHarness, row(RowKind.UPDATE_AFTER, 1, "a2"));
+        shouldEmit(testHarness, rowOfKind(RowKind.UPDATE_AFTER, 1, "a2"));
 
         testHarness.processElement(insertRecord(1, "a3"));
-        shouldEmit(testHarness, row(RowKind.UPDATE_AFTER, 1, "a3"));
+        shouldEmit(testHarness, rowOfKind(RowKind.UPDATE_AFTER, 1, "a3"));
 
         testHarness.processElement(deleteRecord(1, "a2"));
         shouldEmitNothing(testHarness);
 
         testHarness.processElement(deleteRecord(1, "a3"));
-        shouldEmit(testHarness, row(RowKind.UPDATE_AFTER, 1, "a1"));
+        shouldEmit(testHarness, rowOfKind(RowKind.UPDATE_AFTER, 1, "a1"));
 
         testHarness.processElement(deleteRecord(1, "a1"));
-        shouldEmit(testHarness, row(RowKind.DELETE, 1, "a1"));
+        shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 1, "a1"));
 
         testHarness.processElement(insertRecord(1, "a4"));
-        shouldEmit(testHarness, row(RowKind.INSERT, 1, "a4"));
+        shouldEmit(testHarness, rowOfKind(RowKind.INSERT, 1, "a4"));
 
         testHarness.setStateTtlProcessingTime(1002);
 
