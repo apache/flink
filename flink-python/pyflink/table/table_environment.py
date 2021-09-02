@@ -1503,7 +1503,7 @@ class TableEnvironment(object):
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]))
-            # use the thrid parameter to switch whether to verify the elements against the schema
+            # use the third parameter to switch whether to verify the elements against the schema
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),

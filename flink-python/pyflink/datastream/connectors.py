@@ -155,7 +155,7 @@ class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
     pull data from one or more Kafka partitions.
 
     The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
-    during a failure, and taht the computation processes elements 'exactly once. (These guarantees
+    during a failure, and that the computation processes elements 'exactly once. (These guarantees
     naturally assume that Kafka itself does not lose any data.)
 
     Please note that Flink snapshots the offsets internally as part of its distributed checkpoints.
