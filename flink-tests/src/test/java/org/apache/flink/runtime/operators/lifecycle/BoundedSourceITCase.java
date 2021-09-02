@@ -61,7 +61,7 @@ public class BoundedSourceITCase extends AbstractTestBase {
     @Test
     public void test() throws Exception {
         TestJobWithDescription testJob =
-                graphBuilder.apply(
+                graphBuilder.build(
                         sharedObjects,
                         cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
                         env -> {});
