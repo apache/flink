@@ -19,7 +19,7 @@ import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
-    JsonValueOnEmptyOrError, JsonType
+    JsonValueOnEmptyOrError, JsonType, JsonQueryWrapper, JsonQueryOnEmptyOrError
 from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date,
                                        current_time, current_timestamp, local_time,
                                        local_timestamp, temporal_overlaps, date_format,
@@ -206,6 +206,11 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                          str(lit('{}').json_value('$.x', DataTypes.INT(),
                                                   JsonValueOnEmptyOrError.DEFAULT, 42,
                                                   JsonValueOnEmptyOrError.ERROR, None)))
+
+        self.assertEqual("JSON_QUERY('{}', '$.x', WITHOUT_ARRAY, NULL, EMPTY_ARRAY)",
+                         str(lit('{}').json_query('$.x', JsonQueryWrapper.WITHOUT_ARRAY,
+                                                  JsonQueryOnEmptyOrError.NULL,
+                                                  JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
 
     def test_expressions(self):
         expr1 = col('a')

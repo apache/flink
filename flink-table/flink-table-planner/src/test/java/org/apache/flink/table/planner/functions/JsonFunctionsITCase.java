@@ -36,6 +36,13 @@ import java.util.List;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
+import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_ARRAY;
+import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_OBJECT;
+import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.ERROR;
+import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.NULL;
+import static org.apache.flink.table.api.JsonQueryWrapper.CONDITIONAL_ARRAY;
+import static org.apache.flink.table.api.JsonQueryWrapper.UNCONDITIONAL_ARRAY;
+import static org.apache.flink.table.api.JsonQueryWrapper.WITHOUT_ARRAY;
 
 /** Tests for built-in JSON functions. */
 public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
@@ -46,19 +53,13 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.add(jsonExists());
         testCases.add(jsonValue());
         testCases.addAll(isJson());
+        testCases.addAll(jsonQuery());
 
         return testCases;
     }
 
     private static TestSpec jsonExists() throws Exception {
-        final InputStream jsonResource =
-                JsonFunctionsITCase.class.getResourceAsStream("/json/json-exists.json");
-        if (jsonResource == null) {
-            throw new IllegalStateException(
-                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
-        }
-
-        final String jsonValue = IOUtils.toString(jsonResource, Charset.defaultCharset());
+        final String jsonValue = getJsonFromResource("/json/json-exists.json");
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_EXISTS)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(DataTypes.STRING())
@@ -139,14 +140,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private static TestSpec jsonValue() throws Exception {
-        final InputStream jsonResource =
-                JsonFunctionsITCase.class.getResourceAsStream("/json/json-value.json");
-        if (jsonResource == null) {
-            throw new IllegalStateException(
-                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
-        }
-
-        final String jsonValue = IOUtils.toString(jsonResource, Charset.defaultCharset());
+        final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(DataTypes.STRING())
@@ -312,5 +306,129 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "f0 IS JSON OBJECT",
                                 true,
                                 DataTypes.BOOLEAN().notNull()));
+    }
+
+    private static List<TestSpec> jsonQuery() throws Exception {
+        final String jsonValue = getJsonFromResource("/json/json-query.json");
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData((String) null)
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$"),
+                                "JSON_QUERY(f0, '$')",
+                                null,
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000)),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(jsonValue)
+                        .andDataTypes(DataTypes.STRING())
+
+                        // Wrapping Behavior
+
+                        .testResult(
+                                $("f0").jsonQuery("$.a1", WITHOUT_ARRAY),
+                                "JSON_QUERY(f0, '$.a1' WITHOUT WRAPPER)",
+                                "[]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("$.a1", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.a1' WITH CONDITIONAL WRAPPER)",
+                                "[]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("$.o1", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.o1' WITH CONDITIONAL WRAPPER)",
+                                "[{}]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("$.a1", UNCONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.a1' WITH UNCONDITIONAL WRAPPER)",
+                                "[[]]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("$.n1", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.n1' WITH CONDITIONAL WRAPPER)",
+                                "[1]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("$.s1", CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.s1' WITH CONDITIONAL WRAPPER)",
+                                "[\"Test\"]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+
+                        // Empty Behavior
+
+                        .testResult(
+                                $("f0").jsonQuery("lax $.err1", WITHOUT_ARRAY, NULL, NULL),
+                                "JSON_QUERY(f0, 'lax $.err1' NULL ON EMPTY)",
+                                null,
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("lax $.err2", WITHOUT_ARRAY, EMPTY_ARRAY, NULL),
+                                "JSON_QUERY(f0, 'lax $.err2' EMPTY ARRAY ON EMPTY)",
+                                "[]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery("lax $.err3", WITHOUT_ARRAY, EMPTY_OBJECT, NULL),
+                                "JSON_QUERY(f0, 'lax $.err3' EMPTY OBJECT ON EMPTY)",
+                                "{}",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, 'lax $.err4' ERROR ON EMPTY)",
+                                "Empty result of JSON_QUERY function is not allowed")
+                        .testTableApiRuntimeError(
+                                $("f0").jsonQuery("lax $.err5", WITHOUT_ARRAY, ERROR, NULL),
+                                "Empty result of JSON_QUERY function is not allowed")
+
+                        // Error Behavior
+
+                        .testResult(
+                                $("f0").jsonQuery("strict $.err6", WITHOUT_ARRAY, NULL, NULL),
+                                "JSON_QUERY(f0, 'strict $.err6' NULL ON ERROR)",
+                                null,
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "strict $.err7", WITHOUT_ARRAY, NULL, EMPTY_ARRAY),
+                                "JSON_QUERY(f0, 'strict $.err7' EMPTY ARRAY ON ERROR)",
+                                "[]",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "strict $.err8", WITHOUT_ARRAY, NULL, EMPTY_OBJECT),
+                                "JSON_QUERY(f0, 'strict $.err8' EMPTY OBJECT ON ERROR)",
+                                "{}",
+                                DataTypes.STRING(),
+                                DataTypes.VARCHAR(2000))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, 'strict $.err9' ERROR ON ERROR)",
+                                "No results for path")
+                        .testTableApiRuntimeError(
+                                $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
+                                "No results for path"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private static String getJsonFromResource(String fileName) throws Exception {
+        final InputStream jsonResource = JsonFunctionsITCase.class.getResourceAsStream(fileName);
+        if (jsonResource == null) {
+            throw new IllegalStateException(
+                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
+        }
+
+        return IOUtils.toString(jsonResource, Charset.defaultCharset());
     }
 }

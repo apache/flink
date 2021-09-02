@@ -630,7 +630,6 @@ json:
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```
-
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
     description: |
@@ -666,6 +665,48 @@ json:
       // STRING: "false"
       JSON_VALUE('{"a": true}', 'strict $.b'
           DEFAULT FALSE ON ERROR)
+      ```
+  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+    description: |
+      Extracts JSON values from a JSON string.
+
+      The result is always returned as a `STRING`. The `RETURNING` clause is currently not supported.
+
+      The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
+      and whether to do so unconditionally or only if the value itself isn't an array already.
+
+      `onEmpty` and `onError` determine the behavior in case the path expression is empty, or in
+      case an error was raised, respectively. By default, in both cases `null` is returned. Other
+      choices are to use an empty array, an empty object, or to raise an error.
+
+      ```
+      -- '{ "b": 1 }'
+      JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$')
+      -- NULL
+      JSON_QUERY(CAST(NULL AS STRING), '$')
+
+      -- Wrap result into an array
+      -- '[{}]'
+      JSON_QUERY('{}', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[1, 2]'
+      JSON_QUERY('[1, 2]', '$' WITH CONDITIONAL ARRAY WRAPPER)
+      -- '[[1, 2]]'
+      JSON_QUERY('[1, 2]', '$' WITH UNCONDITIONAL ARRAY WRAPPER)
+
+      -- Scalars must be wrapped to be returned
+      -- NULL
+      JSON_QUERY(1, '$')
+      -- '[1]'
+      JSON_QUERY(1, '$' WITH CONDITIONAL ARRAY WRAPPER)
+
+      -- Behavior if path expression is empty / there is an error
+      -- '{}'
+      JSON_QUERY('{}', 'lax $.invalid' EMPTY OBJECT ON EMPTY)
+      -- '[]'
+      JSON_QUERY('{}', 'strict $.invalid' EMPTY ARRAY ON ERROR)
       ```
 
 valueconstruction:
