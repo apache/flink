@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
@@ -93,12 +92,6 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
         // processing time window doesn't support two-phase,
         // otherwise the processing-time can't be materialized in a single node
         if (!windowing.isRowtime()) {
-            return false;
-        }
-
-        // session window doesn't support two-phase,
-        // otherwise window assigner results may be different
-        if (windowing.getWindow() instanceof SessionWindowSpec) {
             return false;
         }
 
