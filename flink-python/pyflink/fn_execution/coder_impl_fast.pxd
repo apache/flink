@@ -114,6 +114,7 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
+    cpdef _encode_one_row_to_stream(self, value, LengthPrefixOutputStream output_stream)
 
 cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
     cdef readonly FieldCoder _single_field_coder

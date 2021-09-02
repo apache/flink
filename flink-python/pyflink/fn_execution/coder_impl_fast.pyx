@@ -75,20 +75,20 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
 
     cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
-            def encode_one_row_to_stream(value):
-                if not isinstance(value, (tuple, Row)):
-                    # single field value
-                    value = (value,)
-                self._encode_one_row(value, output_stream)
-
             if isinstance(iter_value, (list, range, Generator)):
                 for v in iter_value:
-                    encode_one_row_to_stream(v)
+                    self._encode_one_row_to_stream(v)
             else:
-                encode_one_row_to_stream(iter_value)
+                self._encode_one_row_to_stream(iter_value)
 
         # write 0x00 as end message
         output_stream.write(self._end_message, 1)
+
+    cpdef _encode_one_row_to_stream(self, value, LengthPrefixOutputStream output_stream):
+        if not isinstance(value, (tuple, Row)):
+            # single field value
+            value = (value,)
+        self._encode_one_row(value, output_stream)
 
     def __dealloc__(self):
         if self._end_message:
