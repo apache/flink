@@ -99,6 +99,7 @@ class SynchronousKvRuntimeState(InternalKvState, ABC):
         self._internal_state = None
         self.namespace = None
         self._ttl_config = None
+        self._cache_type = SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE
 
     def set_current_namespace(self, namespace: N) -> None:
         if namespace == self.namespace:
@@ -111,10 +112,23 @@ class SynchronousKvRuntimeState(InternalKvState, ABC):
 
     def enable_time_to_live(self, ttl_config: StateTtlConfig):
         self._ttl_config = ttl_config
+        if ttl_config.get_state_visibility() == StateTtlConfig.StateVisibility.NeverReturnExpired:
+            self._cache_type = SynchronousKvRuntimeState.CacheType.DISABLE_CACHE
+        elif ttl_config.get_update_type() == StateTtlConfig.UpdateType.OnReadAndWrite:
+            self._cache_type = SynchronousKvRuntimeState.CacheType.ENABLE_WRITE_CACHE
+
+        if self._cache_type != SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE:
+            # disable read cache
+            self._remote_state_backend._state_handler._state_cache._cache._max_entries = 0
 
     @abstractmethod
     def get_internal_state(self):
         pass
+
+    class CacheType(Enum):
+        DISABLE_CACHE = 0
+        ENABLE_WRITE_CACHE = 1
+        ENABLE_READ_WRITE_CACHE = 2
 
 
 class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
@@ -130,6 +144,12 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
             self._internal_state = self._remote_state_backend._get_internal_bag_state(
                 self.name, self.namespace, self._value_coder, self._ttl_config)
         return self._internal_state
+
+    def _maybe_clear_write_cache(self):
+        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+            self._internal_state.commit()
+            self._internal_state._cleared = False
+            self._internal_state._added_elements = []
 
 
 class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueState):
@@ -149,6 +169,7 @@ class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueSt
         self.get_internal_state()
         self._internal_state.clear()
         self._internal_state.add(value)
+        self._maybe_clear_write_cache()
 
     def clear(self) -> None:
         self.get_internal_state().clear()
@@ -177,16 +198,19 @@ class SynchronousListRuntimeState(SynchronousMergingRuntimeState, InternalListSt
 
     def add(self, v):
         self.get_internal_state().add(v)
+        self._maybe_clear_write_cache()
 
     def get(self):
         return self.get_internal_state().read()
 
     def add_all(self, values):
         self.get_internal_state()._added_elements.extend(values)
+        self._maybe_clear_write_cache()
 
     def update(self, values):
         self.clear()
         self.add_all(values)
+        self._maybe_clear_write_cache()
 
     def clear(self):
         self.get_internal_state().clear()
@@ -213,6 +237,7 @@ class SynchronousReducingRuntimeState(SynchronousMergingRuntimeState, InternalRe
         else:
             self._internal_state.clear()
             self._internal_state.add(self._reduce_function.reduce(current_value, v))
+        self._maybe_clear_write_cache()
 
     def get(self):
         for i in self.get_internal_state().read():
@@ -247,6 +272,7 @@ class SynchronousAggregatingRuntimeState(SynchronousMergingRuntimeState, Interna
         accumulator = self._agg_function.add(v, accumulator)
         self._internal_state.clear()
         self._internal_state.add(accumulator)
+        self._maybe_clear_write_cache()
 
     def get(self):
         accumulator = self._get_accumulator()
@@ -877,7 +903,8 @@ class SynchronousMapRuntimeState(SynchronousKvRuntimeState, InternalMapState):
                 self.namespace,
                 self._map_key_coder,
                 self._map_value_coder,
-                self._ttl_config)
+                self._ttl_config,
+                self._cache_type)
         return self._internal_state
 
     def get(self, key):
@@ -1036,14 +1063,15 @@ class RemoteKeyedStateBackend(object):
         internal_state = self._create_bag_state(state_spec, encoded_namespace, ttl_config)
         return internal_state
 
-    def _get_internal_map_state(self, name, namespace, map_key_coder, map_value_coder, ttl_config):
+    def _get_internal_map_state(
+            self, name, namespace, map_key_coder, map_value_coder, ttl_config, cache_type):
         encoded_namespace = self._encode_namespace(namespace)
         cached_state = self._internal_state_cache.get(
             (name, self._encoded_current_key, encoded_namespace))
         if cached_state is not None:
             return cached_state
         internal_map_state = self._create_internal_map_state(
-            name, encoded_namespace, map_key_coder, map_value_coder, ttl_config)
+            name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type)
         return internal_map_state
 
     def _create_bag_state(self, state_spec: userstate.StateSpec, encoded_namespace, ttl_config) \
@@ -1059,7 +1087,7 @@ class RemoteKeyedStateBackend(object):
             raise NotImplementedError(state_spec)
 
     def _create_internal_map_state(
-            self, name, encoded_namespace, map_key_coder, map_value_coder, ttl_config):
+            self, name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type):
         # Currently the `beam_fn_api.proto` does not support MapState, so we use the
         # the `MultimapSideInput` message to mark the state as a MapState for now.
         from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
@@ -1073,12 +1101,16 @@ class RemoteKeyedStateBackend(object):
                 window=encoded_namespace,
                 side_input_id=base64.b64encode(state_proto.SerializeToString()),
                 key=self._encoded_current_key))
+        if cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+            write_cache_size = 0
+        else:
+            write_cache_size = self._map_state_write_cache_size
         return InternalSynchronousMapRuntimeState(
             self._map_state_handler,
             state_key,
             map_key_coder,
             map_value_coder,
-            self._map_state_write_cache_size)
+            write_cache_size)
 
     def _encode_namespace(self, namespace):
         if namespace is not None:
