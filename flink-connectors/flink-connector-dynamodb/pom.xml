@@ -153,6 +153,12 @@ under the License.
 				<artifactId>httpclient</artifactId>
 				<version>4.5.9</version>
 			</dependency>
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpcore</artifactId>
+				<version>4.4.11</version>
+			</dependency>
+
 
 		</dependencies>
 	</dependencyManagement>
@@ -169,52 +175,9 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/org/apache/flink/streaming/connectors/kinesis/testutils/**</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<artifactSet combine.children="append">
-								<includes>
-									<include>software.amazon.awssdk:*</include>
-								</includes>
-							</artifactSet>
-							<relocations combine.children="override">
-								<relocation>
-									<pattern>software.amazon</pattern>
-									<shadedPattern>org.apache.flink.dynamodb.shaded.software.amazon</shadedPattern>
-								</relocation>
-							</relocations>
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>.gitkeep</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>software.amazon.awssdk:*</artifact>
-									<excludes>
-										<exclude>META-INF/services/**</exclude>
-									</excludes>
-								</filter>
-							</filters>
 						</configuration>
 					</execution>
 				</executions>
