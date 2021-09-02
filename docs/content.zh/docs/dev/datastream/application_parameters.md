@@ -32,7 +32,7 @@ under the License.
 
 为解决以上问题，Flink 提供一个名为 `Parametertool` 的简单公共类，其中包含了一些基本的工具。请注意，这里说的 `Parametertool` 并不是必须使用的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 等其他框架也可以非常好地兼容 Flink。
 
-### `ParameterTool` 读取配置值
+### 用 `ParameterTool` 读取配置值
 
 `ParameterTool` 定义了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易地与你的配置集成在一起。
 
