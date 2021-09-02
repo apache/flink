@@ -17,6 +17,11 @@
 
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
@@ -27,15 +32,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.testutils.junit.SharedObjects;
-import org.apache.flink.util.function.TriFunction;
-
-import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,19 +52,20 @@ import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVE
 public class TestJobBuilders {
 
     /** {@link TestJobWithDescription} builder. */
-    public interface TestingGraphBuilder
-            extends TriFunction<
-                    SharedObjects,
-                    Consumer<Configuration>,
-                    Consumer<StreamExecutionEnvironment>,
-                    TestJobWithDescription> {}
+    @FunctionalInterface
+    public interface TestingGraphBuilder {
+        TestJobWithDescription build(
+                SharedObjects shared,
+                Consumer<Configuration> modifyConfig,
+                Consumer<StreamExecutionEnvironment> modifyEnvironment);
+    }
 
     private TestJobBuilders() {}
 
     public static final TestingGraphBuilder SIMPLE_GRAPH_BUILDER =
             new TestingGraphBuilder() {
                 @Override
-                public TestJobWithDescription apply(
+                public TestJobWithDescription build(
                         SharedObjects shared,
                         Consumer<Configuration> confConsumer,
                         Consumer<StreamExecutionEnvironment> envConsumer) {
@@ -116,7 +117,7 @@ public class TestJobBuilders {
     public static final TestingGraphBuilder COMPLEX_GRAPH_BUILDER =
             new TestingGraphBuilder() {
                 @Override
-                public TestJobWithDescription apply(
+                public TestJobWithDescription build(
                         SharedObjects shared,
                         Consumer<Configuration> confConsumer,
                         Consumer<StreamExecutionEnvironment> envConsumer) {
@@ -268,25 +269,27 @@ public class TestJobBuilders {
 
     private static final String OP_ID_HASH_PREFIX = "0000000000000000000000000000000";
 
-    @SuppressWarnings("deprecation")
-    private static AssignerWithPeriodicWatermarks<TestDataElement> createWmAssigner() {
-        return new AssignerWithPeriodicWatermarks<TestDataElement>() {
-            private Watermark watermark;
+    private static WatermarkStrategy<TestDataElement> createWmAssigner() {
+        return WatermarkStrategy.forGenerator(
+                        ctx ->
+                                new WatermarkGenerator<TestDataElement>() {
+                                    private Watermark watermark = new Watermark(Long.MIN_VALUE);
 
-            @Nullable
-            @Override
-            public Watermark getCurrentWatermark() {
-                return watermark;
-            }
+                                    @Override
+                                    public void onEvent(
+                                            TestDataElement event,
+                                            long eventTimestamp,
+                                            WatermarkOutput output) {
+                                        this.watermark = new Watermark(eventTimestamp);
+                                    }
 
-            @Override
-            public long extractTimestamp(TestDataElement element, long recordTimestamp) {
-                if (element instanceof TestDataElement) {
-                    this.watermark = new Watermark(((TestDataElement) element).seq);
-                    return ((TestDataElement) element).seq;
-                }
-                return recordTimestamp;
-            }
-        };
+                                    @Override
+                                    public void onPeriodicEmit(WatermarkOutput output) {
+                                        output.emitWatermark(watermark);
+                                    }
+                                })
+                .withTimestampAssigner(
+                        (SerializableTimestampAssigner<TestDataElement>)
+                                (element, recordTimestamp) -> element.seq);
     }
 }

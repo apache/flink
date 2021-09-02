@@ -108,7 +108,7 @@ public class StopWithSavepointITCase extends AbstractTestBase {
 
     @Test
     public void test() throws Exception {
-        TestJobWithDescription testJob = graphBuilder.apply(sharedObjects, cfg -> {}, env -> {});
+        TestJobWithDescription testJob = graphBuilder.build(sharedObjects, cfg -> {}, env -> {});
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(WatermarkReceivedEvent.class)

@@ -96,7 +96,7 @@ public class PartiallyFinishedSourcesITCase extends AbstractTestBase {
     }
 
     private TestJobWithDescription buildJob() {
-        return graphBuilder.apply(
+        return graphBuilder.build(
                 sharedObjects,
                 cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
                 env -> {
