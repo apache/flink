@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
@@ -32,7 +33,9 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-import scala.collection.mutable
+import java.time.{Instant, LocalDateTime}
+
+import scala.collection.{Seq, mutable}
 
 @RunWith(classOf[Parameterized])
 class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -1003,28 +1006,94 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
   }
 
   @Test
-  def testRowTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
-    val data = List(
-      (1L, 1, null),
-      (2L, 1, null),
-      (3L, 2, null),
-      (4L, 1, "Hello"),
-      (5L, 1, "Hello"),
-      (6L, 2, "Hello"),
-      (7L, 1, "Hello World"),
-      (8L, 2, "Hello World"),
-      (9L, 2, "Hello World"),
-      (10L, 1, null))
+  def testTimestampRowTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
+    val rows = Seq(
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:01"), 1, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:02"), 1, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:03"), 2, null),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:04"), 1, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:05"), 1, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:06"), 2, "Hello"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:07"), 1, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:08"), 2, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:09"), 2, "Hello World"),
+      rowOf(LocalDateTime.parse("1970-01-01T00:00:10"), 1, null))
+
+    val tableId = TestValuesTableFactory.registerData(rows)
 
     // for sum aggregation ensure that every time the order of each element is consistent
     env.setParallelism(1)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  rowtime TIMESTAMP(3),
+         |  b INT,
+         |  c STRING,
+         |  WATERMARK FOR rowtime AS rowtime
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$tableId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
 
-    val table = failingDataSource(data)
-      .assignAscendingTimestamps(_._1)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.createTemporaryFunction("CntNullNonNull", new CountNullNonNull)
 
-    tEnv.registerTable("MyTable", table)
-    tEnv.registerFunction("CntNullNonNull", new CountNullNonNull)
+    val sqlQuery = "SELECT " +
+      "  c, " +
+      "  b, " +
+      "  COUNT(DISTINCT c) " +
+      "    OVER (PARTITION BY b ORDER BY rowtime RANGE UNBOUNDED preceding), " +
+      "  CntNullNonNull(DISTINCT c) " +
+      "    OVER (PARTITION BY b ORDER BY rowtime RANGE UNBOUNDED preceding)" +
+      "FROM " +
+      "  MyTable"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "null,1,0,0|1", "null,1,0,0|1", "null,2,0,0|1", "null,1,2,2|1",
+      "Hello,1,1,1|1", "Hello,1,1,1|1", "Hello,2,1,1|1",
+      "Hello World,1,2,2|1", "Hello World,2,2,2|1", "Hello World,2,2,2|1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testTimestampLtzRowTimeDistinctUnboundedPartitionedRangeOverWithNullValues(): Unit = {
+    val rows = Seq(
+      rowOf(Instant.ofEpochSecond(1L), 1, null),
+      rowOf(Instant.ofEpochSecond(2L), 1, null),
+      rowOf(Instant.ofEpochSecond(3L), 2, null),
+      rowOf(Instant.ofEpochSecond(4L), 1, "Hello"),
+      rowOf(Instant.ofEpochSecond(5L), 1, "Hello"),
+      rowOf(Instant.ofEpochSecond(6L), 2, "Hello"),
+      rowOf(Instant.ofEpochSecond(7L), 1, "Hello World"),
+      rowOf(Instant.ofEpochSecond(8L), 2, "Hello World"),
+      rowOf(Instant.ofEpochSecond(9L), 2, "Hello World"),
+      rowOf(Instant.ofEpochSecond(10L), 1, null))
+
+    val tableId = TestValuesTableFactory.registerData(rows)
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  rowtime TIMESTAMP_LTZ(3),
+         |  b INT,
+         |  c STRING,
+         |  WATERMARK FOR rowtime AS rowtime
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$tableId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
+
+    tEnv.createTemporaryFunction("CntNullNonNull", new CountNullNonNull)
 
     val sqlQuery = "SELECT " +
       "  c, " +
