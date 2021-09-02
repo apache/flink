@@ -20,13 +20,13 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
-from collections import Generator
 from libc.stdlib cimport free, malloc, realloc
 from libc.string cimport memcpy
 
 import datetime
 import decimal
 import cloudpickle
+from collections import Generator
 
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.datastream.window import TimeWindow, CountWindow
@@ -76,19 +76,20 @@ cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cpdef encode_to_stream(self, iter_value, LengthPrefixOutputStream output_stream):
         if iter_value:
             if isinstance(iter_value, (list, range, Generator)):
-                for v in iter_value:
-                    self._encode_one_row_to_stream(v, output_stream)
+                for value in iter_value:
+                    if not isinstance(value, (tuple, Row)):
+                        # single field value
+                        value = (value,)
+                    self._encode_one_row(value, output_stream)
             else:
-                self._encode_one_row_to_stream(iter_value, output_stream)
+                value = iter_value
+                if not isinstance(value, (tuple, Row)):
+                    # single field value
+                    value = (value,)
+                self._encode_one_row(value, output_stream)
 
         # write 0x00 as end message
         output_stream.write(self._end_message, 1)
-
-    cpdef _encode_one_row_to_stream(self, value, LengthPrefixOutputStream output_stream):
-        if not isinstance(value, (tuple, Row)):
-            # single field value
-            value = (value,)
-        self._encode_one_row(value, output_stream)
 
     def __dealloc__(self):
         if self._end_message:
