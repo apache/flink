@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.testutils.junit.SharedObjects;
-import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nullable;
 
@@ -52,19 +51,20 @@ import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVE
 public class TestJobBuilders {
 
     /** {@link TestJobWithDescription} builder. */
-    public interface TestingGraphBuilder
-            extends TriFunction<
-                    SharedObjects,
-                    Consumer<Configuration>,
-                    Consumer<StreamExecutionEnvironment>,
-                    TestJobWithDescription> {}
+    @FunctionalInterface
+    public interface TestingGraphBuilder {
+        TestJobWithDescription build(
+                SharedObjects shared,
+                Consumer<Configuration> modifyConfig,
+                Consumer<StreamExecutionEnvironment> modifyEnvironment);
+    }
 
     private TestJobBuilders() {}
 
     public static final TestingGraphBuilder SIMPLE_GRAPH_BUILDER =
             new TestingGraphBuilder() {
                 @Override
-                public TestJobWithDescription apply(
+                public TestJobWithDescription build(
                         SharedObjects shared,
                         Consumer<Configuration> confConsumer,
                         Consumer<StreamExecutionEnvironment> envConsumer) {
@@ -116,7 +116,7 @@ public class TestJobBuilders {
     public static final TestingGraphBuilder COMPLEX_GRAPH_BUILDER =
             new TestingGraphBuilder() {
                 @Override
-                public TestJobWithDescription apply(
+                public TestJobWithDescription build(
                         SharedObjects shared,
                         Consumer<Configuration> confConsumer,
                         Consumer<StreamExecutionEnvironment> envConsumer) {
