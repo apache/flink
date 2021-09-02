@@ -324,10 +324,17 @@ In particular, the section discusses how to influence the schema derivation with
 types. It covers working with event-time and watermarks. It discusses how to declare a primary key and
 changelog mode for the input and output streams.
 
-The example above shows how the final result is computed incrementally by continuously emitting row-wise
-updates for each incoming record. However, in cases where the input streams are finite (i.e. *bounded*),
-a result can be computed more efficiently by leveraging batch processing principles. Both DataStream
-API and Table API offer a specialized *batch runtime mode*.
+The example above shows how the final result is computed incrementally by continuously emitting [row-wise
+updates]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) for each incoming record. However, in
+cases where the input streams are finite (i.e. *bounded*), a result can be computed more efficiently
+by leveraging batch processing principles.
+
+In batch processing, operators can be executed in successive stages that consume the entire input table
+before emitting results. For example, a join operator can sort both bounded inputs before performing
+the actual joining (i.e. *sort-merge join algorithm*), or build a hash table from one input before
+consuming the other (i.e. build/probe phase of the *hash join algorithm*).
+
+Both DataStream API and Table API offer a specialized *batch runtime mode*.
 
 The following example illustrates that the unified pipeline is able to process both batch and streaming data
 by just switching a flag.
@@ -571,7 +578,7 @@ behavior is slightly different between Table API and DataStream API.
 
 **DataStream API**
 
-The DataStream API's `StreamExecutionEnvironment` acts as a _builder pattern_ to construct
+The DataStream API's `StreamExecutionEnvironment` uses a _builder pattern_ to construct
 a complex pipeline. The pipeline possibly splits into multiple branches that might or might not end with
 a sink. The environment buffers all these defined branches until it comes to job submission.
 
@@ -725,11 +732,17 @@ to an insert-only changelog stream.
 {{< hint info >}}
 Since batch processing can be considered as *a special case of stream processing*, we recommend implementing
 a streaming pipeline first as it is the most general implementation for both bounded and unbounded data.
+
+In theory, a streaming pipeline can execute all operators. However, in practice, some operations might
+not make much sense as they would lead to ever-growing state and are therefore not supported. A global
+sort would be an example that is only available in batch mode. Simply put: it should be possible to
+run a working streaming pipeline in batch and but not necessarily vice versa.
 {{< /hint >}}
 
-The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}). Many sources offer options that implicitly make the connector bounded, for example,
-by defining an terminating offset or timestamp. In our example, we limit the number of rows with the
-`number-of-rows` option.
+The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}).
+Many sources offer options that implicitly make the connector bounded, for example, by defining a
+terminating offset or timestamp. In our example, we limit the number of rows with the `number-of-rows`
+option.
 
 {{< tabs "3f5f5d4e-cd03-48d1-9309-917a6cf55aaa" >}}
 {{< tab "Java" >}}
@@ -2695,7 +2708,7 @@ correctly via the DataStream API's reflective type extraction facilities. If the
 schema.
 
 {{< hint warning >}}
-Many times the DataStream API is unable to extract a more specific `TypeInformation` based on reflection.
+Many times the DataStream API is unable to extract a more specific `TypeInformation` based on [reflection](https://www.oracle.com/technical-resources/articles/java/javareflection.html).
 This often happens silently and leads to `GenericTypeInfo` that is backed by the generic Kryo serializer.
 
 For example, the `Row` class cannot be analyzed reflectively and always needs an explicit type information
@@ -2724,7 +2737,8 @@ If that is not found during the conversion, the field order will be alphabetical
 configuration is used to materialize the serializer of the raw type. Composite nested fields will not
 be accessible then.
 
-- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}} for the full translation logic.
+- See {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/types/utils/TypeInfoDataTypeConverter.java" name="TypeInfoDataTypeConverter" >}}
+for the full translation logic.
 
 Use `DataTypes.of(TypeInformation)` to call the above logic in custom schema declaration or in UDFs.
 
