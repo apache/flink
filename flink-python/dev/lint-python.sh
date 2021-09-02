@@ -460,7 +460,7 @@ function create_dir() {
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
     if [ ! -d $CURRENT_DIR/.conda/envs ]; then
-        echo "For some unknown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
+        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
