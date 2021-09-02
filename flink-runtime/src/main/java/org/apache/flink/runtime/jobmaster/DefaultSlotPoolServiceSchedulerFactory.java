@@ -50,7 +50,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
@@ -89,7 +89,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     public SchedulerNG createScheduler(
             Logger log,
             JobGraph jobGraph,
-            ExecutorService ioExecutor,
+            Executor ioExecutor,
             Configuration configuration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,

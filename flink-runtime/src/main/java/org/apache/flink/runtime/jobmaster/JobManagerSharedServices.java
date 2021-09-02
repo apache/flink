@@ -39,6 +39,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import javax.annotation.Nonnull;
 
 import java.time.Duration;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -82,7 +83,7 @@ public class JobManagerSharedServices {
         return futureExecutor;
     }
 
-    public ExecutorService getIoExecutor() {
+    public Executor getIoExecutor() {
         return ioExecutor;
     }
 

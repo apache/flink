@@ -29,7 +29,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -114,7 +114,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
 
         CountDownLatch releasedLatch = new CountDownLatch(CPU_CORES);
         CountDownLatch unreleasedLatch = new CountDownLatch(CPU_CORES + 1);
-        ExecutorService ioExecutor = jobManagerSharedServices.getIoExecutor();
+        Executor ioExecutor = jobManagerSharedServices.getIoExecutor();
         Runnable countsDown =
                 () -> {
                     releasedLatch.countDown();
@@ -143,7 +143,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
 
         CountDownLatch releasedLatch = new CountDownLatch(NUM_IO_THREADS);
         CountDownLatch unreleasedLatch = new CountDownLatch(NUM_IO_THREADS + 1);
-        ExecutorService ioExecutor = jobManagerSharedServices.getIoExecutor();
+        Executor ioExecutor = jobManagerSharedServices.getIoExecutor();
         Runnable countsDown =
                 () -> {
                     releasedLatch.countDown();

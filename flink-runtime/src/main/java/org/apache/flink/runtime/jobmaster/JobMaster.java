@@ -109,7 +109,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -151,7 +150,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private final ScheduledExecutorService futureExecutor;
 
-    private final ExecutorService ioExecutor;
+    private final Executor ioExecutor;
 
     private final OnCompletionActions jobCompletionActions;
 
