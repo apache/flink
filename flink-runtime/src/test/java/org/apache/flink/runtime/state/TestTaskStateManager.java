@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -153,6 +154,17 @@ public class TestTaskStateManager implements TaskStateManager {
         }
 
         return false;
+    }
+
+    @Override
+    public Optional<Long> getRestoreCheckpointId() {
+        TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
+
+        if (jmTaskStateSnapshot == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(reportedCheckpointId);
     }
 
     @Nonnull
