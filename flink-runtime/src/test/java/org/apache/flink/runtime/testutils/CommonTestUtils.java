@@ -25,10 +25,10 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.BufferedInputStream;
@@ -48,6 +48,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+
+import static java.lang.String.format;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** This class contains auxiliary methods for unit tests. */
 public class CommonTestUtils {
@@ -205,10 +208,14 @@ public class CommonTestUtils {
         waitUntilCondition(
                 () -> {
                     final AccessExecutionGraph graph = executionGraphSupplier.get();
-                    Preconditions.checkState(
-                            !graph.getState().isGloballyTerminalState(),
-                            "Graph is in globally terminal state (%s)",
-                            graph.getState());
+                    if (graph.getState().isGloballyTerminalState()) {
+                        final ErrorInfo failureInfo = graph.getFailureInfo();
+                        fail(
+                                format(
+                                        "Graph is in globally terminal state (%s)",
+                                        graph.getState()),
+                                failureInfo != null ? failureInfo.getException() : null);
+                    }
                     return graph.getState() == JobStatus.RUNNING
                             && graph.getAllVertices().values().stream()
                                     .allMatch(
@@ -249,13 +256,13 @@ public class CommonTestUtils {
                             client.getJobExecutionResult().get();
                         } catch (Exception e) {
                             throw new IllegalStateException(
-                                    String.format(
+                                    format(
                                             "Job has entered %s state, but expecting %s",
                                             currentStatus, expectedStatus),
                                     e);
                         }
                         throw new IllegalStateException(
-                                String.format(
+                                format(
                                         "Job has entered a terminal state %s, but expecting %s",
                                         currentStatus, expectedStatus));
                     }
@@ -280,7 +287,7 @@ public class CommonTestUtils {
                         return true;
                     } else if (state.isTerminal()) {
                         throw new RuntimeException(
-                                String.format(
+                                format(
                                         "Sub-Task %s is already in a terminal state %s",
                                         subtask, state));
                     } else {
