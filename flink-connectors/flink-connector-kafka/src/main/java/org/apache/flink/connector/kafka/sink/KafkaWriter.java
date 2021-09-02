@@ -87,6 +87,8 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final Sink.ProcessingTimeService timeService;
     private final boolean disabledMetrics;
 
+    // Number of outgoing bytes at the latest metric sync
+    private long latestOutgoingByteTotal;
     private Metric byteOutMetric;
     private FlinkKafkaInternalProducer<byte[], byte[]> currentProducer;
     private final KafkaWriterState kafkaWriterState;
@@ -360,7 +362,11 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     if (closed) {
                         return;
                     }
-                    MetricUtil.sync(byteOutMetric, numBytesOutCounter);
+                    long outgoingBytesUntilNow = ((Number) byteOutMetric.metricValue()).longValue();
+                    long outgoingBytesSinceLastUpdate =
+                            outgoingBytesUntilNow - latestOutgoingByteTotal;
+                    numBytesOutCounter.inc(outgoingBytesSinceLastUpdate);
+                    latestOutgoingByteTotal = outgoingBytesUntilNow;
                     lastSync = time;
                     registerMetricSync();
                 });
