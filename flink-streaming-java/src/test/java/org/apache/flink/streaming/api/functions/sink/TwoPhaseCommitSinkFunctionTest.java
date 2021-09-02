@@ -150,6 +150,22 @@ public class TwoPhaseCommitSinkFunctionTest {
     }
 
     @Test
+    public void testRecoverFromStateAfterFinished() throws Exception {
+        harness.open();
+        harness.processElement("42", 0);
+        sinkFunction.finish();
+
+        OperatorSubtaskState operatorSubtaskState = harness.snapshot(2, 5);
+
+        closeTestHarness();
+        setUpTestHarness();
+
+        harness.initializeState(operatorSubtaskState);
+        harness.open();
+        assertEquals(0, sinkFunction.abortedTransactions.size());
+    }
+
+    @Test
     public void testNotifyOfCompletedCheckpoint() throws Exception {
         harness.open();
         harness.processElement("42", 0);
@@ -300,12 +316,10 @@ public class TwoPhaseCommitSinkFunctionTest {
 
     private class ContentDumpSinkFunction
             extends TwoPhaseCommitSinkFunction<String, ContentTransaction, Void> {
+        final List<ContentTransaction> abortedTransactions = new ArrayList<>();
 
         public ContentDumpSinkFunction() {
-            super(
-                    new KryoSerializer<>(ContentTransaction.class, new ExecutionConfig()),
-                    VoidSerializer.INSTANCE,
-                    clock);
+            super(new ContentTransactionSerializer(), VoidSerializer.INSTANCE, clock);
         }
 
         @Override
@@ -336,6 +350,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 
         @Override
         protected void abort(ContentTransaction transaction) {
+            abortedTransactions.add(transaction);
             transaction.tmpContentWriter.close();
             tmpDirectory.delete(transaction.tmpContentWriter.getName());
         }
@@ -351,6 +366,23 @@ public class TwoPhaseCommitSinkFunctionTest {
         @Override
         public String toString() {
             return String.format("ContentTransaction[%s]", tmpContentWriter.getName());
+        }
+    }
+
+    private static class ContentTransactionSerializer extends KryoSerializer<ContentTransaction> {
+
+        public ContentTransactionSerializer() {
+            super(ContentTransaction.class, new ExecutionConfig());
+        }
+
+        @Override
+        public KryoSerializer<ContentTransaction> duplicate() {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "ContentTransactionSerializer";
         }
     }
 
