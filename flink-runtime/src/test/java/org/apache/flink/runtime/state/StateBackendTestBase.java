@@ -150,6 +150,8 @@ import static org.mockito.Mockito.verify;
 /**
  * Tests for the {@link KeyedStateBackend} and {@link OperatorStateBackend} as produced by various
  * {@link StateBackend}s.
+ *
+ * <p>NOTE: Please ensure to close and dispose any created keyed state backend in tests.
  */
 @SuppressWarnings("serial")
 public abstract class StateBackendTestBase<B extends AbstractStateBackend> extends TestLogger {
@@ -3606,6 +3608,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     public void testValueStateDefaultValue() throws Exception {
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, "Hello");
 
+        KeyedStateHandle keyedStateHandle;
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
@@ -3622,17 +3625,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             state.clear();
             assertEquals("Hello", state.value());
 
-            backend =
-                    restoreKeyedBackend(
-                            IntSerializer.INSTANCE,
-                            runSnapshot(
-                                    backend.snapshot(
-                                            1L,
-                                            1L,
-                                            createStreamFactory(),
-                                            CheckpointOptions.forCheckpointWithDefaultLocation()),
-                                    new SharedStateRegistry()));
-            state =
+            keyedStateHandle =
+                    runSnapshot(
+                            backend.snapshot(
+                                    1L,
+                                    1L,
+                                    createStreamFactory(),
+                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            new SharedStateRegistry());
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+
+        try {
+            backend = restoreKeyedBackend(IntSerializer.INSTANCE, keyedStateHandle);
+            ValueState<String> state =
                     backend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
