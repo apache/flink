@@ -750,7 +750,7 @@ class DataStream(object):
     def print(self, sink_identifier: str = None) -> 'DataStreamSink':
         """
         Writes a DataStream to the standard output stream (stdout).
-        For each element of the DataStream the object string is writen.
+        For each element of the DataStream the object string is written.
 
         NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
         worker, and is not fault tolerant.

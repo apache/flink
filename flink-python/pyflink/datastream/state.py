@@ -89,7 +89,7 @@ class ValueState(State, Generic[T]):
 
 class AppendingState(State, Generic[IN, OUT]):
     """
-    Base interface for partitioned state taht supports adding elements and inspecting the current
+    Base interface for partitioned state that supports adding elements and inspecting the current
     state. Elements can either be kept in a buffer (list-like) or aggregated into one value.
 
     This state is accessed and modified by user functions, and checkpointed consistently by the
