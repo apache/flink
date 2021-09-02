@@ -31,6 +31,8 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 /**
  * This interface provides methods to report and retrieve state for a task.
  *
@@ -73,6 +75,9 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 
     /** Whether all the operators of the task are finished on restore. */
     boolean isFinishedOnRestore();
+
+    /** Acquires the checkpoint id to restore from. */
+    Optional<Long> getRestoreCheckpointId();
 
     /**
      * Returns means to restore previously reported state of an operator running in the owning task.
