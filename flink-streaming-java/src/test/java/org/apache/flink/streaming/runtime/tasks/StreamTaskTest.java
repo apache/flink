@@ -1288,14 +1288,21 @@ public class StreamTaskTest extends TestLogger {
 
         // when: Receiving the abort notification of the previous checkpoint before the complete
         // notification of the savepoint terminate.
-        harness.streamTask.notifyCheckpointAbortAsync(1);
-        harness.streamTask.notifyCheckpointCompleteAsync(2);
-        harness.streamTask.triggerCheckpointOnBarrier(
-                new CheckpointMetaData(2, 0),
-                new CheckpointOptions(
-                        CheckpointType.SAVEPOINT_TERMINATE,
-                        CheckpointStorageLocationReference.getDefault()),
-                new CheckpointMetricsBuilder());
+        MailboxExecutor executor =
+                harness.streamTask.getMailboxExecutorFactory().createExecutor(MAX_PRIORITY);
+        executor.execute(
+                () ->
+                        harness.streamTask.triggerCheckpointOnBarrier(
+                                new CheckpointMetaData(2, 0),
+                                new CheckpointOptions(
+                                        CheckpointType.SAVEPOINT_TERMINATE,
+                                        CheckpointStorageLocationReference.getDefault()),
+                                new CheckpointMetricsBuilder()),
+                "test");
+        executor.execute(() -> harness.streamTask.notifyCheckpointAbortAsync(1), "test");
+        executor.execute(() -> harness.streamTask.notifyCheckpointCompleteAsync(2), "test");
+
+        harness.processAll();
 
         // then: The task should be finished.
         assertEquals(true, finishTask.get());
