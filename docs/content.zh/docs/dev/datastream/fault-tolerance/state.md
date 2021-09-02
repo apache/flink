@@ -367,10 +367,16 @@ TTL 的更新策略（默认是 `OnCreateAndWrite`）：
 
  - `StateTtlConfig.UpdateType.OnCreateAndWrite` - 仅在创建和写入时更新
  - `StateTtlConfig.UpdateType.OnReadAndWrite` - 读取时也更新
+
+    (**注意:** 如果你同时将状态的可见性配置为 `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp`，
+    那么在PyFlink作业中，状态的读缓存将会失效，这将导致一部分的性能损失)
  
 数据在过期但还未被清理时的可见性配置如下（默认为 `NeverReturnExpired`):
 
  - `StateTtlConfig.StateVisibility.NeverReturnExpired` - 不返回过期数据
+
+    (**注意:** 在PyFlink作业中，状态的读写缓存都将失效，这将导致一部分的性能损失)
+
  - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - 会返回过期但未清理的数据
  
 `NeverReturnExpired` 情况下，过期数据就像不存在一样，不管是否被物理删除。这对于不能访问过期数据的场景下非常有用，比如敏感数据。
