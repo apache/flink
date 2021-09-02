@@ -1775,6 +1775,39 @@ public class StreamTaskTest extends TestLogger {
     }
 
     @Test
+    public void testIgnoreCompleteCheckpointBeforeStartup() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setTaskStateSnapshot(3, new TaskStateSnapshot())
+                        .modifyStreamConfig(
+                                config -> {
+                                    config.setCheckpointingEnabled(true);
+                                    config.getConfiguration()
+                                            .set(
+                                                    ExecutionCheckpointingOptions
+                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                    true);
+                                })
+                        .setupOutputForSingletonOperatorChain(
+                                new CheckpointCompleteRecordOperator())
+                        .build()) {
+            testHarness.streamTask.notifyCheckpointCompleteAsync(2);
+            testHarness.streamTask.notifyCheckpointAbortAsync(4, 3);
+            testHarness.streamTask.notifyCheckpointCompleteAsync(5);
+            testHarness.streamTask.notifyCheckpointAbortAsync(7, 6);
+
+            testHarness.processAll();
+
+            CheckpointCompleteRecordOperator operator =
+                    (CheckpointCompleteRecordOperator)
+                            (AbstractStreamOperator<?>) testHarness.streamTask.getMainOperator();
+            assertEquals(Arrays.asList(5L, 6L), operator.getNotifiedCheckpoint());
+        }
+    }
+
+    @Test
     public void testBufferSizeRecalculationStartSuccessfully() throws Exception {
         int expectedThroughput = 13333;
         int inputChannels = 3;

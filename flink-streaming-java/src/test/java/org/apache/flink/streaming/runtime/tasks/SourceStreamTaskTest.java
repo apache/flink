@@ -770,12 +770,12 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                         .build()) {
             CompletableFuture<Boolean> triggerResult =
                     harness.streamTask.triggerCheckpointAsync(
-                            new CheckpointMetaData(1, 1),
+                            new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
                                     SAVEPOINT_TERMINATE,
                                     CheckpointStorageLocationReference.getDefault()));
             checkpointCompleted.whenComplete(
-                    (ignored, exception) -> harness.streamTask.notifyCheckpointCompleteAsync(1));
+                    (ignored, exception) -> harness.streamTask.notifyCheckpointCompleteAsync(2));
 
             // Run mailbox till the source thread finished and suspend the mailbox
             harness.streamTask.runMailboxLoop();
