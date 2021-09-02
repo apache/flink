@@ -75,13 +75,15 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
      * The function that is used to construct a {@link WriteRequest WriteRequest} from each incoming
      * element.
      */
-    private transient DynamoDbSinkFunction<IN> dynamoDBSinkFunction;
+    private final DynamoDbSinkFunction<IN> dynamoDBSinkFunction;
 
     /** A flag controlling the error behavior of the sink. */
     private boolean failOnError = true;
 
     /** Maximum length of the internal record queue before backpressuring. */
     private int queueLimit = Integer.MAX_VALUE;
+
+    private int batchSize = 25;
 
     /** Counts how often we have to wait for KPL because we are above the queue limit. */
     private transient Counter backpressureCycles;
@@ -138,11 +140,22 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         this.queueLimit = queueLimit;
     }
 
+    /** @param batchSize Batch size of batch request sent to dynamodb, max is 25 */
+    public void setBatchSize(int batchSize) {
+        checkArgument(batchSize > 0 && batchSize <= 25, "batchSize must be between 1 and 25");
+        this.batchSize = batchSize;
+    }
+
     @Override
     public void open(Configuration parameters) {
         backpressureLatch = new TimeoutLatch();
         client = AwsV2Util.createDynamoDbClient(configProps);
         this.producer = buildDynamoDBProducer(new DynamoDbProducerListener());
+        try {
+            this.producer.start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         final MetricGroup dynamoDBSinkMetricGroup =
                 getRuntimeContext().getMetricGroup().addGroup(DYNAMO_DB_PRODUCER_METRIC_GROUP);
         this.backpressureCycles = dynamoDBSinkMetricGroup.counter(METRIC_BACKPRESSURE_CYCLES);
@@ -168,10 +181,6 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     public void close() throws Exception {
         LOG.info("Closing sink");
         super.close();
-        if (client != null) {
-            client.close();
-            client = null;
-        }
         if (producer != null) {
             LOG.info("Flushing outstanding {} records", producer.getOutstandingRecordsCount());
             // try to flush all outstanding records
@@ -180,6 +189,10 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
             LOG.info("Flushing done. Destroying producer instance.");
             producer.close();
             producer = null;
+        }
+        if (client != null) {
+            client.close();
+            client = null;
         }
         checkAndPropagateAsyncError();
     }
@@ -211,6 +224,7 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         return new DynamoDbProducerBuilder(client, ProducerType.BatchAsync)
                 .setQueueLimit(queueLimit)
                 .setListener(listener)
+                .setBatchSize(batchSize)
                 .build();
     }
 
