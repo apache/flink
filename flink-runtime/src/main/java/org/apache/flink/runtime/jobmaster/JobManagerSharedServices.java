@@ -33,13 +33,16 @@ import org.apache.flink.runtime.shuffle.ShuffleMasterContextImpl;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -48,6 +51,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Consequently, the {@link JobMaster} should never shut these services down.
  */
 public class JobManagerSharedServices {
+
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
 
     private final ScheduledExecutorService futureExecutor;
 
@@ -107,15 +112,10 @@ public class JobManagerSharedServices {
         Throwable exception = null;
 
         try {
-            futureExecutor.shutdownNow();
+            ExecutorUtils.gracefulShutdown(
+                    SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS, futureExecutor, ioExecutor);
         } catch (Throwable t) {
             exception = t;
-        }
-
-        try {
-            ioExecutor.shutdownNow();
-        } catch (Throwable t) {
-            firstException = firstException == null ? t : firstException;
         }
 
         try {
@@ -163,18 +163,17 @@ public class JobManagerSharedServices {
                                 failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
                                 checkClassLoaderLeak));
 
+        final int numberCPUCores = Hardware.getNumberCPUCores();
         final int numJobManagerFutureThreads =
-                config.getInteger(
-                        JobManagerOptions.JOB_MANAGER_FUTURE_THREADS, Hardware.getNumberCPUCores());
+                config.getInteger(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, numberCPUCores);
         final ScheduledExecutorService futureExecutor =
                 Executors.newScheduledThreadPool(
                         numJobManagerFutureThreads, new ExecutorThreadFactory("jobmanager-future"));
 
         final int numJobManagerIoThreads =
-                config.getInteger(
-                        JobManagerOptions.JOB_MANAGER_IO_THREADS, Hardware.getNumberCPUCores());
-        final ScheduledExecutorService ioExecutor =
-                Executors.newScheduledThreadPool(
+                config.getInteger(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, numberCPUCores);
+        final ExecutorService ioExecutor =
+                Executors.newFixedThreadPool(
                         numJobManagerIoThreads, new ExecutorThreadFactory("jobmanager-io"));
 
         final ShuffleMasterContext shuffleMasterContext =
