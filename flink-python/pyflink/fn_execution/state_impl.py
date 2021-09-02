@@ -147,8 +147,9 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
 
     def _maybe_clear_write_cache(self):
         if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
-            self._internal_state._cleared = True
             self._internal_state.commit()
+            self._internal_state._cleared = False
+            self._internal_state._added_elements = []
 
 
 class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueState):
