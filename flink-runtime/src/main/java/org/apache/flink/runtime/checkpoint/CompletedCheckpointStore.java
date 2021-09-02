@@ -56,6 +56,21 @@ public interface CompletedCheckpointStore {
         return allCheckpoints.get(allCheckpoints.size() - 1);
     }
 
+    /** Returns the id of the latest completed checkpoints. */
+    default long getLatestCheckpointId() {
+        try {
+            List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+            if (allCheckpoints.isEmpty()) {
+                return 0;
+            }
+
+            return allCheckpoints.get(allCheckpoints.size() - 1).getCheckpointID();
+        } catch (Throwable throwable) {
+            LOG.warn("Get the latest completed checkpoints failed", throwable);
+            return 0;
+        }
+    }
+
     /**
      * Shuts down the store.
      *
