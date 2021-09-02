@@ -105,7 +105,7 @@ public class StreamRecordUtils {
     }
 
     /** Receives a object array, generates a RowData based on the array. */
-    public static RowData row(RowKind rowKind, Object... fields) {
+    public static RowData rowOfKind(RowKind rowKind, Object... fields) {
         Object[] objects = new Object[fields.length];
         for (int i = 0; i < fields.length; i++) {
             Object field = fields[i];
@@ -120,7 +120,7 @@ public class StreamRecordUtils {
 
     /** Receives a object array, generates a RowData based on the array. */
     public static RowData row(Object... fields) {
-        return row(RowKind.INSERT, fields);
+        return rowOfKind(RowKind.INSERT, fields);
     }
 
     /**
