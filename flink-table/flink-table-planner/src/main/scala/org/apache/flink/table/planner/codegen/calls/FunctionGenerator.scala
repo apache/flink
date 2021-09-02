@@ -789,6 +789,9 @@ class FunctionGenerator private(config: TableConfig) {
   addSqlFunctionMethod(JSON_EXISTS, Seq(CHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
   addSqlFunctionMethod(JSON_EXISTS, Seq(VARCHAR, CHAR, RAW), BuiltInMethods.JSON_EXISTS_ON_ERROR)
 
+  addSqlFunctionMethod(JSON_QUERY, Seq(CHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
+  addSqlFunctionMethod(JSON_QUERY, Seq(VARCHAR, CHAR, RAW, RAW, RAW), BuiltInMethods.JSON_QUERY)
+
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR),
     BuiltInMethod.IS_JSON_VALUE.method, argsNullable = true)
   addSqlFunctionMethod(IS_JSON_VALUE, Seq(VARCHAR),
