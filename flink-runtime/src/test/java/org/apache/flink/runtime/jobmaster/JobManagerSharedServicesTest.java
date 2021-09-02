@@ -76,7 +76,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
     @Test
     public void testFutureExecutorConfiguration() throws Exception {
         Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_FUTURE_THREADS, NUM_FUTURE_THREADS);
+        config.setInteger(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, NUM_FUTURE_THREADS);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
@@ -133,7 +133,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
     @Test
     public void testIoExecutorConfiguration() throws Exception {
         Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_IO_THREADS, NUM_IO_THREADS);
+        config.setInteger(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, NUM_IO_THREADS);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 JobManagerSharedServices.fromConfiguration(
