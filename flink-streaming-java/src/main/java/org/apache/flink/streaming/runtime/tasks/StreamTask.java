@@ -653,6 +653,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                         : new RegularOperatorChain<>(this, recordWriter);
         mainOperator = operatorChain.getMainOperator();
 
+        getEnvironment()
+                .getTaskStateManager()
+                .getRestoreCheckpointId()
+                .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
+
         // task specific initialization
         init();
 
