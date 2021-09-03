@@ -932,6 +932,53 @@ public class AlternatingCheckpointsTest {
         }
     }
 
+    /**
+     * This test verifies a special case that the checkpoint handler starts the new checkpoint via
+     * received barrier announcement from the first channel, then {@link EndOfPartitionEvent} from
+     * the second channel and then the barrier from the first channel. In this case we should
+     * ensures the {@link SingleCheckpointBarrierHandler#markAlignmentStart(long, long)} should be
+     * called. More information is available in https://issues.apache.org/jira/browse/FLINK-24068.
+     */
+    @Test
+    public void testStartNewCheckpointViaAnnouncement() throws Exception {
+        int numChannels = 3;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        long alignmentTimeOut = 10000L;
+
+        try (CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(3, getTestBarrierHandlerFactory(target))
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build()) {
+            getChannel(gate, 0)
+                    .onBuffer(
+                            barrier(
+                                    1,
+                                    clock.relativeTimeMillis(),
+                                    alignedWithTimeout(getDefault(), alignmentTimeOut)),
+                            0,
+                            0);
+            getChannel(gate, 1).onBuffer(endOfPartition(), 0, 0);
+
+            assertAnnouncement(gate);
+            assertEvent(gate, EndOfPartitionEvent.class);
+            assertBarrier(gate);
+
+            getChannel(gate, 2)
+                    .onBuffer(
+                            barrier(
+                                    1,
+                                    clock.relativeTimeMillis(),
+                                    alignedWithTimeout(getDefault(), alignmentTimeOut)),
+                            0,
+                            0);
+            assertAnnouncement(gate);
+            assertBarrier(gate);
+
+            assertThat(target.triggeredCheckpoints, contains(1L));
+        }
+    }
+
     private RemoteInputChannel getChannel(CheckpointedInputGate gate, int channelIndex) {
         return (RemoteInputChannel) gate.getChannel(channelIndex);
     }
