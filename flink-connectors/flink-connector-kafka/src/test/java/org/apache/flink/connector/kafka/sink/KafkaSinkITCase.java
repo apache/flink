@@ -48,6 +48,8 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -198,11 +200,12 @@ public class KafkaSinkITCase extends TestLogger {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.EXACTLY_ONCE,
                 (records) ->
-                        assertEquals(
+                        assertThat(
                                 records,
-                                LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
-                                        .boxed()
-                                        .collect(Collectors.toList())));
+                                contains(
+                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray())));
     }
 
     @Test
@@ -278,6 +281,7 @@ public class KafkaSinkITCase extends TestLogger {
             Configuration config,
             @Nullable String transactionalIdPrefix)
             throws Exception {
+        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
         final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(100L);
         env.setRestartStrategy(RestartStrategies.noRestart());
@@ -300,7 +304,9 @@ public class KafkaSinkITCase extends TestLogger {
     private void testRecoveryWithAssertion(
             DeliveryGuarantee guarantee, java.util.function.Consumer<List<Long>> recordsAssertion)
             throws Exception {
-        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
+        Configuration config = new Configuration();
+        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(300L);
         DataStreamSource<Long> source = env.fromSequence(1, 10);
         DataStream<Long> stream =
@@ -588,12 +594,34 @@ public class KafkaSinkITCase extends TestLogger {
         public void initializeState(FunctionInitializationContext context) throws Exception {}
     }
 
-    private void checkProducerLeak() {
-        for (Thread t : Thread.getAllStackTraces().keySet()) {
-            if (t.getName().contains("kafka-producer-network-thread")) {
-                fail("Detected producer leak. Thread name: " + t.getName());
+    private void checkProducerLeak() throws InterruptedException {
+        List<Map.Entry<Thread, StackTraceElement[]>> leaks = null;
+        for (int tries = 0; tries < 10; tries++) {
+            leaks =
+                    Thread.getAllStackTraces().entrySet().stream()
+                            .filter(this::findAliveKafkaThread)
+                            .collect(Collectors.toList());
+            if (leaks.isEmpty()) {
+                return;
             }
+            Thread.sleep(1000);
         }
+
+        for (Map.Entry<Thread, StackTraceElement[]> leak : leaks) {
+            leak.getKey().stop();
+        }
+        fail(
+                "Detected producer leaks:\n"
+                        + leaks.stream().map(this::format).collect(Collectors.joining("\n\n")));
+    }
+
+    private String format(Map.Entry<Thread, StackTraceElement[]> leak) {
+        return leak.getKey().getName() + ":\n" + Joiner.on("\n").join(leak.getValue());
+    }
+
+    private boolean findAliveKafkaThread(Map.Entry<Thread, StackTraceElement[]> threadStackTrace) {
+        return threadStackTrace.getKey().getState() != Thread.State.TERMINATED
+                && threadStackTrace.getKey().getName().contains("kafka-producer-network-thread");
     }
 
     /**
