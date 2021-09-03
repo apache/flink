@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -28,6 +27,8 @@ import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.description.LinkElement.link;
 
 /**
  * Execution {@link ConfigOption} for configuring checkpointing related parameters.
@@ -232,11 +233,17 @@ public class ExecutionCheckpointingOptions {
                                     .linebreak()
                                     .build());
 
-    @Documentation.ExcludeFromDocumentation("This is a feature toggle")
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
             ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Feature toggle for enabling checkpointing after tasks finish.");
+                            Description.builder()
+                                    .text(
+                                            "Feature toggle for enabling checkpointing even if some of tasks"
+                                                    + " have finished. Before you enable it, please take a look at %s ",
+                                            link(
+                                                    "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta",
+                                                    "the important considerations"))
+                                    .build());
 }
