@@ -36,7 +36,7 @@ function run_ha_test() {
     local INCREM=$4
     local ZOOKEEPER_VERSION=$5
 
-    local JM_KILLS=3
+    local JM_KILLS=2
     local CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
 
     CLEARED=0
