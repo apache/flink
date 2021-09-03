@@ -349,6 +349,15 @@ You could switch back to use `glibc` as the memory allocator to restore the old 
       flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} <jobmanager|standalone-job|taskmanager>
 ```
 
+For users that are still using `glibc` memory allocator, the [glibc bug](https://sourceware.org/bugzilla/show_bug.cgi?id=15321) can easily be reproduced, especially while savepoints or full checkpoints with RocksDBStateBackend are created. 
+Setting the environment variable `MALLOC_ARENA_MAX` can avoid unlimited memory growth:
+
+```sh
+    $ docker run \
+      --env MALLOC_ARENA_MAX=1 \
+      flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}} <jobmanager|standalone-job|taskmanager>
+```
+
 ### Advanced customization
 
 There are several ways in which you can further customize the Flink image:
