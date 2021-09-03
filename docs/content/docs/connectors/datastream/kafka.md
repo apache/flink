@@ -149,7 +149,7 @@ In addition to properties described above, you can set arbitrary properties for 
 KafkaConsumer by using ```setProperties(Properties)``` and ```setProperty(String, String)```.
 KafkaSource has following options for configuration:
 - ```client.id.prefix``` defines the prefix to use for Kafka consumer's client ID
-- ```partition.discovery.interval.ms``` defines the interval im milliseconds for Kafka source
+- ```partition.discovery.interval.ms``` defines the interval in milliseconds for Kafka source
   to discover new partitions. See <a href="#dynamic-partition-discovery">Dynamic Partition Discovery</a>
   below for more details.
 - ```register.consumer.metrics``` specifies whether to register metrics of KafkaConsumer in Flink
