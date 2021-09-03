@@ -127,6 +127,18 @@ function kill_single {
     echo "Killed JM @ ${PID}"
 }
 
+function start_expected_num_tms() {
+  local EXPECTED_TMS=$1
+
+  local RUNNING_TMS=`jps | grep 'TaskManager' | wc -l`
+
+  while [ "${RUNNING_TMS}" -lt "${EXPECTED_TMS}" ]; do
+      echo "Starting new TM."
+      "$FLINK_DIR"/bin/taskmanager.sh start > /dev/null
+      RUNNING_TMS=$((RUNNING_TMS + 1))
+  done
+}
+
 # ha prefix to differentiate from the one in common.sh
 function ha_tm_watchdog() {
     local JOB_ID=$1
@@ -137,30 +149,29 @@ function ha_tm_watchdog() {
 
     while true; do
 
+        start_expected_num_tms $EXPECTED_TMS
+
         # check how many successful checkpoints we have
         # and kill a TM only if the previous one already had some
 
         local CHECKPOINTS=`curl -s "http://localhost:8081/jobs/${JOB_ID}/checkpoints" | cut -d ":" -f 6 | sed 's/,.*//'`
 
-        if [[ ${CHECKPOINTS} =~ '^[0-9]+$' ]] || [[ ${CHECKPOINTS} == "" ]]; then
+        if [[ ${CHECKPOINTS} == "" ]]; then
+
+            # leader election indicates a loss of JM which starts the chk counter from 0
+            SUCCESSFUL_CHCKP=0
 
             # this may be the case during leader election.
             # in this case we retry later with a smaller interval
             sleep 5; continue
 
-        elif [ "${CHECKPOINTS}" -ne "${SUCCESSFUL_CHCKP}" ]; then
+        elif [[ ${CHECKPOINTS} =~ ^[0-9]+$ ]] && [ "${CHECKPOINTS}" -gt "0" ] && [ "${CHECKPOINTS}" -ne "${SUCCESSFUL_CHCKP}" ]; then
+            # wait for at least one successful checkpoint before killing a TM
 
             # we are not only searching for > because when the JM goes down,
             # the job starts with reporting 0 successful checkpoints
 
-            local RUNNING_TMS=`jps | grep 'TaskManager' | wc -l`
             local TM_PIDS=`jps | grep 'TaskManager' | cut -d " " -f 1`
-
-            local MISSING_TMS=$((EXPECTED_TMS-RUNNING_TMS))
-            if [ ${MISSING_TMS} -eq 0 ]; then
-                # start a new TM only if we have exactly the expected number
-                "$FLINK_DIR"/bin/taskmanager.sh start > /dev/null
-            fi
 
             # kill an existing one
             local TM_PIDS=(${TM_PIDS[@]})
@@ -170,6 +181,8 @@ function ha_tm_watchdog() {
             echo "Killed TM @ ${PID}"
 
             SUCCESSFUL_CHCKP=${CHECKPOINTS}
+
+            start_expected_num_tms $EXPECTED_TMS
         fi
 
         sleep 11;
