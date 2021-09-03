@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
-import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -44,7 +43,6 @@ import java.util.Set;
 @Internal
 public class SplitsAssignmentState {
 
-    private final StartCursor startCursor;
     private final StopCursor stopCursor;
     private final SourceConfiguration sourceConfiguration;
 
@@ -57,11 +55,7 @@ public class SplitsAssignmentState {
     private final Map<Integer, Set<String>> readerAssignedSplits;
     private boolean initialized;
 
-    public SplitsAssignmentState(
-            StartCursor startCursor,
-            StopCursor stopCursor,
-            SourceConfiguration sourceConfiguration) {
-        this.startCursor = startCursor;
+    public SplitsAssignmentState(StopCursor stopCursor, SourceConfiguration sourceConfiguration) {
         this.stopCursor = stopCursor;
         this.sourceConfiguration = sourceConfiguration;
         this.appendedPartitions = new HashSet<>();
@@ -72,11 +66,9 @@ public class SplitsAssignmentState {
     }
 
     public SplitsAssignmentState(
-            StartCursor startCursor,
             StopCursor stopCursor,
             SourceConfiguration sourceConfiguration,
             PulsarSourceEnumState sourceEnumState) {
-        this.startCursor = startCursor;
         this.stopCursor = stopCursor;
         this.sourceConfiguration = sourceConfiguration;
         this.appendedPartitions = sourceEnumState.getAppendedPartitions();
@@ -220,10 +212,8 @@ public class SplitsAssignmentState {
 
     private PulsarPartitionSplit createSplit(TopicPartition partition) {
         try {
-            StartCursor start = InstantiationUtil.clone(this.startCursor);
             StopCursor stop = InstantiationUtil.clone(stopCursor);
-
-            return new PulsarPartitionSplit(partition, start, stop);
+            return new PulsarPartitionSplit(partition, stop);
         } catch (IOException | ClassNotFoundException e) {
             throw new IllegalStateException(e);
         }
