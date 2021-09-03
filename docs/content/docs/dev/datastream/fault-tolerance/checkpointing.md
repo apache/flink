@@ -83,6 +83,8 @@ Other parameters for checkpointing include:
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
 
+  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so please read through the [important considerations](#checkpointing-with-parts-of-the-graph-finished)
+
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
 ```java
@@ -115,6 +117,11 @@ env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
 env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
+
+// enable checkpointing with finished tasks
+Configuration config = new Configuration();
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -147,6 +154,11 @@ env.getCheckpointConfig.enableUnalignedCheckpoints()
 
 // sets the checkpoint storage where checkpoint snapshots will be written
 env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
+
+// enable checkpointing with finished tasks
+val config = new Configuration()
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
+env.configure(config)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -210,5 +222,41 @@ See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage"
 Flink currently only provides processing guarantees for jobs without iterations. Enabling checkpointing on an iterative job causes an exception. In order to force checkpointing on an iterative program the user needs to set a special flag when enabling checkpointing: `env.enableCheckpointing(interval, CheckpointingMode.EXACTLY_ONCE, force = true)`.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
+
+## Checkpointing with parts of the graph finished *(BETA)*
+
+Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job graph have finished processing all data, because it was a bounded source. The feature must be enabled
+via a feature flag:
+
+```java
+Configuration config = new Configuration();
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+```
+
+Once tasks/subtasks are finished they don't contribute to the checkpoints any longer. It is an
+important observation that puts certain requirements on the implementation of any custom operators
+or UDFs. In order to support checkpointing with tasks that finish we adjusted the [task lifecycle]({{< ref "docs/internals/task_lifecycle" >}})
+and introduced the {{< javadoc file="org/apache/flink/streaming/api/operators/StreamOperator.html#finish--" name="StreamOperator#finish" >}}
+method. The method is expected to be a clear cutoff point for flushing any remaining buffered state.
+All checkpoints taken after the `finish` method has been called should not contain any significant state that is required
+after a restore. What does it mean in details?
+
+### Operator state
+
+The aforementioned requirement implies certain contract especially on the operator state. First and
+foremost it forced us to implement a special handling for `UnionListState`. Often a `UnionListState`
+has been used to implement a global view over offsets in external system (e.g. we use it to store
+current offsets of Kafka partitions). If we had discarded a state for just a single subtask that had
+it's `finish` method called, we would've lost offsets for partitions it had been assigned. In order
+to work this problem around, we let checkpoints succeed, only if either none or all subtasks
+finished that use `UnionListState`.
+
+We have not seen a `ListState` used in a similar way, but you must be aware that any state taken
+after the `finish` method will be discarded and not available after a restore. We truly believe that
+any operator that is prepared to be rescaled should work well with tasks that partially finish
+(only a subset of it tasks finish). Restoring from a checkpoint which has some subtasks finished is
+equivalent to restoring such a task with the number of new subtasks equal to the number of finished
+tasks.
 
 {{< top >}}
