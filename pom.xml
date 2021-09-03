@@ -51,6 +51,7 @@ under the License.
 
 	<modules>
 		<module>flink-annotations</module>
+		<module>flink-architecture-tests</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -1433,6 +1434,7 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-pulsar/src/test/resources/**</exclude>
+						<exclude>flink-architecture-tests/violations/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
