@@ -22,7 +22,7 @@ import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubs
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
-import org.apache.flink.connector.pulsar.source.enumerator.topic.range.RangeGenerator;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -56,10 +56,10 @@ public abstract class BasePulsarSubscriber implements PulsarSubscriber {
     }
 
     protected List<TopicPartition> toTopicPartitions(
-            TopicMetadata metadata, int parallelism, RangeGenerator rangeGenerator) {
+            TopicMetadata metadata, List<TopicRange> ranges) {
         if (!metadata.isPartitioned()) {
             // For non-partitioned topic.
-            return rangeGenerator.range(metadata, parallelism).stream()
+            return ranges.stream()
                     .map(range -> new TopicPartition(metadata.getName(), -1, range))
                     .collect(toList());
         } else {
@@ -67,7 +67,7 @@ public abstract class BasePulsarSubscriber implements PulsarSubscriber {
                     .boxed()
                     .flatMap(
                             partitionId ->
-                                    rangeGenerator.range(metadata, parallelism).stream()
+                                    ranges.stream()
                                             .map(
                                                     range ->
                                                             new TopicPartition(

@@ -473,6 +473,7 @@ public final class PulsarSourceBuilder<OUT> {
         // Since these implementation could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
+        checkState(isSerializable(rangeGenerator), "RangeGenerator isn't serializable");
 
         // Make the configuration unmodifiable.
         UnmodifiableConfiguration config = new UnmodifiableConfiguration(configuration);
