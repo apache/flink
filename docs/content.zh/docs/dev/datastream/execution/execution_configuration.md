@@ -64,7 +64,7 @@ var executionConfig = env.getConfig
 
 - `enableForceAvro()` / **`disableForceAvro()`**。默认情况下不强制使用 Avro。强制 Flink AvroTypeInfo 使用 Avro 序列化器而不是 Kryo 来序列化 Avro 的 POJO。
 
-- `enableObjectReuse()` / **`disableObjectReuse()`**。默认情况下，Flink 中不重用对象。启用对象重用模式会指示运行时重用用户对象以获得更好的性能。请记住，当一个算子的用户代码 function 没有意识到这种行为时可能会导致bug。
+- `enableObjectReuse()` / **`disableObjectReuse()`**。默认情况下，Flink 中不重用对象。启用对象重用模式会指示运行时重用用户对象以获得更好的性能。请当心，当一个算子的用户代码 function 没有意识到这种行为时可能会导致bug。
 
 - `getGlobalJobParameters()` / `setGlobalJobParameters()`。此方法允许用户将自定义对象设置为作业的全局配置。由于 `ExecutionConfig` 可在所有用户定义的 function 中访问，因此这是一种使配置在作业中全局可用的简单方法。
 
