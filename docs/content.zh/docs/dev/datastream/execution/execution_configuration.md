@@ -74,7 +74,7 @@ var executionConfig = env.getConfig
 
 - `registerTypeWithKryoSerializer(Class<?> type, Serializer<?> serializer)`。使用 Kryo 注册指定类型并为其指定序列化器。通过使用 Kryo 注册类型，该类型的序列化将更加高效。
 
-- `registerKryoType(Class<?> type)`。如果类型最终被 Kryo 序列化，那么它将在 Kryo 中注册，以确保只有标记（整数 ID）被写入。如果一个类型没有在 Kryo 注册，它的全限定类名将在每个实例中被序列化，从而导致更高的 I/O 成本。 
+- `registerKryoType(Class<?> type)`。如果类型最终被 Kryo 序列化，那么它将在 Kryo 中注册，以确保只有标记（整数 ID）被写入。如果一个类型没有在 Kryo 注册，它的全限定类名将在每个实例中被序列化，从而导致更高的 I/O 成本。
 
 - `registerPojoType(Class<?> type)`。将指定的类型注册到序列化栈中。如果该类型最终被序列化为 POJO，那么该类型将注册到 POJO 序列化器中。如果该类型最终被 Kryo 序列化，那么它将在 Kryo 中注册，以确保只有标记被写入。如果一个类型没有在 Kryo 注册，它的全限定类名将在每个实例中被序列化，从而导致更高的I/O成本。
 
