@@ -113,7 +113,14 @@ public class StreamTaskTimerTest extends TestLogger {
         long currentTimeMillis = System.currentTimeMillis();
         ArrayList<ValidatingProcessingTimeCallback> timeCallbacks = new ArrayList<>();
 
-        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis, 0));
+        /*
+         It is not possible to test registering timer for currentTimeMillis or value slightly greater than
+         currentTimeMillis because if the during registerTimer the internal currentTime is equal
+         to this value then according to current logic the time will be increased for 1ms while
+         `currentTimeMillis - 200` is always transform to 0, so it can lead to reordering. See
+         comment in {@link ProcessingTimeServiceUtil#getRecordProcessingTimeDelay(long, long)}.
+        */
+        timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis - 1, 0));
         timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis - 200, 1));
         timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis + 100, 2));
         timeCallbacks.add(new ValidatingProcessingTimeCallback(currentTimeMillis + 200, 3));
