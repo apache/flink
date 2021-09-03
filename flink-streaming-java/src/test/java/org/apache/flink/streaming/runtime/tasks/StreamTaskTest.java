@@ -1299,8 +1299,8 @@ public class StreamTaskTest extends TestLogger {
                                         CheckpointStorageLocationReference.getDefault()),
                                 new CheckpointMetricsBuilder()),
                 "test");
-        executor.execute(() -> harness.streamTask.notifyCheckpointAbortAsync(1), "test");
-        executor.execute(() -> harness.streamTask.notifyCheckpointCompleteAsync(2), "test");
+        harness.streamTask.notifyCheckpointAbortAsync(1);
+        harness.streamTask.notifyCheckpointCompleteAsync(2);
 
         harness.processAll();
 
