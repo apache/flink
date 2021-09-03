@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerSliceEnd, PlannerWindowReference}
-import org.apache.flink.table.planner.plan.logical.{SessionWindowSpec, TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
+import org.apache.flink.table.planner.plan.logical.{TimeAttributeWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
@@ -69,17 +69,8 @@ class StreamPhysicalLocalWindowAggregate(
 
   override def isValid(litmus: Litmus, context: RelNode.Context): Boolean = {
     windowing match {
-      case _: WindowAttachedWindowingStrategy =>
+      case _: WindowAttachedWindowingStrategy | _: TimeAttributeWindowingStrategy =>
         // pass
-      case tws: TimeAttributeWindowingStrategy =>
-        tws.getWindow match {
-          case _: SessionWindowSpec =>
-            return litmus.fail("StreamPhysicalLocalWindowAggregate should not accept " +
-              "TimeAttributeWindowingStrategy with Session window. " +
-              "This should never happen, please open an issue.")
-          case _ =>
-            // pass
-        }
       case _ =>
         return litmus.fail("StreamPhysicalLocalWindowAggregate should only accepts " +
           "WindowAttachedWindowingStrategy and TimeAttributeWindowingStrategy, " +
