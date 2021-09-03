@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.testutils.runtime;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
@@ -49,6 +50,8 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyThrow;
@@ -176,6 +179,14 @@ public class PulsarRuntimeOperator implements Serializable, Closeable {
 
     public PulsarAdmin admin() {
         return admin;
+    }
+
+    public Configuration config() {
+        Configuration configuration = new Configuration();
+        configuration.set(PULSAR_SERVICE_URL, serviceUrl());
+        configuration.set(PULSAR_ADMIN_URL, adminUrl());
+
+        return configuration;
     }
 
     @Override

@@ -56,13 +56,6 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
 
     @Disabled
     @Override
-    public void testMultipleSplits(TestEnvironment testEnv, ExternalContext<String> externalContext)
-            throws Exception {
-        super.testMultipleSplits(testEnv, externalContext);
-    }
-
-    @Disabled
-    @Override
     public void testTaskManagerFailure(
             TestEnvironment testEnv,
             ExternalContext<String> externalContext,
