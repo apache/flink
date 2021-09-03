@@ -82,7 +82,7 @@ var executionConfig = env.getConfig
 
 - `disableAutoTypeRegistration()`。自动类型注册在默认情况下是启用的。自动类型注册是将用户代码使用的所有类型（包括子类型）注册到 Kryo 和 POJO 序列化器。
 
-- `setTaskCancellationInterval(long interval)`。设置尝试连续取消正在运行任务的等待时间间隔（以毫秒为单位）。当一个任务被取消时，会创建一个新的线程，如果任务线程在一定时间内没有终止，新线程就会定期调用任务线程上的 `interrupt()` 。这个参数是指连续调用 `interrupt()` 的时间间隔，默认设置为 **30000** 毫秒，或 **30秒** 。
+- `setTaskCancellationInterval(long interval)`。设置尝试连续取消正在运行任务的等待时间间隔（以毫秒为单位）。当一个任务被取消时，会创建一个新的线程，如果任务线程在一定时间内没有终止，新线程就会定期调用任务线程上的 `interrupt()` 方法。这个参数是指连续调用 `interrupt()` 的时间间隔，默认设置为 **30000** 毫秒，或 **30秒** 。
 
 通过 `getRuntimeContext()` 方法在 `Rich*` function 中访问到的 `RuntimeContext` 也允许在所有用户定义的 function 中访问 `ExecutionConfig`。
 
