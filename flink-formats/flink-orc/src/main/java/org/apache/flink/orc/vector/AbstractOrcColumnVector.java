@@ -82,7 +82,7 @@ public abstract class AbstractOrcColumnVector
             return new OrcMapColumnVector((MapColumnVector) vector, (MapType) logicalType);
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupport vector: " + vector.getClass().getName());
+                    "Unsupported vector: " + vector.getClass().getName());
         }
     }
 

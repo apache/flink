@@ -356,7 +356,7 @@ class FileSystemCheckpointStorage(CheckpointStorage):
 
 class CustomCheckpointStorage(CheckpointStorage):
     """
-    A wrapper of customized java checkpoint storage created from the provided `StateBackendFactory`.
+    A wrapper of customized java checkpoint storage.
     """
 
     def __init__(self, j_custom_checkpoint_storage):

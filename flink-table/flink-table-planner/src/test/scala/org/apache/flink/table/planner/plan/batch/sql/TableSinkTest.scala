@@ -115,8 +115,6 @@ class TableSinkTest extends TableTestBase {
          |)
        """.stripMargin)
 
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.executeSql(
       s"""
          |CREATE TABLE MySink (

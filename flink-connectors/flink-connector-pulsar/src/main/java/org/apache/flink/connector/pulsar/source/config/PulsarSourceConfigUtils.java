@@ -21,9 +21,6 @@ package org.apache.flink.connector.pulsar.source.config;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
-import org.apache.flink.connector.pulsar.source.PulsarSourceOptions;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -33,31 +30,26 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-
-import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.regex.Pattern;
 
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.getOptionValue;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.setOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
-import static org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils.configMap;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACKNOWLEDGEMENTS_GROUP_TIME_MICROS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACK_RECEIPT_ENABLED;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACK_TIMEOUT_MILLIS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_ACK_OLDEST_CHUNKED_MESSAGE_ON_QUEUE_FULL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_UPDATE_PARTITIONS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_BATCH_INDEX_ACK_ENABLED;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONSUMER_PROPERTIES;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CRYPTO_FAILURE_ACTION;
@@ -67,14 +59,11 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_REDELIVER_COUNT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_NEGATIVE_ACK_REDELIVERY_DELAY_MICROS;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PATTERN_AUTO_DISCOVERY_PERIOD;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_POOL_MESSAGES;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PRIORITY_LEVEL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_COMPACTED;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RECEIVER_QUEUE_SIZE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REGEX_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REPLICATE_SUBSCRIPTION_STATE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RESET_INCLUDE_HEAD;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_ENABLE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_RETRY_LETTER_TOPIC;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_INITIAL_POSITION;
@@ -82,8 +71,6 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TICK_DURATION_MILLIS;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPICS_PATTERN;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPIC_NAMES;
 
 /** Create source related {@link Consumer} and validate config. */
 @Internal
@@ -96,7 +83,6 @@ public final class PulsarSourceConfigUtils {
     private static final List<Set<ConfigOption<?>>> CONFLICT_SOURCE_OPTIONS =
             ImmutableList.<Set<ConfigOption<?>>>builder()
                     .add(ImmutableSet.of(PULSAR_AUTH_PARAMS, PULSAR_AUTH_PARAM_MAP))
-                    .add(ImmutableSet.of(PULSAR_TOPIC_NAMES, PULSAR_TOPICS_PATTERN))
                     .build();
 
     private static final Set<ConfigOption<?>> REQUIRED_SOURCE_OPTIONS =
@@ -132,127 +118,84 @@ public final class PulsarSourceConfigUtils {
                 });
     }
 
-    /**
-     * Create a {@link ConsumerConfigurationData} by using the given {@link Configuration}. Add the
-     * configuration was listed in {@link PulsarSourceOptions}, and we would parse it one by one.
-     *
-     * @param configuration The flink configuration
-     * @param <T> The type of the pulsar message, this type is ignored.
-     */
-    public static <T> ConsumerConfigurationData<T> createConsumerConfig(
-            Configuration configuration,
-            @Nullable ConfigurationDataCustomizer<ConsumerConfigurationData<T>> customizer) {
-        ConsumerConfigurationData<T> data = new ConsumerConfigurationData<>();
+    /** Create a pulsar consumer builder by using the given Configuration. */
+    public static <T> ConsumerBuilder<T> createConsumerBuilder(
+            PulsarClient client, Schema<T> schema, Configuration configuration) {
+        ConsumerBuilder<T> builder = client.newConsumer(schema);
 
-        // Set the properties one by one.
-        data.setTopicNames(
-                getOptionValue(
-                        configuration,
-                        PULSAR_TOPIC_NAMES,
-                        v -> PulsarJsonUtils.toSet(String.class, v)));
-        data.setTopicsPattern(
-                getOptionValue(configuration, PULSAR_TOPICS_PATTERN, Pattern::compile));
-        data.setSubscriptionName(configuration.get(PULSAR_SUBSCRIPTION_NAME));
-        data.setSubscriptionType(configuration.get(PULSAR_SUBSCRIPTION_TYPE));
+        setOptionValue(configuration, PULSAR_SUBSCRIPTION_NAME, builder::subscriptionName);
+        setOptionValue(
+                configuration, PULSAR_ACK_TIMEOUT_MILLIS, v -> builder.ackTimeout(v, MILLISECONDS));
+        setOptionValue(configuration, PULSAR_ACK_RECEIPT_ENABLED, builder::isAckReceiptEnabled);
+        setOptionValue(
+                configuration,
+                PULSAR_TICK_DURATION_MILLIS,
+                v -> builder.ackTimeoutTickTime(v, MILLISECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_NEGATIVE_ACK_REDELIVERY_DELAY_MICROS,
+                v -> builder.negativeAckRedeliveryDelay(v, MICROSECONDS));
+        setOptionValue(configuration, PULSAR_SUBSCRIPTION_TYPE, builder::subscriptionType);
+        setOptionValue(configuration, PULSAR_SUBSCRIPTION_MODE, builder::subscriptionMode);
+        setOptionValue(configuration, PULSAR_CRYPTO_FAILURE_ACTION, builder::cryptoFailureAction);
+        setOptionValue(configuration, PULSAR_RECEIVER_QUEUE_SIZE, builder::receiverQueueSize);
+        setOptionValue(
+                configuration,
+                PULSAR_ACKNOWLEDGEMENTS_GROUP_TIME_MICROS,
+                v -> builder.acknowledgmentGroupTime(v, MICROSECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_REPLICATE_SUBSCRIPTION_STATE,
+                builder::replicateSubscriptionState);
+        setOptionValue(
+                configuration,
+                PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS,
+                builder::maxTotalReceiverQueueSizeAcrossPartitions);
+        setOptionValue(configuration, PULSAR_CONSUMER_NAME, builder::consumerName);
+        setOptionValue(configuration, PULSAR_READ_COMPACTED, builder::readCompacted);
+        setOptionValue(configuration, PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
+        setOptionValue(configuration, PULSAR_CONSUMER_PROPERTIES, builder::properties);
+        setOptionValue(
+                configuration,
+                PULSAR_SUBSCRIPTION_INITIAL_POSITION,
+                builder::subscriptionInitialPosition);
+        createDeadLetterPolicy(configuration).ifPresent(builder::deadLetterPolicy);
+        setOptionValue(configuration, PULSAR_AUTO_UPDATE_PARTITIONS, builder::autoUpdatePartitions);
+        setOptionValue(
+                configuration,
+                PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS,
+                v -> builder.autoUpdatePartitionsInterval(v, SECONDS));
+        setOptionValue(configuration, PULSAR_RETRY_ENABLE, builder::enableRetry);
+        setOptionValue(
+                configuration,
+                PULSAR_MAX_PENDING_CHUNKED_MESSAGE,
+                builder::maxPendingChunkedMessage);
+        setOptionValue(
+                configuration,
+                PULSAR_AUTO_ACK_OLDEST_CHUNKED_MESSAGE_ON_QUEUE_FULL,
+                builder::autoAckOldestChunkedMessageOnQueueFull);
+        setOptionValue(
+                configuration,
+                PULSAR_EXPIRE_TIME_OF_INCOMPLETE_CHUNKED_MESSAGE_MILLIS,
+                v -> builder.expireTimeOfIncompleteChunkedMessage(v, MILLISECONDS));
+        setOptionValue(configuration, PULSAR_POOL_MESSAGES, builder::poolMessages);
 
-        data.setSubscriptionMode(configuration.get(PULSAR_SUBSCRIPTION_MODE));
-        data.setReceiverQueueSize(configuration.get(PULSAR_RECEIVER_QUEUE_SIZE));
-        data.setAcknowledgementsGroupTimeMicros(
-                configuration.get(PULSAR_ACKNOWLEDGEMENTS_GROUP_TIME_MICROS));
-        data.setNegativeAckRedeliveryDelayMicros(
-                configuration.get(PULSAR_NEGATIVE_ACK_REDELIVERY_DELAY_MICROS));
-        data.setMaxTotalReceiverQueueSizeAcrossPartitions(
-                configuration.get(PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS));
-        data.setConsumerName(configuration.get(PULSAR_CONSUMER_NAME));
-        data.setAckTimeoutMillis(configuration.get(PULSAR_ACK_TIMEOUT_MILLIS));
-        data.setTickDurationMillis(configuration.get(PULSAR_TICK_DURATION_MILLIS));
-        data.setPriorityLevel(configuration.get(PULSAR_PRIORITY_LEVEL));
+        return builder;
+    }
 
-        // This method is deprecated in 2.8.0, we use this method for backward compatible.
-        data.setMaxPendingChunkedMessage(configuration.get(PULSAR_MAX_PENDING_CHUNKED_MESSAGE));
-        data.setAutoAckOldestChunkedMessageOnQueueFull(
-                configuration.get(PULSAR_AUTO_ACK_OLDEST_CHUNKED_MESSAGE_ON_QUEUE_FULL));
-        data.setExpireTimeOfIncompleteChunkedMessageMillis(
-                configuration.get(PULSAR_EXPIRE_TIME_OF_INCOMPLETE_CHUNKED_MESSAGE_MILLIS));
-        data.setCryptoFailureAction(configuration.get(PULSAR_CRYPTO_FAILURE_ACTION));
-        data.setProperties(
-                getOptionValue(
-                        configuration,
-                        PULSAR_CONSUMER_PROPERTIES,
-                        v ->
-                                (SortedMap<String, String>)
-                                        PulsarJsonUtils.toMap(
-                                                TreeMap.class, String.class, String.class, v)));
-        data.setReadCompacted(configuration.get(PULSAR_READ_COMPACTED));
-        data.setSubscriptionInitialPosition(
-                configuration.get(PULSAR_SUBSCRIPTION_INITIAL_POSITION));
-        data.setPatternAutoDiscoveryPeriod(configuration.get(PULSAR_PATTERN_AUTO_DISCOVERY_PERIOD));
-        data.setRegexSubscriptionMode(configuration.get(PULSAR_REGEX_SUBSCRIPTION_MODE));
-
-        // Set dead letter policy
+    private static Optional<DeadLetterPolicy> createDeadLetterPolicy(Configuration configuration) {
         if (configuration.contains(PULSAR_MAX_REDELIVER_COUNT)
                 || configuration.contains(PULSAR_RETRY_LETTER_TOPIC)
                 || configuration.contains(PULSAR_DEAD_LETTER_TOPIC)) {
-            DeadLetterPolicy deadLetterPolicy =
-                    DeadLetterPolicy.builder()
-                            .maxRedeliverCount(configuration.get(PULSAR_MAX_REDELIVER_COUNT))
-                            .retryLetterTopic(configuration.get(PULSAR_RETRY_LETTER_TOPIC))
-                            .deadLetterTopic(configuration.get(PULSAR_DEAD_LETTER_TOPIC))
-                            .build();
-            data.setDeadLetterPolicy(deadLetterPolicy);
-        }
+            DeadLetterPolicy.DeadLetterPolicyBuilder builder = DeadLetterPolicy.builder();
 
-        data.setRetryEnable(configuration.get(PULSAR_RETRY_ENABLE));
-        data.setAutoUpdatePartitions(configuration.get(PULSAR_AUTO_UPDATE_PARTITIONS));
-        data.setAutoUpdatePartitionsIntervalSeconds(
-                configuration.get(PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS));
-        data.setReplicateSubscriptionState(configuration.get(PULSAR_REPLICATE_SUBSCRIPTION_STATE));
-        data.setResetIncludeHead(configuration.get(PULSAR_RESET_INCLUDE_HEAD));
-        data.setBatchIndexAckEnabled(configuration.get(PULSAR_BATCH_INDEX_ACK_ENABLED));
-        data.setAckReceiptEnabled(configuration.get(PULSAR_ACK_RECEIPT_ENABLED));
-        data.setPoolMessages(configuration.get(PULSAR_POOL_MESSAGES));
+            setOptionValue(configuration, PULSAR_MAX_REDELIVER_COUNT, builder::maxRedeliverCount);
+            setOptionValue(configuration, PULSAR_RETRY_LETTER_TOPIC, builder::retryLetterTopic);
+            setOptionValue(configuration, PULSAR_DEAD_LETTER_TOPIC, builder::deadLetterTopic);
 
-        if (customizer != null) {
-            customizer.customize(data);
+            return Optional.of(builder.build());
+        } else {
+            return Optional.empty();
         }
-
-        return data;
-    }
-
-    /** Create a Pulsar Consumer by using the flink Configuration and the config customizer. */
-    public static <T> Consumer<T> createConsumer(
-            PulsarClient client,
-            Schema<T> schema,
-            Configuration configuration,
-            ConfigurationDataCustomizer<ConsumerConfigurationData<T>> customizer)
-            throws PulsarClientException {
-        return createConsumer(client, schema, createConsumerConfig(configuration, customizer));
-    }
-
-    /** Create a pulsar consumer by using the given ConsumerConfigurationData and PulsarClient. */
-    public static <T> Consumer<T> createConsumer(
-            PulsarClient client, Schema<T> schema, ConsumerConfigurationData<T> config)
-            throws PulsarClientException {
-        // ConsumerBuilder don't support using the given ConsumerConfigurationData directly.
-        ConsumerBuilder<T> consumerBuilder = client.newConsumer(schema).loadConf(configMap(config));
-
-        // Set some non-serializable fields.
-        if (config.getMessageListener() != null) {
-            consumerBuilder.messageListener(config.getMessageListener());
-        }
-        if (config.getConsumerEventListener() != null) {
-            consumerBuilder.consumerEventListener(config.getConsumerEventListener());
-        }
-        if (config.getCryptoKeyReader() != null) {
-            consumerBuilder.cryptoKeyReader(config.getCryptoKeyReader());
-        }
-        if (config.getMessageCrypto() != null) {
-            consumerBuilder.messageCrypto(config.getMessageCrypto());
-        }
-        if (config.getBatchReceivePolicy() != null) {
-            consumerBuilder.batchReceivePolicy(config.getBatchReceivePolicy());
-        }
-
-        return consumerBuilder.subscribe();
     }
 }

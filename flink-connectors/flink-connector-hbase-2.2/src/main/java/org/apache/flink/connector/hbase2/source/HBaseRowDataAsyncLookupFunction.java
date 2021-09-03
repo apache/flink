@@ -59,7 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The HBaseRowDataAsyncLookupFunction is an implemenation to lookup HBase data by rowkey in async
+ * The HBaseRowDataAsyncLookupFunction is an implementation to lookup HBase data by rowkey in async
  * fashion. It looks up the result as {@link RowData}.
  */
 @Internal

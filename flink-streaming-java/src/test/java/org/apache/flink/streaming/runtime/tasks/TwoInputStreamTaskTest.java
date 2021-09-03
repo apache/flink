@@ -746,9 +746,7 @@ public class TwoInputStreamTaskTest {
                 new StreamRecord<>("[Operator0-2]: End of input"),
                 new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Finish"),
-                new StreamRecord<>("[Operator1]: Bye"),
-                new StreamRecord<>("[Operator0]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);

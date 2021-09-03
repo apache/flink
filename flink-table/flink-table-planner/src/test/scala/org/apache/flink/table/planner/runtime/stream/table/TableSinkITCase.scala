@@ -680,24 +680,6 @@ class TableSinkITCase extends StreamingTestBase {
     assertEquals(expected.sorted, result.sorted)
   }
 
-
-  @Test
-  def testParallelismWithDataStream(): Unit = {
-    Try(innerTestSetParallelism(
-      "DataStreamWithParallelism",
-      1,
-      index = 1)) match {
-      case Success(_) => fail("this should not happen")
-      case Failure(t) => {
-        val exception = ExceptionUtils.findThrowableWithMessage(
-          t,
-          "`DataStreamSinkProvider` is not allowed to work with `ParallelismProvider`," +
-            " please see document of `ParallelismProvider`")
-        assertTrue(exception.isPresent)
-      }
-    }
-  }
-
   @Test
   def testParallelismWithSinkFunction(): Unit = {
     val negativeParallelism = -1
@@ -710,45 +692,17 @@ class TableSinkITCase extends StreamingTestBase {
       index = index.getAndIncrement))
     match {
       case Success(_) => fail("this should not happen")
-      case Failure(t) => {
+      case Failure(t) =>
         val exception = ExceptionUtils.findThrowableWithMessage(
           t,
-          s"should not be less than zero or equal to zero")
+          s"Invalid configured parallelism")
         assertTrue(exception.isPresent)
-      }
     }
 
     assertTrue(Try(innerTestSetParallelism(
       "SinkFunction",
       validParallelism,
       index = index.getAndIncrement)).isSuccess)
-  }
-
-  @Test
-  def testParallelismWithOutputFormat(): Unit = {
-    val negativeParallelism = -1
-    val validParallelism = 1
-    val index = new AtomicInteger(1)
-
-    Try(innerTestSetParallelism(
-      "OutputFormat",
-      negativeParallelism,
-      index = index.getAndIncrement))
-    match {
-      case Success(_) => fail("this should not happen")
-      case Failure(t) => {
-        val exception = ExceptionUtils.findThrowableWithMessage(
-          t,
-          s"should not be less than zero or equal to zero")
-        assertTrue(exception.isPresent)
-      }
-    }
-
-    assertTrue(Try(innerTestSetParallelism(
-      "SinkFunction",
-      validParallelism,
-      index = index.getAndIncrement))
-      .isSuccess)
   }
 
   @Test
@@ -791,7 +745,7 @@ class TableSinkITCase extends StreamingTestBase {
         val exception = ExceptionUtils
           .findThrowableWithMessage(
             e,
-            "primary key is required but no primary key is found")
+            "a primary key is required")
         assertTrue(exception.isPresent)
     }
 

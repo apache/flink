@@ -20,7 +20,7 @@ package org.apache.flink.table.connector.source.abilities;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -117,10 +117,13 @@ public interface SupportsReadingMetadata {
      * Provides a list of metadata keys that the produced {@link RowData} must contain as appended
      * metadata columns.
      *
-     * <p>Note: Use the passed data type instead of {@link TableSchema#toPhysicalRowDataType()} for
-     * describing the final output data type when creating {@link TypeInformation}. If the source
-     * implements {@link SupportsProjectionPushDown}, the projection is already considered in the
-     * given output data type.
+     * <p>Implementations of this method must be idempotent. The planner might call this method
+     * multiple times.
+     *
+     * <p>Note: Use the passed data type instead of {@link ResolvedSchema#toPhysicalRowDataType()}
+     * for describing the final output data type when creating {@link TypeInformation}. If the
+     * source implements {@link SupportsProjectionPushDown}, the projection is already considered in
+     * the given output data type.
      *
      * @param metadataKeys a subset of the keys returned by {@link #listReadableMetadata()}, ordered
      *     by the iteration order of returned map
@@ -128,4 +131,19 @@ public interface SupportsReadingMetadata {
      * @see DecodingFormat#applyReadableMetadata(List)
      */
     void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType);
+
+    /**
+     * Defines whether projections can be applied to metadata columns.
+     *
+     * <p>This method is only called if the source does <em>not</em> implement {@link
+     * SupportsProjectionPushDown}. By default, the planner will only apply metadata columns which
+     * have actually been selected in the query regardless. By returning {@code false} instead the
+     * source can inform the planner to apply all metadata columns defined in the table's schema.
+     *
+     * <p>If the source implements {@link SupportsProjectionPushDown}, projections of metadata
+     * columns are always considered before calling {@link #applyReadableMetadata(List, DataType)}.
+     */
+    default boolean supportsMetadataProjection() {
+        return true;
+    }
 }

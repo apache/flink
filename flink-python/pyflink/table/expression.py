@@ -27,6 +27,7 @@ __all__ = [
     'Expression',
     'TimeIntervalUnit',
     'TimePointUnit',
+    'JsonType',
     'JsonExistsOnError',
     'JsonValueOnEmptyOrError'
 ]
@@ -395,6 +396,22 @@ class JsonValueOnEmptyOrError(Enum):
         gateway = get_gateway()
         JJsonValueOnEmptyOrError = gateway.jvm.org.apache.flink.table.api.JsonValueOnEmptyOrError
         return getattr(JJsonValueOnEmptyOrError, self.name)
+
+
+class JsonType(Enum):
+    """
+    Types of JSON objects for is_json().
+    """
+
+    VALUE = 0,
+    SCALAR = 1,
+    ARRAY = 2,
+    OBJECT = 3
+
+    def _to_j_json_type(self):
+        gateway = get_gateway()
+        JJsonType = gateway.jvm.org.apache.flink.table.api.JsonType
+        return getattr(JJsonType, self.name)
 
 
 T = TypeVar('T')
@@ -1401,6 +1418,38 @@ class Expression(Generic[T]):
 
     # ---------------------------- JSON functions -----------------------------
 
+    def is_json(self, json_type: JsonType = None) -> 'Expression[bool]':
+        """
+        Determine whether a given string is valid JSON.
+
+        Specifying the optional `json_type` argument puts a constraint on which type of JSON object
+        is allowed. If the string is valid JSON, but not that type, `false` is returned. The default
+        is `JsonType.VALUE`.
+
+        Examples:
+        ::
+
+            >>> lit('1').is_json() # True
+            >>> lit('[]').is_json() # True
+            >>> lit('{}').is_json() # True
+
+            >>> lit('"abc"').is_json() # True
+            >>> lit('abc').is_json() # False
+            >>> null_of(DataTypes.STRING()).is_json() # False
+
+            >>> lit('1').is_json(JsonType.SCALAR) # True
+            >>> lit('1').is_json(JsonType.ARRAY) # False
+            >>> lit('1').is_json(JsonType.OBJECT) # False
+
+            >>> lit('{}').is_json(JsonType.SCALAR) # False
+            >>> lit('{}').is_json(JsonType.ARRAY) # False
+            >>> lit('{}').is_json(JsonType.OBJECT) # True
+        """
+        if json_type is None:
+            return _unary_op("isJson")(self)
+        else:
+            return _binary_op("isJson")(self, json_type._to_j_json_type())
+
     def json_exists(self, path: str, on_error: JsonExistsOnError = None) -> 'Expression[bool]':
         """
         Determines whether a JSON string satisfies a given search criterion.
@@ -1410,12 +1459,12 @@ class Expression(Generic[T]):
         Examples:
         ::
 
-            >>> lit('{"a": true}').json_exists('$.a') // True
-            >>> lit('{"a": true}').json_exists('$.b') // False
-            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') // True
+            >>> lit('{"a": true}').json_exists('$.a') # True
+            >>> lit('{"a": true}').json_exists('$.b') # False
+            >>> lit('{"a": [{ "b": 1 }]}').json_exists('$.a[0].b') # True
 
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) // True
-            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) // False
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.TRUE) # True
+            >>> lit('{"a": true}').json_exists('strict $.b', JsonExistsOnError.FALSE) # False
         """
         if on_error is None:
             return _binary_op("jsonExists")(self, path)
@@ -1448,12 +1497,13 @@ class Expression(Generic[T]):
         Examples:
         ::
 
-            >>> lit('{"a": true}').json_value('$.a')
-            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN())
+            >>> lit('{"a": true}').json_value('$.a') # STRING: 'true'
+            >>> lit('{"a": true}').json_value('$.a', DataTypes.BOOLEAN()) # BOOLEAN: True
             >>> lit('{"a": true}').json_value('lax $.b', \
-                    JsonValueOnEmptyOrError.DEFAULT, False)
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
             >>> lit('{"a": true}').json_value('strict $.b', \
-                    JsonValueOnEmptyOrError.NULL, None, JsonValueOnEmptyOrError.DEFAULT, False)
+                    JsonValueOnEmptyOrError.NULL, None, \
+                    JsonValueOnEmptyOrError.DEFAULT, False) # BOOLEAN: False
         """
         return _varargs_op("jsonValue")(self, path, _to_java_data_type(returning_type),
                                         on_empty._to_j_json_value_on_empty_or_error(),

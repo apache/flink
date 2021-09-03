@@ -91,7 +91,7 @@ public class FileSystemOutputFormatTest {
         try (OneInputStreamOperatorTestHarness<Row, Object> testHarness =
                 createSink(false, false, false, new LinkedHashMap<>(), ref)) {
             writeUnorderedRecords(testHarness);
-            assertEquals(1, getFileContentByPath(new File(tmpFile, "cp-0")).size());
+            assertEquals(1, getFileContentByPath(tmpFile).size());
         }
 
         ref.get().finalizeGlobal(1);
@@ -121,7 +121,7 @@ public class FileSystemOutputFormatTest {
         try (OneInputStreamOperatorTestHarness<Row, Object> testHarness =
                 createSink(true, false, false, new LinkedHashMap<>(), ref)) {
             writeUnorderedRecords(testHarness);
-            assertEquals(1, getFileContentByPath(new File(tmpFile, "cp-0")).size());
+            assertEquals(1, getFileContentByPath(tmpFile).size());
         }
 
         ref.get().finalizeGlobal(1);
@@ -147,7 +147,7 @@ public class FileSystemOutputFormatTest {
             testHarness.processElement(new StreamRecord<>(Row.of("a2", 2), 1L));
             testHarness.processElement(new StreamRecord<>(Row.of("a2", 2), 1L));
             testHarness.processElement(new StreamRecord<>(Row.of("a3", 3), 1L));
-            assertEquals(1, getFileContentByPath(new File(tmpFile, "cp-0")).size());
+            assertEquals(1, getFileContentByPath(tmpFile).size());
         }
 
         ref.get().finalizeGlobal(1);
@@ -164,7 +164,7 @@ public class FileSystemOutputFormatTest {
         try (OneInputStreamOperatorTestHarness<Row, Object> testHarness =
                 createSink(false, true, false, new LinkedHashMap<>(), ref)) {
             writeUnorderedRecords(testHarness);
-            assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-0")).size());
+            assertEquals(2, getFileContentByPath(tmpFile).size());
         }
 
         ref.get().finalizeGlobal(1);
@@ -190,7 +190,7 @@ public class FileSystemOutputFormatTest {
             testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "p1"), 1L));
             testHarness.processElement(new StreamRecord<>(Row.of("a3", 3, "p1"), 1L));
             testHarness.processElement(new StreamRecord<>(Row.of("a2", 2, "p2"), 1L));
-            assertEquals(2, getFileContentByPath(new File(tmpFile, "cp-0")).size());
+            assertEquals(2, getFileContentByPath(tmpFile).size());
         }
 
         ref.get().finalizeGlobal(1);

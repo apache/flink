@@ -56,6 +56,8 @@ public class TestInputChannel extends InputChannel {
 
     private boolean isReleased = false;
 
+    private Runnable actionOnResumed;
+
     private boolean isBlocked;
 
     private int sequenceNumber;
@@ -215,6 +217,9 @@ public class TestInputChannel extends InputChannel {
     @Override
     public void resumeConsumption() {
         isBlocked = false;
+        if (actionOnResumed != null) {
+            actionOnResumed.run();
+        }
     }
 
     @Override
@@ -246,6 +251,10 @@ public class TestInputChannel extends InputChannel {
 
     public void setBlocked(boolean isBlocked) {
         this.isBlocked = isBlocked;
+    }
+
+    public void setActionOnResumed(Runnable actionOnResumed) {
+        this.actionOnResumed = actionOnResumed;
     }
 
     interface BufferAndAvailabilityProvider {

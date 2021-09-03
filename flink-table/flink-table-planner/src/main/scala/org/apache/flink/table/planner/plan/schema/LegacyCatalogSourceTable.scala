@@ -171,7 +171,6 @@ class LegacyCatalogSourceTable[T](
   private def findAndCreateLegacyTableSource(
       hintedOptions: JMap[String, String],
       conf: ReadableConfig): TableSource[T] = {
-    val tableFactoryOpt = schemaTable.getCatalog.getTableFactory
     val tableToFind = if (hintedOptions.nonEmpty) {
       catalogTable.copy(
         FlinkHints.mergeTableOptions(
@@ -180,18 +179,12 @@ class LegacyCatalogSourceTable[T](
     } else {
       catalogTable
     }
-    val context = new TableSourceFactoryContextImpl(
-      schemaTable.getTableIdentifier, tableToFind, conf, schemaTable.isTemporary)
-    val tableSource = if (tableFactoryOpt.isPresent) {
-      tableFactoryOpt.get() match {
-        case tableSourceFactory: TableSourceFactory[_] =>
-          tableSourceFactory.createTableSource(context)
-        case _ => throw new ValidationException("Cannot query a sink-only table. "
-          + "TableFactory provided by catalog must implement TableSourceFactory")
-      }
-    } else {
-      TableFactoryUtil.findAndCreateTableSource(context)
-    }
+    val tableSource = TableFactoryUtil.findAndCreateTableSource(
+      schemaTable.getCatalog.orElse(null),
+      schemaTable.getTableIdentifier,
+      tableToFind,
+      conf,
+      schemaTable.isTemporary)
 
     // validation
     val tableName = schemaTable.getTableIdentifier.asSummaryString

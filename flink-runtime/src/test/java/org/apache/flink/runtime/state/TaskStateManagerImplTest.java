@@ -158,9 +158,8 @@ public class TaskStateManagerImplTest extends TestLogger {
 
         Assert.assertTrue(prioritized_1.isRestored());
         Assert.assertTrue(prioritized_2.isRestored());
-        Assert.assertFalse(prioritized_3.isRestored());
-        Assert.assertFalse(
-                taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
+        Assert.assertTrue(prioritized_3.isRestored());
+        Assert.assertTrue(taskStateManager.prioritizedOperatorState(new OperatorID()).isRestored());
 
         // checks for operator 1.
         Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =

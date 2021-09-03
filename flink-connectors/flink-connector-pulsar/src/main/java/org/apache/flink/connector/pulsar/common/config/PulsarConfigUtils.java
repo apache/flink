@@ -21,24 +21,25 @@ package org.apache.flink.connector.pulsar.common.config;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
-import org.apache.flink.connector.pulsar.source.PulsarSourceOptions;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-
-import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.TreeSet;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.function.Function.identity;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
@@ -65,7 +66,6 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_PROXY_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_READ_TIMEOUT;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_REQUEST_TIMEOUT;
-import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_REQUEST_TIMEOUT_MS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SSL_PROVIDER;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
@@ -79,9 +79,8 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_TLS_TRUST_STORE_TYPE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_USE_KEY_STORE_TLS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_USE_TCP_NO_DELAY;
-import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_USE_TLS;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
-import static org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils.configMap;
+import static org.apache.pulsar.client.api.SizeUnit.BYTES;
 
 /** The util for creating pulsar configuration class from flink's {@link Configuration}. */
 @Internal
@@ -91,77 +90,127 @@ public final class PulsarConfigUtils {
         // No need to create instance.
     }
 
-    /**
-     * Create a common {@link ClientConfigurationData} for both pulsar source and sink connector by
-     * using the given {@link Configuration}. Add the configuration was listed in {@link
-     * PulsarSourceOptions}, and we would parse it one by one.
-     *
-     * @param configuration The flink configuration
-     */
-    public static ClientConfigurationData createClientConfig(
-            Configuration configuration,
-            @Nullable ConfigurationDataCustomizer<ClientConfigurationData> customizer) {
-        ClientConfigurationData data = new ClientConfigurationData();
+    /** Create a PulsarClient by using the flink Configuration and the config customizer. */
+    public static PulsarClient createClient(Configuration configuration) {
+        ClientBuilder builder = PulsarClient.builder();
 
-        // Set the properties one by one.
-        data.setServiceUrl(configuration.get(PULSAR_SERVICE_URL));
-        data.setAuthPluginClassName(configuration.get(PULSAR_AUTH_PLUGIN_CLASS_NAME));
-        data.setAuthParams(configuration.get(PULSAR_AUTH_PARAMS));
-        data.setAuthParamMap(
-                getOptionValue(
-                        configuration,
-                        PULSAR_AUTH_PARAM_MAP,
-                        v -> PulsarJsonUtils.toMap(String.class, String.class, v)));
-        data.setOperationTimeoutMs(configuration.get(PULSAR_OPERATION_TIMEOUT_MS));
-        data.setStatsIntervalSeconds(configuration.get(PULSAR_STATS_INTERVAL_SECONDS));
-        data.setNumIoThreads(configuration.get(PULSAR_NUM_IO_THREADS));
-        data.setNumListenerThreads(configuration.get(PULSAR_NUM_LISTENER_THREADS));
-        data.setConnectionsPerBroker(configuration.get(PULSAR_CONNECTIONS_PER_BROKER));
-        data.setUseTcpNoDelay(configuration.get(PULSAR_USE_TCP_NO_DELAY));
-        data.setUseTls(configuration.get(PULSAR_USE_TLS));
-        data.setTlsTrustCertsFilePath(configuration.get(PULSAR_TLS_TRUST_CERTS_FILE_PATH));
-        data.setTlsAllowInsecureConnection(configuration.get(PULSAR_TLS_ALLOW_INSECURE_CONNECTION));
-        data.setTlsHostnameVerificationEnable(
-                configuration.get(PULSAR_TLS_HOSTNAME_VERIFICATION_ENABLE));
-        data.setConcurrentLookupRequest(configuration.get(PULSAR_CONCURRENT_LOOKUP_REQUEST));
-        data.setMaxLookupRequest(configuration.get(PULSAR_MAX_LOOKUP_REQUEST));
-        data.setMaxLookupRedirects(configuration.get(PULSAR_MAX_LOOKUP_REDIRECTS));
-        data.setMaxNumberOfRejectedRequestPerConnection(
-                configuration.get(PULSAR_MAX_NUMBER_OF_REJECTED_REQUEST_PER_CONNECTION));
-        data.setKeepAliveIntervalSeconds(configuration.get(PULSAR_KEEP_ALIVE_INTERVAL_SECONDS));
-        data.setConnectionTimeoutMs(configuration.get(PULSAR_CONNECTION_TIMEOUT_MS));
-        data.setRequestTimeoutMs(configuration.get(PULSAR_REQUEST_TIMEOUT_MS));
-        data.setInitialBackoffIntervalNanos(
-                configuration.get(PULSAR_INITIAL_BACKOFF_INTERVAL_NANOS));
-        data.setMaxBackoffIntervalNanos(configuration.get(PULSAR_MAX_BACKOFF_INTERVAL_NANOS));
-        data.setEnableBusyWait(configuration.get(PULSAR_ENABLE_BUSY_WAIT));
-        data.setListenerName(configuration.get(PULSAR_LISTENER_NAME));
-        data.setUseKeyStoreTls(configuration.get(PULSAR_USE_KEY_STORE_TLS));
-        data.setSslProvider(configuration.get(PULSAR_SSL_PROVIDER));
-        data.setTlsTrustStoreType(configuration.get(PULSAR_TLS_TRUST_STORE_TYPE));
-        data.setTlsTrustStorePath(configuration.get(PULSAR_TLS_TRUST_STORE_PATH));
-        data.setTlsTrustStorePassword(configuration.get(PULSAR_TLS_TRUST_STORE_PASSWORD));
-        data.setTlsCiphers(
-                getOptionValue(
-                        configuration,
-                        PULSAR_TLS_CIPHERS,
-                        v -> PulsarJsonUtils.toSet(String.class, v)));
-        data.setTlsProtocols(
-                getOptionValue(
-                        configuration,
-                        PULSAR_TLS_PROTOCOLS,
-                        v -> PulsarJsonUtils.toSet(String.class, v)));
-        data.setMemoryLimitBytes(configuration.get(PULSAR_MEMORY_LIMIT_BYTES));
-        data.setProxyServiceUrl(configuration.get(PULSAR_PROXY_SERVICE_URL));
-        data.setProxyProtocol(configuration.get(PULSAR_PROXY_PROTOCOL));
-        data.setEnableTransaction(configuration.get(PULSAR_ENABLE_TRANSACTION));
-        data.setAuthentication(createAuthentication(configuration));
-
-        if (customizer != null) {
-            customizer.customize(data);
+        setOptionValue(configuration, PULSAR_SERVICE_URL, builder::serviceUrl);
+        setOptionValue(configuration, PULSAR_LISTENER_NAME, builder::listenerName);
+        builder.authentication(createAuthentication(configuration));
+        setOptionValue(
+                configuration,
+                PULSAR_OPERATION_TIMEOUT_MS,
+                timeout -> builder.operationTimeout(timeout, MILLISECONDS));
+        setOptionValue(configuration, PULSAR_NUM_IO_THREADS, builder::ioThreads);
+        setOptionValue(configuration, PULSAR_NUM_LISTENER_THREADS, builder::listenerThreads);
+        setOptionValue(configuration, PULSAR_CONNECTIONS_PER_BROKER, builder::connectionsPerBroker);
+        setOptionValue(configuration, PULSAR_USE_TCP_NO_DELAY, builder::enableTcpNoDelay);
+        setOptionValue(
+                configuration, PULSAR_TLS_TRUST_CERTS_FILE_PATH, builder::tlsTrustCertsFilePath);
+        setOptionValue(
+                configuration,
+                PULSAR_TLS_ALLOW_INSECURE_CONNECTION,
+                builder::allowTlsInsecureConnection);
+        setOptionValue(
+                configuration,
+                PULSAR_TLS_HOSTNAME_VERIFICATION_ENABLE,
+                builder::enableTlsHostnameVerification);
+        setOptionValue(configuration, PULSAR_USE_KEY_STORE_TLS, builder::useKeyStoreTls);
+        setOptionValue(configuration, PULSAR_SSL_PROVIDER, builder::sslProvider);
+        setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_TYPE, builder::tlsTrustStoreType);
+        setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_PATH, builder::tlsTrustStorePath);
+        setOptionValue(
+                configuration, PULSAR_TLS_TRUST_STORE_PASSWORD, builder::tlsTrustStorePassword);
+        setOptionValue(configuration, PULSAR_TLS_CIPHERS, TreeSet::new, builder::tlsCiphers);
+        setOptionValue(configuration, PULSAR_TLS_PROTOCOLS, TreeSet::new, builder::tlsProtocols);
+        setOptionValue(
+                configuration,
+                PULSAR_MEMORY_LIMIT_BYTES,
+                bytes -> builder.memoryLimit(bytes, BYTES));
+        setOptionValue(
+                configuration,
+                PULSAR_STATS_INTERVAL_SECONDS,
+                v -> builder.statsInterval(v, SECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_CONCURRENT_LOOKUP_REQUEST,
+                builder::maxConcurrentLookupRequests);
+        setOptionValue(configuration, PULSAR_MAX_LOOKUP_REQUEST, builder::maxLookupRequests);
+        setOptionValue(configuration, PULSAR_MAX_LOOKUP_REDIRECTS, builder::maxLookupRedirects);
+        setOptionValue(
+                configuration,
+                PULSAR_MAX_NUMBER_OF_REJECTED_REQUEST_PER_CONNECTION,
+                builder::maxNumberOfRejectedRequestPerConnection);
+        setOptionValue(
+                configuration,
+                PULSAR_KEEP_ALIVE_INTERVAL_SECONDS,
+                v -> builder.keepAliveInterval(v, SECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_CONNECTION_TIMEOUT_MS,
+                v -> builder.connectionTimeout(v, MILLISECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_INITIAL_BACKOFF_INTERVAL_NANOS,
+                v -> builder.startingBackoffInterval(v, NANOSECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_MAX_BACKOFF_INTERVAL_NANOS,
+                v -> builder.maxBackoffInterval(v, NANOSECONDS));
+        setOptionValue(configuration, PULSAR_ENABLE_BUSY_WAIT, builder::enableBusyWait);
+        if (configuration.contains(PULSAR_PROXY_SERVICE_URL)) {
+            String proxyServiceUrl = configuration.get(PULSAR_PROXY_SERVICE_URL);
+            ProxyProtocol proxyProtocol = configuration.get(PULSAR_PROXY_PROTOCOL);
+            builder.proxyServiceUrl(proxyServiceUrl, proxyProtocol);
         }
+        setOptionValue(configuration, PULSAR_ENABLE_TRANSACTION, builder::enableTransaction);
 
-        return data;
+        return sneakyClient(builder::build);
+    }
+
+    /**
+     * PulsarAdmin shares almost the same configuration with PulsarClient, but we separate this
+     * create method for directly create it.
+     */
+    public static PulsarAdmin createAdmin(Configuration configuration) {
+        PulsarAdminBuilder builder = PulsarAdmin.builder();
+
+        setOptionValue(configuration, PULSAR_ADMIN_URL, builder::serviceHttpUrl);
+        builder.authentication(createAuthentication(configuration));
+        setOptionValue(
+                configuration, PULSAR_TLS_TRUST_CERTS_FILE_PATH, builder::tlsTrustCertsFilePath);
+        setOptionValue(
+                configuration,
+                PULSAR_TLS_ALLOW_INSECURE_CONNECTION,
+                builder::allowTlsInsecureConnection);
+        setOptionValue(
+                configuration,
+                PULSAR_TLS_HOSTNAME_VERIFICATION_ENABLE,
+                builder::enableTlsHostnameVerification);
+        setOptionValue(configuration, PULSAR_USE_KEY_STORE_TLS, builder::useKeyStoreTls);
+        setOptionValue(configuration, PULSAR_SSL_PROVIDER, builder::sslProvider);
+        setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_TYPE, builder::tlsTrustStoreType);
+        setOptionValue(configuration, PULSAR_TLS_TRUST_STORE_PATH, builder::tlsTrustStorePath);
+        setOptionValue(
+                configuration, PULSAR_TLS_TRUST_STORE_PASSWORD, builder::tlsTrustStorePassword);
+        setOptionValue(configuration, PULSAR_TLS_CIPHERS, TreeSet::new, builder::tlsCiphers);
+        setOptionValue(configuration, PULSAR_TLS_PROTOCOLS, TreeSet::new, builder::tlsProtocols);
+        setOptionValue(
+                configuration,
+                PULSAR_CONNECT_TIMEOUT,
+                v -> builder.connectionTimeout(v, MILLISECONDS));
+        setOptionValue(
+                configuration, PULSAR_READ_TIMEOUT, v -> builder.readTimeout(v, MILLISECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_REQUEST_TIMEOUT,
+                v -> builder.requestTimeout(v, MILLISECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_AUTO_CERT_REFRESH_TIME,
+                v -> builder.autoCertRefreshTime(v, MILLISECONDS));
+
+        return sneakyClient(builder::build);
     }
 
     /**
@@ -171,7 +220,7 @@ public final class PulsarConfigUtils {
      *
      * <p>This method behavior is the same as the pulsar command line tools.
      */
-    public static Authentication createAuthentication(Configuration configuration) {
+    private static Authentication createAuthentication(Configuration configuration) {
         if (configuration.contains(PULSAR_AUTH_PLUGIN_CLASS_NAME)) {
             String authPluginClassName = configuration.get(PULSAR_AUTH_PLUGIN_CLASS_NAME);
 
@@ -180,13 +229,14 @@ public final class PulsarConfigUtils {
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, authParamsString));
             } else if (configuration.contains(PULSAR_AUTH_PARAM_MAP)) {
-                Map<String, String> paramsMap =
-                        getOptionValue(
-                                configuration,
-                                PULSAR_AUTH_PARAM_MAP,
-                                v -> PulsarJsonUtils.toMap(String.class, String.class, v));
+                Map<String, String> paramsMap = configuration.get(PULSAR_AUTH_PARAM_MAP);
                 return sneakyClient(
                         () -> AuthenticationFactory.create(authPluginClassName, paramsMap));
+            } else {
+                throw new IllegalArgumentException(
+                        String.format(
+                                "No %s or %s provided",
+                                PULSAR_AUTH_PARAMS.key(), PULSAR_AUTH_PARAM_MAP.key()));
             }
         }
 
@@ -197,7 +247,6 @@ public final class PulsarConfigUtils {
     public static <F, T> T getOptionValue(
             Configuration configuration, ConfigOption<F> option, Function<F, T> convertor) {
         F value = configuration.get(option);
-
         if (value != null) {
             return convertor.apply(value);
         } else {
@@ -205,75 +254,23 @@ public final class PulsarConfigUtils {
         }
     }
 
-    /** Create a PulsarClient by using the flink Configuration and the config customizer. */
-    public static PulsarClient createClient(
-            Configuration configuration,
-            ConfigurationDataCustomizer<ClientConfigurationData> customizer) {
-        return createClient(createClientConfig(configuration, customizer));
+    /** Set the config option's value to a given builder. */
+    public static <T> void setOptionValue(
+            Configuration configuration, ConfigOption<T> option, Consumer<T> setter) {
+        setOptionValue(configuration, option, identity(), setter);
     }
 
     /**
-     * Create a PulsarClient by using the given config, all the config could be directly loaded
-     * except the authentication.
+     * Query the config option's value, convert it into a required type, set it to a given builder.
      */
-    public static PulsarClient createClient(ClientConfigurationData config) {
-        // PulsarClientBuilder don't support using the given ClientConfigurationData directly.
-        Map<String, Object> configMap = configMap(config);
-
-        // These two auth config would be serialized to a secret information by default.
-        configMap.put("authParamMap", config.getAuthParamMap());
-        configMap.put("authParams", config.getAuthParams());
-
-        ClientBuilder clientBuilder = PulsarClient.builder().loadConf(configMap);
-
-        // Set some non-serializable fields.
-        if (config.getAuthentication() != null) {
-            clientBuilder.authentication(config.getAuthentication());
-        }
-        if (config.getClock() != null) {
-            clientBuilder.clock(config.getClock());
-        }
-        if (config.getServiceUrlProvider() != null) {
-            clientBuilder.serviceUrlProvider(config.getServiceUrlProvider());
-        }
-
-        return sneakyClient(clientBuilder::build);
-    }
-
-    /**
-     * PulsarAdmin shares almost the same configuration with PulsarClient, but we separate this
-     * create method for directly create it.
-     */
-    public static PulsarAdmin createAdmin(
+    public static <T, V> void setOptionValue(
             Configuration configuration,
-            ConfigurationDataCustomizer<ClientConfigurationData> customizer) {
-        ClientConfigurationData clientConfig = createClientConfig(configuration, customizer);
-        String adminUrl = configuration.get(PULSAR_ADMIN_URL);
-        int connectionTimeout = Math.toIntExact(configuration.get(PULSAR_CONNECT_TIMEOUT));
-        int readTimeout = Math.toIntExact(configuration.get(PULSAR_READ_TIMEOUT));
-        int requestTimeout = Math.toIntExact(configuration.get(PULSAR_REQUEST_TIMEOUT));
-        int autoCertRefreshTime = Math.toIntExact(configuration.get(PULSAR_AUTO_CERT_REFRESH_TIME));
-
-        PulsarAdminBuilder builder =
-                PulsarAdmin.builder()
-                        .serviceHttpUrl(adminUrl)
-                        .authentication(clientConfig.getAuthentication())
-                        .tlsTrustCertsFilePath(clientConfig.getTlsTrustCertsFilePath())
-                        .allowTlsInsecureConnection(clientConfig.isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(
-                                clientConfig.isTlsHostnameVerificationEnable())
-                        .useKeyStoreTls(clientConfig.isUseKeyStoreTls())
-                        .sslProvider(clientConfig.getSslProvider())
-                        .tlsTrustStoreType(clientConfig.getTlsTrustStoreType())
-                        .tlsTrustStorePath(clientConfig.getTlsTrustStorePath())
-                        .tlsTrustStorePassword(clientConfig.getTlsTrustStorePassword())
-                        .tlsCiphers(clientConfig.getTlsCiphers())
-                        .tlsProtocols(clientConfig.getTlsProtocols())
-                        .connectionTimeout(connectionTimeout, MILLISECONDS)
-                        .readTimeout(readTimeout, MILLISECONDS)
-                        .requestTimeout(requestTimeout, MILLISECONDS)
-                        .autoCertRefreshTime(autoCertRefreshTime, MILLISECONDS);
-
-        return sneakyClient(builder::build);
+            ConfigOption<T> option,
+            Function<T, V> convertor,
+            Consumer<V> setter) {
+        if (configuration.contains(option)) {
+            V value = getOptionValue(configuration, option, convertor);
+            setter.accept(value);
+        }
     }
 }

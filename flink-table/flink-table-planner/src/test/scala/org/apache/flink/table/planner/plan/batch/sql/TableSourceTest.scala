@@ -160,8 +160,6 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableHintWithDifferentOptions(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.executeSql(
       s"""
          |CREATE TABLE MySink (
@@ -192,8 +190,6 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableHintWithSameOptions(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.executeSql(
       s"""
          |CREATE TABLE MySink (
@@ -224,8 +220,6 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableHintWithDigestReuseForLogicalTableScan(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
     util.tableEnv.executeSql(

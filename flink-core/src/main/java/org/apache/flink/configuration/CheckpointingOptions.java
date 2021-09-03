@@ -147,7 +147,7 @@ public class CheckpointingOptions {
                     .defaultValue(1)
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
-    /** @deprecated Checkpoints are aways asynchronous. */
+    /** @deprecated Checkpoints are always asynchronous. */
     @Deprecated
     public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =
             ConfigOptions.key("state.backend.async")

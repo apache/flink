@@ -50,7 +50,7 @@ perl -pi -e "s#^  VersionTitle = .*#  VersionTitle = \"${SHORT_RELEASE_VERSION}\
 
 perl -pi -e "s#^  Branch = .*#  Branch = \"release-${SHORT_RELEASE_VERSION}\"#" ${config_file}
 
-url_base="//ci.apache.org/projects/flink/flink-docs-release-"
+url_base="//nightlies.apache.org/flink/flink-docs-release-"
 perl -pi -e "s#^baseURL = .*#baseURL = \'${url_base}${SHORT_RELEASE_VERSION}\'#" ${config_file}
 perl -pi -e "s#^  JavaDocs = .*#  JavaDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"#" ${config_file}
 perl -pi -e "s#^    \[\"JavaDocs\", .*#    \[\"JavaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"\],#" ${config_file}

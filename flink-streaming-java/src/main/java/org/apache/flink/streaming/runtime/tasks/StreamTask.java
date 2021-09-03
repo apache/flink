@@ -50,7 +50,9 @@ import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
+import org.apache.flink.runtime.jobgraph.tasks.CoordinatedTask;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -128,7 +130,6 @@ import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
-import static org.apache.flink.util.ExceptionUtils.rethrowException;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
@@ -174,8 +175,12 @@ import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
  * @param <OP>
  */
 @Internal
-public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends AbstractInvokable
-        implements AsyncExceptionHandler {
+public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
+        implements TaskInvokable,
+                CheckpointableTask,
+                CoordinatedTask,
+                AsyncExceptionHandler,
+                ContainingTaskDetails {
 
     /** The thread group that holds all trigger timer threads. */
     public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -288,6 +293,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     private final long bufferDebloatPeriod;
 
+    private final Environment environment;
+
+    private volatile boolean shouldInterruptOnCancel = true;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -356,10 +365,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             StreamTaskActionExecutor actionExecutor,
             TaskMailbox mailbox)
             throws Exception {
-
-        super(environment);
-
-        this.configuration = new StreamConfig(getTaskConfiguration());
+        this.environment = environment;
+        this.configuration = new StreamConfig(environment.getTaskConfiguration());
         this.recordWriter = createRecordWriterDelegate(configuration, environment);
         this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
         this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
@@ -377,12 +384,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         this.subtaskCheckpointCoordinator =
                 new SubtaskCheckpointCoordinatorImpl(
-                        checkpointStorage.createCheckpointStorage(getEnvironment().getJobID()),
+                        checkpointStorage.createCheckpointStorage(environment.getJobID()),
                         getName(),
                         actionExecutor,
                         getCancelables(),
                         getAsyncOperationsThreadPool(),
-                        getEnvironment(),
+                        environment,
                         this,
                         configuration.isUnalignedCheckpointsEnabled(),
                         configuration
@@ -414,7 +421,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         if (taskManagerConf.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
             this.bufferDebloater =
-                    new BufferDebloater(taskManagerConf, getEnvironment().getAllInputGates());
+                    new BufferDebloater(taskManagerConf, environment.getAllInputGates());
             environment
                     .getMetricGroup()
                     .gauge(
@@ -470,12 +477,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     protected abstract void init() throws Exception;
 
     protected void cancelTask() throws Exception {}
-
-    protected void cleanup() throws Exception {
-        if (inputProcessor != null) {
-            inputProcessor.close();
-        }
-    }
 
     /**
      * This method implements the default action of the task (e.g. processing one event from the
@@ -635,10 +636,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void restore() throws Exception {
-        runWithCleanUpOnFail(this::executeRestore);
+        restoreInternal();
     }
 
-    void executeRestore() throws Exception {
+    void restoreInternal() throws Exception {
         if (isRunning) {
             LOG.debug("Re-restore attempt rejected.");
             return;
@@ -725,16 +726,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     @Override
     public final void invoke() throws Exception {
-        runWithCleanUpOnFail(this::executeInvoke);
-
-        cleanUpInvoke();
-    }
-
-    private void executeInvoke() throws Exception {
         // Allow invoking method 'invoke' without having to call 'restore' before it.
         if (!isRunning) {
             LOG.debug("Restoring during invoke will be called.");
-            executeRestore();
+            restoreInternal();
         }
 
         // final check to exit early before starting to run
@@ -777,31 +772,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         long throughput = throughputCalculator.calculateThroughput();
         if (bufferDebloater != null) {
             bufferDebloater.recalculateBufferSize(throughput);
-        }
-    }
-
-    private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
-        try {
-            run.run();
-        } catch (Throwable invokeException) {
-            failing = !canceled;
-            try {
-                if (!canceled) {
-                    try {
-                        cancelTask();
-                    } catch (Throwable ex) {
-                        invokeException = firstOrSuppressed(ex, invokeException);
-                    }
-                }
-
-                cleanUpInvoke();
-            }
-            // TODO: investigate why Throwable instead of Exception is used here.
-            catch (Throwable cleanUpException) {
-                rethrowException(firstOrSuppressed(cleanUpException, invokeException));
-            }
-
-            rethrowException(invokeException);
         }
     }
 
@@ -896,7 +866,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 && configuration.isCheckpointingEnabled();
     }
 
-    protected void cleanUpInvoke() throws Exception {
+    @Override
+    public final void cleanUp(Throwable throwable) throws Exception {
+        LOG.debug(
+                "Cleanup StreamTask (operators closed: {}, cancelled: {})",
+                closedOperators,
+                canceled);
+
+        failing = !canceled && throwable != null;
+
+        Exception suppressedException =
+                throwable == null ? null : runAndSuppressThrowable(this::cancelTask, null);
+
         getCompletionFuture().exceptionally(unused -> null).join();
         // clean up everything we initialized
         isRunning = false;
@@ -906,14 +887,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // that block and stall shutdown.
         // Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
         // process) as a backup in case some shutdown procedure blocks outside our control.
-        setShouldInterruptOnCancel(false);
+        shouldInterruptOnCancel = false;
 
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
 
         // stop all timers and threads
-        Exception suppressedException =
-                runAndSuppressThrowable(this::tryShutdownTimerService, null);
+        suppressedException =
+                runAndSuppressThrowable(this::tryShutdownTimerService, suppressedException);
 
         // stop all asynchronous checkpoint threads
         suppressedException = runAndSuppressThrowable(cancelables::close, suppressedException);
@@ -921,7 +902,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 runAndSuppressThrowable(this::shutdownAsyncThreads, suppressedException);
 
         // we must! perform this cleanup
-        suppressedException = runAndSuppressThrowable(this::cleanup, suppressedException);
+        suppressedException = runAndSuppressThrowable(this::cleanUpInternal, suppressedException);
 
         // if the operators were not closed before, do a hard close
         suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
@@ -940,6 +921,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } else {
             terminationFuture.completeExceptionally(suppressedException);
             throw suppressedException;
+        }
+    }
+
+    protected void cleanUpInternal() throws Exception {
+        if (inputProcessor != null) {
+            inputProcessor.close();
         }
     }
 
@@ -1199,7 +1186,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         for (IndexedInputGate inputGate : getEnvironment().getAllInputGates()) {
             if (!inputGate.isFinished()) {
                 for (InputChannelInfo channelInfo : inputGate.getUnfinishedChannels()) {
-                    checkpointBarrierHandler.get().processBarrier(barrier, channelInfo);
+                    checkpointBarrierHandler.get().processBarrier(barrier, channelInfo, true);
                 }
             }
         }
@@ -1212,18 +1199,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         CompletableFuture<Boolean> checkpointTriggered =
                 triggerFuture.exceptionally(
                         error -> {
-                            if (error instanceof RejectedExecutionException) {
+                            if (ExceptionUtils.findThrowable(
+                                            error, RejectedExecutionException.class)
+                                    .isPresent()) {
                                 // This may happen if the mailbox is closed. It means that
-                                // the task is shutting
-                                // down, so we just ignore it.
+                                // the task is shutting down, so we just ignore it.
                                 LOG.debug(
                                         "Triggering checkpoint {} for {} was rejected by the mailbox",
                                         checkpointId,
                                         getTaskNameWithSubtaskAndId());
+                                return false;
                             } else {
                                 throw new WrappingRuntimeException(error);
                             }
-                            return null;
                         });
         FutureUtils.assertNoException(checkpointTriggered);
         return checkpointTriggered;
@@ -1733,5 +1721,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     @Override
     public boolean isUsingNonBlockingInput() {
         return true;
+    }
+
+    @Override
+    public boolean shouldInterruptOnCancel() {
+        return shouldInterruptOnCancel;
+    }
+
+    @Override
+    public final Environment getEnvironment() {
+        return environment;
     }
 }

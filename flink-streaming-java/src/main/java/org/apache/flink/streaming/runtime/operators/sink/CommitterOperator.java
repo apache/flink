@@ -25,12 +25,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-import javax.annotation.Nullable;
-
-import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An operator that processes committables of a {@link org.apache.flink.api.connector.sink.Sink}.
@@ -57,23 +56,16 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
 
     private final SimpleVersionedSerializer<InputT> inputSerializer;
     private final CommitterHandler<InputT, OutputT> committerHandler;
-    @Nullable private final SimpleVersionedSerializer<OutputT> outputSerializer;
+    private final CommitRetrier commitRetrier;
 
     public CommitterOperator(
-            SimpleVersionedSerializer<InputT> inputSerializer,
-            CommitterHandler<InputT, OutputT> committerHandler,
-            SimpleVersionedSerializer<OutputT> outputSerializer) {
-        this.inputSerializer = inputSerializer;
-        this.committerHandler = committerHandler;
-        this.outputSerializer = outputSerializer;
-    }
-
-    public CommitterOperator(
+            ProcessingTimeService processingTimeService,
             SimpleVersionedSerializer<InputT> inputSerializer,
             CommitterHandler<InputT, OutputT> committerHandler) {
-        this.inputSerializer = inputSerializer;
-        this.committerHandler = committerHandler;
-        this.outputSerializer = null;
+        this.inputSerializer = checkNotNull(inputSerializer);
+        this.committerHandler = checkNotNull(committerHandler);
+        this.processingTimeService = processingTimeService;
+        this.commitRetrier = new CommitRetrier(processingTimeService, committerHandler);
     }
 
     @Override
@@ -90,24 +82,15 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
 
     @Override
     public void endInput() throws Exception {
-        emitCommittables(committerHandler.endOfInput());
+        committerHandler.endOfInput();
+        commitRetrier.retryIndefinitely();
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        emitCommittables(committerHandler.notifyCheckpointCompleted(checkpointId));
-    }
-
-    private void emitCommittables(Collection<OutputT> committables) throws IOException {
-        if (outputSerializer != null) {
-            for (OutputT committable : committables) {
-                output.collect(
-                        new StreamRecord<>(
-                                SimpleVersionedSerialization.writeVersionAndSerialize(
-                                        outputSerializer, committable)));
-            }
-        }
+        committerHandler.notifyCheckpointCompleted(checkpointId);
+        commitRetrier.retryWithDelay();
     }
 
     @Override

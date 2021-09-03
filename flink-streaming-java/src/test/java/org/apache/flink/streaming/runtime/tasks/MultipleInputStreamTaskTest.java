@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
@@ -41,9 +42,12 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
@@ -63,6 +67,8 @@ import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
@@ -114,6 +120,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -1042,7 +1049,8 @@ public class MultipleInputStreamTaskTest {
                         .setupOperatorChain(
                                 nonSourceOperatorId,
                                 new LifeCycleMonitorMultipleInputOperatorFactory())
-                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
 
             testHarness.processElement(Watermark.MAX_WATERMARK, 0);
@@ -1051,6 +1059,65 @@ public class MultipleInputStreamTaskTest {
             testHarness.waitForTaskCompletion();
             assertThat(
                     testHarness.getOutput(), contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+        }
+    }
+
+    @Test
+    public void testTriggeringStopWithSavepointWithDrain() throws Exception {
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(
+                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2),
+                        WatermarkStrategy.noWatermarks());
+
+        CompletableFuture<Boolean> checkpointCompleted = new CompletableFuture<>();
+        CheckpointResponder checkpointResponder =
+                new TestCheckpointResponder() {
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+                        super.acknowledgeCheckpoint(
+                                jobID,
+                                executionAttemptID,
+                                checkpointId,
+                                checkpointMetrics,
+                                subtaskState);
+                        checkpointCompleted.complete(null);
+                    }
+                };
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .setCollectNetworkEvents()
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
+                        .setupOperatorChain(new LifeCycleMonitorMultipleInputOperatorFactory())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .setCheckpointResponder(checkpointResponder)
+                        .build()) {
+            CompletableFuture<Boolean> triggerResult =
+                    testHarness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(1, 1),
+                            CheckpointOptions.alignedNoTimeout(
+                                    SAVEPOINT_TERMINATE,
+                                    CheckpointStorageLocationReference.getDefault()));
+            checkpointCompleted.whenComplete(
+                    (ignored, exception) ->
+                            testHarness.streamTask.notifyCheckpointCompleteAsync(1));
+            testHarness.waitForTaskCompletion();
+            testHarness.finishProcessing();
+
+            assertTrue(triggerResult.isDone());
+            assertTrue(triggerResult.get());
+            assertTrue(checkpointCompleted.isDone());
         }
     }
 

@@ -18,9 +18,12 @@
 
 package org.apache.flink.connector.kafka.source.metrics;
 
+import org.apache.flink.connector.kafka.MetricUtil;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.MetricNames;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Metric;
@@ -29,15 +32,20 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 /**
  * A collection class for handling metrics in {@link KafkaSourceReader}.
  *
  * <p>All metrics of Kafka source reader are registered under group "KafkaSourceReader", which is a
- * child group of {@link org.apache.flink.runtime.metrics.groups.OperatorMetricGroup}. Metrics
- * related to a specific topic partition will be registered in the group
+ * child group of {@link org.apache.flink.metrics.groups.OperatorMetricGroup}. Metrics related to a
+ * specific topic partition will be registered in the group
  * "KafkaSourceReader.topic.{topic_name}.partition.{partition_id}".
  *
  * <p>For example, current consuming offset of topic "my-topic" and partition 1 will be reported in
@@ -66,9 +74,17 @@ public class KafkaSourceReaderMetrics {
     public static final String COMMITS_FAILED_METRIC_COUNTER = "commitsFailed";
     public static final String KAFKA_CONSUMER_METRIC_GROUP = "KafkaConsumer";
 
+    // Kafka raw metric names and group names
+    public static final String CONSUMER_FETCH_MANAGER_GROUP = "consumer-fetch-manager-metrics";
+    public static final String BYTES_CONSUMED_TOTAL = "bytes-consumed-total";
+    public static final String RECORDS_LAG = "records-lag";
+
     public static final long INITIAL_OFFSET = -1;
 
-    // Metric group for registering Kafka related metrics
+    // Source reader metric group
+    private final SourceReaderMetricGroup sourceReaderMetricGroup;
+
+    // Metric group for registering Kafka specific metrics
     private final MetricGroup kafkaSourceReaderMetricGroup;
 
     // Successful / Failed commits counters
@@ -78,9 +94,16 @@ public class KafkaSourceReaderMetrics {
     // Map for tracking current consuming / committing offsets
     private final Map<TopicPartition, Offset> offsets = new HashMap<>();
 
-    public KafkaSourceReaderMetrics(MetricGroup parentMetricGroup) {
+    // Map for tracking records lag of topic partitions
+    @Nullable private ConcurrentMap<TopicPartition, Metric> recordsLagMetrics;
+
+    // Kafka raw metric for bytes consumed total
+    @Nullable private Metric bytesConsumedTotalMetric;
+
+    public KafkaSourceReaderMetrics(SourceReaderMetricGroup sourceReaderMetricGroup) {
+        this.sourceReaderMetricGroup = sourceReaderMetricGroup;
         this.kafkaSourceReaderMetricGroup =
-                parentMetricGroup.addGroup(KAFKA_SOURCE_READER_METRIC_GROUP);
+                sourceReaderMetricGroup.addGroup(KAFKA_SOURCE_READER_METRIC_GROUP);
         this.commitsSucceeded =
                 this.kafkaSourceReaderMetricGroup.counter(COMMITS_SUCCEEDED_METRIC_COUNTER);
         this.commitsFailed =
@@ -150,6 +173,77 @@ public class KafkaSourceReaderMetrics {
         commitsFailed.inc();
     }
 
+    /**
+     * Register {@link MetricNames#IO_NUM_BYTES_IN}.
+     *
+     * @param consumer Kafka consumer
+     */
+    public void registerNumBytesIn(KafkaConsumer<?, ?> consumer) {
+        try {
+            Predicate<Map.Entry<MetricName, ? extends Metric>> filter =
+                    (entry) ->
+                            entry.getKey().group().equals(CONSUMER_FETCH_MANAGER_GROUP)
+                                    && entry.getKey().name().equals(BYTES_CONSUMED_TOTAL)
+                                    && !entry.getKey().tags().containsKey("topic");
+            this.bytesConsumedTotalMetric = MetricUtil.getKafkaMetric(consumer.metrics(), filter);
+        } catch (IllegalStateException e) {
+            LOG.warn(
+                    String.format(
+                            "Error when getting Kafka consumer metric \"%s\". "
+                                    + "I/O metric \"%s\" will not be reported. ",
+                            BYTES_CONSUMED_TOTAL, MetricNames.IO_NUM_BYTES_IN),
+                    e);
+        }
+    }
+
+    /**
+     * Add a partition's records-lag metric to tracking list if this partition never appears before.
+     *
+     * <p>This method also lazily register {@link
+     * org.apache.flink.runtime.metrics.MetricNames#PENDING_RECORDS} in {@link
+     * SourceReaderMetricGroup}
+     *
+     * @param consumer Kafka consumer
+     * @param tp Topic partition
+     */
+    public void maybeAddRecordsLagMetric(KafkaConsumer<?, ?> consumer, TopicPartition tp) {
+        // Lazily register pendingRecords
+        if (recordsLagMetrics == null) {
+            this.recordsLagMetrics = new ConcurrentHashMap<>();
+            this.sourceReaderMetricGroup.setPendingRecordsGauge(
+                    () -> {
+                        long pendingRecordsTotal = 0;
+                        for (Metric recordsLagMetric : this.recordsLagMetrics.values()) {
+                            pendingRecordsTotal +=
+                                    ((Double) recordsLagMetric.metricValue()).longValue();
+                        }
+                        return pendingRecordsTotal;
+                    });
+        }
+        recordsLagMetrics.computeIfAbsent(
+                tp, (ignored) -> getRecordsLagMetric(consumer.metrics(), tp));
+    }
+
+    /**
+     * Remove a partition's records-lag metric from tracking list.
+     *
+     * @param tp Unassigned topic partition
+     */
+    public void removeRecordsLagMetric(TopicPartition tp) {
+        if (recordsLagMetrics != null) {
+            recordsLagMetrics.remove(tp);
+        }
+    }
+
+    /** Update {@link org.apache.flink.runtime.metrics.MetricNames#IO_NUM_BYTES_IN}. */
+    public void updateNumBytesInCounter() {
+        if (this.bytesConsumedTotalMetric != null) {
+            MetricUtil.sync(
+                    this.bytesConsumedTotalMetric,
+                    this.sourceReaderMetricGroup.getIOMetricGroup().getNumBytesInCounter());
+        }
+    }
+
     // -------- Helper functions --------
     private void registerOffsetMetricsForTopicPartition(TopicPartition tp) {
         final MetricGroup topicPartitionGroup =
@@ -172,6 +266,34 @@ public class KafkaSourceReaderMetrics {
         if (!offsets.containsKey(tp)) {
             throw new IllegalArgumentException(
                     String.format("TopicPartition %s is not tracked", tp));
+        }
+    }
+
+    private @Nullable Metric getRecordsLagMetric(
+            Map<MetricName, ? extends Metric> metrics, TopicPartition tp) {
+        try {
+            Predicate<Map.Entry<MetricName, ? extends Metric>> filter =
+                    entry -> {
+                        final MetricName metricName = entry.getKey();
+                        final Map<String, String> tags = metricName.tags();
+
+                        return metricName.group().equals(CONSUMER_FETCH_MANAGER_GROUP)
+                                && metricName.name().equals(RECORDS_LAG)
+                                && tags.containsKey("topic")
+                                && tags.get("topic").equals(tp.topic())
+                                && tags.containsKey("partition")
+                                && tags.get("partition").equals(String.valueOf(tp.partition()));
+                    };
+            return MetricUtil.getKafkaMetric(metrics, filter);
+        } catch (IllegalStateException e) {
+            LOG.warn(
+                    String.format(
+                            "Error when getting Kafka consumer metric \"%s\" "
+                                    + "for partition \"%s\". "
+                                    + "Metric \"%s\" may not be reported correctly. ",
+                            RECORDS_LAG, tp, MetricNames.PENDING_BYTES),
+                    e);
+            return null;
         }
     }
 

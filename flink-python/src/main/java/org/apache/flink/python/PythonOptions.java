@@ -113,8 +113,8 @@ public class PythonOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Add python archive files for job. The archive files will be extracted "
-                                    + "to the working directory of python UDF worker. Currently only zip-format is "
-                                    + "supported. For each archive file, a target directory is specified. If the target "
+                                    + "to the working directory of python UDF worker. "
+                                    + "For each archive file, a target directory is specified. If the target "
                                     + "directory name is specified, the archive file will be extracted to a "
                                     + "directory with the specified name. Otherwise, the archive file will be extracted to "
                                     + "a directory with the same name of the archive file. The files uploaded via this "
@@ -148,12 +148,15 @@ public class PythonOptions {
                                                     + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
-                                    .text("1. the command line option \"-pyclientexec\";")
+                                    .text(
+                                            "1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);")
                                     .linebreak()
-                                    .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
+                                    .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
                                             "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                    .linebreak()
+                                    .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());
 
     /** Whether the memory used by the Python framework is managed memory. */

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.checkpoint.VertexFinishedStateChecker.VertexFinishedState;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -1207,10 +1208,73 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
     }
 
     @Test
-    public void testRestoringPartiallyFinishedChainsFails() throws Exception {
+    public void testRestoreFinishedStateWithoutInFlightData() throws Exception {
+        // given: Operator with not empty states.
+        OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
+        final JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 1, 1, singletonList(op1), true)
+                        .build();
+
+        CompletedCheckpointStore completedCheckpointStore = new EmbeddedCompletedCheckpointStore();
+        Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+        operatorStates.put(
+                op1.getGeneratedOperatorID(),
+                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
+        CompletedCheckpoint completedCheckpoint =
+                new CompletedCheckpoint(
+                        graph.getJobID(),
+                        2,
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis() + 3000,
+                        operatorStates,
+                        Collections.emptyList(),
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        new TestCompletedCheckpointStorageLocation());
+        completedCheckpointStore.addCheckpoint(
+                completedCheckpoint, new CheckpointsCleaner(), () -> {});
+
+        CheckpointCoordinator coord =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCheckpointCoordinatorConfiguration(
+                                new CheckpointCoordinatorConfigurationBuilder()
+                                        .setCheckpointIdOfIgnoredInFlightData(2)
+                                        .build())
+                        .setCompletedCheckpointStore(completedCheckpointStore)
+                        .build();
+
+        ExecutionJobVertex vertex = graph.getJobVertex(jobVertexID);
+        coord.restoreInitialCheckpointIfPresent(Collections.singleton(vertex));
+        TaskStateSnapshot restoredState =
+                vertex.getTaskVertices()[0]
+                        .getCurrentExecutionAttempt()
+                        .getTaskRestore()
+                        .getTaskStateSnapshot();
+        assertTrue(restoredState.isFinishedOnRestore());
+    }
+
+    @Test
+    public void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
+        // If useUidHash is set to false, the operator states would still be keyed with the
+        // generated ID, which simulates the case of restoring a checkpoint taken after jobs
+        // started. The checker should still be able to access the stored state correctly, otherwise
+        // it would mark op1 as running and pass the check wrongly.
+        testRestoringPartiallyFinishedChainsFails(false);
+    }
+
+    @Test
+    public void testRestoringPartiallyFinishedChainsFailsWithUidHash() throws Exception {
+        testRestoringPartiallyFinishedChainsFails(true);
+    }
+
+    private void testRestoringPartiallyFinishedChainsFails(boolean useUidHash) throws Exception {
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();
-        OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
+        // The op1 has uidHash set.
+        OperatorIDPair op1 = OperatorIDPair.of(new OperatorID(), new OperatorID());
         OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
         OperatorIDPair op3 = OperatorIDPair.generatedIDOnly(new OperatorID());
 
@@ -1222,7 +1286,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
-                op1.getGeneratedOperatorID(),
+                useUidHash ? op1.getUserDefinedOperatorID().get() : op1.getGeneratedOperatorID(),
                 new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
         operatorStates.put(
                 op2.getGeneratedOperatorID(),
@@ -1259,31 +1323,185 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         + "anon("
                         + jobVertexID1
                         + ")"
-                        + " which contain both finished and unfinished operators");
-        coord.restoreLatestCheckpointedStateToAll(vertices, false);
+                        + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]");
+        coord.restoreInitialCheckpointIfPresent(vertices);
     }
 
     @Test
     public void testAddingRunningOperatorBeforeFinishedOneFails() throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.ALL_RUNNING,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.FULLY_FINISHED,
+                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with fully finished vertices"
+                        + " predeceased with the ones not fully finished. Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a predecessor not fully finished");
+    }
+
+    @Test
+    public void testAddingPartiallyFinishedOperatorBeforeFinishedOneFails() throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.FULLY_FINISHED,
+                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with fully finished vertices"
+                        + " predeceased with the ones not fully finished. Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a predecessor not fully finished");
+    }
+
+    @Test
+    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneWithAllToAllFails()
+            throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.ALL_RUNNING,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
+                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
+                        + "Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a all running predecessor");
+    }
+
+    @Test
+    public void testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithAllToAllFails()
+            throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                new DistributionPattern[] {DistributionPattern.ALL_TO_ALL},
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
+                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
+                        + "Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a partially finished predecessor");
+    }
+
+    @Test
+    public void
+            testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithPointwiseAndAllToAllFails()
+                    throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                new DistributionPattern[] {
+                    DistributionPattern.POINTWISE, DistributionPattern.ALL_TO_ALL
+                },
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
+                        + " predeceased with running or partially finished ones and connected via the ALL_TO_ALL edges. "
+                        + "Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a partially finished predecessor");
+    }
+
+    @Test
+    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneFails() throws Exception {
+        JobVertexID jobVertexID2 = new JobVertexID();
+
+        testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+                new JobVertexID(),
+                "vert1",
+                VertexFinishedState.ALL_RUNNING,
+                jobVertexID2,
+                "vert2",
+                VertexFinishedState.PARTIALLY_FINISHED,
+                new DistributionPattern[] {DistributionPattern.POINTWISE},
+                FlinkRuntimeException.class,
+                "Illegal JobGraph modification. Cannot run a program with partially finished vertices"
+                        + " predeceased with all running ones. "
+                        + "Task vertex vert2"
+                        + "("
+                        + jobVertexID2
+                        + ")"
+                        + " has a all running predecessor");
+    }
+
+    private void testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
+            JobVertexID firstVertexId,
+            String firstVertexName,
+            VertexFinishedState firstOperatorFinishedState,
+            JobVertexID secondVertexId,
+            String secondVertexName,
+            VertexFinishedState secondOperatorFinishedState,
+            DistributionPattern[] distributionPatterns,
+            Class<? extends Throwable> expectedExceptionalClass,
+            String expectedMessage)
+            throws Exception {
         OperatorIDPair op1 = OperatorIDPair.generatedIDOnly(new OperatorID());
         OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
-        JobVertex vertex1 = new JobVertex("vert1", new JobVertexID(), singletonList(op1));
-        JobVertex vertex2 = new JobVertex("vert2", new JobVertexID(), singletonList(op2));
+        JobVertex vertex1 = new JobVertex(firstVertexName, firstVertexId, singletonList(op1));
+        JobVertex vertex2 = new JobVertex(secondVertexName, secondVertexId, singletonList(op2));
         vertex1.setInvokableClass(NoOpInvokable.class);
         vertex2.setInvokableClass(NoOpInvokable.class);
-        vertex2.connectNewDataSetAsInput(
-                vertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         final ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(vertex1, true)
                         .addJobVertex(vertex2, false)
+                        .setDistributionPattern(distributionPatterns[0])
                         .build();
+
+        // Adds the additional edges
+        for (int i = 1; i < distributionPatterns.length; ++i) {
+            vertex2.connectNewDataSetAsInput(
+                    vertex1, distributionPatterns[i], ResultPartitionType.PIPELINED);
+        }
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
+                op1.getGeneratedOperatorID(),
+                createOperatorState(op1.getGeneratedOperatorID(), firstOperatorFinishedState));
+        operatorStates.put(
                 op2.getGeneratedOperatorID(),
-                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
+                createOperatorState(op2.getGeneratedOperatorID(), secondOperatorFinishedState));
+
         CompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore();
         store.addCheckpoint(
                 new CompletedCheckpoint(
@@ -1311,15 +1529,26 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         vertices.add(graph.getJobVertex(vertex1.getID()));
         vertices.add(graph.getJobVertex(vertex2.getID()));
 
-        thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage(
-                "Illegal JobGraph modification. Cannot run a program with finished vertices"
-                        + " predeceased with running ones. Task vertex "
-                        + vertex2.getName()
-                        + "("
-                        + vertex2.getID()
-                        + ")"
-                        + " has a running predecessor");
-        coord.restoreLatestCheckpointedStateToAll(vertices, false);
+        thrown.expect(expectedExceptionalClass);
+        thrown.expectMessage(expectedMessage);
+
+        coord.restoreInitialCheckpointIfPresent(vertices);
+    }
+
+    private OperatorState createOperatorState(
+            OperatorID operatorId, VertexFinishedState finishedState) {
+        switch (finishedState) {
+            case ALL_RUNNING:
+                return new OperatorState(operatorId, 2, 2);
+            case PARTIALLY_FINISHED:
+                OperatorState operatorState = new OperatorState(operatorId, 2, 2);
+                operatorState.putState(0, FinishedOperatorSubtaskState.INSTANCE);
+                return operatorState;
+            case FULLY_FINISHED:
+                return new FullyFinishedOperatorState(operatorId, 2, 2);
+            default:
+                throw new UnsupportedOperationException(
+                        "Not supported finished state: " + finishedState);
+        }
     }
 }

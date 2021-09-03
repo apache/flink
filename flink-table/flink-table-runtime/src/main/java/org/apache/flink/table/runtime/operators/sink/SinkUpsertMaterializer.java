@@ -30,6 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.types.RowKind;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,13 +44,14 @@ import static org.apache.flink.types.RowKind.INSERT;
 import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 
 /**
- * A operator that maintains the records corresponding to the upsert keys in the state, it receives
- * the upstream changelog records and generate an upsert view for the downstream.
+ * An operator that maintains incoming records in state corresponding to the upsert keys and
+ * generates an upsert view for the downstream operator.
  *
  * <ul>
- *   <li>For insert record, append the state and collect current record.
- *   <li>For delete record, delete in the state, collect delete record when the state is empty.
- *   <li>For delete record, delete in the state, collect the last one when the state is not empty.
+ *   <li>Adds an insertion to state and emits it with updated {@link RowKind}.
+ *   <li>Applies a deletion to state.
+ *   <li>Emits a deletion with updated {@link RowKind} iff affects the last record or the state is
+ *       empty afterwards. A deletion to an already updated record is swallowed.
  * </ul>
  */
 public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
@@ -68,6 +70,8 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     private final GeneratedRecordEqualiser generatedEqualiser;
 
     private transient RecordEqualiser equaliser;
+    // Buffer of emitted insertions on which deletions will be applied first.
+    // The row kind might be +I or +U and will be ignored when applying the deletion.
     private transient ValueState<List<RowData>> state;
     private transient TimestampedCollector<RowData> collector;
 
@@ -96,36 +100,39 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
 
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
-        RowData row = element.getValue();
-        boolean isInsertOp = row.getRowKind() == INSERT || row.getRowKind() == UPDATE_AFTER;
-        // Always set the RowKind to INSERT, so that we can compare rows correctly (RowKind will
-        // be ignored)
-        row.setRowKind(INSERT);
+        final RowData row = element.getValue();
         List<RowData> values = state.value();
         if (values == null) {
             values = new ArrayList<>(2);
         }
 
-        if (isInsertOp) {
-            values.add(row);
-            // Update to this new one
-            collector.collect(row);
-        } else {
-            int lastIndex = values.size() - 1;
-            int index = removeFirst(values, row);
-            if (index == -1) {
-                LOG.info(STATE_CLEARED_WARN_MSG);
-                return;
-            }
-            if (values.isEmpty()) {
-                // Delete this row
-                row.setRowKind(DELETE);
+        switch (row.getRowKind()) {
+            case INSERT:
+            case UPDATE_AFTER:
+                row.setRowKind(values.isEmpty() ? INSERT : UPDATE_AFTER);
+                values.add(row);
                 collector.collect(row);
-            } else if (index == lastIndex) {
-                // Last one removed
-                // Update to newer
-                collector.collect(values.get(values.size() - 1));
-            }
+                break;
+
+            case UPDATE_BEFORE:
+            case DELETE:
+                final int lastIndex = values.size() - 1;
+                final int index = removeFirst(values, row);
+                if (index == -1) {
+                    LOG.info(STATE_CLEARED_WARN_MSG);
+                    return;
+                }
+                if (values.isEmpty()) {
+                    // Delete this row
+                    row.setRowKind(DELETE);
+                    collector.collect(row);
+                } else if (index == lastIndex) {
+                    // Last row has been removed, update to the second last one
+                    final RowData latestRow = values.get(values.size() - 1);
+                    latestRow.setRowKind(UPDATE_AFTER);
+                    collector.collect(latestRow);
+                }
+                break;
         }
 
         if (values.isEmpty()) {
@@ -136,10 +143,12 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
     }
 
     private int removeFirst(List<RowData> values, RowData remove) {
-        Iterator<RowData> iterator = values.iterator();
+        final Iterator<RowData> iterator = values.iterator();
         int i = 0;
         while (iterator.hasNext()) {
-            RowData row = iterator.next();
+            final RowData row = iterator.next();
+            // Ignore kind during comparison
+            remove.setRowKind(row.getRowKind());
             if (equaliser.equals(row, remove)) {
                 iterator.remove();
                 return i;

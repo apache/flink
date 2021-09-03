@@ -233,7 +233,8 @@ or via [command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyf
 <span class="label label-info">Note</span> If the archive file contains a Python virtual environment,
 please make sure that the Python virtual environment matches the platform that the cluster is running on.
 
-<span class="label label-info">Note</span> Currently, only zip-format is supported, i.e. zip, jar, whl, egg, etc.
+<span class="label label-info">Note</span> Currently, only zip files (i.e., zip, jar, whl, egg, etc)
+and tar files (i.e., tar, tar.gz, tgz) are supported.
 
 ### Python interpreter
 
@@ -284,8 +285,9 @@ source my_env/bin/activate
 ```
 
 or specify it using configuration
-[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable)
-or environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
+[`python.client.executable`]({{< ref "docs/dev/python/python_config" >}}#python-client-executable),
+[command line arguments]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) `-pyclientexec` or `--pyClientExecutable`,
+environment variable [PYFLINK_CLIENT_EXECUTABLE]({{< ref "docs/dev/python/environment_variables" >}})
 
 ## How to specify Python Dependencies in Java/Scala Program
 

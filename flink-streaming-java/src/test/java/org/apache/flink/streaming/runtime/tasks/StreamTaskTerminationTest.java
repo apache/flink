@@ -243,7 +243,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() throws Exception {
+        protected void cleanUpInternal() throws Exception {
             // notify the asynchronous checkpoint operation that we have reached the cleanup stage
             // --> the task
             // has been stopped

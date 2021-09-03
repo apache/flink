@@ -22,7 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -82,7 +82,7 @@ public class InputProcessorUtil {
     }
 
     public static CheckpointBarrierHandler createCheckpointBarrierHandler(
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -141,7 +141,7 @@ public class InputProcessorUtil {
     }
 
     private static SingleCheckpointBarrierHandler createBarrierHandler(
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,

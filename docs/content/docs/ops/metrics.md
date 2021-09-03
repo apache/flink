@@ -1345,52 +1345,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
 ### Connectors
 
 #### Kafka Connectors
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 15%">Scope</th>
-      <th class="text-left" style="width: 18%">Metrics</th>
-      <th class="text-left" style="width: 18%">User Variables</th>
-      <th class="text-left" style="width: 39%">Description</th>
-      <th class="text-left" style="width: 10%">Type</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th rowspan="1">Operator</th>
-      <td>commitsSucceeded</td>
-      <td>n/a</td>
-      <td>The total number of successful offset commits to Kafka, if offset committing is turned on and checkpointing is enabled.</td>
-      <td>Counter</td>
-    </tr>
-    <tr>
-       <th rowspan="1">Operator</th>
-       <td>commitsFailed</td>
-       <td>n/a</td>
-       <td>The total number of offset commit failures to Kafka, if offset committing is
-       turned on and checkpointing is enabled. Note that committing offsets back to Kafka
-       is only a means to expose consumer progress, so a commit failure does not affect
-       the integrity of Flink's checkpointed partition offsets.</td>
-       <td>Counter</td>
-    </tr>
-    <tr>
-       <th rowspan="1">Operator</th>
-       <td>committedOffsets</td>
-       <td>topic, partition</td>
-       <td>The last successfully committed offsets to Kafka, for each partition.
-       A particular partition's metric can be specified by topic name and partition id.</td>
-       <td>Gauge</td>
-    </tr>
-    <tr>
-      <th rowspan="1">Operator</th>
-      <td>currentOffsets</td>
-      <td>topic, partition</td>
-      <td>The consumer's current read offset, for each partition. A particular
-      partition's metric can be specified by topic name and partition id.</td>
-      <td>Gauge</td>
-    </tr>
-  </tbody>
-</table>
+Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}}/#monitoring).
 
 #### Kinesis Connectors
 <table class="table table-bordered">

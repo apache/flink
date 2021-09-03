@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -71,6 +72,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,10 +84,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -574,7 +572,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      */
     @Test
     public void testSnapshottingAndRestoring() throws Exception {
-        final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -718,9 +716,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 new StreamRecord<>("[Operator0]: End of input"),
                 new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Finish"),
-                new StreamRecord<>("[Operator1]: Bye"),
-                new StreamRecord<>("[Operator0]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"));
 
         assertThat(testHarness.getOutput(), containsInAnyOrder(expected.toArray()));
     }

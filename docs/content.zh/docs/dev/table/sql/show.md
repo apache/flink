@@ -28,7 +28,7 @@ under the License.
 
 
 
-SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出创建指定表的语句，或者列出当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function，或者仅仅列出当前 catalog 和当前 database 中用户定义的 function，或者列出当前环境所有激活的 module，或者列出当前环境所有加载的 module 及激活状态。
+SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有的 database，或者列出当前 catalog 和当前 database 的所有表或视图，或者列出当前正在使用的 catalog 和 database, 或者列出创建指定表的语句，或者列出当前 catalog 和当前 database 中所有的 function，包括：系统 function 和用户定义的 function，或者仅仅列出当前 catalog 和当前 database 中用户定义的 function，或者列出当前环境所有激活的 module，或者列出当前环境所有加载的 module 及激活状态，或者根据可选的模糊查询语句列出给定表或视图的相应列。
 
 目前 Flink SQL 支持下列 SHOW 语句：
 - SHOW CATALOGS
@@ -37,6 +37,7 @@ SHOW 语句用于列出所有的 catalog，或者列出当前 catalog 中所有�
 - SHOW CURRENT DATABASE
 - SHOW TABLES
 - SHOW CREATE TABLE
+- SHOW COLUMNS
 - SHOW VIEWS
 - SHOW FUNCTIONS
 - SHOW MODULES
@@ -130,6 +131,14 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print();
 //   ...
 // )
 
+// show columns
+tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print();
+// +--------+-------+------+-----+--------+-----------+
+// |   name |  type | null | key | extras | watermark |
+// +--------+-------+------+-----+--------+-----------+
+// | field2 | BYTES | true |     |        |           |
+// +--------+-------+------+-----+--------+-----------+
+
 
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...");
@@ -219,6 +228,15 @@ tEnv.executeSql("SHOW CREATE TABLE my_table").print()
 // ) WITH (
 //  ...
 // )
+
+// show columns
+tEnv.executeSql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+// +--------+-------+------+-----+--------+-----------+
+// |   name |  type | null | key | extras | watermark |
+// +--------+-------+------+-----+--------+-----------+
+// | field2 | BYTES | true |     |        |           |
+// +--------+-------+------+-----+--------+-----------+
+
 // create a view
 tEnv.executeSql("CREATE VIEW my_view AS ...")
 // show views
@@ -306,6 +324,14 @@ table_env.executeSql("SHOW CREATE TABLE my_table").print()
 #   ...
 # )
 
+# show columns
+table_env.execute_sql("SHOW COLUMNS FROM MY_TABLE LIKE '%f%'").print()
+# +--------+-------+------+-----+--------+-----------+
+# |   name |  type | null | key | extras | watermark |
+# +--------+-------+------+-----+--------+-----------+
+# | field2 | BYTES | true |     |        |           |
+# +--------+-------+------+-----+--------+-----------+
+
 # create a view
 table_env.execute_sql("CREATE VIEW my_view AS ...")
 # show views
@@ -353,6 +379,7 @@ table_env.execute_sql("SHOW FULL MODULES").print()
 # |        core |  true |
 # |        hive | false |
 # +-------------+-------+
+
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -376,6 +403,16 @@ CREATE TABLE `default_catalog`.`default_db`.`my_table` (
 ) WITH (
   ...
 )
+
+
+Flink SQL> SHOW COLUMNS from MyUserTable LIKE '%f%';
++--------+-------+------+-----+--------+-----------+
+|   name |  type | null | key | extras | watermark |
++--------+-------+------+-----+--------+-----------+
+| field2 | BYTES | true |     |        |           |
++--------+-------+------+-----+--------+-----------+
+1 row in set
+
 
 Flink SQL> CREATE VIEW my_view AS ...;
 [INFO] View has been created.
@@ -412,8 +449,10 @@ Flink SQL> SHOW FULL MODULES;
 +-------------+------+
 1 row in set
 
+
 Flink SQL> SHOW JARS;
 /path/to/addedJar.jar
+
 
 ```
 {{< /tab >}}
@@ -470,6 +509,94 @@ SHOW CREATE TABLE [catalog_name.][db_name.]table_name
 展示创建指定表的 create 语句。
 
 <span class="label label-danger">Attention</span> 目前 `SHOW CREATE TABLE` 只支持通过 Flink SQL DDL 创建的表。
+
+## SHOW COLUMNS
+
+```sql
+SHOW COLUMNS ( FROM | IN ) [[catalog_name.]database.]<table_name> [ [NOT] LIKE <sql_like_pattern>]
+```
+
+展示给定表的所有列。
+
+**LIKE**
+根据可选的 `LIKE` 语句展示给定表中与 `<sql_like_pattern>` 是否模糊相似的所有列。
+
+`LIKE` 子句中 sql 正则式的语法与 `MySQL` 方言中的语法相同。
+
+<a name="show-columns-examples"></a>
+
+### SHOW COLUMNS 示例
+
+假定在 `catalog1` catalog 中的 `database1` 数据库中有名为 `orders` 的表，其结构如下所示：
+```sql
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+```
+
+- 显示指定表中的所有列。
+
+```sql
+show columns from orders;
+-- show columns from database1.orders;
+-- show columns from catalog1.database1.orders;
+-- show columns in orders;
+-- show columns in database1.orders;
+-- show columns in catalog1.database1.orders;
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    name |                        type |  null |       key |        extras |                  watermark |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+|    user |                      BIGINT | false | PRI(user) |               |                            |
+| product |                 VARCHAR(32) |  true |           |               |                            |
+|  amount |                         INT |  true |           |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |           |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----------+---------------+----------------------------+
+5 rows in set
+```
+
+- 显示指定表中相似于指定 SQL 正则式的所有列。
+
+```sql
+show columns from orders like '%r';
+-- show columns from database1.orders like '%r';
+-- show columns from catalog1.database1.orders like '%r';
+-- show columns in orders like '%r';
+-- show columns in database1.orders like '%r';
+-- show columns in catalog1.database1.orders like '%r';
++------+--------+-------+-----------+--------+-----------+
+| name |   type |  null |       key | extras | watermark |
++------+--------+-------+-----------+--------+-----------+
+| user | BIGINT | false | PRI(user) |        |           |
++------+--------+-------+-----------+--------+-----------+
+1 row in set
+```
+
+- 显示指定表中相不相似于指定 SQL 正则式的所有列。
+
+```sql
+show columns from orders not like '%_r';
+-- show columns from database1.orders not like '%_r';
+-- show columns from catalog1.database1.orders not like '%_r';
+-- show columns in orders not like '%_r';
+-- show columns in database1.orders not like '%_r';
+-- show columns in catalog1.database1.orders not like '%_r';
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+|    name |                        type |  null | key |        extras |                  watermark |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+| product |                 VARCHAR(32) |  true |     |               |                            |
+|  amount |                         INT |  true |     |               |                            |
+|      ts |      TIMESTAMP(3) *ROWTIME* |  true |     |               | `ts` - INTERVAL '1' SECOND |
+|   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     | AS PROCTIME() |                            |
++---------+-----------------------------+-------+-----+---------------+----------------------------+
+4 rows in set
+```
 
 ## SHOW VIEWS
 

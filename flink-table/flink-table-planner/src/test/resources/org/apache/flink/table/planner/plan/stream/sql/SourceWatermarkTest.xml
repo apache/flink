@@ -49,7 +49,7 @@ LogicalProject(a=[$0], b=[$1], ts=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-($2, 10000:INTERVAL SECOND)]]], fields=[a, b, t])
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-($2, 10000:INTERVAL SECOND)]]], fields=[a, b, t])
 ]]>
     </Resource>
   </TestCase>
@@ -125,7 +125,7 @@ LogicalProject(e=[$2.d.e], d=[$2.d])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c.d.e AS e, c.d AS d])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], watermark=[-($0.d.f, 5000:INTERVAL SECOND)]]], fields=[c])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], metadata=[], watermark=[-($0.d.f, 5000:INTERVAL SECOND)]]], fields=[c])
 ]]>
     </Resource>
   </TestCase>
@@ -144,7 +144,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b, originTime], watermark=[TO_TIMESTAMP_LTZ($2, 3)]]], fields=[a, b, originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyLtzTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP_LTZ($2, 3)]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>
@@ -182,7 +182,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/($2, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, originTime], metadata=[originTime], watermark=[TO_TIMESTAMP(FROM_UNIXTIME(/($2, 1000)), _UTF-16LE'yyyy-MM-dd HH:mm:ss')]]], fields=[a, b, originTime])
 ]]>
     </Resource>
   </TestCase>

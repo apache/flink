@@ -48,6 +48,8 @@ If you’re interested in playing around with Flink, try one of our tutorials:
 * [Intro to PyFlink DataStream API]({{< ref "docs/dev/python/datastream_tutorial" >}})
 * [Intro to PyFlink Table API]({{< ref "docs/dev/python/table_api_tutorial" >}})
 
+For more examples, you can also refer to {{< gh_link file="flink-python/pyflink/examples" name="PyFlink Examples" >}}
+
 <--->
 
 ### Explore PyFlink

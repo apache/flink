@@ -849,10 +849,18 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                 archivedExecutionGraph.getJobID(),
                 archivedExecutionGraph.getState());
 
-        log.info(
-                "Job {} reached terminal state {}.",
-                archivedExecutionGraph.getJobID(),
-                archivedExecutionGraph.getState());
+        if (archivedExecutionGraph.getFailureInfo() != null) {
+            log.info(
+                    "Job {} reached terminal state {}.\n{}",
+                    archivedExecutionGraph.getJobID(),
+                    archivedExecutionGraph.getState(),
+                    archivedExecutionGraph.getFailureInfo().getExceptionAsString().trim());
+        } else {
+            log.info(
+                    "Job {} reached terminal state {}.",
+                    archivedExecutionGraph.getJobID(),
+                    archivedExecutionGraph.getState());
+        }
 
         archiveExecutionGraph(executionGraphInfo);
 

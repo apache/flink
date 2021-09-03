@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
@@ -29,6 +30,7 @@ import org.junit.runners.Parameterized;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -43,6 +45,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         final List<TestSpec> testCases = new ArrayList<>();
         testCases.add(jsonExists());
         testCases.add(jsonValue());
+        testCases.addAll(isJson());
 
         return testCases;
     }
@@ -229,5 +232,85 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, 'strict $.invalid' RETURNING INTEGER NULL ON EMPTY DEFAULT 42 ON ERROR)",
                         42,
                         DataTypes.INT());
+    }
+
+    private static List<TestSpec> isJson() {
+        return Arrays.asList(
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData(1)
+                        .andDataTypes(DataTypes.INT())
+                        .testSqlValidationError(
+                                "f0 IS JSON",
+                                "Cannot apply 'IS JSON VALUE' to arguments of type '<INTEGER> IS JSON VALUE'. "
+                                        + "Supported form(s): '<CHARACTER> IS JSON VALUE'")
+                        .testTableApiValidationError(
+                                $("f0").isJson(),
+                                String.format("Invalid function call:%nIS_JSON(INT)")),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData((String) null)
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").isJson(),
+                                "f0 IS JSON",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("a")
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").isJson(),
+                                "f0 IS JSON",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("\"a\"")
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").isJson(), "f0 IS JSON", true, DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR),
+                                "f0 IS JSON SCALAR",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY),
+                                "f0 IS JSON ARRAY",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                false,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        .onFieldsWithData("{}")
+                        .andDataTypes(DataTypes.STRING())
+                        .testResult(
+                                $("f0").isJson(), "f0 IS JSON", true, DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE),
+                                "f0 IS JSON VALUE",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR),
+                                "f0 IS JSON SCALAR",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY),
+                                "f0 IS JSON ARRAY",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                true,
+                                DataTypes.BOOLEAN().notNull()));
     }
 }

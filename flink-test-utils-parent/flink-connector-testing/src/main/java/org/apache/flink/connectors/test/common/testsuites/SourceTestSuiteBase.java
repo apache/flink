@@ -102,7 +102,7 @@ public abstract class SourceTestSuiteBase<T> {
             throws Exception {
 
         // Write test data to external system
-        final Collection<T> testRecords = generateAndWriteTestData(externalContext);
+        final Collection<T> testRecords = generateAndWriteTestData(0, externalContext);
 
         // Build and execute Flink job
         StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment();
@@ -139,7 +139,7 @@ public abstract class SourceTestSuiteBase<T> {
         final int splitNumber = 4;
         final List<Collection<T>> testRecordCollections = new ArrayList<>();
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(externalContext));
+            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
         }
 
         LOG.debug("Build and execute Flink job");
@@ -179,7 +179,7 @@ public abstract class SourceTestSuiteBase<T> {
         final int splitNumber = 4;
         final List<Collection<T>> testRecordCollections = new ArrayList<>();
         for (int i = 0; i < splitNumber; i++) {
-            testRecordCollections.add(generateAndWriteTestData(externalContext));
+            testRecordCollections.add(generateAndWriteTestData(i, externalContext));
         }
 
         try (CloseableIterator<T> resultIterator =
@@ -214,9 +214,11 @@ public abstract class SourceTestSuiteBase<T> {
             ExternalContext<T> externalContext,
             ClusterControllable controller)
             throws Exception {
+        int splitIndex = 0;
 
         final Collection<T> testRecordsBeforeFailure =
-                externalContext.generateTestData(ThreadLocalRandom.current().nextLong());
+                externalContext.generateTestData(
+                        splitIndex, ThreadLocalRandom.current().nextLong());
         final SourceSplitDataWriter<T> sourceSplitDataWriter =
                 externalContext.createSourceSplitDataWriter();
         sourceSplitDataWriter.writeRecords(testRecordsBeforeFailure);
@@ -265,7 +267,8 @@ public abstract class SourceTestSuiteBase<T> {
                 Deadline.fromNow(Duration.ofSeconds(30)));
 
         final Collection<T> testRecordsAfterFailure =
-                externalContext.generateTestData(ThreadLocalRandom.current().nextLong());
+                externalContext.generateTestData(
+                        splitIndex, ThreadLocalRandom.current().nextLong());
         sourceSplitDataWriter.writeRecords(testRecordsAfterFailure);
 
         assertThat(
@@ -289,9 +292,11 @@ public abstract class SourceTestSuiteBase<T> {
      * @param externalContext External context
      * @return Collection of generated test records
      */
-    protected Collection<T> generateAndWriteTestData(ExternalContext<T> externalContext) {
+    protected Collection<T> generateAndWriteTestData(
+            int splitIndex, ExternalContext<T> externalContext) {
         final Collection<T> testRecordCollection =
-                externalContext.generateTestData(ThreadLocalRandom.current().nextLong());
+                externalContext.generateTestData(
+                        splitIndex, ThreadLocalRandom.current().nextLong());
         LOG.debug("Writing {} records to external system", testRecordCollection.size());
         externalContext.createSourceSplitDataWriter().writeRecords(testRecordCollection);
         return testRecordCollection;

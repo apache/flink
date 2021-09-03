@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -43,16 +44,19 @@ public class BatchCommitterHandlerTest extends TestLogger {
         testHarness.initializeEmptyState();
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void doNotSupportRetry() throws Exception {
+    @Test
+    public void supportRetry() throws Exception {
+        final TestSink.RetryOnceCommitter committer = new TestSink.RetryOnceCommitter();
         final OneInputStreamOperatorTestHarness<byte[], byte[]> testHarness =
-                createTestHarness(new TestSink.AlwaysRetryCommitter());
+                createTestHarness(committer);
 
         testHarness.initializeEmptyState();
         testHarness.open();
         testHarness.processElement(committableRecord("those"));
+        testHarness.processElement(committableRecord("these"));
         testHarness.endInput();
         testHarness.close();
+        assertThat(committer.getCommittedData(), Matchers.contains("those", "these"));
     }
 
     @Test

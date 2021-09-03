@@ -18,20 +18,41 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
+import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedReference;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
+import org.junit.Rule;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
 public class PushProjectIntoTableSourceScanRuleTest
         extends PushProjectIntoLegacyTableSourceScanRuleTest {
+
+    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
     @Override
     public void setup() {
@@ -242,5 +263,105 @@ public class PushProjectIntoTableSourceScanRuleTest
                                 + "`outer_array`[ID], "
                                 + "`outer_map`['item'] "
                                 + "FROM ItemTable");
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
+        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(true, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T1", sourceDescriptor);
+
+        util().verifyRelPlan("SELECT m1, metadata FROM T1");
+        assertThat(appliedKeys.get(), contains("m1", "m2"));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
+        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(false, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T2", sourceDescriptor);
+
+        util().verifyRelPlan("SELECT m1, metadata FROM T2");
+        assertThat(appliedKeys.get(), contains("m1", "m2", "m3"));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
+        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(true, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T3", sourceDescriptor);
+
+        util().verifyRelPlan("SELECT 1 FROM T3");
+        assertThat(appliedKeys.get(), hasSize(0));
+    }
+
+    @Test
+    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
+        final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
+        final TableDescriptor sourceDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .schema(NoPushDownSource.SCHEMA)
+                        .source(new NoPushDownSource(false, appliedKeys))
+                        .build();
+        util().tableEnv().createTable("T4", sourceDescriptor);
+
+        util().verifyRelPlan("SELECT 1 FROM T4");
+        assertThat(appliedKeys.get(), contains("m1", "m2", "m3"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    /** Source which supports metadata but not {@link SupportsProjectionPushDown}. */
+    private static class NoPushDownSource extends TableFactoryHarness.ScanSourceBase
+            implements SupportsReadingMetadata {
+
+        public static final Schema SCHEMA =
+                Schema.newBuilder()
+                        .columnByMetadata("m1", STRING())
+                        .columnByMetadata("metadata", STRING(), "m2")
+                        .columnByMetadata("m3", STRING())
+                        .build();
+
+        private final boolean supportsMetadataProjection;
+        private final SharedReference<List<String>> appliedMetadataKeys;
+
+        public NoPushDownSource(
+                boolean supportsMetadataProjection,
+                SharedReference<List<String>> appliedMetadataKeys) {
+            this.supportsMetadataProjection = supportsMetadataProjection;
+            this.appliedMetadataKeys = appliedMetadataKeys;
+        }
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            final Map<String, DataType> metadata = new HashMap<>();
+            metadata.put("m1", STRING());
+            metadata.put("m2", STRING());
+            metadata.put("m3", STRING());
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+            appliedMetadataKeys.get().clear();
+            appliedMetadataKeys.get().addAll(metadataKeys);
+        }
+
+        @Override
+        public boolean supportsMetadataProjection() {
+            return supportsMetadataProjection;
+        }
     }
 }

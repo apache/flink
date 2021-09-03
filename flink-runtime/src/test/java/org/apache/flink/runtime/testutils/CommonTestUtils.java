@@ -22,10 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.BufferedInputStream;
@@ -43,6 +44,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 /** This class contains auxiliary methods for unit tests. */
 public class CommonTestUtils {
@@ -157,35 +159,56 @@ public class CommonTestUtils {
         }
     }
 
-    public static void waitForAllTaskRunning(MiniCluster miniCluster, JobID jobId)
-            throws Exception {
-        waitForAllTaskRunning(() -> miniCluster.getExecutionGraph(jobId).get(60, TimeUnit.SECONDS));
-    }
-
     public static void waitForAllTaskRunning(
-            SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier)
-            throws Exception {
+            MiniCluster miniCluster, JobID jobId, boolean allowFinished) throws Exception {
         waitForAllTaskRunning(
-                executionGraphSupplier, Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+                () -> miniCluster.getExecutionGraph(jobId).get(60, TimeUnit.SECONDS),
+                allowFinished);
     }
 
     public static void waitForAllTaskRunning(
             SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
-            Deadline timeout)
+            boolean allowFinished)
             throws Exception {
+        waitForAllTaskRunning(
+                executionGraphSupplier,
+                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)),
+                allowFinished);
+    }
+
+    public static void waitForAllTaskRunning(
+            SupplierWithException<AccessExecutionGraph, Exception> executionGraphSupplier,
+            Deadline timeout,
+            boolean allowFinished)
+            throws Exception {
+        Predicate<AccessExecutionVertex> subtaskPredicate =
+                task -> {
+                    switch (task.getExecutionState()) {
+                        case RUNNING:
+                            return true;
+                        case FINISHED:
+                            if (allowFinished) {
+                                return true;
+                            } else {
+                                throw new RuntimeException("Sub-Task finished unexpectedly" + task);
+                            }
+                        default:
+                            return false;
+                    }
+                };
         waitUntilCondition(
                 () -> {
                     final AccessExecutionGraph graph = executionGraphSupplier.get();
+                    Preconditions.checkState(
+                            !graph.getState().isGloballyTerminalState(),
+                            "Graph is in globally terminal state (%s)",
+                            graph.getState());
                     return graph.getState() == JobStatus.RUNNING
                             && graph.getAllVertices().values().stream()
                                     .allMatch(
                                             jobVertex ->
                                                     Arrays.stream(jobVertex.getTaskVertices())
-                                                            .allMatch(
-                                                                    task ->
-                                                                            task.getExecutionState()
-                                                                                    == ExecutionState
-                                                                                            .RUNNING));
+                                                            .allMatch(subtaskPredicate));
                 },
                 timeout);
     }

@@ -525,6 +525,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
     }
 }

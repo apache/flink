@@ -426,22 +426,21 @@ public class CheckpointCoordinatorTestingUtils {
     public static TaskStateSnapshot createSnapshotWithUnionListState(
             File stateFile, OperatorID operatorId, boolean isOperatorsFinished) throws IOException {
         TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot(1, isOperatorsFinished);
-
-        OperatorSubtaskState operatorSubtaskState =
-                OperatorSubtaskState.builder()
-                        .setManagedOperatorState(
-                                new OperatorStreamStateHandle(
-                                        Collections.singletonMap(
-                                                "test",
-                                                new OperatorStateHandle.StateMetaInfo(
-                                                        new long[0],
-                                                        OperatorStateHandle.Mode.UNION)),
-                                        new FileStateHandle(
-                                                new Path(stateFile.getAbsolutePath()), 0L)))
-                        .build();
-
-        taskStateSnapshot.putSubtaskStateByOperatorID(operatorId, operatorSubtaskState);
+        taskStateSnapshot.putSubtaskStateByOperatorID(
+                operatorId, createSubtaskStateWithUnionListState(stateFile));
         return taskStateSnapshot;
+    }
+
+    public static OperatorSubtaskState createSubtaskStateWithUnionListState(File stateFile) {
+        return OperatorSubtaskState.builder()
+                .setManagedOperatorState(
+                        new OperatorStreamStateHandle(
+                                Collections.singletonMap(
+                                        "test",
+                                        new OperatorStateHandle.StateMetaInfo(
+                                                new long[0], OperatorStateHandle.Mode.UNION)),
+                                new FileStateHandle(new Path(stateFile.getAbsolutePath()), 0L)))
+                .build();
     }
 
     static class TriggeredCheckpoint {
@@ -572,11 +571,13 @@ public class CheckpointCoordinatorTestingUtils {
     static class CheckpointExecutionGraphBuilder {
         private final List<JobVertex> sourceVertices = new ArrayList<>();
         private final List<JobVertex> nonSourceVertices = new ArrayList<>();
+        private DistributionPattern distributionPattern;
         private boolean transitToRunning;
         private TaskManagerGateway taskManagerGateway;
         private ComponentMainThreadExecutor mainThreadExecutor;
 
         CheckpointExecutionGraphBuilder() {
+            this.distributionPattern = DistributionPattern.ALL_TO_ALL;
             this.transitToRunning = true;
             this.mainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
         }
@@ -628,6 +629,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointExecutionGraphBuilder setDistributionPattern(
+                DistributionPattern distributionPattern) {
+            this.distributionPattern = distributionPattern;
+            return this;
+        }
+
         public CheckpointExecutionGraphBuilder setTransitToRunning(boolean transitToRunning) {
             this.transitToRunning = transitToRunning;
             return this;
@@ -644,7 +651,7 @@ public class CheckpointCoordinatorTestingUtils {
             for (JobVertex source : sourceVertices) {
                 for (JobVertex nonSource : nonSourceVertices) {
                     nonSource.connectNewDataSetAsInput(
-                            source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                            source, distributionPattern, ResultPartitionType.PIPELINED);
                 }
             }
 

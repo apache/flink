@@ -201,8 +201,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
          -pyarch,--pyArchives <arg>            Add python archive files for job. The
                                                archive files will be extracted to
                                                the working directory of python UDF
-                                               worker. Currently only zip-format is
-                                               supported. For each archive file, a
+                                               worker. For each archive file, a
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to

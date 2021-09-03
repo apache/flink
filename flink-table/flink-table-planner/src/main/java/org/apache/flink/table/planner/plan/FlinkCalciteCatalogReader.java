@@ -220,7 +220,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
             // some legacy factories uses the new 'connector' key
             try {
                 TableFactoryUtil.findAndCreateTableSource(
-                        schemaTable.getCatalog(),
+                        schemaTable.getCatalog().orElse(null),
                         schemaTable.getTableIdentifier(),
                         catalogTable,
                         new Configuration(),

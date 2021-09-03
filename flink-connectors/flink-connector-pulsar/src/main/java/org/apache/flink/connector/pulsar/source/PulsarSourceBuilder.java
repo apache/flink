@@ -21,13 +21,10 @@ package org.apache.flink.connector.pulsar.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
+import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
@@ -40,31 +37,24 @@ import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeseri
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static java.lang.Boolean.FALSE;
-import static org.apache.flink.api.common.ExecutionConfig.ClosureCleanerLevel.RECURSIVE;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.getOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ENABLE_TRANSACTION;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REGEX_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_NAME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPICS_PATTERN;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPIC_NAMES;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TRANSACTION_TIMEOUT_MILLIS;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.checkConfigurations;
 import static org.apache.flink.util.InstantiationUtil.isSerializable;
@@ -123,18 +113,16 @@ public final class PulsarSourceBuilder<OUT> {
     private final Configuration configuration;
     private PulsarSubscriber subscriber;
     private RangeGenerator rangeGenerator;
-    private StartCursor startCursor = StartCursor.defaultStartCursor();
-    private StopCursor stopCursor = StopCursor.defaultStopCursor();
+    private StartCursor startCursor;
+    private StopCursor stopCursor;
     private Boundedness boundedness;
     private PulsarDeserializationSchema<OUT> deserializationSchema;
-    private ConfigurationDataCustomizer<ClientConfigurationData> clientConfigurationCustomizer;
-    private ConfigurationDataCustomizer<ConsumerConfigurationData<byte[]>>
-            consumerConfigurationCustomizer;
 
     // private builder constructor.
     PulsarSourceBuilder() {
-        // The default configuration holder.
         this.configuration = new Configuration();
+        this.startCursor = StartCursor.defaultStartCursor();
+        this.stopCursor = StopCursor.defaultStopCursor();
     }
 
     /**
@@ -144,8 +132,7 @@ public final class PulsarSourceBuilder<OUT> {
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setAdminUrl(String adminUrl) {
-        setConfiguration(PULSAR_ADMIN_URL, adminUrl);
-        return this;
+        return setConfig(PULSAR_ADMIN_URL, adminUrl);
     }
 
     /**
@@ -155,8 +142,7 @@ public final class PulsarSourceBuilder<OUT> {
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setServiceUrl(String serviceUrl) {
-        setConfiguration(PULSAR_SERVICE_URL, serviceUrl);
-        return this;
+        return setConfig(PULSAR_SERVICE_URL, serviceUrl);
     }
 
     /**
@@ -166,8 +152,7 @@ public final class PulsarSourceBuilder<OUT> {
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setSubscriptionName(String subscriptionName) {
-        setConfiguration(PULSAR_SUBSCRIPTION_NAME, subscriptionName);
-        return this;
+        return setConfig(PULSAR_SUBSCRIPTION_NAME, subscriptionName);
     }
 
     /**
@@ -218,7 +203,6 @@ public final class PulsarSourceBuilder<OUT> {
      */
     public PulsarSourceBuilder<OUT> setTopics(List<String> topics) {
         ensureSubscriberIsNull("topics");
-        configuration.set(PULSAR_TOPIC_NAMES, PulsarJsonUtils.toString(topics));
         this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
         return this;
     }
@@ -263,14 +247,19 @@ public final class PulsarSourceBuilder<OUT> {
      * with {@link #setTopics} or {@link #setTopicPattern} in this builder.
      *
      * @param topicsPattern the pattern of the topic name to consume from.
-     * @param regexSubscriptionMode The topic filter for regex subscription.
+     * @param regexSubscriptionMode When subscribing to a topic using a regular expression, you can
+     *     pick a certain type of topics.
+     *     <ul>
+     *       <li>PersistentOnly: only subscribe to persistent topics.
+     *       <li>NonPersistentOnly: only subscribe to non-persistent topics.
+     *       <li>AllTopics: subscribe to both persistent and non-persistent topics.
+     *     </ul>
+     *
      * @return this PulsarSourceBuilder.
      */
     public PulsarSourceBuilder<OUT> setTopicPattern(
             Pattern topicsPattern, RegexSubscriptionMode regexSubscriptionMode) {
         ensureSubscriberIsNull("topic pattern");
-        configuration.set(PULSAR_TOPICS_PATTERN, topicsPattern.toString());
-        configuration.set(PULSAR_REGEX_SUBSCRIPTION_MODE, regexSubscriptionMode);
         this.subscriber =
                 PulsarSubscriber.getTopicPatternSubscriber(topicsPattern, regexSubscriptionMode);
         return this;
@@ -294,7 +283,7 @@ public final class PulsarSourceBuilder<OUT> {
             LOG.warn("No subscription type provided, set it to Key_Shared.");
             setSubscriptionType(SubscriptionType.Key_Shared);
         }
-        this.rangeGenerator = rangeGenerator;
+        this.rangeGenerator = checkNotNull(rangeGenerator);
         return this;
     }
 
@@ -369,100 +358,53 @@ public final class PulsarSourceBuilder<OUT> {
     }
 
     /**
-     * {@link ClientConfigurationData} is created from {@link Properties}, but you can just using
-     * its setter method for programmatic update a config instance.
-     *
-     * @param consumer Modify the ClientConfigurationData instance in this consumer.
-     * @return this PulsarSourceBuilder.
-     */
-    public PulsarSourceBuilder<OUT> modifyClientConfig(Consumer<ClientConfigurationData> consumer) {
-        if (clientConfigurationCustomizer == null) {
-            this.clientConfigurationCustomizer = consumer::accept;
-        } else {
-            this.clientConfigurationCustomizer =
-                    clientConfigurationCustomizer.compose(consumer::accept);
-        }
-        return this;
-    }
-
-    /**
-     * {@link ConsumerConfigurationData} is created from {@link Properties}, but you can just using
-     * its setter method for programmatic update a config instance.
-     *
-     * @param consumer Modify the ConsumerConfigurationData instance in this consumer.
-     * @return this PulsarSourceBuilder.
-     */
-    public PulsarSourceBuilder<OUT> modifyConsumerConfig(
-            Consumer<ConsumerConfigurationData<byte[]>> consumer) {
-        if (consumerConfigurationCustomizer == null) {
-            this.consumerConfigurationCustomizer = consumer::accept;
-        } else {
-            this.consumerConfigurationCustomizer =
-                    consumerConfigurationCustomizer.compose(consumer::accept);
-        }
-        return this;
-    }
-
-    /**
      * Set an arbitrary property for the PulsarSource and PulsarConsumer. The valid keys can be
-     * found in {@link PulsarSourceOptions}.
+     * found in {@link PulsarSourceOptions} and {@link PulsarOptions}.
+     *
+     * <p>Make sure the option could be set only once or with same value.
      *
      * @param key the key of the property.
      * @param value the value of the property.
      * @return this PulsarSourceBuilder.
      */
-    public PulsarSourceBuilder<OUT> setProperty(String key, String value) {
-        checkNotNull(key);
-        checkNotNull(value);
-        if (configuration.containsKey(key)) {
-            ConfigOption<String> rawOption = ConfigOptions.key(key).stringType().noDefaultValue();
-            LOG.warn(
-                    "Config option {} already has a value {}, override to new value {}",
-                    key,
-                    configuration.getString(rawOption),
-                    value);
-        }
-        configuration.setString(key, value);
-        return this;
-    }
-
-    /**
-     * Set an arbitrary property for the PulsarSource and PulsarConsumer. The valid keys can be
-     * found in {@link PulsarSourceOptions}.
-     *
-     * @param key the key of the property.
-     * @param value the value of the property.
-     * @return this PulsarSourceBuilder.
-     */
-    public <T> PulsarSourceBuilder<OUT> setProperty(ConfigOption<T> key, T value) {
+    public <T> PulsarSourceBuilder<OUT> setConfig(ConfigOption<T> key, T value) {
         checkNotNull(key);
         checkNotNull(value);
         if (configuration.contains(key)) {
             T oldValue = configuration.get(key);
-            LOG.warn(
-                    "Config option {} already has a value {}, override to new value {}",
-                    key,
-                    oldValue,
-                    value);
+            checkArgument(
+                    Objects.equals(oldValue, value),
+                    "This option %s has been already set to value %s.",
+                    key.key(),
+                    oldValue);
+        } else {
+            configuration.set(key, value);
         }
-        configuration.set(key, value);
         return this;
     }
 
     /**
      * Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be found
-     * in {@link PulsarSourceOptions}.
+     * in {@link PulsarSourceOptions} and {@link PulsarOptions}.
      *
-     * @param properties the properties to set for the PulsarSource.
+     * @param config the config to set for the PulsarSource.
      * @return this PulsarSourceBuilder.
      */
-    public PulsarSourceBuilder<OUT> setProperties(Properties properties) {
-        for (String name : properties.stringPropertyNames()) {
-            String value = properties.getProperty(name);
-            if (value != null) {
-                setProperty(name, value);
+    public PulsarSourceBuilder<OUT> setConfig(Configuration config) {
+        Map<String, String> existedConfigs = configuration.toMap();
+        List<String> duplicatedKeys = new ArrayList<>();
+        for (Map.Entry<String, String> entry : config.toMap().entrySet()) {
+            String key = entry.getKey();
+            String value2 = existedConfigs.get(key);
+            if (value2 != null && !value2.equals(entry.getValue())) {
+                duplicatedKeys.add(key);
             }
         }
+        checkArgument(
+                duplicatedKeys.isEmpty(),
+                "Invalid configuration, these keys %s are already exist with different config value.",
+                duplicatedKeys);
+        configuration.addAll(config);
         return this;
     }
 
@@ -476,35 +418,10 @@ public final class PulsarSourceBuilder<OUT> {
         // Check builder configuration.
         checkConfigurations(configuration);
 
-        SubscriptionType subscriptionType = configuration.get(PULSAR_SUBSCRIPTION_TYPE);
-
         // Ensure the topic subscriber for pulsar.
-        if (subscriber == null) {
-            if (configuration.contains(PULSAR_TOPIC_NAMES)) {
-                List<String> topics =
-                        getOptionValue(
-                                configuration,
-                                PULSAR_TOPIC_NAMES,
-                                names -> PulsarJsonUtils.toList(String.class, names));
-                this.subscriber = PulsarSubscriber.getTopicListSubscriber(topics);
-            } else if (configuration.contains(PULSAR_TOPICS_PATTERN)) {
-                String topicPatternStr = configuration.get(PULSAR_TOPICS_PATTERN);
-                Pattern topicPattern = Pattern.compile(topicPatternStr);
-                RegexSubscriptionMode regexSubscriptionMode =
-                        configuration.get(PULSAR_REGEX_SUBSCRIPTION_MODE);
+        checkNotNull(subscriber, "No topic names or topic pattern are provided.");
 
-                this.subscriber =
-                        PulsarSubscriber.getTopicPatternSubscriber(
-                                topicPattern, regexSubscriptionMode);
-            } else {
-                throw new IllegalArgumentException(
-                        "No "
-                                + PULSAR_TOPIC_NAMES.key()
-                                + " or "
-                                + PULSAR_TOPICS_PATTERN.key()
-                                + " was provided.");
-            }
-        }
+        SubscriptionType subscriptionType = configuration.get(PULSAR_SUBSCRIPTION_TYPE);
         if (subscriptionType == SubscriptionType.Key_Shared) {
             if (rangeGenerator == null) {
                 LOG.warn(
@@ -531,14 +448,6 @@ public final class PulsarSourceBuilder<OUT> {
 
         checkNotNull(deserializationSchema, "deserializationSchema should be set.");
 
-        if (clientConfigurationCustomizer == null) {
-            this.clientConfigurationCustomizer = ConfigurationDataCustomizer.blankCustomizer();
-        }
-
-        if (consumerConfigurationCustomizer == null) {
-            this.consumerConfigurationCustomizer = ConfigurationDataCustomizer.blankCustomizer();
-        }
-
         // Enable transaction if the cursor auto commit is disabled for Key_Shared & Shared.
         if (FALSE.equals(configuration.get(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE))
                 && (subscriptionType == SubscriptionType.Key_Shared
@@ -564,8 +473,6 @@ public final class PulsarSourceBuilder<OUT> {
         // Since these implementation could be a lambda, make sure they are serializable.
         checkState(isSerializable(startCursor), "StartCursor isn't serializable");
         checkState(isSerializable(stopCursor), "StopCursor isn't serializable");
-        ClosureCleaner.clean(clientConfigurationCustomizer, RECURSIVE, true);
-        ClosureCleaner.clean(consumerConfigurationCustomizer, RECURSIVE, true);
 
         // Make the configuration unmodifiable.
         UnmodifiableConfiguration config = new UnmodifiableConfiguration(configuration);
@@ -577,26 +484,10 @@ public final class PulsarSourceBuilder<OUT> {
                 startCursor,
                 stopCursor,
                 boundedness,
-                deserializationSchema,
-                clientConfigurationCustomizer,
-                consumerConfigurationCustomizer);
+                deserializationSchema);
     }
 
     // ------------- private helpers  --------------
-
-    /** Make sure this option is set only once or with same value. */
-    private <T> void setConfiguration(ConfigOption<T> option, T value) {
-        if (configuration.contains(option)) {
-            T oldValue = configuration.get(option);
-            checkArgument(
-                    Objects.equals(oldValue, value),
-                    "This option %s has been set to value %s.",
-                    option.key(),
-                    oldValue);
-        } else {
-            configuration.set(option, value);
-        }
-    }
 
     /** Helper method for java compiler recognize the generic type. */
     @SuppressWarnings("unchecked")

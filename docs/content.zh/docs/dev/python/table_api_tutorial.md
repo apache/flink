@@ -29,8 +29,6 @@ under the License.
 
 # Table API 教程
 
-
-
 Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询在无边界的实时流或有边界的批处理数据集上以相同的语义执行，并产生相同的结果。 Flink 的 Table API 易于编写，通常能简化数据分析，数据管道和ETL应用的编码。
 
 ## 概要
@@ -120,8 +118,8 @@ my_sink_ddl = """
     )
 """
 
-t_env.sql_update(my_source_ddl)
-t_env.sql_update(my_sink_ddl)
+t_env.execute_sql(my_source_ddl)
+t_env.execute_sql(my_sink_ddl)
 ```
 
 上面的程序展示了如何创建及在`ExecutionEnvironment`中注册表名分别为`mySource`和`mySink`的表。

@@ -28,8 +28,8 @@ import org.apache.flink.table.data.RowData;
  * ScanTableSource}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a source should
- * consist of a single entity expressed via {@link InputFormatProvider}, {@link
- * SourceFunctionProvider}, or {@link SourceProvider}.
+ * consist of a single entity expressed via {@link SourceProvider}, {@link SourceFunctionProvider},
+ * or {@link InputFormatProvider}.
  */
 @PublicEvolving
 public interface DataStreamScanProvider extends ScanTableSource.ScanRuntimeProvider {

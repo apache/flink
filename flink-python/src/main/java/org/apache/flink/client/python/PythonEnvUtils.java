@@ -238,8 +238,8 @@ final class PythonEnvUtils {
                 };
         try {
             Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
-        } catch (IOException e) {
-            LOG.error("Gets pyflink dependent libs failed.", e);
+        } catch (Throwable t) {
+            // ignore, this may occur when executing `flink run` using the PyFlink Python package.
         }
         return libFiles;
     }
@@ -337,6 +337,13 @@ final class PythonEnvUtils {
             // set the child process the output same as the parent process.
             pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         }
+
+        LOG.info(
+                "Starting Python process with environment variables: {{}}, command: {}",
+                env.entrySet().stream()
+                        .map(e -> e.getKey() + "=" + e.getValue())
+                        .collect(Collectors.joining(", ")),
+                String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
         if (!process.isAlive()) {
             throw new RuntimeException("Failed to start Python process. ");

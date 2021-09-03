@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.enumerator;
 
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.utils.PulsarJsonUtils;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FullRangeGenerator;
@@ -40,15 +39,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.StringJoiner;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer.blankCustomizer;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
-import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPIC_NAMES;
 import static org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor.earliest;
 import static org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor.latest;
 import static org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber.getTopicPatternSubscriber;
@@ -72,14 +68,14 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
     // method could be non-static.
     @BeforeAll
     void beforeAll() {
-        setupTopic(TOPIC1);
-        setupTopic(TOPIC2);
+        operator().setupTopic(TOPIC1);
+        operator().setupTopic(TOPIC2);
     }
 
     @AfterAll
     void afterAll() {
-        deleteTopic(TOPIC1, true);
-        deleteTopic(TOPIC2, true);
+        operator().deleteTopic(TOPIC1, true);
+        operator().deleteTopic(TOPIC2, true);
     }
 
     @Test
@@ -133,10 +129,9 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
             topics.add(DYNAMIC_TOPIC_NAME);
         }
         Configuration configuration = new Configuration();
-        configuration.set(PULSAR_ADMIN_URL, adminUrl());
-        configuration.set(PULSAR_SERVICE_URL, serviceUrl());
+        configuration.set(PULSAR_ADMIN_URL, operator().adminUrl());
+        configuration.set(PULSAR_SERVICE_URL, operator().serviceUrl());
         configuration.set(PULSAR_SUBSCRIPTION_TYPE, SubscriptionType.Failover);
-        configuration.set(PULSAR_TOPIC_NAMES, PulsarJsonUtils.toString(topics));
 
         PulsarSourceEnumState sourceEnumState =
                 new PulsarSourceEnumState(
@@ -166,9 +161,8 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
             Configuration configuration) {
         // Use a TopicPatternSubscriber so that no exception if a subscribed topic hasn't been
         // created yet.
-        StringJoiner topicNameJoiner = new StringJoiner("|");
-        topicsToSubscribe.forEach(topicNameJoiner::add);
-        Pattern topicPattern = Pattern.compile(topicNameJoiner.toString());
+        String topicRegex = String.join("|", topicsToSubscribe);
+        Pattern topicPattern = Pattern.compile(topicRegex);
         PulsarSubscriber subscriber =
                 getTopicPatternSubscriber(topicPattern, RegexSubscriptionMode.AllTopics);
         if (enablePeriodicPartitionDiscovery) {
@@ -186,7 +180,6 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
                 new FullRangeGenerator(),
                 configuration,
                 sourceConfiguration,
-                blankCustomizer(),
                 enumContext,
                 assignmentState);
     }

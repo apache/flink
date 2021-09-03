@@ -17,6 +17,8 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -27,13 +29,13 @@ import static org.junit.Assert.assertEquals;
  * Tests for serializing and deserialzing {@link KafkaWriterState} with {@link
  * KafkaWriterStateSerializer}.
  */
-public class KafkaWriterStateSerializerTest {
+public class KafkaWriterStateSerializerTest extends TestLogger {
 
     private static final KafkaWriterStateSerializer SERIALIZER = new KafkaWriterStateSerializer();
 
     @Test
     public void testStateSerDe() throws IOException {
-        final KafkaWriterState state = new KafkaWriterState("idPrefix", 1, 2);
+        final KafkaWriterState state = new KafkaWriterState("idPrefix");
         final byte[] serialized = SERIALIZER.serialize(state);
         assertEquals(state, SERIALIZER.deserialize(1, serialized));
     }

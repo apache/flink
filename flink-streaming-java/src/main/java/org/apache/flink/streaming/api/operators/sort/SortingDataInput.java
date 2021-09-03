@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
@@ -86,7 +87,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             boolean objectReuse,
             double managedMemoryFraction,
             Configuration jobConfiguration,
-            AbstractInvokable containingTask) {
+            TaskInvokable containingTask,
+            ExecutionConfig executionConfig) {
         try {
             this.forwardingDataOutput = new ForwardingDataOutput();
             this.keySelector = keySelector;
@@ -108,7 +110,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
                                     memoryManager,
                                     containingTask,
                                     keyAndValueSerializer,
-                                    comparator)
+                                    comparator,
+                                    executionConfig)
                             .memoryFraction(managedMemoryFraction)
                             .enableSpilling(
                                     ioManager,

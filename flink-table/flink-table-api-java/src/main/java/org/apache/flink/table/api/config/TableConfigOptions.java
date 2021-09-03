@@ -60,7 +60,7 @@ public class TableConfigOptions {
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =
             key("table.dynamic-table-options.enabled")
                     .booleanType()
-                    .defaultValue(false)
+                    .defaultValue(true)
                     .withDescription(
                             "Enable or disable the OPTIONS hint used to specify table options "
                                     + "dynamically, if disabled, an exception would be thrown "

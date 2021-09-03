@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
@@ -31,7 +30,6 @@ import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,10 +64,9 @@ public class PulsarSourceEnumerator
             RangeGenerator rangeGenerator,
             Configuration configuration,
             SourceConfiguration sourceConfiguration,
-            ConfigurationDataCustomizer<ClientConfigurationData> clientConfigurationCustomizer,
             SplitEnumeratorContext<PulsarPartitionSplit> context,
             SplitsAssignmentState assignmentState) {
-        this.pulsarAdmin = createAdmin(configuration, clientConfigurationCustomizer);
+        this.pulsarAdmin = createAdmin(configuration);
         this.subscriber = subscriber;
         this.rangeGenerator = rangeGenerator;
         this.configuration = configuration;

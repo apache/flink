@@ -235,7 +235,7 @@ public class PythonOperatorChainingOptimizer {
                 }
             }
 
-            if (isChainable(input, transform)) {
+            if (isChainable(input, transform, outputMap)) {
                 Transformation<?> chainedTransformation =
                         createChainedTransformation(input, transform);
                 Set<Transformation<?>> outputTransformations = outputMap.get(transform);
@@ -243,6 +243,7 @@ public class PythonOperatorChainingOptimizer {
                     for (Transformation<?> output : outputTransformations) {
                         replaceInput(output, transform, chainedTransformation);
                     }
+                    outputMap.put(chainedTransformation, outputTransformations);
                 }
                 chainInfo = ChainInfo.of(chainedTransformation, Arrays.asList(input, transform));
             }
@@ -368,11 +369,14 @@ public class PythonOperatorChainingOptimizer {
     }
 
     private static boolean isChainable(
-            Transformation<?> upTransform, Transformation<?> downTransform) {
+            Transformation<?> upTransform,
+            Transformation<?> downTransform,
+            Map<Transformation<?>, Set<Transformation<?>>> outputMap) {
         return upTransform.getParallelism() == downTransform.getParallelism()
                 && upTransform.getMaxParallelism() == downTransform.getMaxParallelism()
                 && upTransform.getSlotSharingGroup().equals(downTransform.getSlotSharingGroup())
-                && areOperatorsChainable(upTransform, downTransform);
+                && areOperatorsChainable(upTransform, downTransform)
+                && outputMap.get(upTransform).size() == 1;
     }
 
     private static boolean areOperatorsChainable(

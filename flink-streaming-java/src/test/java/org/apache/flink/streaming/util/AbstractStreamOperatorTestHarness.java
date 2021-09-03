@@ -724,7 +724,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         if (internalEnvironment.isPresent()) {
             internalEnvironment.get().close();
         }
-        mockTask.cleanup();
+        mockTask.cleanUpInternal();
     }
 
     public AbstractStreamOperator<OUT> getOperator() {

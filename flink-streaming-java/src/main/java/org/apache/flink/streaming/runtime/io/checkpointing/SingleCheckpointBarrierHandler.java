@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.clock.Clock;
@@ -101,7 +101,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     public static SingleCheckpointBarrierHandler createUnalignedCheckpointBarrierHandler(
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             boolean enableCheckpointsAfterTasksFinish,
             CheckpointableInput... inputs) {
@@ -124,7 +124,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler unaligned(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -146,7 +146,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler aligned(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             int numOpenChannels,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
@@ -167,7 +167,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     public static SingleCheckpointBarrierHandler alternating(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -189,7 +189,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     private SingleCheckpointBarrierHandler(
             String taskName,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             @Nullable SubtaskCheckpointCoordinator subTaskCheckpointCoordinator,
             Clock clock,
             int numOpenChannels,
@@ -211,7 +211,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     @Override
-    public void processBarrier(CheckpointBarrier barrier, InputChannelInfo channelInfo)
+    public void processBarrier(
+            CheckpointBarrier barrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
             throws IOException {
         long barrierId = barrier.getId();
         LOG.debug("{}: Received barrier from channel {} @ {}.", taskName, channelInfo, barrierId);
@@ -237,7 +238,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         }
 
         checkCheckpointAlignedAndTransformState(
-                state -> state.barrierReceived(context, channelInfo, barrier));
+                state -> state.barrierReceived(context, channelInfo, barrier, !isRpcTriggered));
     }
 
     protected void checkCheckpointAlignedAndTransformState(

@@ -45,6 +45,25 @@
             }
           } ]
         }
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "INT"
+          }, {
+            "c" : "INT NOT NULL"
+          }, {
+            "rowtime" : {
+              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+              "nullable" : true,
+              "precision" : 3,
+              "kind" : "REGULAR"
+            }
+          } ]
+        }
       } ]
     },
     "id" : 1,
@@ -64,7 +83,7 @@
         }
       } ]
     },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",

@@ -41,9 +41,15 @@ import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.util.Arrays;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -52,6 +58,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NettyShuffleServiceFactory
         implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleServiceFactory.class);
     private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
     @Override
@@ -111,6 +118,14 @@ public class NettyShuffleServiceFactory
 
         FileChannelManager fileChannelManager =
                 new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Created a new {} for storing result partitions of BLOCKING shuffles. Used directories:\n\t{}",
+                    FileChannelManager.class.getSimpleName(),
+                    Arrays.stream(fileChannelManager.getPaths())
+                            .map(File::getAbsolutePath)
+                            .collect(Collectors.joining("\n\t")));
+        }
 
         ConnectionManager connectionManager =
                 nettyConfig != null

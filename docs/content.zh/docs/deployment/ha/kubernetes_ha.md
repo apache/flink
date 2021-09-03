@@ -53,7 +53,7 @@ high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServ
 JobManager 元数据持久化到文件系统 `high-availability.storageDir` 配置的路径中，并且在 Kubernetes 中只能有一个目录指向此位置。
 
 ```yaml
-high-availability.storageDir: s3:///flink/recovery
+high-availability.storageDir: s3://flink/recovery
 ```
 
   `storageDir` 存储要从 JobManager 失败恢复时所需的所有元数据。

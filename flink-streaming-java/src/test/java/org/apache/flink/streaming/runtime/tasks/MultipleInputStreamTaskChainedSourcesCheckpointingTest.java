@@ -85,7 +85,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link MultipleInputStreamTask} combined with {@link
@@ -516,7 +515,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .setupOperatorChain(
                                 nonSourceOperatorId,
                                 new LifeCycleMonitorMultipleInputOperatorFactory())
-                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
                         .build()) {
 
             testHarness.processElement(Watermark.MAX_WATERMARK);
@@ -532,9 +532,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                     ((SourceOperator<?, ?>) wrapper.getStreamOperator())
                                             .getSourceReader();
                     sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
-                } else if (!(wrapper.getStreamOperator()
-                        instanceof LifeCycleMonitorMultipleInputOperator)) {
-                    fail("Unexpected operator type for " + wrapper.getStreamOperator());
                 }
             }
         }

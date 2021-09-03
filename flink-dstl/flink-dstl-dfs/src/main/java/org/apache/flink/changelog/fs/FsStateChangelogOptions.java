@@ -121,7 +121,7 @@ public class FsStateChangelogOptions {
                     .intType()
                     .defaultValue(3)
                     .withDescription(
-                            "Maximum number of attempts (including the initial one) to peform a particular upload. "
+                            "Maximum number of attempts (including the initial one) to perform a particular upload. "
                                     + "Only takes effect if "
                                     + RETRY_POLICY.key()
                                     + " is fixed.");

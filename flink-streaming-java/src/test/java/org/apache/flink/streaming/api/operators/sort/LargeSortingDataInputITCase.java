@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -81,7 +82,8 @@ public class LargeSortingDataInputITCase {
                                 true,
                                 1.0,
                                 new Configuration(),
-                                new DummyInvokable())) {
+                                new DummyInvokable(),
+                                new ExecutionConfig())) {
             DataInputStatus inputStatus;
             VerifyingOutput<Integer> output = new VerifyingOutput<>(keySelector);
             do {
@@ -109,7 +111,8 @@ public class LargeSortingDataInputITCase {
                                 true,
                                 1.0,
                                 new Configuration(),
-                                new DummyInvokable())) {
+                                new DummyInvokable(),
+                                new ExecutionConfig())) {
             DataInputStatus inputStatus;
             VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
             do {
@@ -143,7 +146,8 @@ public class LargeSortingDataInputITCase {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Tuple3<Integer, String, byte[]>> sortedInput1 =

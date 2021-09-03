@@ -94,8 +94,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task thread
  * to finish.
  *
- * <p>This class id deprecated because of it's threading model. Please use {@link
- * StreamTaskMailboxTestHarness}
+ * @deprecated Please use {@link StreamTaskMailboxTestHarness} and {@link
+ *     StreamTaskMailboxTestHarnessBuilder}. Do not add new code using this test harness.
  */
 @Deprecated
 public class StreamTaskTestHarness<OUT> {
@@ -300,6 +300,9 @@ public class StreamTaskTestHarness<OUT> {
         taskThread.start();
         // Wait until the task is set
         while (taskThread.task == null) {
+            if (taskThread.error != null) {
+                ExceptionUtils.rethrow(taskThread.error);
+            }
             Thread.sleep(10L);
         }
 
@@ -435,7 +438,7 @@ public class StreamTaskTestHarness<OUT> {
                 final CountDownLatch latch = new CountDownLatch(1);
                 mailboxExecutor.execute(
                         () -> {
-                            allInputProcessed.set(mailboxProcessor.isDefaultActionUnavailable());
+                            allInputProcessed.set(!mailboxProcessor.isDefaultActionAvailable());
                             latch.countDown();
                         },
                         "query-whether-processInput-has-suspend-itself");

@@ -50,7 +50,8 @@ interface BarrierHandlerState {
     BarrierHandlerState barrierReceived(
             Controller controller,
             InputChannelInfo channelInfo,
-            CheckpointBarrier checkpointBarrier)
+            CheckpointBarrier checkpointBarrier,
+            boolean markChannelBlocked)
             throws IOException, CheckpointException;
 
     BarrierHandlerState abort(long cancelledId) throws IOException;

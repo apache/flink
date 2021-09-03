@@ -40,7 +40,8 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['CloseableIterator', 'DataStream']
+__all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
+           'DataStreamSink', 'CloseableIterator']
 
 
 class DataStream(object):
@@ -749,7 +750,7 @@ class DataStream(object):
     def print(self, sink_identifier: str = None) -> 'DataStreamSink':
         """
         Writes a DataStream to the standard output stream (stdout).
-        For each element of the DataStream the object string is writen.
+        For each element of the DataStream the object string is written.
 
         NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
         worker, and is not fault tolerant.
@@ -1036,6 +1037,7 @@ class KeyedStream(DataStream):
 
         Example:
         ::
+
             >>> ds = env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b'])
             >>> ds.key_by(lambda x: x[1]).reduce(lambda a, b: a[0] + b[0], b[1])
 

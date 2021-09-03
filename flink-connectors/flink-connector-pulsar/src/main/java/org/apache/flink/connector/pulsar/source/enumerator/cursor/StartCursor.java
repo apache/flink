@@ -67,7 +67,7 @@ public interface StartCursor extends Serializable {
 
     /**
      * @param messageId Find the available message id and start consuming from it.
-     * @param inclusive {@code ture} would include the given message id.
+     * @param inclusive {@code true} would include the given message id.
      */
     static StartCursor fromMessageId(MessageId messageId, boolean inclusive) {
         return new MessageIdStartCursor(messageId, inclusive);

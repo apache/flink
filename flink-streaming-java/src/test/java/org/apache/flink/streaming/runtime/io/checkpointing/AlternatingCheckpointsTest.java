@@ -1085,7 +1085,8 @@ public class AlternatingCheckpointsTest {
                             i,
                             clock.relativeTimeMillis(),
                             new CheckpointOptions(type, getDefault())),
-                    new InputChannelInfo(0, channel));
+                    new InputChannelInfo(0, channel),
+                    false);
             if (type.isSavepoint()) {
                 assertTrue(channels[channel].isBlocked());
                 assertFalse(channels[(channel + 1) % 2].isBlocked());
@@ -1117,7 +1118,8 @@ public class AlternatingCheckpointsTest {
                         id,
                         clock.relativeTimeMillis(),
                         new CheckpointOptions(CHECKPOINT, getDefault())),
-                new InputChannelInfo(0, 0));
+                new InputChannelInfo(0, 0),
+                false);
 
         assertFalse(barrierHandler.getAllBarriersReceivedFuture(id).isDone());
     }
@@ -1140,14 +1142,16 @@ public class AlternatingCheckpointsTest {
                         checkpointId,
                         clock.relativeTimeMillis(),
                         new CheckpointOptions(CHECKPOINT, getDefault())),
-                new InputChannelInfo(0, 0));
+                new InputChannelInfo(0, 0),
+                false);
         secondChannel.setBlocked(true);
         barrierHandler.processBarrier(
                 new CheckpointBarrier(
                         outOfOrderSavepointId,
                         clock.relativeTimeMillis(),
                         new CheckpointOptions(SAVEPOINT, getDefault())),
-                new InputChannelInfo(0, 1));
+                new InputChannelInfo(0, 1),
+                false);
 
         assertEquals(checkpointId, barrierHandler.getLatestCheckpointId());
         assertFalse(secondChannel.isBlocked());

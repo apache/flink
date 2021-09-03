@@ -19,7 +19,7 @@ import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
-    JsonValueOnEmptyOrError
+    JsonValueOnEmptyOrError, JsonType
 from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date,
                                        current_time, current_timestamp, local_time,
                                        local_timestamp, temporal_overlaps, date_format,
@@ -193,6 +193,9 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('sha2(a, 224)', str(expr1.sha2(224)))
 
         # json functions
+        self.assertEqual("IS_JSON('42')", str(lit('42').is_json()))
+        self.assertEqual("IS_JSON('42', SCALAR)", str(lit('42').is_json(JsonType.SCALAR)))
+
         self.assertEqual("JSON_EXISTS('{}', '$.x')", str(lit('{}').json_exists('$.x')))
         self.assertEqual("JSON_EXISTS('{}', '$.x', FALSE)",
                          str(lit('{}').json_exists('$.x', JsonExistsOnError.FALSE)))

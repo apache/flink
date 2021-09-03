@@ -127,7 +127,7 @@ logical:
       如果 boolean1 和 boolean2 都为 `TRUE` 返回 `TRUE`。支持三值逻辑。
       例如 `true && Null(BOOLEAN)` 返回 `UNKNOWN`。
   - sql: NOT boolean
-    table: '!BOOLEAN'
+    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
     description: |
       如果布尔值为 `FALSE` 返回 `TRUE`；如果布尔值为 `TRUE` 返回 `FALSE`；如果布尔值为 `UNKNOWN`
       返回 `UNKNOWN`。
@@ -704,6 +704,41 @@ collection:
     description: 返回 map 中指定 key 对应的值。
 
 json:
+  - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
+    table: STRING.isJson([JsonType type])
+    description: |
+      Determine whether a given string is valid JSON.
+
+      Specifying the optional type argument puts a constraint on which type of JSON object is
+      allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
+      `VALUE`.
+
+      ```
+      -- TRUE
+      '1' IS JSON
+      '[]' IS JSON
+      '{}' IS JSON
+
+      -- TRUE
+      '"abc"' IS JSON
+      -- FALSE
+      'abc' IS JSON
+      NULL IS JSON
+
+      -- TRUE
+      '1' IS JSON SCALAR
+      -- FALSE
+      '1' IS JSON ARRAY
+      -- FALSE
+      '1' IS JSON OBJECT
+
+      -- FALSE
+      '{}' IS JSON SCALAR
+      -- FALSE
+      '{}' IS JSON ARRAY
+      -- TRUE
+      '{}' IS JSON OBJECT
+      ```
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
     description: |
@@ -712,18 +747,18 @@ json:
       If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
 
       ```
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}', '$.b');
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
         '$.a[0].b');
 
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' TRUE ON ERROR);
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```

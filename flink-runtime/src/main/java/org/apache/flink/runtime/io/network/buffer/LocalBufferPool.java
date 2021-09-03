@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -133,7 +133,8 @@ class LocalBufferPool implements BufferPool {
      * @param networkBufferPool global network buffer pool to get buffers from
      * @param numberOfRequiredMemorySegments minimum number of network buffers
      */
-    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
+    LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments)
+            throws IOException {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
@@ -153,7 +154,8 @@ class LocalBufferPool implements BufferPool {
     LocalBufferPool(
             NetworkBufferPool networkBufferPool,
             int numberOfRequiredMemorySegments,
-            int maxNumberOfMemorySegments) {
+            int maxNumberOfMemorySegments)
+            throws Exception {
         this(
                 networkBufferPool,
                 numberOfRequiredMemorySegments,
@@ -177,7 +179,8 @@ class LocalBufferPool implements BufferPool {
             int numberOfRequiredMemorySegments,
             int maxNumberOfMemorySegments,
             int numberOfSubpartitions,
-            int maxBuffersPerChannel) {
+            int maxBuffersPerChannel)
+            throws IOException {
         checkArgument(
                 numberOfRequiredMemorySegments > 0,
                 "Required number of memory segments (%s) should be larger than 0.",
@@ -227,6 +230,26 @@ class LocalBufferPool implements BufferPool {
     // ------------------------------------------------------------------------
     // Properties
     // ------------------------------------------------------------------------
+
+    @Override
+    public void reserveSegments(int numberOfSegmentsToReserve) throws IOException {
+        checkArgument(
+                numberOfSegmentsToReserve <= numberOfRequiredMemorySegments,
+                "Can not reserve more segments than number of required segments.");
+
+        CompletableFuture<?> toNotify = null;
+        synchronized (availableMemorySegments) {
+            checkState(!isDestroyed, "Buffer pool has been destroyed.");
+
+            if (numberOfRequestedMemorySegments < numberOfSegmentsToReserve) {
+                availableMemorySegments.addAll(
+                        networkBufferPool.requestMemorySegmentsBlocking(
+                                numberOfSegmentsToReserve - numberOfRequestedMemorySegments));
+                toNotify = availabilityHelper.getUnavailableToResetAvailable();
+            }
+        }
+        mayNotifyAvailable(toNotify);
+    }
 
     @Override
     public boolean isDestroyed() {
@@ -468,8 +491,7 @@ class LocalBufferPool implements BufferPool {
     private void recycle(MemorySegment segment, int channel) {
         BufferListener listener;
         CompletableFuture<?> toNotify = null;
-        NotificationResult notificationResult = NotificationResult.BUFFER_NOT_USED;
-        while (!notificationResult.isBufferUsed()) {
+        do {
             synchronized (availableMemorySegments) {
                 if (channel != UNKNOWN_CHANNEL) {
                     if (subpartitionBuffersCount[channel]-- == maxBuffersPerChannel) {
@@ -496,32 +518,18 @@ class LocalBufferPool implements BufferPool {
 
                 checkConsistentAvailability();
             }
-            notificationResult = fireBufferAvailableNotification(listener, segment);
-        }
+        } while (!fireBufferAvailableNotification(listener, segment));
 
         mayNotifyAvailable(toNotify);
     }
 
-    private NotificationResult fireBufferAvailableNotification(
+    private boolean fireBufferAvailableNotification(
             BufferListener listener, MemorySegment segment) {
         // We do not know which locks have been acquired before the recycle() or are needed in the
         // notification and which other threads also access them.
         // -> call notifyBufferAvailable() outside of the synchronized block to avoid a deadlock
         // (FLINK-9676)
-        NotificationResult notificationResult =
-                listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
-        if (notificationResult.needsMoreBuffers()) {
-            synchronized (availableMemorySegments) {
-                if (isDestroyed) {
-                    // cleanup tasks how they would have been done if we only had one synchronized
-                    // block
-                    listener.notifyBufferDestroyed();
-                } else {
-                    registeredListeners.add(listener);
-                }
-            }
-        }
-        return notificationResult;
+        return listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
     }
 
     /** Destroy is called after the produce or consume phase of a task finishes. */

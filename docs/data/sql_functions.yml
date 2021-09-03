@@ -83,7 +83,7 @@ logical:
     table: BOOLEAN1 && BOOLEAN2
     description: Returns TRUE if BOOLEAN1 and BOOLEAN2 are both TRUE. Supports three-valued logic. E.g., true && Null(BOOLEAN) returns UNKNOWN.
   - sql: NOT boolean
-    table: '!BOOLEAN'
+    table: BOOLEAN.not(), not(BOOLEAN), or '!BOOLEAN' (Scala only)
     description: Returns TRUE if boolean is FALSE; returns FALSE if boolean is TRUE; returns UNKNOWN if boolean is UNKNOWN.
   - sql: boolean IS FALSE
     table: BOOLEAN.isFalse
@@ -572,6 +572,41 @@ collection:
     description: Returns the value specified by key value in map.
 
 json:
+  - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
+    table: STRING.isJson([JsonType type])
+    description: |
+      Determine whether a given string is valid JSON.
+
+      Specifying the optional type argument puts a constraint on which type of JSON object is
+      allowed. If the string is valid JSON, but not that type, `false` is returned. The default is
+      `VALUE`.
+
+      ```
+      -- TRUE
+      '1' IS JSON
+      '[]' IS JSON
+      '{}' IS JSON
+
+      -- TRUE
+      '"abc"' IS JSON
+      -- FALSE
+      'abc' IS JSON
+      NULL IS JSON
+
+      -- TRUE
+      '1' IS JSON SCALAR
+      -- FALSE
+      '1' IS JSON ARRAY
+      -- FALSE
+      '1' IS JSON OBJECT
+
+      -- FALSE
+      '{}' IS JSON SCALAR
+      -- FALSE
+      '{}' IS JSON ARRAY
+      -- TRUE
+      '{}' IS JSON OBJECT
+      ```
   - sql: JSON_EXISTS(jsonValue, path [ { TRUE | FALSE | UNKNOWN | ERROR } ON ERROR ])
     table: STRING.jsonExists(STRING path [, JsonExistsOnError onError])
     description: |
@@ -580,18 +615,18 @@ json:
       If the error behavior is omitted, `FALSE ON ERROR` is assumed as the default.
 
       ```
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}', '$.a');
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}', '$.b');
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": [{ "b": 1 }]}',
         '$.a[0].b');
 
-      // TRUE
+      -- TRUE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' TRUE ON ERROR);
-      // FALSE
+      -- FALSE
       SELECT JSON_EXISTS('{"a": true}',
         'strict $.b' FALSE ON ERROR);
       ```

@@ -22,23 +22,10 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class KafkaWriterState {
-    private final int subtaskId;
-    private final long transactionalIdOffset;
     private final String transactionalIdPrefix;
 
-    KafkaWriterState(
-            String transactionalIdPrefix, int subtaskId, long nextFreeTransactionalIdOffset) {
-        this.subtaskId = subtaskId;
-        this.transactionalIdOffset = nextFreeTransactionalIdOffset;
+    KafkaWriterState(String transactionalIdPrefix) {
         this.transactionalIdPrefix = checkNotNull(transactionalIdPrefix, "transactionalIdPrefix");
-    }
-
-    public int getSubtaskId() {
-        return subtaskId;
-    }
-
-    public long getTransactionalIdOffset() {
-        return transactionalIdOffset;
     }
 
     public String getTransactionalIdPrefix() {
@@ -54,21 +41,17 @@ class KafkaWriterState {
             return false;
         }
         KafkaWriterState that = (KafkaWriterState) o;
-        return subtaskId == that.subtaskId && transactionalIdOffset == that.transactionalIdOffset;
+        return transactionalIdPrefix.equals(that.transactionalIdPrefix);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(subtaskId, transactionalIdOffset);
+        return Objects.hash(transactionalIdPrefix);
     }
 
     @Override
     public String toString() {
         return "KafkaWriterState{"
-                + "subtaskId="
-                + subtaskId
-                + ", transactionalIdOffset="
-                + transactionalIdOffset
                 + ", transactionalIdPrefix='"
                 + transactionalIdPrefix
                 + '\''

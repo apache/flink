@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.reader.split;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
 import org.apache.flink.connector.pulsar.common.utils.PulsarTransactionUtils;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
@@ -36,7 +35,6 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,17 +68,9 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
             PulsarAdmin pulsarAdmin,
             Configuration configuration,
             SourceConfiguration sourceConfiguration,
-            ConfigurationDataCustomizer<ConsumerConfigurationData<byte[]>>
-                    consumerConfigurationCustomizer,
             PulsarDeserializationSchema<OUT> deserializationSchema,
             TransactionCoordinatorClient coordinatorClient) {
-        super(
-                pulsarClient,
-                pulsarAdmin,
-                configuration,
-                sourceConfiguration,
-                consumerConfigurationCustomizer,
-                deserializationSchema);
+        super(pulsarClient, pulsarAdmin, configuration, sourceConfiguration, deserializationSchema);
 
         this.coordinatorClient = coordinatorClient;
     }

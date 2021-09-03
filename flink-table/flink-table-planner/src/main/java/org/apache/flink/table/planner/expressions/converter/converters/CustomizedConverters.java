@@ -52,6 +52,7 @@ public class CustomizedConverters {
         CONVERTERS.put(BuiltInFunctionDefinitions.ROW, new RowConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.ORDER_ASC, new OrderAscConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.SQRT, new SqrtConverter());
+        CONVERTERS.put(BuiltInFunctionDefinitions.IS_JSON, new IsJsonConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.JSON_EXISTS, new JsonExistsConverter());
         CONVERTERS.put(BuiltInFunctionDefinitions.JSON_VALUE, new JsonValueConverter());
         CONVERTERS.put(InternalFunctionDefinitions.THROW_EXCEPTION, new ThrowExceptionConverter());

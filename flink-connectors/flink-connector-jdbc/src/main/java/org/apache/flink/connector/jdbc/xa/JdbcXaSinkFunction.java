@@ -124,10 +124,6 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunctionState.of;
  * </tbody>
  * </table>
  *
- * <p>Attention: JdbcXaSinkFunction does not support exactly-once mode with MySQL or other databases
- * that do not support multiple XA transaction per connection. We will improve the support in
- * FLINK-22239.
- *
  * @since 1.13
  */
 @Internal

@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * implements both the initial address resolution and the retries-with-backoff strategy.
  *
  * <p>The registration gives access to a future that is completed upon successful registration. The
- * registration can be canceled, for example when the target where it tries to register at looses
+ * registration can be canceled, for example when the target where it tries to register at loses
  * leader status.
  *
  * @param <F> The type of the fencing token

@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -35,14 +38,13 @@ import org.apache.flink.table.planner.plan.utils.NestedColumn;
 import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
@@ -52,208 +54,327 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-/**
- * Planner rule that pushes a {@link LogicalProject} into a {@link LogicalTableScan} which wraps a
- * {@link SupportsProjectionPushDown} dynamic table source.
- */
-public class PushProjectIntoTableSourceScanRule extends RelOptRule {
-    public static final PushProjectIntoTableSourceScanRule INSTANCE =
-            new PushProjectIntoTableSourceScanRule();
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
-    public PushProjectIntoTableSourceScanRule() {
-        super(
-                operand(LogicalProject.class, operand(LogicalTableScan.class, none())),
-                "PushProjectIntoTableSourceScanRule");
+/**
+ * Pushes a {@link LogicalProject} into a {@link LogicalTableScan}.
+ *
+ * <p>If the source implements {@link SupportsProjectionPushDown} this rule pushes the projection of
+ * physical columns into the source.
+ *
+ * <p>If the source implements {@link SupportsReadingMetadata} this rule also pushes projected
+ * metadata into the source. For sources implementing {@link SupportsReadingMetadata} but not {@link
+ * SupportsProjectionPushDown} this is only done if {@link
+ * SupportsReadingMetadata#supportsMetadataProjection()} returns {@code true}. This is important for
+ * some sources which would not be re-usable if different instances (due to different projected
+ * metadata) of the source were used together.
+ */
+@Internal
+public class PushProjectIntoTableSourceScanRule
+        extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
+
+    public static final RelOptRule INSTANCE =
+            Config.EMPTY.as(Config.class).onProjectedScan().toRule();
+
+    public PushProjectIntoTableSourceScanRule(Config config) {
+        super(config);
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        LogicalTableScan scan = call.rel(1);
-        TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        if (tableSourceTable == null
-                || !(tableSourceTable.tableSource() instanceof SupportsProjectionPushDown)) {
+        final LogicalTableScan scan = call.rel(1);
+        final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
+        if (sourceTable == null) {
             return false;
         }
-        return Arrays.stream(tableSourceTable.abilitySpecs())
-                .noneMatch(spec -> spec instanceof ProjectPushDownSpec);
+
+        final DynamicTableSource source = sourceTable.tableSource();
+
+        // The source supports projection push-down.
+        if (supportsProjectionPushDown(source)) {
+            return Arrays.stream(sourceTable.abilitySpecs())
+                    .noneMatch(spec -> spec instanceof ProjectPushDownSpec);
+        }
+
+        // The source supports metadata and wants them to be projected even if projection push-down
+        // (for physical columns) is not supported.
+        if (supportsMetadata(source)) {
+            if (Arrays.stream(sourceTable.abilitySpecs())
+                    .anyMatch(spec -> spec instanceof ReadingMetadataSpec)) {
+                return false;
+            }
+
+            return ((SupportsReadingMetadata) source).supportsMetadataProjection();
+        }
+
+        return false;
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
         final LogicalProject project = call.rel(0);
         final LogicalTableScan scan = call.rel(1);
-
-        final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
-        TableSourceTable oldTableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        final ResolvedSchema oldSchema = oldTableSourceTable.catalogTable().getResolvedSchema();
-        final DynamicTableSource oldSource = oldTableSourceTable.tableSource();
-        final TableConfig config = ShortcutUtils.unwrapContext(scan).getTableConfig();
+        final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
 
         final boolean supportsNestedProjection =
-                ((SupportsProjectionPushDown) oldTableSourceTable.tableSource())
-                        .supportsNestedProjection();
-        List<String> fieldNames = scan.getRowType().getFieldNames();
+                supportsNestedProjection(sourceTable.tableSource());
 
-        if (!supportsNestedProjection && refFields.length == fieldNames.size()) {
-            // just keep as same as the old plan
-            // TODO: refactor the affected plan
+        final int[] refFields = RexNodeExtractor.extractRefInputFields(project.getProjects());
+        if (!supportsNestedProjection && refFields.length == scan.getRowType().getFieldCount()) {
+            // There is no top-level projection and nested projections aren't supported.
             return;
         }
 
-        List<RexNode> oldProjectsWithPK = new ArrayList<>(project.getProjects());
-        FlinkTypeFactory flinkTypeFactory = ShortcutUtils.unwrapTypeFactory(scan);
-        if (isPrimaryKeyFieldsRequired(oldTableSourceTable, config)) {
-            // add pk into projects for upsert source
-            oldSchema
-                    .getPrimaryKey()
-                    .ifPresent(
-                            pks -> {
-                                for (String name : pks.getColumns()) {
-                                    int index = fieldNames.indexOf(name);
-                                    Column col = oldSchema.getColumn(index).get();
-                                    oldProjectsWithPK.add(
-                                            new RexInputRef(
-                                                    index,
-                                                    flinkTypeFactory.createFieldTypeFromLogicalType(
-                                                            col.getDataType().getLogicalType())));
-                                }
-                            });
-        }
-        // build used schema tree
-        RowType originType = DynamicSourceUtils.createProducedType(oldSchema, oldSource);
-        NestedSchema nestedSchema =
+        final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
+        final ResolvedSchema schema = sourceTable.catalogTable().getResolvedSchema();
+        final RowType producedType = createProducedType(schema, sourceTable.tableSource());
+        final NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
-                        oldProjectsWithPK, flinkTypeFactory.buildRelNodeRowType(originType));
+                        getProjections(project, scan),
+                        typeFactory.buildRelNodeRowType(producedType));
         if (!supportsNestedProjection) {
-            // mark the fields in the top level as leaf
-            for (NestedColumn column : nestedSchema.columns().values()) {
+            for (NestedColumn column : projectedSchema.columns().values()) {
                 column.markLeaf();
             }
         }
-        DataType producedDataType = TypeConversions.fromLogicalToDataType(originType);
 
-        List<SourceAbilitySpec> sourceAbilitySpecs = new ArrayList<>();
-        RowType newProducedType;
-        if (oldSource instanceof SupportsReadingMetadata) {
-            List<String> metadataKeys =
-                    DynamicSourceUtils.createRequiredMetadataKeys(oldSchema, oldSource);
-            newProducedType =
-                    applyPhysicalAndMetadataPushDown(
-                            nestedSchema, metadataKeys, originType, sourceAbilitySpecs);
-        } else {
-            int[][] projectedFields = NestedProjectionUtil.convertToIndexArray(nestedSchema);
-            newProducedType =
-                    (RowType)
-                            DataTypeUtils.projectRow(producedDataType, projectedFields)
-                                    .getLogicalType();
-            sourceAbilitySpecs.add(new ProjectPushDownSpec(projectedFields, newProducedType));
-        }
+        final List<SourceAbilitySpec> abilitySpecs = new ArrayList<>();
+        final RowType newProducedType =
+                performPushDown(sourceTable, projectedSchema, producedType, abilitySpecs);
 
-        DynamicTableSource newSource = oldSource.copy();
-        SourceAbilityContext context = SourceAbilityContext.from(scan);
-        for (SourceAbilitySpec pushDownSpec : sourceAbilitySpecs) {
-            pushDownSpec.apply(newSource, context);
-        }
+        final DynamicTableSource newTableSource = sourceTable.tableSource().copy();
+        final SourceAbilityContext context = SourceAbilityContext.from(scan);
+        abilitySpecs.forEach(spec -> spec.apply(newTableSource, context));
 
-        RelDataType newRowType = flinkTypeFactory.buildRelNodeRowType(newProducedType);
-
-        // project push down does not change the statistic, we can reuse origin statistic
-        TableSourceTable newTableSourceTable =
-                oldTableSourceTable.copy(
-                        newSource,
+        final RelDataType newRowType = typeFactory.buildRelNodeRowType(newProducedType);
+        final TableSourceTable newSource =
+                sourceTable.copy(
+                        newTableSource,
                         newRowType,
-                        new String[] {
-                            ("project=[" + String.join(", ", newRowType.getFieldNames()) + "]")
-                        },
-                        sourceAbilitySpecs.toArray(new SourceAbilitySpec[0]));
-        LogicalTableScan newScan =
+                        getExtraDigests(abilitySpecs),
+                        abilitySpecs.toArray(new SourceAbilitySpec[0]));
+        final LogicalTableScan newScan =
                 new LogicalTableScan(
-                        scan.getCluster(),
-                        scan.getTraitSet(),
-                        scan.getHints(),
-                        newTableSourceTable);
-        // rewrite the input field in projections
-        // the origin projections are enough. Because the upsert source only uses pk info
-        // normalization node.
-        List<RexNode> newProjects =
-                NestedProjectionUtil.rewrite(
-                        project.getProjects(), nestedSchema, call.builder().getRexBuilder());
-        // rewrite new source
-        LogicalProject newProject =
-                project.copy(project.getTraitSet(), newScan, newProjects, project.getRowType());
+                        scan.getCluster(), scan.getTraitSet(), scan.getHints(), newSource);
 
+        final LogicalProject newProject =
+                project.copy(
+                        project.getTraitSet(),
+                        newScan,
+                        rewriteProjections(call, newSource, projectedSchema),
+                        project.getRowType());
         if (ProjectRemoveRule.isTrivial(newProject)) {
-            // drop project if the transformed program merely returns its input
             call.transformTo(newScan);
         } else {
             call.transformTo(newProject);
         }
     }
 
-    /** Returns true if the primary key is required and should be retained. */
-    private static boolean isPrimaryKeyFieldsRequired(TableSourceTable table, TableConfig config) {
+    private boolean supportsProjectionPushDown(DynamicTableSource tableSource) {
+        return tableSource instanceof SupportsProjectionPushDown;
+    }
+
+    private boolean supportsMetadata(DynamicTableSource tableSource) {
+        return tableSource instanceof SupportsReadingMetadata;
+    }
+
+    private boolean supportsNestedProjection(DynamicTableSource tableSource) {
+        return supportsProjectionPushDown(tableSource)
+                && ((SupportsProjectionPushDown) tableSource).supportsNestedProjection();
+    }
+
+    private List<RexNode> getProjections(LogicalProject project, LogicalTableScan scan) {
+        final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
+        final TableConfig tableConfig = unwrapContext(scan).getTableConfig();
+
+        final List<RexNode> projections = new ArrayList<>(project.getProjects());
+        if (supportsProjectionPushDown(source.tableSource())
+                && requiresPrimaryKey(source, tableConfig)) {
+            projections.addAll(getPrimaryKeyProjections(scan));
+        }
+
+        return projections;
+    }
+
+    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig config) {
         return DynamicSourceUtils.isUpsertSource(table.catalogTable(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(
                         table.catalogTable(), table.tableSource(), config);
     }
 
-    /**
-     * Push the used physical column and metadata into table source. The returned value is used to
-     * build new table schema.
-     */
-    private static RowType applyPhysicalAndMetadataPushDown(
-            NestedSchema nestedSchema,
-            List<String> metadataKeys,
-            RowType originType,
-            List<SourceAbilitySpec> sourceAbilitySpecs) {
-        // TODO: supports nested projection for metadata
-        List<NestedColumn> usedMetaDataFields = new LinkedList<>();
-        int physicalCount = originType.getFieldCount() - metadataKeys.size();
-        List<String> fieldNames = originType.getFieldNames();
-
-        // rm metadata in the tree
-        for (int i = 0; i < metadataKeys.size(); i++) {
-            NestedColumn usedMetadata =
-                    nestedSchema.columns().remove(fieldNames.get(i + physicalCount));
-            if (usedMetadata != null) {
-                usedMetaDataFields.add(usedMetadata);
-            }
+    private List<RexNode> getPrimaryKeyProjections(LogicalTableScan scan) {
+        final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
+        final ResolvedSchema schema = source.catalogTable().getResolvedSchema();
+        if (!schema.getPrimaryKey().isPresent()) {
+            return Collections.emptyList();
         }
 
-        // get path of the used fields
-        int[][] projectedPhysicalFields = NestedProjectionUtil.convertToIndexArray(nestedSchema);
+        final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
+        final UniqueConstraint primaryKey = schema.getPrimaryKey().get();
+        return primaryKey.getColumns().stream()
+                .map(
+                        columnName -> {
+                            final int idx = scan.getRowType().getFieldNames().indexOf(columnName);
+                            final Column column =
+                                    schema.getColumn(idx)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new TableException(
+                                                                    String.format(
+                                                                            "Column at index %d not found.",
+                                                                            idx)));
+                            return new RexInputRef(
+                                    idx,
+                                    typeFactory.createFieldTypeFromLogicalType(
+                                            column.getDataType().getLogicalType()));
+                        })
+                .collect(Collectors.toList());
+    }
 
-        // push the metadata back for later rewrite and extract the location in the origin row
-        int newIndex = projectedPhysicalFields.length;
-        List<String> usedMetadataNames = new LinkedList<>();
-        for (NestedColumn metadata : usedMetaDataFields) {
-            metadata.setIndexOfLeafInNewSchema(newIndex++);
-            nestedSchema.columns().put(metadata.name(), metadata);
-            usedMetadataNames.add(metadataKeys.get(metadata.indexInOriginSchema() - physicalCount));
+    private RowType performPushDown(
+            TableSourceTable source,
+            NestedSchema projectedSchema,
+            RowType producedType,
+            List<SourceAbilitySpec> abilitySpecs) {
+        final int numPhysicalColumns;
+        final List<NestedColumn> projectedMetadataColumns;
+        if (supportsMetadata(source.tableSource())) {
+            final List<String> declaredMetadataKeys =
+                    createRequiredMetadataKeys(
+                            source.catalogTable().getResolvedSchema(), source.tableSource());
+
+            numPhysicalColumns = producedType.getFieldCount() - declaredMetadataKeys.size();
+
+            projectedMetadataColumns =
+                    IntStream.range(0, declaredMetadataKeys.size())
+                            .mapToObj(i -> producedType.getFieldNames().get(numPhysicalColumns + i))
+                            .map(fieldName -> projectedSchema.columns().get(fieldName))
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toList());
+        } else {
+            numPhysicalColumns = producedType.getFieldCount();
+            projectedMetadataColumns = Collections.emptyList();
         }
 
-        // apply metadata push down
-        int[][] projectedFields =
+        final int[][] physicalProjections;
+        if (supportsProjectionPushDown(source.tableSource())) {
+            projectedMetadataColumns.forEach(
+                    metaColumn -> projectedSchema.columns().remove(metaColumn.name()));
+
+            physicalProjections = NestedProjectionUtil.convertToIndexArray(projectedSchema);
+
+            projectedMetadataColumns.forEach(
+                    metaColumn -> projectedSchema.columns().put(metaColumn.name(), metaColumn));
+        } else {
+            physicalProjections =
+                    IntStream.range(0, numPhysicalColumns)
+                            .mapToObj(columnIndex -> new int[] {columnIndex})
+                            .toArray(int[][]::new);
+        }
+
+        final int[][] projectedFields =
                 Stream.concat(
-                                Stream.of(projectedPhysicalFields),
-                                usedMetaDataFields.stream()
-                                        .map(field -> new int[] {field.indexInOriginSchema()}))
+                                Stream.of(physicalProjections),
+                                projectedMetadataColumns.stream()
+                                        .map(NestedColumn::indexInOriginSchema)
+                                        .map(columnIndex -> new int[] {columnIndex}))
                         .toArray(int[][]::new);
-        RowType newProducedType =
+
+        int newIndex = physicalProjections.length;
+        for (NestedColumn metaColumn : projectedMetadataColumns) {
+            metaColumn.setIndexOfLeafInNewSchema(newIndex++);
+        }
+
+        final RowType newProducedType =
                 (RowType)
                         DataTypeUtils.projectRow(
-                                        TypeConversions.fromLogicalToDataType(originType),
+                                        TypeConversions.fromLogicalToDataType(producedType),
                                         projectedFields)
                                 .getLogicalType();
 
-        sourceAbilitySpecs.add(new ProjectPushDownSpec(projectedPhysicalFields, newProducedType));
-        if (!usedMetadataNames.isEmpty()) {
-            sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
+        if (supportsProjectionPushDown(source.tableSource())) {
+            abilitySpecs.add(new ProjectPushDownSpec(physicalProjections, newProducedType));
         }
+
+        if (supportsMetadata(source.tableSource())) {
+            final List<String> projectedMetadataKeys =
+                    projectedMetadataColumns.stream()
+                            .map(NestedColumn::name)
+                            .collect(Collectors.toList());
+
+            abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));
+        }
+
         return newProducedType;
+    }
+
+    private List<RexNode> rewriteProjections(
+            RelOptRuleCall call, TableSourceTable source, NestedSchema projectedSchema) {
+        final LogicalProject project = call.rel(0);
+        if (supportsProjectionPushDown(source.tableSource())) {
+            return NestedProjectionUtil.rewrite(
+                    project.getProjects(), projectedSchema, call.builder().getRexBuilder());
+        } else {
+            return project.getProjects();
+        }
+    }
+
+    private static String[] getExtraDigests(List<SourceAbilitySpec> abilitySpecs) {
+        final List<String> digests = new ArrayList<>();
+        for (SourceAbilitySpec abilitySpec : abilitySpecs) {
+            if (abilitySpec instanceof ProjectPushDownSpec) {
+                digests.add(formatPushDownDigest((ProjectPushDownSpec) abilitySpec));
+            } else if (abilitySpec instanceof ReadingMetadataSpec) {
+                digests.add(formatMetadataDigest((ReadingMetadataSpec) abilitySpec));
+            }
+        }
+
+        return digests.toArray(new String[0]);
+    }
+
+    private static String formatPushDownDigest(ProjectPushDownSpec pushDownSpec) {
+        final List<String> fieldNames =
+                pushDownSpec
+                        .getProducedType()
+                        .orElseThrow(() -> new TableException("Produced data type is not present."))
+                        .getFieldNames();
+
+        return String.format("project=[%s]", String.join(", ", fieldNames));
+    }
+
+    private static String formatMetadataDigest(ReadingMetadataSpec metadataSpec) {
+        return String.format("metadata=[%s]", String.join(", ", metadataSpec.getMetadataKeys()));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    /** Configuration for {@link PushProjectIntoTableSourceScanRule}. */
+    public interface Config extends RelRule.Config {
+
+        @Override
+        default RelOptRule toRule() {
+            return new PushProjectIntoTableSourceScanRule(this);
+        }
+
+        default Config onProjectedScan() {
+            final RelRule.OperandTransform scanTransform =
+                    operandBuilder -> operandBuilder.operand(LogicalTableScan.class).noInputs();
+
+            final RelRule.OperandTransform projectTransform =
+                    operandBuilder ->
+                            operandBuilder.operand(LogicalProject.class).oneInput(scanTransform);
+
+            return withOperandSupplier(projectTransform).as(Config.class);
+        }
     }
 }

@@ -39,7 +39,7 @@ The following code example shows the common structure of Table API and SQL progr
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.api.*;
-import org.apache.flink.table.factories.DataGenOptions;
+import org.apache.flink.connector.datagen.table.DataGenOptions;
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -69,7 +69,7 @@ TableResult tableResult = table2.executeInsert("SinkTable");
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.api._
-import org.apache.flink.table.factories.DataGenOptions
+import org.apache.flink.connector.datagen.table.DataGenOptions
 
 // Create a TableEnvironment for batch or streaming execution.
 // See the "Create a TableEnvironment" section for details.
@@ -274,7 +274,7 @@ the query is correct it can be run against the real production table.
 
 #### Virtual Tables
 
-A `Table` API object corresponds to a `VIEW` (virtual table) in a SQL terms. It encapsulates a logical
+A `Table` API object corresponds to a `VIEW` (virtual table) in SQL terms. It encapsulates a logical
 query plan. It can be created in a catalog as follows:
 
 {{< tabs "180b1bfe-5749-4b96-a120-e186fd361c8d" >}}
@@ -741,7 +741,6 @@ result.execute_insert("CsvSinkTable")
 Translate and Execute a Query
 -----------------------------
 
-The behavior of translating and executing a query is different for the two planners.
 Table API and SQL queries are translated into [DataStream]({{< ref "docs/dev/datastream/overview" >}}) programs whether their input is streaming or batch.
 A query is internally represented as a logical query plan and is translated in two phases:
 

@@ -25,7 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.util.clock.Clock;
 
 import org.slf4j.Logger;
@@ -82,7 +82,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
     public CheckpointBarrierTracker(
             int totalNumberOfInputChannels,
-            AbstractInvokable toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
             Clock clock,
             boolean enableCheckpointAfterTasksFinished) {
         super(toNotifyOnCheckpoint, clock, enableCheckpointAfterTasksFinished);
@@ -90,7 +90,9 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         this.pendingCheckpoints = new ArrayDeque<>();
     }
 
-    public void processBarrier(CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo)
+    @Override
+    public void processBarrier(
+            CheckpointBarrier receivedBarrier, InputChannelInfo channelInfo, boolean isRpcTriggered)
             throws IOException {
         final long barrierId = receivedBarrier.getId();
 

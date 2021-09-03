@@ -33,6 +33,8 @@ import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
@@ -56,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.COMMITS_SUCCEEDED_METRIC_COUNTER;
@@ -294,13 +297,11 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
             assertEquals(NUM_RECORDS_PER_SPLIT, getCommittedOffsetMetric(tp1, metricListener));
 
             // Number of successful commits should be 1
-            assertEquals(
-                    1L,
-                    metricListener
-                            .getCounter(
-                                    KAFKA_SOURCE_READER_METRIC_GROUP,
-                                    COMMITS_SUCCEEDED_METRIC_COUNTER)
-                            .getCount());
+            final Optional<Counter> commitsSucceeded =
+                    metricListener.getCounter(
+                            KAFKA_SOURCE_READER_METRIC_GROUP, COMMITS_SUCCEEDED_METRIC_COUNTER);
+            assertTrue(commitsSucceeded.isPresent());
+            assertEquals(1L, commitsSucceeded.get().getCount());
         }
     }
 
@@ -396,37 +397,37 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     }
 
     private long getKafkaConsumerMetric(String name, MetricListener listener) {
-        return ((Double)
-                        listener.getGauge(
-                                        KAFKA_SOURCE_READER_METRIC_GROUP,
-                                        KAFKA_CONSUMER_METRIC_GROUP,
-                                        name)
-                                .getValue())
-                .longValue();
+        final Optional<Gauge<Object>> kafkaConsumerGauge =
+                listener.getGauge(
+                        KAFKA_SOURCE_READER_METRIC_GROUP, KAFKA_CONSUMER_METRIC_GROUP, name);
+        assertTrue(kafkaConsumerGauge.isPresent());
+        return ((Double) kafkaConsumerGauge.get().getValue()).longValue();
     }
 
     private long getCurrentOffsetMetric(TopicPartition tp, MetricListener listener) {
-        return (long)
+        final Optional<Gauge<Object>> currentOffsetGauge =
                 listener.getGauge(
-                                KAFKA_SOURCE_READER_METRIC_GROUP,
-                                TOPIC_GROUP,
-                                tp.topic(),
-                                PARTITION_GROUP,
-                                String.valueOf(tp.partition()),
-                                CURRENT_OFFSET_METRIC_GAUGE)
-                        .getValue();
+                        KAFKA_SOURCE_READER_METRIC_GROUP,
+                        TOPIC_GROUP,
+                        tp.topic(),
+                        PARTITION_GROUP,
+                        String.valueOf(tp.partition()),
+                        CURRENT_OFFSET_METRIC_GAUGE);
+        assertTrue(currentOffsetGauge.isPresent());
+        return (long) currentOffsetGauge.get().getValue();
     }
 
     private long getCommittedOffsetMetric(TopicPartition tp, MetricListener listener) {
-        return (long)
+        final Optional<Gauge<Object>> committedOffsetGauge =
                 listener.getGauge(
-                                KAFKA_SOURCE_READER_METRIC_GROUP,
-                                TOPIC_GROUP,
-                                tp.topic(),
-                                PARTITION_GROUP,
-                                String.valueOf(tp.partition()),
-                                COMMITTED_OFFSET_METRIC_GAUGE)
-                        .getValue();
+                        KAFKA_SOURCE_READER_METRIC_GROUP,
+                        TOPIC_GROUP,
+                        tp.topic(),
+                        PARTITION_GROUP,
+                        String.valueOf(tp.partition()),
+                        COMMITTED_OFFSET_METRIC_GAUGE);
+        assertTrue(committedOffsetGauge.isPresent());
+        return (long) committedOffsetGauge.get().getValue();
     }
 
     // ---------------------

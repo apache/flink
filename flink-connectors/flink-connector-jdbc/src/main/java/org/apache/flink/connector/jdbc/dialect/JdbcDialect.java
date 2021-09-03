@@ -93,7 +93,7 @@ public interface JdbcDialect extends Serializable {
 
     /**
      * Get dialect upsert statement, the database has its own upsert syntax, such as Mysql using
-     * DUPLICATE KEY UPDATE, and PostgresSQL using ON CONFLICT... DO UPDATE SET..
+     * DUPLICATE KEY UPDATE, and PostgreSQL using ON CONFLICT... DO UPDATE SET..
      *
      * @return None if dialect does not support upsert statement, the writer will degrade to the use
      *     of select + update/insert, this performance is poor.

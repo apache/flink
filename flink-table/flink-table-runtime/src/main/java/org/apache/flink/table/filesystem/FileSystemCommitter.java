@@ -28,19 +28,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.filesystem.PartitionTempFileManager.collectPartSpecToPaths;
-import static org.apache.flink.table.filesystem.PartitionTempFileManager.deleteCheckpoint;
-import static org.apache.flink.table.filesystem.PartitionTempFileManager.headCheckpoints;
 import static org.apache.flink.table.filesystem.PartitionTempFileManager.listTaskTemporaryPaths;
 
 /**
- * File system file committer implementation. It move all files to output path from temporary path.
+ * File system file committer implementation. It moves all files to output path from temporary path.
  *
- * <p>In a checkpoint: 1.Every task will create a {@link PartitionTempFileManager} to
- * initialization, it generate path for task writing. And clean the temporary path of task. 2.After
- * writing done for this checkpoint, need invoke {@link #commitUpToCheckpoint(long)}, will move the
- * temporary files to real output path.
- *
- * <p>Batch is a special case of Streaming, which has only one checkpoint.
+ * <p>It's used to commit data to FileSystem table in batch mode.
  *
  * <p>Data consistency: 1.For task failure: will launch a new task and create a {@link
  * PartitionTempFileManager}, this will clean previous temporary files (This simple design can make
@@ -78,28 +71,12 @@ class FileSystemCommitter implements Serializable {
         this.partitionColumnSize = partitionColumnSize;
     }
 
-    /**
-     * For committing job's output after successful batch job completion or one checkpoint finish
-     * for streaming job. Should move all files to final output paths.
-     *
-     * <p>NOTE: According to checkpoint notify mechanism of Flink, checkpoint may fail and be
-     * abandoned, so this method should commit all checkpoint ids that less than current checkpoint
-     * id (Includes failure checkpoints).
-     */
-    public void commitUpToCheckpoint(long toCpId) throws Exception {
+    /** For committing job's output after successful batch job completion. */
+    public void commitPartitions() throws Exception {
         FileSystem fs = factory.create(tmpPath.toUri());
+        List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath);
 
         try (PartitionLoader loader = new PartitionLoader(overwrite, fs, metaStoreFactory)) {
-            for (long cp : headCheckpoints(fs, tmpPath, toCpId)) {
-                commitSingleCheckpoint(fs, loader, cp);
-            }
-        }
-    }
-
-    private void commitSingleCheckpoint(FileSystem fs, PartitionLoader loader, long checkpointId)
-            throws Exception {
-        try {
-            List<Path> taskPaths = listTaskTemporaryPaths(fs, tmpPath, checkpointId);
             if (partitionColumnSize > 0) {
                 for (Map.Entry<LinkedHashMap<String, String>, List<Path>> entry :
                         collectPartSpecToPaths(fs, taskPaths, partitionColumnSize).entrySet()) {
@@ -109,7 +86,9 @@ class FileSystemCommitter implements Serializable {
                 loader.loadNonPartition(taskPaths);
             }
         } finally {
-            deleteCheckpoint(fs, tmpPath, checkpointId);
+            for (Path taskPath : taskPaths) {
+                fs.delete(taskPath, true);
+            }
         }
     }
 }

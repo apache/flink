@@ -238,7 +238,7 @@ public class StreamTaskSystemExitTest extends TestLogger {
         }
 
         @Override
-        protected void cleanup() {}
+        protected void cleanUpInternal() {}
 
         @Override
         protected void cancelTask() {

@@ -163,6 +163,29 @@ ds.map(lambda i: (i[0] + 1, i[1]), Types.TUPLE([Types.INT(), Types.STRING()])) \
 
 Generally, the output type needs to be specified for the map operation in the above example if the sink only accepts special kinds of data, e.g. Row, etc.
 
+## Operator Chaining
+
+By default, multiple non-shuffle Python functions will be chained together to avoid the serialization and
+deserialization and improve the performance. There are also cases where you may want to disable
+the chaining, e.g., there is a `flatmap` function which will produce a large number of elements for
+each input element and disabling the chaining allows to process its output in a different parallelism.
+
+Operator chaining could be disabled in one of the following ways:
+- Disable chaining with following operators by adding a [`key_by`]({{< ref "docs/dev/datastream/operators/overview" >}}#keyby) operation,
+  [`shuffle`]({{< ref "docs/dev/datastream/operators/overview" >}}#random-partitioning) operation,
+  [`rescale`]({{< ref "docs/dev/datastream/operators/overview" >}}#rescaling) operation,
+  [`rebalance`]({{< ref "docs/dev/datastream/operators/overview" >}}#rescaling) operation or
+  [`partition_custom`]({{< ref "docs/dev/datastream/operators/overview" >}}#custom-partitioning) operation
+  after the current operator.
+- Disable chaining with preceding operators by applying a
+  [`start_new_chain`]({{< ref "docs/dev/datastream/operators/overview" >}}#start-new-chain) operation for the current operator.
+- Disable chaining with preceding and following operators by applying a
+  [`disable_chaining`]({{< ref "docs/dev/datastream/operators/overview" >}}#disable-chaining) operation for the current operator.
+- Disable chaining of two operators by setting different parallelisms or different
+  [slot sharing group]({{< ref "docs/dev/datastream/operators/overview" >}}#set-slot-sharing-group) for them.
+- You could also disable all the operator chaining via configuration
+  [`python.operator-chaining.enabled`]({{< ref "docs/dev/python/python_config" >}}#python-operator-chaining-enabled).
+
 ## Bundling Python Functions
 
 To run Python functions in any non-local mode, it is strongly recommended

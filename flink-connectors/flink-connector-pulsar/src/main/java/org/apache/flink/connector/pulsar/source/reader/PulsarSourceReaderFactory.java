@@ -24,7 +24,6 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
-import org.apache.flink.connector.pulsar.common.config.ConfigurationDataCustomizer;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
 import org.apache.flink.connector.pulsar.source.reader.message.PulsarMessage;
@@ -39,8 +38,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 import java.util.function.Supplier;
 
@@ -69,13 +66,10 @@ public final class PulsarSourceReaderFactory {
             SourceReaderContext readerContext,
             PulsarDeserializationSchema<OUT> deserializationSchema,
             Configuration configuration,
-            SourceConfiguration sourceConfiguration,
-            ConfigurationDataCustomizer<ClientConfigurationData> clientConfigurationCustomizer,
-            ConfigurationDataCustomizer<ConsumerConfigurationData<byte[]>>
-                    consumerConfigurationCustomizer) {
+            SourceConfiguration sourceConfiguration) {
 
-        PulsarClient pulsarClient = createClient(configuration, clientConfigurationCustomizer);
-        PulsarAdmin pulsarAdmin = createAdmin(configuration, clientConfigurationCustomizer);
+        PulsarClient pulsarClient = createClient(configuration);
+        PulsarAdmin pulsarAdmin = createAdmin(configuration);
 
         // Create a message queue with the predefined source option.
         int queueSize = configuration.getInteger(ELEMENT_QUEUE_CAPACITY);
@@ -94,7 +88,6 @@ public final class PulsarSourceReaderFactory {
                                     pulsarAdmin,
                                     configuration,
                                     sourceConfiguration,
-                                    consumerConfigurationCustomizer,
                                     deserializationSchema);
 
             return new PulsarOrderedSourceReader<>(
@@ -121,7 +114,6 @@ public final class PulsarSourceReaderFactory {
                                     pulsarAdmin,
                                     configuration,
                                     sourceConfiguration,
-                                    consumerConfigurationCustomizer,
                                     deserializationSchema,
                                     coordinatorClient);
 

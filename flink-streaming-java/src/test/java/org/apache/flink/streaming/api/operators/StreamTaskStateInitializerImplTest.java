@@ -63,6 +63,7 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.OptionalLong;
 import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
@@ -203,7 +204,7 @@ public class StreamTaskStateInitializerImplTest {
         taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
         JobManagerTaskRestore jobManagerTaskRestore =
-                new JobManagerTaskRestore(0L, taskStateSnapshot);
+                new JobManagerTaskRestore(42L, taskStateSnapshot);
 
         StreamTaskStateInitializer streamTaskStateManager =
                 streamTaskStateManager(mockingBackend, jobManagerTaskRestore, false);
@@ -236,6 +237,7 @@ public class StreamTaskStateInitializerImplTest {
                 stateContext.rawOperatorStateInputs();
 
         Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
+        Assert.assertEquals(OptionalLong.of(42L), stateContext.getRestoredCheckpointId());
 
         Assert.assertNotNull(operatorStateBackend);
         Assert.assertNotNull(keyedStateBackend);

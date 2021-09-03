@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray, get_field
+    to_j_explain_detail_arr, to_jarray, get_field, get_field_value
 
 __all__ = [
     'StreamTableEnvironment',
@@ -631,6 +631,8 @@ class TableEnvironment(object):
         trigger an execution.
 
         :return: The Table object describing the pipeline for further transformations.
+
+        .. versionadded:: 1.14.0
         """
         return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
@@ -1501,7 +1503,7 @@ class TableEnvironment(object):
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]))
-            # use the thrid parameter to switch whether to verify the elements against the schema
+            # use the third parameter to switch whether to verify the elements against the schema
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),
@@ -1763,8 +1765,9 @@ class TableEnvironment(object):
                 from pyflink.fn_execution.beam.beam_worker_pool_service import \
                     BeamFnLoopbackWorkerPoolServicer
 
-                self.get_config().get_configuration().set_string(
-                    "loopback.server.address", BeamFnLoopbackWorkerPoolServicer().start())
+                j_env = jvm.System.getenv()
+                get_field_value(j_env, "m").put(
+                    'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
@@ -1843,9 +1846,6 @@ class StreamTableEnvironment(TableEnvironment):
 
         gateway = get_gateway()
         if environment_settings is not None:
-            if not environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for StreamTableEnvironment must be "
-                                 "set to streaming mode.")
             if stream_execution_environment is None:
                 j_tenv = gateway.jvm.TableEnvironment.create(
                     environment_settings._j_environment_settings)
