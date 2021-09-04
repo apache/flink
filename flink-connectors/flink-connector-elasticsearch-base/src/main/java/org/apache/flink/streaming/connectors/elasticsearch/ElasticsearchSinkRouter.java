@@ -7,33 +7,33 @@ package org.apache.flink.streaming.connectors.elasticsearch;
  * <p>Example:
  *
  * <pre>{@code
- *           final ElasticsearchSinkRouter<> sinkRouter =
- *                  new ElasticsearchSinkRouter<
- *                          Tuple2<HttpHost, String>,
- *                          String,
- *                          ElasticsearchSink<Tuple2<HttpHost, String>>>() {
+ * final ElasticsearchSinkRouter<> sinkRouter =
+ *        new ElasticsearchSinkRouter<
+ *                Tuple2<HttpHost, String>,
+ *                String,
+ *                ElasticsearchSink<Tuple2<HttpHost, String>>>() {
  *
- *                      @Override
- *                      public String getRoute(Tuple2<HttpHost, String> element) {
- *                          return element.f0.toHostString();
- *                      }
+ *            @Override
+ *            public String getRoute(Tuple2<HttpHost, String> element) {
+ *                return element.f0.toHostString();
+ *            }
  *
- *                      @Override
- *                      public ElasticsearchSink<Tuple2<HttpHost, String>> createSink(
- *                              String cacheKey, Tuple2<HttpHost, String> element) {
+ *            @Override
+ *            public ElasticsearchSink<Tuple2<HttpHost, String>> createSink(
+ *                    String cacheKey, Tuple2<HttpHost, String> element) {
  *
- *                          ElasticsearchSink.Builder<Tuple2<HttpHost, String>> builder =
- *                                  ElasticsearchSink.Builder(
- *                                      List.of(element.f0),
- *                                      (ElasticsearchSinkFunction<Tuple2<HttpHost, String>>)
- *                                          (el, ctx, indexer) -> {
- *                                              indexer.add(...);
- *                                          });
+ *                ElasticsearchSink.Builder<Tuple2<HttpHost, String>> builder =
+ *                        ElasticsearchSink.Builder(
+ *                            List.of(element.f0),
+ *                            (ElasticsearchSinkFunction<Tuple2<HttpHost, String>>)
+ *                                (el, ctx, indexer) -> {
+ *                                    indexer.add(...);
+ *                                });
  *
- *                          // Add additional sink configuration here
- *                          return builder.build();
- *                      }
- *                  };
+ *                // Add additional sink configuration here
+ *                return builder.build();
+ *            }
+ *        };
  * }</pre>
  */
 public interface ElasticsearchSinkRouter<
