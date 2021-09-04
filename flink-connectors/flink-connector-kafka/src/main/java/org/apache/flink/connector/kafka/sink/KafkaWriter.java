@@ -38,6 +38,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,7 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -206,14 +208,26 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     @Override
     public void close() throws Exception {
-        if (currentProducer.isInTransaction()) {
-            currentProducer.abortTransaction();
-        }
         closed = true;
-        closer.close();
-        producerPool.clear();
-        checkState(currentProducer.isClosed());
-        currentProducer = null;
+        closeAll(
+                this::abortCurrentProducer,
+                closer,
+                producerPool::clear,
+                () -> {
+                    checkState(currentProducer.isClosed());
+                    currentProducer = null;
+                });
+    }
+
+    private void abortCurrentProducer() {
+        if (currentProducer.isInTransaction()) {
+            try {
+                currentProducer.abortTransaction();
+            } catch (ProducerFencedException e) {
+                LOG.debug(
+                        "Producer {} fenced while aborting", currentProducer.getTransactionalId());
+            }
+        }
     }
 
     @VisibleForTesting

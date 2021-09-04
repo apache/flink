@@ -101,8 +101,16 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     @Override
     public void close() {
         closed = true;
-        flush();
-        super.close(Duration.ZERO);
+        if (inTransaction) {
+            // This is state is most likely reached in case of a failure.
+            // If this producer is still in transaction, it should be committing.
+            // However, at this point, we cannot decide that and we shouldn't prolong cancellation.
+            // So hard kill this producer with all resources.
+            super.close(Duration.ZERO);
+        } else {
+            // If this is outside of a transaction, we should be able to cleanly shutdown.
+            super.close(Duration.ofHours(1));
+        }
     }
 
     @Override
