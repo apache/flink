@@ -149,6 +149,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
                                 checkpointId.isPresent() ? checkpointId.getAsLong() : null),
                         sinkWriterStateHandler.initializeState(context));
         committerHandler.initializeState(context);
+        commitRetrier.retryWithDelay();
     }
 
     @Override
