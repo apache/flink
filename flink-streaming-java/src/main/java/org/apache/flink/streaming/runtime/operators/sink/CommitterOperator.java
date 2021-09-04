@@ -72,6 +72,8 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         committerHandler.initializeState(context);
+        // try to re-commit recovered transactions as quickly as possible
+        commitRetrier.retryWithDelay();
     }
 
     @Override
