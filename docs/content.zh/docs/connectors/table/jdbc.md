@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="jdbc-sql-connector"></a>
+
 # JDBC SQL 连接器
 
 {{< label "Scan Source: Bounded" >}}
@@ -35,11 +37,12 @@ JDBC 连接器允许使用 JDBC 驱动向任意类型的关系型数据库读取
 
 如果在 DDL 中定义了主键，JDBC sink 将以 upsert 模式与外部系统交换 UPDATE/DELETE 消息；否则，它将以 append 模式与外部系统交换消息且不支持消费 UPDATE/DELETE 消息。
 
+<a name="dependencies"></a>
+
 依赖
 ------------
 
 {{< sql_download_table "jdbc" >}}
-
 
 在连接到具体数据库时，也需要对应的驱动依赖，目前支持的驱动如下：
 
@@ -52,6 +55,8 @@ JDBC 连接器允许使用 JDBC 驱动向任意类型的关系型数据库读取
 
 当前，JDBC 连接器和驱动不在 Flink 二进制发布包中，请参阅[这里]({{< ref "docs/dev/datastream/project-configuration" >}})了解在集群上执行时何连接它们。
 
+
+<a name="how-to-create-a-jdbc-table"></a>
 
 如何创建 JDBC 表
 ----------------
@@ -84,6 +89,8 @@ SELECT * FROM myTopic
 LEFT JOIN MyUserTable FOR SYSTEM_TIME AS OF myTopic.proctime
 ON myTopic.key = MyUserTable.id;
 ```
+
+<a name="connector-options"></a>
 
 连接器参数
 ----------------
@@ -253,8 +260,12 @@ ON myTopic.key = MyUserTable.id;
     </tbody>
 </table>
 
+<a name="features"></a>
+
 特性
 --------
+
+<a name="key-handling"></a>
 
 ### 键处理
 
@@ -263,6 +274,8 @@ ON myTopic.key = MyUserTable.id;
 在 upsert 模式下，Flink 将根据主键判断插入新行或者更新已存在的行，这种方式可以确保幂等性。为了确保输出结果是符合预期的，推荐为表定义主键并且确保主键是底层数据库中表的唯一键或主键。在 append 模式下，Flink 会把所有记录解释为 INSERT 消息，如果违反了底层数据库中主键或者唯一约束，INSERT 插入可能会失败。
 
 有关 PRIMARY KEY 语法的更多详细信息，请参见 [CREATE TABLE DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)。
+
+<a name="partitioned-scan"></a>
 
 ### 分区扫描
 
@@ -276,6 +289,8 @@ ON myTopic.key = MyUserTable.id;
 - `scan.partition.lower-bound`：第一个分区的最小值。
 - `scan.partition.upper-bound`：最后一个分区的最大值。
 
+<a name="lookup-cache"></a>
+
 ### Lookup Cache
 
 JDBC 连接器可以用在时态表关联中作为一个可 lookup 的 source (又称为维表)，当前只支持同步的查找模式。
@@ -288,6 +303,8 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
 缓存中的记录可能不是最新的，用户可以将 `lookup.cache.ttl` 设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数。所以要做好吞吐量和正确性之间的平衡。
 
 默认情况下，flink 会缓存主键的空查询结果，您可以通过将 `lookup.cache.caching-missing-key` 设置为 false 来切换行为。
+
+<a name="idempotent-writes"></a>
 
 ### 幂等写入
 
@@ -318,39 +335,47 @@ lookup cache 的主要目的是用于提高时态表关联 JDBC 连接器的性�
     </tbody>
 </table>
 
-### Postgres 数据库作为 Catalog
+<a name="jdbc-catalog"></a>
+
+JDBC Catalog
+------------
 
 `JdbcCatalog` 允许用户通过 JDBC 协议将 Flink 连接到关系数据库。
 
-目前，`PostgresCatalog` 是 JDBC Catalog 的两个实现之一，`PostgresCatalog` 只支持有限的 `Catalog` 方法，包括：
+目前，`PostgresCatalog` 和 `MySQLCatalog` 是 JDBC Catalog 已有的两个实现，`JdbcCatalog` 只支持有限的 `Catalog` 方法，包括：
 
 ```java
-// Postgres Catalog 支持的方法
-PostgresCatalog.databaseExists(String databaseName);
-PostgresCatalog.listDatabases();
-PostgresCatalog.getDatabase(String databaseName);
-PostgresCatalog.listTables(String databaseName);
-PostgresCatalog.getTable(ObjectPath tablePath);
-PostgresCatalog.tableExists(ObjectPath tablePath);
+// Postgres Catalog & MySQL Catalog 支持的方法
+databaseExists(String databaseName);
+listDatabases();
+getDatabase(String databaseName);
+listTables(String databaseName);
+getTable(ObjectPath tablePath);
+tableExists(ObjectPath tablePath);
 ```
 
 其他的 `Catalog` 方法现在尚不支持。
 
-#### PostgresCatalog 的使用
+<a name="usage-of-jdbc-catalog"></a>
 
-请参阅 [Dependencies](#dependencies) 部分了解如何配置 JDBC 连接器和 Postgres 驱动。
+### JDBC Catalog 的使用
 
-Postgres catalog 支持以下参数:
+本小节主要描述如果创建并使用 `PostgresCatalog` 或 `MySQLCatalog`。
+请参阅 [Dependencies](#dependencies) 部分了解如何配置 JDBC 连接器和 Postgres/MySQL 驱动。
+
+Postgres/MySQL catalog 支持以下参数:
 - `name`：必填，catalog 的名称。
 - `default-database`：必填，默认要连接的数据库。
-- `username`：必填，Postgres 账户的用户名。
+- `username`：必填，Postgres/MySQL 账户的用户名。
 - `password`：必填，账户的密码。
-- `base-url`：必填，应该符合 `"jdbc:postgresql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
+- `base-url`：必填，
+  - `在创建 PostgresCatalog 时：`应该符合 `"jdbc:postgresql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
+  - `在创建 MySQLCatalog 时：`应该符合 `"jdbc:mysql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
 
 {{< tabs "10bd8bfb-674c-46aa-8a36-385537df5791" >}}
 {{< tab "SQL" >}}
 ```sql
-CREATE CATALOG mypg WITH(
+CREATE CATALOG my_catalog WITH(
     'type' = 'jdbc',
     'default-database' = '...',
     'username' = '...',
@@ -358,7 +383,7 @@ CREATE CATALOG mypg WITH(
     'base-url' = '...'
 );
 
-USE CATALOG mypg;
+USE CATALOG my_catalog;
 ```
 {{< /tab >}}
 {{< tab "Java" >}}
@@ -367,17 +392,17 @@ USE CATALOG mypg;
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-String name            = "mypg";
+String name            = "my_catalog";
 String defaultDatabase = "mydb";
 String username        = "...";
 String password        = "...";
 String baseUrl         = "..."
 
 JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mypg", catalog);
+tableEnv.registerCatalog("my_catalog", catalog);
 
 // 设置 JdbcCatalog 为会话的当前 catalog
-tableEnv.useCatalog("mypg");
+tableEnv.useCatalog("my_catalog");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -386,17 +411,17 @@ tableEnv.useCatalog("mypg");
 val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
-val name            = "mypg"
+val name            = "my_catalog"
 val defaultDatabase = "mydb"
 val username        = "..."
 val password        = "..."
 val baseUrl         = "..."
 
 val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
-tableEnv.registerCatalog("mypg", catalog)
+tableEnv.registerCatalog("my_catalog", catalog)
 
 // 设置 JdbcCatalog 为会话的当前 catalog
-tableEnv.useCatalog("mypg")
+tableEnv.useCatalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -406,17 +431,17 @@ from pyflink.table.catalog import JdbcCatalog
 environment_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings)
 
-name = "mypg"
+name = "my_catalog"
 default_database = "mydb"
 username = "..."
 password = "..."
 base_url = "..."
 
 catalog = JdbcCatalog(name, default_database, username, password, base_url)
-t_env.register_catalog("mypg", catalog)
+t_env.register_catalog("my_catalog", catalog)
 
 # 设置 JdbcCatalog 为会话的当前 catalog
-t_env.use_catalog("mypg")
+t_env.use_catalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
@@ -424,11 +449,11 @@ t_env.use_catalog("mypg")
 
 execution:
     ...
-    current-catalog: mypg  # 设置 JdbcCatalog 为会话的当前 catalog
+    current-catalog: my_catalog  # 设置目标 JdbcCatalog 为会话的当前 catalog
     current-database: mydb
 
 catalogs:
-   - name: mypg
+   - name: my_catalog
      type: jdbc
      default-database: mydb
      username: ...
@@ -437,6 +462,12 @@ catalogs:
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+<a name="jdbc-catalog-for-postgresql"></a>
+
+### Jdbc Catalog for PostgreSQL
+
+<a name="postgresql-metaspace-mapping"></a>
 
 #### PostgreSQL 元空间映射
 
@@ -467,126 +498,11 @@ SELECT * FROM mypg.mydb.`custom_schema.test_table2`
 SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
 ```
+<a name="jdbc-catalog-for-mysql"></a>
 
-### MySQL 数据库作为 Catalog
+### Jdbc Catalog for MySQL
 
-如上所述，`JdbcCatalog` 允许用户通过 JDBC 协议将 Flink 连接到关系数据库。
-
-目前，`MySQLCatalog` 是 JDBC Catalog 的两个实现之一，`MySQLCatalog` 只支持有限的 `Catalog` 方法，包括：
-
-```java
-// MySQLCatalog Catalog 支持的方法
-MySQLCatalog.databaseExists(String databaseName);
-MySQLCatalog.listDatabases();
-MySQLCatalog.getDatabase(String databaseName);
-MySQLCatalog.listTables(String databaseName);
-MySQLCatalog.getTable(ObjectPath tablePath);
-MySQLCatalog.tableExists(ObjectPath tablePath);
-```
-
-其他的 `Catalog` 方法现在尚不支持。
-
-#### MySQLCatalog 的使用
-
-请参阅 [Dependencies](#dependencies) 部分了解如何配置 JDBC 连接器和 MySQL 驱动。
-
-MySQL catalog 支持以下参数:
-- `name`：必填，catalog 的名称。
-- `default-database`：必填，默认要连接的数据库。
-- `username`：必填，MySQL 账户的用户名。
-- `password`：必填，账户的密码。
-- `base-url`：必填，应该符合 `"jdbc:mysql://<ip>:<port>"` 的格式，同时这里不应该包含数据库名。
-
-{{< tabs "10bd8bfb-674c-46aa-8a66-385537df5187" >}}
-{{< tab "SQL" >}}
-```sql
-CREATE CATALOG mysql_catalog WITH(
-    'type' = 'jdbc',
-    'default-database' = '...',
-    'username' = '...',
-    'password' = '...',
-    'base-url' = '...'
-);
-
-USE CATALOG mysql_catalog;
-```
-{{< /tab >}}
-{{< tab "Java" >}}
-```java
-
-EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-TableEnvironment tableEnv = TableEnvironment.create(settings);
-
-String name            = "mysql_catalog";
-String defaultDatabase = "mydb";
-String username        = "...";
-String password        = "...";
-String baseUrl         = "..."
-
-JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mysql_catalog", catalog);
-
-// 设置 JdbcCatalog 为会话的当前 catalog
-tableEnv.useCatalog("mysql_catalog");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val settings = EnvironmentSettings.inStreamingMode()
-val tableEnv = TableEnvironment.create(settings)
-
-val name            = "mysql_catalog"
-val defaultDatabase = "mydb"
-val username        = "..."
-val password        = "..."
-val baseUrl         = "..."
-
-val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
-tableEnv.registerCatalog("mysql_catalog", catalog)
-
-// 设置 JdbcCatalog 为会话的当前 catalog
-tableEnv.useCatalog("mysql_catalog")
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-from pyflink.table.catalog import JdbcCatalog
-
-environment_settings = EnvironmentSettings.in_streaming_mode()
-t_env = TableEnvironment.create(environment_settings)
-
-name = "mysql_catalog"
-default_database = "mydb"
-username = "..."
-password = "..."
-base_url = "..."
-
-catalog = JdbcCatalog(name, default_database, username, password, base_url)
-t_env.register_catalog("mysql_catalog", catalog)
-
-# 设置 JdbcCatalog 为会话的当前 catalog
-t_env.use_catalog("mysql_catalog")
-```
-{{< /tab >}}
-{{< tab "YAML" >}}
-```yaml
-
-execution:
-    ...
-    current-catalog: mysql_catalog  # 设置 JdbcCatalog 为会话的当前 catalog
-    current-database: mydb
-
-catalogs:
-   - name: mysql_catalog
-     type: jdbc
-     default-database: mydb
-     username: ...
-     password: ...
-     base-url: ...
-```
-{{< /tab >}}
-{{< /tabs >}}
+<a name="mysql-metaspace-mapping"></a>
 
 #### MySQL 元空间映射
 
@@ -595,11 +511,11 @@ catalogs:
 
 因此，Flink Catalog 和 MySQL catalog 之间的元空间映射如下：
 
-| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure      |
+| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure         |
 | :------------------------------------| :-----------------------------------|
 | catalog name (defined in Flink only) | N/A                                 |
 | database name                        | database name                       |
-| table name                           | table_name            |
+| table name                           | table_name                          |
 
 Flink 中的 MySQL 表的完整路径应该是 ``"`<catalog>`.`<db>`.`<table>`"``。
 
@@ -615,6 +531,8 @@ SELECT * FROM test_table;
 SELECT * FROM mysql_catalog.given_database.test_table2
 SELECT * FROM given_database.test_table2;
 ```
+
+<a name="data-type-mapping"></a>
 
 数据类型映射
 ----------------

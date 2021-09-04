@@ -317,39 +317,43 @@ As there is no standard syntax for upsert, the following table describes the dat
     </tbody>
 </table>
 
-### Postgres Database as a Catalog
+JDBC Catalog
+------------
 
 The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
 
-Currently, `PostgresCatalog` is one of the two implementations of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
+Currently, `PostgresCatalog` and `MySQLCatalog` are the two implementations of JDBC Catalog at the moment, `JdbcCatalog` only supports limited `Catalog` methods include:
 
 ```java
-// The supported methods by Postgres Catalog.
-PostgresCatalog.databaseExists(String databaseName);
-PostgresCatalog.listDatabases();
-PostgresCatalog.getDatabase(String databaseName);
-PostgresCatalog.listTables(String databaseName);
-PostgresCatalog.getTable(ObjectPath tablePath);
-PostgresCatalog.tableExists(ObjectPath tablePath);
+// The supported methods by Postgres & MySQL Catalog.
+databaseExists(String databaseName);
+listDatabases();
+getDatabase(String databaseName);
+listTables(String databaseName);
+getTable(ObjectPath tablePath);
+tableExists(ObjectPath tablePath);
 ```
 
 Other `Catalog` methods are currently not supported.
 
-#### Usage of PostgresCatalog
+### Usage of JDBC Catalog
 
-Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and Postgres driver.
+The section mainly describes how to create and use a `PostgresCatalog` or `MySQLCatalog`.
+Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and Postgres/MySQL driver.
 
-Postgres catalog supports the following options:
+Postgres/MySQL catalog supports the following options:
 - `name`: required, name of the catalog.
 - `default-database`: required, default database to connect to.
-- `username`: required, username of Postgres account.
+- `username`: required, username of Postgres/MySQL account.
 - `password`: required, password of the account.
-- `base-url`: required, should be of format `"jdbc:postgresql://<ip>:<port>"`, and should not contain database name here.
+- `base-url`: required,
+  - `in PostgresCatalog case:` should be of format `"jdbc:postgresql://<ip>:<port>"`, and should not contain database name here.
+  - `in MySQLCatalog case:` should be of format `"jdbc:mysql://<ip>:<port>"`, and should not contain database name here.
 
 {{< tabs "10bd8bfb-674c-46aa-8a36-385537df5791" >}}
 {{< tab "SQL" >}}
 ```sql
-CREATE CATALOG mypg WITH(
+CREATE CATALOG my_catalog WITH(
     'type' = 'jdbc',
     'default-database' = '...',
     'username' = '...',
@@ -357,7 +361,7 @@ CREATE CATALOG mypg WITH(
     'base-url' = '...'
 );
 
-USE CATALOG mypg;
+USE CATALOG my_catalog;
 ```
 {{< /tab >}}
 {{< tab "Java" >}}
@@ -366,17 +370,17 @@ USE CATALOG mypg;
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
-String name            = "mypg";
+String name            = "my_catalog";
 String defaultDatabase = "mydb";
 String username        = "...";
 String password        = "...";
 String baseUrl         = "..."
 
 JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mypg", catalog);
+tableEnv.registerCatalog("my_catalog", catalog);
 
 // set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mypg");
+tableEnv.useCatalog("my_catalog");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -385,17 +389,17 @@ tableEnv.useCatalog("mypg");
 val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
-val name            = "mypg"
+val name            = "my_catalog"
 val defaultDatabase = "mydb"
 val username        = "..."
 val password        = "..."
 val baseUrl         = "..."
 
 val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
-tableEnv.registerCatalog("mypg", catalog)
+tableEnv.registerCatalog("my_catalog", catalog)
 
 // set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mypg")
+tableEnv.useCatalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -405,17 +409,17 @@ from pyflink.table.catalog import JdbcCatalog
 environment_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings)
 
-name = "mypg"
+name = "my_catalog"
 default_database = "mydb"
 username = "..."
 password = "..."
 base_url = "..."
 
 catalog = JdbcCatalog(name, default_database, username, password, base_url)
-t_env.register_catalog("mypg", catalog)
+t_env.register_catalog("my_catalog", catalog)
 
 # set the JdbcCatalog as the current catalog of the session
-t_env.use_catalog("mypg")
+t_env.use_catalog("my_catalog")
 ```
 {{< /tab >}}
 {{< tab "YAML" >}}
@@ -423,11 +427,11 @@ t_env.use_catalog("mypg")
 
 execution:
     ...
-    current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
+    current-catalog: my_catalog  # set the target JdbcCatalog as the current catalog of the session
     current-database: mydb
 
 catalogs:
-   - name: mypg
+   - name: my_catalog
      type: jdbc
      default-database: mydb
      username: ...
@@ -436,6 +440,8 @@ catalogs:
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+### Jdbc Catalog for PostgreSQL
 
 #### PostgreSQL Metaspace Mapping
 
@@ -467,125 +473,7 @@ SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
 ```
 
-### MySQL Database as a Catalog
-
-The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
-
-Currently, `MySQLCatalog` is one of the two implementations of JDBC Catalog at the moment, `MySQLCatalog` only supports limited `Catalog` methods include:
-
-```java
-// The supported methods by MySQL Catalog.
-MySQLCatalog.databaseExists(String databaseName);
-MySQLCatalog.listDatabases();
-MySQLCatalog.getDatabase(String databaseName);
-MySQLCatalog.listTables(String databaseName);
-MySQLCatalog.getTable(ObjectPath tablePath);
-MySQLCatalog.tableExists(ObjectPath tablePath);
-```
-
-Other `Catalog` methods is unsupported now.
-
-#### Usage of MySQLCatalog
-
-Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and MySQL driver.
-
-MySQL catalog supports the following options:
-- `name`: required, name of the catalog.
-- `default-database`: required, default database to connect to.
-- `username`: required, username of MySQL account.
-- `password`: required, password of the account.
-- `base-url`: required, should be of format `"jdbc:mysql://<ip>:<port>"`, and should not contain database name here.
-
-{{< tabs "10bd8bfb-674c-46aa-8a66-385537df5187" >}}
-{{< tab "SQL" >}}
-```sql
-CREATE CATALOG mysql_catalog WITH(
-    'type' = 'jdbc',
-    'default-database' = '...',
-    'username' = '...',
-    'password' = '...',
-    'base-url' = '...'
-);
-
-USE CATALOG mysql_catalog;
-```
-{{< /tab >}}
-{{< tab "Java" >}}
-```java
-
-EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-TableEnvironment tableEnv = TableEnvironment.create(settings);
-
-String name            = "mysql_catalog";
-String defaultDatabase = "mydb";
-String username        = "...";
-String password        = "...";
-String baseUrl         = "..."
-
-JdbcCatalog catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl);
-tableEnv.registerCatalog("mysql_catalog", catalog);
-
-// set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mysql_catalog");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val settings = EnvironmentSettings.inStreamingMode()
-val tableEnv = TableEnvironment.create(settings)
-
-val name            = "mysql_catalog"
-val defaultDatabase = "mydb"
-val username        = "..."
-val password        = "..."
-val baseUrl         = "..."
-
-val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
-tableEnv.registerCatalog("mysql_catalog", catalog)
-
-// set the JdbcCatalog as the current catalog of the session
-tableEnv.useCatalog("mysql_catalog")
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-from pyflink.table.catalog import JdbcCatalog
-
-environment_settings = EnvironmentSettings.in_streaming_mode()
-t_env = TableEnvironment.create(environment_settings)
-
-name = "mysql_catalog"
-default_database = "mydb"
-username = "..."
-password = "..."
-base_url = "..."
-
-catalog = JdbcCatalog(name, default_database, username, password, base_url)
-t_env.register_catalog("mysql_catalog", catalog)
-
-# set the JdbcCatalog as the current catalog of the session
-t_env.use_catalog("mysql_catalog")
-```
-{{< /tab >}}
-{{< tab "YAML" >}}
-```yaml
-
-execution:
-    ...
-    current-catalog: mysql_catalog  # set the JdbcCatalog as the current catalog of the session
-    current-database: mydb
-
-catalogs:
-   - name: mysql_catalog
-     type: jdbc
-     default-database: mydb
-     username: ...
-     password: ...
-     base-url: ...
-```
-{{< /tab >}}
-{{< /tabs >}}
+### Jdbc Catalog for MySQL
 
 #### MySQL Metaspace Mapping
 
@@ -594,11 +482,11 @@ In Flink, when querying tables registered by MySQL catalog, users can use either
 
 Therefore, the metaspace mapping between Flink Catalog and MySQLCatalog is as following:
 
-| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure      |
+| Flink Catalog Metaspace Structure    |   MySQL Metaspace Structure         |
 | :------------------------------------| :-----------------------------------|
 | catalog name (defined in Flink only) | N/A                                 |
 | database name                        | database name                       |
-| table name                           | table_name            |
+| table name                           | table_name                          |
 
 The full path of MySQL table in Flink should be ``"`<catalog>`.`<db>`.`<table>`"``.
 
@@ -746,7 +634,6 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td><code>ARRAY</code></td>
       <td><code>ARRAY</code></td>
     </tr>
-    </tbody>
     <tr>
       <td><code>GEOMETRY</code></td>
       <td><code></code></td>
@@ -757,6 +644,7 @@ Flink supports connect to several databases which uses dialect like MySQL, Postg
       <td><code></code></td>
       <td><code>DATE</code></td>
     </tr>
+    </tbody>
 </table>
 
 {{< top >}}
