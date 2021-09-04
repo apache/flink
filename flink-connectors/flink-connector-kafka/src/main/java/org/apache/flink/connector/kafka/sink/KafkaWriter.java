@@ -18,6 +18,7 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
@@ -37,13 +38,13 @@ import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.errors.ProducerFencedException;
+import org.apache.kafka.common.errors.UnknownProducerIdException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -53,7 +54,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static org.apache.flink.util.IOUtils.closeAll;
@@ -80,7 +80,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final String transactionalIdPrefix;
     private final KafkaRecordSerializationSchema<IN> recordSerializer;
     private final Callback deliveryCallback;
-    private final AtomicLong pendingRecords = new AtomicLong();
     private final KafkaRecordSerializationSchema.KafkaSinkContext kafkaSinkContext;
     private final Map<String, KafkaMetricMutableWrapper> previouslyCreatedMetrics = new HashMap<>();
     private final SinkWriterMetricGroup metricGroup;
@@ -95,7 +94,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     private final Deque<FlinkKafkaInternalProducer<byte[], byte[]>> producerPool =
             new ArrayDeque<>();
     private final Closer closer = Closer.create();
-    @Nullable private volatile Exception producerAsyncException;
     private long lastCheckpointId;
 
     private boolean closed = false;
@@ -128,13 +126,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         this.kafkaProducerConfig = checkNotNull(kafkaProducerConfig, "kafkaProducerConfig");
         this.transactionalIdPrefix = checkNotNull(transactionalIdPrefix, "transactionalIdPrefix");
         this.recordSerializer = checkNotNull(recordSerializer, "recordSerializer");
-        this.deliveryCallback =
-                (metadata, exception) -> {
-                    if (exception != null && producerAsyncException == null) {
-                        producerAsyncException = exception;
-                    }
-                    acknowledgeMessage();
-                };
+        this.deliveryCallback = new WriterCallback(sinkInitContext.getMailboxExecutor());
         this.disabledMetrics =
                 kafkaProducerConfig.containsKey(KEY_DISABLE_METRICS)
                                 && Boolean.parseBoolean(
@@ -181,16 +173,16 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     @Override
     public void write(IN element, Context context) throws IOException {
-        checkErroneous();
         final ProducerRecord<byte[], byte[]> record =
                 recordSerializer.serialize(element, kafkaSinkContext, context.timestamp());
-        pendingRecords.incrementAndGet();
         currentProducer.send(record, deliveryCallback);
     }
 
     @Override
     public List<KafkaCommittable> prepareCommit(boolean flush) {
-        flushRecords(flush);
+        if (deliveryGuarantee != DeliveryGuarantee.NONE || flush) {
+            currentProducer.flush();
+        }
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             final List<KafkaCommittable> committables =
                     Collections.singletonList(
@@ -268,44 +260,6 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                         producerPool::add)) {
             transactionAborter.abortLingeringTransactions(prefixesToAbort, startCheckpointId);
         }
-    }
-
-    private void acknowledgeMessage() {
-        pendingRecords.decrementAndGet();
-    }
-
-    private void checkErroneous() {
-        Exception e = producerAsyncException;
-        if (e != null) {
-            // prevent double throwing
-            producerAsyncException = null;
-            throw new RuntimeException("Failed to send data to Kafka: " + e.getMessage(), e);
-        }
-    }
-
-    private void flushRecords(boolean finalFlush) {
-        switch (deliveryGuarantee) {
-            case EXACTLY_ONCE:
-            case AT_LEAST_ONCE:
-                currentProducer.flush();
-                final long pendingRecordsCount = pendingRecords.get();
-                if (pendingRecordsCount != 0) {
-                    throw new IllegalStateException(
-                            "Pending record count must be zero at this point: "
-                                    + pendingRecordsCount);
-                }
-                break;
-            case NONE:
-                if (finalFlush) {
-                    currentProducer.flush();
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        "Unsupported Kafka writer semantic " + deliveryGuarantee);
-        }
-        // if the flushed requests has errors, we should propagate it also and fail the checkpoint
-        checkErroneous();
     }
 
     /**
@@ -401,5 +355,36 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                     lastSync = time;
                     registerMetricSync();
                 });
+    }
+
+    private class WriterCallback implements Callback {
+        private final MailboxExecutor mailboxExecutor;
+
+        public WriterCallback(MailboxExecutor mailboxExecutor) {
+            this.mailboxExecutor = mailboxExecutor;
+        }
+
+        @Override
+        public void onCompletion(RecordMetadata metadata, Exception exception) {
+            if (exception != null) {
+                FlinkKafkaInternalProducer<byte[], byte[]> producer =
+                        KafkaWriter.this.currentProducer;
+                mailboxExecutor.execute(
+                        () -> throwException(metadata, exception, producer),
+                        "Failed to send data to Kafka");
+            }
+        }
+
+        private void throwException(
+                RecordMetadata metadata,
+                Exception exception,
+                FlinkKafkaInternalProducer<byte[], byte[]> producer) {
+            String message =
+                    String.format("Failed to send data to Kafka %s with %s ", metadata, producer);
+            if (exception instanceof UnknownProducerIdException) {
+                message += KafkaCommitter.UNKNOWN_PRODUCER_ID_ERROR_MESSAGE;
+            }
+            throw new FlinkRuntimeException(message, exception);
+        }
     }
 }

@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.TestLogger;
@@ -371,7 +372,7 @@ public class KafkaWriterITCase extends TestLogger {
 
         @Override
         public MailboxExecutor getMailboxExecutor() {
-            throw new UnsupportedOperationException("Not implemented");
+            return new SyncMailboxExecutor();
         }
 
         @Override
