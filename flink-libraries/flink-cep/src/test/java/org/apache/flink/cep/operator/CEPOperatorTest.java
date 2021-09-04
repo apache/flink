@@ -62,6 +62,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1169,11 +1170,13 @@ public class CEPOperatorTest extends TestLogger {
             harness.processElement(new StreamRecord<>(endEvent, 6L));
             harness.processWatermark(6L);
 
-            verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent1, endEvent);
-            verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent2, endEvent);
-            verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent1, endEvent);
-            verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent2, endEvent);
-            verifyWatermark(harness.getOutput().poll(), 6L);
+            Queue<Object> result = harness.getOutput();
+
+            Event[] strs = {startEvent1, startEvent1, startEvent2, startEvent2};
+            SubEvent[] mids = {middleEvent1, middleEvent2, middleEvent1, middleEvent2};
+            Event[] ends = {endEvent, endEvent, endEvent, endEvent};
+            verifyGroupPattern(result, 4, strs, mids, ends);
+            verifyWatermark(result.poll(), 6L);
         } finally {
             harness.close();
         }
@@ -1184,6 +1187,43 @@ public class CEPOperatorTest extends TestLogger {
         assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());
     }
 
+    private void verifyGroupPattern(
+            Queue<Object> results,
+            int checkSize,
+            Event[] starts,
+            SubEvent[] middles,
+            Event[] ends) {
+        boolean[] found = new boolean[checkSize];
+        for (int i = 0; i < checkSize; i++) {
+            found[i] = false;
+        }
+        for (int i = 0; i < checkSize; i++) {
+            Object outputObject = results.poll();
+            assertTrue(outputObject instanceof StreamRecord);
+            StreamRecord<?> resultRecord = (StreamRecord<?>) outputObject;
+            assertTrue(resultRecord.getValue() instanceof Map);
+            @SuppressWarnings("unchecked")
+            Map<String, List<Event>> patternMap =
+                    (Map<String, List<Event>>) resultRecord.getValue();
+            for (int j = 0; j < checkSize; j++) {
+                if (found[j]) {
+                    continue;
+                }
+                if (patternMap.get("start").get(0).equals(starts[j])
+                        && patternMap.get("middle").get(0).equals(middles[j])
+                        && patternMap.get("end").get(0).equals(ends[j])) {
+                    found[j] = true;
+                    break;
+                }
+            }
+        }
+        boolean allFound = true;
+        for (int i = 0; i < checkSize; i++) {
+            allFound = allFound && found[i];
+        }
+        assertTrue(allFound);
+    }
+
     private void verifyPattern(Object outputObject, Event start, SubEvent middle, Event end) {
         assertTrue(outputObject instanceof StreamRecord);
 
@@ -1192,6 +1232,10 @@ public class CEPOperatorTest extends TestLogger {
 
         @SuppressWarnings("unchecked")
         Map<String, List<Event>> patternMap = (Map<String, List<Event>>) resultRecord.getValue();
+        System.out.print("Simeng CHECK:: verify ");
+        System.out.print(Arrays.toString(patternMap.get("start").toArray()));
+        System.out.print(Arrays.toString(patternMap.get("middle").toArray()));
+        System.out.println(Arrays.toString(patternMap.get("end").toArray()));
         assertEquals(start, patternMap.get("start").get(0));
         assertEquals(middle, patternMap.get("middle").get(0));
         assertEquals(end, patternMap.get("end").get(0));
