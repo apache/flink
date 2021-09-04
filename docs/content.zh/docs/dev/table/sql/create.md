@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="create-statements"></a>
+
 # CREATE 语句
 
 
@@ -36,6 +38,8 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+
+<a name="run-a-create-statement"></a>
 
 ## 执行 CREATE 语句
 
@@ -144,7 +148,11 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 {{< top >}}
 
-##  CREATE TABLE
+<a name="create-table"></a>
+
+## CREATE TABLE
+
+以下语法概述了可用的建表语句：
 
 ```text
 CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
@@ -189,17 +197,15 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 根据指定的表名创建一个表，如果同名表已经在 catalog 中存在了，则无法注册。
 
+<a name="columns"></a>
+
 ### Columns
 
 **Physical / Regular Columns**
 
-Physical columns are regular columns known from databases. They define the names, the types, and the
-order of fields in the physical data. Thus, physical columns represent the payload that is read from
-and written to an external system. Connectors and formats use these columns (in the defined order)
-to configure themselves. Other kinds of columns can be declared between physical columns but will not
-influence the final physical schema.
+物理列（physical column）就是数据库中所谓的常规列。它们定义物理数据模型中字段的名称、类型和顺序。因此，物理列代表从外部系统读取和写入的有效负载。连接器（connector）和格式（format）使用这些列（按定义的顺序）来配置自己。可以在物理列之间声明其它类型的列，但不会影响最终的物理 schema。
 
-The following statement creates a table with only regular columns:
+以下语句创建一个仅包含常规列的表：
 
 ```sql
 CREATE TABLE MyTable (
@@ -212,72 +218,61 @@ CREATE TABLE MyTable (
 
 **Metadata Columns**
 
-Metadata columns are an extension to the SQL standard and allow to access connector and/or format specific
-fields for every row of a table. A metadata column is indicated by the `METADATA` keyword. For example,
-a metadata column can be be used to read and write the timestamp from and to Kafka records for time-based
-operations. The [connector and format documentation]({{< ref "docs/connectors/table/overview" >}}) lists the
-available metadata fields for every component. However, declaring a metadata column in a table's schema
-is optional.
+元数据列（metadata column）是 SQL 标准的扩展，允许为表的每一行获取连接器（connector）的特殊字段，并且（或者）格式化特定字段。通过 `METADATA` 关键字标识元数据列。例如，元数据列可用于读取和写入 Kafka 记录的时间戳，以进行基于时间的操作。[连接器和格式文档](({{< ref "docs/connectors/table/overview" >}}))列出了每个组件的可用元数据字段。不过，在表的 schema 中声明的元数据列是可选的。
 
-The following statement creates a table with an additional metadata column that references the metadata field `timestamp`:
+以下语句创建一个表，其中包含一个引用 `timestamp` 元数据字段的附加元数据列：
 
 ```sql
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+  `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- 读取和写入 kafka 记录的 timestamp
 ) WITH (
   'connector' = 'kafka'
   ...
 );
 ```
 
-Every metadata field is identified by a string-based key and has a documented data type. For example,
-the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP_LTZ(3)`
-that can be used for both reading and writing records.
+每个元数据字段都由一个基于字符串的键来识别，并对应一个登记过的数据类型。例如，Kafka 连接器使用 `timestamp` key 和 `TIMESTAMP_LTZ(3)` 数据类型暴露出一个元数据字段，该字段可用于读取和写入记录。
 
-In the example above, the metadata column `record_time` becomes part of the table's schema and can be
-transformed and stored like a regular column:
+在上面的示例中，元数据列 `record_time` 成为表 schema 的一部分，可以像常规列一样进行转换和存储：
 
 ```sql
 INSERT INTO MyTable SELECT user_id, name, record_time + INTERVAL '1' SECOND FROM MyTable;
 ```
 
-For convenience, the `FROM` clause can be omitted if the column name should be used as the identifying metadata key:
+为方便起见，如果可以将列名用作元数据 key 的标识，则可以省略 `FROM` 子句：
 
 ```sql
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `timestamp` TIMESTAMP_LTZ(3) METADATA    -- use column name as metadata key
+  `timestamp` TIMESTAMP_LTZ(3) METADATA    -- 使用列名作为元数据 key
 ) WITH (
   'connector' = 'kafka'
   ...
 );
 ```
 
-For convenience, the runtime will perform an explicit cast if the data type of the column differs from
-the data type of the metadata field. Of course, this requires that the two data types are compatible.
+为方便起见，如果列的数据类型与元数据字段的数据类型不同，运行时将执行显式转换。当然，这需要两种数据类型兼容。
 
 ```sql
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `timestamp` BIGINT METADATA    -- cast the timestamp as BIGINT
+  `timestamp` BIGINT METADATA    -- 将 timestamp 转换为 BIGINT
 ) WITH (
   'connector' = 'kafka'
   ...
 );
 ```
 
-By default, the planner assumes that a metadata column can be used for both reading and writing. However,
-in many cases an external system provides more read-only metadata fields than writable fields. Therefore,
-it is possible to exclude metadata columns from persisting using the `VIRTUAL` keyword.
+默认情况下，planner 假定元数据列可用于读取和写入。但是，很多情况下，外部系统提供的只读元数据字段多于可写字段。因此，可以使用 `VIRTUAL` 关键字从持久化中排除元数据列。
 
 ```sql
 CREATE TABLE MyTable (
-  `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
-  `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
+  `timestamp` BIGINT METADATA,       -- 作为 query-to-sink schema 的一部分
+  `offset` BIGINT METADATA VIRTUAL,  -- 不做为 query-to-sink schema 的一部分
   `user_id` BIGINT,
   `name` STRING,
 ) WITH (
@@ -286,8 +281,7 @@ CREATE TABLE MyTable (
 );
 ```
 
-In the example above, the `offset` is a read-only metadata column and excluded from the query-to-sink
-schema. Thus, source-to-query schema (for `SELECT`) and query-to-sink (for `INSERT INTO`) schema differ:
+在上面的示例中，`offset` 是一个只读元数据列，会被从 query-to-sink 的 schema 中排除。因此，虚拟元数据列对应的 source-to-query schema（对于 `SELECT`）和 query-to-sink（对于 `INSERT INTO`）schema 不同：
 
 ```text
 source-to-query schema:
@@ -299,44 +293,34 @@ MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
 
 **Computed Columns**
 
-Computed columns are virtual columns that are generated using the syntax `column_name AS computed_column_expression`.
+计算列（computed column）是使用语法 `column_name AS computed_column_expression` 生成的虚拟列。
 
-A computed column evaluates an expression that can reference other columns declared in the same table.
-Both physical columns and metadata columns can be accessed. The column itself is not physically stored
-within the table. The column's data type is derived automatically from the given expression and does
-not have to be declared manually.
+计算列执行一个表达式，该表达式可以引用同一表中其它已声明列。表达式可以同时访问物理列和元数据列。列本身并不在表中进行物理存储。列的数据类型是从给定的表达式自动派生的，不必手动声明。
 
-The planner will transform computed columns into a regular projection after the source. For optimization
-or [watermark strategy push down]({{< ref "docs/dev/table/sourcesSinks" >}}), the evaluation might be spread
-across operators, performed multiple times, or skipped if not needed for the given query.
+从 source 获取数据后，planner 将计算列转换为常规投影（projection）。对于优化或 [watermark strategy push down]({{< ref "docs/dev/table/sourcesSinks" >}})，该计算可能会分布在算子之间、执行多次，或者在给定查询不需要时跳过。
 
-For example, a computed column could be defined as:
+例如，计算列可以如下定义：
+
 ```sql
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `price` DOUBLE,
   `quantity` DOUBLE,
-  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+  `cost` AS price * quanitity,  -- 计算表达式并支持查询结果
 ) WITH (
   'connector' = 'kafka'
   ...
 );
 ```
 
-The expression may contain any combination of columns, constants, or functions. The expression cannot
-contain a subquery.
+表达式可以包含列、常量或函数的任意组合。表达式不能包含子查询。
 
-Computed columns are commonly used in Flink for defining [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}})
-in `CREATE TABLE` statements.
-- A [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time)
-can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
-- An [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) timestamp
-can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
-if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
+Flink 中通常使用计算列来定义 `CREATE TABLE` 语句中的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})：
 
-Similar to virtual metadata columns, computed columns are excluded from persisting. Therefore, a computed
-column cannot be the target of an `INSERT INTO` statement. Thus, source-to-query schema (for `SELECT`)
-and query-to-sink (for `INSERT INTO`) schema differ:
+- [处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time)可以使用系统的 `PROCTIME()` 函数简单地通过 `proc AS PROCTIME()` 语句来定义。
+- [事件时间]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time)相关的 timestamp 可以在 `WATERMARK` 声明之前先预处理。例如，如果原始字段不是 `TIMESTAMP(3)` 类型或嵌套在 JSON 字符串中，则可以使用计算列。
+
+与虚拟元数据列（virtual metadata column）类似，计算列被排除在持久化之外。因此，计算列不能作为 `INSERT INTO` 语句的目标。因此，计算列对应的 source-to-query schema （对于 `SELECT`）和 query-to-sink （对于 `INSERT INTO`）schema 不同:
 
 ```text
 source-to-query schema:
@@ -345,6 +329,8 @@ MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE, `cost` DOUBLE)
 query-to-sink schema:
 MyTable(`user_id` BIGINT, `price` DOUBLE, `quantity` DOUBLE)
 ```
+
+<a name="watermark"></a>
 
 ### `WATERMARK`
 
@@ -383,6 +369,7 @@ CREATE TABLE Orders (
 ) WITH ( . . . );
 ```
 
+<a name="primary-key"></a>
 
 ### `PRIMARY KEY`
 
@@ -399,9 +386,13 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 **Notes:** 在 CREATE TABLE 语句中，创建主键会修改列的 nullable 属性，主键声明的列默认都是非 Nullable 的。
 
+<a name="partitioned-by"></a>
+
 ### `PARTITIONED BY`
 
 根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
+
+<a name="with-options"></a>
 
 ### `WITH` Options
 
@@ -412,6 +403,8 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 **注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`, 数据表将会被注册到当前正在运行的catalog和数据库中。
 
 **注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
+
+<a name="like"></a>
 
 ### `LIKE`
 
@@ -514,6 +507,8 @@ LIKE Orders_in_file (
 
 {{< top >}}
 
+<a name="create-catalog"></a>
+
 ## CREATE CATALOG
 
 ```sql
@@ -531,6 +526,8 @@ The key and value of expression `key1=val1` should both be string literal.
 Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
 
 {{< top >}}
+
+<a name="create-database"></a>
 
 ## CREATE DATABASE
 
@@ -553,6 +550,8 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
 
 {{< top >}}
 
+<a name="create-view"></a>
+
 ## CREATE VIEW
 ```sql
 CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
@@ -572,6 +571,8 @@ CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
 
 {{< top >}}
 
+<a name="create-function"></a>
+
 ## CREATE FUNCTION
 ```sql
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
@@ -589,7 +590,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 **TEMPORARY**
 
-创建一个有 catalog 和数据库命名空间的临时 catalog function ，并覆盖原有的 catalog function 。
+创建一个有 catalog 和数据库命名空间的临时 catalog function ，并覆盖原有的 catalog function。
 
 **TEMPORARY SYSTEM**
 
