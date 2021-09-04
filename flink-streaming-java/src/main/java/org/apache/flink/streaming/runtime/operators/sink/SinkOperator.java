@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.OptionalLong;
 
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -212,9 +213,7 @@ class SinkOperator<InputT, CommT, WriterStateT> extends AbstractStreamOperator<b
 
     @Override
     public void close() throws Exception {
-        committerHandler.close();
-        sinkWriter.close();
-        super.close();
+        closeAll(committerHandler, sinkWriter, super::close);
     }
 
     private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {

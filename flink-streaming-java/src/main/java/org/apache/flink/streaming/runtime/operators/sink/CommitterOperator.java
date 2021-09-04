@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.Collections;
 
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -106,7 +107,6 @@ class CommitterOperator<InputT, OutputT> extends AbstractStreamOperator<byte[]>
 
     @Override
     public void close() throws Exception {
-        committerHandler.close();
-        super.close();
+        closeAll(committerHandler, super::close);
     }
 }
