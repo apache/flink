@@ -56,7 +56,7 @@ var executionConfig = env.getConfig
 
 - `getNumberOfExecutionRetries()` / `setNumberOfExecutionRetries(int numberOfExecutionRetries)`。设置失败任务重新执行的次数。值为零会有效地禁用容错。`-1` 表示使用系统默认值（在配置中定义）。该配置已弃用，请改用[重启策略]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) 。
 
-- `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)`。设置系统在作业失败后重新执行之前等待的延迟（以毫秒为单位）。在 TaskManagers 上成功停止所有任务后，开始计算延迟，一旦延迟过去，任务会被重新启动。此参数对于延迟重新执行很有用，以便在尝试重新执行并由于相同的问题立即再次失败之前，让某些超时相关的故障完全浮出水面（例如尚未完全超时的断开连接）。此参数仅在执行重试次数为一次或多次时有效。该配置已被弃用，请改用[重启策略]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) 。
+- `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)`。设置系统在作业失败后重新执行之前等待的延迟（以毫秒为单位）。在 TaskManagers 上成功停止所有任务后，开始计算延迟，一旦延迟过去，任务会被重新启动。此参数对于延迟重新执行的场景很有用，当尝试重新执行作业时，由于相同的问题，作业会立刻再次失败，该参数便于作业再次失败之前让某些超时相关的故障完全浮出水面（例如尚未完全超时的断开连接）。此参数仅在执行重试次数为一次或多次时有效。该配置已被弃用，请改用[重启策略]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) 。
 
 - `getExecutionMode()` / `setExecutionMode()`。默认的执行模式是 PIPELINED。设置执行模式以执行程序。执行模式定义了数据交换是以批处理方式还是以流方式执行。
 
