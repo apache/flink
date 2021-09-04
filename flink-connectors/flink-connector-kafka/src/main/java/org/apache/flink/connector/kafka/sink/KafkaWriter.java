@@ -26,6 +26,7 @@ import org.apache.flink.connector.kafka.MetricUtil;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricMutableWrapper;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -157,7 +158,10 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         }
 
         this.kafkaWriterState = new KafkaWriterState(transactionalIdPrefix);
-        this.lastCheckpointId = sinkInitContext.getRestoredCheckpointId().orElse(-1);
+        this.lastCheckpointId =
+                sinkInitContext
+                        .getRestoredCheckpointId()
+                        .orElse(CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1);
         if (deliveryGuarantee == DeliveryGuarantee.EXACTLY_ONCE) {
             abortLingeringTransactions(
                     checkNotNull(recoveredStates, "recoveredStates"), lastCheckpointId + 1);
@@ -191,7 +195,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
             final List<KafkaCommittable> committables =
                     Collections.singletonList(
                             KafkaCommittable.of(currentProducer, producerPool::add));
-            LOG.info("Committing {} committables.", committables);
+            LOG.debug("Committing {} committables, final commit={}.", committables, flush);
             return committables;
         }
         return Collections.emptyList();
@@ -209,6 +213,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
     @Override
     public void close() throws Exception {
         closed = true;
+        LOG.debug("Closing writer with {}", currentProducer);
         closeAll(
                 this::abortCurrentProducer,
                 closer,
