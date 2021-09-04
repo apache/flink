@@ -84,12 +84,16 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     @Override
     public void abortTransaction() throws ProducerFencedException {
+        LOG.debug("abortTransaction {}", transactionalId);
+        checkState(inTransaction, "Transaction was not started");
         super.abortTransaction();
         inTransaction = false;
     }
 
     @Override
     public void commitTransaction() throws ProducerFencedException {
+        LOG.debug("commitTransaction {}", transactionalId);
+        checkState(inTransaction, "Transaction was not started");
         super.commitTransaction();
         inTransaction = false;
     }
@@ -156,6 +160,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     public void setTransactionId(String transactionalId) {
         if (!transactionalId.equals(this.transactionalId)) {
             checkState(!inTransaction);
+            LOG.debug("Change transaction id from {} to {}", this.transactionalId, transactionalId);
             Object transactionManager = getTransactionManager();
             synchronized (transactionManager) {
                 setField(transactionManager, "transactionalId", transactionalId);
@@ -274,6 +279,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
      * https://github.com/apache/kafka/commit/5d2422258cb975a137a42a4e08f03573c49a387e#diff-f4ef1afd8792cd2a2e9069cd7ddea630
      */
     public void resumeTransaction(long producerId, short epoch) {
+        checkState(!inTransaction, "Already in transaction %s", transactionalId);
         checkState(
                 producerId >= 0 && epoch >= 0,
                 "Incorrect values for producerId %s and epoch %s",
@@ -302,6 +308,7 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
             transitionTransactionManagerStateTo(transactionManager, "IN_TRANSACTION");
             setField(transactionManager, "transactionStarted", true);
+            this.inTransaction = true;
         }
     }
 
@@ -357,5 +364,17 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     private static void transitionTransactionManagerStateTo(
             Object transactionManager, String state) {
         invoke(transactionManager, "transitionTo", getTransactionManagerState(state));
+    }
+
+    @Override
+    public String toString() {
+        return "FlinkKafkaInternalProducer{"
+                + "transactionalId='"
+                + transactionalId
+                + "', inTransaction="
+                + inTransaction
+                + ", closed="
+                + closed
+                + '}';
     }
 }
