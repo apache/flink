@@ -46,20 +46,20 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 {{< tabs "execute" >}}
 {{< tab "Java" >}}
 
-可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句。 若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句。若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
 
 以下的例子展示了如何在 `TableEnvironment` 中执行一个 CREATE 语句。
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句。 若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 CREATE 语句。若 CREATE 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
 
 以下的例子展示了如何在 `TableEnvironment` 中执行一个 CREATE 语句。
 
 {{< /tab >}}
 {{< tab "Python" >}}
 
-可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 CREATE 语句。 若 CREATE 操作执行成功，`execute_sql()` 方法返回 'OK'，否则会抛出异常。
+可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 CREATE 语句。若 CREATE 操作执行成功，`execute_sql()` 方法返回 'OK'，否则会抛出异常。
 
 以下的例子展示了如何在 `TableEnvironment` 中执行一个 CREATE 语句。
 
@@ -295,7 +295,7 @@ MyTable(`timestamp` BIGINT, `user_id` BIGINT, `name` STRING)
 
 计算列（computed column）是使用语法 `column_name AS computed_column_expression` 生成的虚拟列。
 
-计算列执行一个表达式，该表达式可以引用同一表中其它已声明列。表达式可以同时访问物理列和元数据列。列本身并不在表中进行物理存储。列的数据类型是从给定的表达式自动派生的，不必手动声明。
+计算列执行一个表达式，该表达式可以引用同一表中其它已声明列。表达式可以同时访问物理列和元数据列。列本身并不在表中进行物理存储。列的数据类型是从给定表达式自动派生的，不必手动声明。
 
 从 source 获取数据后，planner 将计算列转换为常规投影（projection）。对于优化或 [watermark strategy push down]({{< ref "docs/dev/table/sourcesSinks" >}})，该计算可能会分布在算子之间、执行多次，或者在给定查询不需要时跳过。
 
@@ -348,15 +348,15 @@ Watermark 根据 [`pipeline.auto-watermark-interval`]({{< ref "docs/deployment/c
 
 Flink 提供了几种常用的 watermark 策略。
 
-- 严格递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column`。
+- 严格递增时间戳：`WATERMARK FOR rowtime_column AS rowtime_column`。
 
   发出到目前为止已观察到的最大时间戳的 watermark ，时间戳大于最大时间戳的行被认为没有迟到。
 
-- 递增时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
+- 递增时间戳：`WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '0.001' SECOND`。
 
   发出到目前为止已观察到的最大时间戳减 1 的 watermark ，时间戳大于或等于最大时间戳的行被认为没有迟到。
 
-- 有界乱序时间戳： `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`。
+- 有界乱序时间戳：`WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL 'string' timeUnit`。
 
   发出到目前为止已观察到的最大时间戳减去指定延迟的 watermark ，例如， `WATERMARK FOR rowtime_column AS rowtime_column - INTERVAL '5' SECOND` 是一个 5 秒延迟的 watermark 策略。
 
@@ -380,7 +380,7 @@ CREATE TABLE Orders (
 
 **有效性检查**
 
-SQL 标准主键限制可以有两种模式：`ENFORCED` 或者 `NOT ENFORCED`。 它申明了是否输入/出数据会做合法性检查（是否唯一）。Flink 不存储数据因此只支持 `NOT ENFORCED` 模式，即不做检查，用户需要自己保证唯一性。
+SQL 标准主键限制可以有两种模式：`ENFORCED` 或者 `NOT ENFORCED`。它申明了是否输入/出数据会做合法性检查（是否唯一）。Flink 不存储数据因此只支持 `NOT ENFORCED` 模式，即不做检查，用户需要自己保证唯一性。
 
 Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处理数据时需要自己保证语义正确。
 
@@ -400,9 +400,9 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 表达式 `key1=val1` 的键和值必须为字符串文本常量。请参考 [连接外部系统]({{< ref "docs/connectors/table/overview" >}}) 了解不同连接器所支持的属性。
 
-**注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`, 数据表将会被注册到当前正在运行的catalog和数据库中。
+**注意：** 表名可以为以下三种格式 1. `catalog_name.db_name.table_name` 2. `db_name.table_name` 3. `table_name`。使用`catalog_name.db_name.table_name` 的表将会与名为 "catalog_name" 的 catalog 和名为 "db_name" 的数据库一起注册到 metastore 中。使用 `db_name.table_name` 的表将会被注册到当前执行的 table environment 中的 catalog 且数据库会被命名为 "db_name"；对于 `table_name`，数据表将会被注册到当前正在运行的catalog和数据库中。
 
-**注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。 在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
+**注意：** 使用 `CREATE TABLE` 语句注册的表均可用作 table source 和 table sink。在被 DML 语句引用前，我们无法决定其实际用于 source 抑或是 sink。
 
 <a name="like"></a>
 
@@ -516,14 +516,13 @@ CREATE CATALOG catalog_name
   WITH (key1=val1, key2=val2, ...)
 ```
 
-Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+根据给定的 catalog 属性创建 catalog。如果已经存在同名 catalog，则抛出异常。
 
 **WITH OPTIONS**
 
-Catalog properties used to store extra information related to this catalog.
-The key and value of expression `key1=val1` should both be string literal.
+Catalog 属性用于存储此 catalog 相关的额外信息。表达式 `key1=val1` 的键和值都需要是字符串文本常量。
 
-Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
+请查看 [catalog]({{< ref "docs/dev/table/catalogs" >}}) 获取更多详细信息。
 
 {{< top >}}
 
@@ -545,8 +544,7 @@ CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
 
 **WITH OPTIONS**
 
-数据库属性一般用于存储关于这个数据库额外的信息。
-表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
+数据库属性一般用于存储关于这个数据库额外的信息。表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
 
 {{< top >}}
 
@@ -580,7 +578,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 ```
 
-创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
+创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
@@ -602,5 +600,5 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 **LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA, SCALA 和 PYTHON，且函数的默认语言为 JAVA。
+Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA，SCALA 和 PYTHON，且函数的默认语言为 JAVA。
 
