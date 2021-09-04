@@ -21,22 +21,30 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriver;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ACLProvider;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.CreateBuilder;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.NodeCacheListener;
+import org.apache.flink.shaded.curator4.org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
@@ -53,6 +61,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -416,7 +425,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
     }
 
     /**
-     * Test that errors in the {@link LeaderElectionService} are correctly forwarded to the {@link
+     * Test that errors in the {@link LeaderElectionDriver} are correctly forwarded to the {@link
      * LeaderContender}.
      */
     @Test
@@ -592,6 +601,56 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             }
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
+            }
+        }
+    }
+
+    /**
+     * Test that background errors in the {@link LeaderElectionDriver} are correctly forwarded to
+     * the {@link FatalErrorHandler}.
+     */
+    @Test
+    public void testUnExpectedErrorForwarding() throws Exception {
+        LeaderElectionDriver leaderElectionDriver = null;
+        final TestingLeaderElectionEventHandler electionEventHandler =
+                new TestingLeaderElectionEventHandler(TEST_LEADER);
+
+        final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+        final FlinkRuntimeException testException =
+                new FlinkRuntimeException("testUnExpectedErrorForwarding");
+        final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
+                CuratorFrameworkFactory.builder()
+                        .connectString(testingServer.getConnectString())
+                        .retryPolicy(new ExponentialBackoffRetry(1, 0))
+                        .aclProvider(
+                                new ACLProvider() {
+                                    // trigger background exception
+                                    @Override
+                                    public List<ACL> getDefaultAcl() {
+                                        throw testException;
+                                    }
+
+                                    @Override
+                                    public List<ACL> getAclForPath(String s) {
+                                        throw testException;
+                                    }
+                                })
+                        .namespace("flink");
+
+        try (CuratorFramework clientWithErrorHandler =
+                ZooKeeperUtils.startCuratorFramework(curatorFrameworkBuilder, fatalErrorHandler)) {
+
+            assertFalse(fatalErrorHandler.getErrorFuture().isDone());
+            leaderElectionDriver =
+                    createAndInitLeaderElectionDriver(clientWithErrorHandler, electionEventHandler);
+            assertThat(
+                    fatalErrorHandler.getErrorFuture().join(),
+                    FlinkMatchers.containsCause(testException));
+        } finally {
+            electionEventHandler.close();
+
+            if (leaderElectionDriver != null) {
+                leaderElectionDriver.close();
             }
         }
     }
