@@ -241,4 +241,11 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .defaultValue(10.0)
                     .withDescription(
                             "Bits per key that bloom filter will use, this only take effect when bloom filter is used.");
+
+    public static final ConfigOption<Boolean> BLOOM_FILTER_USE_FULL_FILTER =
+            key("state.backend.rocksdb.bloom-filter.use-full-filter")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "If true, RocksDB will use full filter instead of block-based filter, this only take effect when bloom filter is used.");
 }

@@ -484,7 +484,8 @@ public class RocksDBStateBackendConfigTest {
                         .setMetadataBlockSize("16KB")
                         .setBlockCacheSize("512mb")
                         .setUseBloomFilter(true)
-                        .setBloomFilterBitsPerKey(12.0);
+                        .setBloomFilterBitsPerKey(12.0)
+                        .setBloomFilterUseFullFilter(false);
 
         try (RocksDBResourceContainer optionsContainer =
                 new RocksDBResourceContainer(PredefinedOptions.DEFAULT, customizedOptions)) {
@@ -545,6 +546,7 @@ public class RocksDBStateBackendConfigTest {
 
             verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_BLOOM_FILTER, "NO");
+            verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_USE_FULL_FILTER, "YES");
         }
 
         // verify legal configuration
