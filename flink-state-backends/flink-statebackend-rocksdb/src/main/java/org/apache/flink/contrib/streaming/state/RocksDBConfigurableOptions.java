@@ -227,4 +227,18 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .withDescription(
                             "The max size of the consumed memory for RocksDB batch write, "
                                     + "will flush just based on item count if this config set to 0.");
+
+    public static final ConfigOption<Boolean> USE_BLOOM_FILTER =
+            key("state.backend.rocksdb.use-bloom-filter")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "If true, every newly created SST file will contain a Bloom filter. RocksDB disables it by default.");
+
+    public static final ConfigOption<Double> BLOOM_FILTER_BITS_PER_KEY =
+            key("state.backend.rocksdb.bloom-filter.bits-per-key")
+                    .doubleType()
+                    .defaultValue(10.0)
+                    .withDescription(
+                            "Bits per key that bloom filter will use, this only take effect when bloom filter is used.");
 }
