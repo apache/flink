@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
@@ -42,6 +43,8 @@ import java.util.Set;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_SIZE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BITS_PER_KEY;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPACTION_STYLE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_DIR;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_FILE_NUM;
@@ -54,6 +57,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.METADATA_BLOCK_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.MIN_WRITE_BUFFER_NUMBER_TO_MERGE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.TARGET_FILE_SIZE_BASE;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_BLOOM_FILTER;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BUFFER_SIZE;
 
@@ -154,6 +158,24 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
 
         if (isOptionConfigured(BLOCK_CACHE_SIZE)) {
             blockBasedTableConfig.setBlockCacheSize(getBlockCacheSize());
+        }
+
+        if (isOptionConfigured(USE_BLOOM_FILTER)) {
+            final boolean enabled = Boolean.parseBoolean(getInternal(USE_BLOOM_FILTER.key()));
+            if (enabled) {
+                final double bitsPerKey =
+                        isOptionConfigured(BLOOM_FILTER_BITS_PER_KEY)
+                                ? Double.parseDouble(getInternal(BLOOM_FILTER_BITS_PER_KEY.key()))
+                                : BLOOM_FILTER_BITS_PER_KEY.defaultValue();
+                final boolean blockBasedMode =
+                        isOptionConfigured(BLOOM_FILTER_BLOCK_BASED_MODE)
+                                ? Boolean.parseBoolean(
+                                        getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()))
+                                : BLOOM_FILTER_BLOCK_BASED_MODE.defaultValue();
+                BloomFilter bloomFilter = new BloomFilter(bitsPerKey, blockBasedMode);
+                handlesToClose.add(bloomFilter);
+                blockBasedTableConfig.setFilterPolicy(bloomFilter);
+            }
         }
 
         return currentOptions.setTableFormatConfig(blockBasedTableConfig);
@@ -429,6 +451,37 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
         return this;
     }
 
+    // --------------------------------------------------------------------------
+    // Filter policy in RocksDB
+    // --------------------------------------------------------------------------
+
+    private boolean getUseBloomFilter() {
+        return Boolean.parseBoolean(getInternal(USE_BLOOM_FILTER.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setUseBloomFilter(boolean useBloomFilter) {
+        setInternal(USE_BLOOM_FILTER.key(), String.valueOf(useBloomFilter));
+        return this;
+    }
+
+    private double getBloomFilterBitsPerKey() {
+        return Double.parseDouble(getInternal(BLOOM_FILTER_BITS_PER_KEY.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setBloomFilterBitsPerKey(double bitsPerKey) {
+        setInternal(BLOOM_FILTER_BITS_PER_KEY.key(), String.valueOf(bitsPerKey));
+        return this;
+    }
+
+    private boolean getBloomFilterBlockBasedMode() {
+        return Boolean.parseBoolean(getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()));
+    }
+
+    public DefaultConfigurableOptionsFactory setBloomFilterBlockBasedMode(boolean blockBasedMode) {
+        setInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key(), String.valueOf(blockBasedMode));
+        return this;
+    }
+
     private static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable DBOptions
@@ -449,7 +502,10 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 MIN_WRITE_BUFFER_NUMBER_TO_MERGE,
                 BLOCK_SIZE,
                 METADATA_BLOCK_SIZE,
-                BLOCK_CACHE_SIZE
+                BLOCK_CACHE_SIZE,
+                USE_BLOOM_FILTER,
+                BLOOM_FILTER_BITS_PER_KEY,
+                BLOOM_FILTER_BLOCK_BASED_MODE
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =
