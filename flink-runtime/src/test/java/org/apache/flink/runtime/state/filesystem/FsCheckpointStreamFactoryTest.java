@@ -88,7 +88,7 @@ public class FsCheckpointStreamFactoryTest {
     }
 
     @Test
-    public void testSharedStateHasAbsolutePathHandles() throws IOException {
+    public void testSharedStateHasRelativePathHandles() throws IOException {
         final FsCheckpointStreamFactory factory = createFactory(FileSystem.getLocalFileSystem(), 0);
 
         final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
@@ -96,8 +96,7 @@ public class FsCheckpointStreamFactoryTest {
         stream.write(0);
         final StreamStateHandle handle = stream.closeAndGetHandle();
 
-        assertThat(handle, instanceOf(FileStateHandle.class));
-        assertThat(handle, not(instanceOf(RelativeFileStateHandle.class)));
+        assertThat(handle, instanceOf(RelativeFileStateHandle.class));
         assertPathsEqual(sharedStateDir, ((FileStateHandle) handle).getFilePath().getParent());
     }
 
@@ -114,6 +113,21 @@ public class FsCheckpointStreamFactoryTest {
         assertThat(handle, instanceOf(FileStateHandle.class));
         assertThat(handle, not(instanceOf(RelativeFileStateHandle.class)));
         assertPathsEqual(exclusiveStateDir, ((FileStateHandle) handle).getFilePath().getParent());
+    }
+
+    @Test
+    public void testEntropyMakesSharedStateAbsolutePaths() throws IOException {
+        final FsCheckpointStreamFactory factory =
+                createFactory(new FsStateBackendEntropyTest.TestEntropyAwareFs(), 0);
+
+        final FsCheckpointStreamFactory.FsCheckpointStateOutputStream stream =
+                factory.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
+        stream.write(0);
+        final StreamStateHandle handle = stream.closeAndGetHandle();
+
+        assertThat(handle, instanceOf(FileStateHandle.class));
+        assertThat(handle, not(instanceOf(RelativeFileStateHandle.class)));
+        assertPathsEqual(sharedStateDir, ((FileStateHandle) handle).getFilePath().getParent());
     }
 
     @Test
