@@ -191,6 +191,7 @@ public class KafkaSinkITCase extends TestLogger {
     public void testRecoveryWithAtLeastOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.AT_LEAST_ONCE,
+                1,
                 (records) ->
                         assertThat(records, hasItems(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L)));
     }
@@ -199,6 +200,21 @@ public class KafkaSinkITCase extends TestLogger {
     public void testRecoveryWithExactlyOnceGuarantee() throws Exception {
         testRecoveryWithAssertion(
                 DeliveryGuarantee.EXACTLY_ONCE,
+                1,
+                (records) ->
+                        assertThat(
+                                records,
+                                contains(
+                                        LongStream.range(1, lastCheckpointedRecord.get().get() + 1)
+                                                .boxed()
+                                                .toArray())));
+    }
+
+    @Test
+    public void testRecoveryWithExactlyOnceGuaranteeAndConcurrentCheckpoints() throws Exception {
+        testRecoveryWithAssertion(
+                DeliveryGuarantee.EXACTLY_ONCE,
+                2,
                 (records) ->
                         assertThat(
                                 records,
@@ -302,12 +318,15 @@ public class KafkaSinkITCase extends TestLogger {
     }
 
     private void testRecoveryWithAssertion(
-            DeliveryGuarantee guarantee, java.util.function.Consumer<List<Long>> recordsAssertion)
+            DeliveryGuarantee guarantee,
+            int maxConcurrentCheckpoints,
+            java.util.function.Consumer<List<Long>> recordsAssertion)
             throws Exception {
         Configuration config = new Configuration();
         config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
         final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
         env.enableCheckpointing(300L);
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(maxConcurrentCheckpoints);
         DataStreamSource<Long> source = env.fromSequence(1, 10);
         DataStream<Long> stream =
                 source.map(new FailingCheckpointMapper(failed, lastCheckpointedRecord));
