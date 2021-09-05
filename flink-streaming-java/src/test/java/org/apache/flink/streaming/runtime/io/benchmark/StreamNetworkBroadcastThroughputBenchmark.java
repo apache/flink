@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 
 /**
  * Network throughput benchmarks executed by the external <a
@@ -43,7 +44,7 @@ public class StreamNetworkBroadcastThroughputBenchmark extends StreamNetworkThro
                 recordWriters,
                 channels,
                 flushTimeout,
-                true,
+                ChannelSelector.SelectorType.BROADCAST,
                 localMode,
                 senderBufferPoolSize,
                 receiverBufferPoolSize,

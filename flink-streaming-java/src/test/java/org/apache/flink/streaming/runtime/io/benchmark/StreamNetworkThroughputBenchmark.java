@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.LoadRebalancePartitioner;
 import org.apache.flink.types.LongValue;
 
 import java.util.concurrent.CompletableFuture;
@@ -80,7 +82,7 @@ public class StreamNetworkThroughputBenchmark {
                 recordWriters,
                 channels,
                 flushTimeout,
-                false,
+                ChannelSelector.SelectorType.LOAD_BASED,
                 localMode,
                 senderBufferPoolSize,
                 receiverBufferPoolSize,
@@ -98,7 +100,7 @@ public class StreamNetworkThroughputBenchmark {
             int recordWriters,
             int channels,
             int flushTimeout,
-            boolean broadcastMode,
+            ChannelSelector.SelectorType selectorType,
             boolean localMode,
             int senderBufferPoolSize,
             int receiverBufferPoolSize,
@@ -118,19 +120,22 @@ public class StreamNetworkThroughputBenchmark {
                     environment.createResultPartitionWriter(writer);
             RecordWriterBuilder recordWriterBuilder =
                     new RecordWriterBuilder().setTimeout(flushTimeout);
-            setChannelSelector(recordWriterBuilder, broadcastMode);
+            setChannelSelector(recordWriterBuilder, selectorType);
             writerThreads[writer] =
                     new LongRecordWriterThread(
-                            recordWriterBuilder.build(resultPartitionWriter), broadcastMode);
+                            recordWriterBuilder.build(resultPartitionWriter),
+                            selectorType == ChannelSelector.SelectorType.BROADCAST);
             writerThreads[writer].start();
         }
         receiver = environment.createReceiver();
     }
 
     protected void setChannelSelector(
-            RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
-        if (broadcastMode) {
+            RecordWriterBuilder recordWriterBuilder, ChannelSelector.SelectorType selectorType) {
+        if (selectorType == ChannelSelector.SelectorType.BROADCAST) {
             recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
+        } else if (selectorType == ChannelSelector.SelectorType.LOAD_BASED) {
+            recordWriterBuilder.setChannelSelector(new LoadRebalancePartitioner());
         }
     }
 

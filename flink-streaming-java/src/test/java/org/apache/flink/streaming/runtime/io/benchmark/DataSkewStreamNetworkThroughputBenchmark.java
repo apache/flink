@@ -32,8 +32,10 @@ public class DataSkewStreamNetworkThroughputBenchmark extends StreamNetworkThrou
 
     @Override
     protected void setChannelSelector(
-            RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
-        checkArgument(!broadcastMode, "Combining broadcasting with data skew doesn't make sense");
+            RecordWriterBuilder recordWriterBuilder, ChannelSelector.SelectorType selectorType) {
+        checkArgument(
+                selectorType != ChannelSelector.SelectorType.BROADCAST,
+                "Combining broadcasting with data skew doesn't make sense");
         recordWriterBuilder.setChannelSelector(new DataSkewChannelSelector());
     }
 
