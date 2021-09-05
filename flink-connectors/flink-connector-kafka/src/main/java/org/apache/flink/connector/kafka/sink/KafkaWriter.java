@@ -36,7 +36,6 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import org.apache.kafka.clients.producer.Callback;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
@@ -74,6 +73,7 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
 
     private static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
     private static final String KEY_REGISTER_METRICS = "register.producer.metrics";
+    private static final String KAFKA_PRODUCER_METRICS = "producer-metrics";
 
     private final DeliveryGuarantee deliveryGuarantee;
     private final Properties kafkaProducerConfig;
@@ -163,12 +163,13 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
                 || deliveryGuarantee == DeliveryGuarantee.NONE) {
             this.currentProducer = new FlinkKafkaInternalProducer<>(this.kafkaProducerConfig, null);
             closer.register(this.currentProducer);
-            initMetrics(this.currentProducer);
+            initKafkaMetrics(this.currentProducer);
         } else {
             throw new UnsupportedOperationException(
                     "Unsupported Kafka writer semantic " + this.deliveryGuarantee);
         }
-        registerMetricSync();
+
+        initFlinkMetrics();
     }
 
     @Override
@@ -298,18 +299,22 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
             producer = new FlinkKafkaInternalProducer<>(kafkaProducerConfig, transactionalId);
             closer.register(producer);
             producer.initTransactions();
-            initMetrics(producer);
+            initKafkaMetrics(producer);
         } else {
             producer.initTransactionId(transactionalId);
         }
         return producer;
     }
 
-    private void initMetrics(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
+    private void initFlinkMetrics() {
+        metricGroup.setCurrentSendTimeGauge(this::computeSendTime);
+        registerMetricSync();
+    }
+
+    private void initKafkaMetrics(FlinkKafkaInternalProducer<byte[], byte[]> producer) {
         byteOutMetric =
                 MetricUtil.getKafkaMetric(
-                        producer.metrics(), "producer-metrics", "outgoing-byte-total");
-        metricGroup.setCurrentSendTimeGauge(() -> computeSendTime(producer));
+                        producer.metrics(), KAFKA_PRODUCER_METRICS, "outgoing-byte-total");
         if (disabledMetrics) {
             return;
         }
@@ -333,13 +338,17 @@ class KafkaWriter<IN> implements SinkWriter<IN, KafkaCommittable, KafkaWriterSta
         };
     }
 
-    private static long computeSendTime(Producer<?, ?> producer) {
+    private long computeSendTime() {
+        FlinkKafkaInternalProducer<byte[], byte[]> producer = this.currentProducer;
+        if (producer == null) {
+            return -1L;
+        }
         final Metric sendTime =
                 MetricUtil.getKafkaMetric(
-                        producer.metrics(), "producer-metrics", "request-latency-avg");
+                        producer.metrics(), KAFKA_PRODUCER_METRICS, "request-latency-avg");
         final Metric queueTime =
                 MetricUtil.getKafkaMetric(
-                        producer.metrics(), "producer-metrics", "record-queue-time-avg");
+                        producer.metrics(), KAFKA_PRODUCER_METRICS, "record-queue-time-avg");
         return ((Number) sendTime.metricValue()).longValue()
                 + ((Number) queueTime.metricValue()).longValue();
     }
