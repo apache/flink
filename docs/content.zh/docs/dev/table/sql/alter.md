@@ -143,7 +143,7 @@ NewOrders
 * 重命名表
 
 ```sql
-ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
+ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name RENAME TO new_table_name
 ```
 
 把原有的表名更改为新的表名。
@@ -151,7 +151,7 @@ ALTER TABLE [catalog_name.][db_name.]table_name RENAME TO new_table_name
 * 设置或修改表属性
 
 ```sql
-ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
+ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 ```
 
 为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。

@@ -493,6 +493,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 SqlAlterTable SqlAlterTable() :
 {
     SqlParserPos startPos;
+    boolean ifExists = false;
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
@@ -502,6 +503,7 @@ SqlAlterTable SqlAlterTable() :
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
+        ifExists = IfExistsOpt()
         tableIdentifier = CompoundIdentifier()
     (
         <RENAME> <TO>
@@ -509,6 +511,7 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableRename(
                         startPos.plus(getPos()),
+                        ifExists,
                         tableIdentifier,
                         newTableIdentifier);
         }
@@ -518,6 +521,7 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
+                        ifExists,
                         tableIdentifier,
                         propertyKeyList);
         }
@@ -527,12 +531,14 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
+                        ifExists,
                         tableIdentifier,
                         propertyList);
         }
     |
         <ADD> constraint = TableConstraint() {
             return new SqlAlterTableAddConstraint(
+                        ifExists,
                         tableIdentifier,
                         constraint,
                         startPos.plus(getPos()));
@@ -541,6 +547,7 @@ SqlAlterTable SqlAlterTable() :
         <DROP> <CONSTRAINT>
         constraintName = SimpleIdentifier() {
             return new SqlAlterTableDropConstraint(
+                ifExists,
                 tableIdentifier,
                 constraintName,
                 startPos.plus(getPos()));

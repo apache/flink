@@ -385,13 +385,15 @@ public class SqlToOperationConverter {
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         Optional<CatalogManager.TableLookupResult> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
-        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+        if ((!sqlAlterTable.isIfExists() && !optionalCatalogTable.isPresent())
+                || (optionalCatalogTable.isPresent() && optionalCatalogTable.get().isTemporary())) {
             throw new ValidationException(
                     String.format(
                             "Table %s doesn't exist or is a temporary table.",
                             tableIdentifier.toString()));
         }
-        CatalogBaseTable baseTable = optionalCatalogTable.get().getTable();
+        CatalogBaseTable baseTable =
+                optionalCatalogTable.map(CatalogManager.TableLookupResult::getTable).orElse(null);
         if (baseTable instanceof CatalogView) {
             throw new ValidationException("ALTER TABLE for a view is not allowed");
         }
@@ -401,7 +403,8 @@ public class SqlToOperationConverter {
                             ((SqlAlterTableRename) sqlAlterTable).fullNewTableName());
             ObjectIdentifier newTableIdentifier =
                     catalogManager.qualifyIdentifier(newUnresolvedIdentifier);
-            return new AlterTableRenameOperation(tableIdentifier, newTableIdentifier);
+            return new AlterTableRenameOperation(
+                    sqlAlterTable.isIfExists(), tableIdentifier, newTableIdentifier);
         } else if (sqlAlterTable instanceof SqlAlterTableOptions) {
             return convertAlterTableOptions(
                     tableIdentifier,
@@ -429,6 +432,7 @@ public class SqlToOperationConverter {
             }
             builder.build();
             return new AlterTableAddConstraintOperation(
+                    sqlAlterTable.isIfExists(),
                     tableIdentifier,
                     constraint.getConstraintName().orElse(null),
                     constraint.getColumnNames());
@@ -448,7 +452,8 @@ public class SqlToOperationConverter {
                 throw new ValidationException(
                         String.format("CONSTRAINT [%s] does not exist", constraintName));
             }
-            return new AlterTableDropConstraintOperation(tableIdentifier, constraintName);
+            return new AlterTableDropConstraintOperation(
+                    sqlAlterTable.isIfExists(), tableIdentifier, constraintName);
         } else if (sqlAlterTable instanceof SqlAddReplaceColumns) {
             return OperationConverterUtils.convertAddReplaceColumns(
                     tableIdentifier,
@@ -519,7 +524,8 @@ public class SqlToOperationConverter {
             Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
             newOptions.putAll(
                     OperationConverterUtils.extractProperties(alterTableOptions.getPropertyList()));
-            return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
+            return new AlterTableOptionsOperation(
+                    alterTableOptions.isIfExists(), tableIdentifier, oldTable.copy(newOptions));
         }
     }
 
@@ -535,7 +541,8 @@ public class SqlToOperationConverter {
         }
         // reset table option keys
         resetKeys.forEach(newOptions::remove);
-        return new AlterTableOptionsOperation(tableIdentifier, oldTable.copy(newOptions));
+        return new AlterTableOptionsOperation(
+                alterTableReset.isIfExists(), tableIdentifier, oldTable.copy(newOptions));
     }
 
     /** Convert CREATE FUNCTION statement. */

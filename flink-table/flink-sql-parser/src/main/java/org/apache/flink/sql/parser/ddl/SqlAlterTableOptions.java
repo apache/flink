@@ -29,14 +29,16 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*). */
+/**
+ * ALTER TABLE IF EXISTS [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
+ */
 public class SqlAlterTableOptions extends SqlAlterTable {
 
     private final SqlNodeList propertyList;
 
     public SqlAlterTableOptions(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-        this(pos, tableName, null, propertyList);
+            SqlParserPos pos, boolean ifExists, SqlIdentifier tableName, SqlNodeList propertyList) {
+        this(pos, ifExists, tableName, null, propertyList);
     }
 
     public SqlAlterTableOptions(
@@ -44,7 +46,16 @@ public class SqlAlterTableOptions extends SqlAlterTable {
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,
             SqlNodeList propertyList) {
-        super(pos, tableName, partitionSpec);
+        this(pos, false, tableName, partitionSpec, propertyList);
+    }
+
+    public SqlAlterTableOptions(
+            SqlParserPos pos,
+            boolean ifExists,
+            SqlIdentifier tableName,
+            SqlNodeList partitionSpec,
+            SqlNodeList propertyList) {
+        super(pos, ifExists, tableName, partitionSpec);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
     }
 

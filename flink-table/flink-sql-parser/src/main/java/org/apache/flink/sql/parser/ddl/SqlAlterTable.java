@@ -36,31 +36,49 @@ import java.util.LinkedHashMap;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER TABLE [[catalogName.] dataBasesName].tableName
- * ...
+ * Abstract class to describe statements like ALTER TABLE IF EXISTS [[catalogName.]
+ * dataBasesName].tableName ...
  */
 public abstract class SqlAlterTable extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
+    protected final boolean ifExists;
     protected final SqlIdentifier tableIdentifier;
     protected final SqlNodeList partitionSpec;
 
-    public SqlAlterTable(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
-        super(pos);
-        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
-        this.partitionSpec = partitionSpec;
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
+        this(pos, false, tableName);
     }
 
-    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
-        this(pos, tableName, null);
+    public SqlAlterTable(SqlParserPos pos, boolean ifExists, SqlIdentifier tableName) {
+        this(pos, ifExists, tableName, null);
+    }
+
+    public SqlAlterTable(
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
+        this(pos, false, tableName, partitionSpec);
+    }
+
+    public SqlAlterTable(
+            SqlParserPos pos,
+            boolean ifExists,
+            SqlIdentifier tableName,
+            @Nullable SqlNodeList partitionSpec) {
+        super(pos);
+        this.ifExists = ifExists;
+        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
+        this.partitionSpec = partitionSpec;
     }
 
     @Override
     public SqlOperator getOperator() {
         return OPERATOR;
+    }
+
+    public boolean isIfExists() {
+        return ifExists;
     }
 
     public SqlIdentifier getTableName() {
@@ -70,6 +88,9 @@ public abstract class SqlAlterTable extends SqlCall {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("ALTER TABLE");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
         tableIdentifier.unparse(writer, leftPrec, rightPrec);
         SqlNodeList partitionSpec = getPartitionSpec();
         if (partitionSpec != null && partitionSpec.size() > 0) {

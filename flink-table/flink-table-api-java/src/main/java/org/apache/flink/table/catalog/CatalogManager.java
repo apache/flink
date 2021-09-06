@@ -759,14 +759,43 @@ public final class CatalogManager {
      */
     public void alterTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        execute(
-                (catalog, path) -> {
-                    final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
-                    catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
-                },
-                objectIdentifier,
-                ignoreIfNotExists,
-                "AlterTable");
+        alterTableInternal(table, objectIdentifier, ignoreIfNotExists, true);
+    }
+
+    /**
+     * Alters a view in a given fully qualified path.
+     *
+     * @param table The view to put in the given path
+     * @param objectIdentifier The fully qualified path where to alter the view.
+     * @param ignoreIfNotExists If false exception will be thrown if the view or database or catalog
+     *     to be altered does not exist.
+     */
+    public void alterView(
+            CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        alterTableInternal(table, objectIdentifier, ignoreIfNotExists, false);
+    }
+
+    public void alterTableInternal(
+            CatalogBaseTable table,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists,
+            boolean isDropTable) {
+        final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
+        if (resultOpt.isPresent()) {
+            execute(
+                    (catalog, path) -> {
+                        final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
+                        catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
+                    },
+                    objectIdentifier,
+                    ignoreIfNotExists,
+                    "AlterTable");
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "%s with identifier '%s' does not exist.",
+                            isDropTable ? "Table" : "View", objectIdentifier.asSummaryString()));
+        }
     }
 
     /**

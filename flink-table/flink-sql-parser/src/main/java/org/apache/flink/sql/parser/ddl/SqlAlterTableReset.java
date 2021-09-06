@@ -33,13 +33,16 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER TABLE [[catalogName.] dataBasesName].tableName RESET ( 'key1' [, 'key2']*). */
+/** ALTER TABLE IF EXISTS [[catalogName.] dataBasesName].tableName RESET ( 'key1' [, 'key2']*). */
 public class SqlAlterTableReset extends SqlAlterTable {
     private final SqlNodeList propertyKeyList;
 
     public SqlAlterTableReset(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyKeyList) {
-        super(pos, tableName, null);
+            SqlParserPos pos,
+            boolean ifExists,
+            SqlIdentifier tableName,
+            SqlNodeList propertyKeyList) {
+        super(pos, ifExists, tableName, null);
         this.propertyKeyList =
                 requireNonNull(propertyKeyList, "propertyKeyList should not be null");
     }
