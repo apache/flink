@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -203,7 +204,8 @@ public abstract class CheckpointBarrierHandler implements Closeable {
         }
     }
 
-    private boolean isDuringAlignment() {
+    @VisibleForTesting
+    boolean isDuringAlignment() {
         return startOfAlignmentTimestamp > OUTSIDE_OF_ALIGNMENT;
     }
 
