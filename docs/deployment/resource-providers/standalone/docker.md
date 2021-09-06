@@ -325,6 +325,24 @@ RUN pip3 install apache-flink
 {% endif %}
 {% endhighlight %}
 
+<span class="label label-info">Note</span> For base image flink:1.12.5 or above (which is based on Debian 11
+in which Python has been updated to 3.9), Python 3 could be installed as following:
+{% highlight Dockerfile %}
+RUN apt-get update -y && \
+apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev libffi-dev && \
+wget https://www.python.org/ftp/python/3.7.9/Python-3.7.9.tgz && \
+tar -xvf Python-3.7.9.tgz && \
+cd Python-3.7.9 && \
+./configure --without-tests --enable-shared && \
+make -j6 && \
+make install && \
+ldconfig /usr/local/lib && \
+cd .. && rm -f Python-3.7.9.tgz && rm -rf Python-3.7.9 && \
+ln -s /usr/local/bin/python3 /usr/local/bin/python && \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/*
+{% endhighlight %}
+
 Build the image named as **pyflink:latest**:
 
 {% highlight bash %}
