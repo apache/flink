@@ -174,7 +174,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
     @Override
     public void notifyCheckpointComplete(long completedCheckpointId) {
         synchronized (materializedSstFiles) {
-            if (completedCheckpointId > lastCompletedCheckpointId) {
+            // FLINK-23949: materializedSstFiles.keySet().contains(completedCheckpointId) make sure
+            // the notified checkpointId is not a savepoint, otherwise next checkpoint will
+            // degenerate into a full checkpoint
+            if (completedCheckpointId > lastCompletedCheckpointId
+                    && materializedSstFiles.keySet().contains(completedCheckpointId)) {
                 materializedSstFiles
                         .keySet()
                         .removeIf(checkpointId -> checkpointId < completedCheckpointId);
