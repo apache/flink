@@ -421,7 +421,7 @@ class JsonQueryWrapper(Enum):
     Defines whether and when to wrap the result of json_query() into an array.
     """
 
-    WITHOUT = 0,
+    WITHOUT_ARRAY = 0,
     CONDITIONAL = 1,
     UNCONDITIONAL = 2
 
@@ -1546,7 +1546,7 @@ class Expression(Generic[T]):
                                         on_error._to_j_json_value_on_empty_or_error(),
                                         default_on_error)
 
-    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT,
+    def json_query(self, path: str, wrapping_behavior=JsonQueryWrapper.WITHOUT_ARRAY,
                    on_empty=JsonQueryOnEmptyOrError.NULL,
                    on_error=JsonQueryOnEmptyOrError.NULL) -> 'Expression':
         """
@@ -1579,10 +1579,10 @@ class Expression(Generic[T]):
             >>> lit(1).json_query('$') # null
             >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL) # '[1]'
 
-            >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT, \
+            >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
                                      JsonQueryOnEmptyOrError.EMPTY_OBJECT, \
                                     JsonQueryOnEmptyOrError.NULL) # '{}'
-            >>> lit('{}').json_query('strict $.invalid', JsonQueryWrapper.WITHOUT, \
+            >>> lit('{}').json_query('strict $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
                                      JsonQueryOnEmptyOrError.NULL, \
                                      JsonQueryOnEmptyOrError.EMPTY_ARRAY) # '[]'
         """

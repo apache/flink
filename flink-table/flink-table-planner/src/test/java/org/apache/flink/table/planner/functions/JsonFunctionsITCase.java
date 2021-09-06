@@ -42,7 +42,7 @@ import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.ERROR;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.NULL;
 import static org.apache.flink.table.api.JsonQueryWrapper.CONDITIONAL;
 import static org.apache.flink.table.api.JsonQueryWrapper.UNCONDITIONAL;
-import static org.apache.flink.table.api.JsonQueryWrapper.WITHOUT;
+import static org.apache.flink.table.api.JsonQueryWrapper.WITHOUT_ARRAY;
 
 /** Tests for built-in JSON functions. */
 public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
@@ -348,7 +348,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         // Wrapping Behavior
 
                         .testResult(
-                                $("f0").jsonQuery("$.a1", WITHOUT),
+                                $("f0").jsonQuery("$.a1", WITHOUT_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITHOUT WRAPPER)",
                                 "[]",
                                 DataTypes.STRING(),
@@ -387,19 +387,19 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         // Empty Behavior
 
                         .testResult(
-                                $("f0").jsonQuery("lax $.err1", WITHOUT, NULL, NULL),
+                                $("f0").jsonQuery("lax $.err1", WITHOUT_ARRAY, NULL, NULL),
                                 "JSON_QUERY(f0, 'lax $.err1' NULL ON EMPTY)",
                                 null,
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("lax $.err2", WITHOUT, EMPTY_ARRAY, NULL),
+                                $("f0").jsonQuery("lax $.err2", WITHOUT_ARRAY, EMPTY_ARRAY, NULL),
                                 "JSON_QUERY(f0, 'lax $.err2' EMPTY ARRAY ON EMPTY)",
                                 "[]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("lax $.err3", WITHOUT, EMPTY_OBJECT, NULL),
+                                $("f0").jsonQuery("lax $.err3", WITHOUT_ARRAY, EMPTY_OBJECT, NULL),
                                 "JSON_QUERY(f0, 'lax $.err3' EMPTY OBJECT ON EMPTY)",
                                 "{}",
                                 DataTypes.STRING(),
@@ -408,25 +408,27 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, 'lax $.err4' ERROR ON EMPTY)",
                                 "Empty result of JSON_QUERY function is not allowed")
                         .testTableApiRuntimeError(
-                                $("f0").jsonQuery("lax $.err5", WITHOUT, ERROR, NULL),
+                                $("f0").jsonQuery("lax $.err5", WITHOUT_ARRAY, ERROR, NULL),
                                 "Empty result of JSON_QUERY function is not allowed")
 
                         // Error Behavior
 
                         .testResult(
-                                $("f0").jsonQuery("strict $.err6", WITHOUT, NULL, NULL),
+                                $("f0").jsonQuery("strict $.err6", WITHOUT_ARRAY, NULL, NULL),
                                 "JSON_QUERY(f0, 'strict $.err6' NULL ON ERROR)",
                                 null,
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("strict $.err7", WITHOUT, NULL, EMPTY_ARRAY),
+                                $("f0").jsonQuery(
+                                                "strict $.err7", WITHOUT_ARRAY, NULL, EMPTY_ARRAY),
                                 "JSON_QUERY(f0, 'strict $.err7' EMPTY ARRAY ON ERROR)",
                                 "[]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("strict $.err8", WITHOUT, NULL, EMPTY_OBJECT),
+                                $("f0").jsonQuery(
+                                                "strict $.err8", WITHOUT_ARRAY, NULL, EMPTY_OBJECT),
                                 "JSON_QUERY(f0, 'strict $.err8' EMPTY OBJECT ON ERROR)",
                                 "{}",
                                 DataTypes.STRING(),
@@ -435,7 +437,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, 'strict $.err9' ERROR ON ERROR)",
                                 "No results for path")
                         .testTableApiRuntimeError(
-                                $("f0").jsonQuery("strict $.err10", WITHOUT, NULL, ERROR),
+                                $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 "No results for path"));
     }
 }

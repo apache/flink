@@ -80,7 +80,7 @@ class JsonQueryConverter extends CustomizedConverter {
 
     private SqlJsonQueryWrapperBehavior convertWrappingBehavior(JsonQueryWrapper wrappingBehavior) {
         switch (wrappingBehavior) {
-            case WITHOUT:
+            case WITHOUT_ARRAY:
                 return SqlJsonQueryWrapperBehavior.WITHOUT_ARRAY;
             case CONDITIONAL:
                 return SqlJsonQueryWrapperBehavior.WITH_CONDITIONAL_ARRAY;

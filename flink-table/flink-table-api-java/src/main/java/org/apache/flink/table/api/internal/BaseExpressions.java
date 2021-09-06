@@ -1574,10 +1574,10 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * // Behavior if path expression is empty / there is an error
      * // "{}"
-     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT,
+     * lit("{}").jsonQuery("lax $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
      *     JsonQueryOnEmptyOrError.EMPTY_OBJECT, JsonQueryOnEmptyOrError.NULL)
      * // "[]"
-     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT,
+     * lit("{}").jsonQuery("strict $.invalid", JsonQueryWrapper.WITHOUT_ARRAY,
      *     JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.EMPTY_ARRAY)
      * }</pre>
      *
@@ -1631,6 +1631,6 @@ public abstract class BaseExpressions<InType, OutType> {
      * @return The extracted JSON value.
      */
     public OutType jsonQuery(String path) {
-        return jsonQuery(path, JsonQueryWrapper.WITHOUT);
+        return jsonQuery(path, JsonQueryWrapper.WITHOUT_ARRAY);
     }
 }

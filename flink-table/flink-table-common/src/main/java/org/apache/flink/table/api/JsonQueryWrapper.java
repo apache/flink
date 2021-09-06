@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
  */
 @PublicEvolving
 public enum JsonQueryWrapper implements TableSymbol {
-    WITHOUT,
+    WITHOUT_ARRAY,
     CONDITIONAL,
     UNCONDITIONAL
 }
