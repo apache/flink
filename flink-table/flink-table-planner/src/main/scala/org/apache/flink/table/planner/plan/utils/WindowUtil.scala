@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.logical.TimestampType
+import org.apache.flink.table.types.logical.{LogicalType, TimestampType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
 import org.apache.calcite.rel.`type`.RelDataType
@@ -162,6 +162,31 @@ object WindowUtil {
 
     val program = programBuilder.getProgram()
     (program, calcFieldShifting.toArray, newTimeAttributeIndex, !containsTimeAttribute)
+  }
+
+  /**
+   * Parses time attribute type of window table-valued function call.
+   */
+  def parseTimeAttributeType(
+      windowCall: RexCall,
+      inputRowType: RelDataType): LogicalType = {
+    if (!isWindowTableFunctionCall(windowCall)) {
+      throw new IllegalArgumentException(s"RexCall $windowCall is not a window table-valued " +
+        "function, can't convert it into WindowingStrategy")
+    }
+
+    val timeIndex = getTimeAttributeIndex(windowCall.operands(1))
+    val fieldType = inputRowType.getFieldList.get(timeIndex).getType
+    if (!FlinkTypeFactory.isTimeIndicatorType(fieldType)) {
+      throw new ValidationException("Window can only be defined on a time attribute column, " +
+        "but is type of " + fieldType)
+    }
+    val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
+    if (!canBeTimeAttributeType(timeAttributeType)) {
+      throw new ValidationException("The supported time indicator type are TIMESTAMP" +
+        " and TIMESTAMP_LTZ, but is " + FlinkTypeFactory.toLogicalType(fieldType) + "")
+    }
+    timeAttributeType
   }
 
   /**

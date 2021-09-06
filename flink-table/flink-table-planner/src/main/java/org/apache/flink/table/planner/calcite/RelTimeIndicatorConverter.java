@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
 import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -57,11 +58,11 @@ import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
+import org.apache.flink.table.planner.plan.utils.WindowUtil;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -76,6 +77,7 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.calcite.rel.logical.LogicalTableModify;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -113,6 +115,7 @@ import static org.apache.flink.table.planner.plan.utils.MatchUtil.isFinalOnRowTi
 import static org.apache.flink.table.planner.plan.utils.MatchUtil.isMatchRowTimeIndicator;
 import static org.apache.flink.table.planner.plan.utils.WindowUtil.groupingContainsWindowStartEnd;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
 /**
  * Traverses a {@link RelNode} tree and converts fields with {@link TimeIndicatorRelDataType} type.
@@ -150,15 +153,17 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 || node instanceof FlinkLogicalUnion
                 || node instanceof FlinkLogicalMinus) {
             return visitSetOp((SetOp) node);
-        } else if (node instanceof FlinkLogicalTableFunctionScan
-                || node instanceof FlinkLogicalSnapshot
+        } else if (node instanceof FlinkLogicalSnapshot
                 || node instanceof FlinkLogicalRank
                 || node instanceof FlinkLogicalDistribution
                 || node instanceof FlinkLogicalWatermarkAssigner
                 || node instanceof FlinkLogicalSort
-                || node instanceof FlinkLogicalOverAggregate
                 || node instanceof FlinkLogicalExpand) {
             return visitSimpleRel(node);
+        } else if (node instanceof FlinkLogicalTableFunctionScan) {
+            return visitTableFunctionScan((FlinkLogicalTableFunctionScan) node);
+        } else if (node instanceof FlinkLogicalOverAggregate) {
+            return visitOverAggregate((FlinkLogicalOverAggregate) node);
         } else if (node instanceof FlinkLogicalWindowAggregate) {
             return visitWindowAggregate((FlinkLogicalWindowAggregate) node);
         } else if (node instanceof FlinkLogicalWindowTableAggregate) {
@@ -371,6 +376,64 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         return node.copy(node.getTraitSet(), newInputs);
     }
 
+    private RelNode visitTableFunctionScan(FlinkLogicalTableFunctionScan scan) {
+        List<RelNode> newInputs =
+                scan.getInputs().stream()
+                        .map(input -> input.accept(this))
+                        .collect(Collectors.toList());
+        RexCall scanCall = (RexCall) scan.getCall();
+        RelDataType oldOutputType = scan.getRowType();
+        RelDataType newOutputType;
+        if (WindowUtil.isWindowTableFunctionCall(scanCall)) {
+            LogicalType timeAttributeType =
+                    WindowUtil.parseTimeAttributeType(scanCall, newInputs.get(0).getRowType());
+            if (isRowtimeAttribute(timeAttributeType)) {
+                FlinkTypeFactory typeFactory = (FlinkTypeFactory) rexBuilder.getTypeFactory();
+                newOutputType =
+                        SqlWindowTableFunction.inferRowType(
+                                typeFactory,
+                                newInputs.get(0).getRowType(),
+                                typeFactory.createFieldTypeFromLogicalType(timeAttributeType));
+            } else {
+                newOutputType = oldOutputType;
+            }
+        } else {
+            newOutputType = oldOutputType;
+        }
+        return scan.copy(
+                scan.getTraitSet(),
+                newInputs,
+                scanCall,
+                scan.getElementType(),
+                newOutputType,
+                scan.getColumnMappings());
+    }
+
+    private RelNode visitOverAggregate(FlinkLogicalOverAggregate overAggregate) {
+        RelNode newInput = overAggregate.getInput().accept(this);
+        RelDataType newInputRowType = newInput.getRowType();
+        RelDataType newOutputType;
+        RelDataType oldOutputType = overAggregate.getRowType();
+        if (!newInputRowType.equals(overAggregate.getInput().getRowType())) {
+            RelDataTypeFactory.Builder typeBuilder = rexBuilder.getTypeFactory().builder();
+            List<RelDataTypeField> newInputFieldList = newInputRowType.getFieldList();
+            typeBuilder.addAll(newInputFieldList);
+            List<RelDataTypeField> oldOutputFieldList = oldOutputType.getFieldList();
+            IntStream.range(newInputFieldList.size(), oldOutputFieldList.size())
+                    .forEach(fieldIdx -> typeBuilder.add(oldOutputFieldList.get(fieldIdx)));
+            newOutputType = typeBuilder.build();
+        } else {
+            newOutputType = oldOutputType;
+        }
+        return new FlinkLogicalOverAggregate(
+                overAggregate.getCluster(),
+                overAggregate.getTraitSet(),
+                newInput,
+                overAggregate.getConstants(),
+                newOutputType,
+                overAggregate.groups);
+    }
+
     private RelNode visitSetOp(SetOp setOp) {
         RelNode convertedSetOp = visitSimpleRel(setOp);
 
@@ -506,7 +569,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         Seq<PlannerNamedWindowProperty> oldNamedProperties = agg.getNamedProperties();
         FieldReferenceExpression oldTimeAttribute = agg.getWindow().timeAttribute();
         LogicalType oldTimeAttributeType = oldTimeAttribute.getOutputDataType().getLogicalType();
-        boolean isRowtimeIndicator = LogicalTypeChecks.isRowtimeAttribute(oldTimeAttributeType);
+        boolean isRowtimeIndicator = isRowtimeAttribute(oldTimeAttributeType);
         boolean convertedToRowtimeTimestampLtz;
         if (!isRowtimeIndicator) {
             convertedToRowtimeTimestampLtz = false;

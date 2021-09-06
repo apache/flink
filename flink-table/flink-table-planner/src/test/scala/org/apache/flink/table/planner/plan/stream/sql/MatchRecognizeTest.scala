@@ -71,6 +71,66 @@ class MatchRecognizeTest extends TableTestBase {
   }
 
   @Test
+  def testWindowTVFOnMatchRecognizeOnRowtimeLTZ(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY ts_ltz
+         |  MEASURES
+         |    A.price as price,
+         |    A.tax as tax,
+         |    MATCH_ROWTIME() as matchRowtime
+         |  ONE ROW PER MATCH
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.price > 0
+         |) AS T
+         |""".stripMargin
+    val table = util.tableEnv.sqlQuery(sqlQuery)
+    util.tableEnv.registerTable("T", table)
+    val sqlQuery1 =
+      s"""
+         |SELECT *
+         |FROM TABLE(TUMBLE(TABLE T, DESCRIPTOR(matchRowtime), INTERVAL '3' second))
+         |""".stripMargin
+    util.verifyRelPlanWithType(sqlQuery1)
+  }
+
+  @Test
+  def testOverWindowOnMatchRecognizeOnRowtimeLTZ(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT
+        |  symbol,
+        |  price,
+        |  tax,
+        |  matchRowtime,
+        |  SUM(price) OVER (
+        |    PARTITION BY symbol ORDER BY matchRowtime RANGE UNBOUNDED PRECEDING) as price_sum
+        |FROM (
+        |  SELECT
+        |    *
+        |  FROM Ticker
+        |  MATCH_RECOGNIZE (
+        |    PARTITION BY symbol
+        |    ORDER BY ts_ltz
+        |    MEASURES
+        |      A.price as price,
+        |      A.tax as tax,
+        |      MATCH_ROWTIME() as matchRowtime
+        |    ONE ROW PER MATCH
+        |    PATTERN (A)
+        |    DEFINE
+        |      A AS A.price > 0))
+      """.stripMargin
+    util.verifyRelPlanWithType(sqlQuery)
+  }
+
+  @Test
   def testCascadeMatch(): Unit = {
     val sqlQuery =
       s"""
