@@ -217,7 +217,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
                     count);
             assertEquals("The min value should be 0", 0, min);
             assertEquals(
-                    "The max value should be " + (totalNumRecords - 1),
+                    String.format("The max value should be %d", totalNumRecords - 1),
                     totalNumRecords - 1,
                     max);
         }
