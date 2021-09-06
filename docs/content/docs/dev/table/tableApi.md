@@ -890,8 +890,8 @@ Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct f
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"));
 Table result = left.join(right)
     .where($("a").isEqual($("d")))
     .select($("a"), $("b"), $("e"));
@@ -928,8 +928,8 @@ Both tables must have distinct field names and at least one equality join predic
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"));
 
 Table leftOuterResult = left.leftOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
@@ -976,8 +976,8 @@ An interval join requires at least one equi-join predicate and a join condition 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"), $("ltime"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"), $("rtime"));
 
 Table result = left.join(right)
   .where(
