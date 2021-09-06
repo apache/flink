@@ -59,14 +59,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private static TestSpec jsonExists() throws Exception {
-        final InputStream jsonResource =
-                JsonFunctionsITCase.class.getResourceAsStream("/json/json-exists.json");
-        if (jsonResource == null) {
-            throw new IllegalStateException(
-                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
-        }
-
-        final String jsonValue = IOUtils.toString(jsonResource, Charset.defaultCharset());
+        final String jsonValue = getJsonFromResource("/json/json-exists.json");
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_EXISTS)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(DataTypes.STRING())
@@ -147,14 +140,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private static TestSpec jsonValue() throws Exception {
-        final InputStream jsonResource =
-                JsonFunctionsITCase.class.getResourceAsStream("/json/json-value.json");
-        if (jsonResource == null) {
-            throw new IllegalStateException(
-                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
-        }
-
-        final String jsonValue = IOUtils.toString(jsonResource, Charset.defaultCharset());
+        final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
                 .onFieldsWithData(jsonValue)
                 .andDataTypes(DataTypes.STRING())
@@ -323,14 +309,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSpec> jsonQuery() throws Exception {
-        final InputStream jsonResource =
-                JsonFunctionsITCase.class.getResourceAsStream("/json/json-query.json");
-        if (jsonResource == null) {
-            throw new IllegalStateException(
-                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
-        }
-
-        final String jsonValue = IOUtils.toString(jsonResource, Charset.defaultCharset());
+        final String jsonValue = getJsonFromResource("/json/json-query.json");
         return Arrays.asList(
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
                         .onFieldsWithData((String) null)
@@ -439,5 +418,17 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 "No results for path"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private static String getJsonFromResource(String fileName) throws Exception {
+        final InputStream jsonResource = JsonFunctionsITCase.class.getResourceAsStream(fileName);
+        if (jsonResource == null) {
+            throw new IllegalStateException(
+                    String.format("%s: Missing test data.", JsonFunctionsITCase.class.getName()));
+        }
+
+        return IOUtils.toString(jsonResource, Charset.defaultCharset());
     }
 }
