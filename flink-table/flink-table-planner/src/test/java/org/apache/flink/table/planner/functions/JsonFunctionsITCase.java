@@ -40,8 +40,8 @@ import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_ARRAY;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.EMPTY_OBJECT;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.ERROR;
 import static org.apache.flink.table.api.JsonQueryOnEmptyOrError.NULL;
-import static org.apache.flink.table.api.JsonQueryWrapper.CONDITIONAL;
-import static org.apache.flink.table.api.JsonQueryWrapper.UNCONDITIONAL;
+import static org.apache.flink.table.api.JsonQueryWrapper.CONDITIONAL_ARRAY;
+import static org.apache.flink.table.api.JsonQueryWrapper.UNCONDITIONAL_ARRAY;
 import static org.apache.flink.table.api.JsonQueryWrapper.WITHOUT_ARRAY;
 
 /** Tests for built-in JSON functions. */
@@ -333,31 +333,31 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("$.a1", CONDITIONAL),
+                                $("f0").jsonQuery("$.a1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH CONDITIONAL WRAPPER)",
                                 "[]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("$.o1", CONDITIONAL),
+                                $("f0").jsonQuery("$.o1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.o1' WITH CONDITIONAL WRAPPER)",
                                 "[{}]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("$.a1", UNCONDITIONAL),
+                                $("f0").jsonQuery("$.a1", UNCONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.a1' WITH UNCONDITIONAL WRAPPER)",
                                 "[[]]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("$.n1", CONDITIONAL),
+                                $("f0").jsonQuery("$.n1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.n1' WITH CONDITIONAL WRAPPER)",
                                 "[1]",
                                 DataTypes.STRING(),
                                 DataTypes.VARCHAR(2000))
                         .testResult(
-                                $("f0").jsonQuery("$.s1", CONDITIONAL),
+                                $("f0").jsonQuery("$.s1", CONDITIONAL_ARRAY),
                                 "JSON_QUERY(f0, '$.s1' WITH CONDITIONAL WRAPPER)",
                                 "[\"Test\"]",
                                 DataTypes.STRING(),

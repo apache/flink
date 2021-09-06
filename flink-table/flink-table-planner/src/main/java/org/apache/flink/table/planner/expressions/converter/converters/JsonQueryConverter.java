@@ -82,9 +82,9 @@ class JsonQueryConverter extends CustomizedConverter {
         switch (wrappingBehavior) {
             case WITHOUT_ARRAY:
                 return SqlJsonQueryWrapperBehavior.WITHOUT_ARRAY;
-            case CONDITIONAL:
+            case CONDITIONAL_ARRAY:
                 return SqlJsonQueryWrapperBehavior.WITH_CONDITIONAL_ARRAY;
-            case UNCONDITIONAL:
+            case UNCONDITIONAL_ARRAY:
                 return SqlJsonQueryWrapperBehavior.WITH_UNCONDITIONAL_ARRAY;
             default:
                 throw new TableException("Unknown wrapping behavior: " + wrappingBehavior);

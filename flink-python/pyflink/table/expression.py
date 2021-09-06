@@ -422,8 +422,8 @@ class JsonQueryWrapper(Enum):
     """
 
     WITHOUT_ARRAY = 0,
-    CONDITIONAL = 1,
-    UNCONDITIONAL = 2
+    CONDITIONAL_ARRAY = 1,
+    UNCONDITIONAL_ARRAY = 2
 
     def _to_j_json_query_wrapper(self):
         gateway = get_gateway()
@@ -1572,12 +1572,12 @@ class Expression(Generic[T]):
             >>> lit('[1,2]').json_query('$') # '[1,2]'
             >>> null_of(DataTypes.STRING()).json_query('$') # None
 
-            >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL) # '[{}]'
-            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL) # '[1,2]'
-            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.UNCONDITIONAL) # '[[1,2]]'
+            >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[{}]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1,2]'
+            >>> lit('[1,2]').json_query('$', JsonQueryWrapper.UNCONDITIONAL_ARRAY) # '[[1,2]]'
 
             >>> lit(1).json_query('$') # null
-            >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL) # '[1]'
+            >>> lit(1).json_query('$', JsonQueryWrapper.CONDITIONAL_ARRAY) # '[1]'
 
             >>> lit('{}').json_query('lax $.invalid', JsonQueryWrapper.WITHOUT_ARRAY, \
                                      JsonQueryOnEmptyOrError.EMPTY_OBJECT, \

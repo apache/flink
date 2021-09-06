@@ -207,7 +207,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                                                   JsonValueOnEmptyOrError.DEFAULT, 42,
                                                   JsonValueOnEmptyOrError.ERROR, None)))
 
-        self.assertEqual("JSON_QUERY('{}', '$.x', WITHOUT, NULL, EMPTY_ARRAY)",
+        self.assertEqual("JSON_QUERY('{}', '$.x', WITHOUT_ARRAY, NULL, EMPTY_ARRAY)",
                          str(lit('{}').json_query('$.x', JsonQueryWrapper.WITHOUT_ARRAY,
                                                   JsonQueryOnEmptyOrError.NULL,
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))

@@ -1564,13 +1564,13 @@ public abstract class BaseExpressions<InType, OutType> {
      * nullOf(DataTypes.STRING()).jsonQuery("$") // null
      *
      * // Wrap result into an array
-     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL) // "[{}]"
-     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL) // "[1, 2]"
-     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL) // "[[1, 2]]"
+     * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[{}]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1, 2]"
+     * lit("[1, 2]").jsonQuery("$", JsonQueryWrapper.UNCONDITIONAL_ARRAY) // "[[1, 2]]"
      *
      * // Scalars must be wrapped to be returned
      * lit(1).jsonQuery("$") // null
-     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL) // "[1]"
+     * lit(1).jsonQuery("$", JsonQueryWrapper.CONDITIONAL_ARRAY) // "[1]"
      *
      * // Behavior if path expression is empty / there is an error
      * // "{}"
