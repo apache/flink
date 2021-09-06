@@ -1552,10 +1552,8 @@ class Expression(Generic[T]):
         """
         Extracts JSON values from a JSON string.
 
-        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
-
-        The result is always returned as a `STRING`. The `RETURNING` clause is currently not
-        supported.
+        This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+        always returned as a `STRING`.
 
         The `wrapping_behavior` determines whether the extracted value should be wrapped into an
         array, and whether to do so unconditionally or only if the value itself isn't an array

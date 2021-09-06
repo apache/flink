@@ -1541,10 +1541,8 @@ public abstract class BaseExpressions<InType, OutType> {
     /**
      * Extracts JSON values from a JSON string.
      *
-     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL.
-     *
-     * <p>The result is always returned as a {@link DataTypes#STRING()}. The {@code RETURNING}
-     * clause is currently not supported.
+     * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
+     * always returned as a {@link DataTypes#STRING()}.
      *
      * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
      * into an array, and whether to do so unconditionally or only if the value itself isn't an
