@@ -1561,6 +1561,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * <pre>{@code
      * lit("{ \"a\": { \"b\": 1 } }").jsonQuery("$.a") // "{ \"b\": 1 }"
      * lit("[1, 2]").jsonQuery("$") // "[1, 2]"
+     * nullOf(DataTypes.STRING()).jsonQuery("$") // null
      *
      * // Wrap result into an array
      * lit("{}").jsonQuery("$", JsonQueryWrapper.CONDITIONAL) // "[{}]"

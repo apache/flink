@@ -685,6 +685,8 @@ json:
       JSON_QUERY('{ "a": { "b": 1 } }', '$.a')
       -- '[1, 2]'
       JSON_QUERY('[1, 2]', '$')
+      -- NULL
+      JSON_QUERY((NULL AS STRING), '$')
 
       -- Wrap result into an array
       -- '[{}]'

@@ -1570,6 +1570,7 @@ class Expression(Generic[T]):
 
             >>> lit('{"a":{"b":1}}').json_query('$.a') # '{"b":1}'
             >>> lit('[1,2]').json_query('$') # '[1,2]'
+            >>> null_of(DataTypes.STRING()).json_query('$') # None
 
             >>> lit('{}').json_query('$', JsonQueryWrapper.CONDITIONAL) # '[{}]'
             >>> lit('[1,2]').json_query('$', JsonQueryWrapper.CONDITIONAL) # '[1,2]'
