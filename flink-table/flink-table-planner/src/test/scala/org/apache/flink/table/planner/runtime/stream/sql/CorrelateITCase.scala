@@ -145,7 +145,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val res = sink.getAppendResults;
     assertEquals(1, res.size)
-    assertTrue(res.get(0).equals("Jack") || res.get(0).equals("John"))
+    assertTrue(res(0).equals("Jack") || res(0).equals("John"))
   }
 
   @Test
