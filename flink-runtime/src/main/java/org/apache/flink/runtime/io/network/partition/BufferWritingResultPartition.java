@@ -332,7 +332,6 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         try (final BufferConsumer consumer = buffer.createBufferConsumerFromBeginning()) {
             int desirableBufferSize = Integer.MAX_VALUE;
             for (ResultSubpartition subpartition : subpartitions) {
-                subpartition.add(consumer.copy(), partialRecordBytes);
                 int subPartitionBufferSize = subpartition.add(consumer.copy(), partialRecordBytes);
                 desirableBufferSize =
                         subPartitionBufferSize > 0
