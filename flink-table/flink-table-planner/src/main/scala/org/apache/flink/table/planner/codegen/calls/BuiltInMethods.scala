@@ -31,7 +31,6 @@ import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
 import java.util.TimeZone
 
-
 object BuiltInMethods {
 
   // ARITHMETIC FUNCTIONS
