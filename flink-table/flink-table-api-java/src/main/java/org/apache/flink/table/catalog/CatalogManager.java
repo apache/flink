@@ -765,22 +765,23 @@ public final class CatalogManager {
     /**
      * Alters a view in a given fully qualified path.
      *
-     * @param table The view to put in the given path
+     * @param view The view to put in the given path
      * @param objectIdentifier The fully qualified path where to alter the view.
      * @param ignoreIfNotExists If false exception will be thrown if the view or database or catalog
      *     to be altered does not exist.
      */
     public void alterView(
-            CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        alterTableInternal(table, objectIdentifier, ignoreIfNotExists, false);
+            CatalogBaseTable view, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        alterTableInternal(view, objectIdentifier, ignoreIfNotExists, false);
     }
 
     public void alterTableInternal(
             CatalogBaseTable table,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists,
-            boolean isDropTable) {
+            boolean isAlterTable) {
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
+        final String tableOrView = isAlterTable ? "Table" : "View";
         if (resultOpt.isPresent()) {
             execute(
                     (catalog, path) -> {
@@ -789,12 +790,12 @@ public final class CatalogManager {
                     },
                     objectIdentifier,
                     ignoreIfNotExists,
-                    "AlterTable");
+                    "Alter" + tableOrView);
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
-                            isDropTable ? "Table" : "View", objectIdentifier.asSummaryString()));
+                            tableOrView, objectIdentifier.asSummaryString()));
         }
     }
 
@@ -822,7 +823,7 @@ public final class CatalogManager {
 
     private void dropTableInternal(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, boolean isDropTable) {
-        Predicate<CatalogBaseTable> filter =
+        final Predicate<CatalogBaseTable> filter =
                 isDropTable
                         ? table -> table instanceof CatalogTable
                         : table -> table instanceof CatalogView;
@@ -835,15 +836,15 @@ public final class CatalogManager {
                                     + "Drop it first before removing the permanent %s.",
                             tableOrView, objectIdentifier, tableOrView));
         }
+        final String tableOrView = isDropTable ? "Table" : "View";
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
             execute(
                     (catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
                     objectIdentifier,
                     ignoreIfNotExists,
-                    "DropTable");
+                    "Drop" + tableOrView);
         } else if (!ignoreIfNotExists) {
-            String tableOrView = isDropTable ? "Table" : "View";
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",

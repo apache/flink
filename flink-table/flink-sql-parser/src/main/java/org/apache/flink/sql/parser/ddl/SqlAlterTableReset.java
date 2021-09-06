@@ -39,10 +39,10 @@ public class SqlAlterTableReset extends SqlAlterTable {
 
     public SqlAlterTableReset(
             SqlParserPos pos,
-            boolean ifExists,
             SqlIdentifier tableName,
-            SqlNodeList propertyKeyList) {
-        super(pos, ifExists, tableName, null);
+            SqlNodeList propertyKeyList,
+            boolean ifExists) {
+        super(pos, tableName, ifExists);
         this.propertyKeyList =
                 requireNonNull(propertyKeyList, "propertyKeyList should not be null");
     }

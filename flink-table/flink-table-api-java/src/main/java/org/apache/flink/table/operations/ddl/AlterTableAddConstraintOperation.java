@@ -41,11 +41,11 @@ public class AlterTableAddConstraintOperation extends AlterTableOperation {
     private final String[] columnNames;
 
     public AlterTableAddConstraintOperation(
-            boolean ifExists,
             ObjectIdentifier tableIdentifier,
             @Nullable String constraintName,
-            String[] columnNames) {
-        super(ifExists, tableIdentifier);
+            String[] columnNames,
+            boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.constraintName = constraintName;
         this.columnNames = columnNames;
     }
@@ -70,7 +70,7 @@ public class AlterTableAddConstraintOperation extends AlterTableOperation {
         return OperationUtils.formatWithChildren(
                 String.format(
                         "ALTER TABLE %sADD CONSTRAINT",
-                        ifExists ? "IF EXISTS" + StringUtils.SPACE : StringUtils.EMPTY),
+                        ifExists ? "IF EXISTS " : StringUtils.EMPTY),
                 params,
                 Collections.emptyList(),
                 Operation::asSummaryString);

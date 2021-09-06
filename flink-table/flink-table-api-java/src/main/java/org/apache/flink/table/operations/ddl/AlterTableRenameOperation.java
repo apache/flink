@@ -28,14 +28,14 @@ public class AlterTableRenameOperation extends AlterTableOperation {
 
     public AlterTableRenameOperation(
             ObjectIdentifier tableIdentifier, ObjectIdentifier newTableIdentifier) {
-        this(false, tableIdentifier, newTableIdentifier);
+        this(tableIdentifier, newTableIdentifier, false);
     }
 
     public AlterTableRenameOperation(
-            boolean ifExists,
             ObjectIdentifier tableIdentifier,
-            ObjectIdentifier newTableIdentifier) {
-        super(ifExists, tableIdentifier);
+            ObjectIdentifier newTableIdentifier,
+            boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.newTableIdentifier = newTableIdentifier;
     }
 
@@ -47,7 +47,7 @@ public class AlterTableRenameOperation extends AlterTableOperation {
     public String asSummaryString() {
         return String.format(
                 "ALTER TABLE %s%s RENAME TO %s",
-                ifExists ? "IF EXISTS" + StringUtils.SPACE : StringUtils.EMPTY,
+                ifExists ? "IF EXISTS " : StringUtils.EMPTY,
                 tableIdentifier.asSummaryString(),
                 newTableIdentifier.asSummaryString());
     }

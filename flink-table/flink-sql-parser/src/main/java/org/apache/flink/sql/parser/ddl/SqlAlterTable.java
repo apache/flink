@@ -44,41 +44,37 @@ public abstract class SqlAlterTable extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER TABLE", SqlKind.ALTER_TABLE);
 
-    protected final boolean ifExists;
     protected final SqlIdentifier tableIdentifier;
     protected final SqlNodeList partitionSpec;
+    protected final boolean ifExists;
 
     public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName) {
-        this(pos, false, tableName);
+        this(pos, tableName, false);
     }
 
-    public SqlAlterTable(SqlParserPos pos, boolean ifExists, SqlIdentifier tableName) {
-        this(pos, ifExists, tableName, null);
+    public SqlAlterTable(SqlParserPos pos, SqlIdentifier tableName, boolean ifExists) {
+        this(pos, tableName, null, ifExists);
     }
 
     public SqlAlterTable(
             SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlNodeList partitionSpec) {
-        this(pos, false, tableName, partitionSpec);
+        this(pos, tableName, partitionSpec, false);
     }
 
     public SqlAlterTable(
             SqlParserPos pos,
-            boolean ifExists,
             SqlIdentifier tableName,
-            @Nullable SqlNodeList partitionSpec) {
+            SqlNodeList partitionSpec,
+            boolean ifExists) {
         super(pos);
-        this.ifExists = ifExists;
         this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
         this.partitionSpec = partitionSpec;
+        this.ifExists = ifExists;
     }
 
     @Override
     public SqlOperator getOperator() {
         return OPERATOR;
-    }
-
-    public boolean isIfExists() {
-        return ifExists;
     }
 
     public SqlIdentifier getTableName() {
@@ -109,6 +105,10 @@ public abstract class SqlAlterTable extends SqlCall {
      */
     public SqlNodeList getPartitionSpec() {
         return partitionSpec;
+    }
+
+    public boolean isIfExists() {
+        return ifExists;
     }
 
     /** Get partition spec as key-value strings. */

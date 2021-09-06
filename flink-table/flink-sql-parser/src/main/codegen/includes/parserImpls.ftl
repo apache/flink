@@ -493,8 +493,8 @@ SqlRichDescribeTable SqlRichDescribeTable() :
 SqlAlterTable SqlAlterTable() :
 {
     SqlParserPos startPos;
-    boolean ifExists = false;
     SqlIdentifier tableIdentifier;
+    boolean ifExists = false;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
@@ -511,9 +511,9 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableRename(
                         startPos.plus(getPos()),
-                        ifExists,
                         tableIdentifier,
-                        newTableIdentifier);
+                        newTableIdentifier,
+                        ifExists);
         }
     |
         <RESET>
@@ -521,9 +521,9 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableReset(
                         startPos.plus(getPos()),
-                        ifExists,
                         tableIdentifier,
-                        propertyKeyList);
+                        propertyKeyList,
+                        ifExists);
         }
     |
         <SET>
@@ -531,26 +531,26 @@ SqlAlterTable SqlAlterTable() :
         {
             return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
-                        ifExists,
                         tableIdentifier,
-                        propertyList);
+                        propertyList,
+                        ifExists);
         }
     |
         <ADD> constraint = TableConstraint() {
             return new SqlAlterTableAddConstraint(
-                        ifExists,
                         tableIdentifier,
                         constraint,
-                        startPos.plus(getPos()));
+                        startPos.plus(getPos()),
+                        ifExists);
         }
     |
         <DROP> <CONSTRAINT>
         constraintName = SimpleIdentifier() {
             return new SqlAlterTableDropConstraint(
-                ifExists,
                 tableIdentifier,
                 constraintName,
-                startPos.plus(getPos()));
+                startPos.plus(getPos()),
+                ifExists);
         }
     )
 }

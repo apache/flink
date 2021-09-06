@@ -24,16 +24,16 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
  * Abstract Operation to describe all ALTER TABLE statements such as rename table /set properties.
  */
 public abstract class AlterTableOperation implements AlterOperation {
-    protected final boolean ifExists;
     protected final ObjectIdentifier tableIdentifier;
+    protected final boolean ifExists;
 
-    public AlterTableOperation(boolean ifExists, ObjectIdentifier tableIdentifier) {
-        this.ifExists = ifExists;
+    public AlterTableOperation(ObjectIdentifier tableIdentifier, boolean ifExists) {
         this.tableIdentifier = tableIdentifier;
+        this.ifExists = ifExists;
     }
 
     public AlterTableOperation(ObjectIdentifier tableIdentifier) {
-        this(false, tableIdentifier);
+        this(tableIdentifier, false);
     }
 
     public boolean isIfExists() {

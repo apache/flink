@@ -27,8 +27,8 @@ public class AlterTableDropConstraintOperation extends AlterTableOperation {
     private final String constraintName;
 
     public AlterTableDropConstraintOperation(
-            boolean ifExists, ObjectIdentifier tableIdentifier, String constraintName) {
-        super(ifExists, tableIdentifier);
+            ObjectIdentifier tableIdentifier, String constraintName, boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.constraintName = constraintName;
     }
 
@@ -40,8 +40,6 @@ public class AlterTableDropConstraintOperation extends AlterTableOperation {
     public String asSummaryString() {
         return String.format(
                 "ALTER TABLE %s%s DROP CONSTRAINT %s",
-                ifExists ? "IF EXISTS" + StringUtils.SPACE : StringUtils.EMPTY,
-                tableIdentifier,
-                constraintName);
+                ifExists ? "IF EXISTS " : StringUtils.EMPTY, tableIdentifier, constraintName);
     }
 }

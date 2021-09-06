@@ -24,20 +24,30 @@ import org.apache.flink.table.operations.OperationUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /** Operation to describe a ALTER TABLE IF EXISTS .. SET .. statement. */
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
+    private final Map<String, String> tableOptions;
 
     public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        this(false, tableIdentifier, catalogTable);
+        this(tableIdentifier, catalogTable, false);
     }
 
     public AlterTableOptionsOperation(
-            boolean ifExists, ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
-        super(ifExists, tableIdentifier);
+            ObjectIdentifier tableIdentifier, CatalogTable catalogTable, boolean ifExists) {
+        super(tableIdentifier, ifExists);
         this.catalogTable = catalogTable;
+        this.tableOptions = catalogTable.getOptions();
+    }
+
+    public AlterTableOptionsOperation(
+            ObjectIdentifier tableIdentifier, Map<String, String> tableOptions, boolean ifExists) {
+        super(tableIdentifier, ifExists);
+        this.catalogTable = null;
+        this.tableOptions = tableOptions;
     }
 
     public CatalogTable getCatalogTable() {
@@ -47,14 +57,12 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String description =
-                catalogTable == null
-                        ? StringUtils.EMPTY
-                        : catalogTable.getOptions().entrySet().stream()
-                                .map(
-                                        entry ->
-                                                OperationUtils.formatParameter(
-                                                        entry.getKey(), entry.getValue()))
-                                .collect(Collectors.joining(", "));
+                tableOptions.entrySet().stream()
+                        .map(
+                                entry ->
+                                        OperationUtils.formatParameter(
+                                                entry.getKey(), entry.getValue()))
+                        .collect(Collectors.joining(", "));
         return String.format(
                 "ALTER TABLE %s%s SET (%s)",
                 ifExists ? "IF EXISTS " : StringUtils.EMPTY,

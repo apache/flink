@@ -38,15 +38,15 @@ public class SqlAlterTableRename extends SqlAlterTable {
 
     public SqlAlterTableRename(
             SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier newTableName) {
-        this(pos, false, tableName, newTableName);
+        this(pos, tableName, newTableName, false);
     }
 
     public SqlAlterTableRename(
             SqlParserPos pos,
-            boolean ifExists,
             SqlIdentifier tableName,
-            SqlIdentifier newTableName) {
-        super(pos, ifExists, tableName);
+            SqlIdentifier newTableName,
+            boolean ifExists) {
+        super(pos, tableName, ifExists);
         this.newTableIdentifier = requireNonNull(newTableName, "new tableName should not be null");
     }
 

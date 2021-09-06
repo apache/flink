@@ -946,7 +946,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   }
 
   @Test
-  def testAlterTableWithoutIfExists(): Unit = {
+  def testAlterTable(): Unit = {
     val ddl1 =
       """
         |create table t1(
@@ -989,56 +989,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     // alter table drop constraint
     tableEnv.executeSql("alter table t2 drop constraint ct1")
-    val tableSchema2 = tableEnv.getCatalog(currentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
-      .getSchema
-    assertEquals(false, tableSchema2.getPrimaryKey.isPresent)
-  }
-
-  @Test
-  def testAlterTableWithIfExists(): Unit = {
-    val ddl1 =
-      """
-        |create table t1(
-        |  a bigint not null,
-        |  b bigint,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'k1' = 'v1'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(ddl1)
-
-    // alter table rename
-    tableEnv.executeSql("alter table if exists t1 rename to t2")
-    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
-
-    // alter table options
-    tableEnv.executeSql("alter table if exists t2 set ('k1' = 'a', 'k2' = 'b')")
-    val expectedOptions = new util.HashMap[String, String]()
-    expectedOptions.put("connector", "COLLECTION")
-    expectedOptions.put("k1", "a")
-    expectedOptions.put("k2", "b")
-    assertEquals(expectedOptions, getTableOptions("t2"))
-
-    tableEnv.executeSql("alter table if exists t2 reset ('k1')")
-    expectedOptions.remove("k1")
-    assertEquals(expectedOptions, getTableOptions("t2"))
-
-    // alter table add constraint
-    val currentCatalog = tableEnv.getCurrentCatalog
-    val currentDB = tableEnv.getCurrentDatabase
-    tableEnv.executeSql("alter table if exists t2 add constraint ct1 primary key(a) not enforced")
-    val tableSchema1 = tableEnv.getCatalog(currentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
-      .getSchema
-    assert(tableSchema1.getPrimaryKey.isPresent)
-    assertEquals("CONSTRAINT ct1 PRIMARY KEY (a)",
-      tableSchema1.getPrimaryKey.get().asSummaryString())
-
-    // alter table drop constraint
-    tableEnv.executeSql("alter table if exists t2 drop constraint ct1")
     val tableSchema2 = tableEnv.getCatalog(currentCatalog).get()
       .getTable(ObjectPath.fromString(s"${currentDB}.t2"))
       .getSchema

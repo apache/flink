@@ -37,8 +37,8 @@ public class SqlAlterTableOptions extends SqlAlterTable {
     private final SqlNodeList propertyList;
 
     public SqlAlterTableOptions(
-            SqlParserPos pos, boolean ifExists, SqlIdentifier tableName, SqlNodeList propertyList) {
-        this(pos, ifExists, tableName, null, propertyList);
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList, boolean ifExists) {
+        this(pos, tableName, null, propertyList, ifExists);
     }
 
     public SqlAlterTableOptions(
@@ -46,16 +46,16 @@ public class SqlAlterTableOptions extends SqlAlterTable {
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,
             SqlNodeList propertyList) {
-        this(pos, false, tableName, partitionSpec, propertyList);
+        this(pos, tableName, partitionSpec, propertyList, false);
     }
 
     public SqlAlterTableOptions(
             SqlParserPos pos,
-            boolean ifExists,
             SqlIdentifier tableName,
             SqlNodeList partitionSpec,
-            SqlNodeList propertyList) {
-        super(pos, ifExists, tableName, partitionSpec);
+            SqlNodeList propertyList,
+            boolean ifExists) {
+        super(pos, tableName, partitionSpec, ifExists);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
     }
 
