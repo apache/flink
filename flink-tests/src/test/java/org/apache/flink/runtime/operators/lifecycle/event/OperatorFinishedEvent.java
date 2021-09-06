@@ -38,9 +38,10 @@ public class OperatorFinishedEvent extends TestEvent {
     public OperatorFinishedEvent(
             String operatorId,
             int subtaskIndex,
+            int attemptNumber,
             long lastSent,
             LastReceivedVertexDataInfo receiveInfo) {
-        super(operatorId, subtaskIndex);
+        super(operatorId, subtaskIndex, attemptNumber);
         this.receiveInfo = receiveInfo;
         this.lastSent = lastSent;
     }

@@ -31,8 +31,9 @@ import java.util.Objects;
 public class CheckpointStartedEvent extends TestEvent {
     public final long checkpointID;
 
-    public CheckpointStartedEvent(String operatorId, int subtaskIndex, long checkpointID) {
-        super(operatorId, subtaskIndex);
+    public CheckpointStartedEvent(
+            String operatorId, int subtaskIndex, int attemptNumber, long checkpointID) {
+        super(operatorId, subtaskIndex, attemptNumber);
         this.checkpointID = checkpointID;
     }
 

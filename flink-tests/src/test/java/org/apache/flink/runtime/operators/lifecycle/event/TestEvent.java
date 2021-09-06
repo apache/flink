@@ -30,11 +30,13 @@ import java.util.Objects;
 public abstract class TestEvent implements Serializable {
     public final String operatorId;
     public final int subtaskIndex;
+    public final int attemptNumber;
     private static final long serialVersionUID = 1L;
 
-    TestEvent(String operatorId, int subtaskIndex) {
+    TestEvent(String operatorId, int subtaskIndex, int attemptNumber) {
         this.operatorId = operatorId;
         this.subtaskIndex = subtaskIndex;
+        this.attemptNumber = attemptNumber;
     }
 
     @Override
