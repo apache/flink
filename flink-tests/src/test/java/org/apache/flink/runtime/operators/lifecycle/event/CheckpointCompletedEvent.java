@@ -30,8 +30,9 @@ import java.util.Objects;
 public class CheckpointCompletedEvent extends TestEvent {
     public final long checkpointID;
 
-    public CheckpointCompletedEvent(String operatorId, int subtaskIndex, long checkpointID) {
-        super(operatorId, subtaskIndex);
+    public CheckpointCompletedEvent(
+            String operatorId, int subtaskIndex, int attemptNumber, long checkpointID) {
+        super(operatorId, subtaskIndex, attemptNumber);
         this.checkpointID = checkpointID;
     }
 

@@ -73,6 +73,7 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
                 new CheckpointStartedEvent(
                         operatorID,
                         getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
                         context.getCheckpointId()));
         super.snapshotState(context);
     }
@@ -81,7 +82,10 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         eventQueue.add(
                 new CheckpointCompletedEvent(
-                        operatorID, getRuntimeContext().getIndexOfThisSubtask(), checkpointId));
+                        operatorID,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
+                        checkpointId));
         super.notifyCheckpointComplete(checkpointId);
     }
 
@@ -91,6 +95,7 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
                 new OperatorFinishedEvent(
                         operatorID,
                         getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
                         lastDataSent,
                         new OperatorFinishedEvent.LastReceivedVertexDataInfo(lastDataReceived)));
         super.finish();
@@ -121,6 +126,7 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
                 new WatermarkReceivedEvent(
                         operatorID,
                         getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
                         mark.getTimestamp(),
                         1));
         super.processWatermark(mark);
@@ -129,7 +135,11 @@ class OneInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
     @Override
     public void endInput() throws Exception {
         eventQueue.add(
-                new InputEndedEvent(operatorID, getRuntimeContext().getIndexOfThisSubtask(), 1));
+                new InputEndedEvent(
+                        operatorID,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getAttemptNumber(),
+                        1));
     }
 
     @Override

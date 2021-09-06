@@ -98,6 +98,7 @@ class TestEventSource extends RichSourceFunction<TestDataElement>
                     new OperatorFinishedEvent(
                             operatorID,
                             getRuntimeContext().getIndexOfThisSubtask(),
+                            getRuntimeContext().getAttemptNumber(),
                             lastSent,
                             new LastReceivedVertexDataInfo(emptyMap())));
         }

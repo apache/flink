@@ -26,7 +26,7 @@ public class TestCommandAckEvent extends TestEvent {
 
     public TestCommandAckEvent(
             String operatorId, int subtaskIndex, int attemptNumber, TestCommand command) {
-        super(operatorId, subtaskIndex);
+        super(operatorId, subtaskIndex, attemptNumber);
         this.command = command;
         this.attemptNumber = attemptNumber;
     }
