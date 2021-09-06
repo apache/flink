@@ -79,11 +79,11 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     private static final String TOPIC = "KafkaSourceReaderTest";
 
     @BeforeClass
-    public void setup() throws Throwable {
+    public static void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
             adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, numSplits, (short) 1)));
+                    Collections.singleton(new NewTopic(TOPIC, KafkaSourceTestEnv.NUM_PARTITIONS, (short) 1)));
             // Use the admin client to trigger the creation of internal __consumer_offsets topic.
             // This makes sure that we won't see unavailable coordinator in the tests.
             waitUtil(
@@ -432,9 +432,9 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     // ---------------------
 
-    private List<ProducerRecord<String, Integer>> getRecords() {
+    private static List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
-        for (int part = 0; part < numSplits; part++) {
+        for (int part = 0; part < KafkaSourceTestEnv.NUM_PARTITIONS; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
                 records.add(
                         new ProducerRecord<>(
