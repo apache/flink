@@ -44,7 +44,7 @@ import java.util.Set;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOCK_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BITS_PER_KEY;
-import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_USE_FULL_FILTER;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.COMPACTION_STYLE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_DIR;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.LOG_FILE_NUM;
@@ -167,12 +167,12 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                         isOptionConfigured(BLOOM_FILTER_BITS_PER_KEY)
                                 ? Double.parseDouble(getInternal(BLOOM_FILTER_BITS_PER_KEY.key()))
                                 : BLOOM_FILTER_BITS_PER_KEY.defaultValue();
-                final boolean useFullFilter =
-                        isOptionConfigured(BLOOM_FILTER_USE_FULL_FILTER)
+                final boolean blockBasedMode =
+                        isOptionConfigured(BLOOM_FILTER_BLOCK_BASED_MODE)
                                 ? Boolean.parseBoolean(
-                                        getInternal(BLOOM_FILTER_USE_FULL_FILTER.key()))
-                                : BLOOM_FILTER_USE_FULL_FILTER.defaultValue();
-                BloomFilter bloomFilter = new BloomFilter(bitsPerKey, useFullFilter);
+                                        getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()))
+                                : BLOOM_FILTER_BLOCK_BASED_MODE.defaultValue();
+                BloomFilter bloomFilter = new BloomFilter(bitsPerKey, blockBasedMode);
                 handlesToClose.add(bloomFilter);
                 blockBasedTableConfig.setFilterPolicy(bloomFilter);
             }
@@ -473,12 +473,12 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
         return this;
     }
 
-    private boolean getBloomFilterUseFullFilter() {
-        return Boolean.parseBoolean(getInternal(BLOOM_FILTER_USE_FULL_FILTER.key()));
+    private boolean getBloomFilterBlockBasedMode() {
+        return Boolean.parseBoolean(getInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key()));
     }
 
-    public DefaultConfigurableOptionsFactory setBloomFilterUseFullFilter(boolean useFullFilter) {
-        setInternal(BLOOM_FILTER_USE_FULL_FILTER.key(), String.valueOf(useFullFilter));
+    public DefaultConfigurableOptionsFactory setBloomFilterBlockBasedMode(boolean blockBasedMode) {
+        setInternal(BLOOM_FILTER_BLOCK_BASED_MODE.key(), String.valueOf(blockBasedMode));
         return this;
     }
 
@@ -505,7 +505,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
                 BLOCK_CACHE_SIZE,
                 USE_BLOOM_FILTER,
                 BLOOM_FILTER_BITS_PER_KEY,
-                BLOOM_FILTER_USE_FULL_FILTER
+                BLOOM_FILTER_BLOCK_BASED_MODE
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =
