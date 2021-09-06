@@ -18,7 +18,9 @@
 package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.slf4j.Logger;
@@ -65,13 +67,26 @@ class KafkaCommitter implements Committer<KafkaCommittable> {
                                 .orElseGet(() -> getRecoveryProducer(committable));
                 producer.commitTransaction();
                 recyclable.ifPresent(Recyclable::close);
-            } catch (ProducerFencedException | InvalidTxnStateException e) {
-                // That means we have committed this transaction before.
+            } catch (InvalidTxnStateException e) {
                 LOG.warn(
-                        "Encountered error {} while recovering transaction {}. "
-                                + "Presumably this transaction has been already committed before",
-                        e,
-                        committable);
+                        "Unable to commit recovered transaction ({}) because it's in an invalid state. "
+                                + "Most likely the transaction has been aborted for some reason. Please check the Kafka logs for more details.",
+                        committable,
+                        e);
+                recyclable.ifPresent(Recyclable::close);
+            } catch (ProducerFencedException e) {
+                LOG.warn(
+                        "Unable to commit recovered transaction ({}) because its producer is already fenced."
+                                + " This means that you either have a different producer with the same '{}' (this is"
+                                + " unlikely with the '{}' as all generated ids are unique and shouldn't be reused)"
+                                + " or recovery took longer than '{}' ({}ms). In both cases this most likely signals data loss,"
+                                + " please consult the Flink documentation for more details.",
+                        committable,
+                        ProducerConfig.TRANSACTIONAL_ID_CONFIG,
+                        KafkaSink.class.getSimpleName(),
+                        ProducerConfig.TRANSACTION_TIMEOUT_CONFIG,
+                        FlinkKafkaProducer.getTransactionTimeout(kafkaProducerConfig),
+                        e);
                 recyclable.ifPresent(Recyclable::close);
             } catch (Throwable e) {
                 LOG.warn("Cannot commit Kafka transaction, retrying.", e);
