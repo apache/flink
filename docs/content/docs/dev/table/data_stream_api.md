@@ -284,9 +284,8 @@ env.execute()
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment
 from pyflink.common.typeinfo import Types
-from pyflink.common import Row
 
-#create environments of both APIs
+# create environments of both APIs
 env = StreamExecutionEnvironment.get_execution_environment()
 t_env = StreamTableEnvironment.create(env)
 
@@ -736,7 +735,7 @@ a streaming pipeline first as it is the most general implementation for both bou
 In theory, a streaming pipeline can execute all operators. However, in practice, some operations might
 not make much sense as they would lead to ever-growing state and are therefore not supported. A global
 sort would be an example that is only available in batch mode. Simply put: it should be possible to
-run a working streaming pipeline in batch and but not necessarily vice versa.
+run a working streaming pipeline in batch mode but not necessarily vice versa.
 {{< /hint >}}
 
 The following example shows how to play around with batch mode using the [DataGen table source]({{< ref "docs/connectors/table/datagen" >}}).
@@ -1279,13 +1278,10 @@ table.printSchema()
 {{< tab "Python" >}}
 ```python
 from pyflink.common.time import Instant
-from pyflink.common.types import Row, RowKind
+from pyflink.common.types import Row
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.functions import ProcessFunction
-from pyflink.table import DataTypes, StreamTableEnvironment, Schema
-from pyflink.table.connector import ChangelogMode
-from pyflink.table.expressions import col
+from pyflink.table import StreamTableEnvironment, Schema
 
 env = StreamExecutionEnvironment.get_execution_environment()
 t_env = StreamTableEnvironment.create(env)
@@ -2708,7 +2704,7 @@ correctly via the DataStream API's reflective type extraction facilities. If the
 schema.
 
 {{< hint warning >}}
-Many times the DataStream API is unable to extract a more specific `TypeInformation` based on [reflection](https://www.oracle.com/technical-resources/articles/java/javareflection.html).
+The DataStream API is not always able to extract a more specific `TypeInformation` based on [reflection](https://www.oracle.com/technical-resources/articles/java/javareflection.html).
 This often happens silently and leads to `GenericTypeInfo` that is backed by the generic Kryo serializer.
 
 For example, the `Row` class cannot be analyzed reflectively and always needs an explicit type information
