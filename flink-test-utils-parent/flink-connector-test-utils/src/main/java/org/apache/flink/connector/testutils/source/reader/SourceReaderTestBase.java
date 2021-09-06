@@ -28,7 +28,6 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,16 +49,17 @@ import static org.junit.Assert.assertFalse;
  */
 public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends TestLogger {
 
-    protected static int numSplits;
+    protected final int numSplits;
+    protected final int totalNumRecords;
     protected static final int NUM_RECORDS_PER_SPLIT = 10;
 
-    @BeforeClass
-    public static void init() {
-        numSplits = 10;
+    public SourceReaderTestBase() {
+        this.numSplits = getNumSplits();
+        this.totalNumRecords = this.numSplits * NUM_RECORDS_PER_SPLIT;
     }
 
-    protected static int getTotalNumRecords() {
-        return numSplits * NUM_RECORDS_PER_SPLIT;
+    protected int getNumSplits() {
+        return 10;
     }
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -79,7 +79,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         try (SourceReader<Integer, SplitT> reader = createReader()) {
             reader.addSplits(getSplits(numSplits, NUM_RECORDS_PER_SPLIT, Boundedness.BOUNDED));
             ValidatingSourceOutput output = new ValidatingSourceOutput();
-            while (output.count < getTotalNumRecords()) {
+            while (output.count < totalNumRecords) {
                 reader.pollNext(output);
             }
             output.validate();
@@ -147,7 +147,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         List<SplitT> splits =
                 getSplits(numSplits, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED);
         try (SourceReader<Integer, SplitT> reader =
-                consumeRecords(splits, output, numSplits * NUM_RECORDS_PER_SPLIT)) {
+                consumeRecords(splits, output, totalNumRecords)) {
             List<SplitT> state = reader.snapshotState(1L);
             assertEquals("The snapshot should only have 10 splits. ", numSplits, state.size());
             for (int i = 0; i < numSplits; i++) {
@@ -185,7 +185,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
     // ---------------- helper classes -----------------
 
     /** A source output that validates the output. */
-    public static class ValidatingSourceOutput implements ReaderOutput<Integer> {
+    public class ValidatingSourceOutput implements ReaderOutput<Integer> {
         private Set<Integer> consumedValues = new HashSet<>();
         private int max = Integer.MIN_VALUE;
         private int min = Integer.MAX_VALUE;
@@ -208,17 +208,17 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         public void validate() {
 
             assertEquals(
-                    String.format("Should be %d distinct elements in total", getTotalNumRecords()),
-                    getTotalNumRecords(),
+                    String.format("Should be %d distinct elements in total", totalNumRecords),
+                    totalNumRecords,
                     consumedValues.size());
             assertEquals(
-                    String.format("Should be %d elements in total", getTotalNumRecords()),
-                    getTotalNumRecords(),
+                    String.format("Should be %d elements in total", totalNumRecords),
+                    totalNumRecords,
                     count);
             assertEquals("The min value should be 0", 0, min);
             assertEquals(
-                    "The max value should be " + (getTotalNumRecords() - 1),
-                    getTotalNumRecords() - 1,
+                    "The max value should be " + (totalNumRecords - 1),
+                    totalNumRecords - 1,
                     max);
         }
 

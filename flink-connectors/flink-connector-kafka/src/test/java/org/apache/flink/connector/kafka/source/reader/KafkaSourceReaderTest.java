@@ -79,7 +79,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     private static final String TOPIC = "KafkaSourceReaderTest";
 
     @BeforeClass
-    public static void setup() throws Throwable {
+    public void setup() throws Throwable {
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
             adminClient.createTopics(
@@ -198,7 +198,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 reader.pollNext(output);
                 // Create a checkpoint for each message consumption, but not complete them.
                 reader.snapshotState(checkpointId);
-            } while (output.count() < getTotalNumRecords());
+            } while (output.count() < totalNumRecords);
 
             // The completion of the last checkpoint should subsume all the previous checkpoitns.
             assertEquals(checkpointId, reader.getOffsetsToCommit().size());
@@ -432,7 +432,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     // ---------------------
 
-    private static List<ProducerRecord<String, Integer>> getRecords() {
+    private List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
         for (int part = 0; part < numSplits; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
