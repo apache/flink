@@ -745,6 +745,26 @@ public class SqlFunctionUtils {
     }
 
     // SQL ROUND
+    /** SQL <code>ROUND</code> operator applied to byte values. */
+    public static byte sround(byte b0) {
+        return sround(b0, 0);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to byte values. */
+    public static byte sround(byte b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).byteValue();
+    }
+
+    /** SQL <code>ROUND</code> operator applied to short values. */
+    public static short sround(short b0) {
+        return sround(b0, 0);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to short values. */
+    public static short sround(short b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).shortValue();
+    }
+
     /** SQL <code>ROUND</code> operator applied to int values. */
     public static int sround(int b0) {
         return sround(b0, 0);
@@ -773,6 +793,16 @@ public class SqlFunctionUtils {
     /** SQL <code>ROUND</code> operator applied to BigDecimal values. */
     public static BigDecimal sround(BigDecimal b0, int b1) {
         return b0.movePointRight(b1).setScale(0, RoundingMode.HALF_UP).movePointLeft(b1);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to float values. */
+    public static float sround(float b0) {
+        return sround(b0, 0);
+    }
+
+    /** SQL <code>ROUND</code> operator applied to float values. */
+    public static float sround(float b0, int b1) {
+        return sround(BigDecimal.valueOf(b0), b1).floatValue();
     }
 
     /** SQL <code>ROUND</code> operator applied to double values. */
