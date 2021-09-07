@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -112,6 +113,11 @@ public class SplitsAssignmentState {
         if (!initialized) {
             this.initialized = true;
         }
+    }
+
+    public boolean containsTopic(String topicName) {
+        return appendedPartitions.stream()
+                .anyMatch(partition -> Objects.equals(partition.getFullTopicName(), topicName));
     }
 
     /** Put these splits back to pending list. */

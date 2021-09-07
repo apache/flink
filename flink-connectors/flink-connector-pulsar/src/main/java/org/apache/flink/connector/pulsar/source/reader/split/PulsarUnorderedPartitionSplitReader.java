@@ -63,8 +63,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
 
     private final TransactionCoordinatorClient coordinatorClient;
 
-    @Nullable
-    private Transaction uncommittedTransaction;
+    @Nullable private Transaction uncommittedTransaction;
 
     public PulsarUnorderedPartitionSplitReader(
             PulsarClient pulsarClient,

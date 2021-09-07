@@ -175,11 +175,11 @@ public class PulsarSourceEnumerator
     private void seekStartPosition(Set<TopicPartition> partitions) {
         ConsumerBuilder<byte[]> consumerBuilder =
                 createConsumerBuilder(pulsarClient, Schema.BYTES, configuration);
-        Set<String> seekedPartitions = new HashSet<>();
+        Set<String> seekedTopics = new HashSet<>();
 
         for (TopicPartition partition : partitions) {
             String topicName = partition.getFullTopicName();
-            if (seekedPartitions.add(topicName)) {
+            if (!assignmentState.containsTopic(topicName) && seekedTopics.add(topicName)) {
                 try (Consumer<byte[]> consumer =
                         sneakyClient(() -> consumerBuilder.clone().topic(topicName).subscribe())) {
                     startCursor.seekPosition(
