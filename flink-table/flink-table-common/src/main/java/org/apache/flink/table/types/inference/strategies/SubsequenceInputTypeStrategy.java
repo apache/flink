@@ -166,7 +166,7 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
 
         @Override
         public boolean isArgumentNull(int pos) {
-            return originalCallContext.isArgumentLiteral(pos + split.startIndex);
+            return originalCallContext.isArgumentNull(pos + split.startIndex);
         }
 
         @Override
