@@ -604,7 +604,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.20</version>
+				<version>1.21</version>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-connector-hbase -->
