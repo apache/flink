@@ -111,7 +111,7 @@ The following example shows how to calculate Top 3 items which have the highest 
 ```sql
 Flink SQL> SELECT *
   FROM (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
+    SELECT bidtime, price, item, supplier_id, window_start, window_end, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
     FROM TABLE(
                TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
   ) WHERE rownum <= 3;
