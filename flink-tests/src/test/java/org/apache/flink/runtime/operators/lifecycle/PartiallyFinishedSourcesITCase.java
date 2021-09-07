@@ -142,8 +142,9 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
                 env -> {
                     env.setRestartStrategy(fixedDelayRestart(1, 0));
                     // checkpoints can hang (because of not yet fixed bugs and triggering
-                    // checkpoint while the source finishes), so let them timeout quickly
-                    env.getCheckpointConfig().setCheckpointTimeout(5000);
+                    // checkpoint while the source finishes), so we reduce the timeout to
+                    // avoid hanging for too long.
+                    env.getCheckpointConfig().setCheckpointTimeout(30000);
                     // but don't fail the job
                     env.getCheckpointConfig()
                             .setTolerableCheckpointFailureNumber(Integer.MAX_VALUE);
