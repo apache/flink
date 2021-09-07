@@ -891,8 +891,8 @@ result = orders.distinct()
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"));
 Table result = left.join(right)
     .where($("a").isEqual($("d")))
     .select($("a"), $("b"), $("e"));
@@ -929,8 +929,8 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"));
 
 Table leftOuterResult = left.leftOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
@@ -977,8 +977,8 @@ Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界�
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
-Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
+Table left = tableEnv.from("MyTable").select($("a"), $("b"), $("c"), $("ltime"));
+Table right = tableEnv.from("MyTable").select($("d"), $("e"), $("f"), $("rtime"));
 
 Table result = left.join(right)
   .where(
