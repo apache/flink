@@ -153,6 +153,26 @@ public class TaskTest extends TestLogger {
     }
 
     @Test
+    public void testCleanupWhenSwitchToInitializationFails() throws Exception {
+        createTaskBuilder()
+                .setInvokable(TestInvokableCorrect.class)
+                .setTaskManagerActions(
+                        new NoOpTaskManagerActions() {
+                            @Override
+                            public void updateTaskExecutionState(
+                                    TaskExecutionState taskExecutionState) {
+                                if (taskExecutionState.getExecutionState()
+                                        == ExecutionState.INITIALIZING) {
+                                    throw new ExpectedTestException();
+                                }
+                            }
+                        })
+                .build()
+                .run();
+        assertTrue(wasCleanedUp);
+    }
+
+    @Test
     public void testRegularExecution() throws Exception {
         final QueuedNoOpTaskManagerActions taskManagerActions = new QueuedNoOpTaskManagerActions();
         final Task task =
