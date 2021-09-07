@@ -149,7 +149,7 @@ under the License.
 			<!-- Used for parsing HTML -->
 			<groupId>org.jsoup</groupId>
 			<artifactId>jsoup</artifactId>
-			<version>1.11.2</version>
+			<version>1.14.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
