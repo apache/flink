@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.BiFunction;
+import java.util.concurrent.Executor;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -38,7 +42,7 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
     public static <T extends CompletedCheckpointStore>
             CheckpointRecoveryFactory withoutCheckpointStoreRecovery(IntFunction<T> storeFn) {
         return new PerJobCheckpointRecoveryFactory<>(
-                (maxCheckpoints, previous) -> {
+                (maxCheckpoints, previous, sharedStateRegistry, ioExecutor) -> {
                     if (previous != null) {
                         throw new UnsupportedOperationException(
                                 "Checkpoint store recovery is not supported.");
@@ -47,37 +51,54 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
                 });
     }
 
-    private final BiFunction<Integer, T, T> completedCheckpointStorePerJobFactory;
+    private final CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper;
     private final Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory;
     private final ConcurrentMap<JobID, T> store;
     private final ConcurrentMap<JobID, CheckpointIDCounter> counter;
 
     public PerJobCheckpointRecoveryFactory(
-            BiFunction<Integer, T, T> completedCheckpointStorePerJobFactory) {
-        this(completedCheckpointStorePerJobFactory, StandaloneCheckpointIDCounter::new);
+            CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper) {
+        this(checkpointStoreRecoveryHelper, StandaloneCheckpointIDCounter::new);
     }
 
     public PerJobCheckpointRecoveryFactory(
-            BiFunction<Integer, T, T> completedCheckpointStorePerJobFactory,
+            CheckpointStoreRecoveryHelper<T> checkpointStoreRecoveryHelper,
             Supplier<CheckpointIDCounter> checkpointIDCounterPerJobFactory) {
-        this.completedCheckpointStorePerJobFactory = completedCheckpointStorePerJobFactory;
         this.checkpointIDCounterPerJobFactory = checkpointIDCounterPerJobFactory;
         this.store = new ConcurrentHashMap<>();
         this.counter = new ConcurrentHashMap<>();
+        this.checkpointStoreRecoveryHelper = checkpointStoreRecoveryHelper;
     }
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) {
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor) {
         return store.compute(
                 jobId,
                 (key, previous) ->
-                        completedCheckpointStorePerJobFactory.apply(
-                                maxNumberOfCheckpointsToRetain, previous));
+                        checkpointStoreRecoveryHelper.recoverCheckpointStore(
+                                maxNumberOfCheckpointsToRetain,
+                                previous,
+                                sharedStateRegistryFactory,
+                                ioExecutor));
     }
 
     @Override
     public CheckpointIDCounter createCheckpointIDCounter(JobID jobId) {
         return counter.computeIfAbsent(jobId, jId -> checkpointIDCounterPerJobFactory.get());
+    }
+
+    /** Restores or creates a {@link CompletedCheckpointStore}, optionally using an existing one. */
+    @Internal
+    public interface CheckpointStoreRecoveryHelper<StoreType extends CompletedCheckpointStore> {
+        StoreType recoverCheckpointStore(
+                int maxNumberOfCheckpointsToRetain,
+                @Nullable StoreType previousStore,
+                SharedStateRegistryFactory sharedStateRegistryFactory,
+                Executor ioExecutor);
     }
 }

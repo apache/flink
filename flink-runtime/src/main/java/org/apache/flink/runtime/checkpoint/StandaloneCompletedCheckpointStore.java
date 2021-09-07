@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,13 +31,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * {@link CompletedCheckpointStore} for JobManagers running in {@link HighAvailabilityMode#NONE}.
  */
-public class StandaloneCompletedCheckpointStore implements CompletedCheckpointStore {
+public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpointStore {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(StandaloneCompletedCheckpointStore.class);
@@ -44,16 +49,40 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
     /** The completed checkpoints. */
     private final ArrayDeque<CompletedCheckpoint> checkpoints;
 
+    @VisibleForTesting
+    public StandaloneCompletedCheckpointStore(int maxNumberOfCheckpointsToRetain) {
+        this(
+                maxNumberOfCheckpointsToRetain,
+                SharedStateRegistry.DEFAULT_FACTORY,
+                Executors.directExecutor());
+    }
+
     /**
      * Creates {@link StandaloneCompletedCheckpointStore}.
      *
      * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain (at least
      *     1). Adding more checkpoints than this results in older checkpoints being discarded.
      */
-    public StandaloneCompletedCheckpointStore(int maxNumberOfCheckpointsToRetain) {
+    public StandaloneCompletedCheckpointStore(
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor) {
+        this(
+                maxNumberOfCheckpointsToRetain,
+                sharedStateRegistryFactory,
+                new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1),
+                ioExecutor);
+    }
+
+    private StandaloneCompletedCheckpointStore(
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            ArrayDeque<CompletedCheckpoint> checkpoints,
+            Executor ioExecutor) {
+        super(sharedStateRegistryFactory.create(ioExecutor, checkpoints));
         checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
         this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-        this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
+        this.checkpoints = checkpoints;
     }
 
     @Override
@@ -87,6 +116,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
     @Override
     public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
+        super.shutdown(jobStatus, checkpointsCleaner);
         try {
             LOG.info("Shutting down");
 

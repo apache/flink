@@ -43,7 +43,6 @@ import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -201,12 +200,6 @@ public class CheckpointCoordinator {
     /** Optional tracker for checkpoint statistics. */
     private final CheckpointStatsTracker statsTracker;
 
-    /** A factory for SharedStateRegistry objects. */
-    private final SharedStateRegistryFactory sharedStateRegistryFactory;
-
-    /** Registry that tracks state which is shared across (incremental) checkpoints. */
-    private SharedStateRegistry sharedStateRegistry;
-
     /** Id of checkpoint for which in-flight data should be ignored on recovery. */
     private final long checkpointIdOfIgnoredInFlightData;
 
@@ -239,7 +232,6 @@ public class CheckpointCoordinator {
             Executor executor,
             CheckpointsCleaner checkpointsCleaner,
             ScheduledExecutor timer,
-            SharedStateRegistryFactory sharedStateRegistryFactory,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
             ExecutionAttemptMappingProvider attemptMappingProvider,
@@ -255,7 +247,6 @@ public class CheckpointCoordinator {
                 executor,
                 checkpointsCleaner,
                 timer,
-                sharedStateRegistryFactory,
                 failureManager,
                 checkpointPlanCalculator,
                 attemptMappingProvider,
@@ -274,7 +265,6 @@ public class CheckpointCoordinator {
             Executor executor,
             CheckpointsCleaner checkpointsCleaner,
             ScheduledExecutor timer,
-            SharedStateRegistryFactory sharedStateRegistryFactory,
             CheckpointFailureManager failureManager,
             CheckpointPlanCalculator checkpointPlanCalculator,
             ExecutionAttemptMappingProvider attemptMappingProvider,
@@ -308,8 +298,6 @@ public class CheckpointCoordinator {
         this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
         this.executor = checkNotNull(executor);
         this.checkpointsCleaner = checkNotNull(checkpointsCleaner);
-        this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
-        this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
         this.failureManager = checkNotNull(failureManager);
         this.checkpointPlanCalculator = checkNotNull(checkpointPlanCalculator);
         this.attemptMappingProvider = checkNotNull(attemptMappingProvider);
@@ -1217,6 +1205,7 @@ public class CheckpointCoordinator {
 
         // As a first step to complete the checkpoint, we register its state with the registry
         Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
+        SharedStateRegistry sharedStateRegistry = completedCheckpointStore.getSharedStateRegistry();
         sharedStateRegistry.registerAll(operatorStates.values());
 
         try {
@@ -1516,24 +1505,6 @@ public class CheckpointCoordinator {
                 throw new IllegalStateException("CheckpointCoordinator is shut down");
             }
 
-            // We create a new shared state registry object, so that all pending async disposal
-            // requests from previous runs will go against the old object (were they can do no
-            // harm). This must happen under the checkpoint lock.
-            sharedStateRegistry.close();
-            sharedStateRegistry = sharedStateRegistryFactory.create(executor);
-
-            // Now, we re-register all (shared) states from the checkpoint store with the new
-            // registry
-            for (CompletedCheckpoint completedCheckpoint :
-                    completedCheckpointStore.getAllCheckpoints()) {
-                completedCheckpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
-            }
-
-            LOG.debug(
-                    "Status of the shared state registry of job {} after restore: {}.",
-                    job,
-                    sharedStateRegistry);
-
             // Restore from the latest checkpoint
             CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
 
@@ -1678,6 +1649,11 @@ public class CheckpointCoordinator {
                         userClassLoader,
                         allowNonRestored,
                         checkpointProperties);
+
+        // register shared state - even before adding the checkpoint to the store
+        // because the latter might trigger subsumption so the ref counts must be up-to-date
+        savepoint.registerSharedStatesAfterRestored(
+                completedCheckpointStore.getSharedStateRegistry());
 
         completedCheckpointStore.addCheckpoint(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
