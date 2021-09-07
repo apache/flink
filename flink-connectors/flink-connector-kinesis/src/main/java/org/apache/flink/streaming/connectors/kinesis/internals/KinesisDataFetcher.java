@@ -819,7 +819,7 @@ public class KinesisDataFetcher<T> {
                 LOG.warn("Encountered exception closing record publisher factory", e);
             }
         } finally {
-            shardConsumersExecutor.shutdownNow();
+            shardConsumersExecutor.shutdown();
 
             cancelFuture.complete(null);
 
