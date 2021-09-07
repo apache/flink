@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
+import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -28,6 +29,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,6 +41,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
@@ -68,6 +71,22 @@ public class UpsertKafkaTableITCase extends KafkaTestBaseWithFlink {
 
     private static final String USERS_TOPIC = "users";
     private static final String WORD_COUNT_TOPIC = "word_count";
+
+    @BeforeClass
+    public static void prepare() throws Exception {
+        LOG.info("-------------------------------------------------------------------------");
+        LOG.info("    Starting UpsertKafkaTableITCase ");
+        LOG.info("-------------------------------------------------------------------------");
+
+        Properties serverProperties = new Properties();
+        serverProperties.put("log.retention.ms", Integer.toString(-1));
+        startClusters(
+                KafkaTestEnvironment.createConfig()
+                        .setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
+                        .setSecureMode(false)
+                        .setHideKafkaBehindProxy(false)
+                        .setKafkaServerProperties(serverProperties));
+    }
 
     @Before
     public void setup() {

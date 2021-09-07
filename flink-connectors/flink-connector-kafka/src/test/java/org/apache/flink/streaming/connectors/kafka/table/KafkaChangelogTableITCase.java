@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
+import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironment;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -34,6 +35,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -49,6 +51,22 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
 
     protected StreamExecutionEnvironment env;
     protected StreamTableEnvironment tEnv;
+
+    @BeforeClass
+    public static void prepare() throws Exception {
+        LOG.info("-------------------------------------------------------------------------");
+        LOG.info("    Starting KafkaChangelogTableITCase ");
+        LOG.info("-------------------------------------------------------------------------");
+
+        Properties serverProperties = new Properties();
+        serverProperties.put("log.retention.ms", Integer.toString(-1));
+        startClusters(
+                KafkaTestEnvironment.createConfig()
+                        .setKafkaServersNumber(NUMBER_OF_KAFKA_SERVERS)
+                        .setSecureMode(false)
+                        .setHideKafkaBehindProxy(false)
+                        .setKafkaServerProperties(serverProperties));
+    }
 
     @Before
     public void setup() {
