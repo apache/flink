@@ -98,8 +98,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
 
-    private static final long CHECKPOINT_TIMEOUT_MS = 2000L;
-    private static final long TASK_CANCELLATION_TIMEOUT_MS = 2000L;
+    private static final long CHECKPOINT_TIMEOUT_MS = 20_000L;
+    private static final long TASK_CANCELLATION_TIMEOUT_MS = 20_000L;
 
     // todo: remove after fixing FLINK-22889
     @ClassRule
