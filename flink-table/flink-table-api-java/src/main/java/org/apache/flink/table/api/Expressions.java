@@ -43,6 +43,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpr
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_OBJECT;
 
 /**
  * Entry point of the Table API Expression DSL such as: {@code $("myField").plus(10).abs()}
@@ -560,6 +561,42 @@ public final class Expressions {
      */
     public static ApiExpression withoutColumns(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITHOUT_COLUMNS, head, tail);
+    }
+
+    /**
+     * Builds a JSON object string from a list of key-value pairs.
+     *
+     * <p>{@param keyValues} is an even-numbered list of alternating key/value pairs. Note that keys
+     * must be non-{@code NULL} string literals, while values may be arbitrary expressions.
+     *
+     * <p>This function returns a JSON string. The {@link JsonOnNull onNull} behavior defines how to
+     * treat {@code NULL} values.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // {}
+     * jsonObject(JsonOnNull.NULL)
+     * // "{\"K1\":\"V1\",\"K2\":\"V2\"}"
+     * // {"K1":"V1","K2":"V2"}
+     * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+     *
+     * // Expressions as values
+     * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+     *
+     * // ON NULL
+     * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+     * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // "{}"
+     *
+     * // {"K1":{"K2":"V"}}
+     * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+     * }</pre>
+     */
+    public static ApiExpression jsonObject(JsonOnNull onNull, Object... keyValues) {
+        final Object[] arguments =
+                Stream.concat(Stream.of(onNull), Arrays.stream(keyValues)).toArray(Object[]::new);
+
+        return apiCall(JSON_OBJECT, arguments);
     }
 
     /**

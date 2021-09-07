@@ -24,8 +24,8 @@ import org.apache.flink.table.runtime.functions._
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior,
-  SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
+import org.apache.calcite.sql.{SqlJsonConstructorNullClause, SqlJsonExistsErrorBehavior,
+  SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -513,4 +513,7 @@ object BuiltInMethods {
   val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
     classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
     classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
+
+  val JSON_OBJECT = Types.lookupMethod(classOf[JsonFunctions], "jsonObject",
+    classOf[SqlJsonConstructorNullClause], classOf[Array[Any]])
 }

@@ -784,4 +784,35 @@ trait ImplicitExpressionConversions {
    * }}}
    */
   def not(expression: Expression): Expression = Expressions.not(expression)
+
+  /**
+   * Builds a JSON object string from a list of key-value pairs.
+   *
+   * <code>keyValues</code> is an even-numbered list of alternating key/value pairs. Note that keys
+   * must be string literals, values may be arbitrary expressions.
+   *
+   * This function returns a JSON string. The [[JsonOnNull onNull]] behavior defines how to treat
+   * <code>NULL</code> values.
+   *
+   * Examples:
+   * {{{
+   * // {}
+   * jsonObject(JsonOnNull.NULL)
+   * // {"K1":"V1","K2":"V2"}
+   * jsonObject(JsonOnNull.NULL, "K1", "V1", "K2", "V2")
+   *
+   * // Expressions as values
+   * jsonObject(JsonOnNull.NULL, "orderNo", $("orderId"))
+   *
+   * // ON NULL
+   * jsonObject(JsonOnNull.NULL, "K1", nullOf(DataTypes.STRING()))   // "{\"K1\":null}"
+   * jsonObject(JsonOnNull.ABSENT, "K1", nullOf(DataTypes.STRING())) // '{}'
+   *
+   * // {"K1":{"K2":"V"}}
+   * jsonObject(JsonOnNull.NULL, "K1", jsonObject(JsonOnNull.NULL, "K2", "V"))
+   * }}}
+   */
+  def jsonObject(onNull: JsonOnNull, keyValues: Any*): Expression = {
+    Expressions.jsonObject(onNull, keyValues)
+  }
 }

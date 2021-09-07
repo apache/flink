@@ -19,13 +19,23 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
 
+import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.compositeSequence;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.logical;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.repeatingSequence;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.symbol;
 
 /**
  * Entry point for specific input type strategies not covered in {@link InputTypeStrategies}.
@@ -45,6 +55,26 @@ public final class SpecificInputTypeStrategies {
     /** See {@link CurrentWatermarkTypeStrategy}. */
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
+
+    /**
+     * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
+     *
+     * <p>The first argument defines the on-null behavior and is followed by any number of key-value
+     * pairs. Keys must be character string literals, while values are arbitrary expressions.
+     */
+    public static final InputTypeStrategy JSON_OBJECT =
+            compositeSequence()
+                    .argument(symbol(JsonOnNull.class))
+                    .finishWithVarying(
+                            repeatingSequence(
+                                    and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
+                                    or(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeFamily.BINARY_STRING),
+                                            logical(LogicalTypeFamily.TIMESTAMP),
+                                            logical(LogicalTypeFamily.CONSTRUCTED),
+                                            logical(LogicalTypeRoot.BOOLEAN),
+                                            logical(LogicalTypeFamily.NUMERIC))));
 
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies

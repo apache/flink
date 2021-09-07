@@ -447,6 +447,20 @@ class JsonQueryOnEmptyOrError(Enum):
         return getattr(JJsonQueryOnEmptyOrError, self.name)
 
 
+class JsonOnNull(Enum):
+    """
+    Behavior for entries with a null value for json_object().
+    """
+
+    NULL = 0,
+    ABSENT = 1
+
+    def _to_j_json_on_null(self):
+        gateway = get_gateway()
+        JJsonOnNull = gateway.jvm.org.apache.flink.table.api.JsonOnNull
+        return getattr(JJsonOnNull, self.name)
+
+
 T = TypeVar('T')
 
 
