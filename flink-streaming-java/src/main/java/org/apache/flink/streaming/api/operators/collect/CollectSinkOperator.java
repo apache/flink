@@ -51,9 +51,9 @@ public class CollectSinkOperator<IN> extends StreamSink<IN> implements OperatorE
     }
 
     @Override
-    public void finish() throws Exception {
+    public void close() throws Exception {
         sinkFunction.accumulateFinalResults();
-        super.finish();
+        super.close();
     }
 
     public CompletableFuture<OperatorID> getOperatorIdFuture() {
