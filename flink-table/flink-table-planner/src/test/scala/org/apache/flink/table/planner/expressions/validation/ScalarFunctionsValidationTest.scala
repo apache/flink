@@ -94,7 +94,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   @Test
   def testInvalidTruncate2(): Unit = {
-    thrown.expect(classOf[CodeGenException])
+    thrown.expect(classOf[ValidationException])
     // The one argument is of type String
     testSqlApi(
       "TRUNCATE('abc')",

@@ -1379,10 +1379,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "0.4")
 
     testAllApis(
+      'f29.truncate(),
+      "f29.truncate()",
+      "truncate(f29)",
+      "0.0")
+
+    testAllApis(
       'f31.truncate('f7),
       "f31.truncate(f7)",
       "truncate(f31, f7)",
       "-0.123")
+
+    testAllApis(
+      'f31.truncate(),
+      "f31.truncate()",
+      "truncate(f31)",
+      "0")
 
     testAllApis(
       'f4.truncate('f32),
@@ -1391,26 +1403,46 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "40")
 
     testAllApis(
+      'f4.truncate(),
+      "f4.truncate()",
+      "truncate(f4)",
+      "44")
+
+    testAllApis(
       'f28.cast(DataTypes.DOUBLE).truncate(1),
       "f28.cast(DOUBLE).truncate(1)",
       "truncate(cast(f28 as DOUBLE), 1)",
       "0.4")
 
+    testAllApis(
+      'f28.cast(DataTypes.DOUBLE).truncate(),
+      "f28.cast(DOUBLE).truncate()",
+      "truncate(cast(f28 as DOUBLE))",
+      "0.0")
+
     // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
     //  see https://issues.apache.org/jira/browse/FLINK-13651
-//    testAllApis(
-//      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
-//      "f31.cast(DECIMAL(10, 10)).truncate(2)",
-//      "truncate(cast(f31 as decimal(38, 18)), 2)",
-//      "-0.12")
-//
-//    testAllApis(
-//      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
-//      "f36.cast(DECIMAL(10, 10)).truncate()",
-//      "truncate(42.324)",
-//      "42")
+    //    testAllApis(
+    //      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
+    //      "f31.cast(DECIMAL(10, 10)).truncate(2)",
+    //      "truncate(cast(f31 as decimal(38, 18)), 2)",
+    //      "-0.12")
+    //
+    //    testAllApis(
+    //      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
+    //      "f36.cast(DECIMAL(10, 10)).truncate()",
+    //      "truncate(42.324)",
+    //      "42")
 
     testSqlApi("truncate(cast(f31 as decimal(38, 18)), 2)", "-0.12")
+
+    testSqlApi("truncate(cast(f31 as decimal(38, 18)))", "0")
+
+    testAllApis(
+      'f28.cast(DataTypes.FLOAT).truncate(1),
+      "f28.cast(FLOAT).truncate(1)",
+      "truncate(cast(f28 as float), 1)",
+      "0.4")
 
     testAllApis(
       'f5.cast(DataTypes.FLOAT).truncate(),
@@ -1429,6 +1461,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "42.truncate(-3)",
       "truncate(42, -3)",
       "0")
+
+    testAllApis(
+      42.truncate(),
+      "42.truncate()",
+      "truncate(42)",
+      "42")
 
     //    The validation parameter is null
     testAllApis(
@@ -1460,6 +1498,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.cast(DOUBLE).truncate()",
       "truncate(cast(null as double))",
       "null")
+
+    // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
+    //  see https://issues.apache.org/jira/browse/FLINK-13651
+    //    testAllApis(
+    //      'f33.cast(DataTypes.DECIMAL(10, 5)).truncate(),
+    //      "f33.cast(DECIMAL(10, 5)).truncate()",
+    //      "truncate(cast(null as decimal(10, 5)))",
+    //      "null")
   }
 
   // ----------------------------------------------------------------------------------------------

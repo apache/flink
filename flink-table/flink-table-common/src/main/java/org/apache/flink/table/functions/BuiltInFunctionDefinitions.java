@@ -1136,7 +1136,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.NUMERIC),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ROUND))
                     .build();
 
     // --------------------------------------------------------------------------------------------
