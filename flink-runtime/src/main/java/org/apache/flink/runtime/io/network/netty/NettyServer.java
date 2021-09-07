@@ -198,6 +198,10 @@ class NettyServer {
         // multiple servers running on the same host.
         String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
 
+        if (!Epoll.isAvailable()) {
+            throw new IllegalStateException("epoll is not available", Epoll.unavailabilityCause());
+        }
+
         EpollEventLoopGroup epollGroup =
                 new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
         bootstrap.group(epollGroup).channel(EpollServerSocketChannel.class);
