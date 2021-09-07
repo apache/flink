@@ -160,7 +160,6 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         self.t_env.create_temporary_system_function("add_from_file",
                                                     udf(add_from_file, DataTypes.BIGINT(),
                                                         DataTypes.BIGINT()))

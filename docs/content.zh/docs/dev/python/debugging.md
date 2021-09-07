@@ -85,8 +85,6 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 
 你可以直接在 PyCharm 等 IDE 调试你的 Python 函数。
 
-**注意:** 当前，如果你使用了配置 `python-archives`，并且作业的并发度是大于`1`的，只能够使用[远程调试](#远程调试)的方式。
-
 ### 远程调试
 
 你可以利用PyCharm提供的[`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/)工具进行Python UDF的调试
