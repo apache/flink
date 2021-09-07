@@ -62,6 +62,8 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
     def __init__(self):
         self._parse_param_lock = threading.Lock()
         self._worker_address = None
+        self._old_working_dir = None
+        self._ref_cnt = 0
 
     def start(self):
         if not self._worker_address:
@@ -91,17 +93,19 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
     def _start_sdk_worker_main(self, start_worker_request: beam_fn_api_pb2.StartWorkerRequest):
         params = start_worker_request.params
-        base_dir = None
         self._parse_param_lock.acquire()
-        if 'PYTHONPATH' in params:
-            python_path_list = params['PYTHONPATH'].split(':')
-            python_path_list.reverse()
-            for path in python_path_list:
-                sys.path.insert(0, path)
-        if '_PYTHON_WORKING_DIR' in params:
-            base_dir = os.getcwd()
-            os.chdir(params['_PYTHON_WORKING_DIR'])
-        os.environ.update(params)
+        # The first thread to start is responsible for preparing all execution environment.
+        if not self._ref_cnt:
+            if 'PYTHONPATH' in params:
+                python_path_list = params['PYTHONPATH'].split(':')
+                python_path_list.reverse()
+                for path in python_path_list:
+                    sys.path.insert(0, path)
+            if '_PYTHON_WORKING_DIR' in params:
+                self._old_working_dir = os.getcwd()
+                os.chdir(params['_PYTHON_WORKING_DIR'])
+            os.environ.update(params)
+        self._ref_cnt += 1
         self._parse_param_lock.release()
 
         # read job information from provision stub
@@ -151,7 +155,12 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             _LOGGER.exception('Python sdk harness failed: ')
             raise
         finally:
-            if base_dir:
-                os.chdir(base_dir)
+            self._parse_param_lock.acquire()
+            self._ref_cnt -= 1
+            # The last thread to exit is responsible for changing working directory.
+            if self._ref_cnt == 0 and self._old_working_dir is not None:
+                os.chdir(self._old_working_dir)
+                self._old_working_dir = None
+            self._parse_param_lock.release()
             if fn_log_handler:
                 fn_log_handler.close()

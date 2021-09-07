@@ -892,21 +892,12 @@ class StreamExecutionEnvironment(object):
         j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
 
         def startup_loopback_server():
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
             jvm = gateway.jvm
-            env_config = JPythonConfigUtil.getEnvironmentConfig(
-                self._j_stream_execution_environment)
-            parallelism = self.get_parallelism()
-            if parallelism > 1 and env_config.containsKey(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
-                import logging
-                logging.warning("Loopback mode is disabled as python archives are used and the "
-                                "parallelism of the job is greater than 1. The Python user-defined "
-                                "functions will be executed in an independent Python process.")
-            else:
-                from pyflink.fn_execution.beam.beam_worker_pool_service import \
-                    BeamFnLoopbackWorkerPoolServicer
-                j_env = jvm.System.getenv()
-                get_field_value(j_env, "m").put(
-                    'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+            j_env = jvm.System.getenv()
+            get_field_value(j_env, "m").put(
+                'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
 
         python_worker_execution_mode = None
         if hasattr(self, "_python_worker_execution_mode"):

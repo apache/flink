@@ -18,6 +18,7 @@
 
 package org.apache.flink.python.env.beam;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -315,7 +316,7 @@ public class ProcessPythonEnvironmentManagerTest {
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 new ProcessPythonEnvironmentManager(
-                        dependencyInfo, new String[] {tmpDir}, sysEnv)) {
+                        dependencyInfo, new String[] {tmpDir}, sysEnv, new JobID())) {
             environmentManager.open();
             String retrievalToken = environmentManager.createRetrievalToken();
 
@@ -335,7 +336,7 @@ public class ProcessPythonEnvironmentManagerTest {
 
         try (ProcessPythonEnvironmentManager environmentManager =
                 new ProcessPythonEnvironmentManager(
-                        dependencyInfo, new String[] {tmpDir}, new HashMap<>())) {
+                        dependencyInfo, new String[] {tmpDir}, new HashMap<>(), new JobID())) {
             environmentManager.open();
             Map<String, String> env = environmentManager.constructEnvironmentVariables();
             Map<String, String> expected = getBasicExpectedEnv(environmentManager);
@@ -414,6 +415,6 @@ public class ProcessPythonEnvironmentManagerTest {
     private static ProcessPythonEnvironmentManager createBasicPythonEnvironmentManager(
             PythonDependencyInfo dependencyInfo) {
         return new ProcessPythonEnvironmentManager(
-                dependencyInfo, new String[] {tmpDir}, new HashMap<>());
+                dependencyInfo, new String[] {tmpDir}, new HashMap<>(), new JobID());
     }
 }
