@@ -34,9 +34,11 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.Rule;
@@ -48,6 +50,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.util.Collections.emptyList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -246,11 +249,15 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         assertThat(cleanupCallCount.get(), is(expectedCleanupCalls));
     }
 
-    private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {
+    private static final class FailingCompletedCheckpointStore
+            extends AbstractCompleteCheckpointStore {
 
         private final Exception addCheckpointFailure;
 
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
+            super(
+                    SharedStateRegistry.DEFAULT_FACTORY.create(
+                            Executors.directExecutor(), emptyList()));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 

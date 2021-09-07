@@ -2806,21 +2806,18 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         ExecutionJobVertex jobVertex1 = graph.getJobVertex(jobVertexID1);
 
-        final EmbeddedCompletedCheckpointStore store = new EmbeddedCompletedCheckpointStore(10);
-        final List<SharedStateRegistry> createdSharedStateRegistries = new ArrayList<>(2);
+        List<CompletedCheckpoint> checkpoints = Collections.emptyList();
+        SharedStateRegistry firstInstance =
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        org.apache.flink.util.concurrent.Executors.directExecutor(), checkpoints);
+        final EmbeddedCompletedCheckpointStore store =
+                new EmbeddedCompletedCheckpointStore(10, checkpoints, firstInstance);
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinatorBuilder coordinatorBuilder =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(graph)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .setSharedStateRegistryFactory(
-                                deleteExecutor -> {
-                                    SharedStateRegistry instance =
-                                            new SharedStateRegistry(deleteExecutor);
-                                    createdSharedStateRegistries.add(instance);
-                                    return instance;
-                                });
+                        .setTimer(manuallyTriggeredScheduledExecutor);
         final CheckpointCoordinator coordinator =
                 coordinatorBuilder.setCompletedCheckpointStore(store).build();
 
@@ -2852,8 +2849,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 for (OperatorSubtaskState subtaskState : taskState.getStates()) {
                     for (KeyedStateHandle keyedStateHandle : subtaskState.getManagedKeyedState()) {
                         // test we are once registered with the current registry
-                        verify(keyedStateHandle, times(1))
-                                .registerSharedStates(createdSharedStateRegistries.get(0));
+                        verify(keyedStateHandle, times(1)).registerSharedStates(firstInstance);
                         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                                 (IncrementalRemoteKeyedStateHandle) keyedStateHandle;
 
@@ -2906,8 +2902,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
         tasks.add(jobVertex1);
 
         assertEquals(JobStatus.SUSPENDED, store.getShutdownStatus().orElse(null));
+        SharedStateRegistry secondInstance =
+                SharedStateRegistry.DEFAULT_FACTORY.create(
+                        org.apache.flink.util.concurrent.Executors.directExecutor(),
+                        store.getAllCheckpoints());
         final EmbeddedCompletedCheckpointStore secondStore =
-                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints());
+                new EmbeddedCompletedCheckpointStore(10, store.getAllCheckpoints(), secondInstance);
         final CheckpointCoordinator secondCoordinator =
                 coordinatorBuilder.setCompletedCheckpointStore(secondStore).build();
         assertTrue(secondCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
@@ -2928,8 +2928,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
                         // check that all are registered with the new registry
                         verify(keyedStateHandle, verificationMode)
-                                .registerSharedStates(
-                                        Iterables.getLast(createdSharedStateRegistries));
+                                .registerSharedStates(secondInstance);
                     }
                 }
             }

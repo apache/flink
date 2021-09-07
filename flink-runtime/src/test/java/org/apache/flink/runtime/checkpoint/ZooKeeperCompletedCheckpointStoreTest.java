@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
+import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -191,6 +192,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                 checkpointsInZooKeeper,
                 zooKeeperCheckpointStoreUtil,
                 Collections.emptyList(),
+                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor(), emptyList()),
                 Executors.directExecutor());
     }
 

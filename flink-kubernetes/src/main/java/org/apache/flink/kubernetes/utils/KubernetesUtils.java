@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.NoOpJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -63,6 +64,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -292,7 +294,9 @@ public class KubernetesUtils {
             Executor executor,
             String configMapName,
             String lockIdentity,
-            int maxNumberOfCheckpointsToRetain)
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistryFactory sharedStateRegistryFactory,
+            Executor ioExecutor)
             throws Exception {
 
         final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage =
@@ -307,12 +311,16 @@ public class KubernetesUtils {
                         stateStorage,
                         k -> k.startsWith(CHECKPOINT_ID_KEY_PREFIX),
                         lockIdentity);
+        Collection<CompletedCheckpoint> checkpoints =
+                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
+                        stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE);
+
         return new DefaultCompletedCheckpointStore<>(
                 maxNumberOfCheckpointsToRetain,
                 stateHandleStore,
                 KubernetesCheckpointStoreUtil.INSTANCE,
-                DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
-                        stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE),
+                checkpoints,
+                sharedStateRegistryFactory.create(ioExecutor, checkpoints),
                 executor);
     }
 

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.Collections;
 import java.util.List;
@@ -67,6 +68,11 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
 
     @Override
     public boolean requiresExternalizedCheckpoints() {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public SharedStateRegistry getSharedStateRegistry() {
         throw new UnsupportedOperationException("Not implemented.");
     }
 }
