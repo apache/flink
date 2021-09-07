@@ -99,6 +99,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -244,6 +245,7 @@ public class AdaptiveScheduler
                         configuration,
                         userCodeClassLoader,
                         checkpointRecoveryFactory,
+                        SharedStateRegistry.DEFAULT_FACTORY.create(ioExecutor),
                         LOG);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(

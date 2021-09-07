@@ -24,7 +24,9 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -71,17 +73,28 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobID, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+            JobID jobID,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistry sharedStateRegistry)
             throws Exception {
 
         final String configMapName = getConfigMapNameFunction.apply(jobID);
-        return KubernetesUtils.createCompletedCheckpointStore(
-                configuration,
-                kubeClient,
-                executor,
-                configMapName,
-                lockIdentity,
-                maxNumberOfCheckpointsToRetain);
+        CompletedCheckpointStore completedCheckpointStore =
+                KubernetesUtils.createCompletedCheckpointStore(
+                        configuration,
+                        kubeClient,
+                        executor,
+                        configMapName,
+                        lockIdentity,
+                        maxNumberOfCheckpointsToRetain,
+                        sharedStateRegistry);
+
+        for (CompletedCheckpoint completedCheckpoint :
+                completedCheckpointStore.getAllCheckpoints()) {
+            completedCheckpointStore.registerSharedState(completedCheckpoint.getOperatorStates());
+        }
+        return completedCheckpointStore;
     }
 
     @Override

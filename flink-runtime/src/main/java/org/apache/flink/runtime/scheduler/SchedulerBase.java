@@ -81,6 +81,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
@@ -180,6 +181,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         jobMasterConfiguration,
                         userCodeLoader,
                         checkNotNull(checkpointRecoveryFactory),
+                        SharedStateRegistry.DEFAULT_FACTORY.create(ioExecutor),
                         log);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(

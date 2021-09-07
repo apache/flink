@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class represents a {@link CompletedCheckpointStore} if checkpointing has been enabled.
@@ -60,6 +62,11 @@ public enum DeactivatedCheckpointCompletedCheckpointStore implements CompletedCh
 
     @Override
     public boolean requiresExternalizedCheckpoints() {
+        throw unsupportedOperationException();
+    }
+
+    @Override
+    public void registerSharedState(Map<OperatorID, OperatorState> operatorStates) {
         throw unsupportedOperationException();
     }
 

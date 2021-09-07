@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to circumvent those situations.
  */
 public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
-        implements CompletedCheckpointStore {
+        extends AbstractCompleteCheckpointStore {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultCompletedCheckpointStore.class);
@@ -92,7 +93,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
             StateHandleStore<CompletedCheckpoint, R> stateHandleStore,
             CheckpointStoreUtil completedCheckpointStoreUtil,
             Collection<CompletedCheckpoint> completedCheckpoints,
+            SharedStateRegistry sharedStateRegistry,
             Executor executor) {
+        super(sharedStateRegistry);
         checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
         this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
         this.checkpointStateHandleStore = checkNotNull(stateHandleStore);

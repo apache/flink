@@ -23,7 +23,9 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -45,6 +47,7 @@ public class SchedulerUtilsTest extends TestLogger {
                         jobManagerConfig,
                         getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
+                        SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor()),
                         log,
                         new JobID());
 

@@ -18,9 +18,11 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Test {@link CompletedCheckpointStore} implementation for testing the shutdown behavior. */
@@ -67,6 +69,11 @@ public final class TestingCompletedCheckpointStore implements CompletedCheckpoin
 
     @Override
     public boolean requiresExternalizedCheckpoints() {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
+    public void registerSharedState(Map<OperatorID, OperatorState> operatorStates) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 }

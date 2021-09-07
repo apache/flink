@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
@@ -88,6 +89,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                 checkpointStoreUtil,
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         checkpointsInZooKeeper, checkpointStoreUtil),
+                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor()),
                 executor);
     }
 

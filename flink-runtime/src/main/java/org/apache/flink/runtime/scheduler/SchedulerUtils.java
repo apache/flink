@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import org.slf4j.Logger;
 
@@ -46,13 +47,19 @@ public final class SchedulerUtils {
             Configuration configuration,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
+            SharedStateRegistry sharedStateRegistry,
             Logger log)
             throws JobExecutionException {
         final JobID jobId = jobGraph.getJobID();
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 return createCompletedCheckpointStore(
-                        configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
+                        configuration,
+                        userCodeLoader,
+                        checkpointRecoveryFactory,
+                        sharedStateRegistry,
+                        log,
+                        jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -69,6 +76,7 @@ public final class SchedulerUtils {
             Configuration jobManagerConfig,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            SharedStateRegistry sharedStateRegistry,
             Logger log,
             JobID jobId)
             throws Exception {
@@ -89,7 +97,7 @@ public final class SchedulerUtils {
         }
 
         return recoveryFactory.createRecoveredCompletedCheckpointStore(
-                jobId, maxNumberOfCheckpointsToRetain, classLoader);
+                jobId, maxNumberOfCheckpointsToRetain, classLoader, sharedStateRegistry);
     }
 
     public static CheckpointIDCounter createCheckpointIDCounterIfCheckpointingIsEnabled(

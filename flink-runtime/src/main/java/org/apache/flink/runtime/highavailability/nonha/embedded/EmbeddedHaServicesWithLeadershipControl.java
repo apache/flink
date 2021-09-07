@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -36,16 +37,19 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
         this(
                 executor,
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous) -> {
+                        (maxCheckpoints, previous, sharedStateRegistry) -> {
                             if (previous != null) {
                                 if (!previous.getShutdownStatus().isPresent()) {
                                     throw new IllegalStateException(
                                             "Completed checkpoint store from previous run has not yet shutdown.");
                                 }
                                 return new EmbeddedCompletedCheckpointStore(
-                                        maxCheckpoints, previous.getAllCheckpoints());
+                                        maxCheckpoints,
+                                        previous.getAllCheckpoints(),
+                                        sharedStateRegistry);
                             }
-                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                            return new EmbeddedCompletedCheckpointStore(
+                                    maxCheckpoints, Collections.emptyList(), sharedStateRegistry);
                         }));
     }
 

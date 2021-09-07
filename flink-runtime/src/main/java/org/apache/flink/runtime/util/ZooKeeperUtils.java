@@ -50,6 +50,7 @@ import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalDriverFa
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
@@ -455,6 +456,7 @@ public class ZooKeeperUtils {
             CuratorFramework client,
             Configuration configuration,
             int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistry sharedStateRegistry,
             Executor executor)
             throws Exception {
 
@@ -473,8 +475,8 @@ public class ZooKeeperUtils {
                         DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                                 completedCheckpointStateHandleStore,
                                 ZooKeeperCheckpointStoreUtil.INSTANCE),
+                        sharedStateRegistry,
                         executor);
-
         LOG.info(
                 "Initialized {} in '{}' with {}.",
                 DefaultCompletedCheckpointStore.class.getSimpleName(),

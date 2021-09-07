@@ -45,6 +45,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
@@ -775,11 +776,14 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         new TestCompletedCheckpointStorageLocation());
 
         // set up the coordinator and validate the initial state
+        SharedStateRegistry sharedStateRegistry =
+                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor());
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setExecutionGraph(newGraph)
                         .setCompletedCheckpointStore(
-                                CompletedCheckpointStore.storeFor(() -> {}, completedCheckpoint))
+                                CompletedCheckpointStore.storeFor(
+                                        sharedStateRegistry, () -> {}, completedCheckpoint))
                         .setTimer(manuallyTriggeredScheduledExecutor)
                         .build();
 

@@ -20,7 +20,9 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,7 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** An embedded in-memory checkpoint store, which supports shutdown and suspend. */
-public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStore {
+public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpointStore {
 
     private static void throwAlreadyShutdownException(JobStatus status) {
         throw new IllegalStateException(
@@ -44,19 +46,36 @@ public class EmbeddedCompletedCheckpointStore implements CompletedCheckpointStor
 
     private final int maxRetainedCheckpoints;
 
+    @VisibleForTesting
     public EmbeddedCompletedCheckpointStore() {
         this(1);
     }
 
+    @VisibleForTesting
     public EmbeddedCompletedCheckpointStore(int maxRetainedCheckpoints) {
         this(maxRetainedCheckpoints, Collections.emptyList());
     }
 
     public EmbeddedCompletedCheckpointStore(
             int maxRetainedCheckpoints, Collection<CompletedCheckpoint> initialCheckpoints) {
+        this(
+                maxRetainedCheckpoints,
+                initialCheckpoints,
+                SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor()));
+    }
+
+    public EmbeddedCompletedCheckpointStore(
+            int maxRetainedCheckpoints,
+            Collection<CompletedCheckpoint> initialCheckpoints,
+            SharedStateRegistry sharedStateRegistry) {
+        super(sharedStateRegistry);
         Preconditions.checkArgument(maxRetainedCheckpoints > 0);
         this.maxRetainedCheckpoints = maxRetainedCheckpoints;
         this.checkpoints.addAll(initialCheckpoints);
+
+        for (CompletedCheckpoint completedCheckpoint : this.checkpoints) {
+            this.registerSharedState(completedCheckpoint.getOperatorStates());
+        }
     }
 
     @Override

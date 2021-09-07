@@ -35,9 +35,11 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -246,11 +248,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         assertThat(cleanupCallCount.get(), is(expectedCleanupCalls));
     }
 
-    private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {
+    private static final class FailingCompletedCheckpointStore
+            extends AbstractCompleteCheckpointStore {
 
         private final Exception addCheckpointFailure;
 
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
+            super(SharedStateRegistry.DEFAULT_FACTORY.create(Executors.directExecutor()));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 

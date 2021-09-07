@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 /** A factory for per Job checkpoint recovery components. */
 public interface CheckpointRecoveryFactory {
@@ -31,10 +32,15 @@ public interface CheckpointRecoveryFactory {
      * @param jobId Job ID to recover checkpoints for
      * @param maxNumberOfCheckpointsToRetain Maximum number of checkpoints to retain
      * @param userClassLoader User code class loader of the job
+     * @param sharedStateRegistry Registry that tracks state which is shared across (incremental)
+     *     checkpoints
      * @return {@link CompletedCheckpointStore} instance for the job
      */
     CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistry sharedStateRegistry)
             throws Exception;
 
     /**

@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmanager.NoOpJobGraphStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHelper;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -281,7 +282,8 @@ public class KubernetesUtils {
             Executor executor,
             String configMapName,
             String lockIdentity,
-            int maxNumberOfCheckpointsToRetain)
+            int maxNumberOfCheckpointsToRetain,
+            SharedStateRegistry sharedStateRegistry)
             throws Exception {
 
         final RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage =
@@ -302,6 +304,7 @@ public class KubernetesUtils {
                 KubernetesCheckpointStoreUtil.INSTANCE,
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, KubernetesCheckpointStoreUtil.INSTANCE),
+                sharedStateRegistry,
                 executor);
     }
 

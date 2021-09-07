@@ -20,16 +20,28 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 /** {@link CheckpointCoordinator} components in {@link HighAvailabilityMode#NONE}. */
 public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 
     @Override
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
-            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+            JobID jobId,
+            int maxNumberOfCheckpointsToRetain,
+            ClassLoader userClassLoader,
+            SharedStateRegistry sharedStateRegistry)
             throws Exception {
 
-        return new StandaloneCompletedCheckpointStore(maxNumberOfCheckpointsToRetain);
+        CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(
+                        maxNumberOfCheckpointsToRetain, sharedStateRegistry);
+
+        for (CompletedCheckpoint completedCheckpoint :
+                completedCheckpointStore.getAllCheckpoints()) {
+            completedCheckpointStore.registerSharedState(completedCheckpoint.getOperatorStates());
+        }
+        return completedCheckpointStore;
     }
 
     @Override
