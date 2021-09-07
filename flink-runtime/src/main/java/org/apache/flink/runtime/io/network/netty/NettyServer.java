@@ -103,6 +103,7 @@ class NettyServer {
                     initNioBootstrap();
                     LOG.info("Transport type 'auto': using NIO.");
                 }
+                break;
 
             default:
                 throw new IllegalStateException();
