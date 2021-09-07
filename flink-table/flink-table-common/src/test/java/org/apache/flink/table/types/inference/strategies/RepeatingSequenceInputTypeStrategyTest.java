@@ -52,13 +52,13 @@ public class RepeatingSequenceInputTypeStrategyTest extends InputTypeStrategiesT
                         .calledWithArgumentTypes(STRING(), INT())
                         .expectErrorMessage(
                                 String.format(
-                                        "Invalid input arguments. Expected signatures are:%nf(INT, STRING)")),
+                                        "Invalid input arguments. Expected signatures are:%nf([INT, STRING]...)")),
                 TestSpec.forStrategy(
                                 "Incorrect number of arguments",
                                 repeatingSequence(explicit(INT()), explicit(STRING())))
                         .calledWithArgumentTypes(INT())
                         .expectErrorMessage(
                                 String.format(
-                                        "Invalid input arguments. Expected signatures are:%nf(INT, STRING)")));
+                                        "Invalid input arguments. Expected signatures are:%nf([INT, STRING]...)")));
     }
 }

@@ -94,10 +94,19 @@ public class RepeatingSequenceInputTypeStrategy implements InputTypeStrategy {
         for (int i = 0; i < argumentStrategies.size(); i++) {
             final Signature.Argument argument =
                     argumentStrategies.get(i).getExpectedArgument(definition, i);
-            arguments.add(argument);
+
+            final Signature.Argument newArgument;
+            if (i == 0) {
+                newArgument = Signature.Argument.of(String.format("[%s", argument.getType()));
+            } else if (i == argumentStrategies.size() - 1) {
+                newArgument = Signature.Argument.of(String.format("%s]...", argument.getType()));
+            } else {
+                newArgument = argument;
+            }
+
+            arguments.add(newArgument);
         }
 
-        // Unfortunately there is no way to represent the repetition in the signature
         final Signature signature = Signature.of(arguments);
         return Collections.singletonList(signature);
     }

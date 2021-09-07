@@ -708,6 +708,39 @@ json:
       -- '[]'
       JSON_QUERY('{}', 'strict $.invalid' EMPTY ARRAY ON ERROR)
       ```
+  - sql: JSON_OBJECT([[KEY] key VALUE value]* [ { NULL | ABSENT } ON NULL ])
+    table: jsonObject(JsonOnNull, keyValues...)
+    description: |
+      Builds a JSON object string from a list of key-value pairs.
+
+      Note that keys must be non-`NULL` string literals, while values may be arbitrary expressions.
+
+      This function returns a JSON string. The `ON NULL` behavior defines how to treat `NULL`
+      values. If omitted, `NULL ON NULL` is assumed by default.
+
+      ```
+      -- '{}'
+      JSON_OBJECT()
+
+      -- '{"K1":"V1","K2":"V2"}'
+      JSON_OBJECT('K1' VALUE 'V1', 'K2' VALUE 'V2')
+
+      -- Expressions as values
+      JSON_OBJECT('orderNo' VALUE orders.orderId)
+
+      -- ON NULL
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) NULL ON NULL)   -- '{"K1":null}'
+      JSON_OBJECT(KEY 'K1' VALUE CAST(NULL AS STRING) ABSENT ON NULL) -- '{}'
+
+      -- '{"K1":{"K2":"V"}}'
+      JSON_OBJECT(
+        KEY 'K1'
+        VALUE JSON_OBJECT(
+          KEY 'K2'
+          VALUE 'V'
+        )
+      )
+      ```
 
 valueconstruction:
   - sql: |

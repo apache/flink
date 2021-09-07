@@ -25,6 +25,7 @@ import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
 import org.apache.flink.table.functions.{ConstantFunctionContext, FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.JSON_OBJECT
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.types.DataType
@@ -32,7 +33,7 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime
 
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.rex.{RexBuilder, RexExecutor, RexNode}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexExecutor, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConverters._
@@ -77,6 +78,10 @@ class ExpressionReducer(
            (SqlTypeName.ARRAY, _) |
            (SqlTypeName.MAP, _) |
            (SqlTypeName.MULTISET, _) => None
+
+      // Exclude some JSON functions which behave differently when called as an argument of another
+      // call of one of these functions.
+      case (_, call: RexCall) if call.getOperator == JSON_OBJECT => None
 
       case (_, e) => Some(e)
     }
@@ -140,73 +145,76 @@ class ExpressionReducer(
       if (pythonUDFExprs.exists(_ eq unreduced)) {
         // if contains python function then just insert the original expression.
         reducedValues.add(unreduced)
-      } else {
-        unreduced.getType.getSqlTypeName match {
-          // we insert the original expression for object literals
-          case SqlTypeName.ANY |
-               SqlTypeName.OTHER |
-               SqlTypeName.ROW |
-               SqlTypeName.STRUCTURED |
-               SqlTypeName.ARRAY |
-               SqlTypeName.MAP |
-               SqlTypeName.MULTISET =>
-            reducedValues.add(unreduced)
-          case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
-            val escapeVarchar = BinaryStringDataUtil.safeToString(
-              reduced.getField(reducedIdx).asInstanceOf[BinaryStringData])
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
-            reducedIdx += 1
-          case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
-            val reducedValue = reduced.getField(reducedIdx)
-            val value = if (null != reducedValue) {
-              new ByteString(reduced.getField(reducedIdx).asInstanceOf[Array[Byte]])
-            } else {
-              reducedValue
-            }
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-            reducedIdx += 1
-          case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
-            val reducedValue = reduced.getField(reducedIdx)
-            val value = if (reducedValue != null) {
-              val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
-              fromLocalDateTime(dt)
-            } else {
-              reducedValue
-            }
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-            reducedIdx += 1
-          case SqlTypeName.DECIMAL =>
-            val reducedValue = reduced.getField(reducedIdx)
-            val value = if (reducedValue != null) {
-              reducedValue.asInstanceOf[DecimalData].toBigDecimal
-            } else {
-              reducedValue
-            }
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-            reducedIdx += 1
-          case SqlTypeName.TIMESTAMP =>
-            val reducedValue = reduced.getField(reducedIdx)
-            val value = if (reducedValue != null) {
-              val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
-              fromLocalDateTime(dt)
-            } else {
-              reducedValue
-            }
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-            reducedIdx += 1
-          case _ =>
-            val reducedValue = reduced.getField(reducedIdx)
-            // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-            val value = if (reducedValue != null &&
-              unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
-              new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
-            } else {
-              reducedValue
-            }
+      } else unreduced match {
+        case call: RexCall if call.getOperator == JSON_OBJECT =>
+          reducedValues.add(unreduced)
+        case _ =>
+          unreduced.getType.getSqlTypeName match {
+            // we insert the original expression for object literals
+            case SqlTypeName.ANY |
+                 SqlTypeName.OTHER |
+                 SqlTypeName.ROW |
+                 SqlTypeName.STRUCTURED |
+                 SqlTypeName.ARRAY |
+                 SqlTypeName.MAP |
+                 SqlTypeName.MULTISET =>
+              reducedValues.add(unreduced)
+            case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+              val escapeVarchar = BinaryStringDataUtil.safeToString(
+                reduced.getField(reducedIdx).asInstanceOf[BinaryStringData])
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, escapeVarchar, unreduced))
+              reducedIdx += 1
+            case SqlTypeName.VARBINARY | SqlTypeName.BINARY =>
+              val reducedValue = reduced.getField(reducedIdx)
+              val value = if (null != reducedValue) {
+                new ByteString(reduced.getField(reducedIdx).asInstanceOf[Array[Byte]])
+              } else {
+                reducedValue
+              }
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+              reducedIdx += 1
+            case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+              val reducedValue = reduced.getField(reducedIdx)
+              val value = if (reducedValue != null) {
+                val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
+                fromLocalDateTime(dt)
+              } else {
+                reducedValue
+              }
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+              reducedIdx += 1
+            case SqlTypeName.DECIMAL =>
+              val reducedValue = reduced.getField(reducedIdx)
+              val value = if (reducedValue != null) {
+                reducedValue.asInstanceOf[DecimalData].toBigDecimal
+              } else {
+                reducedValue
+              }
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+              reducedIdx += 1
+            case SqlTypeName.TIMESTAMP =>
+              val reducedValue = reduced.getField(reducedIdx)
+              val value = if (reducedValue != null) {
+                val dt = reducedValue.asInstanceOf[TimestampData].toLocalDateTime
+                fromLocalDateTime(dt)
+              } else {
+                reducedValue
+              }
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+              reducedIdx += 1
+            case _ =>
+              val reducedValue = reduced.getField(reducedIdx)
+              // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+              val value = if (reducedValue != null &&
+                unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+                new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+              } else {
+                reducedValue
+              }
 
-            reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
-            reducedIdx += 1
-        }
+              reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+              reducedIdx += 1
+          }
       }
       i += 1
     }

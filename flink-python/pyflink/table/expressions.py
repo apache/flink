@@ -19,7 +19,7 @@ from typing import Union
 
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit
+from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
 from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
@@ -29,8 +29,8 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'call',
-           'call_sql', 'source_watermark']
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_object',
+           'call', 'call_sql', 'source_watermark']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -65,6 +65,12 @@ def _quaternion_op(op_name: str, first, second, third, forth) -> Expression:
         _get_java_expression(second),
         _get_java_expression(third),
         _get_java_expression(forth)))
+
+
+def _varargs_op(op_name: str, *args):
+    gateway = get_gateway()
+    return Expression(
+        getattr(gateway.jvm.Expressions, op_name)(*[_get_java_expression(arg) for arg in args]))
 
 
 def _add_version_doc():
@@ -579,6 +585,33 @@ def without_columns(head, *tails) -> Expression:
     gateway = get_gateway()
     tails = to_jarray(gateway.jvm.Object, [_get_java_expression(t) for t in tails])
     return _binary_op("withoutColumns", head, tails)
+
+
+def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
+    """
+    Builds a JSON object string from a list of key-value pairs.
+
+    `args` is an even-numbered list of alternating key/value pairs. Note that keys must be
+    non-`NULL` string literals, while values may be arbitrary expressions.
+
+    This function returns a JSON string. The `on_null` behavior defines how to treat `NULL` values.
+
+    Examples:
+    ::
+
+        >>> json_object() # '{}'
+        >>> json_object(JsonOnNull.NULL, "K1", "V1", "K2", "V2") # '{"K1":"V1","K2":"V2"}'
+
+        >>> # Expressions as values
+        >>> json_object(JsonOnNull.NULL, "orderNo", col("orderId"))
+
+        >>> json_object(JsonOnNull.NULL, "K1", null_of(DataTypes.STRING()))   # '{"K1":null}'
+        >>> json_object(JsonOnNull.ABSENT, "K1", null_of(DataTypes.STRING())) # '{}'
+
+        >>> # '{"K1":{"K2":"V"}}'
+        >>> json_object(JsonOnNull.NULL, "K1", json_object(JsonOnNull.NULL, "K2", "V"))
+    """
+    return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
 
 
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:

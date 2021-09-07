@@ -1558,6 +1558,15 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeDeferred()
                     .build();
 
+    public static final BuiltInFunctionDefinition JSON_OBJECT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("JSON_OBJECT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.JSON_OBJECT)
+                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .runtimeDeferred()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------
