@@ -239,8 +239,9 @@ important observation that puts certain requirements on the implementation of an
 or UDFs. In order to support checkpointing with tasks that finish we adjusted the [task lifecycle]({{< ref "docs/internals/task_lifecycle" >}})
 and introduced the {{< javadoc file="org/apache/flink/streaming/api/operators/StreamOperator.html#finish--" name="StreamOperator#finish" >}}
 method. The method is expected to be a clear cutoff point for flushing any remaining buffered state.
-All checkpoints taken after the `finish` method has been called should not contain any significant state that is required
-after a restore. What does it mean in details?
+All checkpoints taken after the `finish` method has been called can contain only pointers to the last transactions
+that will be closed in the final checkpoint or in case of a failure should be closed when restoring.
+Apart from those pointers it should be empty. What does it mean in details?
 
 ### Operator state
 
@@ -252,11 +253,11 @@ it's `finish` method called, we would've lost offsets for partitions it had been
 to work this problem around, we let checkpoints succeed, only if either none or all subtasks
 finished that use `UnionListState`.
 
-We have not seen a `ListState` used in a similar way, but you must be aware that any state taken
-after the `finish` method will be discarded and not available after a restore. We truly believe that
-any operator that is prepared to be rescaled should work well with tasks that partially finish
-(only a subset of it tasks finish). Restoring from a checkpoint which has some subtasks finished is
-equivalent to restoring such a task with the number of new subtasks equal to the number of finished
-tasks.
+We have not seen a `ListState` used in a similar way, but you must be aware that any state checkpointed
+after the `finish` method will be discarded and not available after a restore (if the corresponding
+checkpoint succeeds). We truly believe that any operator that is prepared to be rescaled should work
+well with tasks that partially finish (only a subset of it tasks finish). Restoring from a checkpoint
+which has some subtasks finished is equivalent to restoring such a task with the number of new
+subtasks equal to the number of finished tasks.
 
 {{< top >}}
