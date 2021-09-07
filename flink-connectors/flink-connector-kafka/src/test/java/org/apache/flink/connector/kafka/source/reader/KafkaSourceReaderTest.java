@@ -69,6 +69,7 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
+import static org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -83,7 +84,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
             adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, KafkaSourceTestEnv.NUM_PARTITIONS, (short) 1)));
+                    Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)));
             // Use the admin client to trigger the creation of internal __consumer_offsets topic.
             // This makes sure that we won't see unavailable coordinator in the tests.
             waitUtil(
@@ -108,6 +109,10 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     @AfterClass
     public static void tearDown() throws Exception {
         KafkaSourceTestEnv.tearDown();
+    }
+
+    protected int getNumSplits() {
+        return NUM_PARTITIONS;
     }
 
     // -----------------------------------------
@@ -434,7 +439,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private static List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
-        for (int part = 0; part < KafkaSourceTestEnv.NUM_PARTITIONS; part++) {
+        for (int part = 0; part < NUM_PARTITIONS; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
                 records.add(
                         new ProducerRecord<>(
