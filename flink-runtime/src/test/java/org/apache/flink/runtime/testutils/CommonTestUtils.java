@@ -22,9 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
@@ -42,6 +44,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -211,6 +214,20 @@ public class CommonTestUtils {
                                                             .allMatch(subtaskPredicate));
                 },
                 timeout);
+    }
+
+    public static void waitForNoTaskRunning(
+            SupplierWithException<JobDetailsInfo, Exception> jobDetailsSupplier, Deadline timeout)
+            throws Exception {
+        waitUntilCondition(
+                () -> {
+                    final Map<ExecutionState, Integer> state =
+                            jobDetailsSupplier.get().getJobVerticesPerState();
+                    final Integer numRunningTasks = state.get(ExecutionState.RUNNING);
+                    return numRunningTasks == null || numRunningTasks.equals(0);
+                },
+                timeout,
+                "Some tasks are still running until timeout");
     }
 
     public static void waitUntilJobManagerIsInitialized(
