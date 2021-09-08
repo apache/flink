@@ -70,7 +70,15 @@ public class AbstractServerTest extends TestLogger {
         try (TestServer server1 =
                 new TestServer(
                         "Test Server 1", new DisabledKvStateRequestStats(), portList.iterator())) {
-            server1.start();
+            try {
+                server1.start();
+            } catch (FlinkRuntimeException e){
+                if ("Unable to start Test Server 1. All ports in provided range are occupied.".equals(e.getMessage())){
+                    //ignore the server1 port occupied exception
+                } else {
+                    throw e;
+                }
+            }
 
             try (TestServer server2 =
                     new TestServer(
