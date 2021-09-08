@@ -39,7 +39,6 @@ import org.junit.rules.ExpectedException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -64,21 +63,12 @@ public class AbstractServerTest extends TestLogger {
         expectedEx.expectMessage(
                 "Unable to start Test Server 2. All ports in provided range are occupied.");
 
-        List<Integer> portList = new ArrayList<>();
-        portList.add(7777);
+        List<Integer> portList = Collections.singletonList(0);
 
         try (TestServer server1 =
                 new TestServer(
                         "Test Server 1", new DisabledKvStateRequestStats(), portList.iterator())) {
-            try {
-                server1.start();
-            } catch (FlinkRuntimeException e){
-                if ("Unable to start Test Server 1. All ports in provided range are occupied.".equals(e.getMessage())){
-                    //ignore the server1 port occupied exception
-                } else {
-                    throw e;
-                }
-            }
+            server1.start();
 
             try (TestServer server2 =
                     new TestServer(
