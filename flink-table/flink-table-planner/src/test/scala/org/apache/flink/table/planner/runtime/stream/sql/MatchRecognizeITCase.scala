@@ -409,7 +409,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |  MEASURES
          |    A.price as price,
          |    A.tax as tax,
-         |    MATCH_ROWTIME() as matchRowtime
+         |    MATCH_ROWTIME(ts_ltz) as matchRowtime
          |  ONE ROW PER MATCH
          |  PATTERN (A)
          |  DEFINE
@@ -424,8 +424,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List(
-      "ACME,3,1970-01-01T08:00:02.999,1970-01-01T08:00",
-      "ACME,2,1970-01-01T08:00:05.999,1970-01-01T08:00:03")
+      "ACME,3,1970-01-01T00:00:02.999Z,1970-01-01T08:00",
+      "ACME,2,1970-01-01T00:00:05.999Z,1970-01-01T08:00:03")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
