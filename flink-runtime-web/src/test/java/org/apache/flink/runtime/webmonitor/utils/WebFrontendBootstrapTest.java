@@ -61,8 +61,9 @@ public class WebFrontendBootstrapTest {
         configuration.setString(
                 Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
         configuration.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
-        Router router =
-                new Router().addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+        Router<?> router =
+                new Router<>()
+                        .addGet("/:*", new HistoryServerStaticFileServerHandler(webDir.toFile()));
         WebFrontendBootstrap webUI =
                 new WebFrontendBootstrap(
                         router,
