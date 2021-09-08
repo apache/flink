@@ -136,6 +136,7 @@ import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -546,6 +547,8 @@ public class SavepointITCase extends TestLogger {
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
 
             savepointPath = client.triggerSavepoint(jobGraph.getJobID(), null).get();
+
+            assertNotNull(savepointPath);
 
             client.cancel(jobGraph.getJobID()).get();
             // checkpoint directory should not be initialized
