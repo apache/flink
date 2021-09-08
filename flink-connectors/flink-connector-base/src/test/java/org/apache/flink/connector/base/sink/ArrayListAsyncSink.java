@@ -33,15 +33,18 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
     private final int maxBatchSize;
     private final int maxInFlightRequests;
     private final int maxBufferedRequests;
+    private final double flushOnBufferSizeMB;
 
     public ArrayListAsyncSink() {
-        this(25, 1, 100);
+        this(25, 1, 100, 0.1);
     }
 
-    public ArrayListAsyncSink(int maxBatchSize, int maxInFlightRequests, int maxBufferedRequests) {
+    public ArrayListAsyncSink(int maxBatchSize, int maxInFlightRequests, int maxBufferedRequests,
+                              double flushOnBufferSizeMB) {
         this.maxBatchSize = maxBatchSize;
         this.maxInFlightRequests = maxInFlightRequests;
         this.maxBufferedRequests = maxBufferedRequests;
+        this.flushOnBufferSizeMB = flushOnBufferSizeMB;
     }
 
     @Override
@@ -55,12 +58,19 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 context,
                 maxBatchSize,
                 maxInFlightRequests,
-                maxBufferedRequests) {
+                maxBufferedRequests,
+                flushOnBufferSizeMB) {
+
             @Override
             protected void submitRequestEntries(
                     List<Integer> requestEntries, Consumer<Collection<Integer>> requestResult) {
                 ArrayListDestination.putRecords(requestEntries);
                 requestResult.accept(Arrays.asList());
+            }
+
+            @Override
+            protected int getSizeInBytes(Integer requestEntry) {
+                return 4;
             }
         };
     }
