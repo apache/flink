@@ -190,6 +190,13 @@ public class ChangelogKeyedStateBackend<K>
 
     private final ExecutorService asyncOperationsThreadPool;
 
+    /**
+     * Provides a unique ID for each state created by this backend instance. A mapping from this ID
+     * to state name is written once along with metadata; afterwards, only ID is written with each
+     * state change for efficiency.
+     */
+    private short lastCreatedStateId = -1;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
@@ -379,7 +386,8 @@ public class ChangelogKeyedStateBackend<K>
                             keyedStateBackend.getKeyContext(),
                             stateChangelogWriter,
                             new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                    stateName, byteOrderedElementSerializer));
+                                    stateName, byteOrderedElementSerializer),
+                            ++lastCreatedStateId);
             queue =
                     new ChangelogKeyGroupedPriorityQueue<>(
                             keyedStateBackend.create(stateName, byteOrderedElementSerializer),
@@ -506,7 +514,8 @@ public class ChangelogKeyedStateBackend<K>
                         stateChangelogWriter,
                         meta,
                         stateDesc.getTtlConfig(),
-                        stateDesc.getDefaultValue());
+                        stateDesc.getDefaultValue(),
+                        ++lastCreatedStateId);
         IS is =
                 stateFactory.create(
                         state,

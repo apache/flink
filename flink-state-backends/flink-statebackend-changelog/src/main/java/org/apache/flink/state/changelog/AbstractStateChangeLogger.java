@@ -52,11 +52,13 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     protected final RegisteredStateMetaInfoBase metaInfo;
     private final StateMetaInfoSnapshot.BackendStateType stateType;
     private boolean metaDataWritten = false;
+    private final short stateShortId;
 
     public AbstractStateChangeLogger(
             StateChangelogWriter<?> stateChangelogWriter,
             InternalKeyContext<Key> keyContext,
-            RegisteredStateMetaInfoBase metaInfo) {
+            RegisteredStateMetaInfoBase metaInfo,
+            short stateId) {
         this.stateChangelogWriter = checkNotNull(stateChangelogWriter);
         this.keyContext = checkNotNull(keyContext);
         this.metaInfo = checkNotNull(metaInfo);
@@ -67,6 +69,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
         } else {
             throw new IllegalArgumentException("Unsupported state type: " + metaInfo);
         }
+        this.stateShortId = stateId;
     }
 
     @Override
@@ -149,6 +152,8 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
                                 StateMetaInfoSnapshotReadersWriters.getWriter()
                                         .writeStateMetaInfoSnapshot(metaInfo.snapshot(), out);
                                 writeDefaultValueAndTtl(out);
+                                out.writeShort(stateShortId);
+                                out.writeByte(stateType.getCode());
                             }));
             metaDataWritten = true;
         }
@@ -164,10 +169,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
         return serializeRaw(
                 wrapper -> {
                     wrapper.writeByte(op.getCode());
-                    // todo: optimize in FLINK-22944 by either writing short code or grouping and
-                    // writing once (same for key, ns)
-                    wrapper.writeUTF(metaInfo.getName());
-                    wrapper.writeByte(stateType.getCode());
+                    wrapper.writeShort(stateShortId);
                     serializeScope(ns, wrapper);
                     if (dataWriter != null) {
                         dataWriter.accept(wrapper);
