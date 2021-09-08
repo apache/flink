@@ -239,9 +239,13 @@ important observation that puts certain requirements on the implementation of an
 or UDFs. In order to support checkpointing with tasks that finish we adjusted the [task lifecycle]({{< ref "docs/internals/task_lifecycle" >}})
 and introduced the {{< javadoc file="org/apache/flink/streaming/api/operators/StreamOperator.html#finish--" name="StreamOperator#finish" >}}
 method. The method is expected to be a clear cutoff point for flushing any remaining buffered state.
-All checkpoints taken after the `finish` method has been called can contain only pointers to the last transactions
-that will be closed in the final checkpoint or in case of a failure should be closed when restoring.
-Apart from those pointers it should be empty. What does it mean in details?
+All checkpoints taken after the `finish` method has been called should be in most cases empty and
+shouldn't contain any buffered data, as there will be no way to emit this data. One notable
+exception is if your operator has some pointers to transactions in external systems, for example in
+order to implement the exactly-once semantic. In such a case, checkpoints taken after invoking `finish()`
+method should keep a pointer to the last transaction(s) that will be committed in the final checkpoint
+before the operator is closed. A good built-in example of this are exactly-once sinks and the 
+`TwoPhaseCommitSinkFunction`. What does it mean in more details?
 
 ### Operator state
 
