@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -529,6 +530,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     protected void endData() throws Exception {
+
+        if (syncSavepointWithoutDrain != null) {
+            throw new FlinkRuntimeException(
+                    "We run out of data to process while waiting for a synchronous savepoint"
+                            + " to be finished.");
+        }
+
         advanceToEndOfEventTime();
         // finish all operators in a chain effect way
         operatorChain.finishOperators(actionExecutor);
@@ -552,6 +560,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 syncSavepointWithDrain = checkpointId;
             }
         } else {
+            if (endOfDataReceived) {}
             syncSavepointWithoutDrain = checkpointId;
         }
     }
@@ -1281,19 +1290,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetricsBuilder checkpointMetrics)
             throws Exception {
 
+        final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
         LOG.debug(
                 "Starting checkpoint {} {} on task {}",
                 checkpointMetaData.getCheckpointId(),
-                checkpointOptions.getCheckpointType(),
+                checkpointType,
                 getName());
+
+        if (checkpointType.isSynchronous() && !checkpointType.shouldDrain() && endOfDataReceived) {
+            LOG.debug("Can not trigger a stop-with-savepoint w/o drain if a task is finishing.");
+            return false;
+        }
 
         if (isRunning) {
             actionExecutor.runThrowing(
                     () -> {
-                        if (checkpointOptions.getCheckpointType().isSynchronous()) {
+                        if (checkpointType.isSynchronous()) {
                             setSynchronousSavepoint(
                                     checkpointMetaData.getCheckpointId(),
-                                    checkpointOptions.getCheckpointType().shouldDrain());
+                                    checkpointType.shouldDrain());
                         }
 
                         if (areCheckpointsWithFinishedTasksEnabled()
