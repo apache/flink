@@ -132,6 +132,7 @@ The versioned table will store all versions - identified by time - since the las
 For example, suppose we have a table of orders, each with prices in different currencies.
 To properly normalize this table to a single currency, such as USD, each order needs to be joined with the proper currency conversion rate from the point-in-time when the order was placed. 
 
+
 ```sql
 -- Create a table of orders. This is a standard
 -- append-only dynamic table.
@@ -150,10 +151,12 @@ CREATE TABLE orders (
 CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
-    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL
-    WATERMARK FOR update_time AS update_time
+    update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
+    WATERMARK FOR update_time AS update_time,
+    PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
-   'connector' = 'upsert-kafka',
+   'connector' = 'kafka',
+   'value.format' = 'debezium-json',
    /* ... */
 );
 
@@ -164,19 +167,19 @@ SELECT
      conversion_rate,
      order_time,
 FROM orders
-LEFT JOIN currency_rates FOR SYSTEM TIME AS OF orders.order_time
-ON orders.currency = currency_rates.currency
+LEFT JOIN currency_rates FOR SYSTEM_TIME AS OF orders.order_time
+ON orders.currency = currency_rates.currency;
 
-order_id price currency conversion_rate  order_time
-====== ==== ======  ============  ========
-o_001    11.11  EUR        1.14                    12:00:00
-o_002    12.51  EUR        1.10                    12:0600
+order_id  price  currency  conversion_rate  order_time
+========  =====  ========  ===============  =========
+o_001     11.11  EUR       1.14             12:00:00
+o_002     12.51  EUR       1.10             12:06:00
 
 ```
 
 **Note:** The event-time temporal join is triggered by a watermark from the left and right sides; please ensure both sides of the join have set watermark correctly.
 
-**Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `P.product_id` of table `product_changelog` to be constrained in the condition `O.product_id = P.product_id`.
+**Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `currency_rates.currency` of table `currency_rates` to be constrained in the condition `orders.currency = currency_rates.currency`.
 
 In contrast to [regular joins](#regular-joins), the previous temporal table results will not be affected despite the changes on the build side.
 Compared to [interval joins](#interval-joins), temporal table joins do not define a time window within which the records will be joined.
