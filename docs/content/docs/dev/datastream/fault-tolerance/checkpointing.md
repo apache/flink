@@ -83,7 +83,7 @@ Other parameters for checkpointing include:
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
 
-  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so please read through the [important considerations](#checkpointing-with-parts-of-the-graph-finished)
+  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so please read through the [important considerations](#checkpointing-with-parts-of-the-graph-finished).
 
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
@@ -225,8 +225,9 @@ Please note that records in flight in the loop edges (and the state changes asso
 
 ## Checkpointing with parts of the graph finished *(BETA)*
 
-Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job graph have finished processing all data, because it was a bounded source. The feature must be enabled
-via a feature flag:
+Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job
+graph have finished processing all data, which might happen if it contains bounded sources. The
+feature must be enabled via a feature flag:
 
 ```java
 Configuration config = new Configuration();
