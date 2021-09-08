@@ -25,7 +25,10 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -118,5 +121,23 @@ public class FilterPushDownSpec extends SourceAbilitySpecBase {
                             "%s does not support SupportsFilterPushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        final List<String> expressionStrs = new ArrayList<>();
+        final RowType sourceRowType = context.getSourceRowType();
+        for (RexNode rexNode : predicates) {
+            expressionStrs.add(
+                    FlinkRexUtil.getExpressionString(
+                            rexNode,
+                            JavaScalaConversionUtil.toScala(sourceRowType.getFieldNames())));
+        }
+
+        return String.format(
+                "filter=[%s]",
+                expressionStrs.stream()
+                        .reduce((l, r) -> String.format("and(%s, %s)", l, r))
+                        .orElse(""));
     }
 }

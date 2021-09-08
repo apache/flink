@@ -19,16 +19,17 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
+import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
@@ -247,6 +248,13 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
+  private val flinkContext = new FlinkContextImpl(
+    false,
+    TableConfig.getDefault,
+    null,
+    CatalogManagerMocks.createEmptyCatalogManager,
+    null)
+
   private def createProjectedTableSourceTable(): Table = {
     val catalogTable = CatalogTable.fromProperties(
       Map(
@@ -284,7 +292,8 @@ object MetadataTestUtil {
       new TestTableSource(),
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      Array("project=[a, c, d]"))
+      flinkContext
+      )
   }
 
   private def createProjectedTableSourceTableWithPartialCompositePrimaryKey(): Table = {
@@ -321,7 +330,7 @@ object MetadataTestUtil {
       new TestTableSource(),
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      Array("project=[a]"))
+      flinkContext)
   }
 
   private def getMetadataTable(
@@ -379,7 +388,7 @@ class MockTableSourceTable(
     tableSource: DynamicTableSource,
     isStreamingMode: Boolean,
     catalogTable: ResolvedCatalogTable,
-    extraDigests: Array[String] = Array.empty)
+    flinkContext: FlinkContext)
   extends TableSourceTable(
     null,
     tableIdentifier,
@@ -388,7 +397,7 @@ class MockTableSourceTable(
     tableSource,
     isStreamingMode,
     catalogTable,
-    extraDigests)
+    flinkContext)
   with Table {
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType
 
