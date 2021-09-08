@@ -21,6 +21,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -41,7 +42,7 @@ public class AsyncSinkBaseITCase {
     public void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
-                .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10));
+                .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000));
         Exception e =
                 assertThrows(
                         JobExecutionException.class,
