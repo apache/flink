@@ -297,4 +297,4 @@ EXPLAIN [([ExplainDetail[, ExplainDetail]*]) | PLAN FOR] <query_statement_or_ins
 
 
 关于 query 的语法，请查阅 [Queries]({{< ref "docs/dev/table/sql/queries" >}}#supported-syntax) 页面。
-对于 INSERT 的语法，请查阅 [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) 页面。
+关于 INSERT 的语法，请查阅 [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) 页面。
