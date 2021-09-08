@@ -1,5 +1,5 @@
 ---
-title: "DESCRIBE Statements"
+title: "DESCRIBE 语句"
 weight: 8
 type: docs
 aliases:
@@ -24,36 +24,38 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DESCRIBE Statements
+<a name="describe-statements"></a>
 
-DESCRIBE statements are used to describe the schema of a table or a view.
+# DESCRIBE 语句
+
+DESCRIBE 语句用于描述表或视图的 schema。
+
+<a name="run-a-describe-statement"></a>
 
 
-## Run a DESCRIBE statement
+## 执行 DESCRIBE 语句
 
 {{< tabs "describe" >}}
 {{< tab "Java" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`executeSql()` 方法会返回给定表的 schema，否则将抛出异常。
 
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Scala" >}}
-DESCRIBE statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`executeSql()` 方法会返回给定表的 schema，否则将抛出异常。
 
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
+以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Python" >}}
+可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`execute_sql()` 方法会返回给定表的 schema，否则将抛出异常。
 
-DESCRIBE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns the schema of given table for a successful DESCRIBE operation, otherwise will throw an exception.
-
-The following examples show how to run a DESCRIBE statement in `TableEnvironment`.
-
+以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-DESCRIBE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+DESCRIBE 语句可以在  [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
 
-The following examples show how to run a DESCRIBE statement in SQL CLI.
+以下示例展示了如何在 SQL CLI 中执行一条 DESCRIBE 语句。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -63,7 +65,7 @@ The following examples show how to run a DESCRIBE statement in SQL CLI.
 ```java
 TableEnvironment tableEnv = TableEnvironment.create(...);
 
-// register a table named "Orders"
+// 注册名为 “Orders” 的表
 tableEnv.executeSql(
         "CREATE TABLE Orders (" +
         " `user` BIGINT NOT NULl," +
@@ -75,10 +77,10 @@ tableEnv.executeSql(
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
         ") with (...)");
 
-// print the schema
+// 打印 schema
 tableEnv.executeSql("DESCRIBE Orders").print();
 
-// print the schema
+// 打印 schema
 tableEnv.executeSql("DESC Orders").print();
 ```
 {{< /tab >}}
@@ -86,7 +88,7 @@ tableEnv.executeSql("DESC Orders").print();
 ```scala
 val tableEnv = TableEnvironment.create(...)
 
-// register a table named "Orders"
+// 注册名为 “Orders” 的表
  tableEnv.executeSql(
         "CREATE TABLE Orders (" +
         " `user` BIGINT NOT NULl," +
@@ -98,10 +100,10 @@ val tableEnv = TableEnvironment.create(...)
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS" +
         ") with (...)")
 
-// print the schema
+// 打印 schema
 tableEnv.executeSql("DESCRIBE Orders").print()
 
-// print the schema
+// 打印 schema
 tableEnv.executeSql("DESC Orders").print()
 ```
 {{< /tab >}}
@@ -109,7 +111,7 @@ tableEnv.executeSql("DESC Orders").print()
 ```python
 table_env = TableEnvironment.create(...)
 
-# register a table named "Orders"
+# 注册名为 “Orders” 的表
 table_env.execute_sql( \
         "CREATE TABLE Orders (" 
         " `user` BIGINT NOT NULl," 
@@ -121,10 +123,10 @@ table_env.execute_sql( \
         " WATERMARK FOR ts AS ts - INTERVAL '1' SECONDS"
         ") with (...)");
 
-# print the schema
+# 打印 schema
 table_env.execute_sql("DESCRIBE Orders").print()
 
-# print the schema
+# 打印 schema
 table_env.execute_sql("DESC Orders").print()
 ```
 {{< /tab >}}
@@ -150,7 +152,7 @@ Flink SQL> DESC Orders;
 {{< /tab >}}
 {{< /tabs >}}
 
-The result of the above example is:
+上述示例的结果是：
 {{< tabs "c20da697-b9fc-434b-b7e5-3b51510eee5b" >}}
 {{< tab "Java" >}}
 ```text
@@ -216,10 +218,11 @@ root
 {{< /tab >}}
 {{< /tabs >}}
 
-
 {{< top >}}
 
-## Syntax
+<a name="syntax"></a>
+
+## 语法
 
 ```sql
 { DESCRIBE | DESC } [catalog_name.][db_name.]table_name
