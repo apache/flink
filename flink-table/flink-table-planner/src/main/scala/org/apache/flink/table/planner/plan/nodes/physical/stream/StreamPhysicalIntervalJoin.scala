@@ -27,11 +27,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
 
@@ -81,7 +81,7 @@ class StreamPhysicalIntervalJoin(
       .input("right", right)
       .item("joinType", joinSpec.getJoinType)
       .item("windowBounds", windowBoundsDesc)
-      .item("where", getExpressionString(
+      .item("where", FlinkRexUtil.getExpressionString(
           originalCondition, getRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }

@@ -123,7 +123,12 @@ public class TemporalTableSourceSpecSerdeTest {
                         lookupTableSource,
                         true,
                         resolvedCatalogTable,
-                        new String[] {},
+                        new FlinkContextImpl(
+                                false,
+                                TableConfig.getDefault(),
+                                null,
+                                CatalogManagerMocks.createEmptyCatalogManager(),
+                                null),
                         new SourceAbilitySpec[] {});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
                 new TemporalTableSourceSpec(tableSourceTable1, new TableConfig());

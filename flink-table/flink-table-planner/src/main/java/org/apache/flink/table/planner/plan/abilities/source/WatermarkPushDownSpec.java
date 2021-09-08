@@ -29,6 +29,8 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsWatermarkPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.WatermarkGeneratorCodeGenerator;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -182,5 +184,26 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                 output.emitWatermark(new Watermark(currentWatermark));
             }
         }
+    }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        final String expressionStr =
+                FlinkRexUtil.getExpressionString(
+                        watermarkExpr,
+                        JavaScalaConversionUtil.toScala(
+                                context.getSourceRowType().getFieldNames()));
+
+        //        final String expressionStr =
+        //                FlinkRexUtil.getExpressionString(
+        //                        watermarkExpr,
+        //
+        // JavaScalaConversionUtil.toScala(getProducedType().get().getFieldNames()));
+
+        if (idleTimeoutMillis == -1L) {
+            return String.format("watermark=[%s]", expressionStr);
+        }
+
+        return String.format("watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
     }
 }

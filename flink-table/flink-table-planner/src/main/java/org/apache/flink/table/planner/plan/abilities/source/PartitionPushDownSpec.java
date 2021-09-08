@@ -60,4 +60,12 @@ public class PartitionPushDownSpec extends SourceAbilitySpecBase {
                             tableSource.getClass().getName()));
         }
     }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        return "partitions=["
+                + String.join(
+                        ", ", this.partitions.stream().map(Object::toString).toArray(String[]::new))
+                + "]";
+    }
 }

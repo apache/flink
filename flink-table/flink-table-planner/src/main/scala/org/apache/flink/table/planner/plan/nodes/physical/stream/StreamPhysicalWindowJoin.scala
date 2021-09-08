@@ -25,12 +25,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoi
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Litmus
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -99,7 +99,7 @@ class StreamPhysicalWindowJoin(
       .item("rightWindow", rightWindowing.toSummaryString(rightInputFieldNames))
       .item("joinType", joinSpec.getJoinType)
       .item("where",
-        getExpressionString(
+        FlinkRexUtil.getExpressionString(
           remainingCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
