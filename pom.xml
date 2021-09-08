@@ -1829,11 +1829,15 @@ under the License.
 					<execution>
 						<id>directories</id>
 						<goals>
-							<goal>highest-basedir</goal>
+							<goal>directory-of</goal>
 						</goals>
 						<phase>initialize</phase>
 						<configuration>
 							<property>rootDir</property>
+							<project>
+								<groupId>org.apache.flink</groupId>
+								<artifactId>flink-parent</artifactId>
+							</project>
 						</configuration>
 					</execution>
 				</executions>
