@@ -36,23 +36,23 @@ DESCRIBE 语句用于描述表或视图的 schema。
 
 {{< tabs "describe" >}}
 {{< tab "Java" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`executeSql()` 方法会返回给定表的 schema，否则将抛出异常。
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Scala" >}}
-可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`executeSql()` 方法会返回给定表的 schema，否则将抛出异常。
+可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`executeSql()` 方法会返回给定表的 schema，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "Python" >}}
-可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。对于成功的 DESCRIBE 操作，`execute_sql()` 方法会返回给定表的 schema，否则将抛出异常。
+可以使用 `TableEnvironment` 的 `execute_sql()` 方法执行 DESCRIBE 语句。如果 DESCRIBE 操作执行成功，`execute_sql()` 方法会返回给定表的 schema，否则会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 DESCRIBE 语句。
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-DESCRIBE 语句可以在  [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
+DESCRIBE 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
 
 以下示例展示了如何在 SQL CLI 中执行一条 DESCRIBE 语句。
 
