@@ -32,7 +32,6 @@ DESCRIBE 语句用于描述表或视图的 schema。
 
 <a name="run-a-describe-statement"></a>
 
-
 ## 执行 DESCRIBE 语句
 
 {{< tabs "describe" >}}
