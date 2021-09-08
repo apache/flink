@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 /** Operation to describe a ALTER TABLE IF EXISTS .. SET .. statement. */
 public class AlterTableOptionsOperation extends AlterTableOperation {
     private final CatalogTable catalogTable;
-    private final Map<String, String> tableOptions;
+    private final Map<String, String> setOptions;
 
     public AlterTableOptionsOperation(ObjectIdentifier tableIdentifier, CatalogTable catalogTable) {
         this(tableIdentifier, catalogTable, false);
@@ -40,14 +40,14 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
             ObjectIdentifier tableIdentifier, CatalogTable catalogTable, boolean ifExists) {
         super(tableIdentifier, ifExists);
         this.catalogTable = catalogTable;
-        this.tableOptions = catalogTable.getOptions();
+        this.setOptions = catalogTable.getOptions();
     }
 
     public AlterTableOptionsOperation(
             ObjectIdentifier tableIdentifier, Map<String, String> tableOptions, boolean ifExists) {
         super(tableIdentifier, ifExists);
         this.catalogTable = null;
-        this.tableOptions = tableOptions;
+        this.setOptions = tableOptions;
     }
 
     public CatalogTable getCatalogTable() {
@@ -57,7 +57,7 @@ public class AlterTableOptionsOperation extends AlterTableOperation {
     @Override
     public String asSummaryString() {
         String description =
-                tableOptions.entrySet().stream()
+                setOptions.entrySet().stream()
                         .map(
                                 entry ->
                                         OperationUtils.formatParameter(

@@ -759,7 +759,8 @@ public final class CatalogManager {
      */
     public void alterTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        alterTableInternal(table, objectIdentifier, ignoreIfNotExists, true);
+        alterTableInternal(
+                table, objectIdentifier, ignoreIfNotExists, CatalogBaseTable.TableKind.TABLE);
     }
 
     /**
@@ -772,16 +773,16 @@ public final class CatalogManager {
      */
     public void alterView(
             CatalogBaseTable view, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        alterTableInternal(view, objectIdentifier, ignoreIfNotExists, false);
+        alterTableInternal(
+                view, objectIdentifier, ignoreIfNotExists, CatalogBaseTable.TableKind.VIEW);
     }
 
     public void alterTableInternal(
             CatalogBaseTable table,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists,
-            boolean isAlterTable) {
+            CatalogBaseTable.TableKind tableKind) {
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
-        final String tableOrView = isAlterTable ? "Table" : "View";
         if (resultOpt.isPresent()) {
             execute(
                     (catalog, path) -> {
@@ -790,12 +791,13 @@ public final class CatalogManager {
                     },
                     objectIdentifier,
                     ignoreIfNotExists,
-                    "Alter" + tableOrView);
+                    "Alter" + tableKind.name());
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
-                            tableOrView, objectIdentifier.asSummaryString()));
+                            tableKind == CatalogBaseTable.TableKind.TABLE ? "Table" : "View",
+                            objectIdentifier.asSummaryString()));
         }
     }
 
@@ -807,7 +809,7 @@ public final class CatalogManager {
      *     exist.
      */
     public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, CatalogBaseTable.TableKind.TABLE);
     }
 
     /**
@@ -818,11 +820,14 @@ public final class CatalogManager {
      *     exist.
      */
     public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, false);
+        dropTableInternal(objectIdentifier, ignoreIfNotExists, CatalogBaseTable.TableKind.VIEW);
     }
 
     private void dropTableInternal(
-            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, boolean isDropTable) {
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists,
+            CatalogBaseTable.TableKind tableKind) {
+        final boolean isDropTable = tableKind == CatalogBaseTable.TableKind.TABLE;
         final Predicate<CatalogBaseTable> filter =
                 isDropTable
                         ? table -> table instanceof CatalogTable
@@ -836,19 +841,18 @@ public final class CatalogManager {
                                     + "Drop it first before removing the permanent %s.",
                             tableOrView, objectIdentifier, tableOrView));
         }
-        final String tableOrView = isDropTable ? "Table" : "View";
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
             execute(
                     (catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
                     objectIdentifier,
                     ignoreIfNotExists,
-                    "Drop" + tableOrView);
+                    "Drop" + tableKind.name());
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
-                            tableOrView, objectIdentifier.asSummaryString()));
+                            isDropTable ? "Table" : "View", objectIdentifier.asSummaryString()));
         }
     }
 
