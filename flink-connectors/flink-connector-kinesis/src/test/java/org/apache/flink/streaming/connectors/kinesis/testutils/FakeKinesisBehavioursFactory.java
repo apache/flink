@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.createDummyStreamShardHandle;
@@ -660,17 +661,19 @@ public class FakeKinesisBehavioursFactory {
                             shardIterator);
             List<Record> records = Collections.emptyList();
             try {
-                String data = queue.take();
-                Record record =
-                        new Record()
-                                .withData(
-                                        ByteBuffer.wrap(
-                                                data.getBytes(ConfigConstants.DEFAULT_CHARSET)))
-                                .withPartitionKey(UUID.randomUUID().toString())
-                                .withApproximateArrivalTimestamp(
-                                        new Date(System.currentTimeMillis()))
-                                .withSequenceNumber(String.valueOf(0));
-                records = Collections.singletonList(record);
+                String data = queue.poll(100, TimeUnit.MILLISECONDS);
+                if (data != null) {
+                    Record record =
+                            new Record()
+                                    .withData(
+                                            ByteBuffer.wrap(
+                                                    data.getBytes(ConfigConstants.DEFAULT_CHARSET)))
+                                    .withPartitionKey(UUID.randomUUID().toString())
+                                    .withApproximateArrivalTimestamp(
+                                            new Date(System.currentTimeMillis()))
+                                    .withSequenceNumber(String.valueOf(0));
+                    records = Collections.singletonList(record);
+                }
             } catch (InterruptedException e) {
                 shardIterator = null;
             }
