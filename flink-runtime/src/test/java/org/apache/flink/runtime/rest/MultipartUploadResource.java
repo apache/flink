@@ -135,7 +135,10 @@ public class MultipartUploadResource extends ExternalResource {
                 (request, restfulGateway) -> {
                     // the default verifier checks for identiy (i.e. same name and content) of all
                     // uploaded files
-                    List<Path> expectedFiles = Arrays.asList(file1.toPath(), file2.toPath());
+                    List<Path> expectedFiles =
+                            getFilesToUpload().stream()
+                                    .map(File::toPath)
+                                    .collect(Collectors.toList());
                     List<Path> uploadedFiles =
                             request.getUploadedFiles().stream()
                                     .map(File::toPath)
