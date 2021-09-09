@@ -63,6 +63,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
         self._parse_param_lock = threading.Lock()
         self._worker_address = None
         self._old_working_dir = None
+        self._old_python_path = None
         self._ref_cnt = 0
 
     def start(self):
@@ -97,6 +98,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
         # The first thread to start is responsible for preparing all execution environment.
         if not self._ref_cnt:
             if 'PYTHONPATH' in params:
+                self._old_python_path = sys.path[:]
                 python_path_list = params['PYTHONPATH'].split(':')
                 python_path_list.reverse()
                 for path in python_path_list:
@@ -157,10 +159,16 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
         finally:
             self._parse_param_lock.acquire()
             self._ref_cnt -= 1
-            # The last thread to exit is responsible for changing working directory.
-            if self._ref_cnt == 0 and self._old_working_dir is not None:
-                os.chdir(self._old_working_dir)
-                self._old_working_dir = None
+            # The last thread to exit is responsible for reverting working directory and sys.path.
+            if self._ref_cnt == 0:
+                if self._old_python_path is not None:
+                    sys.path.clear()
+                    for item in self._old_python_path:
+                        sys.path.append(item)
+                    self._old_python_path = None
+                if self._old_working_dir is not None:
+                    os.chdir(self._old_working_dir)
+                    self._old_working_dir = None
             self._parse_param_lock.release()
             if fn_log_handler:
                 fn_log_handler.close()
