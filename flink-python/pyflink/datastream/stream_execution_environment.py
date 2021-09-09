@@ -22,7 +22,7 @@ from typing import List, Any, Optional
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import WatermarkStrategy
+from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
@@ -461,6 +461,25 @@ class StreamExecutionEnvironment(object):
         """
         j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
         return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
+
+    def configure(self, configuration: Configuration):
+        """
+        Sets all relevant options contained in the :class:`~pyflink.common.Configuration`. such as
+        e.g. `pipeline.time-characteristic`. It will reconfigure
+        :class:`~pyflink.datastream.StreamExecutionEnvironment`,
+        :class:`~pyflink.common.ExecutionConfig` and :class:`~pyflink.datastream.CheckpointConfig`.
+
+        It will change the value of a setting only if a corresponding option was set in the
+        `configuration`. If a key is not present, the current value of a field will remain
+        untouched.
+
+        :param configuration: a configuration to read the values from.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_stream_execution_environment.configure(configuration._j_configuration,
+                                                       get_gateway().jvm.Thread.currentThread()
+                                                       .getContextClassLoader())
 
     def add_python_file(self, file_path: str):
         """
