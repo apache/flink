@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.MultipleRecordWriters;
@@ -295,6 +296,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @GuardedBy("shouldInterruptOnCancelLock")
     private boolean shouldInterruptOnCancel = true;
 
+    @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -379,6 +382,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         this.stateBackend = createStateBackend();
         this.checkpointStorage = createCheckpointStorage(stateBackend);
+        this.changelogWriterAvailabilityProvider =
+                environment.getTaskStateManager().getStateChangelogStorage() == null
+                        ? null
+                        : environment
+                                .getTaskStateManager()
+                                .getStateChangelogStorage()
+                                .getAvailabilityProvider();
 
         CheckpointStorageAccess checkpointStorageAccess =
                 checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
@@ -474,7 +484,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
-                if (recordWriter.isAvailable()) {
+                if (recordWriter.isAvailable()
+                        && (changelogWriterAvailabilityProvider == null
+                                || changelogWriterAvailabilityProvider.isAvailable())) {
                     return;
                 }
                 break;
@@ -501,9 +513,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         if (!recordWriter.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getBackPressuredTimePerSecond());
             resumeFuture = recordWriter.getAvailableFuture();
-        } else {
+        } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
+        } else {
+            // currently, waiting for changelog availability is reported as busy
+            // todo: add new metric (FLINK-24402)
+            timer = null;
+            resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
         }
         assertNoException(
                 resumeFuture.thenRun(
@@ -1677,17 +1694,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private static class ResumeWrapper implements Runnable {
         private final Suspension suspendedDefaultAction;
-        private final PeriodTimer timer;
+        @Nullable private final PeriodTimer timer;
 
-        public ResumeWrapper(Suspension suspendedDefaultAction, PeriodTimer timer) {
+        public ResumeWrapper(Suspension suspendedDefaultAction, @Nullable PeriodTimer timer) {
             this.suspendedDefaultAction = suspendedDefaultAction;
-            timer.markStart();
+            if (timer != null) {
+                timer.markStart();
+            }
             this.timer = timer;
         }
 
         @Override
         public void run() {
-            timer.markEnd();
+            if (timer != null) {
+                timer.markEnd();
+            }
             suspendedDefaultAction.resume();
         }
     }

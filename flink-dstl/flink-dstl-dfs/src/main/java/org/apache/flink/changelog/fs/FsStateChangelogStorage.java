@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
@@ -91,5 +92,10 @@ public class FsStateChangelogStorage
     @Override
     public void close() throws Exception {
         uploader.close();
+    }
+
+    @Override
+    public AvailabilityProvider getAvailabilityProvider() {
+        return uploader.getAvailabilityProvider();
     }
 }

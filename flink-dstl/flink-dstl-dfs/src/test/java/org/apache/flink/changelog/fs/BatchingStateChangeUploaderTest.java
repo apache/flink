@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.StateChangeUploader.UploadTask;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
@@ -42,12 +43,17 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.rethrow;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** {@link BatchingStateChangeUploader} test. */
 public class BatchingStateChangeUploaderTest {
 
+    private static final int MAX_BYTES_IN_FLIGHT = 10_000;
     private final Random random = new Random();
 
     @Test
@@ -55,6 +61,7 @@ public class BatchingStateChangeUploaderTest {
         withStore(
                 0,
                 0,
+                MAX_BYTES_IN_FLIGHT,
                 (store, probe) -> {
                     List<StateChangeSet> changes1 = getChanges(4);
                     upload(store, changes1);
@@ -65,7 +72,8 @@ public class BatchingStateChangeUploaderTest {
                 });
     }
 
-    private void upload(BatchingStateChangeUploader store, List<StateChangeSet> changeSets) {
+    private void upload(BatchingStateChangeUploader store, List<StateChangeSet> changeSets)
+            throws IOException {
         store.upload(new UploadTask(changeSets, unused -> {}, (unused0, unused1) -> {}));
     }
 
@@ -77,6 +85,7 @@ public class BatchingStateChangeUploaderTest {
         withStore(
                 Integer.MAX_VALUE,
                 threshold,
+                MAX_BYTES_IN_FLIGHT,
                 (store, probe) -> {
                     List<StateChangeSet> expected = new ArrayList<>();
                     int runningSize = 0;
@@ -101,7 +110,8 @@ public class BatchingStateChangeUploaderTest {
                 new ManuallyTriggeredScheduledExecutorService();
         withStore(
                 delayMs,
-                Integer.MAX_VALUE,
+                MAX_BYTES_IN_FLIGHT,
+                MAX_BYTES_IN_FLIGHT,
                 scheduler,
                 (store, probe) -> {
                     scheduler.triggerAll();
@@ -127,6 +137,7 @@ public class BatchingStateChangeUploaderTest {
                 new BatchingStateChangeUploader(
                         0,
                         0,
+                        MAX_BYTES_IN_FLIGHT,
                         RetryPolicy.fixed(maxAttempts, 0, 0),
                         new TestingStateChangeUploader() {
                             final AtomicInteger currentAttempt = new AtomicInteger(0);
@@ -141,8 +152,7 @@ public class BatchingStateChangeUploaderTest {
                             }
                         },
                         new DirectScheduledExecutorService(),
-                        new RetryingExecutor(new DirectScheduledExecutorService()),
-                        10_000)) {
+                        new RetryingExecutor(new DirectScheduledExecutorService()))) {
             CompletableFuture<List<UploadResult>> completionFuture = new CompletableFuture<>();
             store.upload(
                     new UploadTask(
@@ -161,12 +171,12 @@ public class BatchingStateChangeUploaderTest {
         try (BatchingStateChangeUploader store =
                 new BatchingStateChangeUploader(
                         Integer.MAX_VALUE,
-                        Integer.MAX_VALUE,
+                        MAX_BYTES_IN_FLIGHT,
+                        MAX_BYTES_IN_FLIGHT,
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(5),
-                        10_000)) {
+                        new RetryingExecutor(5))) {
             scheduler.shutdown();
             upload(store, getChanges(4));
         }
@@ -180,15 +190,72 @@ public class BatchingStateChangeUploaderTest {
         new BatchingStateChangeUploader(
                         0,
                         0,
+                        MAX_BYTES_IN_FLIGHT,
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(retryScheduler),
-                        10_000)
+                        new RetryingExecutor(retryScheduler))
                 .close();
         assertTrue(probe.isClosed());
         assertTrue(scheduler.isShutdown());
         assertTrue(retryScheduler.isShutdown());
+    }
+
+    @Test
+    public void testBackPressure() throws Exception {
+        int sizeLimit = MAX_BYTES_IN_FLIGHT;
+        CompletableFuture<TestingStateChangeUploader> thresholdExceededFuture =
+                new CompletableFuture<>();
+        TestScenario test =
+                (uploader, probe) -> {
+                    List<StateChangeSet> changes1 = getChanges(sizeLimit + 1);
+                    assertTrue(uploader.getAvailabilityProvider().isAvailable());
+                    assertTrue(uploader.getAvailabilityProvider().isApproximatelyAvailable());
+                    upload(uploader, changes1);
+                    assertSaved(probe, changes1); // sent to upload, not finished yet
+                    thresholdExceededFuture.complete(probe);
+                    List<StateChangeSet> changes2 = getChanges(1);
+                    assertFalse(uploader.getAvailabilityProvider().isAvailable());
+                    upload(uploader, changes2); // should block until capacity released
+                    assertSaved(probe, changes1, changes2);
+                };
+
+        CompletableFuture<Void> uploadFuture = uploadAsync(sizeLimit, test).f1;
+
+        TestingStateChangeUploader probe = thresholdExceededFuture.get();
+        int uploadedInTheBeginning = probe.getUploaded().size();
+        Thread.sleep(500); // allow failing, i.e. to proceed with upload
+        assertEquals(uploadedInTheBeginning, probe.getUploaded().size());
+        probe.completeUpload(); // release capacity
+        uploadFuture.join();
+        assertTrue(uploadedInTheBeginning < probe.getUploaded().size());
+    }
+
+    @Test
+    public void testInterruptedWhenBackPressured() throws Exception {
+        int limit = MAX_BYTES_IN_FLIGHT;
+        TestScenario test =
+                (uploader, probe) -> {
+                    List<StateChangeSet> changes = getChanges(limit + 1);
+                    upload(uploader, changes);
+                    assertSaved(probe, changes); // only sent for upload
+                    probe.reset(); // don't complete the upload - so capacity isn't released
+                    try {
+                        upload(uploader, getChanges(1)); // should block
+                        fail("upload shouldn't succeed after exceeding the limit");
+                    } catch (IOException e) {
+                        if (findThrowable(e, InterruptedException.class).isPresent()) {
+                            assertTrue(probe.getUploaded().isEmpty());
+                        } else {
+                            rethrow(e);
+                        }
+                    }
+                };
+
+        Tuple2<Thread, CompletableFuture<Void>> threadAndFuture = uploadAsync(limit, test);
+        Thread.sleep(500); // allow to upload (i.e. fail)
+        threadAndFuture.f0.interrupt();
+        threadAndFuture.f1.join();
     }
 
     private List<StateChangeSet> getChanges(int size) {
@@ -202,33 +269,33 @@ public class BatchingStateChangeUploaderTest {
     }
 
     private static void withStore(
-            int delayMs,
-            int sizeThreshold,
-            BiConsumerWithException<
-                            BatchingStateChangeUploader, TestingStateChangeUploader, Exception>
-                    test)
+            int delayMs, int sizeThreshold, int maxBytesInFlight, TestScenario test)
             throws Exception {
-        withStore(delayMs, sizeThreshold, new DirectScheduledExecutorService(), test);
+        withStore(
+                delayMs,
+                sizeThreshold,
+                maxBytesInFlight,
+                new DirectScheduledExecutorService(),
+                test);
     }
 
     private static void withStore(
             int delayMs,
             int sizeThreshold,
+            int maxBytesInFlight,
             ScheduledExecutorService scheduler,
-            BiConsumerWithException<
-                            BatchingStateChangeUploader, TestingStateChangeUploader, Exception>
-                    test)
+            TestScenario test)
             throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         try (BatchingStateChangeUploader store =
                 new BatchingStateChangeUploader(
                         delayMs,
                         sizeThreshold,
+                        maxBytesInFlight,
                         RetryPolicy.NONE,
                         probe,
                         scheduler,
-                        new RetryingExecutor(new DirectScheduledExecutorService()),
-                        10_000)) {
+                        new RetryingExecutor(new DirectScheduledExecutorService()))) {
             test.accept(store, probe);
         }
     }
@@ -239,5 +306,25 @@ public class BatchingStateChangeUploaderTest {
         assertEquals(
                 Arrays.stream(expected).flatMap(Collection::stream).collect(Collectors.toList()),
                 new ArrayList<>(probe.getUploaded()));
+    }
+
+    private interface TestScenario
+            extends BiConsumerWithException<
+                    BatchingStateChangeUploader, TestingStateChangeUploader, Exception> {}
+
+    private Tuple2<Thread, CompletableFuture<Void>> uploadAsync(int limit, TestScenario test) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Thread thread =
+                new Thread(
+                        () -> {
+                            try {
+                                withStore(0, 0, limit, test);
+                                future.complete(null);
+                            } catch (Throwable t) {
+                                future.completeExceptionally(t);
+                            }
+                        });
+        thread.start();
+        return Tuple2.of(thread, future);
     }
 }

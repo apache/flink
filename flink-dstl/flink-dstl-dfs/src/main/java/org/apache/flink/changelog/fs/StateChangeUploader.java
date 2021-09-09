@@ -19,6 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -87,6 +88,10 @@ interface StateChangeUploader extends AutoCloseable {
                         config.get(NUM_UPLOAD_THREADS),
                         config.get(IN_FLIGHT_DATA_LIMIT).getBytes());
         return batchingStore;
+    }
+
+    default AvailabilityProvider getAvailabilityProvider() {
+        return () -> AvailabilityProvider.AVAILABLE;
     }
 
     @ThreadSafe
