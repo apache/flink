@@ -152,7 +152,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 
 ## CREATE TABLE
 
-以下语法概述了可用的建表语句：
+以下语法概述了可用的语法规则：
 
 ```text
 CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
