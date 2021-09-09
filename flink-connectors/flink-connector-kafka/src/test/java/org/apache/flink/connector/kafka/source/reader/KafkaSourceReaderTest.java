@@ -76,6 +76,7 @@ import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderM
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.KAFKA_SOURCE_READER_METRIC_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.PARTITION_GROUP;
 import static org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics.TOPIC_GROUP;
+import static org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv.NUM_PARTITIONS;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -89,7 +90,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
         KafkaSourceTestEnv.setup();
         try (AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
             adminClient.createTopics(
-                    Collections.singleton(new NewTopic(TOPIC, NUM_SPLITS, (short) 1)));
+                    Collections.singleton(new NewTopic(TOPIC, NUM_PARTITIONS, (short) 1)));
             // Use the admin client to trigger the creation of internal __consumer_offsets topic.
             // This makes sure that we won't see unavailable coordinator in the tests.
             waitUtil(
@@ -114,6 +115,10 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
     @AfterClass
     public static void tearDown() throws Exception {
         KafkaSourceTestEnv.tearDown();
+    }
+
+    protected int getNumSplits() {
+        return NUM_PARTITIONS;
     }
 
     // -----------------------------------------
@@ -196,7 +201,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 (KafkaSourceReader<Integer>)
                         createReader(Boundedness.CONTINUOUS_UNBOUNDED, groupId)) {
             reader.addSplits(
-                    getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
+                    getSplits(numSplits, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED));
             ValidatingSourceOutput output = new ValidatingSourceOutput();
             long checkpointId = 0;
             do {
@@ -204,7 +209,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 reader.pollNext(output);
                 // Create a checkpoint for each message consumption, but not complete them.
                 reader.snapshotState(checkpointId);
-            } while (output.count() < TOTAL_NUM_RECORDS);
+            } while (output.count() < totalNumRecords);
 
             // The completion of the last checkpoint should subsume all the previous checkpoitns.
             assertEquals(checkpointId, reader.getOffsetsToCommit().size());
@@ -223,7 +228,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                             .listConsumerGroupOffsets(groupId)
                             .partitionsToOffsetAndMetadata()
                             .get();
-            assertEquals(NUM_SPLITS, committedOffsets.size());
+            assertEquals(numSplits, committedOffsets.size());
             committedOffsets.forEach(
                     (tp, offsetAndMetadata) ->
                             assertEquals(NUM_RECORDS_PER_SPLIT, offsetAndMetadata.offset()));
@@ -480,7 +485,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
 
     private static List<ProducerRecord<String, Integer>> getRecords() {
         List<ProducerRecord<String, Integer>> records = new ArrayList<>();
-        for (int part = 0; part < NUM_SPLITS; part++) {
+        for (int part = 0; part < NUM_PARTITIONS; part++) {
             for (int i = 0; i < NUM_RECORDS_PER_SPLIT; i++) {
                 records.add(
                         new ProducerRecord<>(
