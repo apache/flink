@@ -1226,27 +1226,25 @@ public class Task
                         // the periodic interrupting thread - a different thread than the canceller,
                         // in case
                         // the application code does blocking stuff in its cancellation paths.
-                        if (invokable.shouldInterruptOnCancel()) {
-                            Runnable interrupter =
-                                    new TaskInterrupter(
-                                            LOG,
-                                            invokable,
-                                            executingThread,
-                                            taskNameWithSubtask,
-                                            taskCancellationInterval);
+                        Runnable interrupter =
+                                new TaskInterrupter(
+                                        LOG,
+                                        invokable,
+                                        executingThread,
+                                        taskNameWithSubtask,
+                                        taskCancellationInterval);
 
-                            Thread interruptingThread =
-                                    new Thread(
-                                            executingThread.getThreadGroup(),
-                                            interrupter,
-                                            String.format(
-                                                    "Canceler/Interrupts for %s (%s).",
-                                                    taskNameWithSubtask, executionId));
-                            interruptingThread.setDaemon(true);
-                            interruptingThread.setUncaughtExceptionHandler(
-                                    FatalExitExceptionHandler.INSTANCE);
-                            interruptingThread.start();
-                        }
+                        Thread interruptingThread =
+                                new Thread(
+                                        executingThread.getThreadGroup(),
+                                        interrupter,
+                                        String.format(
+                                                "Canceler/Interrupts for %s (%s).",
+                                                taskNameWithSubtask, executionId));
+                        interruptingThread.setDaemon(true);
+                        interruptingThread.setUncaughtExceptionHandler(
+                                FatalExitExceptionHandler.INSTANCE);
+                        interruptingThread.start();
 
                         // if a cancellation timeout is set, the watchdog thread kills the process
                         // if graceful cancellation does not succeed
@@ -1646,9 +1644,7 @@ public class Task
                     Future<Void> cancellationFuture = invokable.cancel();
                     // Wait for any active actions to complete (e.g. timers, mailbox actions)
                     // Before that, interrupt to notify them about cancellation
-                    if (invokable.shouldInterruptOnCancel()) {
-                        executer.interrupt();
-                    }
+                    invokable.maybeInterruptOnCancel(executer, null, null);
                     try {
                         cancellationFuture.get(taskCancellationTimeout, TimeUnit.MILLISECONDS);
                     } catch (ExecutionException | TimeoutException | InterruptedException e) {
@@ -1719,11 +1715,8 @@ public class Task
 
                 // log stack trace where the executing thread is stuck and
                 // interrupt the running thread periodically while it is still alive
-                while (task.shouldInterruptOnCancel() && executerThread.isAlive()) {
-                    logTaskThreadStackTrace(
-                            executerThread, taskName, interruptIntervalMillis, "interrupting");
-
-                    executerThread.interrupt();
+                while (executerThread.isAlive()) {
+                    task.maybeInterruptOnCancel(executerThread, taskName, interruptIntervalMillis);
                     try {
                         executerThread.join(interruptIntervalMillis);
                     } catch (InterruptedException e) {
@@ -1803,7 +1796,7 @@ public class Task
         }
     }
 
-    private static void logTaskThreadStackTrace(
+    public static void logTaskThreadStackTrace(
             Thread thread, String taskName, long timeoutMs, String action) {
         StackTraceElement[] stack = thread.getStackTrace();
         StringBuilder stackTraceStr = new StringBuilder();

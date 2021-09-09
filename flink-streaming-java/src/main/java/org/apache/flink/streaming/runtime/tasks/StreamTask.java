@@ -65,6 +65,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
@@ -111,6 +112,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -295,7 +297,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private final Environment environment;
 
-    private volatile boolean shouldInterruptOnCancel = true;
+    private final Object shouldInterruptOnCancelLock = new Object();
+
+    @GuardedBy("shouldInterruptOnCancelLock")
+    private boolean shouldInterruptOnCancel = true;
 
     // ------------------------------------------------------------------------
 
@@ -892,7 +897,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // that block and stall shutdown.
         // Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
         // process) as a backup in case some shutdown procedure blocks outside our control.
-        shouldInterruptOnCancel = false;
+        disableInterruptOnCancel();
 
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
@@ -1728,9 +1733,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return true;
     }
 
+    private void disableInterruptOnCancel() {
+        synchronized (shouldInterruptOnCancelLock) {
+            shouldInterruptOnCancel = false;
+        }
+    }
+
     @Override
-    public boolean shouldInterruptOnCancel() {
-        return shouldInterruptOnCancel;
+    public void maybeInterruptOnCancel(
+            Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout) {
+        synchronized (shouldInterruptOnCancelLock) {
+            if (shouldInterruptOnCancel) {
+                if (taskName != null && timeout != null) {
+                    Task.logTaskThreadStackTrace(toInterrupt, taskName, timeout, "interrupting");
+                }
+
+                toInterrupt.interrupt();
+            }
+        }
     }
 
     @Override
