@@ -62,7 +62,11 @@ class ReporterSetupTest {
                             TestReporter2.class.getName(),
                             TestReporter11.class.getName(),
                             TestReporter12.class.getName(),
-                            TestReporter13.class.getName())
+                            TestReporter13.class.getName(),
+                            TestReporterFactory.class.getName(),
+                            FailingFactory.class.getName(),
+                            InstantiationTypeTrackingTestReporterFactory.class.getName(),
+                            ConfigExposingReporterFactory.class.getName())
                     .build();
 
     /** TestReporter1 class only for type differentiation. */
