@@ -17,6 +17,9 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.AvailabilityProvider.AvailabilityHelper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,14 +33,15 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.LongAdder;
 
 import static java.lang.Thread.holdsLock;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -55,26 +59,40 @@ class BatchingStateChangeUploader implements StateChangeUploader {
     private final long scheduleDelayMs;
     private final long sizeThresholdBytes;
 
-    @GuardedBy("scheduled")
+    /**
+     * The lock is used to synchronize concurrent accesses:
+     *
+     * <ul>
+     *   <li>task thread and {@link #scheduler} thread to {@link #scheduled} tasks
+     *   <li>task thread and {@link #retryingExecutor uploader} thread to {@link #uploadThrottle}
+     * </ul>
+     *
+     * <p>These code paths are independent, but a single lock is used for simplicity.
+     */
+    private final Object lock = new Object();
+
+    @GuardedBy("lock")
     private final Queue<UploadTask> scheduled;
 
-    @GuardedBy("scheduled")
+    @GuardedBy("lock")
     private long scheduledBytesCounter;
+
+    private final AvailabilityHelper availabilityHelper;
 
     /**
      * There should be at most one scheduled future, so that changes are batched according to
      * settings.
      */
     @Nullable
-    @GuardedBy("scheduled")
+    @GuardedBy("lock")
     private ScheduledFuture<?> scheduledFuture;
 
     @Nullable
     @GuardedBy("this")
     private Throwable errorUnsafe;
 
-    private final long maxBytesInFlight;
-    private final LongAdder inFlightBytesCounter = new LongAdder();
+    @GuardedBy("lock")
+    private final UploadThrottle uploadThrottle;
 
     BatchingStateChangeUploader(
             long persistDelayMs,
@@ -86,33 +104,40 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         this(
                 persistDelayMs,
                 sizeThresholdBytes,
+                maxBytesInFlight,
                 retryPolicy,
                 delegate,
                 SchedulerFactory.create(1, "ChangelogUploadScheduler", LOG),
-                new RetryingExecutor(numUploadThreads),
-                maxBytesInFlight);
+                new RetryingExecutor(numUploadThreads));
     }
 
     BatchingStateChangeUploader(
             long persistDelayMs,
             long sizeThresholdBytes,
+            long maxBytesInFlight,
             RetryPolicy retryPolicy,
             StateChangeUploader delegate,
             ScheduledExecutorService scheduler,
-            RetryingExecutor retryingExecutor,
-            long maxBytesInFlight) {
+            RetryingExecutor retryingExecutor) {
+        checkArgument(
+                sizeThresholdBytes <= maxBytesInFlight,
+                "sizeThresholdBytes (%s) must not exceed maxBytesInFlight (%s)",
+                sizeThresholdBytes,
+                maxBytesInFlight);
         this.scheduleDelayMs = persistDelayMs;
         this.scheduled = new LinkedList<>();
         this.scheduler = scheduler;
         this.retryPolicy = retryPolicy;
         this.retryingExecutor = retryingExecutor;
         this.sizeThresholdBytes = sizeThresholdBytes;
-        this.maxBytesInFlight = maxBytesInFlight;
         this.delegate = delegate;
+        this.uploadThrottle = new UploadThrottle(maxBytesInFlight);
+        this.availabilityHelper = new AvailabilityHelper();
+        this.availabilityHelper.resetAvailable();
     }
 
     @Override
-    public void upload(UploadTask uploadTask) {
+    public void upload(UploadTask uploadTask) throws IOException {
         Throwable error = getErrorSafe();
         if (error != null) {
             LOG.debug("don't persist {} changesets, already failed", uploadTask.changeSets.size());
@@ -121,26 +146,46 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         }
         LOG.debug("persist {} changeSets", uploadTask.changeSets.size());
         try {
-            checkState(
-                    inFlightBytesCounter.sum() <= maxBytesInFlight,
-                    "In flight data size threshold exceeded %s > %s",
-                    inFlightBytesCounter.sum(),
-                    maxBytesInFlight);
-            synchronized (scheduled) {
-                long size = uploadTask.getSize();
-                inFlightBytesCounter.add(size);
+            long size = uploadTask.getSize();
+            synchronized (lock) {
+                while (!uploadThrottle.hasCapacity()) {
+                    lock.wait();
+                }
+                uploadThrottle.seizeCapacity(size);
+                if (!uploadThrottle.hasCapacity()) {
+                    availabilityHelper.resetUnavailable();
+                }
                 scheduledBytesCounter += size;
-                scheduled.add(wrapWithSizeUpdate(uploadTask, size, inFlightBytesCounter));
+                scheduled.add(wrapWithSizeUpdate(uploadTask, size));
                 scheduleUploadIfNeeded();
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            uploadTask.fail(e);
+            throw new IOException(e);
         } catch (Exception e) {
             uploadTask.fail(e);
             throw e;
         }
     }
 
+    private void releaseCapacity(long size) {
+        CompletableFuture<?> toNotify = null;
+        synchronized (lock) {
+            boolean hadCapacityBefore = uploadThrottle.hasCapacity();
+            uploadThrottle.releaseCapacity(size);
+            lock.notifyAll();
+            if (!hadCapacityBefore && uploadThrottle.hasCapacity()) {
+                toNotify = availabilityHelper.getUnavailableToResetAvailable();
+            }
+        }
+        if (toNotify != null) {
+            toNotify.complete(null);
+        }
+    }
+
     private void scheduleUploadIfNeeded() {
-        checkState(holdsLock(scheduled));
+        checkState(holdsLock(lock));
         if (scheduleDelayMs == 0 || scheduledBytesCounter >= sizeThresholdBytes) {
             if (scheduledFuture != null) {
                 scheduledFuture.cancel(false);
@@ -154,7 +199,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
 
     private void drainAndSave() {
         Collection<UploadTask> tasks;
-        synchronized (scheduled) {
+        synchronized (lock) {
             tasks = new ArrayList<>(scheduled);
             scheduled.clear();
             scheduledBytesCounter = 0;
@@ -186,7 +231,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
             LOG.warn("Unable to cleanly shutdown scheduler in 5s");
         }
         ArrayList<UploadTask> drained;
-        synchronized (scheduled) {
+        synchronized (lock) {
             drained = new ArrayList<>(scheduled);
             scheduled.clear();
             scheduledBytesCounter = 0;
@@ -205,17 +250,32 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         errorUnsafe = t;
     }
 
-    private static UploadTask wrapWithSizeUpdate(
-            UploadTask uploadTask, long preComputedTaskSize, LongAdder inflightSize) {
+    private UploadTask wrapWithSizeUpdate(UploadTask uploadTask, long size) {
         return new UploadTask(
                 uploadTask.changeSets,
                 result -> {
-                    inflightSize.add(-preComputedTaskSize);
-                    uploadTask.successCallback.accept(result);
+                    try {
+                        releaseCapacity(size);
+                    } finally {
+                        uploadTask.successCallback.accept(result);
+                    }
                 },
                 (result, error) -> {
-                    inflightSize.add(-preComputedTaskSize);
-                    uploadTask.failureCallback.accept(result, error);
+                    try {
+                        releaseCapacity(size);
+                    } finally {
+                        uploadTask.failureCallback.accept(result, error);
+                    }
                 });
+    }
+
+    @Override
+    public AvailabilityProvider getAvailabilityProvider() {
+        // This method can be called by multiple (task) threads.
+        // Though the field itself is final, implementation is generally not thread-safe.
+        // However, in case of reading stale AvailabilityHelper.availableFuture
+        // the task will either be notified about availability immediately;
+        // or back-pressured hard trying to seize capacity in upload()
+        return availabilityHelper;
     }
 }
