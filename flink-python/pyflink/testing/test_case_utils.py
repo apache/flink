@@ -136,7 +136,7 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
-        self.t_env._remote_mode = True
+        self.t_env._execution_mode = "process"
 
 
 class PyFlinkBatchTableTestCase(PyFlinkTestCase):
@@ -150,7 +150,7 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
         self.t_env.get_config().get_configuration().set_string(
             "python.fn-execution.bundle.size", "1")
-        self.t_env._remote_mode = True
+        self.t_env._execution_mode = "process"
 
 
 class PyFlinkStreamingTestCase(PyFlinkTestCase):
@@ -163,7 +163,7 @@ class PyFlinkStreamingTestCase(PyFlinkTestCase):
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
         self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
-        self.env._remote_mode = True
+        self.env._execution_mode = "process"
 
 
 class PyFlinkBatchTestCase(PyFlinkTestCase):
@@ -176,7 +176,7 @@ class PyFlinkBatchTestCase(PyFlinkTestCase):
         self.env = StreamExecutionEnvironment.get_execution_environment()
         self.env.set_parallelism(2)
         self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
-        self.env._remote_mode = True
+        self.env._execution_mode = "process"
 
 
 class PythonAPICompletenessTestCase(object):
