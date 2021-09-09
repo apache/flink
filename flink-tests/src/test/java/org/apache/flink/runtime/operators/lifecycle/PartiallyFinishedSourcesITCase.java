@@ -32,8 +32,10 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -65,6 +67,8 @@ import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingO
  */
 @RunWith(Parameterized.class)
 public class PartiallyFinishedSourcesITCase extends TestLogger {
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
@@ -135,20 +139,25 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
         checkDataFlow(testJob);
     }
 
-    private TestJobWithDescription buildJob() {
+    private TestJobWithDescription buildJob() throws Exception {
         return graphBuilder.build(
                 sharedObjects,
                 cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
                 env -> {
                     env.setRestartStrategy(fixedDelayRestart(1, 0));
                     // checkpoints can hang (because of not yet fixed bugs and triggering
-                    // checkpoint while the source finishes), so let them timeout quickly
-                    env.getCheckpointConfig().setCheckpointTimeout(5000);
+                    // checkpoint while the source finishes), so we reduce the timeout to
+                    // avoid hanging for too long.
+                    env.getCheckpointConfig().setCheckpointTimeout(30000);
                     // but don't fail the job
                     env.getCheckpointConfig()
                             .setTolerableCheckpointFailureNumber(Integer.MAX_VALUE);
                     // explicitly set to one to ease avoiding race conditions
                     env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+                    env.getCheckpointConfig()
+                            // with unaligned checkpoints state size can grow beyond the default
+                            // limits of in-memory storage
+                            .setCheckpointStorage(TEMPORARY_FOLDER.newFolder().toURI());
                 });
     }
 

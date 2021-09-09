@@ -20,7 +20,6 @@ package org.apache.flink.connector.pulsar.source.enumerator.cursor.start;
 
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.CursorPosition;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
-import org.apache.flink.connector.pulsar.source.split.PulsarPartitionSplit;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -61,7 +60,7 @@ public class MessageIdStartCursor implements StartCursor {
     }
 
     @Override
-    public CursorPosition position(PulsarPartitionSplit split) {
+    public CursorPosition position(String topic, int partitionId) {
         return new CursorPosition(messageId);
     }
 }

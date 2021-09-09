@@ -6,7 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
- - commons-codec:commons-codec:1.13
+ - commons-codec:commons-codec:1.15
  - io.netty:netty-all:4.1.46.Final
  - io.dropwizard.metrics:metrics-core:3.2.6
  - org.apache.commons:commons-crypto:1.0.0

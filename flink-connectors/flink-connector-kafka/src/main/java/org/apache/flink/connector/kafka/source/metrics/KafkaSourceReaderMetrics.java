@@ -22,8 +22,10 @@ import org.apache.flink.connector.kafka.MetricUtil;
 import org.apache.flink.connector.kafka.source.reader.KafkaSourceReader;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Metric;
@@ -99,6 +101,9 @@ public class KafkaSourceReaderMetrics {
 
     // Kafka raw metric for bytes consumed total
     @Nullable private Metric bytesConsumedTotalMetric;
+
+    /** Number of bytes consumed total at the latest {@link #updateNumBytesInCounter()}. */
+    private long latestBytesConsumedTotal;
 
     public KafkaSourceReaderMetrics(SourceReaderMetricGroup sourceReaderMetricGroup) {
         this.sourceReaderMetricGroup = sourceReaderMetricGroup;
@@ -235,12 +240,24 @@ public class KafkaSourceReaderMetrics {
         }
     }
 
-    /** Update {@link org.apache.flink.runtime.metrics.MetricNames#IO_NUM_BYTES_IN}. */
+    /**
+     * Update {@link org.apache.flink.runtime.metrics.MetricNames#IO_NUM_BYTES_IN}.
+     *
+     * <p>Instead of simply setting {@link OperatorIOMetricGroup#getNumBytesInCounter()} to the same
+     * value as bytes-consumed-total from Kafka consumer, which will screw {@link
+     * TaskIOMetricGroup#getNumBytesInCounter()} if chained sources exist, we track the increment of
+     * bytes-consumed-total and count it towards the counter.
+     */
     public void updateNumBytesInCounter() {
         if (this.bytesConsumedTotalMetric != null) {
-            MetricUtil.sync(
-                    this.bytesConsumedTotalMetric,
-                    this.sourceReaderMetricGroup.getIOMetricGroup().getNumBytesInCounter());
+            long bytesConsumedUntilNow =
+                    ((Number) this.bytesConsumedTotalMetric.metricValue()).longValue();
+            long bytesConsumedSinceLastUpdate = bytesConsumedUntilNow - latestBytesConsumedTotal;
+            this.sourceReaderMetricGroup
+                    .getIOMetricGroup()
+                    .getNumBytesInCounter()
+                    .inc(bytesConsumedSinceLastUpdate);
+            latestBytesConsumedTotal = bytesConsumedUntilNow;
         }
     }
 

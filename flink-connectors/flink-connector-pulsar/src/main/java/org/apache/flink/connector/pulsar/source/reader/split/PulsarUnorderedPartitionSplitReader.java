@@ -38,6 +38,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -61,7 +63,7 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
 
     private final TransactionCoordinatorClient coordinatorClient;
 
-    private Transaction uncommittedTransaction;
+    @Nullable private Transaction uncommittedTransaction;
 
     public PulsarUnorderedPartitionSplitReader(
             PulsarClient pulsarClient,
@@ -137,16 +139,18 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
 
             // Redeliver unacknowledged messages because of the message is out of order.
             consumer.redeliverUnacknowledgedMessages();
-        } else {
-            initialStartPosition(split, consumer);
         }
     }
 
     public PulsarPartitionSplitState snapshotState(long checkpointId) {
-        TxnID txnID = PulsarTransactionUtils.getId(uncommittedTransaction);
-        this.uncommittedTransaction = newTransaction();
         PulsarPartitionSplitState state = new PulsarPartitionSplitState(registeredSplit);
-        state.setUncommittedTransactionId(txnID);
+
+        // Avoiding NP problem when Pulsar don't get the message before Flink checkpoint.
+        if (uncommittedTransaction != null) {
+            TxnID txnID = PulsarTransactionUtils.getId(uncommittedTransaction);
+            this.uncommittedTransaction = newTransaction();
+            state.setUncommittedTransactionId(txnID);
+        }
 
         return state;
     }

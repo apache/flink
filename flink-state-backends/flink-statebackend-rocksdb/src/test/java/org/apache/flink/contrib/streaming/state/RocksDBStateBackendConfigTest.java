@@ -51,6 +51,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
+import org.rocksdb.BloomFilter;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
@@ -481,7 +482,10 @@ public class RocksDBStateBackendConfigTest {
                         .setMinWriteBufferNumberToMerge(3)
                         .setBlockSize("64KB")
                         .setMetadataBlockSize("16KB")
-                        .setBlockCacheSize("512mb");
+                        .setBlockCacheSize("512mb")
+                        .setUseBloomFilter(true)
+                        .setBloomFilterBitsPerKey(12.0)
+                        .setBloomFilterBlockBasedMode(false);
 
         try (RocksDBResourceContainer optionsContainer =
                 new RocksDBResourceContainer(PredefinedOptions.DEFAULT, customizedOptions)) {
@@ -507,6 +511,7 @@ public class RocksDBStateBackendConfigTest {
             assertEquals(64 * SizeUnit.KB, tableConfig.blockSize());
             assertEquals(16 * SizeUnit.KB, tableConfig.metadataBlockSize());
             assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
+            assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
         }
     }
 
@@ -540,6 +545,8 @@ public class RocksDBStateBackendConfigTest {
             verifyIllegalArgument(RocksDBConfigurableOptions.USE_DYNAMIC_LEVEL_SIZE, "1");
 
             verifyIllegalArgument(RocksDBConfigurableOptions.COMPACTION_STYLE, "LEV");
+            verifyIllegalArgument(RocksDBConfigurableOptions.USE_BLOOM_FILTER, "NO");
+            verifyIllegalArgument(RocksDBConfigurableOptions.BLOOM_FILTER_BLOCK_BASED_MODE, "YES");
         }
 
         // verify legal configuration
@@ -561,6 +568,7 @@ public class RocksDBStateBackendConfigTest {
             configuration.setString(RocksDBConfigurableOptions.BLOCK_SIZE.key(), "4 kb");
             configuration.setString(RocksDBConfigurableOptions.METADATA_BLOCK_SIZE.key(), "8 kb");
             configuration.setString(RocksDBConfigurableOptions.BLOCK_CACHE_SIZE.key(), "512 mb");
+            configuration.setString(RocksDBConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
 
             DefaultConfigurableOptionsFactory optionsFactory =
                     new DefaultConfigurableOptionsFactory();
@@ -590,6 +598,7 @@ public class RocksDBStateBackendConfigTest {
                 assertEquals(4 * SizeUnit.KB, tableConfig.blockSize());
                 assertEquals(8 * SizeUnit.KB, tableConfig.metadataBlockSize());
                 assertEquals(512 * SizeUnit.MB, tableConfig.blockCacheSize());
+                assertTrue(tableConfig.filterPolicy() instanceof BloomFilter);
             }
         }
     }
