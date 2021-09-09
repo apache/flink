@@ -29,11 +29,13 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
 import java.util.List;
@@ -51,11 +53,23 @@ import static org.junit.Assert.assertTrue;
 @ExtendWith(TestLoggerExtension.class)
 class ReporterSetupTest {
 
+    @RegisterExtension
+    static final ContextClassLoaderExtension CONTEXT_CLASS_LOADER_EXTENSION =
+            ContextClassLoaderExtension.builder()
+                    .withServiceEntry(
+                            MetricReporterFactory.class,
+                            TestReporter1.class.getName(),
+                            TestReporter2.class.getName(),
+                            TestReporter11.class.getName(),
+                            TestReporter12.class.getName(),
+                            TestReporter13.class.getName())
+                    .build();
+
     /** TestReporter1 class only for type differentiation. */
-    static class TestReporter1 extends TestReporter {}
+    public static class TestReporter1 extends TestReporter {}
 
     /** TestReporter2 class only for type differentiation. */
-    static class TestReporter2 extends TestReporter {}
+    public static class TestReporter2 extends TestReporter {}
 
     /** Verifies that a reporter can be configured with all it's arguments being forwarded. */
     @Test
@@ -127,7 +141,7 @@ class ReporterSetupTest {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter1.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -147,17 +161,17 @@ class ReporterSetupTest {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter11.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter12.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter13.class.getName());
 
         List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -170,7 +184,7 @@ class ReporterSetupTest {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter11 extends TestReporter {
+    public static class TestReporter11 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -180,7 +194,7 @@ class ReporterSetupTest {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter12 extends TestReporter {
+    public static class TestReporter12 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -190,7 +204,7 @@ class ReporterSetupTest {
     }
 
     /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter13 extends TestReporter {
+    public static class TestReporter13 extends TestReporter {
         public static boolean wasOpened = false;
 
         @Override
@@ -203,7 +217,7 @@ class ReporterSetupTest {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter1.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
@@ -215,14 +229,15 @@ class ReporterSetupTest {
         Assert.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
         Assert.assertEquals(
                 ReporterSetupTest.TestReporter1.class.getName(),
-                setup.getConfiguration().getString("class", null));
+                setup.getConfiguration()
+                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
     }
 
     private static void configureReporter2(Configuration config) {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter2."
-                        + MetricOptions.REPORTER_CLASS.key(),
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporter2.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
@@ -233,7 +248,9 @@ class ReporterSetupTest {
         Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
         Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
         Assert.assertEquals(
-                TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
+                TestReporter2.class.getName(),
+                setup.getConfiguration()
+                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
     }
 
     @Test
