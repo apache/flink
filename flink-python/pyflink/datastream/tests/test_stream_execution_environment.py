@@ -26,7 +26,7 @@ import time
 import unittest
 import uuid
 
-from pyflink.common import ExecutionConfig, RestartStrategies
+from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
 from pyflink.common.serialization import JsonRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
@@ -194,6 +194,21 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         time_characteristic = self.env.get_stream_time_characteristic()
 
         self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
+
+    def test_configure(self):
+        configuration = Configuration()
+        configuration.set_string('pipeline.operator-chaining', 'false')
+        configuration.set_string('pipeline.time-characteristic', 'IngestionTime')
+        configuration.set_string('execution.buffer-timeout', '1 min')
+        configuration.set_string('execution.checkpointing.timeout', '12000')
+        configuration.set_string('state.backend', 'jobmanager')
+        self.env.configure(configuration)
+        self.assertEqual(self.env.is_chaining_enabled(), False)
+        self.assertEqual(self.env.get_stream_time_characteristic(),
+                         TimeCharacteristic.IngestionTime)
+        self.assertEqual(self.env.get_buffer_timeout(), 60000)
+        self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
+        self.assertTrue(isinstance(self.env.get_state_backend(), MemoryStateBackend))
 
     @unittest.skip("Python API does not support DataStream now. refactor this test later")
     def test_get_execution_plan(self):
