@@ -130,17 +130,14 @@ public class NetUtils {
      *
      * @param serverSocket a ServerSocket with {@link SocketOptions#SO_TIMEOUT SO_TIMEOUT} set to 0;
      *     if SO_TIMEOUT is greater than 0, then this method will suppress SocketTimeoutException;
-     *     must not be null
+     *     must not be null; SO_TIMEOUT option must be set to 0
      * @return the new Socket
-     * @exception IOException if an I/O error occurs when waiting for a connection.
-     * @exception SecurityException if a security manager exists and its {@code checkAccept} method
-     *     doesn't allow the operation.
-     * @exception java.nio.channels.IllegalBlockingModeException if this socket has an associated
-     *     channel, the channel is in non-blocking mode, and there is no connection ready to be
-     *     accepted
+     * @exception IOException see {@link ServerSocket#accept()}
      * @see <a href="https://bugs.openjdk.java.net/browse/JDK-8237858">JDK-8237858</a>
      */
     public static Socket acceptWithoutTimeout(ServerSocket serverSocket) throws IOException {
+        Preconditions.checkArgument(
+                serverSocket.getSoTimeout() == 0, "serverSocket SO_TIMEOUT option must be 0");
         while (true) {
             try {
                 return serverSocket.accept();

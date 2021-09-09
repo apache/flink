@@ -20,8 +20,6 @@ package org.apache.flink.util;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -38,10 +36,7 @@ import java.util.Set;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Tests for the {@link NetUtils}. */
 public class NetUtilsTest extends TestLogger {
@@ -61,25 +56,45 @@ public class NetUtilsTest extends TestLogger {
     @Test
     public void testAcceptWithoutTimeout() throws IOException {
         // Validates that acceptWithoutTimeout suppresses all SocketTimeoutExceptions
-        ServerSocket serverSocket = mock(ServerSocket.class);
-        when(serverSocket.accept())
-                .thenAnswer(
-                        new Answer<Socket>() {
-                            private int count = 0;
+        Socket expected = new Socket();
+        ServerSocket serverSocket =
+                new ServerSocket() {
+                    private int count = 0;
 
-                            @Override
-                            public Socket answer(InvocationOnMock invocationOnMock)
-                                    throws Throwable {
-                                if (count < 2) {
-                                    count++;
-                                    throw new SocketTimeoutException();
-                                }
+                    @Override
+                    public Socket accept() throws IOException {
+                        if (count < 2) {
+                            count++;
+                            throw new SocketTimeoutException();
+                        }
 
-                                return new Socket();
-                            }
-                        });
+                        return expected;
+                    }
+                };
 
-        assertNotNull(NetUtils.acceptWithoutTimeout(serverSocket));
+        assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+
+        // Validates timeout option precondition
+        serverSocket =
+                new ServerSocket() {
+                    @Override
+                    public Socket accept() throws IOException {
+                        return expected;
+                    }
+                };
+
+        // non-zero timeout (throw exception)
+        serverSocket.setSoTimeout(5);
+        try {
+            assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+            fail("Expected IllegalArgumentException due to timeout is set to non-zero value");
+        } catch (IllegalArgumentException e) {
+            // Pass
+        }
+
+        // zero timeout (don't throw exception)
+        serverSocket.setSoTimeout(0);
+        assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
     }
 
     @Test
