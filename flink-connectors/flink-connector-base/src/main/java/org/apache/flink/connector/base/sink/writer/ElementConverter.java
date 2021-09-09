@@ -17,7 +17,6 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.SinkWriter;
 
 import java.io.Serializable;
@@ -30,7 +29,6 @@ import java.io.Serializable;
  * request. Eg, for Kinesis Data Streams, the request entry includes the payload and the partition
  * key.
  */
-@PublicEvolving
 public interface ElementConverter<InputT, RequestEntryT> extends Serializable {
     RequestEntryT apply(InputT element, SinkWriter.Context context);
 }

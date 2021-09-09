@@ -17,12 +17,12 @@
 
 package org.apache.flink.connector.base.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Optional;
@@ -45,17 +45,18 @@ import java.util.Optional;
  *   <li>We are not considering support for exactly-once semantics at this point.
  * </ul>
  */
-@PublicEvolving
 public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
         implements Sink<InputT, Void, Collection<RequestEntryT>, Void> {
 
     @Override
-    public Optional<Committer<Void>> createCommitter() {
+    public Optional<Committer<Void>> createCommitter(CommitterInitContext context)
+            throws IOException {
         return Optional.empty();
     }
 
     @Override
-    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter() {
+    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter(CommitterInitContext context)
+            throws IOException {
         return Optional.empty();
     }
 
@@ -66,6 +67,13 @@ public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
 
     @Override
     public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<SimpleVersionedSerializer<Collection<RequestEntryT>>>
+            getWriterStateSerializer() {
+        // FIXME: implement
         return Optional.empty();
     }
 }
