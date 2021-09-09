@@ -62,7 +62,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -112,7 +111,8 @@ public class MultipartUploadResource extends ExternalResource {
 
         file1 = temporaryFolder.newFile();
         try (RandomAccessFile rw = new RandomAccessFile(file1, "rw")) {
-            rw.setLength(1024 * 1024 * 64);
+            // magic value that reliably reproduced https://github.com/netty/netty/issues/11668
+            rw.setLength(5043444);
         }
         file2 = temporaryFolder.newFile();
         Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
@@ -455,13 +455,13 @@ public class MultipartUploadResource extends ExternalResource {
     /** Simple test {@link RequestBody}. */
     protected static final class TestRequestBody implements RequestBody {
         private static final String FIELD_NAME_INDEX = "index";
-        private static final Random RANDOM = new Random();
 
         @JsonProperty(FIELD_NAME_INDEX)
         private final int index;
 
         TestRequestBody() {
-            this(RANDOM.nextInt());
+            // magic value that reliably reproduced https://github.com/netty/netty/issues/11668
+            this(-766974635);
         }
 
         @JsonCreator
