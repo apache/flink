@@ -86,6 +86,6 @@ REMOVE JAR '<path_to_filename>.jar'
 SHOW JARS
 ```
 
-展示所有会话类类加载器（session classloader）中的基于 [`ADD JAR`](#add-jar)  语句添加的 jar。
+展示会话类类加载器（session classloader）中所有基于 [`ADD JAR`](#add-jar) 语句添加的 jar。
 
 {{< top >}}
