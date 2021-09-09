@@ -599,8 +599,11 @@ public class StreamTaskFinalCheckpointsTest {
                     (e ->
                             e.getMessage()
                                     .equals(
-                                            "We run out of data to process while waiting for"
-                                                    + " a synchronous savepoint to be finished.")));
+                                            "We run out of data to process while waiting for a "
+                                                    + "synchronous savepoint to be finished. This "
+                                                    + "can lead to a deadlock waiting for a final "
+                                                    + "checkpoint after a synchronous savepoint, "
+                                                    + "which will never be triggered.")));
         }
     }
 

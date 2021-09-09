@@ -531,10 +531,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     protected void endData() throws Exception {
 
-        if (syncSavepointWithoutDrain != null) {
+        if (syncSavepointWithoutDrain != null && areCheckpointsWithFinishedTasksEnabled()) {
             throw new FlinkRuntimeException(
                     "We run out of data to process while waiting for a synchronous savepoint"
-                            + " to be finished.");
+                            + " to be finished. This can lead to a deadlock waiting for a final"
+                            + " checkpoint after a synchronous savepoint, which will never be"
+                            + " triggered.");
         }
 
         advanceToEndOfEventTime();
@@ -560,7 +562,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 syncSavepointWithDrain = checkpointId;
             }
         } else {
-            if (endOfDataReceived) {}
             syncSavepointWithoutDrain = checkpointId;
         }
     }
@@ -1297,7 +1298,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 checkpointType,
                 getName());
 
-        if (checkpointType.isSynchronous() && !checkpointType.shouldDrain() && endOfDataReceived) {
+        if (checkpointType.isSynchronous()
+                && !checkpointType.shouldDrain()
+                && endOfDataReceived
+                && areCheckpointsWithFinishedTasksEnabled()) {
             LOG.debug("Can not trigger a stop-with-savepoint w/o drain if a task is finishing.");
             return false;
         }
