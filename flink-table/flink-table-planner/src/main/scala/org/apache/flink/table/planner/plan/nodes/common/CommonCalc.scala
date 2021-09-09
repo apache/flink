@@ -19,17 +19,18 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{conditionToString, preferExpressionFormat}
+import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil}
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexProgram}
-import java.util.Collections
 
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil}
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 

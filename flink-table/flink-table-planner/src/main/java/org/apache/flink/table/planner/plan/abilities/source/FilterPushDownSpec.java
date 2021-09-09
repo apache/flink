@@ -126,12 +126,12 @@ public class FilterPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public String getDigests(SourceAbilityContext context) {
         final List<String> expressionStrs = new ArrayList<>();
-        final RowType souorceRowType = context.getSourceRowType();
+        final RowType sourceRowType = context.getSourceRowType();
         for (RexNode rexNode : predicates) {
             expressionStrs.add(
                     FlinkRexUtil.getExpressionString(
                             rexNode,
-                            JavaScalaConversionUtil.toScala(souorceRowType.getFieldNames())));
+                            JavaScalaConversionUtil.toScala(sourceRowType.getFieldNames())));
         }
 
         return String.format(

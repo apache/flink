@@ -103,6 +103,20 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
         }
     }
 
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        final String expressionStr =
+                FlinkRexUtil.getExpressionString(
+                        watermarkExpr,
+                        JavaScalaConversionUtil.toScala(
+                                context.getSourceRowType().getFieldNames()));
+        if (idleTimeoutMillis > 0) {
+            return String.format(
+                    "watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
+        }
+        return String.format("watermark=[%s]", expressionStr);
+    }
+
     /**
      * Wrapper of the {@link GeneratedWatermarkGenerator} that is used to create {@link
      * WatermarkGenerator}. The {@link DefaultWatermarkGeneratorSupplier} uses the {@link
@@ -184,26 +198,5 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                 output.emitWatermark(new Watermark(currentWatermark));
             }
         }
-    }
-
-    @Override
-    public String getDigests(SourceAbilityContext context) {
-        final String expressionStr =
-                FlinkRexUtil.getExpressionString(
-                        watermarkExpr,
-                        JavaScalaConversionUtil.toScala(
-                                context.getSourceRowType().getFieldNames()));
-
-        //        final String expressionStr =
-        //                FlinkRexUtil.getExpressionString(
-        //                        watermarkExpr,
-        //
-        // JavaScalaConversionUtil.toScala(getProducedType().get().getFieldNames()));
-
-        if (idleTimeoutMillis == -1L) {
-            return String.format("watermark=[%s]", expressionStr);
-        }
-
-        return String.format("watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
     }
 }

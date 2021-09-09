@@ -87,7 +87,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 		<Resource name="optimized exec plan">
 			<![CDATA[
 Calc(select=[a, b, c, d], where=[(b > 5)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[]]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[c], filter=[]]], fields=[a, b, c, d])
 ]]>
 		</Resource>
 	</TestCase>

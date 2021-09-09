@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes
 
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil, RelDescriptionWriterImpl}
+
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
-import java.io.{PrintWriter, StringWriter}
 
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import java.io.{PrintWriter, StringWriter}
 
 /**
   * Base class for flink relational expression.

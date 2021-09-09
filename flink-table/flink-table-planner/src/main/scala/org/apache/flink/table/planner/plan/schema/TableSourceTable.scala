@@ -20,17 +20,16 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.source.DynamicTableSource
+import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils
 import org.apache.flink.table.planner.plan.abilities.source.{SourceAbilityContext, SourceAbilitySpec}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptSchema
 import org.apache.calcite.rel.`type`.RelDataType
-import java.util
 
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils
-import org.apache.flink.table.planner.utils.ShortcutUtils
-import org.apache.flink.table.types.logical.RowType
+import java.util
 
 /**
  * A [[FlinkPreparingTableBase]] implementation which defines the context variables
@@ -44,8 +43,8 @@ import org.apache.flink.table.types.logical.RowType
  * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Resolved catalog table where this table source table comes from
- * @param flinkContext The flink context
- * @param abilitySpecs The abilitySpec applied to the source
+ * @param flinkContext The flink context abilitySpecs use to generate corresponding digests
+ * @param abilitySpecs The abilitySpecs applied to the source
  */
 class TableSourceTable(
     relOptSchema: RelOptSchema,
@@ -71,12 +70,6 @@ class TableSourceTable(
       .addAll(super.getQualifiedName)
 
     if(abilitySpecs != null && abilitySpecs.length != 0){
-//      var newProducedType = catalogTable
-//        .getResolvedSchema
-//        .toSourceRowDataType
-//        .getLogicalType
-//        .asInstanceOf[RowType]
-
       var newProducedType = DynamicSourceUtils.createProducedType(
         catalogTable.getResolvedSchema,
         tableSource)
@@ -85,9 +78,7 @@ class TableSourceTable(
         val sourceAbilityContext = new SourceAbilityContext(flinkContext, newProducedType)
 
         builder.add(spec.getDigests(sourceAbilityContext))
-        if (spec.getProducedType.isPresent) {
-          newProducedType = spec.getProducedType.get
-        }
+        newProducedType = spec.getProducedType.orElse(newProducedType)
       }
     }
     builder.build()

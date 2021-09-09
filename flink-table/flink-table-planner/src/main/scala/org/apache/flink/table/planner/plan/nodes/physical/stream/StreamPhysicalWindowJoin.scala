@@ -20,17 +20,18 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Litmus
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._

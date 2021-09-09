@@ -21,19 +21,20 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.{SqlAsOperator, SqlKind}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.{SqlAsOperator, SqlKind}
 import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
-import java.lang.Iterable
-import java.util
 
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import java.lang.{Iterable => JIterable}
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -189,10 +190,10 @@ object FlinkRexUtil {
       }
     }
 
-    private def and(nodes: Iterable[_ <: RexNode]): RexNode =
+    private def and(nodes: JIterable[_ <: RexNode]): RexNode =
       RexUtil.composeConjunction(rexBuilder, nodes, false)
 
-    private def or(nodes: Iterable[_ <: RexNode]): RexNode =
+    private def or(nodes: JIterable[_ <: RexNode]): RexNode =
       RexUtil.composeDisjunction(rexBuilder, nodes)
   }
 

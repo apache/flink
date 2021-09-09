@@ -29,16 +29,17 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Tabl
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LocalZonedTimestampType, LogicalType, TimestampKind, TimestampType, VarCharType}
+import org.apache.flink.table.utils.CatalogManagerMocks
+
 import org.apache.calcite.config.CalciteConnectionConfig
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Schema.TableType
 import org.apache.calcite.schema.{Schema, SchemaPlus, Table}
 import org.apache.calcite.sql.{SqlCall, SqlNode}
+
 import java.util
 import java.util.Collections
-
-import org.apache.flink.table.utils.CatalogManagerMocks
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -247,6 +248,18 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
+
+  private val flinkContext = createFlinkContext
+
+  private def createFlinkContext(): FlinkContext = {
+    new FlinkContextImpl(
+      false,
+      TableConfig.getDefault,
+      null,
+      CatalogManagerMocks.createEmptyCatalogManager,
+      null)
+  }
+
   private def createProjectedTableSourceTable(): Table = {
     val catalogTable = CatalogTable.fromProperties(
       Map(
@@ -284,12 +297,8 @@ object MetadataTestUtil {
       new TestTableSource(),
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      new FlinkContextImpl(
-        false,
-        TableConfig.getDefault,
-        null,
-        CatalogManagerMocks.createEmptyCatalogManager,
-        null))
+      flinkContext
+      )
   }
 
   private def createProjectedTableSourceTableWithPartialCompositePrimaryKey(): Table = {
@@ -326,12 +335,7 @@ object MetadataTestUtil {
       new TestTableSource(),
       true,
       new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      new FlinkContextImpl(
-        false,
-        TableConfig.getDefault,
-        null,
-        CatalogManagerMocks.createEmptyCatalogManager,
-        null))
+      flinkContext)
   }
 
   private def getMetadataTable(

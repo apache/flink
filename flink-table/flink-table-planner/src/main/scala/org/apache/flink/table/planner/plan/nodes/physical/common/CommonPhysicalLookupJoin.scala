@@ -23,11 +23,13 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, User
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
@@ -37,9 +39,8 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.util.mapping.IntPair
-import java.util.Collections
 
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import java.util.Collections
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

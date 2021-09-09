@@ -22,7 +22,9 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import com.google.common.collect.{ImmutableList, ImmutableMap}
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+
+import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
@@ -31,10 +33,9 @@ import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
+
 import java.util
 import java.util.{SortedSet => JSortedSet}
-
-import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -59,17 +60,23 @@ import static org.junit.Assert.assertEquals;
 public class TemporalTableSourceSpecSerdeTest {
     private static final FlinkTypeFactory FACTORY = FlinkTypeFactory.INSTANCE();
 
+    private static final FlinkContext flinkContext = createFlinkContext();
+
+    private static FlinkContext createFlinkContext() {
+        return new FlinkContextImpl(
+                false,
+                TableConfig.getDefault(),
+                null,
+                CatalogManagerMocks.createEmptyCatalogManager(),
+                null);
+    }
+
     @Test
     public void testTemporalTableSourceSpecSerde() throws IOException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
+                        flinkContext,
                         classLoader,
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
@@ -123,12 +130,7 @@ public class TemporalTableSourceSpecSerdeTest {
                         lookupTableSource,
                         true,
                         resolvedCatalogTable,
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
+                        flinkContext,
                         new SourceAbilitySpec[] {});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
                 new TemporalTableSourceSpec(tableSourceTable1, new TableConfig());
