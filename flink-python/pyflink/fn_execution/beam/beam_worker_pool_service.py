@@ -79,11 +79,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
                     start_worker_request: beam_fn_api_pb2.StartWorkerRequest,
                     unused_context):
         try:
-            worker_thread = threading.Thread(
-                name='run_worker_%s' % start_worker_request.worker_id,
-                target=functools.partial(self._start_sdk_worker_main, start_worker_request))
-            worker_thread.daemon = True
-            worker_thread.start()
+            self._start_sdk_worker_main(start_worker_request)
             return beam_fn_api_pb2.StartWorkerResponse()
         except Exception:
             return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
