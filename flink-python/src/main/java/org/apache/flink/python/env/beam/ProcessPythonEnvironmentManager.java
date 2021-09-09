@@ -448,11 +448,11 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         private static final ReentrantLock lock = new ReentrantLock();
 
         @GuardedBy("lock")
-        private static final Map<JobID, PythonLeasedResource> reservedResources = new HashMap<>();
+        private static final Map<Object, PythonLeasedResource> reservedResources = new HashMap<>();
 
         static PythonLeasedResource getOrAllocateSharedResource(
-                JobID jobID,
-                FunctionWithException<JobID, Tuple2<String, Map<String, String>>, Exception>
+                Object type,
+                FunctionWithException<Object, Tuple2<String, Map<String, String>>, Exception>
                         initializer)
                 throws Exception {
             try {
@@ -463,10 +463,10 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
             }
 
             try {
-                PythonLeasedResource resource = reservedResources.get(jobID);
+                PythonLeasedResource resource = reservedResources.get(type);
                 if (resource == null) {
-                    resource = createResource(initializer, jobID);
-                    reservedResources.put(jobID, resource);
+                    resource = createResource(initializer, type);
+                    reservedResources.put(type, resource);
                 }
                 resource.incRef();
                 return resource;
@@ -494,21 +494,21 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
         }
 
         private static PythonLeasedResource createResource(
-                FunctionWithException<JobID, Tuple2<String, Map<String, String>>, Exception>
+                FunctionWithException<Object, Tuple2<String, Map<String, String>>, Exception>
                         initializer,
-                JobID jobID)
+                Object type)
                 throws Exception {
-            Tuple2<String, Map<String, String>> resource = initializer.apply(jobID);
+            Tuple2<String, Map<String, String>> resource = initializer.apply(type);
             String baseDirectory = resource.f0;
             Map<String, String> env = resource.f1;
             return new PythonLeasedResource(baseDirectory, env);
         }
 
         private static final class PythonLeasedResource implements AutoCloseable {
-            private Map<String, String> env;
+            private final Map<String, String> env;
 
             /** The base directory of the Python Environment. */
-            private String baseDirectory;
+            private final String baseDirectory;
 
             /** Keep track of the number of threads sharing this Python environment resources. */
             private long refCount = 0;
