@@ -474,6 +474,8 @@ class StreamExecutionEnvironment(object):
         untouched.
 
         :param configuration: a configuration to read the values from.
+
+        .. versionadded:: 1.15.0
         """
         self._j_stream_execution_environment.configure(configuration._j_configuration,
                                                        get_gateway().jvm.Thread.currentThread()
