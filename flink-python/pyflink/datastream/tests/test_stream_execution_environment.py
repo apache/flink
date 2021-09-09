@@ -50,13 +50,13 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def setUp(self):
         self.env = self.create_new_env()
-        self.env._remote_mode = True
         self.test_sink = DataStreamTestSinkFunction()
 
     @staticmethod
-    def create_new_env():
+    def create_new_env(execution_mode='process'):
         env = StreamExecutionEnvironment.get_execution_environment()
         env.set_parallelism(2)
+        env._execution_mode = execution_mode
         return env
 
     def test_get_config(self):
@@ -358,7 +358,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file(self):
         import uuid
-        env = self.create_new_env()
+        env = self.create_new_env("loopback")
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -409,7 +409,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_add_python_file_2(self):
         import uuid
-        env = self.create_new_env()
+        env = self.create_new_env("loopback")
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dep1.py")
@@ -477,7 +477,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
     def test_set_requirements_with_cached_directory(self):
         import uuid
         tmp_dir = self.tempdir
-        env = self.create_new_env()
+        env = self.create_new_env("loopback")
         requirements_txt_path = os.path.join(tmp_dir, "requirements_txt_" + str(uuid.uuid4()))
         with open(requirements_txt_path, 'w') as f:
             f.write("python-package1==0.0.0")
@@ -523,7 +523,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import uuid
         import shutil
         tmp_dir = self.tempdir
-        env = self.create_new_env()
+        env = self.create_new_env("loopback")
         archive_dir_path = os.path.join(tmp_dir, "archive_" + str(uuid.uuid4()))
         os.mkdir(archive_dir_path)
         with open(os.path.join(archive_dir_path, "data.txt"), 'w') as f:
@@ -550,7 +550,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         import sys
         python_exec = sys.executable
         tmp_dir = self.tempdir
-        env = self.create_new_env()
+        env = self.create_new_env("loopback")
         python_exec_link_path = os.path.join(tmp_dir, "py_exec")
         os.symlink(python_exec, python_exec_link_path)
         env.set_python_executable(python_exec_link_path)
@@ -614,12 +614,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
     def test_generate_stream_graph_with_dependencies(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
-        env = self.create_new_env()
-        env._remote_mode = True
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_stream_dependency_manage_lib.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_two(a):\n    return a + 2")
+        env = self.env
         env.add_python_file(python_file_path)
 
         def plus_two_map(value):

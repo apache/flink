@@ -58,7 +58,6 @@ class StreamExecutionEnvironment(object):
 
     def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
-        self._remote_mode = False
         self.serializer = serializer
 
     def get_config(self) -> ExecutionConfig:
@@ -891,14 +890,15 @@ class StreamExecutionEnvironment(object):
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
-        if not self._remote_mode and is_local_deployment(j_configuration):
+
+        def startup_loopback_server():
             jvm = gateway.jvm
             env_config = JPythonConfigUtil.getEnvironmentConfig(
                 self._j_stream_execution_environment)
             parallelism = self.get_parallelism()
             if parallelism > 1 and env_config.containsKey(jvm.PythonOptions.PYTHON_ARCHIVES.key()):
                 import logging
-                logging.warning("Lookback mode is disabled as python archives are used and the "
+                logging.warning("Loopback mode is disabled as python archives are used and the "
                                 "parallelism of the job is greater than 1. The Python user-defined "
                                 "functions will be executed in an independent Python process.")
             else:
@@ -907,6 +907,24 @@ class StreamExecutionEnvironment(object):
                 j_env = jvm.System.getenv()
                 get_field_value(j_env, "m").put(
                     'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = None
+        if hasattr(self, "_python_worker_execution_mode"):
+            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
 
         JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
 

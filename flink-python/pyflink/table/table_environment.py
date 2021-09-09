@@ -91,7 +91,6 @@ class TableEnvironment(object):
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
         self._serializer = serializer
-        self._remote_mode = False
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
@@ -1747,9 +1746,9 @@ class TableEnvironment(object):
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
+
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
-        if not self._remote_mode and \
-                is_local_deployment(get_j_env_configuration(self._get_j_env())):
+        def startup_loopback_server():
             from pyflink.common import Configuration
             _j_config = jvm.org.apache.flink.python.util.PythonConfigUtil.getMergedConfig(
                 self._get_j_env(), self.get_config()._j_table_config)
@@ -1768,6 +1767,24 @@ class TableEnvironment(object):
                 j_env = jvm.System.getenv()
                 get_field_value(j_env, "m").put(
                     'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = None
+        if hasattr(self, "_python_worker_execution_mode"):
+            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
