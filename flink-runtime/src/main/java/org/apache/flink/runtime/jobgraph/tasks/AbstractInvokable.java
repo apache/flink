@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
@@ -82,8 +83,13 @@ public abstract class AbstractInvokable
     public void cleanUp(@Nullable Throwable throwable) throws Exception {}
 
     @Override
-    public boolean shouldInterruptOnCancel() {
-        return true;
+    public void maybeInterruptOnCancel(
+            Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout) {
+        if (taskName != null && timeout != null) {
+            Task.logTaskThreadStackTrace(toInterrupt, taskName, timeout, "interrupting");
+        }
+
+        toInterrupt.interrupt();
     }
 
     // ------------------------------------------------------------------------
