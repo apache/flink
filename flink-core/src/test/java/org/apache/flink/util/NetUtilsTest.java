@@ -20,9 +20,15 @@ package org.apache.flink.util;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -32,7 +38,10 @@ import java.util.Set;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** Tests for the {@link NetUtils}. */
 public class NetUtilsTest extends TestLogger {
@@ -47,6 +56,30 @@ public class NetUtilsTest extends TestLogger {
     public void testParseHostPortAddress() {
         final InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
         assertEquals(socketAddress, NetUtils.parseHostPortAddress("foo.com:8080"));
+    }
+
+    @Test
+    public void testAcceptWithoutTimeout() throws IOException {
+        // Validates that acceptWithoutTimeout suppresses all SocketTimeoutExceptions
+        ServerSocket serverSocket = mock(ServerSocket.class);
+        when(serverSocket.accept())
+                .thenAnswer(
+                        new Answer<Socket>() {
+                            private int count = 0;
+
+                            @Override
+                            public Socket answer(InvocationOnMock invocationOnMock)
+                                    throws Throwable {
+                                if (count < 2) {
+                                    count++;
+                                    throw new SocketTimeoutException();
+                                }
+
+                                return new Socket();
+                            }
+                        });
+
+        assertNotNull(NetUtils.acceptWithoutTimeout(serverSocket));
     }
 
     @Test

@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -382,7 +383,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
                 try {
                     if (connection == null) {
                         // waiting for coordinator to connect
-                        connection = serverSocket.accept();
+                        connection = NetUtils.acceptWithoutTimeout(serverSocket);
                         inStream = new DataInputViewStreamWrapper(this.connection.getInputStream());
                         outStream =
                                 new DataOutputViewStreamWrapper(this.connection.getOutputStream());
