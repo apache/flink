@@ -43,7 +43,8 @@ import java.util
  * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Resolved catalog table where this table source table comes from
- * @param flinkContext The flink context abilitySpecs use to generate corresponding digests
+ * @param flinkContext The flink context which is used to generate extra digests based on
+ *                     abilitySpecs
  * @param abilitySpecs The abilitySpecs applied to the source
  */
 class TableSourceTable(

@@ -248,17 +248,12 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
-
-  private val flinkContext = createFlinkContext
-
-  private def createFlinkContext(): FlinkContext = {
-    new FlinkContextImpl(
-      false,
-      TableConfig.getDefault,
-      null,
-      CatalogManagerMocks.createEmptyCatalogManager,
-      null)
-  }
+  private val flinkContext = new FlinkContextImpl(
+    false,
+    TableConfig.getDefault,
+    null,
+    CatalogManagerMocks.createEmptyCatalogManager,
+    null)
 
   private def createProjectedTableSourceTable(): Table = {
     val catalogTable = CatalogTable.fromProperties(
