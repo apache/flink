@@ -95,9 +95,13 @@ public interface TaskInvokable {
     boolean isUsingNonBlockingInput();
 
     /**
-     * Checks whether the task should be interrupted during cancellation. This method is check both
-     * for the initial interrupt, as well as for the repeated interrupt. If this method returns true
-     * then no further interrupts will happen.
+     * Checks whether the task should be interrupted during cancellation and if so, execute the
+     * specified {@code Runnable interruptAction}.
+     *
+     * @param toInterrupt
+     * @param taskName optional taskName to log stack trace
+     * @param timeout optional timeout to log stack trace
      */
-    boolean shouldInterruptOnCancel();
+    void maybeInterruptOnCancel(
+            Thread toInterrupt, @Nullable String taskName, @Nullable Long timeout);
 }
