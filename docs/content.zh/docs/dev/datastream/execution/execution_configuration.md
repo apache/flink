@@ -60,7 +60,7 @@ var executionConfig = env.getConfig
 
 - `getExecutionMode()` / `setExecutionMode()`。默认的执行模式是 PIPELINED。设置执行模式以执行程序。执行模式定义了数据交换是以批处理方式还是以流方式执行。
 
-- `enableForceKryo()` / **`disableForceKryo`**。默认情况下不强制使用 Kryo。强制 GenericTypeInformation 对 POJO 使用 Kryo 序列化器，即使我们可以将它们作为 POJO 进行分析。在某些情况下，这可能更可取。例如，当 Flink 的内部序列化器无法正确处理 POJO 时。
+- `enableForceKryo()` / **`disableForceKryo`**。默认情况下不强制使用 Kryo。强制 GenericTypeInformation 对 POJO 使用 Kryo 序列化器，即使我们可以将它们作为 POJO 进行分析。在某些情况下，应该优先启用该配置。例如，当 Flink 的内部序列化器无法正确处理 POJO 时。
 
 - `enableForceAvro()` / **`disableForceAvro()`**。默认情况下不强制使用 Avro。强制 Flink AvroTypeInfo 使用 Avro 序列化器而不是 Kryo 来序列化 Avro 的 POJO。
 
