@@ -32,7 +32,8 @@ import java.util.stream.Collectors;
 import static java.lang.String.format;
 
 /**
- * Represents a dialect of SQL implemented by a particular JDBC system.
+ * Represents a dialect of SQL implemented by a particular JDBC system. Dialects should be immutable
+ * and stateless.
  *
  * @see JdbcDialectFactory
  */
@@ -62,14 +63,10 @@ public interface JdbcDialect extends Serializable {
      */
     String getLimitClause(long limit);
 
-    /**
-     * @return True if two instances support the same dialect.
-     */
+    /** @return True if two instances support the same dialect. */
     boolean equals(Object o);
 
-    /**
-     * @inheritDoc
-     */
+    /** @inheritDoc */
     int hashCode();
 
     /**
@@ -89,27 +86,37 @@ public interface JdbcDialect extends Serializable {
     }
 
     /**
-     * Quotes the identifier. This is used to put quotes around the identifier in case the column
-     * name is a reserved keyword, or in case it contains characters that require quotes (e.g.
-     * space). Default using double quotes {@code "} to quote.
+     * Quotes the identifier.
+     *
+     * <p>Used to put quotes around the identifier if the column name is a reserved keyword or
+     * contains characters requiring quotes (e.g., space). Default using double quotes {@code "} to
+     * quote.
+     *
+     * @return the quoted identifier.
      */
     default String quoteIdentifier(String identifier) {
         return "\"" + identifier + "\"";
     }
 
     /**
-     * Get dialect upsert statement, the database has its own upsert syntax, such as Mysql using
-     * DUPLICATE KEY UPDATE, and PostgreSQL using ON CONFLICT... DO UPDATE SET..
+     * Constructs the dialects upsert statement if supported; such as MySQL's {@code DUPLICATE KEY
+     * UPDATE}, or PostgreSQLs {@code ON CONFLICT... DO UPDATE SET..}.
      *
-     * @return None if dialect does not support upsert statement, the writer will degrade to the use
-     *     of select + update/insert, this performance is poor.
+     * <p>If the dialect does not support native upsert statements, the writer will fallback to
+     * {@code SELECT} + {@code Update}/{@code INSERT} which may have poor performance.
+     *
+     * @return The upsert statement if supported, otherwise None.
      */
     default Optional<String> getUpsertStatement(
             String tableName, String[] fieldNames, String[] uniqueKeyFields) {
         return Optional.empty();
     }
 
-    /** Get row exists statement by condition fields. Default use SELECT. */
+    /**
+     * Generates a query to determine if a row exists in the table.
+     *
+     * <p>By default, the dialect will fallback to a simple {@code SELECT} query.
+     */
     default String getRowExistsStatement(String tableName, String[] conditionFields) {
         String fieldExpressions =
                 Arrays.stream(conditionFields)
@@ -118,7 +125,7 @@ public interface JdbcDialect extends Serializable {
         return "SELECT 1 FROM " + quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
     }
 
-    /** Get insert into statement. */
+    /** @return the dialects {@code INSERT INTO} statement. */
     default String getInsertIntoStatement(String tableName, String[] fieldNames) {
         String columns =
                 Arrays.stream(fieldNames)
@@ -137,8 +144,11 @@ public interface JdbcDialect extends Serializable {
     }
 
     /**
-     * Get update one row statement by condition fields, default not use limit 1, because limit 1 is
-     * a sql dialect.
+     * Constructs the dialects update statement for a single row with the given condition.
+     *
+     * <p>The default implementation does not use {@code LIMIT 1} as limit is dialect specific.
+     *
+     * @return A single row update statement.
      */
     default String getUpdateStatement(
             String tableName, String[] fieldNames, String[] conditionFields) {
@@ -159,8 +169,11 @@ public interface JdbcDialect extends Serializable {
     }
 
     /**
-     * Get delete one row statement by condition fields, default not use limit 1, because limit 1 is
-     * a sql dialect.
+     * Constructs the dialects delete statement for a single row with the given condition.
+     *
+     * <p>The default implementation does not use {@code LIMIT 1} as limit is dialect specific.
+     *
+     * @return A single row delete statement.
      */
     default String getDeleteStatement(String tableName, String[] conditionFields) {
         String conditionClause =
@@ -170,7 +183,13 @@ public interface JdbcDialect extends Serializable {
         return "DELETE FROM " + quoteIdentifier(tableName) + " WHERE " + conditionClause;
     }
 
-    /** Get select fields statement by condition fields. Default use SELECT. */
+    /**
+     * Constructs the dialects select statement for fields with given conditions.
+     *
+     * <p>The default implementation creates a simple {@code SELECT} statement.
+     *
+     * @return A select statement.
+     */
     default String getSelectFromStatement(
             String tableName, String[] selectFields, String[] conditionFields) {
         String selectExpressions =

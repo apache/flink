@@ -96,7 +96,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
         /**
          * Convert a jdbc field object of {@link ResultSet} to the internal data structure object.
          *
-         * @param jdbcField
+         * @param jdbcField A single field of a {@link ResultSet}
          */
         Object deserialize(Object jdbcField) throws SQLException;
     }
