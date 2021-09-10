@@ -54,7 +54,7 @@ public class NetUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testAcceptWithoutTimeout() throws IOException {
+    public void testAcceptWithoutTimeoutSuppressesTimeoutException() throws IOException {
         // Validates that acceptWithoutTimeout suppresses all SocketTimeoutExceptions
         Socket expected = new Socket();
         ServerSocket serverSocket =
@@ -73,28 +73,45 @@ public class NetUtilsTest extends TestLogger {
                 };
 
         assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+    }
 
-        // Validates timeout option precondition
-        serverSocket =
-                new ServerSocket() {
+    @Test
+    public void testAcceptWithoutTimeoutDefaultTimeout() throws IOException {
+        // Default timeout (should be zero)
+        final Socket expected = new Socket();
+        try (final ServerSocket serverSocket =
+                new ServerSocket(0) {
                     @Override
-                    public Socket accept() throws IOException {
+                    public Socket accept() {
                         return expected;
                     }
-                };
-
-        // non-zero timeout (throw exception)
-        serverSocket.setSoTimeout(5);
-        try {
+                }) {
             assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
-            fail("Expected IllegalArgumentException due to timeout is set to non-zero value");
-        } catch (IllegalArgumentException e) {
-            // Pass
         }
+    }
 
-        // zero timeout (don't throw exception)
-        serverSocket.setSoTimeout(0);
-        assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+    @Test
+    public void testAcceptWithoutTimeoutZeroTimeout() throws IOException {
+        // Explicitly sets a timeout of zero
+        final Socket expected = new Socket();
+        try (final ServerSocket serverSocket =
+                new ServerSocket(0) {
+                    @Override
+                    public Socket accept() {
+                        return expected;
+                    }
+                }) {
+            serverSocket.setSoTimeout(0);
+            assertEquals(expected, NetUtils.acceptWithoutTimeout(serverSocket));
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testAcceptWithoutTimeoutRejectsSocketWithSoTimeout() throws IOException {
+        try (final ServerSocket serverSocket = new ServerSocket(0)) {
+            serverSocket.setSoTimeout(5);
+            NetUtils.acceptWithoutTimeout(serverSocket);
+        }
     }
 
     @Test
