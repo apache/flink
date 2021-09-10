@@ -2607,28 +2607,6 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
-    static class OpenFailingOperator<T> extends AbstractStreamOperator<T>
-            implements OneInputStreamOperator<T, T> {
-        static boolean wasClosed;
-
-        public OpenFailingOperator() {
-            wasClosed = false;
-        }
-
-        @Override
-        public void open() throws Exception {
-            throw new ExpectedTestException();
-        }
-
-        @Override
-        public void close() throws Exception {
-            wasClosed = true;
-        }
-
-        @Override
-        public void processElement(StreamRecord<T> element) throws Exception {}
-    }
-
     private static class CheckpointCompleteRecordOperator extends AbstractStreamOperator<Integer>
             implements OneInputStreamOperator<Integer, Integer> {
 
