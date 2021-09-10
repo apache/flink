@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexCall, RexLiteral, RexUtil}
+import org.apache.calcite.rex.{RexLiteral, RexUtil}
 
 /**
   * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
