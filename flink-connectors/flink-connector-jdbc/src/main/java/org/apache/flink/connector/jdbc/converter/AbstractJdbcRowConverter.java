@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.internal.converter;
+package org.apache.flink.connector.jdbc.converter;
 
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
@@ -92,7 +92,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
 
     /** Runtime converter to convert JDBC field to {@link RowData} type object. */
     @FunctionalInterface
-    interface JdbcDeserializationConverter extends Serializable {
+    public interface JdbcDeserializationConverter extends Serializable {
         /**
          * Convert a jdbc field object of {@link ResultSet} to the internal data structure object.
          *
@@ -106,7 +106,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
      * PreparedStatement}.
      */
     @FunctionalInterface
-    interface JdbcSerializationConverter extends Serializable {
+    public interface JdbcSerializationConverter extends Serializable {
         void serialize(RowData rowData, int index, FieldNamedPreparedStatement statement)
                 throws SQLException;
     }

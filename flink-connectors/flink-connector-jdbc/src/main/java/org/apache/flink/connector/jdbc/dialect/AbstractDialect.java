@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -28,6 +29,8 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 
 import java.util.List;
 
+/** Base class that handles common validation of JDBC data types. */
+@PublicEvolving
 public abstract class AbstractDialect implements JdbcDialect {
 
     @Override
