@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect;
+package org.apache.flink.connector.jdbc.dialect.psql;
 
+import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.converter.PostgresRowConverter;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -42,11 +43,6 @@ public class PostgresDialect extends AbstractDialect {
     // https://www.postgresql.org/docs/12/datatype-numeric.html#DATATYPE-NUMERIC-DECIMAL
     private static final int MAX_DECIMAL_PRECISION = 1000;
     private static final int MIN_DECIMAL_PRECISION = 1;
-
-    @Override
-    public boolean canHandle(String url) {
-        return url.startsWith("jdbc:postgresql:");
-    }
 
     @Override
     public JdbcRowConverter getRowConverter(RowType rowType) {

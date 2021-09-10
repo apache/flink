@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect;
+package org.apache.flink.connector.jdbc.dialect.psql;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectFactory;
 
-/** Default JDBC dialects. */
-public final class JdbcDialects {
+/** Factory for {@link PostgresDialect}. */
+@Internal
+public class PostgresDialectFactory implements JdbcDialectFactory {
+    @Override
+    public boolean acceptsURL(String url) {
+        return url.startsWith("jdbc:postgresql:");
+    }
 
-    private static final List<JdbcDialect> DIALECTS =
-            Arrays.asList(new DerbyDialect(), new MySQLDialect(), new PostgresDialect());
-
-    /** Fetch the JdbcDialect class corresponding to a given database url. */
-    public static Optional<JdbcDialect> get(String url) {
-        for (JdbcDialect dialect : DIALECTS) {
-            if (dialect.canHandle(url)) {
-                return Optional.of(dialect);
-            }
-        }
-        return Optional.empty();
+    @Override
+    public JdbcDialect create() {
+        return new PostgresDialect();
     }
 }

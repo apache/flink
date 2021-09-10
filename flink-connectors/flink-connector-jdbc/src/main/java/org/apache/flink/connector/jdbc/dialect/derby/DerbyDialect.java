@@ -16,81 +16,55 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect;
+package org.apache.flink.connector.jdbc.dialect.derby;
 
+import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
+import org.apache.flink.connector.jdbc.internal.converter.DerbyRowConverter;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.MySQLRowConverter;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-/** JDBC dialect for MySQL. */
-public class MySQLDialect extends AbstractDialect {
+class DerbyDialect extends AbstractDialect {
 
     private static final long serialVersionUID = 1L;
 
-    // Define MAX/MIN precision of TIMESTAMP type according to Mysql docs:
-    // https://dev.mysql.com/doc/refman/8.0/en/fractional-seconds.html
-    private static final int MAX_TIMESTAMP_PRECISION = 6;
+    // Define MAX/MIN precision of TIMESTAMP type according to derby docs:
+    // http://db.apache.org/derby/docs/10.14/ref/rrefsqlj27620.html
+    private static final int MAX_TIMESTAMP_PRECISION = 9;
     private static final int MIN_TIMESTAMP_PRECISION = 1;
 
-    // Define MAX/MIN precision of DECIMAL type according to Mysql docs:
-    // https://dev.mysql.com/doc/refman/8.0/en/fixed-point-types.html
-    private static final int MAX_DECIMAL_PRECISION = 65;
+    // Define MAX/MIN precision of DECIMAL type according to derby docs:
+    // http://db.apache.org/derby/docs/10.14/ref/rrefsqlj15260.html
+    private static final int MAX_DECIMAL_PRECISION = 31;
     private static final int MIN_DECIMAL_PRECISION = 1;
 
     @Override
-    public boolean canHandle(String url) {
-        return url.startsWith("jdbc:mysql:");
-    }
-
-    @Override
     public JdbcRowConverter getRowConverter(RowType rowType) {
-        return new MySQLRowConverter(rowType);
-    }
-
-    @Override
-    public String getLimitClause(long limit) {
-        return "LIMIT " + limit;
+        return new DerbyRowConverter(rowType);
     }
 
     @Override
     public Optional<String> defaultDriverName() {
-        return Optional.of("com.mysql.jdbc.Driver");
+        return Optional.of("org.apache.derby.jdbc.EmbeddedDriver");
     }
 
     @Override
     public String quoteIdentifier(String identifier) {
-        return "`" + identifier + "`";
-    }
-
-    /**
-     * Mysql upsert query use DUPLICATE KEY UPDATE.
-     *
-     * <p>NOTE: It requires Mysql's primary key to be consistent with pkFields.
-     *
-     * <p>We don't use REPLACE INTO, if there are other fields, we can keep their previous values.
-     */
-    @Override
-    public Optional<String> getUpsertStatement(
-            String tableName, String[] fieldNames, String[] uniqueKeyFields) {
-        String updateClause =
-                Arrays.stream(fieldNames)
-                        .map(f -> quoteIdentifier(f) + "=VALUES(" + quoteIdentifier(f) + ")")
-                        .collect(Collectors.joining(", "));
-        return Optional.of(
-                getInsertIntoStatement(tableName, fieldNames)
-                        + " ON DUPLICATE KEY UPDATE "
-                        + updateClause);
+        return identifier;
     }
 
     @Override
     public String dialectName() {
-        return "MySQL";
+        return "Derby";
+    }
+
+    @Override
+    public String getLimitClause(long limit) {
+        return String.format("FETCH FIRST %d ROWS ONLY", limit);
     }
 
     @Override
@@ -115,8 +89,8 @@ public class MySQLDialect extends AbstractDialect {
 
     @Override
     public List<LogicalTypeRoot> unsupportedTypes() {
-        // The data types used in Mysql are list at:
-        // https://dev.mysql.com/doc/refman/8.0/en/data-types.html
+        // The data types used in Derby are list at
+        // http://db.apache.org/derby/docs/10.14/ref/crefsqlj31068.html
 
         // TODO: We can't convert BINARY data type to
         //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
