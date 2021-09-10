@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.VarBinaryType;
 
 import java.util.List;
 
-abstract class AbstractDialect implements JdbcDialect {
+public abstract class AbstractDialect implements JdbcDialect {
 
     @Override
     public void validate(DataType dataType) throws ValidationException {
@@ -80,6 +80,17 @@ abstract class AbstractDialect implements JdbcDialect {
                 }
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof JdbcDialect &&
+                ((JdbcDialect) obj).dialectName().equals(dialectName());
+    }
+
+    @Override
+    public int hashCode() {
+        return dialectName().hashCode() >> 31;
     }
 
     public abstract int maxDecimalPrecision();

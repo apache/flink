@@ -43,14 +43,6 @@ public interface JdbcDialect extends Serializable {
     String dialectName();
 
     /**
-     * Check if this dialect instance can handle a certain jdbc url.
-     *
-     * @param url the jdbc url.
-     * @return True if the dialect can be applied on the given jdbc url.
-     */
-    boolean canHandle(String url);
-
-    /**
      * Get converter that convert jdbc object and Flink internal object each other.
      *
      * @param rowType the given row type
@@ -65,6 +57,16 @@ public interface JdbcDialect extends Serializable {
      * @return the limit clause.
      */
     String getLimitClause(long limit);
+
+    /**
+     * @return True if two instances support the same dialect.
+     */
+    boolean equals(Object o);
+
+    /**
+     * @inheritDoc
+     */
+    int hashCode();
 
     /**
      * Check if this dialect instance support a specific data type in table schema.
