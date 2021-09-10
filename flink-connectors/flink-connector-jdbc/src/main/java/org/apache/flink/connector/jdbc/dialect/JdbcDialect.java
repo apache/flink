@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc.dialect;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.io.Serializable;
@@ -69,10 +69,10 @@ public interface JdbcDialect extends Serializable {
     /**
      * Check if this dialect instance support a specific data type in table schema.
      *
-     * @param schema the table schema.
+     * @param dataType the physical table datatype.
      * @exception ValidationException in case of the table schema contains unsupported type.
      */
-    default void validate(TableSchema schema) throws ValidationException {}
+    default void validate(DataType dataType) throws ValidationException {}
 
     /**
      * @return the default driver class name, if user not configure the driver class name, then will

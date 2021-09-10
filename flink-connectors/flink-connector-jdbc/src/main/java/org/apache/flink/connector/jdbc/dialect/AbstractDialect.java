@@ -18,11 +18,11 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 
@@ -31,47 +31,49 @@ import java.util.List;
 abstract class AbstractDialect implements JdbcDialect {
 
     @Override
-    public void validate(TableSchema schema) throws ValidationException {
-        for (int i = 0; i < schema.getFieldCount(); i++) {
-            DataType dt = schema.getFieldDataType(i).get();
-            String fieldName = schema.getFieldName(i).get();
+    public void validate(DataType dataType) throws ValidationException {
+        if (!(dataType.getLogicalType() instanceof RowType)) {
+            throw new ValidationException("Logical DataType must be a RowType");
+        }
 
+        RowType rowType = (RowType) dataType.getLogicalType();
+        for (RowType.RowField field : rowType.getFields()) {
             // TODO: We can't convert VARBINARY(n) data type to
             //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
             // LegacyTypeInfoDataTypeConverter
             //  when n is smaller than Integer.MAX_VALUE
-            if (unsupportedTypes().contains(dt.getLogicalType().getTypeRoot())
-                    || (dt.getLogicalType() instanceof VarBinaryType
+            if (unsupportedTypes().contains(field.getType().getTypeRoot())
+                    || (field.getType() instanceof VarBinaryType
                             && Integer.MAX_VALUE
-                                    != ((VarBinaryType) dt.getLogicalType()).getLength())) {
+                                    != ((VarBinaryType) field.getType()).getLength())) {
                 throw new ValidationException(
                         String.format(
                                 "The %s dialect doesn't support type: %s.",
-                                dialectName(), dt.toString()));
+                                dialectName(), field.getType()));
             }
 
-            if (dt.getLogicalType() instanceof DecimalType) {
-                int precision = ((DecimalType) dt.getLogicalType()).getPrecision();
+            if (field.getType() instanceof DecimalType) {
+                int precision = ((DecimalType) field.getType()).getPrecision();
                 if (precision > maxDecimalPrecision() || precision < minDecimalPrecision()) {
                     throw new ValidationException(
                             String.format(
                                     "The precision of field '%s' is out of the DECIMAL "
                                             + "precision range [%d, %d] supported by %s dialect.",
-                                    fieldName,
+                                    field.getName(),
                                     minDecimalPrecision(),
                                     maxDecimalPrecision(),
                                     dialectName()));
                 }
             }
 
-            if (dt.getLogicalType() instanceof TimestampType) {
-                int precision = ((TimestampType) dt.getLogicalType()).getPrecision();
+            if (field.getType() instanceof TimestampType) {
+                int precision = ((TimestampType) field.getType()).getPrecision();
                 if (precision > maxTimestampPrecision() || precision < minTimestampPrecision()) {
                     throw new ValidationException(
                             String.format(
                                     "The precision of field '%s' is out of the TIMESTAMP "
                                             + "precision range [%d, %d] supported by %s dialect.",
-                                    fieldName,
+                                    field.getName(),
                                     minTimestampPrecision(),
                                     maxTimestampPrecision(),
                                     dialectName()));
