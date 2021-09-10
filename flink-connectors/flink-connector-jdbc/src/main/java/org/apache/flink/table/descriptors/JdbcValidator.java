@@ -82,7 +82,7 @@ public class JdbcValidator extends ConnectorDescriptorValidator {
         Preconditions.checkState(dialect.isPresent(), "Cannot handle such jdbc url: " + url);
 
         TableSchema schema = TableSchemaUtils.getPhysicalSchema(properties.getTableSchema(SCHEMA));
-        dialect.get().validate(schema);
+        dialect.get().validate(schema.toPhysicalRowDataType());
 
         Optional<String> password = properties.getOptionalString(CONNECTOR_PASSWORD);
         if (password.isPresent()) {
