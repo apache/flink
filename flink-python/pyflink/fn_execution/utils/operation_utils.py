@@ -16,7 +16,12 @@
 # limitations under the License.
 ################################################################################
 import datetime
-from collections import Generator
+
+try:
+    from collections.abc import Generator
+except AttributeError:
+    from collections import Generator
+
 from functools import partial
 
 from typing import Any, Tuple, Dict, List
