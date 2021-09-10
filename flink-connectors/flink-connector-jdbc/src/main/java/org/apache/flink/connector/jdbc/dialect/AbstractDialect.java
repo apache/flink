@@ -43,8 +43,8 @@ public abstract class AbstractDialect implements JdbcDialect {
         for (RowType.RowField field : rowType.getFields()) {
             // TODO: We can't convert VARBINARY(n) data type to
             //  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO in
-            // LegacyTypeInfoDataTypeConverter
-            //  when n is smaller than Integer.MAX_VALUE
+            //  LegacyTypeInfoDataTypeConverter when n is smaller
+            //  than Integer.MAX_VALUE
             if (unsupportedTypes().contains(field.getType().getTypeRoot())
                     || (field.getType() instanceof VarBinaryType
                             && Integer.MAX_VALUE
@@ -87,8 +87,8 @@ public abstract class AbstractDialect implements JdbcDialect {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof JdbcDialect &&
-                ((JdbcDialect) obj).dialectName().equals(dialectName());
+        return obj instanceof JdbcDialect
+                && ((JdbcDialect) obj).dialectName().equals(dialectName());
     }
 
     @Override
