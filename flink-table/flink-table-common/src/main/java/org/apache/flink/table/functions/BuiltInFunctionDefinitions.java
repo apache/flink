@@ -629,7 +629,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
                     .build();
 
     public static final BuiltInFunctionDefinition FROM_BASE64 =

@@ -425,7 +425,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     SqlKind.OTHER_FUNCTION,
                     ReturnTypes.cascade(
                             ReturnTypes.explicit(SqlTypeName.VARCHAR),
-                            SqlTypeTransforms.TO_NULLABLE),
+                            SqlTypeTransforms.FORCE_NULLABLE),
                     null,
                     OperandTypes.or(OperandTypes.STRING_STRING_INTEGER, OperandTypes.STRING_STRING),
                     SqlFunctionCategory.STRING);
