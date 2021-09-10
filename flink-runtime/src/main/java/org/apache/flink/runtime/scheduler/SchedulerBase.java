@@ -824,9 +824,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-
-        StopWithSavepointTerminationManager.checkSavepointPreconditions(
-                checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, targetDirectory, getJobId(), log);
 
         log.info(
                 "Triggering {}savepoint for job {}.",
@@ -919,7 +918,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
-        StopWithSavepointTerminationManager.checkSavepointPreconditions(
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
                 checkpointCoordinator, targetDirectory, executionGraph.getJobID(), log);
 
         log.info("Triggering stop-with-savepoint for job {}.", jobGraph.getJobID());
