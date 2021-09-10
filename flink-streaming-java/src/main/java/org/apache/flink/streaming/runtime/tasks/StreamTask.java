@@ -874,6 +874,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             LOG.debug("All pending checkpoints are finished");
         }
 
+        disableInterruptOnCancel();
+
         // make an attempt to dispose the operators such that failures in the dispose call
         // still let the computation fail
         closeAllOperators();
@@ -902,11 +904,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // clean up everything we initialized
         isRunning = false;
 
-        // Now that we are outside the user code, we do not want to be interrupted further
-        // upon cancellation. The shutdown logic below needs to make sure it does not issue calls
-        // that block and stall shutdown.
-        // Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
-        // process) as a backup in case some shutdown procedure blocks outside our control.
         disableInterruptOnCancel();
 
         // clear any previously issued interrupt for a more graceful shutdown
@@ -1752,6 +1749,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return true;
     }
 
+    /**
+     * While we are outside the user code, we do not want to be interrupted further upon
+     * cancellation. The shutdown logic below needs to make sure it does not issue calls that block
+     * and stall shutdown. Additionally, the cancellation watch dog will issue a hard-cancel (kill
+     * the TaskManager process) as a backup in case some shutdown procedure blocks outside our
+     * control.
+     */
     private void disableInterruptOnCancel() {
         synchronized (shouldInterruptOnCancelLock) {
             shouldInterruptOnCancel = false;
