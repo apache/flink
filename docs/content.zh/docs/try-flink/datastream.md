@@ -413,7 +413,7 @@ env.execute("Fraud Detection")
 
 欺诈检查类 `FraudDetector` 是 `KeyedProcessFunction` 接口的一个实现。
 他的方法 `KeyedProcessFunction#processElement` 将会在每个交易事件上被调用。
-这个程序里边会对每笔交易发出警报，有人可能会说这做报过于保守了。
+这个程序里边会对每笔交易发出警报，有人可能会说这做法过于保守了。
 
 本教程的后续步骤将指导你对这个欺诈检测器进行更有意义的业务逻辑扩展。
 
