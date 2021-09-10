@@ -74,8 +74,13 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     def setUp(self):
         super(StreamDependencyTests, self).setUp()
-        self.st_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-        self.st_env._execution_mode = "loopback"
+        origin_execution_mode = os.environ['_python_worker_execution_mode']
+        os.environ['_python_worker_execution_mode'] = "loopback"
+        try:
+            self.st_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        finally:
+            if origin_execution_mode is not None:
+                os.environ['_python_worker_execution_mode'] = origin_execution_mode
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
