@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.jdbc.dialect;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
@@ -31,8 +31,12 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-/** Handle the SQL dialect of jdbc driver. */
-@Internal
+/**
+ * Represents a dialect of SQL implemented by a particular JDBC system.
+ *
+ * @see JdbcDialectFactory
+ */
+@PublicEvolving
 public interface JdbcDialect extends Serializable {
 
     /**

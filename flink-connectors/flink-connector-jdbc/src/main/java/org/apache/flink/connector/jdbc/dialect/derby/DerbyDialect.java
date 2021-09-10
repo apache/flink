@@ -18,9 +18,9 @@
 
 package org.apache.flink.connector.jdbc.dialect.derby;
 
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.DerbyRowConverter;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 

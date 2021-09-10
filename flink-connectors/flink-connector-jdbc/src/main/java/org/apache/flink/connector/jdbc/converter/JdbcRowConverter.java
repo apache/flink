@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.internal.converter;
+package org.apache.flink.connector.jdbc.converter;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.RowData;
 
@@ -29,6 +30,7 @@ import java.sql.SQLException;
  * Converter that is responsible to convert between JDBC object and Flink SQL internal data
  * structure {@link RowData}.
  */
+@PublicEvolving
 public interface JdbcRowConverter extends Serializable {
 
     /**

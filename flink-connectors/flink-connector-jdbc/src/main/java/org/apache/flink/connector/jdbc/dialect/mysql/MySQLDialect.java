@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.jdbc.dialect.mysql;
 
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.internal.converter.MySQLRowConverter;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
