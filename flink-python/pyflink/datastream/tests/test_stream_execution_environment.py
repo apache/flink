@@ -442,7 +442,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         from pyflink.table.expressions import col
         add_three = udf(plus_three, result_type=DataTypes.BIGINT())
 
-        tab = t_env.from_data_stream(ds, 'a') \
+        tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
         result = [i[0] for i in tab.execute().collect()]
         expected = [6, 7, 8, 9, 10]
