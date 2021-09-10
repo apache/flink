@@ -59,6 +59,7 @@ class StreamExecutionEnvironment(object):
     def __init__(self, j_stream_execution_environment, serializer=PickleSerializer()):
         self._j_stream_execution_environment = j_stream_execution_environment
         self.serializer = serializer
+        self._open()
 
     def get_config(self) -> ExecutionConfig:
         """
@@ -888,20 +889,33 @@ class StreamExecutionEnvironment(object):
             -> JavaObject:
         gateway = get_gateway()
         JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+
+        JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
+
+        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
+            self._j_stream_execution_environment)
+
+        JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
+            get_field_value(self._j_stream_execution_environment, "transformations"))
+
+        j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
+        if job_name is not None:
+            j_stream_graph.setJobName(job_name)
+        return j_stream_graph
+
+    def _open(self):
         # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
         j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
 
         def startup_loopback_server():
+            from pyflink.common import Configuration
             from pyflink.fn_execution.beam.beam_worker_pool_service import \
                 BeamFnLoopbackWorkerPoolServicer
-            jvm = gateway.jvm
-            j_env = jvm.System.getenv()
-            get_field_value(j_env, "m").put(
-                'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+            config = Configuration(j_configuration=j_configuration)
+            config.set_string(
+                "PYFLINK_LOOPBACK_SERVER_ADDRESS", BeamFnLoopbackWorkerPoolServicer().start())
 
-        python_worker_execution_mode = None
-        if hasattr(self, "_python_worker_execution_mode"):
-            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
+        python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 
         if python_worker_execution_mode is None:
             if is_local_deployment(j_configuration):
@@ -916,19 +930,6 @@ class StreamExecutionEnvironment(object):
             raise ValueError(
                 "It only supports to execute the Python worker in 'loopback' mode and 'process' "
                 "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
-
-        JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
-
-        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
-            self._j_stream_execution_environment)
-
-        JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
-            get_field_value(self._j_stream_execution_environment, "transformations"))
-
-        j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
-        if job_name is not None:
-            j_stream_graph.setJobName(job_name)
-        return j_stream_graph
 
     def is_unaligned_checkpoints_enabled(self):
         """

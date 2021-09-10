@@ -74,8 +74,9 @@ class StreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
 
     def setUp(self):
         super(StreamDependencyTests, self).setUp()
+        os.environ['_python_worker_execution_mode'] = "loopback"
         self.st_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-        self.st_env._execution_mode = "loopback"
+        os.environ['_python_worker_execution_mode'] = "process"
 
     def test_set_requirements_without_cached_directory(self):
         requirements_txt_path = os.path.join(self.tempdir, str(uuid.uuid4()))
