@@ -116,6 +116,9 @@ public class PulsarUnorderedPartitionSplitReader<OUT> extends PulsarPartitionSpl
         if (sourceConfiguration.isEnableAutoAcknowledgeMessage()) {
             sneakyClient(() -> pulsarConsumer.acknowledge(message));
         }
+
+        // Release message
+        message.release();
     }
 
     @Override
