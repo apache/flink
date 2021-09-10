@@ -35,8 +35,10 @@ import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.TestLogger;
 
@@ -46,8 +48,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Collections.singletonList;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskTest.createTask;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
@@ -55,6 +59,41 @@ import static org.junit.Assert.assertFalse;
 
 /** Tests for the StreamTask cancellation. */
 public class StreamTaskCancellationTest extends TestLogger {
+
+    @Test
+    public void testDoNotInterruptWhileClosing() throws Exception {
+        TestInterruptInCloseOperator testOperator = new TestInterruptInCloseOperator();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(testOperator)
+                        .build()) {}
+    }
+
+    private static class TestInterruptInCloseOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+        @Override
+        public void close() throws Exception {
+            super.close();
+
+            AtomicBoolean running = new AtomicBoolean(true);
+            Thread thread =
+                    new Thread(
+                            () -> {
+                                while (running.get()) {}
+                            });
+            thread.start();
+            try {
+                getContainingTask().maybeInterruptOnCancel(thread, null, null);
+                assertFalse(thread.isInterrupted());
+            } finally {
+                running.set(false);
+            }
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {}
+    }
 
     @Test
     public void testCancellationWaitsForActiveTimers() throws Exception {
