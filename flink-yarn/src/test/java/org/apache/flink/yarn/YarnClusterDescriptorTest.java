@@ -36,6 +36,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -738,6 +739,36 @@ public class YarnClusterDescriptorTest extends TestLogger {
                     () ->
                             yarnClusterDescriptor.deployApplicationCluster(
                                     clusterSpecification, appConfig));
+        }
+    }
+
+    @Test
+    public void testGetStagingDirWithoutSpecifyingStagingDir() throws IOException {
+        try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor()) {
+            YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set("fs.defaultFS", "file://tmp");
+            FileSystem defaultFileSystem = FileSystem.get(yarnConfig);
+            Path stagingDir = yarnClusterDescriptor.getStagingDir(defaultFileSystem);
+            assertEquals("file", defaultFileSystem.getScheme());
+            assertEquals("file", stagingDir.getFileSystem(yarnConfig).getScheme());
+        }
+    }
+
+    @Test
+    public void testGetStagingDirWithSpecifyingStagingDir() throws IOException {
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.STAGING_DIRECTORY, "file:///tmp/path1");
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+            YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set("fs.defaultFS", "viewfs://hadoop-ns01");
+            yarnConfig.set("fs.viewfs.mounttable.hadoop-ns01.link./tmp", "file://tmp");
+            FileSystem defaultFileSystem = FileSystem.get(yarnConfig);
+
+            Path stagingDir = yarnClusterDescriptor.getStagingDir(defaultFileSystem);
+
+            assertEquals("viewfs", defaultFileSystem.getScheme());
+            assertEquals("file", stagingDir.getFileSystem(yarnConfig).getScheme());
         }
     }
 
