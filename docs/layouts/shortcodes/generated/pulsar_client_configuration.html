@@ -1,0 +1,222 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>pulsar.client.authParamMap</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>Parameters for the authentication plugin.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.authParams</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Parameters for the authentication plugin.<br /><br />Example:<br /><code class="highlighter-rouge">key1:val1,key2:val2</code></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.authPluginClassName</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Name of the authentication plugin.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.concurrentLookupRequest</h5></td>
+            <td style="word-wrap: break-word;">5000</td>
+            <td>Integer</td>
+            <td>The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on the broker. It should be configured with a higher value only in case of it requires to produce or subscribe on thousands of topic using a created <code class="highlighter-rouge">PulsarClient</code></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.connectionTimeoutMs</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Integer</td>
+            <td>Duration (in ms) of waiting for a connection to a broker to be established.<br />If the duration passes without a response from a broker, the connection attempt is dropped.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.connectionsPerBroker</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of connections that the client library will open to a single broker.<br /> By default, the connection pool will use a single connection for all the producers and consumers. Increasing this parameter may improve throughput when using many producers over a high latency connection.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.enableBusyWait</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Option to enable busy-wait settings.<br />This option will enable spin-waiting on executors and IO threads in order to reduce latency during context switches. The spinning will consume 100% CPU even when the broker is not doing any work. It is recommended to reduce the number of IO threads and BookKeeper client threads to only have fewer CPU cores busy.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.enableTransaction</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If transaction is enabled, start the <code class="highlighter-rouge">transactionCoordinatorClient</code> with <code class="highlighter-rouge">PulsarClient</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.initialBackoffIntervalNanos</h5></td>
+            <td style="word-wrap: break-word;">100000000</td>
+            <td>Long</td>
+            <td>Default duration (in nanoseconds) for a backoff interval.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.keepAliveIntervalSeconds</h5></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>Interval (in seconds) for keeping connection between the Pulsar client and broker alive.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.listenerName</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Configure the <code class="highlighter-rouge">listenerName</code> that the broker will return the corresponding <code class="highlighter-rouge">advertisedListener</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.maxBackoffIntervalNanos</h5></td>
+            <td style="word-wrap: break-word;">60000000000</td>
+            <td>Long</td>
+            <td>The maximum duration (in nanoseconds) for a backoff interval.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.maxLookupRedirects</h5></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The maximum number of times a lookup-request redirections to a broker.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.maxLookupRequest</h5></td>
+            <td style="word-wrap: break-word;">50000</td>
+            <td>Integer</td>
+            <td>The maximum number of lookup requests allowed on each broker connection to prevent overload on the broker. It should be greater than <code class="highlighter-rouge">maxConcurrentLookupRequests</code>. Requests that inside <code class="highlighter-rouge">maxConcurrentLookupRequests</code> are already sent to broker, and requests beyond <code class="highlighter-rouge">maxConcurrentLookupRequests</code> and under <code class="highlighter-rouge">maxLookupRequests</code> will wait in each client cnx.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.maxNumberOfRejectedRequestPerConnection</h5></td>
+            <td style="word-wrap: break-word;">50</td>
+            <td>Integer</td>
+            <td>The maximum number of rejected requests of a broker in a certain period (30s) after the current connection is closed and the client creates a new connection to connect to a different broker.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.memoryLimitBytes</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Long</td>
+            <td>The limit (in bytes) on the amount of direct memory that will be allocated by this client instance.<br />Note: at this moment this is only limiting the memory for producers. Setting this to <code class="highlighter-rouge">0</code> will disable the limit.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.numIoThreads</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of threads used for handling connections to brokers.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.numListenerThreads</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers that are using a <code class="highlighter-rouge">listener</code> model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.operationTimeoutMs</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>Integer</td>
+            <td>Operation timeout (in ms). Operations such as creating producers, subscribing or unsubscribing topics are retried during this interval. If the operation is not completed during this interval, the operation will be marked as failed.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.proxyProtocol</h5></td>
+            <td style="word-wrap: break-word;">SNI</td>
+            <td><p>Enum</p></td>
+            <td>Protocol type to determine the type of proxy routing when a client connects to the proxy using <code class="highlighter-rouge">pulsar.client.proxyServiceUrl</code>.<br /><br />Possible values:<ul><li>"SNI"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.proxyServiceUrl</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Proxy-service URL when a client connects to the broker via the proxy. The client can choose the type of proxy-routing.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.requestTimeoutMs</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Integer</td>
+            <td>Maximum duration (in ms) for completing a request.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.serviceUrl</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Service URL provider for Pulsar service.<br />To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.<br />You can assign Pulsar protocol URLs to specific clusters and use the <code class="highlighter-rouge">pulsar</code> scheme.<br /><ul><li>This is an example of <code class="highlighter-rouge">localhost</code>: <code class="highlighter-rouge">pulsar://localhost:6650</code>.</li><li>If you have multiple brokers, the URL is as: <code class="highlighter-rouge">pulsar://localhost:6550,localhost:6651,localhost:6652</code></li><li>A URL for a production Pulsar cluster is as: <code class="highlighter-rouge">pulsar://pulsar.us-west.example.com:6650</code></li><li>If you use TLS authentication, the URL is as <code class="highlighter-rouge">pulsar+ssl://pulsar.us-west.example.com:6651</code></li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.sslProvider</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The name of the security provider used for SSL connections. The default value is the default security provider of the JVM.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.statsIntervalSeconds</h5></td>
+            <td style="word-wrap: break-word;">60</td>
+            <td>Long</td>
+            <td>Interval between each stats info.<br /><ul><li>Stats is activated with positive <code class="highlighter-rouge">statsInterval</code></li><li>Set <code class="highlighter-rouge">statsIntervalSeconds</code> to 1 second at least.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsAllowInsecureConnection</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether the Pulsar client accepts untrusted TLS certificate from the broker.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsCiphers</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>A list of cipher suites. This is a named combination of authentication, encryption, MAC and the key exchange algorithm used to negotiate the security settings for a network connection using the TLS or SSL network protocol. By default all the available cipher suites are supported.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsHostnameVerificationEnable</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable TLS hostname verification. It allows to validate hostname verification when a client connects to the broker over TLS. It validates incoming x509 certificate and matches provided hostname (CN/SAN) with the expected broker's host name. It follows RFC 2818, 3.1. Server Identity hostname verification.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsProtocols</h5></td>
+            <td style="word-wrap: break-word;"></td>
+            <td>List&lt;String&gt;</td>
+            <td>The SSL protocol used to generate the SSLContext. By default, it is set TLS, which is fine for most cases. Allowed values in recent JVMs are TLS, TLSv1.3, TLSv1.2 and TLSv1.1.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsTrustCertsFilePath</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Path to the trusted TLS certificate file.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsTrustStorePassword</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The store password for the key store file.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsTrustStorePath</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The location of the trust store file.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.tlsTrustStoreType</h5></td>
+            <td style="word-wrap: break-word;">"JKS"</td>
+            <td>String</td>
+            <td>The file format of the trust store file.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.useKeyStoreTls</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If TLS is enabled, whether use the KeyStore type as the TLS configuration parameter. If it is set to <code class="highlighter-rouge">false</code>, it means to use the default pem type configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.client.useTcpNoDelay</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to use the TCP no-delay flag on the connection to disable Nagle algorithm.<br />No-delay features ensures that packets are sent out on the network as soon as possible, and it is critical to achieve low latency publishes. On the other hand, sending out a huge number of small packets might limit the overall throughput. Therefore, if latency is not a concern, it is recommended to set the <code class="highlighter-rouge">useTcpNoDelay</code> flag to <code class="highlighter-rouge">false</code>.<br />By default, it is set to <code class="highlighter-rouge">true</code>.</td>
+        </tr>
+    </tbody>
+</table>
