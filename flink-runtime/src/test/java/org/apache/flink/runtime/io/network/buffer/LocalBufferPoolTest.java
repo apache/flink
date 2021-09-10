@@ -26,9 +26,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
@@ -72,8 +70,6 @@ public class LocalBufferPoolTest extends TestLogger {
     private BufferPool localBufferPool;
 
     private static final ExecutorService executor = Executors.newCachedThreadPool();
-
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Before
     public void setupLocalBufferPool() throws Exception {
