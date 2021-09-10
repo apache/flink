@@ -1874,6 +1874,9 @@
         },
         "cancel-job" : {
           "type" : "boolean"
+        },
+        "triggerId" : {
+          "type" : "any"
         }
       }
     },
@@ -1946,6 +1949,9 @@
         },
         "drain" : {
           "type" : "boolean"
+        },
+        "triggerId" : {
+          "type" : "any"
         }
       }
     },

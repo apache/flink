@@ -54,6 +54,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -130,8 +131,11 @@ public class SavepointHandlers {
 
         protected AsynchronousJobOperationKey createOperationKey(final HandlerRequest<B> request) {
             final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-            return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
+            return AsynchronousJobOperationKey.of(
+                    extractTriggerId(request.getRequestBody()).orElseGet(TriggerId::new), jobId);
         }
+
+        protected abstract Optional<TriggerId> extractTriggerId(B request);
 
         public CompletableFuture<TriggerResponse> handleRequest(
                 @Nonnull HandlerRequest<B> request, @Nonnull RestfulGateway gateway)
@@ -162,6 +166,11 @@ public class SavepointHandlers {
                     timeout,
                     responseHeaders,
                     StopWithSavepointTriggerHeaders.getInstance());
+        }
+
+        @Override
+        protected Optional<TriggerId> extractTriggerId(StopWithSavepointRequestBody request) {
+            return request.getTriggerId();
         }
 
         @Override
@@ -202,6 +211,11 @@ public class SavepointHandlers {
                 final Time timeout,
                 final Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, SavepointTriggerHeaders.getInstance());
+        }
+
+        @Override
+        protected Optional<TriggerId> extractTriggerId(SavepointTriggerRequestBody request) {
+            return request.getTriggerId();
         }
 
         @Override
