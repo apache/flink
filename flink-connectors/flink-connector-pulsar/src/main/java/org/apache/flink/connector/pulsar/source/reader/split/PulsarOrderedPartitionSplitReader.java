@@ -74,6 +74,9 @@ public class PulsarOrderedPartitionSplitReader<OUT> extends PulsarPartitionSplit
     protected void finishedPollMessage(Message<byte[]> message) {
         // Nothing to do here.
         LOG.debug("Finished polling message {}", message);
+
+        // Release message
+        message.release();
     }
 
     @Override
