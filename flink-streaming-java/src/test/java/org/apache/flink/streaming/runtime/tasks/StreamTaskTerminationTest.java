@@ -84,9 +84,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import javax.annotation.Nonnull;
 
@@ -111,8 +109,6 @@ public class StreamTaskTerminationTest extends TestLogger {
     private static final OneShotLatch RUN_LATCH = new OneShotLatch();
     private static final AtomicBoolean SNAPSHOT_HAS_STARTED = new AtomicBoolean();
     private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
 
     /**
      * FLINK-6833
