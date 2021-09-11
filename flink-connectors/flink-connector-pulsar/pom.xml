@@ -36,13 +36,18 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pulsar.version>2.8.0</pulsar.version>
+		<pulsar.version>2.8.1</pulsar.version>
 
 		<!-- Test Libraries -->
 		<protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
 		<assertj-core.version>3.20.2</assertj-core.version>
+
+		<!-- pulsar bundled commons-lang3 version -->
 		<commons-lang3.version>3.11</commons-lang3.version>
+		<!-- pulsar bundled grpc version -->
 		<grpc.version>1.33.0</grpc.version>
+		<!-- pulsar bundled netty version -->
+		<netty.version>4.1.66.Final</netty.version>
 	</properties>
 
 	<dependencies>
@@ -179,6 +184,13 @@ under the License.
 				<groupId>io.grpc</groupId>
 				<artifactId>grpc-bom</artifactId>
 				<version>${grpc.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>${netty.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
