@@ -29,21 +29,21 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import java.util.Collections;
 import java.util.List;
 
-/** SHOW CREATE TABLE sql call. */
-public class SqlShowCreateTable extends SqlShowCreate {
+/** SHOW CREATE VIEW sql call. */
+public class SqlShowCreateView extends SqlShowCreate {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW CREATE TABLE", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("SHOW CREATE VIEW", SqlKind.OTHER_DDL);
 
-    public SqlShowCreateTable(SqlParserPos pos, SqlIdentifier tableName) {
-        super(pos, tableName);
+    public SqlShowCreateView(SqlParserPos pos, SqlIdentifier viewName) {
+        super(pos, viewName);
     }
 
-    public SqlIdentifier getTableName() {
+    public SqlIdentifier getViewName() {
         return sqlIdentifier;
     }
 
-    public String[] getFullTableName() {
+    public String[] getFullViewName() {
         return sqlIdentifier.names.toArray(new String[0]);
     }
 
@@ -59,7 +59,7 @@ public class SqlShowCreateTable extends SqlShowCreate {
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SHOW CREATE TABLE");
+        writer.keyword("SHOW CREATE VIEW");
         sqlIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }

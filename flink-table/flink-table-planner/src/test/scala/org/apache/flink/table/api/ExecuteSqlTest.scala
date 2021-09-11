@@ -19,15 +19,12 @@
 package org.apache.flink.table.api
 
 import com.google.common.collect.Lists
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.types.Row
 import org.apache.flink.util.{CollectionUtil, TestLogger}
-import org.junit.rules.{ExpectedException, TemporaryFolder}
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Before, Rule, Test}
+import org.junit.{Assert, Rule, Test}
 
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util
