@@ -111,7 +111,7 @@ public interface PartitionCommitPolicy {
                                             | IllegalAccessException
                                             | InstantiationException e) {
                                         throw new RuntimeException(
-                                                "Can not new instance for custom class from "
+                                                "Can not create new instance for custom class from "
                                                         + customClass,
                                                 e);
                                     }
