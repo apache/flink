@@ -18,8 +18,10 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.FiniteTestSource;
@@ -37,6 +39,9 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -54,11 +59,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_CLASS;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
 import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResource;
@@ -153,15 +161,15 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testDefaultSerPartStreamingWrite() throws Exception {
-        testStreamingWrite(true, false, "textfile", this::checkSuccessFiles);
+        testStreamingWrite(true, false, "textfile", this::checkPartitionCommitSuccessfully);
     }
 
     @Test
     public void testPartStreamingWrite() throws Exception {
-        testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
+        testStreamingWrite(true, false, "parquet", this::checkPartitionCommitSuccessfully);
         // disable vector orc writer test for hive 2.x due to dependency conflict
         if (!hiveCatalog.getHiveVersion().startsWith("2.")) {
-            testStreamingWrite(true, false, "orc", this::checkSuccessFiles);
+            testStreamingWrite(true, false, "orc", this::checkPartitionCommitSuccessfully);
         }
     }
 
@@ -176,10 +184,10 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testPartStreamingMrWrite() throws Exception {
-        testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
+        testStreamingWrite(true, true, "parquet", this::checkPartitionCommitSuccessfully);
         // doesn't support writer 2.0 orc table
         if (!hiveCatalog.getHiveVersion().startsWith("2.0")) {
-            testStreamingWrite(true, true, "orc", this::checkSuccessFiles);
+            testStreamingWrite(true, true, "orc", this::checkPartitionCommitSuccessfully);
         }
     }
 
@@ -261,6 +269,7 @@ public class HiveTableSinkITCase {
                             + "'streaming-source.consume-order'='partition-time'"
                             + ")");
 
+            String customCommitPolicyClassName = CustomCommitPolicy.class.getName();
             tEnv.executeSql(
                     "create external table sink_table ("
                             + " a int,"
@@ -274,8 +283,11 @@ public class HiveTableSinkITCase {
                             + " 'sink.partition-commit.trigger'='partition-time',"
                             + " 'sink.partition-commit.delay'='30min',"
                             + " 'sink.partition-commit.watermark-time-zone'='Asia/Shanghai',"
-                            + " 'sink.partition-commit.policy.kind'='metastore,success-file',"
+                            + " 'sink.partition-commit.policy.kind'='metastore,success-file,custom',"
                             + " 'sink.partition-commit.success-file.name'='_MY_SUCCESS',"
+                            + " 'sink.partition-commit.policy.class'='"
+                            + customCommitPolicyClassName
+                            + "',"
                             + " 'streaming-source.enable'='true',"
                             + " 'streaming-source.monitor-interval'='1s',"
                             + " 'streaming-source.consume-order'='partition-time'"
@@ -376,7 +388,7 @@ public class HiveTableSinkITCase {
                             .commit(testPartition.get(i));
                 }
             }
-            this.checkSuccessFiles(
+            this.checkPartitionCommitSuccessfully(
                     URI.create(
                                     hiveCatalog
                                             .getHiveTable(ObjectPath.fromString("db1.sink_table"))
@@ -421,6 +433,28 @@ public class HiveTableSinkITCase {
         }
     }
 
+    @Test
+    public void testCustomPartitionCommitPolicyNotFound() {
+        String customCommitPolicyClassName = "NotExistPartitionCommitPolicyClass";
+
+        try {
+            testStreamingWrite(
+                    true,
+                    false,
+                    "textfile",
+                    this::checkPartitionCommitSuccessfully,
+                    customCommitPolicyClassName);
+            fail("ExecutionException expected");
+        } catch (Exception e) {
+            assertTrue(
+                    ExceptionUtils.findThrowableWithMessage(
+                                    e,
+                                    "Can not create new instance for custom class from "
+                                            + customCommitPolicyClassName)
+                            .isPresent());
+        }
+    }
+
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -431,22 +465,46 @@ public class HiveTableSinkITCase {
         return strings;
     }
 
-    private void checkSuccessFiles(String path) {
+    private void checkPartitionCommitSuccessfully(String path) {
+        List<String> partitionKVs = Lists.newArrayList("e=7", "e=8", "e=9", "e=10", "e=11");
+
+        // check success files for SuccessFileCommitPolicy
         File basePath = new File(path, "d=2020-05-03");
-        Assert.assertEquals(5, basePath.list().length);
-        Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
+        Assert.assertEquals(partitionKVs.size(), Objects.requireNonNull(basePath.list()).length);
+        partitionKVs.forEach(
+                partitionKV ->
+                        Assert.assertTrue(
+                                new File(new File(basePath, partitionKV), "_MY_SUCCESS").exists()));
+
+        // check committed partitions for CustomizedCommitPolicy
+        Set<String> committedPaths = CustomCommitPolicy.getCommittedPartitionPathsAndReset();
+        Path base = new Path(path, "d=2020-05-03");
+        partitionKVs.forEach(
+                partitionKV -> {
+                    String partitionPath = new Path(base, partitionKV).toString();
+                    Assert.assertTrue(committedPaths.contains(partitionPath));
+                });
     }
 
     private void testStreamingWrite(
             boolean part, boolean useMr, String format, Consumer<String> pathConsumer)
             throws Exception {
+        String customCommitPolicyClassName = CustomCommitPolicy.class.getName();
+        testStreamingWrite(part, useMr, format, pathConsumer, customCommitPolicyClassName);
+    }
+
+    private void testStreamingWrite(
+            boolean part,
+            boolean useMr,
+            String format,
+            Consumer<String> pathConsumer,
+            String customCommitPolicyClassName)
+            throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
+        // avoid the job to restart infinitely
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 1_000));
 
         StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -502,10 +560,15 @@ public class HiveTableSinkITCase {
                             + "'='1h',"
                             + "'"
                             + SINK_PARTITION_COMMIT_POLICY_KIND.key()
-                            + "'='metastore,success-file',"
+                            + "'='metastore,success-file,custom',"
                             + "'"
                             + SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME.key()
-                            + "'='_MY_SUCCESS'"
+                            + "'='_MY_SUCCESS',"
+                            + "'"
+                            + SINK_PARTITION_COMMIT_POLICY_CLASS.key()
+                            + "'='"
+                            + customCommitPolicyClassName
+                            + "'"
                             + ")");
 
             // hive dialect only works with hive tables at the moment, switch to default dialect
