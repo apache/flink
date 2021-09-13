@@ -16,15 +16,14 @@
 # limitations under the License.
 ################################################################################
 import abc
-import collections
 import functools
 import inspect
 from typing import Union, List, Type, Callable, TypeVar, Generic, Iterable
 
 try:
-    collectionsAbc = collections.abc
-except AttributeError:
-    collectionsAbc = collections
+    import collections.abc as collections_abc
+except:
+    import collections as collections_abc  # type: ignore
 
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
@@ -328,7 +327,7 @@ class UserDefinedFunctionWrapper(object):
 
         if input_types is not None:
             from pyflink.table.types import RowType
-            if not isinstance(input_types, collectionsAbc.Iterable) \
+            if not isinstance(input_types, collections_abc.Iterable) \
                     or isinstance(input_types, RowType):
                 input_types = [input_types]
 
@@ -449,7 +448,7 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
             func, input_types, "general", deterministic, name)
 
         from pyflink.table.types import RowType
-        if not isinstance(result_types, collectionsAbc.Iterable) \
+        if not isinstance(result_types, collections_abc.Iterable) \
                 or isinstance(result_types, RowType):
             result_types = [result_types]
 

@@ -23,9 +23,9 @@ from functools import partial
 from io import BytesIO
 
 try:
-    collectionsAbc = collections.abc
-except AttributeError:
-    collectionsAbc = collections
+    import collections.abc as collections_abc
+except:
+    import collections as collections_abc  # type: ignore
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -679,7 +679,7 @@ class CachingMapStateHandler(object):
         return state_key.SerializeToString()
 
 
-class RemovableConcatIterator(collectionsAbc.Iterator):
+class RemovableConcatIterator(collections_abc.Iterator):
 
     def __init__(self, internal_map_state, first, second):
         self._first = first
