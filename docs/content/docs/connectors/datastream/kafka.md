@@ -1,6 +1,6 @@
 ---
 title: Kafka
-weight: 2
+weight: 3
 type: docs
 aliases:
   - /dev/connectors/kafka.html
