@@ -33,6 +33,7 @@ under the License.
 
 	<properties>
 		<kubernetes.client.version>5.5.0</kubernetes.client.version>
+		<shade.prefix>org.apache.flink.kubernetes.shaded</shade.prefix>
 	</properties>
 
 	<dependencies>
@@ -166,7 +167,7 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>${shade.prefix}.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3/internal/publicsuffix</pattern>
@@ -177,19 +178,23 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.okhttp3</shadedPattern>
+									<shadedPattern>${shade.prefix}.okhttp3</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
+									<shadedPattern>${shade.prefix}.okio</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.yaml</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
+									<shadedPattern>${shade.prefix}.org.yaml</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>dk.brics.automaton</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
+									<shadedPattern>${shade.prefix}.dk.brics.automaton</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.fabric8</pattern>
+									<shadedPattern>${shade.prefix}.io.fabric8</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
