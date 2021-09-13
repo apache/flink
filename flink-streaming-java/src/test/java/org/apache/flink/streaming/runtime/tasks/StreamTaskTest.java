@@ -340,36 +340,24 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testCleanUpExceptionSuppressing() throws Exception {
-        OneInputStreamTaskTestHarness<String, String> testHarness =
-                new OneInputStreamTaskTestHarness<>(
-                        OneInputStreamTask::new, STRING_TYPE_INFO, STRING_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(new FailingTwiceOperator())
+                        .build()) {
 
-        testHarness.setupOutputForSingletonOperatorChain();
-
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setStreamOperator(new FailingTwiceOperator());
-        streamConfig.setOperatorID(new OperatorID());
-
-        testHarness.invoke();
-        testHarness.waitForTaskRunning();
-
-        testHarness.processElement(new StreamRecord<>("Doesn't matter", 0));
-
-        try {
-            testHarness.waitForTaskCompletion();
-            throw new RuntimeException("Expected an exception but ran successfully");
-        } catch (Exception ex) {
-            if (!(ex.getCause() instanceof ExpectedTestException)) {
-                throw ex;
+            try {
+                testHarness.processElement(new StreamRecord<>("Doesn't matter", 0));
+                throw new RuntimeException("Expected an exception but ran successfully");
+            } catch (Exception ex) {
+                ExceptionUtils.assertThrowable(ex, ExpectedTestException.class);
             }
-        }
 
-        try {
-            testHarness.getTask().cleanUp(null);
-        } catch (Exception ex) {
-            // todo: checking for suppression if there are more exceptions during cleanup
-            if (!(ex instanceof FailingTwiceOperator.CloseException)) {
-                throw ex;
+            try {
+                testHarness.finishProcessing();
+            } catch (Exception ex) {
+                // todo: checking for suppression if there are more exceptions during cleanup
+                ExceptionUtils.assertThrowable(ex, FailingTwiceOperator.CloseException.class);
             }
         }
     }
