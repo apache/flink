@@ -64,6 +64,6 @@ Flink SQL> SET;
 SET ('key' = 'value')?
 ```
 
-如果没有指定 key 和 value，它仅仅打印所有属性。否则，它会使用指定的 value 来设置 key。
+如果没有指定 key 和 value，它仅仅打印所有属性。否则，它会为 key 设置指定的 value 值。
 
 {{< top >}}
