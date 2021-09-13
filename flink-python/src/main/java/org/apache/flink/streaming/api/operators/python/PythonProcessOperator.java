@@ -26,16 +26,11 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import javax.annotation.Nullable;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -43,13 +38,10 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  * harness to execute user defined python ProcessFunction.
  */
 @Internal
-public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT> {
+public class PythonProcessOperator<IN, OUT>
+        extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
-    private static final long serialVersionUID = 1L;
-
-    private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
-
-    @Nullable private Integer numPartitions = null;
+    private static final long serialVersionUID = 2L;
 
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     private transient long currentWatermark;
@@ -74,12 +66,12 @@ public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperat
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATELESS_FUNCTION_URN,
-                getUserDefinedDataStreamFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 null,
                 null,
@@ -114,16 +106,9 @@ public class PythonProcessOperator<IN, OUT> extends OneInputPythonFunctionOperat
     }
 
     @Override
-    public Map<String, String> getInternalParameters() {
-        Map<String, String> internalParameters = super.getInternalParameters();
-        if (numPartitions != null) {
-            internalParameters = new HashMap<>(internalParameters);
-            internalParameters.put(NUM_PARTITIONS, String.valueOf(numPartitions));
-        }
-        return internalParameters;
-    }
-
-    public void setNumPartitions(int numPartitions) {
-        this.numPartitions = numPartitions;
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonProcessOperator<>(
+                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo);
     }
 }

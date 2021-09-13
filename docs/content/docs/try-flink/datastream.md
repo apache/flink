@@ -46,6 +46,12 @@ Using a simple set of rules, you will see how Flink allows us to implement advan
 
 This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you are coming from a different programming language.
 
+### Running in an IDE
+
+Running the project in an IDE may result in a `java.lang.NoClassDefFoundError` exception. This is probably because you do not have all required Flink dependencies implicitly loaded into the classpath.
+
+* IntelliJ IDEA: Go to Run > Edit Configurations > Modify options > Select `include dependencies with "Provided" scope`. This run configuration will now include all required classes to run the application from within the IDE.
+
 ## Help, I’m Stuck! 
 
 If you get stuck, check out the [community support resources](https://flink.apache.org/gettinghelp.html).
@@ -897,9 +903,3 @@ You should see the following output in your task manager logs:
 2019-08-19 14:22:21,723 INFO  org.apache.flink.walkthrough.common.sink.AlertSink - Alert{id=3}
 2019-08-19 14:22:26,896 INFO  org.apache.flink.walkthrough.common.sink.AlertSink - Alert{id=3}
 ```
-
-### Running in an IDE
-
-Running the project in an IDE may result in a `java.lang.NoClassDefFoundError` exception. This is probably because you do not have all required Flink dependencies implicitly loaded into the classpath.
-
-* IntelliJ IDEA: Go to Run > Edit Configurations > Modify options > Select `include dependencies with "Provided" scope`. This run configuration will now include all required classes to run the application from within the IDE.

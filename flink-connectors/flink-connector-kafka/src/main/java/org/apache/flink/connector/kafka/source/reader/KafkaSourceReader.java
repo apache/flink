@@ -44,7 +44,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Supplier;
 
 /** The source reader for Kafka partitions. */
 public class KafkaSourceReader<T>
@@ -59,17 +58,12 @@ public class KafkaSourceReader<T>
 
     public KafkaSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<T, Long, Long>>> elementsQueue,
-            Supplier<KafkaPartitionSplitReader<T>> splitReaderSupplier,
+            KafkaSourceFetcherManager<T> kafkaSourceFetcherManager,
             RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> recordEmitter,
             Configuration config,
             SourceReaderContext context,
             KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
-        super(
-                elementsQueue,
-                new KafkaSourceFetcherManager<>(elementsQueue, splitReaderSupplier::get),
-                recordEmitter,
-                config,
-                context);
+        super(elementsQueue, kafkaSourceFetcherManager, recordEmitter, config, context);
         this.offsetsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.offsetsOfFinishedSplits = new ConcurrentHashMap<>();
         this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
@@ -130,6 +124,7 @@ public class KafkaSourceReader<T>
                                 LOG.debug(
                                         "Successfully committed offsets for checkpoint {}",
                                         checkpointId);
+                                kafkaSourceReaderMetrics.recordSucceededCommit();
                                 // If the finished topic partition has been committed, we remove it
                                 // from the offsets of the finished splits map.
                                 Map<TopicPartition, OffsetAndMetadata> committedPartitions =

@@ -21,7 +21,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingPhysicalSlotPayload;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.util.TestLogger;
 
@@ -53,7 +53,7 @@ public class SharedSlotTest extends TestLogger {
     @Test(expected = IllegalStateException.class)
     public void testConstructorFailsIfSlotAlreadyHasAssignedPayload() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        physicalSlot.tryAssignPayload(new TestPhysicalSlotPayload());
+        physicalSlot.tryAssignPayload(new TestingPhysicalSlotPayload());
 
         new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
     }
@@ -219,17 +219,6 @@ public class SharedSlotTest extends TestLogger {
                 new TestLogicalSlotPayload(ignored -> sharedSlot.allocateLogicalSlot()));
 
         sharedSlot.release(new Exception("test"));
-    }
-
-    private static class TestPhysicalSlotPayload implements PhysicalSlot.Payload {
-
-        @Override
-        public void release(Throwable cause) {}
-
-        @Override
-        public boolean willOccupySlotIndefinitely() {
-            return false;
-        }
     }
 
     private static class TestLogicalSlotPayload implements LogicalSlot.Payload {

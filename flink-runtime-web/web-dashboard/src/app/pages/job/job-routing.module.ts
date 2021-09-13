@@ -18,7 +18,9 @@
 
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
+
 import { JobListComponent } from 'share/customize/job-list/job-list.component';
+
 import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component';
 import { JobConfigurationComponent } from './configuration/job-configuration.component';
 import { JobExceptionsComponent } from './exceptions/job-exceptions.component';
@@ -48,7 +50,7 @@ const routes: Routes = [
     children: [
       {
         path: 'overview',
-        loadChildren: './overview/job-overview.module#JobOverviewModule',
+        loadChildren: () => import('./overview/job-overview.module').then(m => m.JobOverviewModule),
         data: {
           path: 'overview'
         }

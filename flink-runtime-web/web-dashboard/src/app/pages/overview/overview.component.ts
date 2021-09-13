@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobsItemInterface } from 'interfaces';
 import { Observable, Subject } from 'rxjs';
 import { flatMap, share, takeUntil } from 'rxjs/operators';
+
+import { JobsItemInterface } from 'interfaces';
 import { StatusService, JobService } from 'services';
 
 @Component({
@@ -34,7 +35,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   constructor(private statusService: StatusService, private jobService: JobService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobData$ = this.statusService.refresh$.pipe(
       takeUntil(this.destroy$),
       flatMap(() => this.jobService.loadJobs()),
@@ -42,7 +43,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -28,10 +28,9 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -173,28 +172,23 @@ public class IntermediateResult {
         this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
     }
 
-    public void notifyPartitionChanged() {
-        // When partitions change, the cache of shuffle descriptors is no longer valid
-        // and need to be removed.
-        // Currently there are two scenarios:
-        // 1. The partitions are released
-        // 2. The producer encounters a failover
+    public void clearCachedInformationForPartitionGroup(
+            ConsumedPartitionGroup consumedPartitionGroup) {
+        // When a ConsumedPartitionGroup changes, the cache of ShuffleDescriptors for this
+        // partition group is no longer valid and needs to be removed.
+        //
+        // Currently, there are two scenarios:
+        // 1. The ConsumedPartitionGroup is released
+        // 2. Its producer encounters a failover
 
-        // Get all the offloaded caches and notify blob write to delete them
-        final List<PermanentBlobKey> blobToDelete =
-                this.shuffleDescriptorCache.values().stream()
-                        .filter(maybeOffloaded -> maybeOffloaded instanceof Offloaded)
-                        .map(
-                                maybeOffloaded ->
-                                        ((Offloaded<ShuffleDescriptor[]>) maybeOffloaded)
-                                                .serializedValueKey)
-                        .collect(Collectors.toList());
-        if (blobToDelete.size() > 0) {
-            this.producer.getGraph().deleteBlobs(blobToDelete);
+        // Remove the cache for the ConsumedPartitionGroup and notify the BLOB writer to delete the
+        // cache if it is offloaded
+        final MaybeOffloaded<ShuffleDescriptor[]> cache =
+                this.shuffleDescriptorCache.remove(consumedPartitionGroup);
+        if (cache instanceof Offloaded) {
+            PermanentBlobKey blobKey = ((Offloaded<ShuffleDescriptor[]>) cache).serializedValueKey;
+            this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
         }
-
-        // Clear all the caches
-        this.shuffleDescriptorCache.clear();
     }
 
     @Override

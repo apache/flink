@@ -37,7 +37,9 @@ import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.streaming.api.environment.{CheckpointConfig, StreamExecutionEnvironment => JavaEnv}
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source._
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
+import org.apache.flink.util.Preconditions.checkNotNull
 import org.apache.flink.util.{SplittableIterator, TernaryBoolean}
 
 import com.esotericsoftware.kryo.Serializer
@@ -311,51 +313,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
-
-  /**
-   * Enable the change log for current state backend. This change log allows operators to persist
-   * state changes in a very fine-grained manner. Currently, the change log only applies to keyed
-   * state, so non-keyed operator state and channel state are persisted as usual. The 'state' here
-   * refers to 'keyed state'. Details are as follows:
-   *
-   * Stateful operators write the state changes to that log (logging the state), in addition to
-   * applying them to the state tables in RocksDB or the in-mem Hashtable.
-   *
-   * An operator can acknowledge a checkpoint as soon as the changes in the log have reached
-   * the durable checkpoint storage.
-   *
-   * The state tables are persisted periodically, independent of the checkpoints. We call this
-   * the materialization of the state on the checkpoint storage.
-   *
-   * Once the state is materialized on checkpoint storage, the state changelog can be truncated
-   * to the corresponding point.
-   *
-   * It establish a way to drastically reduce the checkpoint interval for streaming
-   * applications across state backends. For more details please check the FLIP-158.
-   *
-   * If this method is not called explicitly, it means no preference for enabling the change log.
-   * Configs for change log enabling will override in different config levels (job/local/cluster).
-   *
-   * @param enabled true if enable the change log for state backend explicitly, otherwise disable
-   *                the change log.
-   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
-   * @see #isChangelogStateBackendEnabled()
-   */
-  @PublicEvolving
-  def enableChangelogStateBackend(enabled: Boolean): StreamExecutionEnvironment = {
-    javaEnv.enableChangelogStateBackend(enabled)
-    this
-  }
-
-  /**
-   * Gets the enable status of change log for state backend.
-   *
-   * @return a [[TernaryBoolean]] for the enable status of change log for state backend. Could
-   *         be [[TernaryBoolean#UNDEFINED]] if user never specify this by calling
-   *         [[enableChangelogStateBackend(boolean)]].
-   */
-  @PublicEvolving
-  def isChangelogStateBackendEnabled: TernaryBoolean = javaEnv.isChangelogStateBackendEnabled
 
   /**
    * Sets the default savepoint directory, where savepoints will be written to
@@ -950,18 +907,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * @return The StreamGraph representing the transformations
    */
   @Internal
-  def getStreamGraph = javaEnv.getStreamGraph
-
-  /**
-   * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job.
-   * This call clears previously registered
-   * [[org.apache.flink.api.dag.Transformation transformations]].
-   *
-   * @param jobName Desired name of the job
-   * @return The StreamGraph representing the transformations
-   */
-  @Internal
-  def getStreamGraph(jobName: String) = javaEnv.getStreamGraph(jobName)
+  def getStreamGraph: StreamGraph = javaEnv.getStreamGraph
 
   /**
    * Getter of the [[org.apache.flink.streaming.api.graph.StreamGraph]] of the streaming job
@@ -970,13 +916,13 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * allows, for example, to not re-execute the same operations when calling
    * [[execute()]] multiple times.
    *
-   * @param jobName Desired name of the job
    * @param clearTransformations Whether or not to clear previously registered transformations
    * @return The StreamGraph representing the transformations
    */
   @Internal
-  def getStreamGraph(jobName: String, clearTransformations: Boolean) =
-    javaEnv.getStreamGraph(jobName, clearTransformations)
+  def getStreamGraph(clearTransformations: Boolean): StreamGraph = {
+    javaEnv.getStreamGraph(clearTransformations)
+  }
 
   /**
    * Gives read-only access to the underlying configuration of this environment.

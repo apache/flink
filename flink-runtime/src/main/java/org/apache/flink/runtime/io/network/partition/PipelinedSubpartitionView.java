@@ -80,8 +80,8 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
-        parent.acknowledgeAllRecordsProcessed();
+    public void acknowledgeAllDataProcessed() {
+        parent.acknowledgeAllDataProcessed();
     }
 
     @Override
@@ -102,6 +102,11 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     @Override
     public int getNumberOfQueuedBuffers() {
         return parent.getNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
     }
 
     @Override

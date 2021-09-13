@@ -210,7 +210,7 @@ class Schema(Descriptor):
         Adds a field with the field name and the data type or type string. Required.
         This method can be called multiple times. The call order of this method defines
         also the order of the fields in a row. Here is a document that introduces the type strings:
-        https://ci.apache.org/projects/flink/flink-docs-stable/dev/table/connect.html#type-strings
+        https://nightlies.apache.org/flink/flink-docs-stable/dev/table/connect.html#type-strings
 
         :param field_name: The field name.
         :param field_type: The data type or type string of the field.

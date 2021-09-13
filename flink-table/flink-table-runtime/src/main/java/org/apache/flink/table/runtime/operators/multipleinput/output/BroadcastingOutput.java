@@ -22,8 +22,8 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
@@ -52,9 +52,9 @@ public class BroadcastingOutput implements Output<StreamRecord<RowData>> {
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
         for (Output<StreamRecord<RowData>> output : outputs) {
-            output.emitStreamStatus(streamStatus);
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 

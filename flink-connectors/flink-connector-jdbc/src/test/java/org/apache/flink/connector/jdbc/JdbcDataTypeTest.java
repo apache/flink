@@ -149,7 +149,7 @@ public class JdbcDataTypeTest {
 
     private static TestItem createTestItem(Object... args) {
         assert args.length >= 2;
-        TestItem item = TestItem.fromDialetAndType((String) args[0], (String) args[1]);
+        TestItem item = TestItem.fromDialectAndType((String) args[0], (String) args[1]);
         if (args.length == 3) {
             item.withExpectError((String) args[2]);
         }
@@ -193,7 +193,7 @@ public class JdbcDataTypeTest {
             this.dataTypeExpr = dataTypeExpr;
         }
 
-        static TestItem fromDialetAndType(String dialect, String dataTypeExpr) {
+        static TestItem fromDialectAndType(String dialect, String dataTypeExpr) {
             return new TestItem(dialect, dataTypeExpr);
         }
 

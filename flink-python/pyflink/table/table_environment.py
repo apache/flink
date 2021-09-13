@@ -48,7 +48,7 @@ from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, uda
 from pyflink.table.utils import to_expression_jarray
 from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr, to_jarray
+    to_j_explain_detail_arr, to_jarray, get_field, get_field_value
 
 __all__ = [
     'StreamTableEnvironment',
@@ -95,6 +95,7 @@ class TableEnvironment(object):
         # specified by sys.executable if users have not specified it explicitly via configuration
         # python.executable.
         self._set_python_executable_for_local_executor()
+        self._config_chaining_optimization()
 
     @staticmethod
     def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
@@ -629,6 +630,8 @@ class TableEnvironment(object):
         trigger an execution.
 
         :return: The Table object describing the pipeline for further transformations.
+
+        .. versionadded:: 1.14.0
         """
         return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
@@ -1499,7 +1502,7 @@ class TableEnvironment(object):
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]))
-            # use the thrid parameter to switch whether to verify the elements against the schema
+            # use the third parameter to switch whether to verify the elements against the schema
             >>> table_env.from_elements([(1, 'Hi'), (2, 'Hello')],
             ...                         DataTypes.ROW([DataTypes.FIELD("a", DataTypes.INT()),
             ...                                        DataTypes.FIELD("b", DataTypes.STRING())]),
@@ -1744,6 +1747,33 @@ class TableEnvironment(object):
         self._add_jars_to_j_env_config(jars_key)
         self._add_jars_to_j_env_config(classpaths_key)
 
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        def startup_loopback_server():
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+
+            j_env = jvm.System.getenv()
+            get_field_value(j_env, "m").put(
+                'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = None
+        if hasattr(self, "_python_worker_execution_mode"):
+            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(get_j_env_configuration(self._get_j_env())):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
+
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
         if isinstance(function, AggregateFunction):
             function = udaf(function,
@@ -1757,12 +1787,18 @@ class TableEnvironment(object):
                              name=str(function.__class__.__name__))
         return function
 
+    def _config_chaining_optimization(self):
+        JChainingOptimizingExecutor = get_gateway().jvm.org.apache.flink.table.executor.python.\
+            ChainingOptimizingExecutor
+        exec_env_field = get_field(self._j_tenv.getClass(), "execEnv")
+        exec_env_field.set(self._j_tenv,
+                           JChainingOptimizingExecutor(exec_env_field.get(self._j_tenv)))
+
 
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
         super(StreamTableEnvironment, self).__init__(j_tenv)
-        self._j_tenv = j_tenv
 
     @staticmethod
     def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
@@ -1815,9 +1851,6 @@ class StreamTableEnvironment(TableEnvironment):
 
         gateway = get_gateway()
         if environment_settings is not None:
-            if not environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for StreamTableEnvironment must be "
-                                 "set to streaming mode.")
             if stream_execution_environment is None:
                 j_tenv = gateway.jvm.TableEnvironment.create(
                     environment_settings._j_environment_settings)

@@ -35,7 +35,7 @@ import java.lang.reflect.Type;
  * has highest precedence (see {@link TypeExtractor#registerFactory(Type, Class)}).
  */
 @Documented
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 @Public
 public @interface TypeInfo {

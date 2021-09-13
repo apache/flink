@@ -22,9 +22,9 @@
     class="no-border small"
     [nzTemplateMode]="true"
     [nzSize]="'small'"
-    [nzWidthConfig]="['50%','50%']"
     [nzFrontPagination]="false"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+  >
     <tbody>
       <tr>
         <td><strong>Execution mode</strong></td>
@@ -36,7 +36,13 @@
       </tr>
       <tr>
         <td><strong>Job parallelism</strong></td>
-        <td>{{ config['execution-config']['job-parallelism'] === -1 ? 'auto' : config['execution-config']['job-parallelism'] }}</td>
+        <td>
+          {{
+            config['execution-config']['job-parallelism'] === -1
+              ? 'auto'
+              : config['execution-config']['job-parallelism']
+          }}
+        </td>
       </tr>
       <tr>
         <td><strong>Object reuse mode</strong></td>
@@ -52,8 +58,8 @@
     [nzData]="listOfUserConfig"
     [nzSize]="'small'"
     [nzFrontPagination]="false"
-    [nzWidthConfig]="['50%','50%']"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+  >
     <tbody>
       <tr *ngFor="let config of listOfUserConfig">
         <td>{{ config.key }}</td>

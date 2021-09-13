@@ -20,15 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
@@ -43,10 +43,10 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     protected final Counter numRecordsIn;
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
     @Nullable protected final OutputTag<T> outputTag;
-    protected StreamStatus announcedStatus = StreamStatus.ACTIVE;
+    protected WatermarkStatus announcedStatus = WatermarkStatus.ACTIVE;
 
     public ChainingOutput(OneInputStreamOperator<T, ?> operator, @Nullable OutputTag<T> outputTag) {
-        this(operator, (OperatorMetricGroup) operator.getMetricGroup(), outputTag);
+        this(operator, operator.getMetricGroup(), outputTag);
     }
 
     public ChainingOutput(
@@ -135,11 +135,11 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) {
-        if (!announcedStatus.equals(streamStatus)) {
-            announcedStatus = streamStatus;
+    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+        if (!announcedStatus.equals(watermarkStatus)) {
+            announcedStatus = watermarkStatus;
             try {
-                input.processStreamStatus(streamStatus);
+                input.processWatermarkStatus(watermarkStatus);
             } catch (Exception e) {
                 throw new ExceptionInChainedOperatorException(e);
             }

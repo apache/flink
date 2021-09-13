@@ -48,7 +48,7 @@ Calc(select=[currency2, cnt, w$start AS w_start, w$end AS w_end], changelogMode=
             +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
                +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
                   +- Calc(select=[+(currency, 2) AS currency2, TO_TIMESTAMP(c) AS currency_time, currency], changelogMode=[UA,D])
-                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column2, project=[currency, c]]], fields=[currency, c], changelogMode=[UA,D])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column2, project=[currency, c], metadata=[]]], fields=[currency, c], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -83,7 +83,7 @@ Calc(select=[currency, cnt, w$start AS w_start, w$end AS w_end], changelogMode=[
          +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
             +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
                +- Calc(select=[currency, TO_TIMESTAMP(c) AS currency_time], changelogMode=[UA,D])
-                  +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[currency, c]]], fields=[currency, c], changelogMode=[UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[currency, c], metadata=[]]], fields=[currency, c], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -118,7 +118,7 @@ Calc(select=[w$start AS w_start, w$end AS w_end, max_rate], changelogMode=[I])
             +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
                +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
                   +- Calc(select=[TO_TIMESTAMP(c) AS currency_time, rate, currency], changelogMode=[UA,D])
-                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[c, rate, currency]]], fields=[c, rate, currency], changelogMode=[UA,D])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src_with_computed_column, project=[c, rate, currency], metadata=[]]], fields=[c, rate, currency], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -151,7 +151,7 @@ Calc(select=[w$start AS w_start, w$end AS w_end, max_rate], changelogMode=[I])
          +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
             +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
                +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
-                  +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency_time, rate, currency]]], fields=[currency_time, rate, currency], changelogMode=[UA,D])
+                  +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency_time, rate, currency], metadata=[]]], fields=[currency_time, rate, currency], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -184,7 +184,7 @@ Calc(select=[currency, cnt, w$start AS w_start, w$end AS w_end], changelogMode=[
       +- ChangelogNormalize(key=[currency], changelogMode=[I,UB,UA,D])
          +- Exchange(distribution=[hash[currency]], changelogMode=[UA,D])
             +- WatermarkAssigner(rowtime=[currency_time], watermark=[-(currency_time, 5000:INTERVAL SECOND)], changelogMode=[UA,D])
-               +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency, currency_time]]], fields=[currency, currency_time], changelogMode=[UA,D])
+               +- TableSourceScan(table=[[default_catalog, default_database, simple_src, project=[currency, currency_time], metadata=[]]], fields=[currency, currency_time], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>

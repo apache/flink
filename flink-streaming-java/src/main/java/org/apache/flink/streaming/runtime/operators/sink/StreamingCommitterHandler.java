@@ -22,7 +22,6 @@ import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -36,9 +35,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 final class StreamingCommitterHandler<CommT>
         extends AbstractStreamingCommitterHandler<CommT, CommT> {
 
-    /** The committables that might need to be committed again after recovering from a failover. */
-    private final List<CommT> recoveredCommittables;
-
     /** Responsible for committing the committable to the external system. * */
     private final Committer<CommT> committer;
 
@@ -46,21 +42,11 @@ final class StreamingCommitterHandler<CommT>
             Committer<CommT> committer, SimpleVersionedSerializer<CommT> committableSerializer) {
         super(committableSerializer);
         this.committer = checkNotNull(committer);
-        this.recoveredCommittables = new ArrayList<>();
-    }
-
-    @Override
-    void recoveredCommittables(List<CommT> committables) {
-        recoveredCommittables.addAll(checkNotNull(committables));
     }
 
     @Override
     List<CommT> prepareCommit(List<CommT> input) {
-        checkNotNull(input);
-        final List<CommT> result = new ArrayList<>(recoveredCommittables);
-        recoveredCommittables.clear();
-        result.addAll(input);
-        return result;
+        return prependRecoveredCommittables(checkNotNull(input));
     }
 
     @Override

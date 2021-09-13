@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
@@ -28,17 +30,20 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
-/** Utilities used to construct protobuf objects. */
+/** Utilities used to construct protobuf objects or construct objects from protobuf objects. */
 @Internal
 public enum ProtoUtils {
     ;
@@ -122,7 +127,7 @@ public enum ProtoUtils {
         return builder.build();
     }
 
-    public static FlinkFnApi.UserDefinedDataStreamFunction getUserDefinedDataStreamFunctionProto(
+    public static FlinkFnApi.UserDefinedDataStreamFunction createUserDefinedDataStreamFunctionProto(
             DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
             RuntimeContext runtimeContext,
             Map<String, String> internalParameters,
@@ -174,21 +179,60 @@ public enum ProtoUtils {
     }
 
     public static FlinkFnApi.UserDefinedDataStreamFunction
-            getUserDefinedDataStreamStatefulFunctionProto(
+            createReviseOutputDataStreamFunctionProto() {
+        return FlinkFnApi.UserDefinedDataStreamFunction.newBuilder()
+                .setFunctionType(
+                        FlinkFnApi.UserDefinedDataStreamFunction.FunctionType.REVISE_OUTPUT)
+                .build();
+    }
+
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
+            createUserDefinedDataStreamFunctionProtos(
                     DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
-                    TypeInformation keyTypeInfo,
                     boolean inBatchExecutionMode) {
-        FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction =
-                getUserDefinedDataStreamFunctionProto(
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
+
+        Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
+        if (inputs != null && inputs.length > 0) {
+            Preconditions.checkArgument(inputs.length == 1);
+            results.addAll(
+                    createUserDefinedDataStreamFunctionProtos(
+                            (DataStreamPythonFunctionInfo) inputs[0],
+                            runtimeContext,
+                            internalParameters,
+                            inBatchExecutionMode));
+        }
+
+        results.add(
+                createUserDefinedDataStreamFunctionProto(
+                        dataStreamPythonFunctionInfo,
+                        runtimeContext,
+                        internalParameters,
+                        inBatchExecutionMode));
+        return results;
+    }
+
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
+            createUserDefinedDataStreamStatefulFunctionProtos(
+                    DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+                    RuntimeContext runtimeContext,
+                    Map<String, String> internalParameters,
+                    TypeInformation<?> keyTypeInfo,
+                    boolean inBatchExecutionMode) {
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results =
+                createUserDefinedDataStreamFunctionProtos(
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
                         inBatchExecutionMode);
+
+        // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
-        return userDefinedDataStreamFunction.toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build();
+        results.set(0, results.get(0).toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build());
+        return results;
     }
 
     public static RunnerApi.Coder createCoderProto(
@@ -305,5 +349,94 @@ public enum ProtoUtils {
         builder.setMode(mode);
         builder.setSeparatedWithEndMessage(separatedWithEndMessage);
         return builder.build();
+    }
+
+    public static StateTtlConfig parseStateTtlConfigFromProto(
+            FlinkFnApi.StateDescriptor.StateTTLConfig stateTTLConfigProto) {
+        StateTtlConfig.Builder builder =
+                StateTtlConfig.newBuilder(Time.milliseconds(stateTTLConfigProto.getTtl()))
+                        .setUpdateType(
+                                parseUpdateTypeFromProto(stateTTLConfigProto.getUpdateType()))
+                        .setStateVisibility(
+                                parseStateVisibilityFromProto(
+                                        stateTTLConfigProto.getStateVisibility()))
+                        .setTtlTimeCharacteristic(
+                                parseTtlTimeCharacteristicFromProto(
+                                        stateTTLConfigProto.getTtlTimeCharacteristic()));
+
+        FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies cleanupStrategiesProto =
+                stateTTLConfigProto.getCleanupStrategies();
+
+        if (!cleanupStrategiesProto.getIsCleanupInBackground()) {
+            builder.disableCleanupInBackground();
+        }
+
+        for (FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.MapStrategiesEntry
+                mapStrategiesEntry : cleanupStrategiesProto.getStrategiesList()) {
+            FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies strategyProto =
+                    mapStrategiesEntry.getStrategy();
+            if (strategyProto
+                    == FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
+                            .FULL_STATE_SCAN_SNAPSHOT) {
+                builder.cleanupFullSnapshot();
+            } else if (strategyProto
+                    == FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
+                            .INCREMENTAL_CLEANUP) {
+                FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies
+                                .IncrementalCleanupStrategy
+                        incrementalCleanupStrategyProto =
+                                mapStrategiesEntry.getIncrementalCleanupStrategy();
+                builder.cleanupIncrementally(
+                        incrementalCleanupStrategyProto.getCleanupSize(),
+                        incrementalCleanupStrategyProto.getRunCleanupForEveryRecord());
+            } else if (strategyProto
+                    == FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies.Strategies
+                            .ROCKSDB_COMPACTION_FILTER) {
+                FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies
+                                .RocksdbCompactFilterCleanupStrategy
+                        rocksdbCompactFilterCleanupStrategyProto =
+                                mapStrategiesEntry.getRocksdbCompactFilterCleanupStrategy();
+                builder.cleanupInRocksdbCompactFilter(
+                        rocksdbCompactFilterCleanupStrategyProto.getQueryTimeAfterNumEntries());
+            }
+        }
+
+        return builder.build();
+    }
+
+    private static StateTtlConfig.UpdateType parseUpdateTypeFromProto(
+            FlinkFnApi.StateDescriptor.StateTTLConfig.UpdateType updateType) {
+        if (updateType == FlinkFnApi.StateDescriptor.StateTTLConfig.UpdateType.Disabled) {
+            return StateTtlConfig.UpdateType.Disabled;
+        } else if (updateType
+                == FlinkFnApi.StateDescriptor.StateTTLConfig.UpdateType.OnCreateAndWrite) {
+            return StateTtlConfig.UpdateType.OnCreateAndWrite;
+        } else if (updateType
+                == FlinkFnApi.StateDescriptor.StateTTLConfig.UpdateType.OnReadAndWrite) {
+            return StateTtlConfig.UpdateType.OnReadAndWrite;
+        }
+        throw new RuntimeException("Unknown UpdateType " + updateType);
+    }
+
+    private static StateTtlConfig.StateVisibility parseStateVisibilityFromProto(
+            FlinkFnApi.StateDescriptor.StateTTLConfig.StateVisibility stateVisibility) {
+        if (stateVisibility
+                == FlinkFnApi.StateDescriptor.StateTTLConfig.StateVisibility
+                        .ReturnExpiredIfNotCleanedUp) {
+            return StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp;
+        } else if (stateVisibility
+                == FlinkFnApi.StateDescriptor.StateTTLConfig.StateVisibility.NeverReturnExpired) {
+            return StateTtlConfig.StateVisibility.NeverReturnExpired;
+        }
+        throw new RuntimeException("Unknown StateVisibility " + stateVisibility);
+    }
+
+    private static StateTtlConfig.TtlTimeCharacteristic parseTtlTimeCharacteristicFromProto(
+            FlinkFnApi.StateDescriptor.StateTTLConfig.TtlTimeCharacteristic ttlTimeCharacteristic) {
+        if (ttlTimeCharacteristic
+                == FlinkFnApi.StateDescriptor.StateTTLConfig.TtlTimeCharacteristic.ProcessingTime) {
+            return StateTtlConfig.TtlTimeCharacteristic.ProcessingTime;
+        }
+        throw new RuntimeException("Unknown TtlTimeCharacteristic " + ttlTimeCharacteristic);
     }
 }

@@ -18,6 +18,10 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptions;
+import org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil;
+import org.apache.flink.connector.datagen.table.DataGenTableSource;
+import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSourceTest;
@@ -32,7 +36,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.factories.datagen.DataGenTableSource;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;

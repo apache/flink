@@ -25,6 +25,7 @@ import org.apache.flink.formats.parquet.generated.Address;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -87,6 +88,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forSpecificRecord(Address.class))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -114,6 +116,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forGenericRecord(schema))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();
@@ -145,6 +148,7 @@ public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
                 StreamingFileSink.forBulkFormat(
                                 Path.fromLocalFile(folder),
                                 ParquetAvroWriters.forReflectRecord(Datum.class))
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build());
 
         env.execute();

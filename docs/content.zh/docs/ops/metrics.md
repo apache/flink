@@ -243,7 +243,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 {{< /tab >}}
 {{< /tabs >}}
 
-Flink does not provide a default implementation for `Histogram`, but offers a {% gh_link flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java "Wrapper" %} that allows usage of Codahale/DropWizard histograms.
+Flink does not provide a default implementation for `Histogram`, but offers a {{< gh_link file="flink-metrics/flink-metrics-dropwizard/src/main/java/org/apache/flink/dropwizard/metrics/DropwizardHistogramWrapper.java" name="Wrapper" >}} that allows usage of Codahale/DropWizard histograms.
 To use this wrapper add the following dependency in your `pom.xml`:
 ```xml
 <dependency>
@@ -1282,7 +1282,7 @@ Certain RocksDB native metrics are available but disabled by default, you can fi
     </tr>
     <tr>
       <td>debloatedBufferSize</td>
-      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the ammount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
+      <td>The desired buffer size (in bytes) calculated by the buffer debloater. Buffer debloater is trying to reduce buffer size when the amount of in-flight data (after taking into account current throughput) exceeds the configured target value.</td>
       <td>Gauge</td>
     </tr>
     <tr>

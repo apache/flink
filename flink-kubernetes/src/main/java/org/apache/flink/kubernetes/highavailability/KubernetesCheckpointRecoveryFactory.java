@@ -70,7 +70,7 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
     }
 
     @Override
-    public CompletedCheckpointStore createCheckpointStore(
+    public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobID, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
             throws Exception {
 

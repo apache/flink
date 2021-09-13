@@ -51,7 +51,6 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -142,8 +141,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Public
 public class StreamExecutionEnvironment {
 
-    /** The default name to use for a streaming job if no other name has been specified. */
-    public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
+    /**
+     * The default name to use for a streaming job if no other name has been specified.
+     *
+     * @deprecated This constant does not fit well to batch runtime mode.
+     */
+    @Deprecated
+    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 
     /** The time characteristic that is used if none other is set. */
     private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
@@ -654,55 +658,6 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Enable the change log for current state backend. This change log allows operators to persist
-     * state changes in a very fine-grained manner. Currently, the change log only applies to keyed
-     * state, so non-keyed operator state and channel state are persisted as usual. The 'state' here
-     * refers to 'keyed state'. Details are as follows:
-     *
-     * <p>Stateful operators write the state changes to that log (logging the state), in addition to
-     * applying them to the state tables in RocksDB or the in-mem Hashtable.
-     *
-     * <p>An operator can acknowledge a checkpoint as soon as the changes in the log have reached
-     * the durable checkpoint storage.
-     *
-     * <p>The state tables are persisted periodically, independent of the checkpoints. We call this
-     * the materialization of the state on the checkpoint storage.
-     *
-     * <p>Once the state is materialized on checkpoint storage, the state changelog can be truncated
-     * to the corresponding point.
-     *
-     * <p>It establish a way to drastically reduce the checkpoint interval for streaming
-     * applications across state backends. For more details please check the FLIP-158.
-     *
-     * <p>If this method is not called explicitly, it means no preference for enabling the change
-     * log. Configs for change log enabling will override in different config levels
-     * (job/local/cluster).
-     *
-     * @param enabled true if enable the change log for state backend explicitly, otherwise disable
-     *     the change log.
-     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
-     * @see #isChangelogStateBackendEnabled()
-     */
-    @PublicEvolving
-    public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
-        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
-        return this;
-    }
-
-    /**
-     * Gets the enable status of change log for state backend.
-     *
-     * @return a {@link TernaryBoolean} for the enable status of change log for state backend. Could
-     *     be {@link TernaryBoolean#UNDEFINED} if user never specify this by calling {@link
-     *     #enableChangelogStateBackend(boolean)}.
-     * @see #enableChangelogStateBackend(boolean)
-     */
-    @PublicEvolving
-    public TernaryBoolean isChangelogStateBackendEnabled() {
-        return changelogStateBackendEnabled;
-    }
-
-    /**
      * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
      * provided when triggered.
      *
@@ -961,9 +916,6 @@ public class StreamExecutionEnvironment {
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
-        configuration
-                .getOptional(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG)
-                .ifPresent(this::enableChangelogStateBackend);
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
         configuration
@@ -1944,7 +1896,7 @@ public class StreamExecutionEnvironment {
      * @throws Exception which occurs during job execution.
      */
     public JobExecutionResult execute() throws Exception {
-        return execute(getJobName());
+        return execute(getStreamGraph());
     }
 
     /**
@@ -1960,8 +1912,9 @@ public class StreamExecutionEnvironment {
      */
     public JobExecutionResult execute(String jobName) throws Exception {
         Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
-        return execute(getStreamGraph(jobName));
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return execute(streamGraph);
     }
 
     /**
@@ -2036,7 +1989,7 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public final JobClient executeAsync() throws Exception {
-        return executeAsync(getJobName());
+        return executeAsync(getStreamGraph());
     }
 
     /**
@@ -2053,7 +2006,10 @@ public class StreamExecutionEnvironment {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        return executeAsync(getStreamGraph(checkNotNull(jobName)));
+        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+        final StreamGraph streamGraph = getStreamGraph();
+        streamGraph.setJobName(jobName);
+        return executeAsync(streamGraph);
     }
 
     /**
@@ -2103,57 +2059,55 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
+     * Getter of the {@link StreamGraph} of the streaming job. This call clears previously
+     * registered {@link Transformation transformations}.
      *
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
     public StreamGraph getStreamGraph() {
-        return getStreamGraph(getJobName());
+        return getStreamGraph(true);
     }
 
     /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
-     * This call clears previously registered {@link Transformation transformations}.
+     * Getter of the {@link StreamGraph} of the streaming job with the option to clear previously
+     * registered {@link Transformation transformations}. Clearing the transformations allows, for
+     * example, to not re-execute the same operations when calling {@link #execute()} multiple
+     * times.
      *
-     * @param jobName Desired name of the job
-     * @return The streamgraph representing the transformations
-     */
-    @Internal
-    public StreamGraph getStreamGraph(String jobName) {
-        return getStreamGraph(jobName, true);
-    }
-
-    /**
-     * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph StreamGraph} of the
-     * streaming job with the option to clear previously registered {@link Transformation
-     * transformations}. Clearing the transformations allows, for example, to not re-execute the
-     * same operations when calling {@link #execute()} multiple times.
-     *
-     * @param jobName Desired name of the job
      * @param clearTransformations Whether or not to clear previously registered transformations
-     * @return The streamgraph representing the transformations
+     * @return The stream graph representing the transformations
      */
     @Internal
-    public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
-        StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+    public StreamGraph getStreamGraph(boolean clearTransformations) {
+        final StreamGraph streamGraph = getStreamGraphGenerator(transformations).generate();
         if (clearTransformations) {
-            this.transformations.clear();
+            transformations.clear();
         }
         return streamGraph;
     }
 
-    private StreamGraphGenerator getStreamGraphGenerator() {
+    /**
+     * Generates a {@link StreamGraph} that consists of the given {@link Transformation
+     * transformations} and is configured with the configuration of this environment.
+     *
+     * <p>This method does not access or clear the previously registered transformations.
+     *
+     * @param transformations list of transformations that the graph should contain
+     * @return The stream graph representing the transformations
+     */
+    @Internal
+    public StreamGraph generateStreamGraph(List<Transformation<?>> transformations) {
+        return getStreamGraphGenerator(transformations).generate();
+    }
+
+    private StreamGraphGenerator getStreamGraphGenerator(List<Transformation<?>> transformations) {
         if (transformations.size() <= 0) {
             throw new IllegalStateException(
                     "No operators defined in streaming topology. Cannot execute.");
         }
 
-        final RuntimeExecutionMode executionMode = configuration.get(ExecutionOptions.RUNTIME_MODE);
-
         return new StreamGraphGenerator(transformations, config, checkpointCfg, configuration)
-                .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
                 .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
                 .setSavepointDir(defaultSavepointDirectory)
@@ -2172,7 +2126,7 @@ public class StreamExecutionEnvironment {
      * @return The execution plan of the program, as a JSON String.
      */
     public String getExecutionPlan() {
-        return getStreamGraph(getJobName(), false).getStreamingPlanAsJSON();
+        return getStreamGraph(false).getStreamingPlanAsJSON();
     }
 
     /**
@@ -2492,9 +2446,5 @@ public class StreamExecutionEnvironment {
             }
         }
         return (T) resolvedTypeInfo;
-    }
-
-    private String getJobName() {
-        return configuration.getString(PipelineOptions.NAME, DEFAULT_JOB_NAME);
     }
 }

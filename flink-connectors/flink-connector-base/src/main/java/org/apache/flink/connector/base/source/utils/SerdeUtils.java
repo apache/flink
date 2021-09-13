@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.connector.base.source.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 /** A util class with some helper method for serde in the sources. */
+@Internal
 public class SerdeUtils {
 
     /** Private constructor for util class. */

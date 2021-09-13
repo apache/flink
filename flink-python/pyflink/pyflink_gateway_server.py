@@ -64,23 +64,39 @@ def find_java_executable():
 def construct_log_settings():
     templates = [
         "-Dlog.file=${flink_log_dir}/flink-${flink_ident_string}-python-${hostname}.log",
-        "-Dlog4j.configuration=${flink_conf_dir}/log4j-cli.properties",
-        "-Dlog4j.configurationFile=${flink_conf_dir}/log4j-cli.properties",
-        "-Dlogback.configurationFile=${flink_conf_dir}/logback.xml"
+        "-Dlog4j.configuration=${log4j_properties}",
+        "-Dlog4j.configurationFile=${log4j_properties}",
+        "-Dlogback.configurationFile=${logback_xml}"
     ]
 
     flink_home = _find_flink_home()
     flink_conf_dir = os.path.join(flink_home, "conf")
-    flink_log_dir = os.path.join(flink_home, "log")
+    if "FLINK_LOG_DIR" in os.environ:
+        flink_log_dir = os.environ["FLINK_LOG_DIR"]
+    else:
+        flink_log_dir = os.path.join(flink_home, "log")
+
+    if "LOG4J_PROPERTIES" in os.environ:
+        log4j_properties = os.environ["LOG4J_PROPERTIES"]
+    else:
+        log4j_properties = "%s/log4j-cli.properties" % flink_conf_dir
+
+    if "LOGBACK_XML" in os.environ:
+        logback_xml = os.environ["LOGBACK_XML"]
+    else:
+        logback_xml = "%s/logback.xml" % flink_conf_dir
+
     if "FLINK_IDENT_STRING" in os.environ:
         flink_ident_string = os.environ["FLINK_IDENT_STRING"]
     else:
         flink_ident_string = getpass.getuser()
+
     hostname = socket.gethostname()
     log_settings = []
     for template in templates:
         log_settings.append(Template(template).substitute(
-            flink_conf_dir=flink_conf_dir,
+            log4j_properties=log4j_properties,
+            logback_xml=logback_xml,
             flink_log_dir=flink_log_dir,
             flink_ident_string=flink_ident_string,
             hostname=hostname))

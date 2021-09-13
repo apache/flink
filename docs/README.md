@@ -6,21 +6,29 @@ https://flink.apache.org/ is also generated from the files found here.
 
 # Requirements
 
-### Build the site locally
+### Build the documentation and serve it locally
 
-Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your
-system. To build the Flink docs, you need the *extended version* of Hugo with Sass/SCSS support.
+The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
 
-From this directory:
+To build the documentation, you can install Hugo locally or use a Docker image. 
 
-  * Fetch the theme submodule
-	```sh
-	git submodule update --init --recursive
-	```
-  * Start local server
-	```sh
-	hugo -b "" serve
-	```
+Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
+
+#### Using Hugo Docker image:
+
+```sh
+$ git submodule update --init --recursive
+$ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
+```
+
+#### Local Hugo installation:
+
+Make sure you have installed [Hugo](https://gohugo.io/getting-started/installing/) on your system.
+
+```sh
+$ git submodule update --init --recursive
+$ ./build_docs.sh
+```
 
 The site can be viewed at http://localhost:1313/
 
@@ -82,7 +90,7 @@ Please stick to the "logical order" when using the headlines, e.g. start with le
 #### Table of Contents
 
 Table of contents are added automatically to every page, based on heading levels 2 - 4. 
-The ToC can be ommitted by adding the following to the front matter of the page:
+The ToC can be omitted by adding the following to the front matter of the page:
 
     ---
     bookToc: false
@@ -95,13 +103,13 @@ to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
-    {{< artfiact flink-streaming-java withScalaVersion >}}
+    {{< artifact flink-streaming-java withScalaVersion >}}
 
 This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
-    <groupdId>org.apache.flink</groupId>
+    <groupId>org.apache.flink</groupId>
     <artifactId>flink-streaming-java_2.11</artifactId>
     <version><!-- current flink version --></version>
 </dependency>
@@ -162,7 +170,7 @@ Interpolates the current Flink version
 
 #### Scala Version
 
-    {{< scala_verison >}}
+    {{< scala_version >}}
 
 Interpolates the default scala version
 

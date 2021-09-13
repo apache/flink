@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import base64
 import collections
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -29,6 +30,7 @@ from typing import List, Tuple, Any, Dict, Collection
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
+from pyflink.datastream.state import StateTtlConfig
 from pyflink.fn_execution.beam.beam_coders import FlinkCoder
 from pyflink.fn_execution.coders import FieldCoder
 from pyflink.fn_execution.internal_state import InternalKvState, N, InternalValueState, \
@@ -96,6 +98,8 @@ class SynchronousKvRuntimeState(InternalKvState, ABC):
         self._remote_state_backend = remote_state_backend
         self._internal_state = None
         self.namespace = None
+        self._ttl_config = None
+        self._cache_type = SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE
 
     def set_current_namespace(self, namespace: N) -> None:
         if namespace == self.namespace:
@@ -106,9 +110,25 @@ class SynchronousKvRuntimeState(InternalKvState, ABC):
         self.namespace = namespace
         self._internal_state = None
 
+    def enable_time_to_live(self, ttl_config: StateTtlConfig):
+        self._ttl_config = ttl_config
+        if ttl_config.get_state_visibility() == StateTtlConfig.StateVisibility.NeverReturnExpired:
+            self._cache_type = SynchronousKvRuntimeState.CacheType.DISABLE_CACHE
+        elif ttl_config.get_update_type() == StateTtlConfig.UpdateType.OnReadAndWrite:
+            self._cache_type = SynchronousKvRuntimeState.CacheType.ENABLE_WRITE_CACHE
+
+        if self._cache_type != SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE:
+            # disable read cache
+            self._remote_state_backend._state_handler._state_cache._cache._max_entries = 0
+
     @abstractmethod
     def get_internal_state(self):
         pass
+
+    class CacheType(Enum):
+        DISABLE_CACHE = 0
+        ENABLE_WRITE_CACHE = 1
+        ENABLE_READ_WRITE_CACHE = 2
 
 
 class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
@@ -122,8 +142,14 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
     def get_internal_state(self):
         if self._internal_state is None:
             self._internal_state = self._remote_state_backend._get_internal_bag_state(
-                self.name, self.namespace, self._value_coder)
+                self.name, self.namespace, self._value_coder, self._ttl_config)
         return self._internal_state
+
+    def _maybe_clear_write_cache(self):
+        if self._cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+            self._internal_state.commit()
+            self._internal_state._cleared = False
+            self._internal_state._added_elements = []
 
 
 class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueState):
@@ -143,6 +169,7 @@ class SynchronousValueRuntimeState(SynchronousBagKvRuntimeState, InternalValueSt
         self.get_internal_state()
         self._internal_state.clear()
         self._internal_state.add(value)
+        self._maybe_clear_write_cache()
 
     def clear(self) -> None:
         self.get_internal_state().clear()
@@ -158,7 +185,7 @@ class SynchronousMergingRuntimeState(SynchronousBagKvRuntimeState, InternalMergi
             name, value_coder, remote_state_backend)
 
     def merge_namespaces(self, target: N, sources: Collection[N]) -> None:
-        self._remote_state_backend.merge_namespaces(self, target, sources)
+        self._remote_state_backend.merge_namespaces(self, target, sources, self._ttl_config)
 
 
 class SynchronousListRuntimeState(SynchronousMergingRuntimeState, InternalListState):
@@ -171,16 +198,19 @@ class SynchronousListRuntimeState(SynchronousMergingRuntimeState, InternalListSt
 
     def add(self, v):
         self.get_internal_state().add(v)
+        self._maybe_clear_write_cache()
 
     def get(self):
         return self.get_internal_state().read()
 
     def add_all(self, values):
         self.get_internal_state()._added_elements.extend(values)
+        self._maybe_clear_write_cache()
 
     def update(self, values):
         self.clear()
         self.add_all(values)
+        self._maybe_clear_write_cache()
 
     def clear(self):
         self.get_internal_state().clear()
@@ -207,6 +237,7 @@ class SynchronousReducingRuntimeState(SynchronousMergingRuntimeState, InternalRe
         else:
             self._internal_state.clear()
             self._internal_state.add(self._reduce_function.reduce(current_value, v))
+        self._maybe_clear_write_cache()
 
     def get(self):
         for i in self.get_internal_state().read():
@@ -241,6 +272,7 @@ class SynchronousAggregatingRuntimeState(SynchronousMergingRuntimeState, Interna
         accumulator = self._agg_function.add(v, accumulator)
         self._internal_state.clear()
         self._internal_state.add(accumulator)
+        self._maybe_clear_write_cache()
 
     def get(self):
         accumulator = self._get_accumulator()
@@ -867,7 +899,12 @@ class SynchronousMapRuntimeState(SynchronousKvRuntimeState, InternalMapState):
     def get_internal_state(self):
         if self._internal_state is None:
             self._internal_state = self._remote_state_backend._get_internal_map_state(
-                self.name, self.namespace, self._map_key_coder, self._map_value_coder)
+                self.name,
+                self.namespace,
+                self._map_key_coder,
+                self._map_value_coder,
+                self._ttl_config,
+                self._cache_type)
         return self._internal_state
 
     def get(self, key):
@@ -938,31 +975,47 @@ class RemoteKeyedStateBackend(object):
                 side_input_id="clear_iterators",
                 key=self._encoded_current_key))
 
-    def get_list_state(self, name, element_coder):
+    def get_list_state(self, name, element_coder, ttl_config=None):
         return self._wrap_internal_bag_state(
-            name, element_coder, SynchronousListRuntimeState, SynchronousListRuntimeState)
+            name,
+            element_coder,
+            SynchronousListRuntimeState,
+            SynchronousListRuntimeState,
+            ttl_config)
 
-    def get_value_state(self, name, value_coder):
+    def get_value_state(self, name, value_coder, ttl_config=None):
         return self._wrap_internal_bag_state(
-            name, value_coder, SynchronousValueRuntimeState, SynchronousValueRuntimeState)
+            name,
+            value_coder,
+            SynchronousValueRuntimeState,
+            SynchronousValueRuntimeState,
+            ttl_config)
 
-    def get_map_state(self, name, map_key_coder, map_value_coder):
+    def get_map_state(self, name, map_key_coder, map_value_coder, ttl_config=None):
         if name in self._all_states:
             self.validate_map_state(name, map_key_coder, map_value_coder)
             return self._all_states[name]
         map_state = SynchronousMapRuntimeState(name, map_key_coder, map_value_coder, self)
+        if ttl_config is not None:
+            map_state.enable_time_to_live(ttl_config)
         self._all_states[name] = map_state
         return map_state
 
-    def get_reducing_state(self, name, coder, reduce_function):
+    def get_reducing_state(self, name, coder, reduce_function, ttl_config=None):
         return self._wrap_internal_bag_state(
-            name, coder, SynchronousReducingRuntimeState,
-            partial(SynchronousReducingRuntimeState, reduce_function=reduce_function))
+            name,
+            coder,
+            SynchronousReducingRuntimeState,
+            partial(SynchronousReducingRuntimeState, reduce_function=reduce_function),
+            ttl_config)
 
-    def get_aggregating_state(self, name, coder, agg_function):
+    def get_aggregating_state(self, name, coder, agg_function, ttl_config=None):
         return self._wrap_internal_bag_state(
-            name, coder, SynchronousAggregatingRuntimeState,
-            partial(SynchronousAggregatingRuntimeState, agg_function=agg_function))
+            name,
+            coder,
+            SynchronousAggregatingRuntimeState,
+            partial(SynchronousAggregatingRuntimeState, agg_function=agg_function),
+            ttl_config)
 
     def validate_state(self, name, coder, expected_type):
         if name in self._all_states:
@@ -983,15 +1036,18 @@ class RemoteKeyedStateBackend(object):
                     state._map_value_coder != map_value_coder:
                 raise Exception("State name corrupted: %s" % name)
 
-    def _wrap_internal_bag_state(self, name, element_coder, wrapper_type, wrap_method):
+    def _wrap_internal_bag_state(
+            self, name, element_coder, wrapper_type, wrap_method, ttl_config):
         if name in self._all_states:
             self.validate_state(name, element_coder, wrapper_type)
             return self._all_states[name]
         wrapped_state = wrap_method(name, element_coder, self)
+        if ttl_config is not None:
+            wrapped_state.enable_time_to_live(ttl_config)
         self._all_states[name] = wrapped_state
         return wrapped_state
 
-    def _get_internal_bag_state(self, name, namespace, element_coder):
+    def _get_internal_bag_state(self, name, namespace, element_coder, ttl_config):
         encoded_namespace = self._encode_namespace(namespace)
         cached_state = self._internal_state_cache.get(
             (name, self._encoded_current_key, encoded_namespace))
@@ -1004,46 +1060,57 @@ class RemoteKeyedStateBackend(object):
         if isinstance(element_coder, FieldCoder):
             element_coder = FlinkCoder(element_coder)
         state_spec = userstate.BagStateSpec(name, element_coder)
-        internal_state = self._create_bag_state(state_spec, encoded_namespace)
+        internal_state = self._create_bag_state(state_spec, encoded_namespace, ttl_config)
         return internal_state
 
-    def _get_internal_map_state(self, name, namespace, map_key_coder, map_value_coder):
+    def _get_internal_map_state(
+            self, name, namespace, map_key_coder, map_value_coder, ttl_config, cache_type):
         encoded_namespace = self._encode_namespace(namespace)
         cached_state = self._internal_state_cache.get(
             (name, self._encoded_current_key, encoded_namespace))
         if cached_state is not None:
             return cached_state
         internal_map_state = self._create_internal_map_state(
-            name, encoded_namespace, map_key_coder, map_value_coder)
+            name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type)
         return internal_map_state
 
-    def _create_bag_state(self, state_spec: userstate.StateSpec, encoded_namespace) \
+    def _create_bag_state(self, state_spec: userstate.StateSpec, encoded_namespace, ttl_config) \
             -> userstate.AccumulatingRuntimeState:
         if isinstance(state_spec, userstate.BagStateSpec):
             bag_state = SynchronousBagRuntimeState(
                 self._state_handler,
                 state_key=self.get_bag_state_key(
-                    state_spec.name, self._encoded_current_key, encoded_namespace),
+                    state_spec.name, self._encoded_current_key, encoded_namespace, ttl_config),
                 value_coder=state_spec.coder)
             return bag_state
         else:
             raise NotImplementedError(state_spec)
 
-    def _create_internal_map_state(self, name, encoded_namespace, map_key_coder, map_value_coder):
+    def _create_internal_map_state(
+            self, name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type):
         # Currently the `beam_fn_api.proto` does not support MapState, so we use the
         # the `MultimapSideInput` message to mark the state as a MapState for now.
+        from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+        state_proto = StateDescriptor()
+        state_proto.state_name = name
+        if ttl_config is not None:
+            state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
         state_key = beam_fn_api_pb2.StateKey(
             multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
                 transform_id="",
                 window=encoded_namespace,
-                side_input_id=name,
+                side_input_id=base64.b64encode(state_proto.SerializeToString()),
                 key=self._encoded_current_key))
+        if cache_type == SynchronousKvRuntimeState.CacheType.DISABLE_CACHE:
+            write_cache_size = 0
+        else:
+            write_cache_size = self._map_state_write_cache_size
         return InternalSynchronousMapRuntimeState(
             self._map_state_handler,
             state_key,
             map_key_coder,
             map_value_coder,
-            self._map_state_write_cache_size)
+            write_cache_size)
 
     def _encode_namespace(self, namespace):
         if namespace is not None:
@@ -1087,7 +1154,7 @@ class RemoteKeyedStateBackend(object):
             self._clear_iterator_mark.multimap_side_input.key = self._encoded_current_key
             self._map_state_handler.clear(self._clear_iterator_mark)
 
-    def merge_namespaces(self, state: SynchronousMergingRuntimeState, target, sources):
+    def merge_namespaces(self, state: SynchronousMergingRuntimeState, target, sources, ttl_config):
         state.set_current_namespace(target)
         self.commit_internal_state(state.get_internal_state())
         encoded_target_namespace = self._encode_namespace(target)
@@ -1097,7 +1164,7 @@ class RemoteKeyedStateBackend(object):
         self.clear_state_cache(state, encoded_namespaces)
 
         state_key = self.get_bag_state_key(
-            state.name, self._encoded_current_key, encoded_target_namespace)
+            state.name, self._encoded_current_key, encoded_target_namespace, ttl_config)
         state_key.bag_user_state.transform_id = self.MERGE_NAMESAPCES_MARK
 
         encoded_namespaces_writer = BytesIO()
@@ -1118,18 +1185,22 @@ class RemoteKeyedStateBackend(object):
                     (name, self._encoded_current_key, encoded_namespace))
                 # currently all the SynchronousMergingRuntimeState is based on bag state
                 state_key = self.get_bag_state_key(
-                    name, self._encoded_current_key, encoded_namespace)
+                    name, self._encoded_current_key, encoded_namespace, None)
                 # clear the read cache, the read cache is shared between map state handler and bag
                 # state handler. So we can use the map state handler instead.
                 self._map_state_handler.clear_read_cache(state_key)
 
-    @staticmethod
-    def get_bag_state_key(name, encoded_key, encoded_namespace):
+    def get_bag_state_key(self, name, encoded_key, encoded_namespace, ttl_config):
+        from pyflink.fn_execution.flink_fn_execution_pb2 import StateDescriptor
+        state_proto = StateDescriptor()
+        state_proto.state_name = name
+        if ttl_config is not None:
+            state_proto.state_ttl_config.CopyFrom(ttl_config._to_proto())
         return beam_fn_api_pb2.StateKey(
             bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
                 transform_id="",
                 window=encoded_namespace,
-                user_state_id=name,
+                user_state_id=base64.b64encode(state_proto.SerializeToString()),
                 key=encoded_key))
 
     @staticmethod

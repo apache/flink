@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 
+import java.util.OptionalLong;
+
 /**
  * This interface provides a context in which operators can initialize by registering to managed
  * state (i.e. state that is managed by state backends).
@@ -33,11 +35,16 @@ import org.apache.flink.api.common.state.OperatorStateStore;
  */
 public interface ManagedInitializationContext {
 
+    /** Returns true, if state was restored from the snapshot of a previous execution. */
+    default boolean isRestored() {
+        return getRestoredCheckpointId().isPresent();
+    }
+
     /**
-     * Returns true, if state was restored from the snapshot of a previous execution. This returns
-     * always false for stateless tasks.
+     * Returns id of the restored checkpoint, if state was restored from the snapshot of a previous
+     * execution.
      */
-    boolean isRestored();
+    OptionalLong getRestoredCheckpointId();
 
     /** Returns an interface that allows for registering operator state with the backend. */
     OperatorStateStore getOperatorStateStore();

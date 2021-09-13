@@ -21,6 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 
@@ -41,10 +42,12 @@ public final class CatalogManagerMocks {
         return CatalogManager.newBuilder()
                 .classLoader(CatalogManagerMocks.class.getClassLoader())
                 .config(new Configuration())
-                .defaultCatalog(
-                        DEFAULT_CATALOG,
-                        new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE))
+                .defaultCatalog(DEFAULT_CATALOG, createEmptyCatalog())
                 .executionConfig(new ExecutionConfig());
+    }
+
+    public static Catalog createEmptyCatalog() {
+        return new GenericInMemoryCatalog(DEFAULT_CATALOG, DEFAULT_DATABASE);
     }
 
     private CatalogManagerMocks() {

@@ -238,7 +238,7 @@ public class SourceOperatorEventTimeTest {
                                 new CloseableRegistry());
 
         final StateInitializationContext stateContext =
-                new StateInitializationContextImpl(false, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
 
         final SourceOperator<T, MockSourceSplit> sourceOperator =
                 new TestingSourceOperator<>(

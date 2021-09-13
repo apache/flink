@@ -419,7 +419,7 @@ Calc(select=[a1])
    :  +- Calc(select=[a1])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[pk1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1]]], fields=[pk1])
+      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1], metadata=[]]], fields=[pk1])
 ]]>
     </Resource>
   </TestCase>

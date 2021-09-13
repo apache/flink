@@ -8,11 +8,11 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 This packaging allows you to write Flink programs in Python, but it is currently a very initial version and will change in future versions.
 
-In this initial version only Table API is supported, you can find the documentation at [https://ci.apache.org/projects/flink/flink-docs-stable/dev/table/tableApi.html](https://ci.apache.org/projects/flink/flink-docs-stable/dev/table/tableApi.html)
+In this initial version only Table API is supported, you can find the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/dev/table/tableApi.html](https://nightlies.apache.org/flink/flink-docs-stable/dev/table/tableApi.html)
 
-The tutorial can be found at [https://ci.apache.org/projects/flink/flink-docs-stable/tutorials/python_table_api.html](https://ci.apache.org/projects/flink/flink-docs-stable/tutorials/python_table_api.html)
+The tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/tutorials/python_table_api.html](https://nightlies.apache.org/flink/flink-docs-stable/tutorials/python_table_api.html)
 
-The auto-generated Python docs can be found at [https://ci.apache.org/projects/flink/flink-docs-stable/api/python/](https://ci.apache.org/projects/flink/flink-docs-stable/api/python/)
+The auto-generated Python docs can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/](https://nightlies.apache.org/flink/flink-docs-stable/api/python/)
 
 ## Python Requirements
 

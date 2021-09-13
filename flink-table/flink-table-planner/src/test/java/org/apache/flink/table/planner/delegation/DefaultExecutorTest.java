@@ -19,55 +19,89 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.delegation.Executor;
 
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link DefaultExecutor}. */
 public class DefaultExecutorTest {
 
     @Test
-    public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
-        final Executor executor =
-                new DefaultExecutor(StreamExecutionEnvironment.getExecutionEnvironment());
+    public void testJobName() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final Executor executor = new DefaultExecutor(env);
+        final List<Transformation<?>> dummyTransformations =
+                Collections.singletonList(
+                        env.fromElements(1, 2, 3)
+                                .addSink(new DiscardingSink<>())
+                                .getTransformation());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(PipelineOptions.NAME, "Custom Name");
+
+        // default
+        testJobName(
+                executor.createPipeline(dummyTransformations, new Configuration(), "Default Name"),
+                "Default Name");
+
+        // Table API specific
+        testJobName(
+                executor.createPipeline(dummyTransformations, configuration, "Default Name"),
+                "Custom Name");
+
+        // DataStream API specific
+        env.configure(configuration);
+        testJobName(
+                executor.createPipeline(dummyTransformations, new Configuration(), "Default Name"),
+                "Custom Name");
+    }
+
+    @Test
+    public void testDefaultBatchProperties() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final Executor executor = new DefaultExecutor(env);
+
+        final List<Transformation<?>> dummyTransformations =
+                Collections.singletonList(
+                        env.fromElements(1, 2, 3)
+                                .addSink(new DiscardingSink<>())
+                                .getTransformation());
 
         final Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
 
-        final Transformation<?> testTransform =
-                new LegacySourceTransformation<>(
-                        "MockTransform",
-                        new StreamSource<>(
-                                new SourceFunction<String>() {
-                                    @Override
-                                    public void run(SourceContext<String> ctx) {}
+        final StreamGraph streamGraph =
+                (StreamGraph)
+                        executor.createPipeline(
+                                dummyTransformations, configuration, "Default Name");
 
-                                    @Override
-                                    public void cancel() {}
-                                }),
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        1,
-                        Boundedness.BOUNDED);
-        final Pipeline pipeline =
-                executor.createPipeline(
-                        Collections.singletonList(testTransform), configuration, "Test Job");
-        final StreamGraph streamGraph = (StreamGraph) pipeline;
-
+        assertTrue(streamGraph.getExecutionConfig().isObjectReuseEnabled());
+        assertEquals(0, streamGraph.getExecutionConfig().getLatencyTrackingInterval());
+        assertTrue(streamGraph.isChainingEnabled());
         assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
+        assertFalse(streamGraph.getCheckpointConfig().isCheckpointingEnabled());
+        assertEquals(
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
+                streamGraph.getGlobalStreamExchangeMode());
+    }
+
+    private void testJobName(Pipeline pipeline, String expectedJobName) {
+        assertEquals(expectedJobName, ((StreamGraph) pipeline).getJobName());
     }
 }

@@ -21,7 +21,8 @@ import { Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
-import { BASE_URL } from '../app.config';
+
+import { BASE_URL } from 'config';
 import { ConfigurationInterface } from 'interfaces';
 
 @Injectable({
@@ -52,13 +53,14 @@ export class StatusService {
   /**
    * Trigger force refresh
    */
-  forceRefresh() {
+  forceRefresh(): void {
     this.forceRefresh$.next(true);
   }
 
   /**
    * Create refresh stream when APP_INITIALIZER
    * refresh interval stream will be regenerated when NavigationEnd || forceRefresh || visibility change
+   *
    * @param router
    */
   boot(router: Router): Promise<ConfigurationInterface> {
@@ -71,10 +73,7 @@ export class StatusService {
             filter(item => item instanceof NavigationEnd),
             mapTo(true)
           );
-          const interval$ = interval(this.configuration['refresh-interval']).pipe(
-            mapTo(true),
-            startWith(true)
-          );
+          const interval$ = interval(this.configuration['refresh-interval']).pipe(mapTo(true), startWith(true));
           this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
             startWith(true),
             debounceTime(300),

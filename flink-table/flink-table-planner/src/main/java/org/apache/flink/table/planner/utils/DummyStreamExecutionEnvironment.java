@@ -294,12 +294,6 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public StreamGraph getStreamGraph(String jobName) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, getStreamGraph method is unsupported.");
-    }
-
-    @Override
     public String getExecutionPlan() {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, getExecutionPlan method is unsupported.");

@@ -24,6 +24,7 @@ from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
 from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl, FieldCoderImpl
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamTimeBasedOutputStream
 from pyflink.fn_execution.stream_fast cimport OutputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
@@ -37,3 +38,4 @@ cdef class FlinkFieldCoderBeamWrapper(StreamCoderImpl):
 
 cdef class FlinkLengthPrefixCoderBeamWrapper(StreamCoderImpl):
     cdef readonly LengthPrefixBaseCoderImpl _value_coder
+    cdef readonly BeamTimeBasedOutputStream _output_stream

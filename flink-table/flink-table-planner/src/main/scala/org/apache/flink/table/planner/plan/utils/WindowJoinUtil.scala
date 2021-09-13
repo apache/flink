@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.utils.Logging
 
 import org.apache.calcite.rex.{RexInputRef, RexNode, RexUtil}

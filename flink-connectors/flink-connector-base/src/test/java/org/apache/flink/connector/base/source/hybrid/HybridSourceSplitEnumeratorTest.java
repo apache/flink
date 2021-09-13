@@ -32,6 +32,7 @@ import org.apache.flink.mock.Whitebox;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ public class HybridSourceSplitEnumeratorTest {
 
     private static final int SUBTASK0 = 0;
     private static final int SUBTASK1 = 1;
+    private static final MockBaseSource MOCK_SOURCE = new MockBaseSource(1, 1, Boundedness.BOUNDED);
 
     private HybridSource<Integer> source;
     private MockSplitEnumeratorContext<HybridSourceSplit> context;
@@ -55,10 +57,7 @@ public class HybridSourceSplitEnumeratorTest {
 
     private void setupEnumeratorAndTriggerSourceSwitch() {
         context = new MockSplitEnumeratorContext<>(2);
-        source =
-                HybridSource.builder(new MockBaseSource(1, 1, Boundedness.BOUNDED))
-                        .addSource(new MockBaseSource(1, 1, Boundedness.BOUNDED))
-                        .build();
+        source = HybridSource.builder(MOCK_SOURCE).addSource(MOCK_SOURCE).build();
 
         enumerator = (HybridSourceSplitEnumerator) source.createEnumerator(context);
         enumerator.start();
@@ -129,9 +128,7 @@ public class HybridSourceSplitEnumeratorTest {
         setupEnumeratorAndTriggerSourceSwitch();
 
         UnderlyingEnumeratorWrapper underlyingEnumeratorWrapper =
-                new UnderlyingEnumeratorWrapper(
-                        (MockSplitEnumerator)
-                                Whitebox.getInternalState(enumerator, "currentEnumerator"));
+                new UnderlyingEnumeratorWrapper(getCurrentEnumerator(enumerator));
         Whitebox.setInternalState(enumerator, "currentEnumerator", underlyingEnumeratorWrapper);
 
         List<MockSourceSplit> mockSourceSplits =
@@ -146,11 +143,15 @@ public class HybridSourceSplitEnumeratorTest {
         assertThat(underlyingEnumeratorWrapper.handleSplitRequests, Matchers.emptyIterable());
         enumerator.handleSplitRequest(SUBTASK0, "fakehostname");
 
+        SwitchedSources switchedSources = new SwitchedSources();
+        switchedSources.put(1, MOCK_SOURCE);
+
         assertSplitAssignment(
                 "handleSplitRequest triggers assignment of split by underlying enumerator",
                 context,
                 1,
-                new HybridSourceSplit(1, UnderlyingEnumeratorWrapper.SPLIT_1),
+                HybridSourceSplit.wrapSplit(
+                        UnderlyingEnumeratorWrapper.SPLIT_1, 1, switchedSources),
                 SUBTASK0);
 
         // handleSplitRequest invalid during reset
@@ -168,12 +169,35 @@ public class HybridSourceSplitEnumeratorTest {
         enumerator = (HybridSourceSplitEnumerator) source.createEnumerator(context);
         enumerator.start();
         HybridSourceEnumeratorState enumeratorState = enumerator.snapshotState(0);
-        Assert.assertEquals(1, ((List) enumeratorState.getWrappedState()).size());
+        MockSplitEnumerator underlyingEnumerator = getCurrentEnumerator(enumerator);
+        Assert.assertThat(
+                (List<MockSourceSplit>) Whitebox.getInternalState(underlyingEnumerator, "splits"),
+                Matchers.iterableWithSize(1));
         enumerator =
                 (HybridSourceSplitEnumerator) source.restoreEnumerator(context, enumeratorState);
         enumerator.start();
-        enumeratorState = enumerator.snapshotState(0);
-        Assert.assertEquals(1, ((List) enumeratorState.getWrappedState()).size());
+        underlyingEnumerator = getCurrentEnumerator(enumerator);
+        Assert.assertThat(
+                (List<MockSourceSplit>) Whitebox.getInternalState(underlyingEnumerator, "splits"),
+                Matchers.iterableWithSize(1));
+    }
+
+    @Test
+    public void testDefaultMethodDelegation() throws Exception {
+        setupEnumeratorAndTriggerSourceSwitch();
+        SplitEnumerator<MockSourceSplit, Object> underlyingEnumeratorSpy =
+                Mockito.spy((SplitEnumerator) getCurrentEnumerator(enumerator));
+        Whitebox.setInternalState(enumerator, "currentEnumerator", underlyingEnumeratorSpy);
+
+        enumerator.notifyCheckpointComplete(1);
+        Mockito.verify(underlyingEnumeratorSpy).notifyCheckpointComplete(1);
+
+        enumerator.notifyCheckpointAborted(2);
+        Mockito.verify(underlyingEnumeratorSpy).notifyCheckpointAborted(2);
+
+        SwitchSourceEvent se = new SwitchSourceEvent(0, null, false);
+        enumerator.handleSourceEvent(0, se);
+        Mockito.verify(underlyingEnumeratorSpy).handleSourceEvent(0, se);
     }
 
     private static class UnderlyingEnumeratorWrapper
@@ -248,5 +272,10 @@ public class HybridSourceSplitEnumeratorTest {
 
     private static int getCurrentSourceIndex(HybridSourceSplitEnumerator enumerator) {
         return (int) Whitebox.getInternalState(enumerator, "currentSourceIndex");
+    }
+
+    private static MockSplitEnumerator getCurrentEnumerator(
+            HybridSourceSplitEnumerator enumerator) {
+        return (MockSplitEnumerator) Whitebox.getInternalState(enumerator, "currentEnumerator");
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -29,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
@@ -39,7 +40,7 @@ import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -58,8 +59,8 @@ import java.util.concurrent.CompletableFuture;
  * ordering. For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of
  * the serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
- * <p>Watermarks, stream statuses, nor latency markers are propagated downstream as they do not make
- * sense with buffered records. The input emits the largest watermark seen after all records.
+ * <p>Watermarks, watermark statuses, nor latency markers are propagated downstream as they do not
+ * make sense with buffered records. The input emits the largest watermark seen after all records.
  *
  * @param <T> The type of the value in incoming {@link StreamRecord StreamRecords}.
  * @param <K> The type of the key.
@@ -86,7 +87,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             boolean objectReuse,
             double managedMemoryFraction,
             Configuration jobConfiguration,
-            AbstractInvokable containingTask) {
+            TaskInvokable containingTask,
+            ExecutionConfig executionConfig) {
         try {
             this.forwardingDataOutput = new ForwardingDataOutput();
             this.keySelector = keySelector;
@@ -108,7 +110,8 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
                                     memoryManager,
                                     containingTask,
                                     keyAndValueSerializer,
-                                    comparator)
+                                    comparator,
+                                    executionConfig)
                             .memoryFraction(managedMemoryFraction)
                             .enableSpilling(
                                     ioManager,
@@ -175,7 +178,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
@@ -188,7 +191,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
         }
 
         DataInputStatus inputStatus = wrappedInput.emitNext(forwardingDataOutput);
-        if (inputStatus == DataInputStatus.END_OF_INPUT) {
+        if (inputStatus == DataInputStatus.END_OF_DATA) {
             endSorting();
             return emitNextSortedRecord(output);
         }
@@ -211,7 +214,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             if (watermarkSeen > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(watermarkSeen));
             }
-            return DataInputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_DATA;
         }
     }
 

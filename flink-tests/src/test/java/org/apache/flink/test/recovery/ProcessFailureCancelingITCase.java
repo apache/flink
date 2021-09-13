@@ -42,6 +42,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -130,7 +131,8 @@ public class ProcessFailureCancelingITCase extends TestLogger {
                         config,
                         ioExecutor,
                         AddressResolution.NO_ADDRESS_RESOLUTION,
-                        RpcSystem.load());
+                        RpcSystem.load(),
+                        NoOpFatalErrorHandler.INSTANCE);
 
         final AtomicReference<Throwable> programException = new AtomicReference<>();
 

@@ -38,3 +38,4 @@ flink-streaming-kafka-test-base
 flink-heavy-deployment-stress-test
 flink-elasticsearch5-test
 flink-high-parallelism-iterations-test
+flink-end-to-end-tests-common-kafka

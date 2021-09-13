@@ -314,7 +314,7 @@ The following examples show how to specify SQL queries with group windows on str
 ```sql
 CREATE TABLE Orders (
   user       BIGINT,
-  product    STIRNG,
+  product    STRING,
   amount     INT,
   order_time TIMESTAMP(3),
   WATERMARK FOR order_time AS order_time - INTERVAL '1' MINUTE

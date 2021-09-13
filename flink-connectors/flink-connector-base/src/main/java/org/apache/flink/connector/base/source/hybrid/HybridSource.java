@@ -32,9 +32,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Hybrid source that switches underlying sources based on configured source chain.
@@ -91,14 +89,11 @@ import java.util.Map;
 public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourceEnumeratorState> {
 
     private final List<SourceListEntry> sources;
-    // sources are populated per subtask at switch time
-    private final Map<Integer, Source> switchedSources;
 
     /** Protected for subclass, use {@link #builder(Source)} to construct source. */
     protected HybridSource(List<SourceListEntry> sources) {
         Preconditions.checkArgument(!sources.isEmpty());
         this.sources = sources;
-        this.switchedSources = new HashMap<>(sources.size());
     }
 
     /** Builder for {@link HybridSource}. */
@@ -116,13 +111,13 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
     @Override
     public SourceReader<T, HybridSourceSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
-        return new HybridSourceReader(readerContext, switchedSources);
+        return new HybridSourceReader(readerContext);
     }
 
     @Override
     public SplitEnumerator<HybridSourceSplit, HybridSourceEnumeratorState> createEnumerator(
             SplitEnumeratorContext<HybridSourceSplit> enumContext) {
-        return new HybridSourceSplitEnumerator(enumContext, sources, 0, switchedSources, null);
+        return new HybridSourceSplitEnumerator(enumContext, sources, 0, null);
     }
 
     @Override
@@ -131,22 +126,18 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
             HybridSourceEnumeratorState checkpoint)
             throws Exception {
         return new HybridSourceSplitEnumerator(
-                enumContext,
-                sources,
-                checkpoint.getCurrentSourceIndex(),
-                switchedSources,
-                checkpoint.getWrappedState());
+                enumContext, sources, checkpoint.getCurrentSourceIndex(), checkpoint);
     }
 
     @Override
     public SimpleVersionedSerializer<HybridSourceSplit> getSplitSerializer() {
-        return new HybridSourceSplitSerializer(switchedSources);
+        return new HybridSourceSplitSerializer();
     }
 
     @Override
     public SimpleVersionedSerializer<HybridSourceEnumeratorState>
             getEnumeratorCheckpointSerializer() {
-        return new HybridSourceEnumeratorStateSerializer(switchedSources);
+        return new HybridSourceEnumeratorStateSerializer();
     }
 
     /**

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
 import org.apache.flink.table.delegation.Executor
@@ -33,7 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
+import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
@@ -105,7 +106,9 @@ class StreamPlanner(
 
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
-    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
+
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -157,7 +160,8 @@ class StreamPlanner(
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 
-    val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
+    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+      .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
     sb.append("== Optimized Execution Plan ==")

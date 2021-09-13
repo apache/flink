@@ -132,7 +132,7 @@ public interface DeclarativeSlotPool {
      * @param allocationId allocationId identifying the slot to release
      * @param cause cause for releasing the slot; can be {@code null}
      * @param currentTime currentTime when the slot was released
-     * @return resource information about freed slot
+     * @return the resource requirements that the slot was fulfilling
      */
     ResourceCounter freeReservedSlot(
             AllocationID allocationId, @Nullable Throwable cause, long currentTime);
@@ -142,7 +142,8 @@ public interface DeclarativeSlotPool {
      *
      * @param owner owner identifying the owning TaskExecutor
      * @param cause cause for failing the slots
-     * @return resource information about released slots
+     * @return the resource requirements that all slots were fulfilling; empty if all slots were
+     *     currently free
      */
     ResourceCounter releaseSlots(ResourceID owner, Exception cause);
 
@@ -151,7 +152,8 @@ public interface DeclarativeSlotPool {
      *
      * @param allocationId allocationId identifying the slot to fail
      * @param cause cause for failing the slot
-     * @return resource information about released slot
+     * @return the resource requirements that the slot was fulfilling; empty if the slot was
+     *     currently free
      */
     ResourceCounter releaseSlot(AllocationID allocationId, Exception cause);
 

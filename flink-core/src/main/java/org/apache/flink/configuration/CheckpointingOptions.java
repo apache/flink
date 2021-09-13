@@ -102,6 +102,7 @@ public class CheckpointingOptions {
 
     /** Whether to enable state change log. */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("ChangelogBackend is under development")
     public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
             ConfigOptions.key("state.backend.changelog.enabled")
                     .booleanType()
@@ -121,6 +122,7 @@ public class CheckpointingOptions {
      * InMemoryStateChangelogStorageFactory.getIdentifier()}, which is also the default value.
      */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
+    @Documentation.ExcludeFromDocumentation("ChangelogBackend is under development")
     public static final ConfigOption<String> STATE_CHANGE_LOG_STORAGE =
             ConfigOptions.key("state.backend.changelog.storage")
                     .stringType()
@@ -135,7 +137,7 @@ public class CheckpointingOptions {
                                     .linebreak()
                                     .text(
                                             "The list of recognized shortcut names currently includes"
-                                                    + " 'memory' only.")
+                                                    + " 'memory' and 'filesystem'.")
                                     .build());
 
     /** The maximum number of completed checkpoints to retain. */
@@ -145,7 +147,7 @@ public class CheckpointingOptions {
                     .defaultValue(1)
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
-    /** @deprecated Checkpoints are aways asynchronous. */
+    /** @deprecated Checkpoints are always asynchronous. */
     @Deprecated
     public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =
             ConfigOptions.key("state.backend.async")

@@ -15,6 +15,12 @@
             <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
         </tr>
         <tr>
+            <td><h5>cluster.fine-grained-resource-management.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Defines whether the cluster uses fine-grained resource management.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.intercept-user-system-exit</h5></td>
             <td style="word-wrap: break-word;">DISABLED</td>
             <td><p>Enum</p></td>
@@ -67,6 +73,12 @@
             <td style="word-wrap: break-word;">LOG</td>
             <td><p>Enum</p></td>
             <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
         </tr>
     </tbody>
 </table>

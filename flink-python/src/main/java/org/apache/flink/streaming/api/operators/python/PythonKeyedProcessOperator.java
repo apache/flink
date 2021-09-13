@@ -40,8 +40,6 @@ import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
 
-import java.util.Collections;
-
 import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.operators.python.timer.TimerUtils.createTimerDataTypeInfo;
@@ -53,10 +51,11 @@ import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchEx
  * state request from the python stateful user defined function.
  */
 @Internal
-public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOperator<Row, OUT>
+public class PythonKeyedProcessOperator<OUT>
+        extends AbstractOneInputPythonFunctionOperator<Row, OUT>
         implements Triggerable<Row, Object> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /** The TypeSerializer of the namespace. */
     private final TypeSerializer namespaceSerializer;
@@ -138,13 +137,13 @@ public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOpera
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATEFUL_FUNCTION_URN,
-                ProtoUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                ProtoUtils.createUserDefinedDataStreamStatefulFunctionProtos(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
-                        Collections.emptyMap(),
+                        getInternalParameters(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getJobOptions(),
+                jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 keyTypeSerializer,
@@ -232,5 +231,16 @@ public class PythonKeyedProcessOperator<OUT> extends OneInputPythonFunctionOpera
     @Override
     public Object getCurrentKey() {
         return keyForTimerService;
+    }
+
+    @Override
+    public <T> AbstractDataStreamPythonFunctionOperator<T> copy(
+            DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
+        return new PythonKeyedProcessOperator<>(
+                config,
+                pythonFunctionInfo,
+                (RowTypeInfo) getInputTypeInfo(),
+                outputTypeInfo,
+                namespaceSerializer);
     }
 }

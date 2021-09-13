@@ -38,8 +38,6 @@ Flink services are submitted to YARN's ResourceManager, which spawns containers 
 
 Flink can dynamically allocate and de-allocate TaskManager resources depending on the number of processing slots required by the job(s) running on the JobManager.
 
- [测试]({{< downloads >}}) 
-
 ### Preparation
 
 This *Getting Started* section assumes a functional YARN environment, starting from version 2.4.1. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
@@ -154,7 +152,7 @@ The Session Mode has two operation modes:
 
 The session mode will create a hidden YARN properties file in `/tmp/.yarn-properties-<username>`, which will be picked up for cluster discovery by the command line interface when submitting a job.
 
-You can also **manually specifiy the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
+You can also **manually specify the target YARN cluster** in the command line interface when submitting a Flink job. Here's an example:
 
 ```bash 
 ./bin/flink run -t yarn-session \

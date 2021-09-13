@@ -49,6 +49,8 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,12 +60,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -246,12 +251,61 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testNodePortService() {
-        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+    public void testNodePortServiceWithInternalIP() {
+        testNodePortService(KubernetesConfigOptions.NodePortAddressType.InternalIP);
+    }
 
-        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-        assertThat(resultEndpoint.isPresent(), is(true));
-        assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+    @Test
+    public void testNodePortServiceWithExternalIP() {
+        testNodePortService(KubernetesConfigOptions.NodePortAddressType.ExternalIP);
+    }
+
+    private void testNodePortService(KubernetesConfigOptions.NodePortAddressType addressType) {
+        flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE, addressType);
+        final List<String> internalAddresses =
+                Arrays.asList("InternalIP:10.0.0.1", "InternalIP:10.0.0.2", "InternalIP:10.0.0.3");
+        final List<String> externalAddresses =
+                Arrays.asList("ExternalIP:7.7.7.7", "ExternalIP:8.8.8.8", "ExternalIP:9.9.9.9");
+        final List<String> addresses = new ArrayList<>();
+        addresses.addAll(internalAddresses);
+        addresses.addAll(externalAddresses);
+        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+        mockExpectedNodesFromServerSide(addresses);
+        try (final Fabric8FlinkKubeClient localClient =
+                new Fabric8FlinkKubeClient(
+                        flinkConfig,
+                        kubeClient,
+                        org.apache.flink.util.concurrent.Executors.newDirectExecutorService())) {
+            final Optional<Endpoint> resultEndpoint = localClient.getRestEndpoint(CLUSTER_ID);
+            assertThat(resultEndpoint.isPresent(), is(true));
+            final List<String> expectedIps;
+            switch (addressType) {
+                case InternalIP:
+                    expectedIps =
+                            internalAddresses.stream()
+                                    .map(s -> s.split(":")[1])
+                                    .collect(Collectors.toList());
+                    break;
+                case ExternalIP:
+                    expectedIps =
+                            externalAddresses.stream()
+                                    .map(s -> s.split(":")[1])
+                                    .collect(Collectors.toList());
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format("Unexpected address type %s.", addressType));
+            }
+            assertThat(resultEndpoint.get().getAddress(), isIn(expectedIps));
+            assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+        }
+    }
+
+    @Test
+    public void testNodePortServiceWithNoMatchingIP() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+        assertFalse(flinkKubeClient.getRestEndpoint(CLUSTER_ID).isPresent());
     }
 
     @Test

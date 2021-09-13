@@ -119,6 +119,11 @@ public class TestMetricGroup implements MetricGroup, LogicalScopeProvider {
         return logicalScopeFunction.apply(filter, Optional.of(delimiter));
     }
 
+    @Override
+    public MetricGroup getWrappedMetricGroup() {
+        return this;
+    }
+
     /** Builder for {@link TestMetricGroup}. */
     public static final class TestMetricGroupBuilder {
         private String[] scopeComponents = new String[] {};

@@ -22,7 +22,7 @@ package org.apache.flink.api.connector.sink;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * This interface lets the sink developer build a simple sink topology, which could guarantee the
@@ -58,15 +59,15 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
     /**
      * Create a {@link SinkWriter}. If the application is resumed from a checkpoint or savepoint and
      * the sink is stateful, it will receive the corresponding state obtained with {@link
-     * SinkWriter#snapshotState()} and serialized with {@link #getWriterStateSerializer()}. If no
-     * state exists, the first existing, compatible state specified in {@link
+     * SinkWriter#snapshotState(long)} and serialized with {@link #getWriterStateSerializer()}. If
+     * no state exists, the first existing, compatible state specified in {@link
      * #getCompatibleStateNames()} will be loaded and passed.
      *
      * @param context the runtime context.
      * @param states the writer's previous state.
      * @return A sink writer.
      * @throws IOException for any failure during creation.
-     * @see SinkWriter#snapshotState()
+     * @see SinkWriter#snapshotState(long)
      * @see #getWriterStateSerializer()
      * @see #getCompatibleStateNames()
      */
@@ -75,7 +76,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 
     /**
      * Any stateful sink needs to provide this state serializer and implement {@link
-     * SinkWriter#snapshotState()} properly. The respective state is used in {@link
+     * SinkWriter#snapshotState(long)} properly. The respective state is used in {@link
      * #createWriter(InitContext, List)} on recovery.
      *
      * @return the serializer of the writer's state type.
@@ -162,7 +163,13 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
         int getNumberOfParallelSubtasks();
 
         /** @return The metric group this writer belongs to. */
-        MetricGroup metricGroup();
+        SinkWriterMetricGroup metricGroup();
+
+        /**
+         * Returns id of the restored checkpoint, if state was restored from the snapshot of a
+         * previous execution.
+         */
+        OptionalLong getRestoredCheckpointId();
     }
 
     /**
@@ -193,7 +200,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
              *
              * @param time The time this callback was registered for.
              */
-            void onProcessingTime(long time) throws IOException;
+            void onProcessingTime(long time) throws IOException, InterruptedException;
         }
     }
 }

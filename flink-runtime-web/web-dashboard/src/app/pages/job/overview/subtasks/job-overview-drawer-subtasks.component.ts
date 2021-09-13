@@ -19,9 +19,12 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
 import { JobSubTaskInterface } from 'interfaces';
 import { JobService } from 'services';
+import { deepFind } from 'utils';
 
 @Component({
   selector: 'flink-job-overview-drawer-subtasks',
@@ -36,33 +39,29 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   sortValue: string;
   isLoading = true;
 
-  trackTaskBy(_: number, node: JobSubTaskInterface) {
+  sortReadBytesFn = this.sortFn('metrics.read-bytes');
+  sortReadRecordsFn = this.sortFn('metrics.read-records');
+  sortWriteBytesFn = this.sortFn('metrics.write-bytes');
+  sortWriteRecordsFn = this.sortFn('metrics.write-records');
+  sortAttemptFn = this.sortFn('attempt');
+  sortHostFn = this.sortFn('host');
+  sortStartTimeFn = this.sortFn('detail.start-time');
+  sortDurationFn = this.sortFn('detail.duration');
+  sortEndTimeFn = this.sortFn('detail.end-time');
+  sortStatusFn = this.sortFn('status');
+
+  sortFn(path: string): NzTableSortFn<JobSubTaskInterface> {
+    return (pre: JobSubTaskInterface, next: JobSubTaskInterface) =>
+      deepFind(pre, path) > deepFind(next, path) ? 1 : -1;
+  }
+
+  trackTaskBy(_: number, node: JobSubTaskInterface): number {
     return node.subtask;
-  }
-
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
-
-  search() {
-    if (this.sortName) {
-      this.listOfTask = [
-        ...this.listOfTask.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
   }
 
   constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
@@ -72,7 +71,6 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
         data => {
           this.listOfTask = data;
           this.isLoading = false;
-          this.search();
           this.cdr.markForCheck();
         },
         () => {
@@ -82,7 +80,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

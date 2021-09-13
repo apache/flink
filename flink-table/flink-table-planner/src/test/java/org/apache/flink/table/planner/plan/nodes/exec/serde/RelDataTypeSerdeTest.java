@@ -259,7 +259,7 @@ public class RelDataTypeSerdeTest {
     public void testTypeSerde() throws Exception {
         SerdeContext serdeCtx =
                 new SerdeContext(
-                        new FlinkContextImpl(TableConfig.getDefault(), null, null, null),
+                        new FlinkContextImpl(false, TableConfig.getDefault(), null, null, null),
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());

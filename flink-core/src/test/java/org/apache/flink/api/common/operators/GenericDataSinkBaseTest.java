@@ -110,7 +110,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             executionConfig,
                             cpTasks,
                             accumulatorMap,
-                            new UnregisteredMetricsGroup()),
+                            UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
 
             assertEquals(out.output, asList(TestIOData.RICH_NAMES));
@@ -127,7 +127,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             executionConfig,
                             cpTasks,
                             accumulatorMap,
-                            new UnregisteredMetricsGroup()),
+                            UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
             assertEquals(out.output, asList(TestIOData.RICH_NAMES));
         } catch (Exception e) {

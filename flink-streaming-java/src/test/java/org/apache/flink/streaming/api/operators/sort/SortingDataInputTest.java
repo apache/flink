@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -66,7 +67,8 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
         DataInputStatus inputStatus;
         do {
@@ -115,7 +117,8 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
         DataInputStatus inputStatus;
         do {
@@ -159,7 +162,8 @@ public class SortingDataInputTest {
                         true,
                         1.0,
                         new Configuration(),
-                        new DummyInvokable());
+                        new DummyInvokable(),
+                        new ExecutionConfig());
 
         DataInputStatus inputStatus;
         do {

@@ -137,7 +137,7 @@ public class ZooKeeperHaServices extends AbstractHaServices {
 
     @Override
     protected LeaderRetrievalService createLeaderRetrievalService(String leaderPath) {
-        return ZooKeeperUtils.createLeaderRetrievalService(client, leaderPath);
+        return ZooKeeperUtils.createLeaderRetrievalService(client, leaderPath, configuration);
     }
 
     @Override

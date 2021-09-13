@@ -112,7 +112,7 @@ Java and Scala classes are treated by Flink as a special POJO data type if they 
 POJOs are generally represented with a `PojoTypeInfo` and serialized with the `PojoSerializer` (using [Kryo](https://github.com/EsotericSoftware/kryo) as configurable fallback).
 The exception is when the POJOs are actually Avro types (Avro Specific Records) or produced as "Avro Reflect Types". 
 In that case the POJO's are represented by an `AvroTypeInfo` and serialized with the `AvroSerializer`.
-You can also register your own custom serializer if required; see [Serialization](https://ci.apache.org/projects/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
+You can also register your own custom serializer if required; see [Serialization](https://nightlies.apache.org/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
 
 Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 
@@ -522,8 +522,8 @@ env.getConfig().disableGenericTypes();
 
 A type information factory allows for plugging-in user-defined type information into the Flink type system.
 You have to implement `org.apache.flink.api.common.typeinfo.TypeInfoFactory` to return your custom type information. 
-The factory is called during the type extraction phase if the corresponding type has been annotated 
-with the `@org.apache.flink.api.common.typeinfo.TypeInfo` annotation. 
+The factory is called during the type extraction phase if either the corresponding type or a POJO's field using
+this type has been annotated with the `@org.apache.flink.api.common.typeinfo.TypeInfo` annotation.
 
 Type information factories can be used in both the Java and Scala API.
 
@@ -550,6 +550,17 @@ public class MyTupleTypeInfoFactory extends TypeInfoFactory<MyTuple> {
   public TypeInformation<MyTuple> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
     return new MyTupleTypeInfo(genericParameters.get("T0"), genericParameters.get("T1"));
   }
+}
+```
+
+Instead of annotating the type itself, which may not be possible for third-party code, you can also
+annotate the usage of this type inside a valid Flink POJO like this:
+```java
+public class MyPojo {
+  public int id;
+
+  @TypeInfo(MyTupleTypeInfoFactory.class)
+  public MyTuple<Integer, String> tuple;
 }
 ```
 

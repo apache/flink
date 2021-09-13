@@ -42,7 +42,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapUnsafeMemory;
 
@@ -543,7 +543,7 @@ public class MemoryManager {
                     }
                 };
 
-        final Consumer<Long> releaser = (size) -> releaseMemory(type, size);
+        final LongConsumer releaser = (size) -> releaseMemory(type, size);
 
         // This object identifies the lease in this request. It is used only to identify the release
         // operation.

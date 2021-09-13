@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** A catalog-related, runtime exception. */
+@PublicEvolving
 public class CatalogException extends RuntimeException {
     /** @param message the detail message. */
     public CatalogException(String message) {

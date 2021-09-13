@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -66,6 +67,7 @@ import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentForm
  * Table format factory for providing configured instances of Schema Registry Avro to RowData {@link
  * SerializationSchema} and {@link DeserializationSchema}.
  */
+@Internal
 public class RegistryAvroFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

@@ -39,7 +39,6 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
@@ -244,7 +243,7 @@ public class RemoteInputChannelTest {
                 8192,
                 (inputChannel, buffer, j) -> {
                     inputChannel.onBuffer(buffer, j, -1);
-                    return null;
+                    return true;
                 });
     }
 
@@ -270,7 +269,7 @@ public class RemoteInputChannelTest {
      */
     private void testConcurrentReleaseAndSomething(
             final int numberOfRepetitions,
-            TriFunction<RemoteInputChannel, Buffer, Integer, Object> function)
+            TriFunction<RemoteInputChannel, Buffer, Integer, Boolean> function)
             throws Exception {
 
         // Setup
@@ -290,10 +289,7 @@ public class RemoteInputChannelTest {
                                 for (int j = 0; j < 128; j++) {
                                     // this is the same buffer over and over again which will be
                                     // recycled by the RemoteInputChannel
-                                    Object obj =
-                                            function.apply(inputChannel, buffer.retainBuffer(), j);
-                                    if (obj instanceof NotificationResult
-                                            && obj == NotificationResult.BUFFER_NOT_USED) {
+                                    if (!function.apply(inputChannel, buffer.retainBuffer(), j)) {
                                         buffer.recycleBuffer();
                                     }
                                 }
@@ -584,8 +580,8 @@ public class RemoteInputChannelTest {
 
             // Assign the floating buffer to the listener and the channel is still waiting for more
             // floating buffers
-            verify(bufferPool, times(15)).requestBuffer();
-            verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
+            verify(bufferPool, times(16)).requestBuffer();
+            verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
             assertEquals(
                     "There should be 15 buffers available in the channel",
                     15,
@@ -604,8 +600,8 @@ public class RemoteInputChannelTest {
             inputChannel.onSenderBacklog(13);
 
             // Only the number of required buffers is changed by (backlog + numExclusiveBuffers)
-            verify(bufferPool, times(15)).requestBuffer();
-            verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
+            verify(bufferPool, times(16)).requestBuffer();
+            verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
             assertEquals(
                     "There should be 15 buffers available in the channel",
                     15,
@@ -625,8 +621,8 @@ public class RemoteInputChannelTest {
 
             // Return the floating buffer to the buffer pool and the channel is not waiting for more
             // floating buffers
-            verify(bufferPool, times(15)).requestBuffer();
-            verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
+            verify(bufferPool, times(16)).requestBuffer();
+            verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
             assertEquals(
                     "There should be 15 buffers available in the channel",
                     15,
@@ -646,8 +642,8 @@ public class RemoteInputChannelTest {
 
             // The floating buffer is requested from the buffer pool and the channel is registered
             // as listener again.
-            verify(bufferPool, times(17)).requestBuffer();
-            verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
+            verify(bufferPool, times(18)).requestBuffer();
+            verify(bufferPool, times(3)).addBufferListener(inputChannel.getBufferManager());
             assertEquals(
                     "There should be 16 buffers available in the channel",
                     16,

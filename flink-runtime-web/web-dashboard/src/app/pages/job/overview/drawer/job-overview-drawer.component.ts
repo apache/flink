@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
+import { trigger, animate, style, transition } from '@angular/animations';
 import { Component, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
-import { trigger, animate, style, transition } from '@angular/animations';
+
 import { JobChartService } from 'share/customize/job-chart/job-chart.service';
+
+import { JobService } from 'services';
 
 @Component({
   selector: 'flink-job-overview-drawer',
@@ -61,7 +63,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   private cachePath = this.listOfNavigation[0].path;
   private destroy$ = new Subject();
 
-  closeDrawer() {
+  closeDrawer(): void {
     if (this.fullScreen) {
       this.fullScreen = false;
       this.jobChartService.resize();
@@ -70,7 +72,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     }
   }
 
-  fullDrawer() {
+  fullDrawer(): void {
     this.fullScreen = true;
     this.jobChartService.resize();
   }
@@ -82,7 +84,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
     private jobChartService: JobChartService
   ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
     combineLatest(this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$)
       .pipe(takeUntil(this.destroy$))

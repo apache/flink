@@ -48,7 +48,7 @@ LogicalSort(offset=[10], fetch=[10])
       <![CDATA[
 Limit(offset=[10], fetch=[10])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], limit=[20]]], fields=[a, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[], limit=[20]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -67,7 +67,7 @@ LogicalSort(fetch=[10])
       <![CDATA[
 Limit(offset=[0], fetch=[10])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], limit=[10]]], fields=[a, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[], limit=[10]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -273,7 +273,7 @@ LogicalSort(offset=[1], fetch=[10])
       <![CDATA[
 Limit(offset=[1], fetch=[10])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], limit=[11]]], fields=[a, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[], limit=[11]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -292,7 +292,7 @@ LogicalSort(offset=[0], fetch=[10])
       <![CDATA[
 Limit(offset=[0], fetch=[10])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], limit=[10]]], fields=[a, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[], limit=[10]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -330,7 +330,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], limit=[2]]], fields=[proctime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], metadata=[], limit=[2]]], fields=[proctime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -349,7 +349,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], limit=[2]]], fields=[proctime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], metadata=[], limit=[2]]], fields=[proctime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -368,7 +368,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], limit=[2]]], fields=[c, proctime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], metadata=[], limit=[2]]], fields=[c, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -387,7 +387,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], limit=[2]]], fields=[c, proctime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], metadata=[], limit=[2]]], fields=[c, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -406,7 +406,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], limit=[2]]], fields=[rowtime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], metadata=[], limit=[2]]], fields=[rowtime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -425,7 +425,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], limit=[2]]], fields=[rowtime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], metadata=[], limit=[2]]], fields=[rowtime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -444,7 +444,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], limit=[2]]], fields=[c, rowtime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], metadata=[], limit=[2]]], fields=[c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -463,7 +463,7 @@ LogicalSort(fetch=[2])
       <![CDATA[
 Limit(offset=[0], fetch=[2])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], limit=[2]]], fields=[c, rowtime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], metadata=[], limit=[2]]], fields=[c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -482,7 +482,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c]]], fields=[proctime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], metadata=[]]], fields=[proctime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -501,7 +501,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c]]], fields=[rowtime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], metadata=[]]], fields=[rowtime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -520,7 +520,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c]]], fields=[proctime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[proctime, c], metadata=[]]], fields=[proctime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -539,7 +539,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime]]], fields=[c, proctime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], metadata=[]]], fields=[c, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -558,7 +558,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime]]], fields=[c, proctime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, proctime], metadata=[]]], fields=[c, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -577,7 +577,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c]]], fields=[rowtime, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime, c], metadata=[]]], fields=[rowtime, c])
 ]]>
     </Resource>
   </TestCase>
@@ -596,7 +596,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime]]], fields=[c, rowtime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], metadata=[]]], fields=[c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -615,7 +615,7 @@ LogicalSort(offset=[10])
       <![CDATA[
 Limit(offset=[10], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]], fields=[a, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -634,7 +634,7 @@ LogicalSort(offset=[2])
       <![CDATA[
 Limit(offset=[2], fetch=[unlimited])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime]]], fields=[c, rowtime])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, rowtime], metadata=[]]], fields=[c, rowtime])
 ]]>
     </Resource>
   </TestCase>

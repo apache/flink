@@ -40,7 +40,8 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['CloseableIterator', 'DataStream']
+__all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
+           'DataStreamSink', 'CloseableIterator']
 
 
 class DataStream(object):
@@ -68,7 +69,7 @@ class DataStream(object):
     def name(self, name: str) -> 'DataStream':
         """
         Sets the name of the current data stream. This name is used by the visualization and logging
-        during runting.
+        during runtime.
 
         :param name: Name of the stream.
         :return: The named operator.
@@ -604,7 +605,7 @@ class DataStream(object):
         This method takes the key selector to get the key to partition on, and a partitioner that
         accepts the key type.
 
-        Note that this method works only on single field keys, i.e. the selector cannet return
+        Note that this method works only on single field keys, i.e. the selector cannot return
         tuples of fields.
 
         :param partitioner: The partitioner to assign partitions to keys.
@@ -675,6 +676,8 @@ class DataStream(object):
         stream_with_partition_info = self.process(
             CustomPartitioner(partitioner, key_selector),
             output_type=Types.ROW([Types.INT(), original_type_info]))
+        stream_with_partition_info._j_data_stream.getTransformation().getOperatorFactory() \
+            .getOperator().setContainsPartitionCustom(True)
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
@@ -731,6 +734,7 @@ class DataStream(object):
         """
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
         JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
+        self._apply_chaining_optimization()
         if job_execution_name is None and limit is None:
             return CloseableIterator(self._j_data_stream.executeAndCollect(), self.get_type())
         elif job_execution_name is not None and limit is None:
@@ -746,7 +750,7 @@ class DataStream(object):
     def print(self, sink_identifier: str = None) -> 'DataStreamSink':
         """
         Writes a DataStream to the standard output stream (stdout).
-        For each element of the DataStream the object string is writen.
+        For each element of the DataStream the object string is written.
 
         NOTE: This will print to stdout on the machine where the code is executed, i.e. the Flink
         worker, and is not fault tolerant.
@@ -759,6 +763,19 @@ class DataStream(object):
         else:
             j_data_stream_sink = self._align_output_type()._j_data_stream.print()
         return DataStreamSink(j_data_stream_sink)
+
+    def _apply_chaining_optimization(self):
+        """
+        Chain the Python operators if possible.
+        """
+        gateway = get_gateway()
+        JPythonOperatorChainingOptimizer = gateway.jvm.org.apache.flink.python.chain. \
+            PythonOperatorChainingOptimizer
+        j_transformation = JPythonOperatorChainingOptimizer.apply(
+            self._j_data_stream.getExecutionEnvironment(),
+            self._j_data_stream.getTransformation())
+        self._j_data_stream = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream(
+            self._j_data_stream.getExecutionEnvironment(), j_transformation)
 
     def _align_output_type(self) -> 'DataStream':
         """
@@ -1020,6 +1037,7 @@ class KeyedStream(DataStream):
 
         Example:
         ::
+
             >>> ds = env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b'])
             >>> ds.key_by(lambda x: x[1]).reduce(lambda a, b: a[0] + b[0], b[1])
 

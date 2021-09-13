@@ -36,8 +36,8 @@ import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
@@ -113,8 +113,8 @@ public class DefaultExecutionGraphBuilder {
         final int maxPriorAttemptsHistoryLength =
                 jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
-        final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
-                PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
+        final PartitionGroupReleaseStrategy.Factory partitionGroupReleaseStrategyFactory =
+                PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         jobManagerConfig);
 
         // create a new execution graph, if none exists so far
@@ -129,7 +129,7 @@ public class DefaultExecutionGraphBuilder {
                             maxPriorAttemptsHistoryLength,
                             classLoader,
                             blobWriter,
-                            partitionReleaseStrategyFactory,
+                            partitionGroupReleaseStrategyFactory,
                             shuffleMaster,
                             partitionTracker,
                             partitionLocationConstraint,

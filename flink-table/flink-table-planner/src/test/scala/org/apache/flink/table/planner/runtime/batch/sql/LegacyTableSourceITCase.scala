@@ -336,8 +336,6 @@ class LegacyTableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableHint(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
     val ddl =
       s"""
          |CREATE TABLE MyTable1 (

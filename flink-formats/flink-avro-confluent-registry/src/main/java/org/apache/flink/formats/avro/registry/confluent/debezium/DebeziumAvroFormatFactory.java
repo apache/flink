@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -60,6 +61,7 @@ import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroForma
  * Format factory for providing configured instances of Debezium Avro to RowData {@link
  * DeserializationSchema}.
  */
+@Internal
 public class DebeziumAvroFormatFactory
         implements DeserializationFormatFactory, SerializationFormatFactory {
 

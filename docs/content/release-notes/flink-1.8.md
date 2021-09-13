@@ -39,12 +39,12 @@ allowed to clean up and make inaccessible keyed state entries when accessing
 them. In addition state would now also being cleaned up when writing a
 savepoint/checkpoint.
 
-Flink 1.8 introduces continous cleanup of old entries for both the RocksDB
+Flink 1.8 introduces continuous cleanup of old entries for both the RocksDB
 state backend
 ([FLINK-10471](https://issues.apache.org/jira/browse/FLINK-10471)) and the heap
 state backend
 ([FLINK-10473](https://issues.apache.org/jira/browse/FLINK-10473)). This means
-that old entries (according to the ttl setting) are continously being cleanup
+that old entries (according to the ttl setting) are continuously being cleanup
 up.
 
 #### New Support for Schema Migration when restoring Savepoints
@@ -201,7 +201,7 @@ The `CompositeSerializerSnapshot` utility class has been removed. You should
 now use `CompositeTypeSerializerSnapshot` instead, for snapshots of composite
 serializers that delegate serialization to multiple nested serializers. Please
 see
-[here](http://ci.apache.org/projects/flink/flink-docs-release-1.8/dev/stream/state/custom_serialization.html#implementing-a-compositetypeserializersnapshot)
+[here](http://nightlies.apache.org/flink/flink-docs-release-1.8/dev/stream/state/custom_serialization.html#implementing-a-compositetypeserializersnapshot)
 for instructions on using `CompositeTypeSerializerSnapshot`.
 
 ### Memory management

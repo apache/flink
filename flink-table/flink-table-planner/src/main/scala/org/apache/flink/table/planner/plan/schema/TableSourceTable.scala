@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.source.DynamicTableSource
-import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec
+import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils
+import org.apache.flink.table.planner.plan.abilities.source.{SourceAbilityContext, SourceAbilitySpec}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import com.google.common.collect.ImmutableList
@@ -41,8 +43,9 @@ import java.util
  * @param tableSource The [[DynamicTableSource]] for which is converted to a Calcite Table
  * @param isStreamingMode A flag that tells if the current table is in stream mode
  * @param catalogTable Resolved catalog table where this table source table comes from
- * @param extraDigests The extra digests which will be added into `getQualifiedName`
- *                     as a part of table digest
+ * @param flinkContext The flink context which is used to generate extra digests based on
+ *                     abilitySpecs
+ * @param abilitySpecs The abilitySpecs applied to the source
  */
 class TableSourceTable(
     relOptSchema: RelOptSchema,
@@ -52,7 +55,7 @@ class TableSourceTable(
     val tableSource: DynamicTableSource,
     val isStreamingMode: Boolean,
     val catalogTable: ResolvedCatalogTable,
-    val extraDigests: Array[String] = Array.empty,
+    val flinkContext: FlinkContext,
     val abilitySpecs: Array[SourceAbilitySpec] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
@@ -65,8 +68,20 @@ class TableSourceTable(
 
   override def getQualifiedName: util.List[String] = {
     val builder = ImmutableList.builder[String]()
-        .addAll(super.getQualifiedName)
-    extraDigests.foreach(builder.add)
+      .addAll(super.getQualifiedName)
+
+    if(abilitySpecs != null && abilitySpecs.length != 0){
+      var newProducedType = DynamicSourceUtils.createProducedType(
+        catalogTable.getResolvedSchema,
+        tableSource)
+
+      for (spec <- abilitySpecs) {
+        val sourceAbilityContext = new SourceAbilityContext(flinkContext, newProducedType)
+
+        builder.add(spec.getDigests(sourceAbilityContext))
+        newProducedType = spec.getProducedType.orElse(newProducedType)
+      }
+    }
     builder.build()
   }
 
@@ -80,7 +95,6 @@ class TableSourceTable(
   def copy(
       newTableSource: DynamicTableSource,
       newRowType: RelDataType,
-      newExtraDigests: Array[String],
       newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
     new TableSourceTable(
       relOptSchema,
@@ -90,7 +104,7 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      extraDigests ++ newExtraDigests,
+      flinkContext,
       abilitySpecs ++ newAbilitySpecs
     )
   }
@@ -105,7 +119,6 @@ class TableSourceTable(
   def copy(
       newTableSource: DynamicTableSource,
       newStatistic: FlinkStatistic,
-      newExtraDigests: Array[String],
       newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
     new TableSourceTable(
       relOptSchema,
@@ -115,7 +128,7 @@ class TableSourceTable(
       newTableSource,
       isStreamingMode,
       catalogTable,
-      extraDigests ++ newExtraDigests,
+      flinkContext,
       abilitySpecs ++ newAbilitySpecs)
   }
 }

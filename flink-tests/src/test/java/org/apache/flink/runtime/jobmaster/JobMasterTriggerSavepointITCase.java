@@ -107,7 +107,6 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
                                 true,
                                 false,
-                                false,
                                 0,
                                 0),
                         null);
@@ -239,7 +238,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         }
 
         @Override
-        public Future<Boolean> triggerCheckpointAsync(
+        public CompletableFuture<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
                 final CheckpointOptions checkpointOptions) {
             final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();

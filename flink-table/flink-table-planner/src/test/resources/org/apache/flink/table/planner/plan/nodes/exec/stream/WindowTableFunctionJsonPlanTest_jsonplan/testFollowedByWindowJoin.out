@@ -86,19 +86,6 @@
         "nullable" : true,
         "precision" : 3
       }
-    }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
-      "operands" : [ ],
-      "type" : {
-        "timestampKind" : "PROCTIME",
-        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false
-      }
     } ],
     "condition" : null,
     "id" : 2,
@@ -125,16 +112,9 @@
           "precision" : 3,
           "kind" : "REGULAR"
         }
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
       } ]
     },
-    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
+    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
     "watermarkExpr" : {
@@ -193,13 +173,6 @@
           "precision" : 3,
           "kind" : "ROWTIME"
         }
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
       } ]
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
@@ -246,13 +219,6 @@
           "kind" : "ROWTIME"
         }
       }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      }, {
         "window_start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
@@ -280,7 +246,7 @@
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 5,
+      "inputIndex" : 4,
       "type" : {
         "typeName" : "TIMESTAMP",
         "nullable" : false,
@@ -288,7 +254,7 @@
       }
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 6,
+      "inputIndex" : 5,
       "type" : {
         "typeName" : "TIMESTAMP",
         "nullable" : false,
@@ -501,19 +467,6 @@
         "nullable" : true,
         "precision" : 3
       }
-    }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
-      "operands" : [ ],
-      "type" : {
-        "timestampKind" : "PROCTIME",
-        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false
-      }
     } ],
     "condition" : null,
     "id" : 8,
@@ -540,16 +493,9 @@
           "precision" : 3,
           "kind" : "REGULAR"
         }
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
       } ]
     },
-    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime, PROCTIME() AS proctime])"
+    "description" : "Calc(select=[a, b, c, TO_TIMESTAMP(c) AS rowtime])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
     "watermarkExpr" : {
@@ -608,13 +554,6 @@
           "precision" : 3,
           "kind" : "ROWTIME"
         }
-      }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
       } ]
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
@@ -661,13 +600,6 @@
           "kind" : "ROWTIME"
         }
       }, {
-        "proctime" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      }, {
         "window_start" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
           "nullable" : false,
@@ -695,7 +627,7 @@
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 5,
+      "inputIndex" : 4,
       "type" : {
         "typeName" : "TIMESTAMP",
         "nullable" : false,
@@ -703,7 +635,7 @@
       }
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 6,
+      "inputIndex" : 5,
       "type" : {
         "typeName" : "TIMESTAMP",
         "nullable" : false,

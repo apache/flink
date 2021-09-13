@@ -32,7 +32,6 @@ import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 
@@ -105,12 +104,5 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
             return false;
         }
-    }
-
-    private enum NoOpFatalErrorHandler implements FatalErrorHandler {
-        INSTANCE;
-
-        @Override
-        public void onFatalError(final Throwable exception) {}
     }
 }

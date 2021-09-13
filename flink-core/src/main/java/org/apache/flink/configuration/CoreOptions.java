@@ -97,7 +97,7 @@ public class CoreOptions {
     public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
             ConfigOptions.key("classloader.parent-first-patterns.default")
                     .defaultValue(
-                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.xml;javax.xml;org.apache.xerces;org.w3c;"
+                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.xml;javax.xml;org.apache.xerces;org.w3c;org.rocksdb.;"
                                     + PARENT_FIRST_LOGGING_PATTERNS)
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(

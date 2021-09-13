@@ -203,7 +203,7 @@ WHERE rowNum = 1;
 +(UPDATE_AFTER)  10:45:00      Euro       116
 +(UPDATE_AFTER)  11:15:00      Euro       119
 +(INSERT)        11:49:00      Pounds     108
-{% endhighlight sql %}
+```
 
 行 `(1)` 保留了事件时间作为视图 `versioned_rates` 的事件时间，行 `(2)` 使得视图 `versioned_rates` 有了主键, 因此视图 `versioned_rates` 是一个版本视图。
 

@@ -257,7 +257,13 @@ under the License.
 			</includes>
 		</fileSet>
 
-		<!-- copy python table example to examples of dist -->
+		<!-- copy files of the python examples -->
+		<fileSet>
+			<directory>../flink-python/pyflink/examples</directory>
+			<outputDirectory>examples/python</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<fileSet>
 			<directory>../flink-python/pyflink/table/examples</directory>
 			<outputDirectory>examples/python/table</outputDirectory>

@@ -77,7 +77,7 @@ public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
     @Nonnull
     private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
         final boolean blockingTermination = numBlockingJobManagerRunners.getAndDecrement() > 0;
-        return new TestingJobManagerRunner.Builder()
+        return TestingJobManagerRunner.newBuilder()
                 .setJobId(jobGraph.getJobID())
                 .setBlockingTermination(blockingTermination)
                 .build();

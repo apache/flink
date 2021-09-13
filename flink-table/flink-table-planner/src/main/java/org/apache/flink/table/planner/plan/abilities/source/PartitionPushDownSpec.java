@@ -29,6 +29,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -59,5 +60,12 @@ public class PartitionPushDownSpec extends SourceAbilitySpecBase {
                             "%s does not support SupportsPartitionPushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        return "partitions=["
+                + this.partitions.stream().map(Object::toString).collect(Collectors.joining(", "))
+                + "]";
     }
 }

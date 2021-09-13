@@ -120,7 +120,7 @@ public class TimersSavepointITCase {
     private void takeSavepoint(String savepointPath, ClusterClient<?> client) throws Exception {
         JobGraph jobGraph = getJobGraph(EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         client.submitJob(jobGraph).get();
-        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID());
+        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID(), false);
         CompletableFuture<String> savepointPathFuture =
                 client.triggerSavepoint(jobGraph.getJobID(), null);
 
@@ -152,7 +152,7 @@ public class TimersSavepointITCase {
                 TMP_FOLDER.newFolder().toURI().toString());
         config.set(RocksDBOptions.TIMER_SERVICE_FACTORY, priorityQueueStateType);
         env.configure(config, this.getClass().getClassLoader());
-        return env.getStreamGraph("Test", false).getJobGraph();
+        return env.getStreamGraph(false).getJobGraph();
     }
 
     private static String getResourceFilename(String filename) {

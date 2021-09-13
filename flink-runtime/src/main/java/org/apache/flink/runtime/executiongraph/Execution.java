@@ -54,6 +54,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -355,7 +356,7 @@ public class Execution
      *
      * @param taskRestore information to restore the state
      */
-    public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
+    public void setInitialState(JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
     }
 
@@ -592,7 +593,10 @@ public class Execution
                                 if (failure == null) {
                                     vertex.notifyCompletedDeployment(this);
                                 } else {
-                                    if (failure instanceof TimeoutException) {
+                                    final Throwable actualFailure =
+                                            ExceptionUtils.stripCompletionException(failure);
+
+                                    if (actualFailure instanceof TimeoutException) {
                                         String taskname =
                                                 vertex.getTaskNameWithSubtaskIndex()
                                                         + " ("
@@ -607,9 +611,9 @@ public class Execution
                                                                 + getAssignedResourceLocation()
                                                                 + ") not responding after a rpcTimeout of "
                                                                 + rpcTimeout,
-                                                        failure));
+                                                        actualFailure));
                                     } else {
-                                        markFailed(failure);
+                                        markFailed(actualFailure);
                                     }
                                 }
                             },
@@ -1430,17 +1434,15 @@ public class Execution
                         getAttemptId(),
                         currentState,
                         targetState);
-            } else {
-                if (LOG.isInfoEnabled()) {
-                    LOG.info(
-                            "{} ({}) switched from {} to {} on {}.",
-                            getVertex().getTaskNameWithSubtaskIndex(),
-                            getAttemptId(),
-                            currentState,
-                            targetState,
-                            getLocationInformation(),
-                            error);
-                }
+            } else if (LOG.isInfoEnabled()) {
+                LOG.info(
+                        "{} ({}) switched from {} to {} on {}.",
+                        getVertex().getTaskNameWithSubtaskIndex(),
+                        getAttemptId(),
+                        currentState,
+                        targetState,
+                        getLocationInformation(),
+                        ExceptionUtils.stripCompletionException(error));
             }
 
             if (targetState == INITIALIZING || targetState == RUNNING) {

@@ -152,9 +152,14 @@ public class BinaryStringDataUtil {
                 : (FALSE_STRINGS.contains(lowerCase) ? Boolean.FALSE : null);
     }
 
+    /** Calculate the hash value of the given bytes use {@link MessageDigest}. */
+    public static BinaryStringData hash(byte[] bytes, MessageDigest md) {
+        return fromString(EncodingUtils.hex(md.digest(bytes)));
+    }
+
     /** Calculate the hash value of a given string use {@link MessageDigest}. */
     public static BinaryStringData hash(BinaryStringData str, MessageDigest md) {
-        return fromString(EncodingUtils.hex(md.digest(str.toBytes())));
+        return hash(str.toBytes(), md);
     }
 
     public static BinaryStringData hash(BinaryStringData str, String algorithm)

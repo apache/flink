@@ -25,7 +25,8 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -68,21 +69,21 @@ public class HybridSourceSplitEnumerator
 
     private final SplitEnumeratorContext<HybridSourceSplit> context;
     private final List<HybridSource.SourceListEntry> sources;
-    private final Map<Integer, Source> switchedSources;
+    private final SwitchedSources switchedSources = new SwitchedSources();
     // Splits that have been returned due to subtask reset
     private final Map<Integer, TreeMap<Integer, List<HybridSourceSplit>>> pendingSplits;
     private final Set<Integer> finishedReaders;
     private final Map<Integer, Integer> readerSourceIndex;
     private int currentSourceIndex;
-    private Object restoredEnumeratorState;
+    private HybridSourceEnumeratorState restoredEnumeratorState;
     private SplitEnumerator<SourceSplit, Object> currentEnumerator;
+    private SimpleVersionedSerializer<Object> currentEnumeratorCheckpointSerializer;
 
     public HybridSourceSplitEnumerator(
             SplitEnumeratorContext<HybridSourceSplit> context,
             List<HybridSource.SourceListEntry> sources,
             int initialSourceIndex,
-            Map<Integer, Source> switchedSources,
-            Object restoredEnumeratorState) {
+            HybridSourceEnumeratorState restoredEnumeratorState) {
         Preconditions.checkArgument(initialSourceIndex < sources.size());
         this.context = context;
         this.sources = sources;
@@ -90,7 +91,6 @@ public class HybridSourceSplitEnumerator
         this.pendingSplits = new HashMap<>();
         this.finishedReaders = new HashSet<>();
         this.readerSourceIndex = new HashMap<>();
-        this.switchedSources = switchedSources;
         this.restoredEnumeratorState = restoredEnumeratorState;
     }
 
@@ -127,7 +127,8 @@ public class HybridSourceSplitEnumerator
                 (k, splitsPerSource) -> {
                     if (k == currentSourceIndex) {
                         currentEnumerator.addSplitsBack(
-                                HybridSourceSplit.unwrapSplits(splitsPerSource), subtaskId);
+                                HybridSourceSplit.unwrapSplits(splitsPerSource, switchedSources),
+                                subtaskId);
                     } else {
                         pendingSplits
                                 .computeIfAbsent(subtaskId, sourceIndex -> new TreeMap<>())
@@ -144,7 +145,7 @@ public class HybridSourceSplitEnumerator
 
     private void sendSwitchSourceEvent(int subtaskId, int sourceIndex) {
         readerSourceIndex.put(subtaskId, sourceIndex);
-        Source source = Preconditions.checkNotNull(switchedSources.get(sourceIndex));
+        Source source = switchedSources.sourceOf(sourceIndex);
         context.sendEventToSourceReader(
                 subtaskId,
                 new SwitchSourceEvent(sourceIndex, source, sourceIndex >= (sources.size() - 1)));
@@ -172,7 +173,21 @@ public class HybridSourceSplitEnumerator
     @Override
     public HybridSourceEnumeratorState snapshotState(long checkpointId) throws Exception {
         Object enumState = currentEnumerator.snapshotState(checkpointId);
-        return new HybridSourceEnumeratorState(currentSourceIndex, enumState);
+        byte[] enumStateBytes = currentEnumeratorCheckpointSerializer.serialize(enumState);
+        return new HybridSourceEnumeratorState(
+                currentSourceIndex,
+                enumStateBytes,
+                currentEnumeratorCheckpointSerializer.getVersion());
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        currentEnumerator.notifyCheckpointComplete(checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        currentEnumerator.notifyCheckpointAborted(checkpointId);
     }
 
     @Override
@@ -252,21 +267,22 @@ public class HybridSourceSplitEnumerator
                 };
 
         Source<?, ? extends SourceSplit, Object> source =
-                switchedSources.computeIfAbsent(
-                        currentSourceIndex,
-                        k -> {
-                            return sources.get(currentSourceIndex).factory.create(switchContext);
-                        });
+                sources.get(currentSourceIndex).factory.create(switchContext);
         switchedSources.put(currentSourceIndex, source);
+        currentEnumeratorCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         SplitEnumeratorContextProxy delegatingContext =
-                new SplitEnumeratorContextProxy(currentSourceIndex, context, readerSourceIndex);
+                new SplitEnumeratorContextProxy(
+                        currentSourceIndex, context, readerSourceIndex, switchedSources);
         try {
             if (restoredEnumeratorState == null) {
                 currentEnumerator = source.createEnumerator(delegatingContext);
             } else {
                 LOG.info("Restoring enumerator for sourceIndex={}", currentSourceIndex);
-                currentEnumerator =
-                        source.restoreEnumerator(delegatingContext, restoredEnumeratorState);
+                Object nestedEnumState =
+                        currentEnumeratorCheckpointSerializer.deserialize(
+                                restoredEnumeratorState.getWrappedStateSerializerVersion(),
+                                restoredEnumeratorState.getWrappedState());
+                currentEnumerator = source.restoreEnumerator(delegatingContext, nestedEnumState);
                 restoredEnumeratorState = null;
             }
         } catch (Exception e) {
@@ -291,18 +307,21 @@ public class HybridSourceSplitEnumerator
         private final SplitEnumeratorContext<HybridSourceSplit> realContext;
         private final int sourceIndex;
         private final Map<Integer, Integer> readerSourceIndex;
+        private final SwitchedSources switchedSources;
 
         private SplitEnumeratorContextProxy(
                 int sourceIndex,
                 SplitEnumeratorContext<HybridSourceSplit> realContext,
-                Map<Integer, Integer> readerSourceIndex) {
+                Map<Integer, Integer> readerSourceIndex,
+                SwitchedSources switchedSources) {
             this.realContext = realContext;
             this.sourceIndex = sourceIndex;
             this.readerSourceIndex = readerSourceIndex;
+            this.switchedSources = switchedSources;
         }
 
         @Override
-        public MetricGroup metricGroup() {
+        public SplitEnumeratorMetricGroup metricGroup() {
             return realContext.metricGroup();
         }
 
@@ -348,7 +367,7 @@ public class HybridSourceSplitEnumerator
             Map<Integer, List<HybridSourceSplit>> wrappedAssignmentMap = new HashMap<>();
             for (Map.Entry<Integer, List<SplitT>> e : newSplitAssignments.assignment().entrySet()) {
                 List<HybridSourceSplit> splits =
-                        HybridSourceSplit.wrapSplits(sourceIndex, e.getValue());
+                        HybridSourceSplit.wrapSplits(e.getValue(), sourceIndex, switchedSources);
                 wrappedAssignmentMap.put(e.getKey(), splits);
             }
             SplitsAssignment<HybridSourceSplit> wrappedAssignments =
@@ -359,7 +378,8 @@ public class HybridSourceSplitEnumerator
 
         @Override
         public void assignSplit(SplitT split, int subtask) {
-            HybridSourceSplit wrappedSplit = new HybridSourceSplit(sourceIndex, split);
+            HybridSourceSplit wrappedSplit =
+                    HybridSourceSplit.wrapSplit(split, sourceIndex, switchedSources);
             realContext.assignSplit(wrappedSplit, subtask);
         }
 

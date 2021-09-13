@@ -20,16 +20,16 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="12" [nzLg]="12" [nzXl]="12" class="col">
     <nz-card [nzBordered]="false" nzTitle="Available Task Slots" [nzLoading]="!statistic">
       <ng-container *ngIf="statistic">
-        <div class="total">{{ statistic['slots-available'] | number:'1.0-0' }}</div>
+        <div class="total">{{ statistic['slots-available'] | number: '1.0-0' }}</div>
         <div class="footer">
           <div class="field">
             <span>Total Task Slots</span>
-            <span>{{ statistic['slots-total'] | number:'1.0-0' }}</span>
+            <span>{{ statistic['slots-total'] | number: '1.0-0' }}</span>
           </div>
           <nz-divider nzType="vertical"></nz-divider>
           <div class="field">
             <span>Task Managers</span>
-            <span>{{ statistic['taskmanagers'] | number:'1.0-0' }}</span>
+            <span>{{ statistic['taskmanagers'] | number: '1.0-0' }}</span>
           </div>
         </div>
       </ng-container>
@@ -38,21 +38,21 @@
   <div nz-col [nzXs]="24" [nzSm]="24" [nzMd]="12" [nzLg]="12" [nzXl]="12" class="col">
     <nz-card [nzBordered]="false" nzTitle="Running Jobs" [nzLoading]="!statistic">
       <ng-container *ngIf="statistic">
-        <div class="total">{{ statistic['jobs-running'] | number:'1.0-0' }}</div>
+        <div class="total">{{ statistic['jobs-running'] | number: '1.0-0' }}</div>
         <div class="footer">
           <div class="field">
             <span>Finished</span>
-            <span>{{ statistic['jobs-finished'] | number:'1.0-0' }}</span>
+            <span>{{ statistic['jobs-finished'] | number: '1.0-0' }}</span>
           </div>
           <nz-divider nzType="vertical"></nz-divider>
           <div class="field">
             <span>Canceled</span>
-            <span>{{ statistic['jobs-cancelled'] | number:'1.0-0' }}</span>
+            <span>{{ statistic['jobs-cancelled'] | number: '1.0-0' }}</span>
           </div>
           <nz-divider nzType="vertical"></nz-divider>
           <div class="field">
             <span>Failed</span>
-            <span>{{ statistic['jobs-failed'] | number:'1.0-0' }}</span>
+            <span>{{ statistic['jobs-failed'] | number: '1.0-0' }}</span>
           </div>
         </div>
       </ng-container>

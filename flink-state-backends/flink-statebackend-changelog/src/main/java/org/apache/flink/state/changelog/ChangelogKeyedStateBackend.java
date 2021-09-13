@@ -505,7 +505,8 @@ public class ChangelogKeyedStateBackend<K>
                         keyedStateBackend.getKeyContext(),
                         stateChangelogWriter,
                         meta,
-                        stateDesc.getTtlConfig());
+                        stateDesc.getTtlConfig(),
+                        stateDesc.getDefaultValue());
         IS is =
                 stateFactory.create(
                         state,

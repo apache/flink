@@ -388,6 +388,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -399,6 +400,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -421,6 +423,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -432,6 +435,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -454,6 +458,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -466,6 +471,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -494,6 +500,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -504,6 +511,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -524,6 +532,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -534,6 +543,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -554,6 +564,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -565,6 +576,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -586,6 +598,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -597,6 +610,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -618,6 +632,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -630,6 +645,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -652,6 +668,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -664,6 +681,7 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
+        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(

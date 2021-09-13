@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -76,7 +77,7 @@ public final class DynamicSourceUtils {
      * necessary.
      */
     public static RelNode convertDataStreamToRel(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
@@ -90,13 +91,18 @@ public final class DynamicSourceUtils {
         final DynamicTableSource tableSource =
                 new ExternalDynamicSource<>(
                         identifier, dataStream, physicalDataType, isTopLevelRecord, changelogMode);
+        final FlinkStatistic statistic =
+                FlinkStatistic.builder()
+                        // this is a temporary solution, FLINK-15123 will resolve this
+                        .uniqueKeys(catalogTable.getResolvedSchema().getPrimaryKey().orElse(null))
+                        .build();
         return convertSourceToRel(
-                isStreamingMode,
+                isBatchMode,
                 config,
                 relBuilder,
                 identifier,
                 catalogTable,
-                FlinkStatistic.UNKNOWN(),
+                statistic,
                 Collections.emptyList(),
                 tableSource);
     }
@@ -106,7 +112,7 @@ public final class DynamicSourceUtils {
      * if necessary.
      */
     public static RelNode convertSourceToRel(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
@@ -116,17 +122,11 @@ public final class DynamicSourceUtils {
             DynamicTableSource tableSource) {
 
         // 1. prepare table source
-        prepareDynamicSource(identifier, catalogTable, tableSource, isStreamingMode, config);
+        prepareDynamicSource(identifier, catalogTable, tableSource, isBatchMode, config);
 
         // 2. push table scan
         pushTableScan(
-                isStreamingMode,
-                relBuilder,
-                identifier,
-                catalogTable,
-                statistic,
-                hints,
-                tableSource);
+                isBatchMode, relBuilder, identifier, catalogTable, statistic, hints, tableSource);
 
         // 3. push project for non-physical columns
         final ResolvedSchema schema = catalogTable.getResolvedSchema();
@@ -136,7 +136,7 @@ public final class DynamicSourceUtils {
         }
 
         // 4. push watermark assigner
-        if (isStreamingMode && !schema.getWatermarkSpecs().isEmpty()) {
+        if (!isBatchMode && !schema.getWatermarkSpecs().isEmpty()) {
             pushWatermarkAssigner(relBuilder, schema);
         }
 
@@ -151,7 +151,7 @@ public final class DynamicSourceUtils {
             ObjectIdentifier sourceIdentifier,
             ResolvedCatalogTable table,
             DynamicTableSource source,
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config) {
         final ResolvedSchema schema = table.getResolvedSchema();
 
@@ -159,7 +159,7 @@ public final class DynamicSourceUtils {
 
         if (source instanceof ScanTableSource) {
             validateScanSource(
-                    sourceIdentifier, schema, (ScanTableSource) source, isStreamingMode, config);
+                    sourceIdentifier, schema, (ScanTableSource) source, isBatchMode, config);
         }
 
         // lookup table source is validated in LookupJoin node
@@ -328,7 +328,7 @@ public final class DynamicSourceUtils {
     }
 
     private static void pushTableScan(
-            boolean isStreamingMode,
+            boolean isBatchMode,
             FlinkRelBuilder relBuilder,
             ObjectIdentifier identifier,
             ResolvedCatalogTable catalogTable,
@@ -347,9 +347,9 @@ public final class DynamicSourceUtils {
                         producedRelDataType,
                         statistic,
                         tableSource,
-                        isStreamingMode,
+                        !isBatchMode,
                         catalogTable,
-                        new String[0],
+                        ShortcutUtils.unwrapContext(relBuilder),
                         new SourceAbilitySpec[0]);
 
         final LogicalTableScan scan =
@@ -447,7 +447,7 @@ public final class DynamicSourceUtils {
             ObjectIdentifier sourceIdentifier,
             ResolvedSchema schema,
             ScanTableSource scanSource,
-            boolean isStreamingMode,
+            boolean isBatchMode,
             ReadableConfig config) {
         final ScanRuntimeProvider provider =
                 scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
@@ -455,11 +455,11 @@ public final class DynamicSourceUtils {
 
         validateWatermarks(sourceIdentifier, schema);
 
-        if (isStreamingMode) {
+        if (isBatchMode) {
+            validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
+        } else {
             validateScanSourceForStreaming(
                     sourceIdentifier, schema, scanSource, changelogMode, config);
-        } else {
-            validateScanSourceForBatch(sourceIdentifier, changelogMode, provider);
         }
     }
 

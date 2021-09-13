@@ -17,14 +17,13 @@
 
 package org.apache.flink.table.module.hive;
 
-import org.apache.flink.table.descriptors.ModuleDescriptor;
-import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
 
 import org.junit.Test;
 
-import java.util.Map;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,12 +33,12 @@ public class HiveModuleFactoryTest {
     public void test() {
         final HiveModule expected = new HiveModule();
 
-        final ModuleDescriptor moduleDescriptor = new HiveModuleDescriptor();
-
-        final Map<String, String> properties = moduleDescriptor.toProperties();
-
         final Module actualModule =
-                TableFactoryService.find(ModuleFactory.class, properties).createModule(properties);
+                FactoryUtil.createModule(
+                        HiveModuleFactory.IDENTIFIER,
+                        Collections.emptyMap(),
+                        new Configuration(),
+                        Thread.currentThread().getContextClassLoader());
 
         checkEquals(expected, (HiveModule) actualModule);
     }

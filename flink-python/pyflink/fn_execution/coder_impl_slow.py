@@ -289,16 +289,16 @@ class ArrowCoderImpl(FieldCoderImpl):
     def decode_from_stream(self, in_stream: InputStream, length=0):
         return self.decode_one_batch_from_stream(in_stream, length)
 
+    def decode_one_batch_from_stream(self, in_stream: InputStream, size: int) -> List:
+        self._resettable_io.set_input_bytes(in_stream.read(size))
+        # there is only one arrow batch in the underlying input stream
+        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
+
     @staticmethod
     def _load_from_stream(stream):
         while stream.readable():
             reader = pa.ipc.open_stream(stream)
             yield reader.read_next_batch()
-
-    def decode_one_batch_from_stream(self, in_stream: InputStream, size: int) -> List:
-        self._resettable_io.set_input_bytes(in_stream.read(size))
-        # there is only one arrow batch in the underlying input stream
-        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
 
     def __repr__(self):
         return 'ArrowCoderImpl[%s]' % self._schema

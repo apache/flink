@@ -448,7 +448,7 @@ USE CATALOG myhive;
 
 ## DDL
 
-即将支持在 Flink 中创建 Hive 表，视图，分区和函数的DDL。
+在 Flink 中执行 DDL 操作 Hive 的表、视图、分区、函数等元数据时，建议使用 [Hive 方言]({{< ref "docs/connectors/table/hive/hive_dialect" >}})
 
 ## DML
 

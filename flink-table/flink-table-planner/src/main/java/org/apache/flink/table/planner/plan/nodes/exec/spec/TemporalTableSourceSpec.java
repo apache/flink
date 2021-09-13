@@ -106,7 +106,7 @@ public class TemporalTableSourceSpec {
                     lookupTableSource,
                     true,
                     catalogTable,
-                    new String[] {},
+                    planner.getFlinkContext(),
                     sourceAbilitySpecs);
         }
         throw new TableException("Can not obtain temporalTable correctly!");

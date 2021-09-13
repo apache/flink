@@ -53,6 +53,16 @@ public interface PythonFunctionRunner {
     Tuple2<byte[], Integer> pollResult() throws Exception;
 
     /**
+     * Retrieves the Python function result, waiting if necessary until an element becomes
+     * available.
+     *
+     * @return the head of he Python function result buffer. f0 means the byte array buffer which
+     *     stores the Python function result. f1 means the length of the Python function result byte
+     *     array.
+     */
+    Tuple2<byte[], Integer> takeResult() throws Exception;
+
+    /**
      * Forces to finish the processing of the current bundle of elements. It will flush the data
      * cached in the data buffer for processing and retrieves the state mutations (if exists) made
      * by the Python function. The call blocks until all of the outputs produced by this bundle have

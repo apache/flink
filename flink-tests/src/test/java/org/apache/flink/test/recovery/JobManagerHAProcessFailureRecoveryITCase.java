@@ -40,6 +40,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -286,7 +287,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
             highAvailabilityServices =
                     HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                            config, TestingUtils.defaultExecutor());
+                            config, TestingUtils.defaultExecutor(), NoOpFatalErrorHandler.INSTANCE);
 
             final PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(config);

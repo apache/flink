@@ -22,7 +22,7 @@ from typing import List, Any, Optional
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import WatermarkStrategy
+from pyflink.common import Configuration, WatermarkStrategy
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
@@ -39,7 +39,8 @@ from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
 from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, invoke_method
+from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
+    invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
 __all__ = ['StreamExecutionEnvironment']
 
@@ -321,57 +322,6 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
         return self
 
-    def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
-        """
-        Enable the change log for current state backend. This change log allows operators to persist
-        state changes in a very fine-grained manner. Currently, the change log only applies to keyed
-        state, so non-keyed operator state and channel state are persisted as usual. The 'state'
-        here refers to 'keyed state'. Details are as follows:
-
-        * Stateful operators write the state changes to that log (logging the state), in addition \
-        to applying them to the state tables in RocksDB or the in-mem Hashtable.
-        * An operator can acknowledge a checkpoint as soon as the changes in the log have reached \
-        the durable checkpoint storage.
-        * The state tables are persisted periodically, independent of the checkpoints. We call \
-        this the materialization of the state on the checkpoint storage.
-        * Once the state is materialized on checkpoint storage, the state changelog can be \
-        truncated to the corresponding point.
-
-        It establish a way to drastically reduce the checkpoint interval for streaming
-        applications across state backends. For more details please check the FLIP-158.
-
-        If this method is not called explicitly, it means no preference for enabling the change
-        log. Configs for change log enabling will override in different config levels
-        (job/local/cluster).
-
-        .. seealso:: :func:`is_changelog_state_backend_enabled`
-
-
-        :param enabled: True if enable the change log for state backend explicitly, otherwise
-                        disable the change log.
-        :return: This object.
-
-        .. versionadded:: 1.14.0
-        """
-        self._j_stream_execution_environment = \
-            self._j_stream_execution_environment.enableChangelogStateBackend(enabled)
-        return self
-
-    def is_changelog_state_backend_enabled(self) -> Optional[bool]:
-        """
-        Gets the enable status of change log for state backend.
-
-        .. seealso:: :func:`enable_changelog_state_backend`
-
-        :return: An :class:`Optional[bool]` for the enable status of change log for state backend.
-                 Could be None if user never specify this by calling
-                 :func:`enable_changelog_state_backend`.
-
-        .. versionadded:: 1.14.0
-        """
-        j_ternary_boolean = self._j_stream_execution_environment.isChangelogStateBackendEnabled()
-        return j_ternary_boolean.getAsBoolean()
-
     def set_default_savepoint_directory(self, directory: str) -> 'StreamExecutionEnvironment':
         """
         Sets the default savepoint directory, where savepoints will be written to if none
@@ -510,6 +460,25 @@ class StreamExecutionEnvironment(object):
         """
         j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
         return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
+
+    def configure(self, configuration: Configuration):
+        """
+        Sets all relevant options contained in the :class:`~pyflink.common.Configuration`. such as
+        e.g. `pipeline.time-characteristic`. It will reconfigure
+        :class:`~pyflink.datastream.StreamExecutionEnvironment`,
+        :class:`~pyflink.common.ExecutionConfig` and :class:`~pyflink.datastream.CheckpointConfig`.
+
+        It will change the value of a setting only if a corresponding option was set in the
+        `configuration`. If a key is not present, the current value of a field will remain
+        untouched.
+
+        :param configuration: a configuration to read the values from.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_stream_execution_environment.configure(configuration._j_configuration,
+                                                       get_gateway().jvm.Thread.currentThread()
+                                                       .getContextClassLoader())
 
     def add_python_file(self, file_path: str):
         """
@@ -737,7 +706,6 @@ class StreamExecutionEnvironment(object):
         """
 
         j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
-
         return JobExecutionResult(self._j_stream_execution_environment.execute(j_stream_graph))
 
     def execute_async(self, job_name: str = 'Flink Streaming Job') -> JobClient:
@@ -752,7 +720,6 @@ class StreamExecutionEnvironment(object):
                  submission succeeded.
         """
         j_stream_graph = self._generate_stream_graph(clear_transformations=True, job_name=job_name)
-
         j_job_client = self._j_stream_execution_environment.executeAsync(j_stream_graph)
         return JobClient(j_job_client=j_job_client)
 
@@ -769,7 +736,6 @@ class StreamExecutionEnvironment(object):
         :return: The execution plan of the program, as a JSON String.
         """
         j_stream_graph = self._generate_stream_graph(False)
-
         return j_stream_graph.getStreamingPlanAsJSON()
 
     @staticmethod
@@ -920,13 +886,48 @@ class StreamExecutionEnvironment(object):
 
     def _generate_stream_graph(self, clear_transformations: bool = False, job_name: str = None) \
             -> JavaObject:
-        j_stream_graph = get_gateway().jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.generateStreamGraphWithDependencies(
-            self._j_stream_execution_environment, clear_transformations)
+        gateway = get_gateway()
+        JPythonConfigUtil = gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
+        # start BeamFnLoopbackWorkerPoolServicer when executed in MiniCluster
+        j_configuration = get_j_env_configuration(self._j_stream_execution_environment)
 
+        def startup_loopback_server():
+            from pyflink.fn_execution.beam.beam_worker_pool_service import \
+                BeamFnLoopbackWorkerPoolServicer
+            jvm = gateway.jvm
+            j_env = jvm.System.getenv()
+            get_field_value(j_env, "m").put(
+                'PYFLINK_LOOPBACK_SERVER_ADDRESS', BeamFnLoopbackWorkerPoolServicer().start())
+
+        python_worker_execution_mode = None
+        if hasattr(self, "_python_worker_execution_mode"):
+            python_worker_execution_mode = getattr(self, "_python_worker_execution_mode")
+
+        if python_worker_execution_mode is None:
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+        elif python_worker_execution_mode == 'loopback':
+            if is_local_deployment(j_configuration):
+                startup_loopback_server()
+            else:
+                raise ValueError("Loopback mode is enabled, however the job wasn't configured to "
+                                 "run in local deployment mode")
+        elif python_worker_execution_mode != 'process':
+            raise ValueError(
+                "It only supports to execute the Python worker in 'loopback' mode and 'process' "
+                "mode, unknown mode '%s' is configured" % python_worker_execution_mode)
+
+        JPythonConfigUtil.configPythonOperator(self._j_stream_execution_environment)
+
+        gateway.jvm.org.apache.flink.python.chain.PythonOperatorChainingOptimizer.apply(
+            self._j_stream_execution_environment)
+
+        JPythonConfigUtil.setPartitionCustomOperatorNumPartitions(
+            get_field_value(self._j_stream_execution_environment, "transformations"))
+
+        j_stream_graph = self._j_stream_execution_environment.getStreamGraph(clear_transformations)
         if job_name is not None:
             j_stream_graph.setJobName(job_name)
-
         return j_stream_graph
 
     def is_unaligned_checkpoints_enabled(self):

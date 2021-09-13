@@ -602,7 +602,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
         try {
             inputGate.setInputChannels(inputChannel);
-            inputGate.setupChannels();
+            inputGate.setup();
             inputGate.requestPartitions();
             handler.addInputChannel(inputChannel);
 
@@ -711,11 +711,11 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             NettyMessage.NewBufferSize readOutbound = channel.readOutbound();
             assertThat(readOutbound, instanceOf(NettyMessage.NewBufferSize.class));
             assertThat(readOutbound.receiverId, is(inputChannels[0].getInputChannelId()));
-            assertThat(readOutbound.bufferSize, is(333L));
+            assertThat(readOutbound.bufferSize, is(333));
 
             readOutbound = channel.readOutbound();
             assertThat(readOutbound.receiverId, is(inputChannels[1].getInputChannelId()));
-            assertThat(readOutbound.bufferSize, is(333L));
+            assertThat(readOutbound.bufferSize, is(333));
 
         } finally {
             releaseResource(inputGate, networkBufferPool);
@@ -732,7 +732,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
         SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
         RemoteInputChannel inputChannel = new InputChannelBuilder().buildRemoteChannel(inputGate);
         inputGate.setInputChannels(inputChannel);
-        inputGate.setupChannels();
+        inputGate.setup();
 
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();

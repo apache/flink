@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.MaskUtils;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -39,10 +40,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>> {
 
+    // legacy, don't touch until we drop support for 1.9 savepoints
     private static final long serialVersionUID = 1L;
 
-    /** The serializer for the elements of the list. */
+    // The serializer for the elements of the list.
     private final TypeSerializer<T> elementSerializer;
+
+    private final boolean hasNullMask;
+    private transient boolean[] reuseMask;
 
     /**
      * Creates a list serializer that uses the given serializer to serialize the list's elements.
@@ -50,7 +55,12 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
      * @param elementSerializer The serializer for the elements of the list
      */
     public LinkedListSerializer(TypeSerializer<T> elementSerializer) {
+        this(elementSerializer, true);
+    }
+
+    public LinkedListSerializer(TypeSerializer<T> elementSerializer, boolean hasNullMask) {
         this.elementSerializer = checkNotNull(elementSerializer);
+        this.hasNullMask = hasNullMask;
     }
 
     // ------------------------------------------------------------------------
@@ -77,10 +87,7 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
 
     @Override
     public TypeSerializer<LinkedList<T>> duplicate() {
-        TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-        return duplicateElement == elementSerializer
-                ? this
-                : new LinkedListSerializer<>(duplicateElement);
+        return new LinkedListSerializer<>(elementSerializer.duplicate(), hasNullMask);
     }
 
     @Override
@@ -92,7 +99,12 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     public LinkedList<T> copy(LinkedList<T> from) {
         LinkedList<T> newList = new LinkedList<>();
         for (T element : from) {
-            newList.add(elementSerializer.copy(element));
+            // there is no compatibility problem here as it only copies from memory to memory
+            if (element == null) {
+                newList.add(null);
+            } else {
+                newList.add(elementSerializer.copy(element));
+            }
         }
         return newList;
     }
@@ -107,20 +119,49 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         return -1; // var length
     }
 
+    private void ensureReuseMaskLength(int len) {
+        if (reuseMask == null || reuseMask.length < len) {
+            reuseMask = new boolean[len];
+        }
+    }
+
     @Override
     public void serialize(LinkedList<T> list, DataOutputView target) throws IOException {
         target.writeInt(list.size());
-        for (T element : list) {
-            elementSerializer.serialize(element, target);
+        if (hasNullMask) {
+            ensureReuseMaskLength(list.size());
+            MaskUtils.writeMask(getNullMask(list), list.size(), target);
         }
+        for (T element : list) {
+            if (element != null) {
+                elementSerializer.serialize(element, target);
+            }
+        }
+    }
+
+    private boolean[] getNullMask(LinkedList<T> list) {
+        int idx = 0;
+        for (T item : list) {
+            reuseMask[idx] = item == null;
+            idx++;
+        }
+        return reuseMask;
     }
 
     @Override
     public LinkedList<T> deserialize(DataInputView source) throws IOException {
         final int size = source.readInt();
         final LinkedList<T> list = new LinkedList<>();
+        if (hasNullMask) {
+            ensureReuseMaskLength(size);
+            MaskUtils.readIntoMask(source, reuseMask, size);
+        }
         for (int i = 0; i < size; i++) {
-            list.add(elementSerializer.deserialize(source));
+            if (hasNullMask && reuseMask[i]) {
+                list.add(null);
+            } else {
+                list.add(elementSerializer.deserialize(source));
+            }
         }
         return list;
     }
@@ -135,8 +176,14 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         // copy number of elements
         final int num = source.readInt();
         target.writeInt(num);
+        if (hasNullMask) {
+            ensureReuseMaskLength(num);
+            MaskUtils.readIntoAndCopyMask(source, target, reuseMask, num);
+        }
         for (int i = 0; i < num; i++) {
-            elementSerializer.copy(source, target);
+            if (!(hasNullMask && reuseMask[i])) {
+                elementSerializer.copy(source, target);
+            }
         }
     }
 
@@ -169,7 +216,11 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
     public static class LinkedListSerializerSnapshot<T>
             extends CompositeTypeSerializerSnapshot<LinkedList<T>, LinkedListSerializer<T>> {
 
-        private static final int CURRENT_VERSION = 1;
+        private static final int CURRENT_VERSION = 2;
+
+        private static final int FIRST_VERSION_WITH_NULL_MASK = 2;
+
+        private int readVersion = CURRENT_VERSION;
 
         /** Constructor for read instantiation. */
         public LinkedListSerializerSnapshot() {
@@ -187,11 +238,27 @@ public final class LinkedListSerializer<T> extends TypeSerializer<LinkedList<T>>
         }
 
         @Override
+        protected void readOuterSnapshot(
+                int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+            readVersion = readOuterSnapshotVersion;
+        }
+
+        @Override
+        protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
+                LinkedListSerializer<T> newSerializer) {
+            if (readVersion < FIRST_VERSION_WITH_NULL_MASK) {
+                return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
+            }
+            return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
+        }
+
+        @Override
         protected LinkedListSerializer<T> createOuterSerializerWithNestedSerializers(
                 TypeSerializer<?>[] nestedSerializers) {
             @SuppressWarnings("unchecked")
             TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
-            return new LinkedListSerializer<>(elementSerializer);
+            return new LinkedListSerializer<>(
+                    elementSerializer, readVersion >= FIRST_VERSION_WITH_NULL_MASK);
         }
 
         @Override

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -71,8 +72,19 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
     /**
      * @return The writer's state.
      * @throws IOException if fail to snapshot writer's state.
+     * @deprecated implement {@link #snapshotState(long)}
      */
-    List<WriterStateT> snapshotState() throws IOException;
+    default List<WriterStateT> snapshotState() throws IOException {
+        return Collections.emptyList();
+    }
+
+    /**
+     * @return The writer's state.
+     * @throws IOException if fail to snapshot writer's state.
+     */
+    default List<WriterStateT> snapshotState(long checkpointId) throws IOException {
+        return snapshotState();
+    }
 
     /** Context that {@link #write} can use for getting additional data about an input record. */
     interface Context {

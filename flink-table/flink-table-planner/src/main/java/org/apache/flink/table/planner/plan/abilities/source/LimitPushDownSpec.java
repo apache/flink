@@ -53,4 +53,9 @@ public class LimitPushDownSpec extends SourceAbilitySpecBase {
                             tableSource.getClass().getName()));
         }
     }
+
+    @Override
+    public String getDigests(SourceAbilityContext context) {
+        return "limit=[" + this.limit + "]";
+    }
 }

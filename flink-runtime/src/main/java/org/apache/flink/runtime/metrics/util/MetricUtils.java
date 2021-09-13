@@ -99,18 +99,14 @@ public class MetricUtils {
         return processMetricGroup;
     }
 
-    public static TaskManagerMetricGroup createTaskManagerMetricGroup(
-            MetricRegistry metricRegistry, String hostName, ResourceID resourceID) {
-        return new TaskManagerMetricGroup(metricRegistry, hostName, resourceID.toString());
-    }
-
     public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
             MetricRegistry metricRegistry,
             String hostName,
             ResourceID resourceID,
             Optional<Time> systemResourceProbeInterval) {
         final TaskManagerMetricGroup taskManagerMetricGroup =
-                createTaskManagerMetricGroup(metricRegistry, hostName, resourceID);
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        metricRegistry, hostName, resourceID);
 
         MetricGroup statusGroup = createAndInitializeStatusMetricGroup(taskManagerMetricGroup);
 

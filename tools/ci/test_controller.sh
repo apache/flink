@@ -77,7 +77,7 @@ source "${HERE}/watchdog.sh"
 # Step 1: Rebuild jars and install Flink to local maven repository
 # =============================================================================
 
-LOG4J_PROPERTIES=${HERE}/log4j.properties
+export LOG4J_PROPERTIES=${HERE}/log4j.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
@@ -101,6 +101,7 @@ fi
 # =============================================================================
 
 if [ $STAGE == $STAGE_PYTHON ]; then
+	sed -i "s/\(^appender\.file\.fileName = \).*$/\1\$\{sys:log\.file\}/g" ${HERE}/log4j.properties
 	run_with_watchdog "./flink-python/dev/lint-python.sh" $CALLBACK_ON_TIMEOUT
 	EXIT_CODE=$?
 else

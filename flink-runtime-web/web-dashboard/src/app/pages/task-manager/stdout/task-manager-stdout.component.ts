@@ -17,10 +17,12 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
-import { TaskManagerDetailInterface } from 'interfaces';
 import { first } from 'rxjs/operators';
-import { TaskManagerService } from 'services';
+
 import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
+
+import { TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerService } from 'services';
 
 @Component({
   selector: 'flink-task-manager-stdout',
@@ -29,11 +31,11 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TaskManagerStdoutComponent implements OnInit {
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+  @ViewChild(MonacoEditorComponent, { static: true }) monacoEditorComponent: MonacoEditorComponent;
   stdout = '';
   taskManagerDetail: TaskManagerDetailInterface;
 
-  reload() {
+  reload(): void {
     if (this.taskManagerDetail) {
       this.taskManagerService.loadStdout(this.taskManagerDetail.id).subscribe(
         data => {
@@ -50,7 +52,7 @@ export class TaskManagerStdoutComponent implements OnInit {
 
   constructor(private taskManagerService: TaskManagerService, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
       this.taskManagerDetail = data;
       this.reload();

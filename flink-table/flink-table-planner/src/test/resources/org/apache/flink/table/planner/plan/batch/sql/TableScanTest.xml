@@ -51,23 +51,6 @@ Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDDLWithWatermarkComputedColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM c_watermark_t]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
-+- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
-+- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testDDLWithProctime">
     <Resource name="sql">
       <![CDATA[SELECT * FROM proctime_t]]>
@@ -82,6 +65,23 @@ LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)
       <![CDATA[
 Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e, PROCTIME_MATERIALIZE(PROCTIME()) AS ptime])
 +- TableSourceScan(table=[[default_catalog, default_database, proctime_t]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDDLWithWatermarkComputedColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM c_watermark_t]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, c_watermark_t]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
++- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

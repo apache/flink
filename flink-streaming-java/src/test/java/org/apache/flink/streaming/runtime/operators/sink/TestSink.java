@@ -35,9 +35,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -221,7 +223,8 @@ public class TestSink<T> implements Sink<T, String, String, String> {
     // -------------------------------------- Sink Writer ------------------------------------------
 
     /** Base class for out testing {@link SinkWriter Writers}. */
-    static class DefaultSinkWriter<T> implements SinkWriter<T, String, String>, Serializable {
+    public static class DefaultSinkWriter<T>
+            implements SinkWriter<T, String, String>, Serializable {
 
         protected List<String> elements;
 
@@ -229,7 +232,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
         protected ProcessingTimeService processingTimerService;
 
-        DefaultSinkWriter() {
+        protected DefaultSinkWriter() {
             this.elements = new ArrayList<>();
             this.watermarks = new ArrayList<>();
         }
@@ -253,7 +256,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         }
 
         @Override
-        public List<String> snapshotState() {
+        public List<String> snapshotState(long checkpointId) throws IOException {
             return Collections.emptyList();
         }
 
@@ -274,7 +277,7 @@ public class TestSink<T> implements Sink<T, String, String, String> {
     /** Base class for testing {@link Committer} and {@link GlobalCommitter}. */
     static class DefaultCommitter implements Committer<String>, Serializable {
 
-        @Nullable private Queue<String> committedData;
+        @Nullable protected Queue<String> committedData;
 
         private boolean isClosed;
 
@@ -320,11 +323,22 @@ public class TestSink<T> implements Sink<T, String, String, String> {
     }
 
     /** A {@link Committer} that always re-commits the committables data it received. */
-    static class AlwaysRetryCommitter extends DefaultCommitter implements Committer<String> {
+    static class RetryOnceCommitter extends DefaultCommitter implements Committer<String> {
+
+        private final Set<String> seen = new LinkedHashSet<>();
 
         @Override
         public List<String> commit(List<String> committables) {
-            return committables;
+            committables.forEach(
+                    c -> {
+                        if (seen.remove(c)) {
+                            checkNotNull(committedData);
+                            committedData.add(c);
+                        } else {
+                            seen.add(c);
+                        }
+                    });
+            return new ArrayList<>(seen);
         }
     }
 
@@ -379,11 +393,13 @@ public class TestSink<T> implements Sink<T, String, String, String> {
     }
 
     /** A {@link GlobalCommitter} that always re-commits global committables it received. */
-    static class AlwaysRetryGlobalCommitter extends DefaultGlobalCommitter {
+    static class RetryOnceGlobalCommitter extends DefaultGlobalCommitter {
+
+        private final Set<String> seen = new LinkedHashSet<>();
 
         @Override
         public List<String> filterRecoveredCommittables(List<String> globalCommittables) {
-            return Collections.emptyList();
+            return globalCommittables;
         }
 
         @Override
@@ -396,7 +412,16 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
         @Override
         public List<String> commit(List<String> committables) {
-            return committables;
+            committables.forEach(
+                    c -> {
+                        if (seen.remove(c)) {
+                            checkNotNull(committedData);
+                            committedData.add(c);
+                        } else {
+                            seen.add(c);
+                        }
+                    });
+            return new ArrayList<>(seen);
         }
     }
 

@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -139,6 +138,7 @@ public class SqlToOperationConverterTest {
                                     catalogManager.getCurrentDatabase());
     private final PlannerContext plannerContext =
             new PlannerContext(
+                    false,
                     tableConfig,
                     functionCatalog,
                     catalogManager,
@@ -310,16 +310,16 @@ public class SqlToOperationConverterTest {
     public void testLoadModule() {
         final String sql = "LOAD MODULE dummy WITH ('k1' = 'v1', 'k2' = 'v2')";
         final String expectedModuleName = "dummy";
-        final Map<String, String> expectedProperties = new HashMap<>();
-        expectedProperties.put("k1", "v1");
-        expectedProperties.put("k2", "v2");
+        final Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("k1", "v1");
+        expectedOptions.put("k2", "v2");
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assert operation instanceof LoadModuleOperation;
         final LoadModuleOperation loadModuleOperation = (LoadModuleOperation) operation;
 
         assertEquals(expectedModuleName, loadModuleOperation.getModuleName());
-        assertEquals(expectedProperties, loadModuleOperation.getProperties());
+        assertEquals(expectedOptions, loadModuleOperation.getOptions());
     }
 
     @Test
@@ -1320,9 +1320,6 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateViewWithDynamicTableOptions() {
-        tableConfig
-                .getConfiguration()
-                .setBoolean(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true);
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");

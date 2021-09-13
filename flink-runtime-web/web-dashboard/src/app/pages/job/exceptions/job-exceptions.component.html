@@ -16,7 +16,7 @@
   ~ limitations under the License.
   -->
 
-<nz-tabset [nzTabBarGutter]="4" [nzSize]="'small'" [nzAnimated]="{inkBar:true, tabPane:false}">
+<nz-tabset [nzSize]="'small'" [nzAnimated]="{ inkBar: true, tabPane: false }">
   <nz-tab nzTitle="Root Exception" nzForceRender>
     <flink-monaco-editor [value]="rootException"></flink-monaco-editor>
   </nz-tab>
@@ -24,46 +24,89 @@
     <nz-table
       class="no-border small"
       [nzSize]="'small'"
-      [nzData]="listOfException"
+      [nzData]="exceptionHistory"
       [nzShowPagination]="false"
-      [nzFrontPagination]="false">
+      [nzFrontPagination]="false"
+    >
       <thead>
         <tr>
-          <th nzShowExpand></th>
+          <th nzWidth="60px"></th>
           <th>Time</th>
           <th>Exception</th>
-          <th>Name</th>
+          <th>Task Name</th>
           <th>Location</th>
         </tr>
       </thead>
       <tbody>
-        <ng-container *ngFor="let exception of listOfException;trackBy:trackExceptionBy;">
+        <ng-container *ngFor="let item of exceptionHistory; trackBy: trackExceptionBy">
           <tr>
-            <td nzShowExpand [(nzExpand)]="exception.expand"></td>
-            <td>{{exception.timestamp | date:'yyyy-MM-dd HH:mm:ss'}}</td>
-            <td><div class="name">{{exception.exceptionName}}</div></td>
+            <td nzShowExpand [(nzExpand)]="item.expand"></td>
+            <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
             <td>
-              <div class="name">
-                  {{exception.taskName || "(global failure)"}}
-              </div>
+              <div class="name">{{ item.selected.exceptionName }}</div>
             </td>
-            <td>{{exception.location || "(unassigned)"}}</td>
+            <td class="select-td">
+              <nz-select
+                class="exception-select"
+                nzSize="small"
+                [nzDisabled]="item.exceptions.length === 1"
+                nzShowSearch
+                [(ngModel)]="item.selected"
+              >
+                <nz-option
+                  *ngFor="let ex of item.exceptions"
+                  nzCustomContent
+                  [nzLabel]="ex.taskName"
+                  [nzValue]="ex"
+                >
+                  <span
+                    nz-tooltip
+                    [nzTooltipTitle]="ex.taskName"
+                    nzTooltipMouseEnterDelay="0.5"
+                    nzTooltipPlacement="left"
+                  >
+                    {{ ex.taskName }}
+                  </span>
+                </nz-option>
+              </nz-select>
+            </td>
+            <td>{{ item.selected.location || '(unassigned)' }}</td>
           </tr>
-          <tr [nzExpand]="exception.expand">
+          <tr [nzExpand]="item.expand">
             <td colspan="5" class="expand-td">
-              <flink-monaco-editor *ngIf="exception.expand" class="subtask" [value]="exception.stacktrace"></flink-monaco-editor>
+              <flink-monaco-editor
+                *ngIf="item.expand"
+                class="subtask"
+                [value]="item.selected.stacktrace"
+              ></flink-monaco-editor>
             </td>
           </tr>
         </ng-container>
-        <tr *ngIf="listOfException.length > 0">
-          <td colspan="6">
-            <i nz-icon nzType="info-circle" nzTheme="fill"></i>&nbsp;
-            <i>The exception history is limited to the most recent failures that caused parts of the job or the entire job to restart. The maximum history size can be configured via the Flink configuration property <b>web.exception-history-size</b>.</i>
+        <tr *ngIf="exceptionHistory.length > 0">
+          <td colspan="5">
+            <i nz-icon nzType="info-circle" nzTheme="fill"></i>
+            &nbsp;
+            <i>
+              The exception history is limited to the most recent failures that caused parts of the
+              job or the entire job to restart. The maximum history size can be configured via the
+              Flink configuration property
+              <b>web.exception-history-size</b>
+              .
+            </i>
           </td>
         </tr>
         <tr *ngIf="truncated">
           <td colspan="5">
-            <button nz-button nzBlock nzType="primary" nzGhost (click)="loadMore()" [nzLoading]="isLoading">Load More</button>
+            <button
+              nz-button
+              nzBlock
+              nzType="primary"
+              nzGhost
+              (click)="loadMore()"
+              [nzLoading]="isLoading"
+            >
+              Load More
+            </button>
           </td>
         </tr>
       </tbody>

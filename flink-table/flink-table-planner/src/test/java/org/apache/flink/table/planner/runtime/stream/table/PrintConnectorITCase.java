@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
-import org.apache.flink.table.factories.PrintTableSinkFactory;
+import org.apache.flink.connector.print.table.PrintTableSinkFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;

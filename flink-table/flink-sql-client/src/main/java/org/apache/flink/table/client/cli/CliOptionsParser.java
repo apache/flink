@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
@@ -160,6 +161,7 @@ public class CliOptionsParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
@@ -172,6 +174,7 @@ public class CliOptionsParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 
@@ -183,6 +186,7 @@ public class CliOptionsParser {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
         return options;
     }
 

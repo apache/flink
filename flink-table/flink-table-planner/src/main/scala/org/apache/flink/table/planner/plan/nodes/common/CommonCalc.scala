@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.common
 
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkRelNode}
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
+import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{conditionToString, preferExpressionFormat}
+import org.apache.flink.table.planner.plan.utils.{ExpressionFormat, FlinkRexUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Calc
@@ -64,8 +65,12 @@ abstract class CommonCalc(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
       .item("select", projectionToString(preferExpressionFormat(pw)))
-      .itemIf("where",
-        conditionToString(calcProgram, getExpressionString, preferExpressionFormat(pw)),
+      .itemIf(
+        "where",
+        conditionToString(
+          calcProgram,
+          FlinkRexUtil.getExpressionString,
+          preferExpressionFormat(pw)),
         calcProgram.getCondition != null)
   }
 
@@ -77,7 +82,11 @@ abstract class CommonCalc(
     val outputFieldNames = calcProgram.getOutputRowType.getFieldNames.toList
 
     projectList
-      .map(getExpressionString(_, inputFieldNames, Some(localExprs), expressionFormat))
+      .map(
+        FlinkRexUtil.getExpressionString(_,
+        inputFieldNames,
+        Some(localExprs),
+        expressionFormat))
       .zip(outputFieldNames).map { case (e, o) =>
       if (e != o) {
         e + " AS " + o

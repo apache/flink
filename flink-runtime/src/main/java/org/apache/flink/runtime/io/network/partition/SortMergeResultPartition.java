@@ -23,6 +23,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -79,6 +80,9 @@ public class SortMergeResultPartition extends ResultPartition {
     /** Buffers cut from the network buffer pool for data writing. */
     @GuardedBy("lock")
     private final List<MemorySegment> writeSegments = new ArrayList<>();
+
+    @GuardedBy("lock")
+    private boolean hasNotifiedEndOfUserRecords;
 
     /** Size of network buffer and write buffer. */
     private final int networkBufferSize;
@@ -390,6 +394,16 @@ public class SortMergeResultPartition extends ResultPartition {
         }
 
         fileWriter.writeBuffers(toWrite);
+    }
+
+    @Override
+    public void notifyEndOfData() throws IOException {
+        synchronized (lock) {
+            if (!hasNotifiedEndOfUserRecords) {
+                broadcastEvent(EndOfData.INSTANCE, false);
+                hasNotifiedEndOfUserRecords = true;
+            }
+        }
     }
 
     @Override

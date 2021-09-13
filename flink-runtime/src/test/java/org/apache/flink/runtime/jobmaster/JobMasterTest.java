@@ -41,7 +41,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -159,7 +159,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -798,8 +797,8 @@ public class JobMasterTest extends TestLogger {
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
+                PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                        maxCheckpoints -> completedCheckpointStore);
         haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster =
@@ -831,7 +830,7 @@ public class JobMasterTest extends TestLogger {
             // been created
             taskSubmitLatch.await();
             final CompletedCheckpoint savepointCheckpoint =
-                    completedCheckpointStore.getLatestCheckpoint(false);
+                    completedCheckpointStore.getLatestCheckpoint();
 
             assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -873,8 +872,8 @@ public class JobMasterTest extends TestLogger {
         completedCheckpointStore.addCheckpoint(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
+                PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                        maxCheckpoints -> completedCheckpointStore);
         haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
@@ -882,7 +881,7 @@ public class JobMasterTest extends TestLogger {
         try {
             // starting the JobMaster should have read the savepoint
             final CompletedCheckpoint savepointCheckpoint =
-                    completedCheckpointStore.getLatestCheckpoint(false);
+                    completedCheckpointStore.getLatestCheckpoint();
 
             assertThat(savepointCheckpoint, Matchers.notNullValue());
 

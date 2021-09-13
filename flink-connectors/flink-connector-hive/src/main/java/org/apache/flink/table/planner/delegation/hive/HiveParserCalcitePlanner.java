@@ -806,7 +806,12 @@ public class HiveParserCalcitePlanner {
             if (table.isTemporary()) {
                 // Hive creates a temp table for VALUES, we need to convert it to LogicalValues
                 RelNode values =
-                        genValues(tableAlias, table, rowResolver, semanticAnalyzer, cluster);
+                        genValues(
+                                tableAlias,
+                                table,
+                                rowResolver,
+                                cluster,
+                                getQB().getValuesTableToData().get(tableAlias));
                 relToRowResolver.put(values, rowResolver);
                 relToHiveColNameCalcitePosMap.put(values, buildHiveToCalciteColumnMap(rowResolver));
                 return values;
@@ -814,7 +819,7 @@ public class HiveParserCalcitePlanner {
                 // 3. Get Table Logical Schema (Row Type)
                 // NOTE: Table logical schema = Non Partition Cols + Partition Cols + Virtual Cols
 
-                // 3.1 Add Column info for non partion cols (Object Inspector fields)
+                // 3.1 Add Column info for non partition cols (Object Inspector fields)
                 StructObjectInspector rowObjectInspector =
                         (StructObjectInspector) table.getDeserializer().getObjectInspector();
                 List<? extends StructField> fields = rowObjectInspector.getAllStructFieldRefs();

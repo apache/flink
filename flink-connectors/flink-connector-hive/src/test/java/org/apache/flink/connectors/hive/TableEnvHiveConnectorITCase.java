@@ -74,6 +74,50 @@ public class TableEnvHiveConnectorITCase {
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test
+    public void testOverwriteWithEmptySource() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql("create table src (x int,p int)");
+            // non-partitioned table
+            tableEnv.executeSql("create table dest (x int)");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "dest")
+                    .addRow(new Object[] {1})
+                    .addRow(new Object[] {2})
+                    .commit();
+            tableEnv.executeSql("insert overwrite table dest select x from src").await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest").collect());
+            assertEquals(0, results.size());
+            // dynamic partitioned table
+            tableEnv.executeSql("create table destp (x int) partitioned by (p int)");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "destp")
+                    .addRow(new Object[] {1})
+                    .commit("p=1");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "destp")
+                    .addRow(new Object[] {2})
+                    .commit("p=2");
+            tableEnv.executeSql("insert overwrite table destp partition (p) select * from src")
+                    .await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from destp order by x").collect());
+            assertEquals("[+I[1, 1], +I[2, 2]]", results.toString());
+            // static partitioned table
+            tableEnv.executeSql("insert overwrite table destp partition(p=1) select x from src")
+                    .await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from destp order by x").collect());
+            assertEquals("[+I[1, 1], +I[2, 2]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
+    @Test
     public void testMultiInputBroadcast() throws Exception {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create database db1");

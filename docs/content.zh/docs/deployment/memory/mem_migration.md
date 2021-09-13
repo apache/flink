@@ -29,7 +29,7 @@ under the License.
 
 在 *1.10* 和 *1.11* 版本中，Flink 分别对 [TaskManager]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) 和 [JobManager]({{< ref "docs/deployment/memory/mem_setup_jobmanager" >}}) 的内存配置方法做出了较大的改变。
 部分配置参数被移除了，或是语义上发生了变化。
-本篇升级指南将介绍如何将 [*Flink 1.9 及以前版本*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html)的 TaskManager 内存配置升级到 *Flink 1.10 及以后版本*，
+本篇升级指南将介绍如何将 [*Flink 1.9 及以前版本*](https://nightlies.apache.org/flink/flink-docs-release-1.9/ops/mem_setup.html)的 TaskManager 内存配置升级到 *Flink 1.10 及以后版本*，
 以及如何将 *Flink 1.10 及以前版本*的 JobManager 内存配置升级到 *Flink 1.11 及以后版本*。
 
 * toc
@@ -80,7 +80,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
         <tr>
             <td><h5>taskmanager.memory.fraction</h5></td>
             <td>
-                请参考新配置参数 <a href="{%link deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
+                请参考新配置参数 <a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-fraction">taskmanager.memory.managed.fraction</a> 的相关描述。
                 新的配置参数与被移除的配置参数在语义上有所差别，因此其配置值通常也需要做出适当调整。
                 请参考<a href="#managed-memory">如何升级托管内存</a>。
             </td>
@@ -110,27 +110,27 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
             <td><h5>taskmanager.heap.size</h5></td>
             <td>
                 <ul>
-                  <li><a href="{%link deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{%link deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
-                  <li>容器化部署模式（Containerized Deployement）下：<a href="{%link deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
+                  <li><a href="{{< ref "docs/deployment/resource-providers/standalone/overview" >}}">独立部署模式（Standalone Deployment）</a>下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size">taskmanager.memory.flink.size</a></li>
+                  <li>容器化部署模式（Containerized Deployment）下：<a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size">taskmanager.memory.process.size</a></li>
                 </ul>
                 请参考<a href="#total-memory-previously-heap-memory">如何升级总内存</a>。
             </td>
         </tr>
         <tr>
              <td><h5>taskmanager.memory.size</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size">taskmanager.memory.managed.size</a>。请参考<a href="#managed-memory">如何升级托管内存</a>。</td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.min</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min">taskmanager.memory.network.min</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.max</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max">taskmanager.memory.network.max</a></td>
         </tr>
         <tr>
              <td><h5>taskmanager.network.memory.fraction</h5></td>
-             <td><a href="{%link deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
+             <td><a href="{{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction">taskmanager.memory.network.fraction</a></td>
         </tr>
     </tbody>
 </table>
@@ -152,7 +152,7 @@ Flink 自带的[默认 flink-conf.yaml](#default-configuration-in-flink-confyaml
 
 如果配置了上述弃用的参数，同时又没有配置与之对应的新配置参数，那它们将按如下规则对应到新的配置参数。
 * 独立部署模式（Standalone Deployment）下：Flink 总内存（[`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size)）
-* 容器化部署模式（Containerized Deployement）下（Yarn）：进程总内存（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)）
+* 容器化部署模式（Containerized Deployment）下（Yarn）：进程总内存（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)）
 
 建议您尽早使用新的配置参数取代启用的配置参数，它们在今后的版本中可能会被彻底移除。
 
@@ -233,7 +233,7 @@ Flink 现在总是会预留一部分 JVM 堆内存供框架使用（[`taskmanage
 这两个配置参数目前已被弃用。
 如果配置了上述弃用的参数，同时又没有配置与之对应的新配置参数，那它们将按如下规则对应到新的配置参数。
 * 独立部署模式（Standalone Deployment）：JVM 堆内存（[`jobmanager.memory.heap.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-heap-size)）
-* 容器化部署模式（Containerized Deployement）下（Kubernetes、Yarn）：进程总内存（[`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）
+* 容器化部署模式（Containerized Deployment）下（Kubernetes、Yarn）：进程总内存（[`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）
 
 建议您尽早使用新的配置参数取代启用的配置参数，它们在今后的版本中可能会被彻底移除。
 

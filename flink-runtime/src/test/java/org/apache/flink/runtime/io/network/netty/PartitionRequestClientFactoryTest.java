@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -44,7 +45,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
-public class PartitionRequestClientFactoryTest {
+public class PartitionRequestClientFactoryTest extends TestLogger {
 
     private static final int SERVER_PORT = NetUtils.getAvailablePort();
 

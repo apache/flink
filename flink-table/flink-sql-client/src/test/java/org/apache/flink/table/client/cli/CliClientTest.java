@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
@@ -63,6 +65,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -300,6 +303,45 @@ public class CliClientTest extends TestLogger {
         assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
     }
 
+    @Test
+    public void testCancelExecutionInteractiveMode() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor();
+        mockExecutor.isSync = true;
+
+        String sessionId = mockExecutor.openSession("test-session");
+        Path historyFilePath = historyTempFile();
+        InputStream inputStream =
+                new ByteArrayInputStream("SET 'key'='value';\nSELECT 1;\nSET;\n ".getBytes());
+        OutputStream outputStream = new ByteArrayOutputStream(248);
+
+        try (CliClient client =
+                new CliClient(
+                        () -> TerminalUtils.createDumbTerminal(inputStream, outputStream),
+                        sessionId,
+                        mockExecutor,
+                        historyFilePath,
+                        null)) {
+            Thread thread =
+                    new Thread(
+                            () -> {
+                                try {
+                                    client.executeInInteractiveMode();
+                                } catch (Exception ignore) {
+                                }
+                            });
+            thread.start();
+
+            while (!mockExecutor.isAwait) {
+                Thread.sleep(10);
+            }
+
+            client.getTerminal().raise(Terminal.Signal.INT);
+            CommonTestUtils.waitUntilCondition(
+                    () -> outputStream.toString().contains("'key' = 'value'"),
+                    Deadline.fromNow(Duration.ofMillis(10000)));
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private void verifyUpdateSubmission(
@@ -367,8 +409,8 @@ public class CliClientTest extends TestLogger {
 
         public boolean failExecution;
 
-        public boolean isSync = false;
-        public boolean isAwait = false;
+        public volatile boolean isSync = false;
+        public volatile boolean isAwait = false;
         public String receivedStatement;
         public int receivedPosition;
         private final Map<String, SessionContext> sessionMap = new HashMap<>();
@@ -399,7 +441,7 @@ public class CliClientTest extends TestLogger {
         @Override
         public Map<String, String> getSessionConfigMap(String sessionId)
                 throws SqlExecutionException {
-            return null;
+            return this.sessionMap.get(sessionId).getConfigMap();
         }
 
         @Override
@@ -491,6 +533,14 @@ public class CliClientTest extends TestLogger {
         @Override
         public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
                 throws SqlExecutionException {
+            if (isSync) {
+                isAwait = true;
+                try {
+                    Thread.sleep(60_000L);
+                } catch (InterruptedException e) {
+                    throw new SqlExecutionException("Fail to execute", e);
+                }
+            }
             return null;
         }
 

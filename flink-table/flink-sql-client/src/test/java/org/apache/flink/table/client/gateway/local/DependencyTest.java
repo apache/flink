@@ -49,8 +49,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ModuleFactory;
-import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -61,7 +59,6 @@ import org.junit.Test;
 
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,7 +69,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.descriptors.ModuleDescriptorValidator.MODULE_TYPE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -84,7 +80,6 @@ public class DependencyTest {
     private static final String TEST_PROPERTY_VALUE = "test-value";
 
     public static final String CATALOG_TYPE_TEST = "DependencyTest";
-    public static final String MODULE_TYPE_TEST = "ModuleDependencyTest";
 
     private static final String TABLE_FACTORY_JAR_FILE = "table-factories-test-jar.jar";
     private static final List<String> INIT_SQL =
@@ -202,32 +197,6 @@ public class DependencyTest {
             return null;
         }
     }
-
-    /** Module that can be discovered if classloading is correct. */
-    public static class TestModuleFactory implements ModuleFactory {
-
-        @Override
-        public Module createModule(Map<String, String> properties) {
-            return new TestModule();
-        }
-
-        @Override
-        public Map<String, String> requiredContext() {
-            final Map<String, String> context = new HashMap<>();
-            context.put(MODULE_TYPE, MODULE_TYPE_TEST);
-            return context;
-        }
-
-        @Override
-        public List<String> supportedProperties() {
-            final List<String> properties = new ArrayList<>();
-            properties.add("test");
-            return properties;
-        }
-    }
-
-    /** Test module. */
-    public static class TestModule implements Module {}
 
     /** Catalog that can be discovered if classloading is correct. */
     public static class TestCatalogFactory implements CatalogFactory {

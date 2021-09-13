@@ -22,11 +22,9 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 
 import org.antlr.runtime.TokenRewriteStream;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -90,10 +88,6 @@ public class HiveParserContext {
     // Find whether we should execute the current query due to explain.
     public boolean isExplainSkipExecution() {
         return false;
-    }
-
-    public Path getMRTmpPath(URI uri) {
-        return null;
     }
 
     /**

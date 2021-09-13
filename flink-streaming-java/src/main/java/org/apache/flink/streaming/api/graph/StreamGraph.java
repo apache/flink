@@ -38,7 +38,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -370,7 +370,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<IN> inTypeInfo,
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
-        Class<? extends AbstractInvokable> invokableClass =
+        Class<? extends TaskInvokable> invokableClass =
                 operatorFactory.isStreamSource()
                         ? SourceStreamTask.class
                         : OneInputStreamTask.class;
@@ -393,7 +393,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<IN> inTypeInfo,
             TypeInformation<OUT> outTypeInfo,
             String operatorName,
-            Class<? extends AbstractInvokable> invokableClass) {
+            Class<? extends TaskInvokable> invokableClass) {
 
         addNode(
                 vertexID,
@@ -428,7 +428,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
 
-        Class<? extends AbstractInvokable> vertexClass = TwoInputStreamTask.class;
+        Class<? extends TaskInvokable> vertexClass = TwoInputStreamTask.class;
 
         addNode(
                 vertexID,
@@ -465,7 +465,7 @@ public class StreamGraph implements Pipeline {
             TypeInformation<OUT> outTypeInfo,
             String operatorName) {
 
-        Class<? extends AbstractInvokable> vertexClass = MultipleInputStreamTask.class;
+        Class<? extends TaskInvokable> vertexClass = MultipleInputStreamTask.class;
 
         addNode(
                 vertexID,
@@ -491,7 +491,7 @@ public class StreamGraph implements Pipeline {
             Integer vertexID,
             @Nullable String slotSharingGroup,
             @Nullable String coLocationGroup,
-            Class<? extends AbstractInvokable> vertexClass,
+            Class<? extends TaskInvokable> vertexClass,
             StreamOperatorFactory<?> operatorFactory,
             String operatorName) {
 

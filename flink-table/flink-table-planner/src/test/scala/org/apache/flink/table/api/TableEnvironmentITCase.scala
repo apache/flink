@@ -449,7 +449,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testTableDMLSync(): Unit = {
-    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true));
+    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true))
     val sink1Path = _tempFolder.newFolder().toString
     tEnv.executeSql(
       s"""

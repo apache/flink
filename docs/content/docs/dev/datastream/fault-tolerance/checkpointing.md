@@ -50,7 +50,7 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 
 Other parameters for checkpointing include:
 
-  - *checkpoint storage*: You can set the location where checkpoint snapshots are made durable. By default Flink will use the JobManager's heap. For production deployments it is recomended to instead use a durable filesystem. See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
+  - *checkpoint storage*: You can set the location where checkpoint snapshots are made durable. By default Flink will use the JobManager's heap. For production deployments it is recommended to instead use a durable filesystem. See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
 
   - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
     Exactly-once is preferable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
@@ -67,6 +67,10 @@ Other parameters for checkpointing include:
 
     Note that this value also implies that the number of concurrent checkpoints is *one*.
 
+  - *tolerable checkpoint failure number*: This defines how many consecutive checkpoint failures will be tolerated,
+    before the whole job is failed over. The default value is `0`, which means no checkpoint failures will be tolerated,
+    and the job will fail on first reported checkpoint failure.
+
   - *number of concurrent checkpoints*: By default, the system will not trigger another checkpoint while one is still in progress.
     This ensures that the topology does not spend too much time on checkpoints and not make progress with processing the streams.
     It is possible to allow for multiple overlapping checkpoints, which is interesting for pipelines that have a certain processing delay
@@ -76,10 +80,6 @@ Other parameters for checkpointing include:
     This option cannot be used when a minimum time between checkpoints is defined.
 
   - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints).
-
-  - *fail/continue task on checkpoint errors*: This determines if a task will be failed if an error occurs in the execution of the task's checkpoint procedure. This is the default behaviour. Alternatively, when this is disabled, the task will simply decline the checkpoint to the checkpoint coordinator and continue running.
-
-  - *prefer checkpoint for recovery*: This determines if a job will fallback to latest checkpoint even when there are more recent savepoints available to potentially reduce recovery time.
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/unaligned_checkpoints" >}}) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
 
@@ -102,10 +102,13 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
 // checkpoints have to complete within one minute, or are discarded
 env.getCheckpointConfig().setCheckpointTimeout(60000);
 
+// only two consecutive checkpoint failures are tolerated
+env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2);
+
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
-// enable externalized checkpoints which are retained 
+// enable externalized checkpoints which are retained
 // after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
@@ -135,12 +138,16 @@ env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
 // checkpoints have to complete within one minute, or are discarded
 env.getCheckpointConfig.setCheckpointTimeout(60000)
 
-// prevent the tasks from failing if an error happens in their checkpointing,
-// the checkpoint will just be declined.
-env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
+// only two consecutive checkpoint failures are tolerated
+env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+
+// enable externalized checkpoints which are retained 
+// after job cancellation
+env.getCheckpointConfig().enableExternalizedCheckpoints(
+    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // enables the experimental unaligned checkpoints
 env.getCheckpointConfig.enableUnalignedCheckpoints()
@@ -167,14 +174,14 @@ env.get_checkpoint_config().set_min_pause_between_checkpoints(500)
 # checkpoints have to complete within one minute, or are discarded
 env.get_checkpoint_config().set_checkpoint_timeout(60000)
 
+# only two consecutive checkpoint failures are tolerated
+env.get_checkpoint_config().set_tolerable_checkpoint_failure_number(2)
+
 # allow only one checkpoint to be in progress at the same time
 env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 
 # enable externalized checkpoints which are retained after job cancellation
 env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
-
-# allow job recovery fallback to checkpoint when there is a more recent savepoint
-env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
 
 # enables the experimental unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
