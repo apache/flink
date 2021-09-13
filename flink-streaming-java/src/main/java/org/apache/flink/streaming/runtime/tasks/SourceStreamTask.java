@@ -199,9 +199,6 @@ public class SourceStreamTask<
     @Override
     protected void cancelTask() {
         if (stopped.compareAndSet(false, true)) {
-            if (isFailing()) {
-                interruptSourceThread(true);
-            }
             cancelOperator(true);
         }
     }
