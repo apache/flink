@@ -24,6 +24,8 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connectors.test.common.external.ExternalContext;
 
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
@@ -148,13 +150,30 @@ public class PulsarRuntimeOperator implements Serializable, Closeable {
         return messageIds.get(0);
     }
 
+    public <T> MessageId sendMessage(String topic, Schema<T> schema, String key, T message) {
+        List<MessageId> messageIds = sendMessages(topic, schema, key, singletonList(message));
+        checkArgument(messageIds.size() == 1);
+
+        return messageIds.get(0);
+    }
+
     public <T> List<MessageId> sendMessages(
             String topic, Schema<T> schema, Collection<T> messages) {
+        return sendMessages(topic, schema, null, messages);
+    }
+
+    public <T> List<MessageId> sendMessages(
+            String topic, Schema<T> schema, String key, Collection<T> messages) {
         try (Producer<T> producer = client().newProducer(schema).topic(topic).create()) {
             List<MessageId> messageIds = new ArrayList<>(messages.size());
 
             for (T message : messages) {
-                MessageId messageId = producer.newMessage().value(message).send();
+                MessageId messageId;
+                if (Strings.isNullOrEmpty(key)) {
+                    messageId = producer.newMessage().value(message).send();
+                } else {
+                    messageId = producer.newMessage().key(key).value(message).send();
+                }
                 messageIds.add(messageId);
             }
 

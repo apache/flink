@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.runtime;
+package org.apache.flink.connector.pulsar.source.enumerator.topic.range;
 
-import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicMetadata;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 
-/**
- * A abstraction for different pulsar runtimes. Providing the common methods for {@link
- * PulsarTestEnvironment}.
- */
-public interface PulsarRuntimeProvider {
+import java.util.List;
 
-    /** Start up this pulsar runtime, block the thread until everytime is ready for this runtime. */
-    void startUp();
+/** Always return the same range set for all topics. */
+public class FixedRangeGenerator implements RangeGenerator {
+    private static final long serialVersionUID = -3895203007855538734L;
 
-    /** Shutdown this pulsar runtime. */
-    void tearDown();
+    private final List<TopicRange> ranges;
 
-    /** Return a operator for operating this pulsar runtime. */
-    PulsarRuntimeOperator operator();
+    public FixedRangeGenerator(List<TopicRange> ranges) {
+        this.ranges = ranges;
+    }
+
+    @Override
+    public List<TopicRange> range(TopicMetadata metadata, int parallelism) {
+        return ranges;
+    }
 }

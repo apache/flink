@@ -16,36 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.source;
+package org.apache.flink.tests.util.pulsar;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connector.pulsar.testutils.cases.MultipleTopicConsumingContext;
-import org.apache.flink.connector.pulsar.testutils.cases.SingleTopicConsumingContext;
-import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
-import org.apache.flink.connectors.test.common.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalContextFactory;
 import org.apache.flink.connectors.test.common.junit.annotations.ExternalSystem;
 import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
+import org.apache.flink.tests.util.pulsar.cases.ExclusiveSubscriptionContext;
+import org.apache.flink.tests.util.pulsar.cases.FailoverSubscriptionContext;
+import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 
-/** Unite test class for {@link PulsarSource}. */
-@SuppressWarnings("unused")
-class PulsarSourceITCase extends SourceTestSuiteBase<String> {
+import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.container;
 
-    // Defines test environment on Flink MiniCluster
-    @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+/**
+ * Pulsar E2E test based on connector testing framework. It's used for Failover & Exclusive
+ * subscription.
+ */
+public class PulsarSourceOrderedE2ECase extends SourceTestSuiteBase<String> {
 
-    // Defines pulsar running environment
-    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
+    // Defines TestEnvironment.
+    @TestEnv
+    FlinkContainerWithPulsarEnvironment flink = new FlinkContainerWithPulsarEnvironment(1, 6);
 
-    // Defines a external context Factories,
-    // so test cases will be invoked using this external contexts.
+    // Defines ConnectorExternalSystem.
+    @ExternalSystem
+    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(container(flink.getFlinkContainer()));
+
+    // Defines a set of external context Factories for different test cases.
     @ExternalContextFactory
-    PulsarTestContextFactory<String, SingleTopicConsumingContext> singleTopic =
-            new PulsarTestContextFactory<>(pulsar, SingleTopicConsumingContext::new);
+    PulsarTestContextFactory<String, ExclusiveSubscriptionContext> exclusive =
+            new PulsarTestContextFactory<>(pulsar, ExclusiveSubscriptionContext::new);
 
     @ExternalContextFactory
-    PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
-            new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+    PulsarTestContextFactory<String, FailoverSubscriptionContext> failover =
+            new PulsarTestContextFactory<>(pulsar, FailoverSubscriptionContext::new);
 }

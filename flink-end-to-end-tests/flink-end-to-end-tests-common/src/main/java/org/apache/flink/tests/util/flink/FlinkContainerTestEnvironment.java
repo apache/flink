@@ -42,10 +42,7 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
     public FlinkContainerTestEnvironment(
             int numTaskManagers, int numSlotsPerTaskManager, String... jarPath) {
 
-        Configuration flinkConfiguration = new Configuration();
-        flinkConfiguration.set(HEARTBEAT_INTERVAL, 1000L);
-        flinkConfiguration.set(HEARTBEAT_TIMEOUT, 5000L);
-        flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
+        Configuration flinkConfiguration = flinkConfiguration();
         flinkConfiguration.set(NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
         this.flinkContainer =
@@ -112,5 +109,14 @@ public class FlinkContainerTestEnvironment implements TestEnvironment, ClusterCo
      */
     public FlinkContainer getFlinkContainer() {
         return this.flinkContainer;
+    }
+
+    protected Configuration flinkConfiguration() {
+        Configuration flinkConfiguration = new Configuration();
+        flinkConfiguration.set(HEARTBEAT_INTERVAL, 1000L);
+        flinkConfiguration.set(HEARTBEAT_TIMEOUT, 5000L);
+        flinkConfiguration.set(SLOT_REQUEST_TIMEOUT, 10000L);
+
+        return flinkConfiguration;
     }
 }
