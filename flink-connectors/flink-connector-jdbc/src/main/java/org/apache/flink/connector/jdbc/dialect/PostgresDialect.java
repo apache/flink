@@ -137,4 +137,9 @@ public class PostgresDialect extends AbstractDialect {
                 LogicalTypeRoot.SYMBOL,
                 LogicalTypeRoot.UNRESOLVED);
     }
+    
+    @Override
+    public boolean supportCalalog() {
+        return true;
+    }
 }
