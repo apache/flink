@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.TableException;
@@ -35,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#JSON_QUERY}. */
+@Internal
 class JsonQueryConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {
