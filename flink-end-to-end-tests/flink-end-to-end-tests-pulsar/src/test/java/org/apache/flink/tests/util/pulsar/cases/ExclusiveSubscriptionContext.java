@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.cases;
+package org.apache.flink.tests.util.pulsar.cases;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -31,6 +31,7 @@ import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -39,24 +40,28 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange.createFullRange;
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
+import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
 
 /**
- * Pulsar external context that will create multiple topics with only one partitions as source
- * splits.
+ * Pulsar context that will create multi topics as source splits. We would consume these splits by
+ * using {@link SubscriptionType#Exclusive} subscription.
  */
-public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
+public class ExclusiveSubscriptionContext extends PulsarTestContext<String> {
     private static final long serialVersionUID = -3855336888090886528L;
 
+    private static final String SUBSCRIPTION_NAME = "flink-pulsar-multiple-topic-test";
+
+    protected SubscriptionType subscriptionType = Exclusive;
+
     private int numTopics = 0;
-
     private final String topicPattern;
-
     private final Map<String, SourceSplitDataWriter<String>> topicNameToSplitWriters =
             new HashMap<>();
 
-    public MultipleTopicConsumingContext(PulsarTestEnvironment environment) {
+    public ExclusiveSubscriptionContext(PulsarTestEnvironment environment) {
         super(environment);
         this.topicPattern =
                 "pulsar-multiple-topic-[0-9]+-"
@@ -65,7 +70,7 @@ public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
 
     @Override
     protected String displayName() {
-        return "consuming message on multiple topic";
+        return "consuming message on multiple topic with subscriptionType " + subscriptionType;
     }
 
     @Override
@@ -73,13 +78,13 @@ public class MultipleTopicConsumingContext extends PulsarTestContext<String> {
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
                         .setDeserializationSchema(pulsarSchema(STRING))
-                        .setServiceUrl(operator.serviceUrl())
-                        .setAdminUrl(operator.adminUrl())
+                        .setServiceUrl(PULSAR_SERVICE_URL)
+                        .setAdminUrl(PULSAR_ADMIN_URL)
                         .setTopicPattern(topicPattern, RegexSubscriptionMode.AllTopics)
-                        .setSubscriptionType(Exclusive)
-                        .setSubscriptionName("flink-pulsar-multiple-topic-test");
+                        .setSubscriptionType(subscriptionType)
+                        .setSubscriptionName(SUBSCRIPTION_NAME);
         if (boundedness == Boundedness.BOUNDED) {
-            // Using latest stop cursor for making sure the source could be stopped.
+            // Using the latest stop cursor for making sure the source could be stopped.
             // This is required for SourceTestSuiteBase.
             builder.setBoundedStopCursor(StopCursor.latest());
         }

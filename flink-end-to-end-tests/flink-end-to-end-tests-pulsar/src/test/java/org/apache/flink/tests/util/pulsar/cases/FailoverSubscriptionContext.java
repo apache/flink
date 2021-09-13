@@ -16,22 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.pulsar.testutils.runtime;
+package org.apache.flink.tests.util.pulsar.cases;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 
+import org.apache.pulsar.client.api.SubscriptionType;
+
 /**
- * A abstraction for different pulsar runtimes. Providing the common methods for {@link
- * PulsarTestEnvironment}.
+ * Pulsar context that will create multi topics as source splits. We would consume these splits by
+ * using {@link SubscriptionType#Failover} subscription.
  */
-public interface PulsarRuntimeProvider {
-
-    /** Start up this pulsar runtime, block the thread until everytime is ready for this runtime. */
-    void startUp();
-
-    /** Shutdown this pulsar runtime. */
-    void tearDown();
-
-    /** Return a operator for operating this pulsar runtime. */
-    PulsarRuntimeOperator operator();
+public class FailoverSubscriptionContext extends ExclusiveSubscriptionContext {
+    public FailoverSubscriptionContext(PulsarTestEnvironment environment) {
+        super(environment);
+        this.subscriptionType = SubscriptionType.Failover;
+    }
 }

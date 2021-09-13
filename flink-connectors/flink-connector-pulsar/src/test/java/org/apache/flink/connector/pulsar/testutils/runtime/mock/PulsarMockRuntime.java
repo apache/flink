@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.pulsar.testutils.runtime.mock;
 
+import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeProvider;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
 
@@ -39,17 +39,17 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.mock.PortBindi
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Providing a mocked pulsar server. */
-public class PulsarMockProvider implements PulsarRuntimeProvider {
+public class PulsarMockRuntime implements PulsarRuntime {
 
     private static final String CLUSTER_NAME = "mock-pulsar-" + randomAlphanumeric(6);
     private final MockPulsarService pulsarService;
     private PulsarRuntimeOperator operator;
 
-    public PulsarMockProvider() {
+    public PulsarMockRuntime() {
         this(createConfig());
     }
 
-    public PulsarMockProvider(ServiceConfiguration configuration) {
+    public PulsarMockRuntime(ServiceConfiguration configuration) {
         this.pulsarService = new MockPulsarService(configuration);
     }
 

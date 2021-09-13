@@ -79,10 +79,11 @@ abstract class PulsarSourceReaderBase<OUT>
 
     @Override
     public void close() throws Exception {
-        // Close shared pulsar resources.
-        pulsarClient.close();
-        pulsarAdmin.close();
-
+        // Close the all the consumers first.
         super.close();
+
+        // Close shared pulsar resources.
+        pulsarClient.shutdown();
+        pulsarAdmin.close();
     }
 }

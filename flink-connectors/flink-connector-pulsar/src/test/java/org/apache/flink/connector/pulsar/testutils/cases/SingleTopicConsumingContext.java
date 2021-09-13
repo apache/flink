@@ -44,6 +44,7 @@ import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
  * source splits.
  */
 public class SingleTopicConsumingContext extends PulsarTestContext<String> {
+    private static final long serialVersionUID = 2754642285356345741L;
 
     private static final String TOPIC_NAME_PREFIX = "pulsar-single-topic";
     private final String topicName;
@@ -53,9 +54,14 @@ public class SingleTopicConsumingContext extends PulsarTestContext<String> {
     private int numSplits = 0;
 
     public SingleTopicConsumingContext(PulsarTestEnvironment environment) {
-        super("consuming message on single topic", environment);
+        super(environment);
         this.topicName =
                 TOPIC_NAME_PREFIX + "-" + ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+    }
+
+    @Override
+    protected String displayName() {
+        return "consuming message on single topic";
     }
 
     @Override

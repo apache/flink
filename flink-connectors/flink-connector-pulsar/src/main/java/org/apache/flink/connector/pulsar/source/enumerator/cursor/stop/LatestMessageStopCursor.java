@@ -33,6 +33,7 @@ import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtil
  * PulsarSourceEnumerator}.
  */
 public class LatestMessageStopCursor implements StopCursor {
+    private static final long serialVersionUID = 1702059838323965723L;
 
     private MessageId messageId;
 

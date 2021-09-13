@@ -37,7 +37,7 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
     // Defines pulsar running environment
-    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.MOCK);
+    @ExternalSystem PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
     // Defines a external context Factories,
     // so test cases will be invoked using this external contexts.
