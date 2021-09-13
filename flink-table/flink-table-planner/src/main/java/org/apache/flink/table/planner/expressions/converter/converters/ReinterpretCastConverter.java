@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -26,6 +27,7 @@ import org.apache.flink.table.planner.expressions.converter.CallExpressionConver
 import org.apache.calcite.rex.RexNode;
 
 /** Conversion for {@link BuiltInFunctionDefinitions#REINTERPRET_CAST}. */
+@Internal
 class ReinterpretCastConverter extends CustomizedConverter {
     @Override
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {
