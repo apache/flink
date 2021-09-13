@@ -324,18 +324,22 @@ public class StreamTaskTestHarness<OUT> {
      *
      * @param timeout Timeout for the task completion
      */
-    public void waitForTaskCompletion(long timeout, boolean ignoreCancellationException)
-            throws Exception {
+    public void waitForTaskCompletion(
+            long timeout, boolean ignoreCancellationOrInterruptedException) throws Exception {
         Preconditions.checkState(taskThread != null, "Task thread was not started.");
 
         taskThread.join(timeout);
         if (taskThread.getError() != null) {
-            if (!ignoreCancellationException
-                    || !ExceptionUtils.findThrowable(
-                                    taskThread.getError(), CancelTaskException.class)
-                            .isPresent()) {
-                throw new Exception("error in task", taskThread.getError());
+            boolean errorIsCancellationOrInterrupted =
+                    ExceptionUtils.findThrowable(taskThread.getError(), CancelTaskException.class)
+                                    .isPresent()
+                            || ExceptionUtils.findThrowable(
+                                            taskThread.getError(), InterruptedException.class)
+                                    .isPresent();
+            if (ignoreCancellationOrInterruptedException && errorIsCancellationOrInterrupted) {
+                return;
             }
+            throw new Exception("error in task", taskThread.getError());
         }
     }
 
@@ -358,6 +362,10 @@ public class StreamTaskTestHarness<OUT> {
 
     public StreamTask<OUT, ?> getTask() {
         return taskThread.task;
+    }
+
+    public Thread getTaskThread() {
+        return taskThread;
     }
 
     /**
@@ -524,8 +532,18 @@ public class StreamTaskTestHarness<OUT> {
                 task.invoke();
                 shutdownIOManager();
                 shutdownMemoryManager();
-            } catch (Throwable t) {
-                this.error = t;
+            } catch (Throwable throwable) {
+                this.error = throwable;
+            } finally {
+                try {
+                    task.cleanUp(this.error);
+                } catch (Exception cleanUpException) {
+                    if (this.error == null) {
+                        this.error = cleanUpException;
+                    } else {
+                        this.error.addSuppressed(cleanUpException);
+                    }
+                }
             }
         }
 

@@ -900,11 +900,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         Exception suppressedException =
                 throwable == null ? null : runAndSuppressThrowable(this::cancelTask, null);
 
+        disableInterruptOnCancel();
+
+        // note: This `.join()` is already uninterruptible, so it doesn't matter if we have already
+        // disabled the interruptions or not.
         getCompletionFuture().exceptionally(unused -> null).join();
         // clean up everything we initialized
         isRunning = false;
-
-        disableInterruptOnCancel();
 
         // clear any previously issued interrupt for a more graceful shutdown
         Thread.interrupted();
