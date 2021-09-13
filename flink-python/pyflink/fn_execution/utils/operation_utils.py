@@ -16,11 +16,7 @@
 # limitations under the License.
 ################################################################################
 import datetime
-
-try:
-    from collections.abc import Generator
-except AttributeError:
-    from collections import Generator
+from collections.abc import Generator
 
 from functools import partial
 
