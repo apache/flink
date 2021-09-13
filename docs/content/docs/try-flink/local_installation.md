@@ -75,12 +75,16 @@ You can quickly deploy one of these applications to the running cluster.
 ```bash
 $ ./bin/flink run examples/streaming/WordCount.jar
 $ tail log/flink-*-taskexecutor-*.out
-  (to,1)
-  (be,1)
-  (or,1)
-  (not,1)
-  (to,2)
-  (be,2)
+  (nymph,1)
+  (in,3)
+  (thy,1)
+  (orisons,1)
+  (be,4)
+  (all,2)
+  (my,1)
+  (sins,1)
+  (remember,1)
+  (d,4)
 ```
 
 Additionally, you can check Flink's [Web UI](http://localhost:8081) to monitor the status of the Cluster and running Job.
