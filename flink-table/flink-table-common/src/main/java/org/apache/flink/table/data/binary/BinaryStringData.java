@@ -45,7 +45,9 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
     public static final BinaryStringData EMPTY_UTF8 =
             BinaryStringData.fromBytes(StringUtf8Utils.encodeUTF8(""));
 
-    public BinaryStringData() {}
+    public BinaryStringData() {
+        super(new MemorySegment[] {MemorySegmentFactory.wrap(new byte[0])}, 0, 0);
+    }
 
     public BinaryStringData(String javaObject) {
         super(javaObject);

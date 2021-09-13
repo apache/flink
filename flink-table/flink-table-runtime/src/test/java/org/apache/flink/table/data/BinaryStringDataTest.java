@@ -830,4 +830,9 @@ public class BinaryStringDataTest {
         // check reference same.
         assertSame(str.toString(), javaStr);
     }
+
+    @Test
+    public void testDefaultConstructor() {
+        assertEquals(BinaryStringData.blankString(0), new BinaryStringData());
+    }
 }
