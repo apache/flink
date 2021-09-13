@@ -537,6 +537,28 @@ public final class Expressions {
     }
 
     /**
+     * Returns the first argument that is not NULL.
+     *
+     * <p>If all arguments are NULL, it returns NULL as well. The return type is the least
+     * restrictive, common type of all of its arguments. The return type is nullable if all
+     * arguments are nullable as well.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Returns "default"
+     * coalesce(null, "default")
+     * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+     * coalesce($("f0"), $("f1"), "default")
+     * }</pre>
+     *
+     * @param args the input expressions.
+     */
+    public static ApiExpression coalesce(Object... args) {
+        return apiCall(BuiltInFunctionDefinitions.COALESCE, args);
+    }
+
+    /**
      * Creates an expression that selects a range of columns. It can be used wherever an array of
      * expression is accepted such as function calls, projections, or groupings.
      *

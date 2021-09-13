@@ -94,7 +94,7 @@ public final class TypeStrategies {
      */
     public static TypeStrategy nullableIfArgs(
             ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
-        return new NullableIfArgsTypeStrategy(includedArgs, initialStrategy);
+        return new NullableIfArgsTypeStrategy(includedArgs, initialStrategy, false);
     }
 
     /**
@@ -103,6 +103,23 @@ public final class TypeStrategies {
      */
     public static TypeStrategy nullableIfArgs(TypeStrategy initialStrategy) {
         return nullableIfArgs(ConstantArgumentCount.any(), initialStrategy);
+    }
+
+    /**
+     * A type strategy that can be used to make a result type nullable if all the selected input
+     * arguments are nullable. Otherwise the type will be non-nullable.
+     */
+    public static TypeStrategy nullableIfAllArgs(
+            ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
+        return new NullableIfArgsTypeStrategy(includedArgs, initialStrategy, true);
+    }
+
+    /**
+     * A type strategy that can be used to make a result type nullable if all the input arguments is
+     * nullable. Otherwise the type will be not null.
+     */
+    public static TypeStrategy nullableIfAllArgs(TypeStrategy initialStrategy) {
+        return nullableIfAllArgs(ConstantArgumentCount.any(), initialStrategy);
     }
 
     /**
