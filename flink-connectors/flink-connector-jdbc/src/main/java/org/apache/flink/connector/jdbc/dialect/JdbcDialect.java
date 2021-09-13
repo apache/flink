@@ -181,4 +181,11 @@ public interface JdbcDialect extends Serializable {
                 + quoteIdentifier(tableName)
                 + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
     }
+    
+    /**
+     * support to obtain the Catalog for relational databases via JDBC.
+     */
+    default boolean supportCalalog() {
+        return false;
+    }
 }
