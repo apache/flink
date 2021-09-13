@@ -64,6 +64,8 @@ Flink SQL> REMOVE JAR '/path/hello.jar';
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="add-jar"></a>
+
 ## ADD JAR
 
 ```sql
@@ -72,6 +74,8 @@ ADD JAR '<path_to_filename>.jar'
 
 目前只支持将本地 jar 添加到会话类类加载器（session classloader）中。
 
+<a name="remove-jar"></a>
+
 ## REMOVE JAR
 
 ```sql
@@ -79,6 +83,8 @@ REMOVE JAR '<path_to_filename>.jar'
 ```
 
 目前只支持删除 [`ADD JAR`](#add-jar) 语句添加的 jar。
+
+<a name="show-jars"></a>
 
 ## SHOW JARS
 
