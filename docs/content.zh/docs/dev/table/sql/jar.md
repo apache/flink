@@ -78,7 +78,7 @@ ADD JAR '<path_to_filename>.jar'
 REMOVE JAR '<path_to_filename>.jar'
 ```
 
-目前只支持删除 [`ADD JAR`](#add-jar)  语句添加的 jar。
+目前只支持删除 [`ADD JAR`](#add-jar) 语句添加的 jar。
 
 ## SHOW JARS
 
