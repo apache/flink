@@ -22,7 +22,6 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
-import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
 
@@ -737,11 +736,6 @@ public class SqlFunctionUtils {
             }
         }
         return ret;
-    }
-
-    public static String jsonValue(String jsonString, String pathString) {
-        // TODO: refactor this to use jackson ?
-        return JsonUtils.getInstance().getJsonObject(jsonString, pathString);
     }
 
     // SQL ROUND
