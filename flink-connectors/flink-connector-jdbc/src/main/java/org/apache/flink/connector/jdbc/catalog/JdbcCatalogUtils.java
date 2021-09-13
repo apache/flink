@@ -45,7 +45,7 @@ public class JdbcCatalogUtils {
             String baseUrl) {
         JdbcDialect dialect = JdbcDialects.get(baseUrl).get();
 
-        if (dialect instanceof PostgresDialect) {
+        if (dialect.supportCalalog()) {
             return new PostgresCatalog(catalogName, defaultDatabase, username, pwd, baseUrl);
         } else {
             throw new UnsupportedOperationException(
