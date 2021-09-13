@@ -650,6 +650,12 @@ public class CheckpointCoordinator {
             triggerTasks(request, timestamp, checkpoint)
                     .exceptionally(
                             failure -> {
+                                LOG.info(
+                                        "Triggering Checkpoint {} for job {} failed due to {}",
+                                        checkpoint.getCheckpointID(),
+                                        job,
+                                        failure);
+
                                 final CheckpointException cause;
                                 if (failure instanceof CheckpointException) {
                                     cause = (CheckpointException) failure;
