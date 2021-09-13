@@ -31,8 +31,8 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 /**
- * A type strategy that can be used to make a result type nullable if any of the selected input
- * arguments is nullable. Otherwise the type will be not null.
+ * A type strategy that can be used to make a result type nullable if any or all of the selected
+ * input arguments is nullable. Otherwise the type will be not null.
  */
 @Internal
 public final class NullableIfArgsTypeStrategy implements TypeStrategy {
@@ -41,10 +41,15 @@ public final class NullableIfArgsTypeStrategy implements TypeStrategy {
 
     private final TypeStrategy initialStrategy;
 
+    private final boolean nullableIfAllArgsNullable;
+
     public NullableIfArgsTypeStrategy(
-            ConstantArgumentCount includedArguments, TypeStrategy initialStrategy) {
+            ConstantArgumentCount includedArguments,
+            TypeStrategy initialStrategy,
+            boolean nullableIfAllArgsNullable) {
         this.includedArguments = Preconditions.checkNotNull(includedArguments);
         this.initialStrategy = Preconditions.checkNotNull(initialStrategy);
+        this.nullableIfAllArgsNullable = nullableIfAllArgsNullable;
     }
 
     @Override
@@ -70,12 +75,24 @@ public final class NullableIfArgsTypeStrategy implements TypeStrategy {
                                                     .orElse(argumentDataTypes.size()),
                                             argumentDataTypes.size());
 
-                            final boolean isNullableArgument =
-                                    IntStream.range(fromArg, toArg)
-                                            .mapToObj(argumentDataTypes::get)
-                                            .anyMatch(
-                                                    dataType ->
-                                                            dataType.getLogicalType().isNullable());
+                            final boolean isNullableArgument;
+                            if (nullableIfAllArgsNullable) {
+                                isNullableArgument =
+                                        IntStream.range(fromArg, toArg)
+                                                .mapToObj(argumentDataTypes::get)
+                                                .allMatch(
+                                                        dataType ->
+                                                                dataType.getLogicalType()
+                                                                        .isNullable());
+                            } else {
+                                isNullableArgument =
+                                        IntStream.range(fromArg, toArg)
+                                                .mapToObj(argumentDataTypes::get)
+                                                .anyMatch(
+                                                        dataType ->
+                                                                dataType.getLogicalType()
+                                                                        .isNullable());
+                            }
 
                             if (isNullableArgument) {
                                 return inferredDataType.nullable();
@@ -95,11 +112,12 @@ public final class NullableIfArgsTypeStrategy implements TypeStrategy {
         }
         NullableIfArgsTypeStrategy that = (NullableIfArgsTypeStrategy) o;
         return includedArguments.equals(that.includedArguments)
-                && initialStrategy.equals(that.initialStrategy);
+                && initialStrategy.equals(that.initialStrategy)
+                && nullableIfAllArgsNullable == that.nullableIfAllArgsNullable;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(includedArguments, initialStrategy);
+        return Objects.hash(includedArguments, initialStrategy, nullableIfAllArgsNullable);
     }
 }

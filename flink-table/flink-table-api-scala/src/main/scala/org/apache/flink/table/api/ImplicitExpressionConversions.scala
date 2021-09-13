@@ -727,6 +727,23 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Coalesce specifies a series of expressions, and returns the first expression whose value is
+   * not null. If all the expressions evaluate as null, coalesce returns a null value. The return
+   * type of the coalesce function is the least common type among its arguments, and it's nullable
+   * if all its arguments are nullable.
+   *
+   * e.g. coalesce(null, "-") returns "-".
+   *
+   * e.g. coalesce($"f0", $"f1", "-") returns the first non-null value among f0 and f1, if both
+   * are null returns "-".
+   *
+   * @param args the input expressions.
+   */
+  def coalesce(args: Expression*): Expression = {
+    Expressions.coalesce(args: _*)
+  }
+
+  /**
     * Creates an expression that selects a range of columns. It can be used wherever an array of
     * expression is accepted such as function calls, projections, or groupings.
     *

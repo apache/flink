@@ -550,6 +550,25 @@ def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) ->
     return _ternary_op("ifThenElse", condition, if_true, if_false)
 
 
+def coalesce(*args) -> Expression:
+    """
+    Coalesce specifies a series of expressions, and returns the first expression whose value is
+    not null. If all the expressions evaluate as null, coalesce returns a null value. The return
+    type of the coalesce function is the least common type among its arguments, and it's nullable
+    if all its arguments are nullable.
+
+    e.g. coalesce(null, "-") returns "-".
+
+    e.g. coalesce(col("f0"), col("f1"), "-") returns the first non-null value among f0 and f1, if both
+    are null returns "-".
+
+    :param args: the input expressions.
+    """
+    gateway = get_gateway()
+    args = to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])
+    return _unary_op("coalesce", args)
+
+
 def with_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects a range of columns. It can be used wherever an array of
