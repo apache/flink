@@ -135,6 +135,7 @@ under the License.
 		<beam.version>2.27.0</beam.version>
 		<protoc.version>3.11.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
+		<testcontainers.version>1.16.0</testcontainers.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
@@ -604,7 +605,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.20</version>
+				<version>1.21</version>
 			</dependency>
 
 			<!-- Managed dependency required for HBase in flink-connector-hbase -->
@@ -820,6 +821,13 @@ under the License.
 				<groupId>org.yaml</groupId>
 				<artifactId>snakeyaml</artifactId>
 				<version>1.27</version>
+			</dependency>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>${testcontainers.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -1829,11 +1837,15 @@ under the License.
 					<execution>
 						<id>directories</id>
 						<goals>
-							<goal>highest-basedir</goal>
+							<goal>directory-of</goal>
 						</goals>
 						<phase>initialize</phase>
 						<configuration>
 							<property>rootDir</property>
+							<project>
+								<groupId>org.apache.flink</groupId>
+								<artifactId>flink-parent</artifactId>
+							</project>
 						</configuration>
 					</execution>
 				</executions>
