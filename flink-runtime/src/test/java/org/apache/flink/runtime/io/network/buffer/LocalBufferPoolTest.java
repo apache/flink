@@ -21,8 +21,6 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -39,12 +37,10 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,7 +50,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -155,18 +150,6 @@ public class LocalBufferPoolTest extends TestLogger {
 
         for (Buffer buffer : requests) {
             buffer.recycleBuffer();
-        }
-    }
-
-    @Test
-    public void testRequestAfterDestroy() {
-        localBufferPool.lazyDestroy();
-
-        try {
-            localBufferPool.requestBuffer();
-            fail("Call should have failed with an IllegalStateException");
-        } catch (IllegalStateException e) {
-            // we expect exactly that
         }
     }
 
@@ -330,63 +313,6 @@ public class LocalBufferPoolTest extends TestLogger {
 
         for (int i = 0; i < numConcurrentTasks; i++) {
             assertTrue(taskResults[i].get());
-        }
-    }
-
-    @Test
-    public void testDestroyDuringBlockingRequest() throws Exception {
-        // Config
-        final int numberOfBuffers = 1;
-
-        localBufferPool.setNumBuffers(numberOfBuffers);
-
-        final CountDownLatch sync = new CountDownLatch(1);
-
-        final Callable<List<Buffer>> requester =
-                new Callable<List<Buffer>>() {
-
-                    // Request all buffers in a blocking manner.
-                    @Override
-                    public List<Buffer> call() throws Exception {
-                        final List<Buffer> requested = Lists.newArrayList();
-
-                        // Request all available buffers
-                        for (int i = 0; i < numberOfBuffers; i++) {
-                            final Buffer buffer = checkNotNull(localBufferPool.requestBuffer());
-                            requested.add(buffer);
-                        }
-
-                        // Notify that we've requested all buffers
-                        sync.countDown();
-
-                        // Try to request the next buffer (but pool should be destroyed either right
-                        // before
-                        // the request or more likely during the request).
-                        try {
-                            localBufferPool.requestBufferBuilderBlocking();
-                            fail("Call should have failed with an IllegalStateException");
-                        } catch (IllegalStateException e) {
-                            // we expect exactly that
-                        }
-
-                        return requested;
-                    }
-                };
-
-        Future<List<Buffer>> f = executor.submit(requester);
-
-        sync.await();
-
-        localBufferPool.lazyDestroy();
-
-        // Increase the likelihood that the requested is currently in the request call
-        Thread.sleep(50);
-
-        // This should return immediately if everything works as expected
-        List<Buffer> requestedBuffers = f.get(60, TimeUnit.SECONDS);
-
-        for (Buffer buffer : requestedBuffers) {
-            buffer.recycleBuffer();
         }
     }
 

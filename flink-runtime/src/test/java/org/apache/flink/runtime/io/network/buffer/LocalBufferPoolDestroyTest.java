@@ -20,14 +20,30 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
 public class LocalBufferPoolDestroyTest {
+    @Test
+    public void testRequestAfterDestroy() throws IOException {
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
+        LocalBufferPool localBufferPool = new LocalBufferPool(networkBufferPool, 1);
+        localBufferPool.lazyDestroy();
+
+        try {
+            localBufferPool.requestBuffer();
+            fail("Call should have failed with an IllegalStateException");
+        } catch (IllegalStateException e) {
+            // we expect exactly that
+        }
+    }
+
     /**
      * Tests that a blocking request fails properly if the buffer pool is destroyed.
      *
