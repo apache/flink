@@ -24,6 +24,10 @@ import threading
 import traceback
 
 import grpc
+
+# In order to remove confusing infos produced by beam.
+logging.getLogger().setLevel(logging.WARNING)
+
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import beam_fn_api_pb2
