@@ -446,7 +446,6 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
             if (solutionSet != null) {
                 solutionSet.close();
             }
-            terminationCompleted();
         }
     }
 

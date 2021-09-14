@@ -287,7 +287,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private long latestAsyncCheckpointStartDelayNanos;
 
-    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
     private volatile boolean endOfDataReceived = false;
 
     private final ThroughputCalculator throughputCalculator;
@@ -935,10 +934,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
 
-        if (suppressedException == null) {
-            terminationFuture.complete(null);
-        } else {
-            terminationFuture.completeExceptionally(suppressedException);
+        if (suppressedException != null) {
             throw suppressedException;
         }
     }
@@ -954,7 +950,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
-    public final Future<Void> cancel() throws Exception {
+    public final void cancel() throws Exception {
         isRunning = false;
         canceled = true;
 
@@ -978,7 +974,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                 }
                             });
         }
-        return terminationFuture;
     }
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
