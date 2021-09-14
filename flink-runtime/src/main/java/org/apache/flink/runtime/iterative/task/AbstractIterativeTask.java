@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 /** The abstract base class for all tasks able to participate in an iteration. */
@@ -88,8 +87,6 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
     private int superstepNum = 1;
 
     private volatile boolean terminationRequested;
-
-    private final CompletableFuture<Void> terminationCompletionFuture = new CompletableFuture<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -314,14 +311,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
     }
 
     @Override
-    public void terminationCompleted() {
-        this.terminationCompletionFuture.complete(null);
-    }
-
-    @Override
-    public Future<Void> cancel() throws Exception {
+    public void cancel() throws Exception {
         requestTermination();
-        return this.terminationCompletionFuture;
+        super.cancel();
     }
 
     // -----------------------------------------------------------------------------------------------------------------

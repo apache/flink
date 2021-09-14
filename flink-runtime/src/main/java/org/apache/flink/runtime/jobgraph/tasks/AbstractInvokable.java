@@ -74,9 +74,8 @@ public abstract class AbstractInvokable
     public abstract void invoke() throws Exception;
 
     @Override
-    public Future<Void> cancel() throws Exception {
+    public void cancel() throws Exception {
         // The default implementation does nothing.
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override
