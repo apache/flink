@@ -21,12 +21,15 @@ package org.apache.flink.streaming.connectors.kafka.table;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableResult;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -36,8 +39,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE;
-import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
@@ -65,23 +66,8 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
         // ---------- Write the Debezium json into Kafka -------------------
         List<String> lines = readLines("debezium-data-schema-exclude.txt");
-        DataStreamSource<String> stream = env.fromCollection(lines);
-        SerializationSchema<String> serSchema = new SimpleStringSchema();
-        FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
-
-        // the producer must not produce duplicates
-        Properties producerProperties = getStandardProps();
-        producerProperties.setProperty("retries", "0");
         try {
-            stream.addSink(
-                    new FlinkKafkaProducer<>(
-                            topic,
-                            serSchema,
-                            producerProperties,
-                            partitioner,
-                            EXACTLY_ONCE,
-                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
-            env.execute("Write sequence");
+            writeRecordsToKafka(topic, lines);
         } catch (Exception e) {
             throw new Exception("Failed to write debezium data to Kafka.", e);
         }
@@ -208,23 +194,8 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
         // ---------- Write the Canal json into Kafka -------------------
         List<String> lines = readLines("canal-data.txt");
-        DataStreamSource<String> stream = env.fromCollection(lines);
-        SerializationSchema<String> serSchema = new SimpleStringSchema();
-        FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
-
-        // the producer must not produce duplicates
-        Properties producerProperties = getStandardProps();
-        producerProperties.setProperty("retries", "0");
         try {
-            stream.addSink(
-                    new FlinkKafkaProducer<>(
-                            topic,
-                            serSchema,
-                            producerProperties,
-                            partitioner,
-                            EXACTLY_ONCE,
-                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
-            env.execute("Write sequence");
+            writeRecordsToKafka(topic, lines);
         } catch (Exception e) {
             throw new Exception("Failed to write canal data to Kafka.", e);
         }
@@ -361,23 +332,8 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
         // ---------- Write the Maxwell json into Kafka -------------------
         List<String> lines = readLines("maxwell-data.txt");
-        DataStreamSource<String> stream = env.fromCollection(lines);
-        SerializationSchema<String> serSchema = new SimpleStringSchema();
-        FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
-
-        // the producer must not produce duplicates
-        Properties producerProperties = getStandardProps();
-        producerProperties.setProperty("retries", "0");
         try {
-            stream.addSink(
-                    new FlinkKafkaProducer<>(
-                            topic,
-                            serSchema,
-                            producerProperties,
-                            partitioner,
-                            EXACTLY_ONCE,
-                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
-            env.execute("Write sequence");
+            writeRecordsToKafka(topic, lines);
         } catch (Exception e) {
             throw new Exception("Failed to write maxwell data to Kafka.", e);
         }
@@ -491,5 +447,29 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
         tableResult.getJobClient().get().cancel().get(); // stop the job
         deleteTestTopic(topic);
+    }
+
+    private void writeRecordsToKafka(String topic, List<String> lines) throws Exception {
+        DataStreamSource<String> stream = env.fromCollection(lines);
+        SerializationSchema<String> serSchema = new SimpleStringSchema();
+        FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
+
+        // the producer must not produce duplicates
+        Properties producerProperties = getStandardProps();
+        producerProperties.setProperty("retries", "0");
+        stream.sinkTo(
+                KafkaSink.<String>builder()
+                        .setBootstrapServers(
+                                producerProperties.getProperty(
+                                        ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(serSchema)
+                                        .setPartitioner(partitioner)
+                                        .build())
+                        .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
+                        .build());
+        env.execute("Write sequence");
     }
 }
