@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -120,7 +121,7 @@ public class LocalBufferPoolTest extends TestLogger {
             assertEquals(2, bufferPool3.getNumberOfAvailableMemorySegments());
 
             bufferPool3.lazyDestroy();
-            assertThrows(IllegalStateException.class, () -> bufferPool3.reserveSegments(1));
+            assertThrows(CancelTaskException.class, () -> bufferPool3.reserveSegments(1));
         } finally {
             networkBufferPool.destroy();
         }
