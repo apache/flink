@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The @builder class for {@link KafkaSource} to make it easier for the users to construct a {@link
@@ -429,8 +430,12 @@ public class KafkaSourceBuilder<OUT> {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 ByteArrayDeserializer.class.getName(),
                 true);
-        maybeOverride(
-                ConsumerConfig.GROUP_ID_CONFIG, "KafkaSource-" + new Random().nextLong(), false);
+        if (!props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+            LOG.warn(
+                    "Offset commit on checkpoint is disabled because {} is not specified",
+                    ConsumerConfig.GROUP_ID_CONFIG);
+            maybeOverride(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key(), "false", false);
+        }
         maybeOverride(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false", false);
         maybeOverride(
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
@@ -443,10 +448,13 @@ public class KafkaSourceBuilder<OUT> {
                 "-1",
                 boundedness == Boundedness.BOUNDED);
 
-        // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
+        // If the client id prefix is not set, reuse the consumer group id as the client id prefix,
+        // or generate a random string if consumer group id is not specified.
         maybeOverride(
                 KafkaSourceOptions.CLIENT_ID_PREFIX.key(),
-                props.getProperty(ConsumerConfig.GROUP_ID_CONFIG),
+                props.containsKey(ConsumerConfig.GROUP_ID_CONFIG)
+                        ? props.getProperty(ConsumerConfig.GROUP_ID_CONFIG)
+                        : "KafkaSource-" + new Random().nextLong(),
                 false);
     }
 
@@ -481,5 +489,24 @@ public class KafkaSourceBuilder<OUT> {
                 "No subscribe mode is specified, "
                         + "should be one of topics, topic pattern and partition set.");
         checkNotNull(deserializationSchema, "Deserialization schema is required but not provided.");
+        // Check consumer group ID
+        checkState(
+                props.containsKey(ConsumerConfig.GROUP_ID_CONFIG) || !offsetCommitEnabledManually(),
+                String.format(
+                        "Property %s is required when offset commit is enabled",
+                        ConsumerConfig.GROUP_ID_CONFIG));
+    }
+
+    private boolean offsetCommitEnabledManually() {
+        boolean autoCommit =
+                props.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)
+                        && Boolean.parseBoolean(
+                                props.getProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
+        boolean commitOnCheckpoint =
+                props.containsKey(KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key())
+                        && Boolean.parseBoolean(
+                                props.getProperty(
+                                        KafkaSourceOptions.COMMIT_OFFSETS_ON_CHECKPOINT.key()));
+        return autoCommit || commitOnCheckpoint;
     }
 }

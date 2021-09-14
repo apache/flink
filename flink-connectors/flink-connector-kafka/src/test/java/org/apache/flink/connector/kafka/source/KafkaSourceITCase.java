@@ -197,6 +197,25 @@ public class KafkaSourceITCase {
         executeAndVerify(env, stream);
     }
 
+    @Test
+    public void testBasicReadWithoutGroupId() throws Exception {
+        KafkaSource<PartitionAndValue> source =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(new TestingKafkaRecordDeserializationSchema())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        DataStream<PartitionAndValue> stream =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "testBasicReadWithoutGroupId");
+        executeAndVerify(env, stream);
+    }
+
     // -----------------
 
     private static class PartitionAndValue implements Serializable {
