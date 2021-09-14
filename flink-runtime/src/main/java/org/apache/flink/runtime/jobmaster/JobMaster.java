@@ -792,6 +792,11 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public CompletableFuture<String> triggerCheckpoint(Time timeout) {
+        return schedulerNG.triggerCheckpoint();
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
 

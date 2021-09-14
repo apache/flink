@@ -601,6 +601,19 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public CompletableFuture<String> triggerCheckpoint() {
+        return state.tryCall(
+                        StateWithExecutionGraph.class,
+                        StateWithExecutionGraph::triggerCheckpoint,
+                        "triggerCheckpoint")
+                .orElse(
+                        FutureUtils.completedExceptionally(
+                                new CheckpointException(
+                                        "The Flink job is currently not executing.",
+                                        CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE)));
+    }
+
+    @Override
     public void acknowledgeCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
