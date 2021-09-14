@@ -32,7 +32,7 @@ import java.sql.Timestamp
 class JoinTest extends TableTestBase {
 
   @Test
-  def testDependentConditionderivationInnerJoin: Unit = {
+  def testDependentConditionDerivationInnerJoin: Unit = {
     val util = streamTestUtil()
     val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
 
@@ -46,7 +46,7 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithTrue: Unit = {
+  def testDependentConditionDerivationInnerJoinWithTrue: Unit = {
     val util = streamTestUtil()
     val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
 
@@ -60,7 +60,7 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithNull: Unit = {
+  def testDependentConditionDerivationInnerJoinWithNull: Unit = {
     val util = streamTestUtil()
     val left = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
 

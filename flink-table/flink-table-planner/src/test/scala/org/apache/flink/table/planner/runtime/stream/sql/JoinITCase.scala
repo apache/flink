@@ -74,7 +74,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
   override def after(): Unit = {}
 
   @Test
-  def testDependentConditionderivationInnerJoin(): Unit = {
+  def testDependentConditionDerivationInnerJoin(): Unit = {
     val sqlQuery = "SELECT * FROM A, B WHERE (a2 = 1 and b2 = 2) or (a1 = 2 and b1 = 4)"
 
     val sink = new TestingRetractSink
@@ -92,7 +92,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithTrue(): Unit = {
+  def testDependentConditionDerivationInnerJoinWithTrue(): Unit = {
     val sqlQuery = "SELECT * FROM A, B WHERE (a2 = 1 AND true) OR (a1 = 2 AND b1 = 4) "
 
     val sink = new TestingRetractSink
@@ -124,7 +124,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithNull(): Unit = {
+  def testDependentConditionDerivationInnerJoinWithNull(): Unit = {
     val data1 = List(
       (0, 1, "hi a1"),
       (1, 2, "hi a2"),

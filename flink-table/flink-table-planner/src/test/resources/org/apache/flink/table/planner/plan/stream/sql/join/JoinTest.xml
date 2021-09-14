@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testDependentConditionderivationInnerJoin">
+  <TestCase name="testDependentConditionDerivationInnerJoin">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND b2 = 2)]]>
     </Resource>
@@ -41,7 +41,7 @@ Calc(select=[a1, b1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDependentConditionderivationInnerJoinWithNull">
+  <TestCase name="testDependentConditionDerivationInnerJoinWithNull">
     <Resource name="sql">
       <![CDATA[SELECT * FROM t JOIN s ON (a = 1 AND x = 1) OR (a = 2 AND y is null)]]>
     </Resource>
@@ -65,7 +65,7 @@ Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1:BIGINT)) OR ((a = 2) AND 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDependentConditionderivationInnerJoinWithTrue">
+  <TestCase name="testDependentConditionDerivationInnerJoinWithTrue">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND true)]]>
     </Resource>

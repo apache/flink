@@ -160,7 +160,7 @@ object FlinkStreamRuleSets {
   )
 
   /**
-   * RuleSet to extracts sub-condition which can be pushed into join inputs
+   * RuleSet to extract sub-condition which can be pushed into join inputs
    */
   val JOIN_PREDICATE_REWRITE_RULES: RuleSet = RuleSets.ofList(
     RuleSets.ofList(JoinDependentConditionDerivationRule.INSTANCE))

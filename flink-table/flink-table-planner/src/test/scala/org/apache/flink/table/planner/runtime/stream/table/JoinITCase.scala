@@ -86,7 +86,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
-  def testDependentConditionderivationInnerJoin(): Unit = {
+  def testDependentConditionDerivationInnerJoin(): Unit = {
     val data1 = List(
       (0, 1),
       (1, 2),
@@ -121,7 +121,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithTrue(): Unit = {
+  def testDependentConditionDerivationInnerJoinWithTrue(): Unit = {
     val data1 = List(
       (0, 1),
       (1, 2),
@@ -158,7 +158,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
-  def testDependentConditionderivationInnerJoinWithNull(): Unit = {
+  def testDependentConditionDerivationInnerJoinWithNull(): Unit = {
     val data1 = List(
       (0, 1, "hi a1"),
       (1, 2, "hi a2"),
