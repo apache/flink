@@ -57,13 +57,13 @@ Conceptually, source tables are never kept entirely in state. An implementer dea
 depend on the used operations.
 {{< /hint >}}
 
-Queries such as `SELECT ... FROM ... WHERE` queries that only consist of field projections or filters are usually
-stateless pipelines. However, operations such as joins, aggregations, or deduplications require to keep
-intermediate results in a fault tolerant storage for which Flink's state abstractions are used.
+Queries such as `SELECT ... FROM ... WHERE` that only consist of field projections or filters are usually
+stateless pipelines. However, operations such as joins, aggregations, or deduplications require keeping
+intermediate results in a fault-tolerant storage for which Flink's state abstractions are used.
 
 {{< hint info >}}
 Please refer to the individual operator documentation for more details about how much state is required
-and how to limit a potentially ever growing state size.
+and how to limit a potentially ever-growing state size.
 {{< /hint >}}
 
 For example, a regular SQL join of two tables requires the operator to keep both input tables in state
