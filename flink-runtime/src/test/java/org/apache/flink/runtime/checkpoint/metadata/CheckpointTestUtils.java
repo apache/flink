@@ -290,8 +290,8 @@ public class CheckpointTestUtils {
         if (!isSavepoint(basePath)) {
             return new ByteStreamStateHandle(
                     String.valueOf(createRandomUUID(rnd)),
-                    String.valueOf(createRandomUUID(rnd))
-                            .getBytes(ConfigConstants.DEFAULT_CHARSET));
+                    String.valueOf(createRandomUUID(rnd)).getBytes(ConfigConstants.DEFAULT_CHARSET),
+                    true);
         } else {
             long stateSize = rnd.nextLong();
             if (stateSize <= 0) {
@@ -299,7 +299,7 @@ public class CheckpointTestUtils {
             }
             String relativePath = String.valueOf(createRandomUUID(rnd));
             Path statePath = new Path(basePath, relativePath);
-            return new RelativeFileStateHandle(statePath, relativePath, stateSize);
+            return new RelativeFileStateHandle(statePath, relativePath, stateSize, true);
         }
     }
 

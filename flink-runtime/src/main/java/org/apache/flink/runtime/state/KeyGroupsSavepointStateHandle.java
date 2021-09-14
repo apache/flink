@@ -44,7 +44,8 @@ public class KeyGroupsSavepointStateHandle extends KeyGroupsStateHandle
         if (offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
             return null;
         }
-        return new KeyGroupsSavepointStateHandle(offsets, getDelegateStateHandle());
+        return new KeyGroupsSavepointStateHandle(
+                offsets, (StreamStateHandle) getDelegateStateHandle().asShared());
     }
 
     @Override

@@ -83,7 +83,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
         if (offsets.getKeyGroupRange().getNumberOfKeyGroups() <= 0) {
             return null;
         }
-        return new KeyGroupsStateHandle(offsets, stateHandle);
+        return new KeyGroupsStateHandle(offsets, (StreamStateHandle) stateHandle.asShared());
     }
 
     @Override

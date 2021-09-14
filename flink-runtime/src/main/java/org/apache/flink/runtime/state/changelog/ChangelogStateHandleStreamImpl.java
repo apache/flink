@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
 public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandle {
@@ -58,9 +60,12 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     public void registerSharedStates(SharedStateRegistry stateRegistry) {
         this.stateRegistry = stateRegistry;
         handlesAndOffsets.forEach(
-                handleAndOffset ->
+                handleAndOffset -> {
+                    if (handleAndOffset.f0.isShared()) {
                         stateRegistry.registerReference(
-                                getKey(handleAndOffset.f0), handleAndOffset.f0));
+                                getKey(handleAndOffset.f0), handleAndOffset.f0);
+                    }
+                });
     }
 
     @Override
@@ -75,7 +80,16 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(
+                handlesAndOffsets.stream()
+                        .map(
+                                handleAndOffset ->
+                                        Tuple2.of(
+                                                (StreamStateHandle) handleAndOffset.f0.asShared(),
+                                                handleAndOffset.f1))
+                        .collect(toList()),
+                offsets,
+                0L /* unknown */);
     }
 
     @Override
@@ -86,8 +100,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
             // by invalidating checkpoints on abortion
         } else {
             handlesAndOffsets.forEach(
-                    handleAndOffset ->
-                            stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
+                    handleAndOffset -> {
+                        if (handleAndOffset.f0.isShared()) {
+                            stateRegistry.unregisterReference(getKey(handleAndOffset.f0));
+                        }
+                    });
         }
     }
 

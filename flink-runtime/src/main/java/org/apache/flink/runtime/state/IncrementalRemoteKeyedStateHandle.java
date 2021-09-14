@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -149,10 +150,16 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-        return KeyGroupRange.EMPTY_KEY_GROUP_RANGE.equals(
-                        this.keyGroupRange.getIntersection(keyGroupRange))
+        KeyGroupRange intersection = this.keyGroupRange.getIntersection(keyGroupRange);
+        return KeyGroupRange.EMPTY_KEY_GROUP_RANGE.equals(intersection)
                 ? null
-                : this;
+                : new IncrementalRemoteKeyedStateHandle(
+                        backendIdentifier,
+                        this.keyGroupRange,
+                        checkpointId,
+                        asShared(sharedState),
+                        asShared(privateState),
+                        (StreamStateHandle) metaStateHandle.asShared());
     }
 
     @Override
@@ -241,6 +248,9 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
         for (Map.Entry<StateHandleID, StreamStateHandle> sharedStateHandle :
                 sharedState.entrySet()) {
+            if (!sharedStateHandle.getValue().isShared()) {
+                continue;
+            }
             SharedStateRegistryKey registryKey =
                     createSharedStateRegistryKeyFromFileName(sharedStateHandle.getKey());
 
@@ -334,5 +344,13 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 + ", registered="
                 + (sharedStateRegistry != null)
                 + '}';
+    }
+
+    private static <K> Map<K, StreamStateHandle> asShared(Map<K, StreamStateHandle> map) {
+        Map<K, StreamStateHandle> result = new HashMap<>();
+        for (Map.Entry<K, StreamStateHandle> e : map.entrySet()) {
+            result.put(e.getKey(), (StreamStateHandle) e.getValue().asShared());
+        }
+        return result;
     }
 }

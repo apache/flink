@@ -65,8 +65,10 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
 
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
-        return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0
-                ? this
+        KeyGroupRange intersection = this.keyGroupRange.getIntersection(otherKeyGroupRange);
+        return intersection.getNumberOfKeyGroups() > 0
+                ? new DirectoryKeyedStateHandle(
+                        (DirectoryStateHandle) directoryStateHandle.asShared(), intersection)
                 : null;
     }
 
