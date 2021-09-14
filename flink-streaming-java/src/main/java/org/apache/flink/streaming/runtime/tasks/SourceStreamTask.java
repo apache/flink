@@ -304,7 +304,7 @@ public class SourceStreamTask<
         }
     }
 
-    /** Runnable that executes the the source function in the head operator. */
+    /** Runnable that executes the source function in the head operator. */
     private class LegacySourceFunctionThread extends Thread {
 
         private final CompletableFuture<Void> completionFuture;
