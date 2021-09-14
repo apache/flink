@@ -104,7 +104,7 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
 
     @Test
     public void testSerializeRecordWithTopicSelector() {
-        final Function<String, String> topicSelector =
+        final TopicSelector<String> topicSelector =
                 (e) -> {
                     if (e.equals("a")) {
                         return "topic-a";
