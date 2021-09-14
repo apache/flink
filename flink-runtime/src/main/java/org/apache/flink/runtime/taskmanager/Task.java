@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -101,6 +102,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -1773,14 +1775,10 @@ public class Task
         @Override
         public void run() {
             try {
-                final long hardKillDeadline = System.nanoTime() + timeoutMillis * 1_000_000;
-
-                long millisLeft;
-                while (executerThread.isAlive()
-                        && (millisLeft = (hardKillDeadline - System.nanoTime()) / 1_000_000) > 0) {
-
+                Deadline timeout = Deadline.fromNow(Duration.ofMillis(timeoutMillis));
+                while (executerThread.isAlive() && timeout.hasTimeLeft()) {
                     try {
-                        executerThread.join(millisLeft);
+                        executerThread.join(Math.max(1, timeout.timeLeft().toMillis()));
                     } catch (InterruptedException ignored) {
                         // we don't react to interrupted exceptions, simply fall through the loop
                     }
