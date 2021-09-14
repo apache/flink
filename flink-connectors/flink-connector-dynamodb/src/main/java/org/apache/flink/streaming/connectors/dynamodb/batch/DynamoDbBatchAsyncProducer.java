@@ -120,6 +120,7 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
                             + response.isSuccessful());
         }
 
+        /* Called if an error occurred while scheduling or completing the write tasks.  */
         @Override
         public void onException(Throwable error) {
             LOG.error(
@@ -127,7 +128,7 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
                             + restartPolicy,
                     error);
 
-            if (restartPolicy == RestartPolicy.FailOnError) {
+            if (restartPolicy == RestartPolicy.Shutdown) {
                 LOG.info(
                         "Attempt to gracefully shutdown the processor, because 'fail on error' was set to true");
                 processor.shutdown();
