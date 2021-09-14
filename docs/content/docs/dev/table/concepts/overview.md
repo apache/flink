@@ -40,21 +40,24 @@ processor.
 
 In particular, a table program can be configured with a [state backend]({{< ref "docs/ops/state/state_backends" >}})
 and various [checkpointing options]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
-for handling large amounts of state and fault tolerance. It is possible to take a savepoint of a running
-Table API & SQL pipeline and to restore the application's state at later point in time.
+for handling different requirements regarding state size and fault tolerance. It is possible to take
+a savepoint of a running Table API & SQL pipeline and to restore the application's state at a later
+point in time.
 
 ### State Usage
 
 Due to the declarative nature of Table API & SQL program, it is not always obvious where and how much
-state is used within a table pipeline. The planner decides about when state is necessary to compute a correct
+state is used within a pipeline. The planner decides whether state is necessary to compute a correct
 result. A pipeline is optimized to claim as little state as possible given the current set of optimizer
 rules.
 
 {{< hint info >}}
-Source tables are never kept entirely in state. This depends on the used operations.
+Conceptually, source tables are never kept entirely in state. An implementer deals with logical tables
+(i.e. [dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})). Their state requirements
+depend on the used operations.
 {{< /hint >}}
 
-Simple `SELECT ... FROM ... WHERE` queries that only consist of field projections or filters are usually
+Queries such as `SELECT ... FROM ... WHERE` queries that only consist of field projections or filters are usually
 stateless pipelines. However, operations such as joins, aggregations, or deduplications require to keep
 intermediate results in a fault tolerant storage for which Flink's state abstractions are used.
 
@@ -71,7 +74,7 @@ that aim to keep the state size small by exploiting the concept of [watermarks](
 ### Stateful Upgrades and Evolution
 
 Table programs that are executed in streaming mode are intended as *standing queries* that statically
-define an end-to-end pipline.
+define an end-to-end pipeline.
 
 In case of stateful pipelines, any change to both the query or Flink's planner might lead to a completely
 different execution plan. This makes stateful upgrades and the evolution of table programs challenging
@@ -84,7 +87,7 @@ topology or different column layout within the state of an operator.
 The query implementer must ensure that the optimized plans before and after the change are compatible.
 Use the `EXPLAIN` command in SQL or `table.explain()` in Table API to [get insights]({{< ref "docs/dev/table/common" >}}#explaining-a-table).
 
-Since new optimizer rules are continously added, and operators become more efficient and specialized,
+Since new optimizer rules are continuously added, and operators become more efficient and specialized,
 also the upgrade to a newer Flink version could lead to incompatible plans.
 
 {{< hint warning >}}
