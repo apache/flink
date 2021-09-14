@@ -114,12 +114,12 @@ When upgrading an application by changing its topology, a few things need to be 
 ### Table API & SQL
 
 Due to the declarative nature of Table API & SQL programs, the underlying operator topology and state
-representation is mostly determined by the table planner. Any change to both the query and Flink version
-could lead to state incompatibility.
+representation are mostly determined and optimized by the table planner.
 
+Be aware that any change to both the query and the Flink version could lead to state incompatibility.
 Every new major-minor Flink version (e.g. `1.12` to `1.13`) might introduce new optimizer rules or more
-specialized runtime operators that change the execution plan. However, the community aims to keep bug
-fix versions state compatible (e.g. `1.13.1` to `1.13.2`).
+specialized runtime operators that change the execution plan. However, the community tries to keep patch
+versions state-compatible (e.g. `1.13.1` to `1.13.2`).
 
 See the [table state management section]({{< ref "docs/dev/table/concepts/overview" >}}#state-management)
 for more information.

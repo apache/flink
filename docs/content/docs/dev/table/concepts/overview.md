@@ -46,7 +46,7 @@ point in time.
 
 ### State Usage
 
-Due to the declarative nature of Table API & SQL program, it is not always obvious where and how much
+Due to the declarative nature of Table API & SQL programs, it is not always obvious where and how much
 state is used within a pipeline. The planner decides whether state is necessary to compute a correct
 result. A pipeline is optimized to claim as little state as possible given the current set of optimizer
 rules.
@@ -57,7 +57,7 @@ Conceptually, source tables are never kept entirely in state. An implementer dea
 depend on the used operations.
 {{< /hint >}}
 
-Queries such as `SELECT ... FROM ... WHERE` that only consist of field projections or filters are usually
+Queries such as `SELECT ... FROM ... WHERE` which only consist of field projections or filters are usually
 stateless pipelines. However, operations such as joins, aggregations, or deduplications require keeping
 intermediate results in a fault-tolerant storage for which Flink's state abstractions are used.
 
@@ -73,8 +73,8 @@ that aim to keep the state size small by exploiting the concept of [watermarks](
 
 ### Stateful Upgrades and Evolution
 
-Table programs that are executed in streaming mode are intended as *standing queries* that statically
-define an end-to-end pipeline.
+Table programs that are executed in streaming mode are intended as *standing queries* which means they
+are defined once and are continuously evaluated as static end-to-end pipelines.
 
 In case of stateful pipelines, any change to both the query or Flink's planner might lead to a completely
 different execution plan. This makes stateful upgrades and the evolution of table programs challenging
