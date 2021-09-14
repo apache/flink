@@ -154,6 +154,7 @@ KafkaSource has following options for configuration:
   below for more details.
 - ```register.consumer.metrics``` specifies whether to register metrics of KafkaConsumer in Flink
 metric group
+- ```commit.offsets.on.checkpoint``` specifies whether to commit consuming offsets to Kafka brokers on checkpoint
 
 For configurations of KafkaConsumer, you can refer to
 <a href="http://kafka.apache.org/documentation/#consumerconfigs">Apache Kafka documentation</a>
