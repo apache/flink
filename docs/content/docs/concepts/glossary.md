@@ -174,8 +174,7 @@ the data stream. The term "Sub-Task" emphasizes that there are multiple parallel
 
 #### Table Program
 
-Describes one or more pipelines that are declared with Flink's relational API. It is a generic term
-for both Table API or SQL pipelines which might be used interchangeably.
+A generic term for pipelines declared with Flink's relational APIs (Table API or SQL).
 
 #### Task
 
