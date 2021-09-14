@@ -19,6 +19,7 @@ package org.apache.flink.connector.kafka.sink;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -60,7 +61,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -117,6 +117,7 @@ public class KafkaSinkITCase extends TestLogger {
     private static final int ZK_TIMEOUT_MILLIS = 30000;
     private static final short TOPIC_REPLICATION_FACTOR = 1;
     private static final Duration CONSUMER_POLL_DURATION = Duration.ofSeconds(1);
+    private static final RecordSerializer serializer = new RecordSerializer();
     private static AdminClient admin;
 
     private String topic;
@@ -307,7 +308,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setRecordSerializer(new RecordSerializer(topic));
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build());
         if (transactionalIdPrefix == null) {
             transactionalIdPrefix = "kafka-sink";
         }
@@ -335,7 +340,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setDeliverGuarantee(guarantee)
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
-                        .setRecordSerializer(new RecordSerializer(topic))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build())
                         .setTransactionalIdPrefix("kafka-sink")
                         .build());
         env.execute();
@@ -361,7 +370,11 @@ public class KafkaSinkITCase extends TestLogger {
                 new KafkaSinkBuilder<Long>()
                         .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers())
                         .setDeliverGuarantee(deliveryGuarantee)
-                        .setRecordSerializer(new RecordSerializer(topic))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(topic)
+                                        .setValueSerializationSchema(new RecordSerializer())
+                                        .build())
                         .setTransactionalIdPrefix("kafka-sink")
                         .build());
         env.execute();
@@ -447,20 +460,13 @@ public class KafkaSinkITCase extends TestLogger {
         return collectedRecords;
     }
 
-    private static class RecordSerializer implements KafkaRecordSerializationSchema<Long> {
-
-        private final String topic;
-
-        public RecordSerializer(String topic) {
-            this.topic = topic;
-        }
+    private static class RecordSerializer implements SerializationSchema<Long> {
 
         @Override
-        public ProducerRecord<byte[], byte[]> serialize(
-                Long element, KafkaSinkContext context, Long timestamp) {
+        public byte[] serialize(Long element) {
             final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
             buffer.putLong(element);
-            return new ProducerRecord<>(topic, 0, null, null, buffer.array());
+            return buffer.array();
         }
     }
 
