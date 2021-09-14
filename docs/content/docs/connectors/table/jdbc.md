@@ -503,6 +503,8 @@ SELECT * FROM mysql_catalog.given_database.test_table2
 SELECT * FROM given_database.test_table2;
 ```
 
+<span class="label label-danger">Attention</span> At present, when reading data from a table, the `YEAR` type is read as the `DATE` type by default, but writing data in `YEAR` type is not supported by `MySQLCatalog` yet. The same restrictions apply to the reading and writing of the `GEOMETRY` type. The `GEOMETRY` type fields will be read as the `BYTES` type by default in reading data from a table, but the writing of the `GEOMETRY` data type is not supported by `MySQLCatalog` when writing data into a table.
+
 Data Type Mapping
 ----------------
 Flink supports connect to several databases which uses dialect like MySQL, PostgreSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.

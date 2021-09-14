@@ -532,6 +532,8 @@ SELECT * FROM mysql_catalog.given_database.test_table2
 SELECT * FROM given_database.test_table2;
 ```
 
+<span class="label label-danger">Attention</span> 目前，从表中读取数据时，`YEAR` 类型默认读取为 `DATE` 类型，但 `MySQLCatalog` 尚不支持写入 `YEAR` 类型数据。`GEOMETRY` 类型的读写也有相同的限制。从表中读取数据时，`GEOMETRY` 类型字段将默认读取为 `BYTES` 类型，但在向表中写入数据时 `MySQLCatalog` 尚不支持写入 `GEOMETRY` 类型的数据。
+
 <a name="data-type-mapping"></a>
 
 数据类型映射
