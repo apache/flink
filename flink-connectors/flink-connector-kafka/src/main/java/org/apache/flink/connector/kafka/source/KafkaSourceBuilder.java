@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStoppingOffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializerValidator;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
@@ -495,6 +496,13 @@ public class KafkaSourceBuilder<OUT> {
                 String.format(
                         "Property %s is required when offset commit is enabled",
                         ConsumerConfig.GROUP_ID_CONFIG));
+        // Check offsets initializers
+        if (startingOffsetsInitializer instanceof OffsetsInitializerValidator) {
+            ((OffsetsInitializerValidator) startingOffsetsInitializer).validate(props);
+        }
+        if (stoppingOffsetsInitializer instanceof OffsetsInitializerValidator) {
+            ((OffsetsInitializerValidator) stoppingOffsetsInitializer).validate(props);
+        }
     }
 
     private boolean offsetCommitEnabledManually() {
