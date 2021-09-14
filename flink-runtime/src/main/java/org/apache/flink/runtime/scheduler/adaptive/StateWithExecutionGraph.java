@@ -258,6 +258,29 @@ abstract class StateWithExecutionGraph implements State {
                         context.getMainThreadExecutor());
     }
 
+    CompletableFuture<String> triggerCheckpoint() {
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        final JobID jobID = executionGraph.getJobID();
+        if (checkpointCoordinator == null) {
+            throw new IllegalStateException(String.format("Job %s is not a streaming job.", jobID));
+        }
+
+        logger.info("Triggering a checkpoint for job {}.", jobID);
+
+        return checkpointCoordinator
+                .triggerCheckpoint(false)
+                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .handleAsync(
+                        (path, throwable) -> {
+                            if (throwable != null) {
+                                throw new CompletionException(throwable);
+                            }
+                            return path;
+                        },
+                        context.getMainThreadExecutor());
+    }
+
     private void startCheckpointScheduler(final CheckpointCoordinator checkpointCoordinator) {
         if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             try {

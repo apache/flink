@@ -61,4 +61,8 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     default CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus applicationStatus) {
         return shutDownCluster();
     }
+
+    default CompletableFuture<String> triggerCheckpoint(JobID jobID, @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
 }

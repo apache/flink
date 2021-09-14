@@ -127,6 +127,8 @@ public interface SchedulerNG extends AutoCloseableAsync {
 
     CompletableFuture<String> triggerSavepoint(@Nullable String targetDirectory, boolean cancelJob);
 
+    CompletableFuture<String> triggerCheckpoint();
+
     void acknowledgeCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,

@@ -678,6 +678,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
     }
 
     @Override
+    public CompletableFuture<String> triggerCheckpoint(JobID jobID, Time timeout) {
+        return performOperationOnJobMasterGateway(
+                jobID, gateway -> gateway.triggerCheckpoint(timeout));
+    }
+
+    @Override
     public CompletableFuture<String> triggerSavepoint(
             final JobID jobId,
             final String targetDirectory,
