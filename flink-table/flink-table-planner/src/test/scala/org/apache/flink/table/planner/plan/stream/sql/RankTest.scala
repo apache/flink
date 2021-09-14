@@ -850,30 +850,32 @@ class RankTest extends TableTestBase {
         |SELECT a, MAX(b) AS b, MIN(c) AS c
         |FROM MyTable GROUP BY a
         |""".stripMargin)
-    val STRING = new VarCharType(VarCharType.MAX_LENGTH)
-    val LONG = new BigIntType()
-    val INT = new IntType()
-    val retractSink1 = util.createRetractTableSink(Array("a", "b", "c"), Array(INT, STRING, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "sink1", retractSink1)
-    val retractSink2 = util.createRetractTableSink(Array("c", "b", "d"), Array(LONG, STRING, INT))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "sink2", retractSink2)
+
+    util.addTable(
+      s"""
+         |CREATE TABLE sink(
+         |  `id` INT,
+         |  `name` STRING,
+         |  `age` BIGINT,
+         |   primary key (id) not enforced
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false'
+         |)
+         |""".stripMargin)
+
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(
       """
-        |INSERT INTO sink1
+        |INSERT INTO sink
         |SELECT * FROM v1
         |""".stripMargin)
     stmtSet.addInsertSql(
       """
-        |INSERT INTO sink2
-        |SELECT c, b, d FROM (
-        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY b ORDER BY d DESC) AS rn
-        |  FROM (
-        |     SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d
-        |     FROM v1 GROUP BY c, b
-        |  )
+        |INSERT INTO sink
+        |SELECT a, b, c FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
+        |  FROM v1
         |) WHERE rn < 3
         |""".stripMargin)
     util.verifyExecPlan(stmtSet)

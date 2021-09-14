@@ -1068,21 +1068,19 @@ Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, 
   <TestCase name="testUpdatableRankAfterIntermediateScan">
     <Resource name="ast">
       <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalAggregate(group=[{0}], b=[MAX($1)], c=[MIN($2)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[c, b, d])
-+- LogicalProject(c=[$0], b=[$1], d=[$2])
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[<($3, 3)])
-      +- LogicalProject(c=[$0], b=[$1], d=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0, 1}], d=[SUM($2) FILTER $3])
-            +- LogicalProject(c=[$2], b=[$1], a=[$0], $f3=[IS TRUE(>($0, 0))])
-               +- LogicalAggregate(group=[{0}], b=[MAX($1)], c=[MIN($2)])
-                  +- LogicalProject(a=[$0], b=[$1], c=[$2])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0}], b=[MAX($1)], c=[MIN($2)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1092,16 +1090,13 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b, MIN(c) AS c])(reuse_id=[1])
    +- Calc(select=[a, b, c])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[c, b, d])
-+- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[d DESC], select=[c, b, d])
-   +- Exchange(distribution=[hash[b]])
-      +- GroupAggregate(groupBy=[c, b], select=[c, b, SUM_RETRACT(a) FILTER $f3 AS d])
-         +- Exchange(distribution=[hash[c, b]])
-            +- Calc(select=[c, b, a, (a > 0) IS TRUE AS $f3])
-               +- Reused(reference_id=[1])
+Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
+   +- Exchange(distribution=[hash[a]])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
