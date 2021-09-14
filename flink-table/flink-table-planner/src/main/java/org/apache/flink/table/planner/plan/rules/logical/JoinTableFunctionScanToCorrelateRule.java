@@ -27,9 +27,6 @@ import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 /** Rule that rewrites Join on TableFunctionScan to Correlate. */
 public class JoinTableFunctionScanToCorrelateRule extends RelRule<RelRule.Config> {
 
-    public static final JoinTableFunctionScanToCorrelateRule INSTANCE =
-            new JoinTableFunctionScanToCorrelateRule();
-
     private static final Config RULE_CONFIG =
             Config.EMPTY
                     .withOperandSupplier(
@@ -43,6 +40,9 @@ public class JoinTableFunctionScanToCorrelateRule extends RelRule<RelRule.Config
                                                                                     .class)
                                                                     .noInputs()))
                     .withDescription("JoinTableFunctionScanToCorrelateRule");
+
+    public static final JoinTableFunctionScanToCorrelateRule INSTANCE =
+            new JoinTableFunctionScanToCorrelateRule();
 
     private JoinTableFunctionScanToCorrelateRule() {
         super(RULE_CONFIG);
