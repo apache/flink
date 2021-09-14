@@ -129,7 +129,7 @@ CREATE TABLE datagen (
       <td>可选</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Duration</td>
-      <td>随机生成器生成相对当前时间向过去偏移的最大值，适用于 Timestamp 类型.</td>
+      <td>随机生成器生成相对当前时间向过去偏移的最大值，适用于 timestamp 类型。</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>

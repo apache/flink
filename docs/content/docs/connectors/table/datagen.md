@@ -159,7 +159,7 @@ Types
             <td>random</td>
             <td>
                 Resolves a past timestamp relative to the current timestamp of the local machine.
-                The max past is specified by the 'max-past' option.
+                The max past can be specified by the 'max-past' option.
             </td>
         </tr>
         <tr>
@@ -167,7 +167,7 @@ Types
             <td>random</td>
             <td>
                 Resolves a past timestamp relative to the current timestamp of the local machine.
-                The max past is specified by the 'max-past' option.
+                The max past can be specified by the 'max-past' option.
             </td>
         </tr>
         <tr>
@@ -264,7 +264,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Duration</td>
-      <td>Maximum past of timestamp random generator， work for timestamp types.</td>
+      <td>Maximum past of timestamp random generator, only works for timestamp types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>
