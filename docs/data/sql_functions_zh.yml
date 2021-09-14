@@ -784,19 +784,23 @@ json:
       behavior for `ON EMPTY`, and raises an error for `ON ERROR`.
 
       ```
-      // STRING: "true"
+      -- "true"
       JSON_VALUE('{"a": true}', '$.a')
 
-      // BOOLEAN: true
+      -- TRUE
       JSON_VALUE('{"a": true}', '$.a' RETURNING BOOLEAN)
 
-      // STRING: "false"
+      -- "false"
       JSON_VALUE('{"a": true}', 'lax $.b'
           DEFAULT FALSE ON EMPTY)
 
-      // STRING: "false"
+      -- "false"
       JSON_VALUE('{"a": true}', 'strict $.b'
           DEFAULT FALSE ON ERROR)
+
+      -- 0.998D
+      JSON_VALUE('{"a.b": [0.998,0.996]}','$.["a.b"][0]' 
+          RETURNING DOUBLE)
       ```
   - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
     table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
@@ -819,6 +823,9 @@ json:
       JSON_QUERY('[1, 2]', '$')
       -- NULL
       JSON_QUERY(CAST(NULL AS STRING), '$')
+      -- '["c1","c2"]'
+      JSON_QUERY('{"a":[{"c":"c1"},{"c":"c2"}]}',
+          'lax $.a[*].c')
 
       -- Wrap result into an array
       -- '[{}]'
