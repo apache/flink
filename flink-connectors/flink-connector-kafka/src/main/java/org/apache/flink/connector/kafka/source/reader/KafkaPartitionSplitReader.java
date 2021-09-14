@@ -353,17 +353,19 @@ public class KafkaPartitionSplitReader<T>
             Set<TopicPartition> partitionsStoppingAtCommitted) {
         Map<TopicPartition, Long> endOffset = consumer.endOffsets(partitionsStoppingAtLatest);
         stoppingOffsets.putAll(endOffset);
-        consumer.committed(partitionsStoppingAtCommitted)
-                .forEach(
-                        (tp, offsetAndMetadata) -> {
-                            Preconditions.checkNotNull(
-                                    offsetAndMetadata,
-                                    String.format(
-                                            "Partition %s should stop at committed offset. "
-                                                    + "But there is no committed offset of this partition for group %s",
-                                            tp, groupId));
-                            stoppingOffsets.put(tp, offsetAndMetadata.offset());
-                        });
+        if (!partitionsStoppingAtCommitted.isEmpty()) {
+            consumer.committed(partitionsStoppingAtCommitted)
+                    .forEach(
+                            (tp, offsetAndMetadata) -> {
+                                Preconditions.checkNotNull(
+                                        offsetAndMetadata,
+                                        String.format(
+                                                "Partition %s should stop at committed offset. "
+                                                        + "But there is no committed offset of this partition for group %s",
+                                                tp, groupId));
+                                stoppingOffsets.put(tp, offsetAndMetadata.offset());
+                            });
+        }
     }
 
     private void removeEmptySplits() {
