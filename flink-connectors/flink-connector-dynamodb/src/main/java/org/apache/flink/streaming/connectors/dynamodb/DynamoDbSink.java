@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.dynamodb.config.ProducerType;
+import org.apache.flink.streaming.connectors.dynamodb.config.RestartPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.util.AwsV2Util;
 import org.apache.flink.streaming.connectors.dynamodb.util.TimeoutLatch;
 import org.apache.flink.util.InstantiationUtil;
@@ -85,6 +86,15 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
 
     private int batchSize = 25;
 
+    /**
+     * Restart policy modifies behaviour of the producer if it has failed while scheduling or
+     * completing tasks.
+     */
+    private RestartPolicy restartPolicy = RestartPolicy.Shutdown;
+
+    /** User defined action on how to handle failed dynamodb write requests. */
+    private final WriteRequestFailureHandler failureHandler;
+
     /** Counts how often we have to wait for KPL because we are above the queue limit. */
     private transient Counter backpressureCycles;
 
@@ -94,24 +104,27 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     /** Field for async exception. */
     private transient volatile Throwable thrownException;
 
-    /** The DynamoDb Producer builder. */
-    private transient DynamoDbProducerBuilder dynamoDbProducerBuilder;
-
     /** DynamoDb Client created by AWS2Util. */
     private transient DynamoDbClient client;
 
     private transient DynamoDbProducer producer;
 
-    public DynamoDbSink(DynamoDbSinkFunction<IN> dynamoDBSinkFunction, Properties configProps) {
+    public DynamoDbSink(
+            DynamoDbSinkFunction<IN> dynamoDBSinkFunction,
+            Properties configProps,
+            WriteRequestFailureHandler failureHandler) {
         checkNotNull(configProps, "configProps can not be null");
         this.configProps = configProps;
         checkNotNull(dynamoDBSinkFunction, "DynamoDB sink function cannot be null");
         this.dynamoDBSinkFunction = dynamoDBSinkFunction;
+
+        checkNotNull(failureHandler, "WriteRequestFailureHandler must be set");
+        this.failureHandler = failureHandler;
+
         // we eagerly check if the user-provided sink function is serializable;
         // otherwise, if it isn't serializable, users will merely get a non-informative error
         // message
         // "DynamoDBSink is not serializable"
-
         checkArgument(
                 InstantiationUtil.isSerializable(dynamoDBSinkFunction),
                 "The implementation of the provided DynamoDBSinkFunction is not serializable. "
@@ -119,13 +132,29 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     }
 
     /**
+     * Constructs DynamoDB Sink with the default WriteRequestFailure header which rethrows errors
+     * that occurs during the write request processing.
+     */
+    public DynamoDbSink(DynamoDbSinkFunction<IN> dynamoDBSinkFunction, Properties configProps) {
+        this(dynamoDBSinkFunction, configProps, new DefaultFailureHandler());
+    }
+
+    /**
      * If set to true, the producer will immediately fail with an exception on any error. Otherwise,
-     * the errors are logged and the producer goes on.
+     * the failed request is handled by the user provided WriteRequestFailureHandler.
      *
      * @param failOnError Error behavior flag
      */
     public void setFailOnError(boolean failOnError) {
         this.failOnError = failOnError;
+    }
+
+    /**
+     * Restart policy modifies behaviour of the producer if it has failed while scheduling or
+     * completing tasks.
+     */
+    public void setRestartPolicy(RestartPolicy policy) {
+        this.restartPolicy = policy;
     }
 
     /**
@@ -225,23 +254,20 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
                 .setQueueLimit(queueLimit)
                 .setListener(listener)
                 .setBatchSize(batchSize)
+                .setRestartPolicy(restartPolicy)
                 .build();
     }
 
     /** Check if there are any asynchronous exceptions. If so, rethrow the exception. */
     private void checkAndPropagateAsyncError() throws Exception {
         if (thrownException != null) {
-            String errorMessages = "";
             if (failOnError) {
                 throw new RuntimeException(
-                        "An exception was thrown while processing a record: " + errorMessages,
-                        thrownException);
+                        "An exception was thrown while processing a record.", thrownException);
             } else {
                 LOG.warn(
-                        "An exception was thrown while processing a record: {}.",
-                        errorMessages,
+                        "An exception was thrown while processing a record. Producer won't stop writing, as FailOnError was false",
                         thrownException);
-
                 // reset, prevent double throwing
                 thrownException = null;
             }
@@ -275,7 +301,7 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         return attempt > 0;
     }
 
-    /** releases the block on flushing if an interruption occurred. */
+    /** Releases the block on flushing if an interruption occurred. */
     private void flushSync() throws Exception {
         while (producer.getOutstandingRecordsCount() > 0) {
             producer.flush();
@@ -291,20 +317,20 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     private class DynamoDbProducerListener implements DynamoDbProducer.Listener {
 
         @Override
-        public void beforeWrite(String executionId, ProducerWriteRequest request) {}
+        public void beforeWrite(String executionId, ProducerWriteRequest request) {
+            LOG.debug("Start writing request: {}", request);
+        }
 
         @Override
         public void afterWrite(
                 String executionId, ProducerWriteRequest request, ProducerWriteResponse response) {
             backpressureLatch.trigger();
             if (!response.isSuccessful()) {
-                if (failOnError) {
-                    // only remember the first thrown exception
-                    if (thrownException == null) {
-                        thrownException = new RuntimeException("Batch insert failed");
-                    }
-                } else {
-                    LOG.warn("Batch insert failed");
+                try {
+                    failureHandler.onFailure(request, response);
+                } catch (Throwable throwable) {
+                    LOG.debug("Write request filed for execution id {}", executionId);
+                    thrownException = throwable;
                 }
             }
         }
@@ -313,11 +339,32 @@ public class DynamoDbSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         public void afterWrite(
                 String executionId, ProducerWriteRequest request, Throwable failure) {
             backpressureLatch.trigger();
-            if (failOnError) {
-                thrownException = failure;
-            } else {
-                LOG.warn("An exception occurred while processing a batch", failure);
+            try {
+                failureHandler.onFailure(request, failure);
+            } catch (Throwable throwable) {
+                LOG.debug("Write request filed for execution id {}", executionId);
+                thrownException = throwable;
             }
+        }
+    }
+
+    /**
+     * This implementation of failure handler is used if user didn't provide own implementation to
+     * process failed write requests.
+     */
+    private static class DefaultFailureHandler implements WriteRequestFailureHandler {
+
+        @Override
+        public void onFailure(ProducerWriteRequest request, Throwable failure) throws Throwable {
+            LOG.error("Write request failed", failure);
+            throw new Exception(failure);
+        }
+
+        @Override
+        public void onFailure(ProducerWriteRequest request, ProducerWriteResponse response)
+                throws Throwable {
+            LOG.error("Write request failed", response.getException());
+            throw new Exception(response.getException());
         }
     }
 }

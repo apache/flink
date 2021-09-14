@@ -37,14 +37,14 @@ import java.io.Serializable;
  * 				private static class TestDynamoDBSinkFunction implements
  * 					DynamoDBSinkFunction<Tuple2<Integer, String>> {
  *
- * 				public WriteRequest createWriteRequest(Tuple2<Integer, String> element) {
+ * 				public PutItemRequest createPutItemRequest(Tuple2<Integer, String> element) {
  *   					Map<String, AttributeValue> item = new HashMap<>();
- *   					item.put("data", new AttributeValue().withS(element.f1));
- *   				    return PutRequest.builder().item(item);
+ *   					item.put("data", AttributeValue.build().s(element.f1).build());
+ *   				    return PutItemRequest.builder().item(item).build();
  *              }
  *
  * 			public void process(Tuple2<Integer, String> value, RuntimeContext ctx, DynamoDbProducer dynamoDbProducer) {
- * 				dynamoDbProducer.produce(createWriteRequest(value));
+ * 				dynamoDbProducer.produce(createPutItemRequest(value));
  * 			}
  * 	}
  *

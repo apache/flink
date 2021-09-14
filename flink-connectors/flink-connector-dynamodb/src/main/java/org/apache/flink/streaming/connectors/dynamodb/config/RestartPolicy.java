@@ -28,7 +28,7 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public enum RestartPolicy {
     Restart,
-    FailOnError;
+    Shutdown;
 
     RestartPolicy() {}
 }

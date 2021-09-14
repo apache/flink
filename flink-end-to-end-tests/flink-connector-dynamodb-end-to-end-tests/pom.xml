@@ -33,8 +33,11 @@ under the License.
 	<name>Flink : E2E Tests : Connectors : DynamoDb</name>
 	<packaging>jar</packaging>
 
-	<dependencies>
+	<properties>
+		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
+	</properties>
 
+	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
@@ -57,6 +60,13 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+			<version>${aws.sdkv2.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
 			<scope>test</scope>
@@ -73,25 +83,5 @@ under the License.
 			<version>1.15.1</version>
 			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpcore</artifactId>
-				<version>4.4.11</version>
-			</dependency>
-
-
-		</dependencies>
-	</dependencyManagement>
-
 </project>

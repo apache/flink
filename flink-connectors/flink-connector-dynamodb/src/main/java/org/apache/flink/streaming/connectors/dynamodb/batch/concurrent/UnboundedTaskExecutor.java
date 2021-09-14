@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Unbounded task executor with unbounded internal queue. We do not want the internal quque to be
+ * Unbounded task executor with unbounded internal queue. We do not want the internal queue to be
  * bounded as we would like to avoid rejections of the tasks. Throttling is controlled outside of
  * the executor.
  */
