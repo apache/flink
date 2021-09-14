@@ -214,4 +214,9 @@ public class KafkaSource<OUT>
         props.stringPropertyNames().forEach(key -> config.setString(key, props.getProperty(key)));
         return config;
     }
+
+    @VisibleForTesting
+    Configuration getConfiguration() {
+        return toConfiguration(props);
+    }
 }
