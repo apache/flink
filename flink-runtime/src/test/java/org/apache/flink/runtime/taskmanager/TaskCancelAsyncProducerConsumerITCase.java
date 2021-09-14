@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -179,7 +180,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
         // Verify the expected Exceptions
         assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
 
         assertNotNull(ASYNC_CONSUMER_EXCEPTION);
         assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());

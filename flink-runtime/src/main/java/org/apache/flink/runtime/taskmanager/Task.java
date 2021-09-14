@@ -108,12 +108,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
@@ -1223,14 +1220,7 @@ public class Task
                         // The canceller calls cancel and interrupts the executing thread once
                         Runnable canceler =
                                 new TaskCanceler(
-                                        LOG,
-                                        taskCancellationTimeout > 0
-                                                ? taskCancellationTimeout
-                                                : TaskManagerOptions.TASK_CANCELLATION_TIMEOUT
-                                                        .defaultValue(),
-                                        invokable,
-                                        executingThread,
-                                        taskNameWithSubtask);
+                                        LOG, invokable, executingThread, taskNameWithSubtask);
 
                         Thread cancelThread =
                                 new Thread(
@@ -1636,21 +1626,12 @@ public class Task
     private class TaskCanceler implements Runnable {
 
         private final Logger logger;
-        /** Time to wait after cancellation and interruption before releasing network resources. */
-        private final long taskCancellationTimeout;
-
         private final TaskInvokable invokable;
         private final Thread executer;
         private final String taskName;
 
-        TaskCanceler(
-                Logger logger,
-                long taskCancellationTimeout,
-                TaskInvokable invokable,
-                Thread executer,
-                String taskName) {
+        TaskCanceler(Logger logger, TaskInvokable invokable, Thread executer, String taskName) {
             this.logger = logger;
-            this.taskCancellationTimeout = taskCancellationTimeout;
             this.invokable = invokable;
             this.executer = executer;
             this.taskName = taskName;
@@ -1662,15 +1643,7 @@ public class Task
                 // the user-defined cancel method may throw errors.
                 // we need do continue despite that
                 try {
-                    Future<Void> cancellationFuture = invokable.cancel();
-                    // Wait for any active actions to complete (e.g. timers, mailbox actions)
-                    // Before that, interrupt to notify them about cancellation
-                    invokable.maybeInterruptOnCancel(executer, null, null);
-                    try {
-                        cancellationFuture.get(taskCancellationTimeout, TimeUnit.MILLISECONDS);
-                    } catch (ExecutionException | TimeoutException | InterruptedException e) {
-                        logger.debug("Error while waiting the task to terminate {}.", taskName, e);
-                    }
+                    invokable.cancel();
                 } catch (Throwable t) {
                     ExceptionUtils.rethrowIfFatalError(t);
                     logger.error("Error while canceling the task {}.", taskName, t);
@@ -1687,6 +1660,7 @@ public class Task
                 failAllResultPartitions();
                 closeAllInputGates();
 
+                invokable.maybeInterruptOnCancel(executer, null, null);
             } catch (Throwable t) {
                 ExceptionUtils.rethrowIfFatalError(t);
                 logger.error("Error in the task canceler for task {}.", taskName, t);
