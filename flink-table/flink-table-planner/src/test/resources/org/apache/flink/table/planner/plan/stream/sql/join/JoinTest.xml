@@ -16,6 +16,80 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testDependentConditionDerivationInnerJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND b2 = 2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$3])
++- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), AND(=($1, 2), =($4, 2)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR ((a2 = 2:BIGINT) AND (b2 = 2:BIGINT)))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR (a2 = 2:BIGINT))])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[b1, b2], where=[((b1 = 1) OR (b2 = 2:BIGINT))])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDependentConditionDerivationInnerJoinWithNull">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t JOIN s ON (a = 1 AND x = 1) OR (a = 2 AND y is null)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4], z=[$5])
++- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), AND(=($0, 2), IS NULL($4)))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1:BIGINT)) OR ((a = 2) AND y IS NULL))], select=[a, b, c, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[single])
+:  +- Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 2])])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[single])
+   +- Calc(select=[x, y, z], where=[(y IS NULL OR (x = 1:BIGINT))])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDependentConditionDerivationInnerJoinWithTrue">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND true)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$3])
++- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), SEARCH($1, Sarg[2L:BIGINT]:BIGINT))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1, b1])
++- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR SEARCH(a2, Sarg[2L:BIGINT]:BIGINT))], select=[a1, a2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[single])
+   :  +- Calc(select=[a1, a2], where=[((a1 = 1) OR SEARCH(a2, Sarg[2L:BIGINT]:BIGINT))])
+   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[b1])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFullJoin">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1]]>

@@ -33,6 +33,21 @@ class JoinTest extends TableTestBase {
   util.addTableSource[(Long, String, Int)]("s", 'x, 'y, 'z)
 
   @Test
+  def testDependentConditionDerivationInnerJoin: Unit = {
+    util.verifyExecPlan("SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND b2 = 2)")
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithTrue: Unit = {
+    util.verifyExecPlan("SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND true)")
+  }
+
+  @Test
+  def testDependentConditionDerivationInnerJoinWithNull: Unit = {
+    util.verifyExecPlan("SELECT * FROM t JOIN s ON (a = 1 AND x = 1) OR (a = 2 AND y is null)")
+  }
+
+  @Test
   def testInnerJoin(): Unit = {
     util.verifyExecPlan("SELECT a1, b1 FROM A JOIN B ON a1 = b1")
   }
