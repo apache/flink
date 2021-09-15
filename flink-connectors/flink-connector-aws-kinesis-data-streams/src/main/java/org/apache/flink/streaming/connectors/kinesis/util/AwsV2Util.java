@@ -34,6 +34,7 @@ import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsPr
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
 import software.amazon.awssdk.http.Protocol;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
@@ -46,6 +47,7 @@ import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceed
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.utils.AttributeMap;
 
 import java.net.URI;
 import java.nio.file.Paths;
@@ -55,6 +57,8 @@ import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_HTTP_PROTOCOL;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_TRUST_ALL_CERTIFICATES;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.NONE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
@@ -110,6 +114,20 @@ public class AwsV2Util {
                         .map(Duration::ofMillis)
                         .orElse(DEFAULT_EFO_HTTP_CLIENT_READ_TIMEOUT);
 
+        boolean trustAllCerts =
+                Optional.ofNullable(
+                                consumerConfig.getProperty(
+                                        AWSConfigConstants.TRUST_ALL_CERTIFICATES))
+                        .map(Boolean::parseBoolean)
+                        .orElse(DEFAULT_TRUST_ALL_CERTIFICATES);
+
+        Protocol httpProtocolVersion =
+                Optional.ofNullable(
+                                consumerConfig.getProperty(
+                                        AWSConfigConstants.HTTP_PROTOCOL_VERSION))
+                        .map(Protocol::valueOf)
+                        .orElse(DEFAULT_HTTP_PROTOCOL);
+
         httpClientBuilder
                 .maxConcurrency(maxConcurrency)
                 .connectionTimeout(Duration.ofMillis(config.getConnectionTimeout()))
@@ -118,7 +136,7 @@ public class AwsV2Util {
                 .writeTimeout(Duration.ofMillis(config.getSocketTimeout()))
                 .connectionMaxIdleTime(Duration.ofMillis(config.getConnectionMaxIdleMillis()))
                 .useIdleConnectionReaper(config.useReaper())
-                .protocol(Protocol.HTTP2)
+                .protocol(httpProtocolVersion)
                 .connectionAcquisitionTimeout(CONNECTION_ACQUISITION_TIMEOUT)
                 .http2Configuration(
                         Http2Configuration.builder()
@@ -130,7 +148,10 @@ public class AwsV2Util {
             httpClientBuilder.connectionTimeToLive(Duration.ofMillis(config.getConnectionTTL()));
         }
 
-        return httpClientBuilder.build();
+        return httpClientBuilder.buildWithDefaults(
+                AttributeMap.builder()
+                        .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, trustAllCerts)
+                        .build());
     }
 
     @VisibleForTesting
@@ -141,7 +162,7 @@ public class AwsV2Util {
         overrideConfigurationBuilder
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_PREFIX,
-                        AWSUtil.formatFlinkUserAgentPrefix())
+                        AWSGeneralUtil.formatFlinkUserAgentPrefix())
                 .putAdvancedOption(
                         SdkAdvancedClientOption.USER_AGENT_SUFFIX, config.getUserAgentSuffix());
 
@@ -193,7 +214,7 @@ public class AwsV2Util {
     private static AwsCredentialsProvider getCredentialsProvider(
             final Properties configProps, final String configPrefix) {
         CredentialProvider credentialProviderType =
-                AWSUtil.getCredentialProviderType(configProps, configPrefix);
+                AWSGeneralUtil.getCredentialProviderType(configProps, configPrefix);
 
         switch (credentialProviderType) {
             case ENV_VAR:
