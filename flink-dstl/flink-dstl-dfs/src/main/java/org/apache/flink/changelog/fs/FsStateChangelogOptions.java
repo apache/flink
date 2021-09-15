@@ -18,7 +18,6 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -29,7 +28,6 @@ import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingO
 
 /** {@link ConfigOptions} for {@link FsStateChangelogStorage}. */
 @Experimental
-@Documentation.ExcludeFromDocumentation("ChangelogBackend is under development")
 public class FsStateChangelogOptions {
 
     public static final ConfigOption<String> BASE_PATH =
