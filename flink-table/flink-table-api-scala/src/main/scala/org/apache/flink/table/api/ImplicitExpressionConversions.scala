@@ -727,15 +727,20 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Coalesce specifies a series of expressions, and returns the first expression whose value is
-   * not null. If all the expressions evaluate as null, coalesce returns a null value. The return
-   * type of the coalesce function is the least common type among its arguments, and it's nullable
-   * if all its arguments are nullable.
+   * Returns the first argument that is not NULL.
    *
-   * e.g. coalesce(null, "-") returns "-".
+   * If all arguments are NULL, it returns NULL as well. The return type is the least
+   * restrictive, common type of all of its arguments. The return type is nullable if all
+   * arguments are nullable as well.
    *
-   * e.g. coalesce($"f0", $"f1", "-") returns the first non-null value among f0 and f1, if both
-   * are null returns "-".
+   * Examples:
+   * {{{
+   * // Returns "default"
+   * coalesce(null, "default")
+   *
+   * // Returns the first non-null value among f0 and f1, or "default" if f0 and f1 are both null
+   * coalesce($"f0", $"f1", "default")
+   * }}}
    *
    * @param args the input expressions.
    */

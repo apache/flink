@@ -23,6 +23,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -32,7 +33,7 @@ import java.util.stream.IntStream;
 
 /**
  * A type strategy that can be used to make a result type nullable if any or all of the selected
- * input arguments is nullable. Otherwise the type will be not null.
+ * input arguments are nullable. Otherwise the type will be not null.
  */
 @Internal
 public final class NullableIfArgsTypeStrategy implements TypeStrategy {
@@ -80,18 +81,14 @@ public final class NullableIfArgsTypeStrategy implements TypeStrategy {
                                 isNullableArgument =
                                         IntStream.range(fromArg, toArg)
                                                 .mapToObj(argumentDataTypes::get)
-                                                .allMatch(
-                                                        dataType ->
-                                                                dataType.getLogicalType()
-                                                                        .isNullable());
+                                                .map(DataType::getLogicalType)
+                                                .allMatch(LogicalType::isNullable);
                             } else {
                                 isNullableArgument =
                                         IntStream.range(fromArg, toArg)
                                                 .mapToObj(argumentDataTypes::get)
-                                                .anyMatch(
-                                                        dataType ->
-                                                                dataType.getLogicalType()
-                                                                        .isNullable());
+                                                .map(DataType::getLogicalType)
+                                                .anyMatch(LogicalType::isNullable);
                             }
 
                             if (isNullableArgument) {

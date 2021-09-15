@@ -30,7 +30,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.coalesce;
 
-/** Test COALESCE and its return type. * */
+/** Test {@link BuiltInFunctionDefinitions#COALESCE} and its return type. */
 public class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
 
     @Parameterized.Parameters(name = "{index}: {0}")

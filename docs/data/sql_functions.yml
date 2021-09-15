@@ -515,15 +515,22 @@ conditional:
     description: Returns resultX when the first conditionX is met. When no condition is met, returns result_z if it is provided and returns NULL otherwise.
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
-  - sql: COALESCE(value1, value2 [, value3]*)
+  - sql: COALESCE(value1 [, value2]*)
+    table: coalesce(value1, [, value2]*)
     description: |
-      Coalesce specifies a series of expressions, and returns the first expression whose value is not null.
+      Returns the first argument that is not NULL.
 
-      If all the expressions evaluate as null, coalesce returns a null value.
-      The return type of the coalesce function is the least common type among its arguments, and it's nullable if all its arguments are nullable.
+      If all arguments are NULL, it returns NULL as well. The return type is the least restrictive, common type of all of its arguments.
+      The return type is nullable if all arguments are nullable as well.
 
-      E.g. COALESCE(NULL, "-") returns "-".
-      E.g. COALESCE(f0, f1, "-") returns the first non-null value among f0 and f1, if both are null returns "-".
+      ```
+      -- Returns 'default'
+      COALESCE(NULL, 'default')
+
+      -- Returns the first non-null value among f0 and f1,
+      -- or 'default' if f0 and f1 are both NULL
+      COALESCE(f0, f1, 'default')
+      ```
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)

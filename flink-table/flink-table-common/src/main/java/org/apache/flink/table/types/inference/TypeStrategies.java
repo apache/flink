@@ -107,7 +107,7 @@ public final class TypeStrategies {
 
     /**
      * A type strategy that can be used to make a result type nullable if all the selected input
-     * arguments is nullable. Otherwise the type will be not null.
+     * arguments are nullable. Otherwise the type will be non-nullable.
      */
     public static TypeStrategy nullableIfAllArgs(
             ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
