@@ -483,7 +483,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 SavepointWriter
-    .fromExistingSavepoint(env, new HashMapStateBackend(), oldPath)
+    .fromExistingSavepoint(oldPath, new HashMapStateBackend())
     .withOperator("uid", transformation)
     .write(newPath);
 ```
