@@ -478,7 +478,7 @@ Besides creating a savepoint from scratch, you can base one off an existing save
 
 ```java
 Savepoint
-    .load(bEnv, new HashMapStateBackend(), oldPath)
+    .load(bEnv, oldPath, new HashMapStateBackend())
     .withOperator("uid", transformation)
     .write(newPath);
 ```
