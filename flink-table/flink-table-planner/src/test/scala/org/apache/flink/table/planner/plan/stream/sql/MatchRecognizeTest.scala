@@ -50,10 +50,10 @@ class MatchRecognizeTest extends TableTestBase {
       """
         |CREATE TABLE Ticker1 (
         | `symbol` STRING,
-        | `ts_ltz` TIMESTAMP(3),
+        | `ts` TIMESTAMP(3),
         | `price` INT,
         | `tax` INT,
-        | WATERMARK FOR `ts_ltz` AS `ts_ltz` - INTERVAL '1' SECOND
+        | WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND
         |) WITH (
         | 'connector' = 'values'
         |)
@@ -70,7 +70,7 @@ class MatchRecognizeTest extends TableTestBase {
          |FROM Ticker1
          |MATCH_RECOGNIZE (
          |  PARTITION BY symbol
-         |  ORDER BY ts_ltz
+         |  ORDER BY ts
          |  MEASURES
          |    A.price as price,
          |    A.tax as tax,
@@ -224,9 +224,10 @@ class MatchRecognizeTest extends TableTestBase {
   @Test
   def testMatchRowtimeWithoutArgumentOnRowtimeLTZ(): Unit = {
     thrown.expectMessage(
-      "MATCH_ROWTIME() could only be used when input stream does not contain " +
-        "row time attribute with TIMESTAMP_LTZ type.\n" +
-        "Please pass rowtime attribute field as input argument of MATCH_ROWTIME function.")
+      "MATCH_ROWTIME(rowtimeField) should be used when input stream " +
+        "contains rowtime attribute with TIMESTAMP_LTZ type.\n" +
+        "Please pass rowtime attribute field as input argument of " +
+        "MATCH_ROWTIME(rowtimeField) function.")
     thrown.expect(classOf[AssertionError])
 
     val sqlQuery =
@@ -319,7 +320,8 @@ class MatchRecognizeTest extends TableTestBase {
   @Test
   def testMatchRowtimeWithRexCallAsArg(): Unit = {
     thrown.expectMessage(
-      "The function MATCH_ROWTIME requires argument to be a field reference, but is 'PLUS'.")
+      "The function MATCH_ROWTIME requires a field reference as argument, " +
+        "but actual argument is 'PLUS'.")
     thrown.expect(classOf[ValidationException])
 
     val sqlQuery =

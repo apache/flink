@@ -33,14 +33,13 @@ import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import java.util.List;
 
 /**
- * Function used to access an row time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
- * MATCH_RECOGNIZE. The function could receive no operand or one operand which is a field reference
- * with row time attribute. If there is no operand, the function returns row time attribute with
- * TIMESTAMP. Else, return type is same with operand type.
+ * The function used to access a rowtime attribute with TIMESTAMP or TIMESTAMP_LTZ type from
+ * MATCH_RECOGNIZE clause. The function accepts zero or one operand which is a field reference with
+ * rowtime attribute. If there is no operand, the function will return rowtime attribute with
+ * TIMESTAMP type. Otherwise, the return type will be same with the operand type.
  */
 public class MatchRowTimeFunction extends SqlFunction {
 
-    /** Creates a window table function with a given name. */
     public MatchRowTimeFunction() {
         super(
                 "MATCH_ROWTIME",
@@ -53,7 +52,7 @@ public class MatchRowTimeFunction extends SqlFunction {
 
     @Override
     public String getAllowedSignatures(String opNameToUse) {
-        return "MATCH_ROWTIME([time attribute field])";
+        return "MATCH_ROWTIME([rowtime_field])";
     }
 
     @Override
@@ -86,7 +85,7 @@ public class MatchRowTimeFunction extends SqlFunction {
                     ValidationException exception =
                             new ValidationException(
                                     String.format(
-                                            "The function %s requires argument to be a field reference, but is '%s'.",
+                                            "The function %s requires a field reference as argument, but actual argument is '%s'.",
                                             callBinding.getOperator().getName(),
                                             operand.getKind()));
                     throw exception;
@@ -114,7 +113,7 @@ public class MatchRowTimeFunction extends SqlFunction {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        // Returns RowTime if there is no argument
+        // Returns rowtime if there is no argument
         if (opBinding.getOperandCount() == 0) {
             final FlinkTypeFactory typeFactory = (FlinkTypeFactory) opBinding.getTypeFactory();
             return typeFactory.createRowtimeIndicatorType(false, false);

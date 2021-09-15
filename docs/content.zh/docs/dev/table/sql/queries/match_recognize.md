@@ -930,11 +930,12 @@ FROM Ticker
   <tbody>
     <tr>
       <td>
-        <code>MATCH_ROWTIME()</code><br/>
+        <code>MATCH_ROWTIME([rowtime_field])</code><br/>
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>函数可以没有入参，这种情况下函数返回结果是 TIMESTAMP 类型且具有事件时间属性；也可以有一个入参，这个参数值必须是 TIMESTAMP 类型或者 TIMESTAMP_LTZ 类型，且必须有事件时间属性，这种情况下函数返回结果的数据类型和输入参数的一致，且必须有事件时间属性。</p>
+        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">事件时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>
