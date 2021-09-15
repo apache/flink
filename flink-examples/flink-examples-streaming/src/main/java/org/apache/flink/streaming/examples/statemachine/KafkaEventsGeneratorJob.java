@@ -24,7 +24,7 @@ import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
-import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializer;
+import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
 
 /**
  * Job to generate input events that are written to Kafka, for the {@link StateMachineExample} job.
@@ -55,7 +55,7 @@ public class KafkaEventsGeneratorJob {
                                 .setRecordSerializer(
                                         KafkaRecordSerializationSchema.builder()
                                                 .setValueSerializationSchema(
-                                                        new EventDeSerializer())
+                                                        new EventDeSerializationSchema())
                                                 .setTopic(kafkaTopic)
                                                 .build())
                                 .build());
