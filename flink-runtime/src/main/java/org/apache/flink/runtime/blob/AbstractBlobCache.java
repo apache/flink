@@ -157,7 +157,6 @@ public abstract class AbstractBlobCache implements Closeable {
 
                     if (currentServerAddress != null) {
                         log.info("Downloading file from blob server.");
-                        // fallback: download from the BlobServer
                         BlobClient.downloadFromBlobServer(
                                 jobId,
                                 blobKey,
