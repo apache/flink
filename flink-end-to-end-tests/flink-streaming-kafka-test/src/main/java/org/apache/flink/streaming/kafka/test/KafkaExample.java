@@ -18,16 +18,18 @@
 package org.apache.flink.streaming.kafka.test;
 
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.kafka.test.base.CustomWatermarkExtractor;
 import org.apache.flink.streaming.kafka.test.base.KafkaEvent;
 import org.apache.flink.streaming.kafka.test.base.KafkaEventSchema;
 import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
 import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
+
+import org.apache.kafka.clients.producer.ProducerConfig;
 
 /**
  * A simple example that shows how to read from and write to modern Kafka. This will read String
@@ -60,12 +62,18 @@ public class KafkaExample extends KafkaExampleUtil {
                         .keyBy("word")
                         .map(new RollingAdditionMapper());
 
-        input.addSink(
-                new FlinkKafkaProducer<>(
-                        parameterTool.getRequired("output-topic"),
-                        new KeyedSerializationSchemaWrapper<>(new KafkaEventSchema()),
-                        parameterTool.getProperties(),
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+        input.sinkTo(
+                KafkaSink.<KafkaEvent>builder()
+                        .setBootstrapServers(
+                                parameterTool
+                                        .getProperties()
+                                        .getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG))
+                        .setRecordSerializer(
+                                KafkaRecordSerializationSchema.builder()
+                                        .setTopic(parameterTool.getRequired("output-topic"))
+                                        .setValueSerializationSchema(new KafkaEventSchema())
+                                        .build())
+                        .build());
 
         env.execute("Modern Kafka Example");
     }
