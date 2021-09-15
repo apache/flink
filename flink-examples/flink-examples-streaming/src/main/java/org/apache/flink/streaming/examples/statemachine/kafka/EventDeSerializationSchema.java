@@ -29,7 +29,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /** A serializer and deserializer for the {@link Event} type. */
-public class EventDeSerializer implements DeserializationSchema<Event>, SerializationSchema<Event> {
+public class EventDeSerializationSchema
+        implements DeserializationSchema<Event>, SerializationSchema<Event> {
 
     private static final long serialVersionUID = 1L;
 
